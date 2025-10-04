@@ -1,0 +1,6 @@
+{
+  "entity.traveller.hurt1": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt1" }] },
+  "entity.traveller.hurt2": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt2" }] },
+  "entity.traveller.hurt3": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt3" }] },
+  "entity.traveller.hurt_rare": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt_rare" }] }
+}

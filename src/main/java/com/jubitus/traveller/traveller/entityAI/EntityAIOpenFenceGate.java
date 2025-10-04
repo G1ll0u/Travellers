@@ -12,14 +12,12 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 public class EntityAIOpenFenceGate extends EntityAIBase {
-    private final EntityTraveller entity;
-
-    // gates we’ve opened recently -> ticks remaining before auto-close
-    private final java.util.Map<BlockPos, Integer> openTimers = new java.util.HashMap<>();
-
     private static final int SCAN_RADIUS = 1;   // 1 = 3x3 around XZ; bump to 2 if you want more reach
     private static final int OPEN_TIME = 20;  // keep open at least 1s
     private static final double KEEP_OPEN_RADIUS = 1.0; // if any living is within this, keep open
+    private final EntityTraveller entity;
+    // gates we’ve opened recently -> ticks remaining before auto-close
+    private final java.util.Map<BlockPos, Integer> openTimers = new java.util.HashMap<>();
 
     public EntityAIOpenFenceGate(EntityTraveller entity) {
         this.entity = entity;

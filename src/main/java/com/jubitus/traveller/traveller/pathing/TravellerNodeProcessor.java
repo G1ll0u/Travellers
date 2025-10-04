@@ -1,6 +1,6 @@
 package com.jubitus.traveller.traveller.pathing;
 
-import net.minecraft.block.*;
+import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.pathfinding.PathNodeType;
@@ -28,43 +28,30 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     }
 
     @Override
-    protected PathNodeType getPathNodeTypeRaw(IBlockAccess worldIn, int x, int y, int z) {
-        PathNodeType base = super.getPathNodeTypeRaw(worldIn, x, y, z);
-
-        BlockPos pos = new BlockPos(x, y, z);
-        IBlockState state = worldIn.getBlockState(pos);
-        Block block = state.getBlock();
-
-        // Reclassify fence gates for path planning:
-        if (block instanceof BlockFenceGate) {
-            boolean open = state.getValue(BlockFenceGate.OPEN);
-            return open ? PathNodeType.DOOR_OPEN : PathNodeType.DOOR_WOOD_CLOSED;
-        }
-
-        // (Optional) if your mappings return FENCE for gates, keep this:
-        if (base == PathNodeType.FENCE && block instanceof BlockFenceGate) {
-            boolean open = state.getValue(BlockFenceGate.OPEN);
-            return open ? PathNodeType.DOOR_OPEN : PathNodeType.DOOR_WOOD_CLOSED;
-        }
-
-        return base;
-    }
-    @Override
     public int findPathOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
         int count = super.findPathOptions(options, current, target, maxDistance);
 
-        // 1) keep our "no illegal diagonals"
+        // 1) forbid illegal diagonals (your code) AND forbid lilypads as supports
         for (int i = 0; i < count; i++) {
             PathPoint p = options[i];
             if (p == null) continue;
 
+            // diagonal squeeze check
             int dx = p.x - current.x;
             int dz = p.z - current.z;
             if (dx != 0 && dz != 0) {
                 if (!isTwoHighWalkable(current.x + dx, current.y, current.z)
                         || !isTwoHighWalkable(current.x, current.y, current.z + dz)) {
                     options[i] = null;
+                    continue;
                 }
+            }
+
+            // hard-ban lilypad underfoot
+            BlockPos feet = new BlockPos(p.x, p.y, p.z);
+            Block under = this.blockaccess.getBlockState(feet.down()).getBlock();
+            if (under == net.minecraft.init.Blocks.WATERLILY || under instanceof net.minecraft.block.BlockLilyPad) {
+                options[i] = null;
             }
         }
 
@@ -72,23 +59,50 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         int w = 0;
         for (int i = 0; i < count; i++) if (options[i] != null) options[w++] = options[i];
 
-        // 3) BONUS: prefer millenaire:pathdirt underfoot (and near-by)
+        // 3) your path-dirt preference logic (unchanged), iterate to w
         for (int i = 0; i < w; i++) {
             PathPoint p = options[i];
             if (p == null) continue;
-
-            // feet are at (x, y, z); the block they will stand on is below
             BlockPos feet = new BlockPos(p.x, p.y, p.z);
             if (isPathPreferred(feet)) {
-                // subtract a little cost so A* prefers this step
-                // vanilla maluses are usually 0..8; -0.75 is a gentle “attraction”
                 p.costMalus = Math.min(p.costMalus, p.costMalus - 0.75f);
             } else if (isPathNearby(feet)) {
-                // mild bias if we're adjacent to a path, helps “snap” to it
                 p.costMalus = Math.min(p.costMalus, p.costMalus - 0.35f);
             }
         }
         return w;
+    }
+
+    @Override
+    protected PathNodeType getPathNodeTypeRaw(IBlockAccess worldIn, int x, int y, int z) {
+        // --- HARD BLOCK lily pads (never stand on them, never plan through them)
+        BlockPos pos = new BlockPos(x, y, z);
+        IBlockState state = worldIn.getBlockState(pos);
+        Block block = state.getBlock();
+
+        // direct lilypad at feet
+        if (block == net.minecraft.init.Blocks.WATERLILY || block instanceof net.minecraft.block.BlockLilyPad) {
+            return PathNodeType.BLOCKED;
+        }
+        // lilypad directly below the feet (standing on it)
+        IBlockState below = worldIn.getBlockState(pos.down());
+        if (below.getBlock() == net.minecraft.init.Blocks.WATERLILY || below.getBlock() instanceof net.minecraft.block.BlockLilyPad) {
+            return PathNodeType.BLOCKED;
+        }
+
+        PathNodeType base = super.getPathNodeTypeRaw(worldIn, x, y, z);
+
+        // Reclassify fence gates for path planning:
+        if (block instanceof net.minecraft.block.BlockFenceGate) {
+            boolean open = state.getValue(net.minecraft.block.BlockFenceGate.OPEN);
+            return open ? PathNodeType.DOOR_OPEN : PathNodeType.DOOR_WOOD_CLOSED;
+        }
+        if (base == PathNodeType.FENCE && block instanceof net.minecraft.block.BlockFenceGate) {
+            boolean open = state.getValue(net.minecraft.block.BlockFenceGate.OPEN);
+            return open ? PathNodeType.DOOR_OPEN : PathNodeType.DOOR_WOOD_CLOSED;
+        }
+
+        return base;
     }
 
     private boolean isTwoHighWalkable(int x, int y, int z) {
@@ -115,4 +129,5 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         return false;
     }
+
 }
