@@ -20,7 +20,7 @@ This traveller entity simply travels from villages to villages to improve immers
 - Configurable values like health or attack damage
 
 ### Aesthetic
-- They will tell you what they do when you right click them
+- They will tell you what they do when you right click on them
 - 7 textures available and randomly assigned at spawn.
 
 Traveller has a lot of config tweaks to customize health, time to stay in village, how much chance it has to start follow each others when they meet,  etc.
@@ -32,15 +32,3 @@ There is also a mob blacklist. Entities on this list won't ever attack traveller
         minecraft:creeper
      >
 ```
-
-
-### Current limitations
-- They sometimes get stuck in a "detour loop" if a too big obstacle separates the traveller from its target village. To mitigate that, I made the traveller able to know it's stuck and try a detour but if the obstacle is too large, it will do a "detour loop"
-- Fighting has to be improved, they are bad managing multiple enemies.
-
-### Things probably going to be improved
-- Textures
-- Pathfinding (the biggest part of this mod)
-- Combat
-- Animations (only swingArm animation works for sword hit)
-- Mod compat

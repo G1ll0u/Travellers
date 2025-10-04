@@ -1,4 +1,4 @@
-package com.jubitus.traveller.traveller.utils;
+package com.jubitus.traveller.traveller.utils.villages;
 
 import com.jubitus.traveller.TravellersModConfig;
 import net.minecraft.util.math.BlockPos;
@@ -13,44 +13,14 @@ import java.util.Map;
 
 public final class MillenaireVillageDirectory {
 
-    public static final class Entry {
-        public final String name;
-        public final BlockPos pos;     // center from txt
-        public final String type;
-        public final String culture;
-        public final boolean isVillage;
-        Entry(String name, BlockPos pos, String type, String culture, boolean isVillage) {
-            this.name = name; this.pos = pos; this.type = type; this.culture = culture; this.isVillage = isVillage;
-        }
-    }
-
     private static final Map<BlockPos, Entry> BY_POS = new HashMap<>();
     private static volatile boolean loaded = false;
     private static long villagesMTime = 0L;
     private static long loneMTime = 0L;
 
-    private static File villagesTxt(File folder)     { return new File(folder, "villages.txt"); }
-    private static File lonebuildingsTxt(File folder){ return new File(folder, "lonebuildings.txt"); }
-
     public static synchronized void load(File millenaireFolder) {
         if (millenaireFolder == null) return;
         if (loaded) return;
-        doLoad(millenaireFolder);
-    }
-
-    public static synchronized void reloadIfStale(File millenaireFolder) {
-        if (millenaireFolder == null) return;
-        File v = villagesTxt(millenaireFolder);
-        File l = lonebuildingsTxt(millenaireFolder);
-        long vm = v.exists() ? v.lastModified() : 0L;
-        long lm = l.exists() ? l.lastModified() : 0L;
-        if (!loaded || vm != villagesMTime || lm != loneMTime) {
-            doLoad(millenaireFolder);
-        }
-    }
-
-    public static synchronized void forceReload(File millenaireFolder) {
-        if (millenaireFolder == null) return;
         doLoad(millenaireFolder);
     }
 
@@ -59,7 +29,7 @@ public final class MillenaireVillageDirectory {
         loadFile(villagesTxt(folder), true);
         loadFile(lonebuildingsTxt(folder), false);
         villagesMTime = villagesTxt(folder).exists() ? villagesTxt(folder).lastModified() : 0L;
-        loneMTime     = lonebuildingsTxt(folder).exists() ? lonebuildingsTxt(folder).lastModified() : 0L;
+        loneMTime = lonebuildingsTxt(folder).exists() ? lonebuildingsTxt(folder).lastModified() : 0L;
         loaded = true;
     }
 
@@ -90,21 +60,52 @@ public final class MillenaireVillageDirectory {
 
                 BY_POS.put(pos, new Entry(name, pos, type, culture, villageFlag));
             }
-        } catch (IOException ignored) { }
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static File villagesTxt(File folder) {
+        return new File(folder, "villages.txt");
+    }
+
+    private static File lonebuildingsTxt(File folder) {
+        return new File(folder, "lonebuildings.txt");
     }
 
     private static int parseIntSafe(String s) {
-        try { return Integer.parseInt(s.trim()); } catch (Exception e) { return 0; }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
-    // --- lookups ---
+    public static synchronized void reloadIfStale(File millenaireFolder) {
+        if (millenaireFolder == null) return;
+        File v = villagesTxt(millenaireFolder);
+        File l = lonebuildingsTxt(millenaireFolder);
+        long vm = v.exists() ? v.lastModified() : 0L;
+        long lm = l.exists() ? l.lastModified() : 0L;
+        if (!loaded || vm != villagesMTime || lm != loneMTime) {
+            doLoad(millenaireFolder);
+        }
+    }
+
+    public static synchronized void forceReload(File millenaireFolder) {
+        if (millenaireFolder == null) return;
+        doLoad(millenaireFolder);
+    }
 
     @Nullable
     public static Entry findExact(BlockPos pos) {
         return BY_POS.get(pos);
     }
 
-    /** Find nearest by 3D distance within a given RADIUS (in blocks). */
+    // --- lookups ---
+
+    /**
+     * Find nearest by 3D distance within a given RADIUS (in blocks).
+     */
     @Nullable
     public static Entry findNearest(BlockPos pos, int maxRadius) {
         long maxSq = (long) maxRadius * (long) maxRadius;
@@ -112,12 +113,17 @@ public final class MillenaireVillageDirectory {
         long bestD = Long.MAX_VALUE;
         for (Entry e : BY_POS.values()) {
             long d = (long) pos.distanceSq(e.pos);
-            if (d <= maxSq && d < bestD) { bestD = d; best = e; }
+            if (d <= maxSq && d < bestD) {
+                bestD = d;
+                best = e;
+            }
         }
         return best;
     }
 
-    /** 2D (XZ) nearest within radius — useful if Y differs a lot from the stored center. */
+    /**
+     * 2D (XZ) nearest within radius — useful if Y differs a lot from the stored center.
+     */
     @Nullable
     public static Entry findNearest2D(BlockPos pos, int maxRadius) {
         long maxSq = (long) maxRadius * (long) maxRadius;
@@ -128,29 +134,55 @@ public final class MillenaireVillageDirectory {
             int dx = e.pos.getX() - px;
             int dz = e.pos.getZ() - pz;
             long d = (long) dx * dx + (long) dz * dz;
-            if (d <= maxSq && d < bestD) { bestD = d; best = e; }
+            if (d <= maxSq && d < bestD) {
+                bestD = d;
+                best = e;
+            }
         }
         return best;
     }
 
-    /** All village centers parsed from txt (excludes lone buildings). */
+    /**
+     * All village centers parsed from txt (excludes lone buildings).
+     */
     public static List<BlockPos> getVillageCenters() {
         List<BlockPos> out = new ArrayList<>();
         for (Entry e : BY_POS.values()) if (e.isVillage) out.add(e.pos);
         return out;
     }
 
-    /** All centers (villages + lone buildings) if you ever need them. */
+    /**
+     * All centers (villages + lone buildings) if you ever need them.
+     */
     public static List<BlockPos> getAllCenters() {
         return new ArrayList<>(BY_POS.keySet());
     }
-    /** Returns the appropriate 'near' radius for this center (village vs lonebuilding). */
+
+    /**
+     * Returns the appropriate 'near' radius for this center (village vs lonebuilding).
+     */
     public static int nearRadiusFor(BlockPos center) {
         Entry e = BY_POS.get(center);
         if (e != null && !e.isVillage) {
             return TravellersModConfig.lonebuildingNear;   // lone building
         }
         return TravellersModConfig.villageNear;            // default to village
+    }
+
+    public static final class Entry {
+        public final String name;
+        public final BlockPos pos;     // center from txt
+        public final String type;
+        public final String culture;
+        public final boolean isVillage;
+
+        Entry(String name, BlockPos pos, String type, String culture, boolean isVillage) {
+            this.name = name;
+            this.pos = pos;
+            this.type = type;
+            this.culture = culture;
+            this.isVillage = isVillage;
+        }
     }
 }
 

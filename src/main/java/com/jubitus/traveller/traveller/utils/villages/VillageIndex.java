@@ -1,4 +1,4 @@
-package com.jubitus.traveller.traveller.utils;
+package com.jubitus.traveller.traveller.utils.villages;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -15,13 +15,9 @@ public final class VillageIndex {
     // How often we even look at disk (ms)
     private static final long CHECK_INTERVAL_MS = 2000L; // 2s
 
-    private static final class Cache {
-        volatile java.util.List<BlockPos> villages = java.util.Collections.emptyList();
-        volatile long lastCheckMs = 0L;
-        // we don’t duplicate mtimes here; MillenaireVillageDirectory tracks its own mtimes
-    }
-
-    /** Get current village centers for this world. Auto-refreshes when txt files change. */
+    /**
+     * Get current village centers for this world. Auto-refreshes when txt files change.
+     */
     public static java.util.List<BlockPos> getVillages(World world) {
         if (!(world instanceof WorldServer)) return java.util.Collections.emptyList();
         WorldServer ws = (WorldServer) world;
@@ -46,7 +42,9 @@ public final class VillageIndex {
         return cache.villages;
     }
 
-    /** Force a refresh right now (e.g., you know Millénaire wrote files this tick). */
+    /**
+     * Force a refresh right now (e.g., you know Millénaire wrote files this tick).
+     */
     public static void forceRefresh(World world) {
         if (!(world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) world;
@@ -62,16 +60,26 @@ public final class VillageIndex {
         cache.lastCheckMs = System.currentTimeMillis();
     }
 
-    /** Clear cache for this world (call on WorldEvent.Unload). */
+    /**
+     * Clear cache for this world (call on WorldEvent.Unload).
+     */
     public static void clear(World world) {
         if (world instanceof WorldServer) {
-            BY_DIM.remove(((WorldServer) world).provider.getDimension());
+            BY_DIM.remove(world.provider.getDimension());
         }
     }
 
-    /** Clear everything (e.g., on server stopping). */
+    /**
+     * Clear everything (e.g., on server stopping).
+     */
     public static void clearAll() {
         BY_DIM.clear();
+    }
+
+    private static final class Cache {
+        volatile java.util.List<BlockPos> villages = java.util.Collections.emptyList();
+        volatile long lastCheckMs = 0L;
+        // we don’t duplicate mtimes here; MillenaireVillageDirectory tracks its own mtimes
     }
 }
 

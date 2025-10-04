@@ -1,4 +1,4 @@
-package com.jubitus.traveller.traveller.utils;
+package com.jubitus.traveller.traveller.utils.mobs;
 
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
 import net.minecraft.entity.Entity;
@@ -50,8 +50,10 @@ public final class PlayerDefenseHandler {
             // Engage!
             t.setAttackTarget(attacker);
             t.setInCombat(true);  // your helper ensures ghost sword shows & eating cancels
+            t.rememberThreat(attacker, EntityTraveller.THREAT_FOR_SEE_ATTACK);
         }
     }
+
     @SubscribeEvent
     public static void onPlayerHurtsMob(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
         EntityLivingBase victim = event.getEntityLiving();
@@ -71,6 +73,7 @@ public final class PlayerDefenseHandler {
             if (!t.getEntitySenses().canSee(victim)) continue;
             t.setAttackTarget(victim);
             t.setInCombat(true);
+            t.rememberThreat(victim, EntityTraveller.THREAT_FOR_SEE_ATTACK);
         }
     }
 }

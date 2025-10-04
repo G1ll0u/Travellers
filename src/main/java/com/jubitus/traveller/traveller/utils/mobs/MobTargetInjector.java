@@ -1,4 +1,4 @@
-package com.jubitus.traveller.traveller.utils;
+package com.jubitus.traveller.traveller.utils.mobs;
 
 import com.jubitus.traveller.TravellersModConfig;
 import net.minecraft.entity.Entity;
@@ -29,7 +29,8 @@ public class MobTargetInjector {
                         mob, com.jubitus.traveller.traveller.entityAI.EntityTraveller.class,
                         10, true, false,
                         new com.google.common.base.Predicate<com.jubitus.traveller.traveller.entityAI.EntityTraveller>() {
-                            @Override public boolean apply(@javax.annotation.Nullable com.jubitus.traveller.traveller.entityAI.EntityTraveller t) {
+                            @Override
+                            public boolean apply(@javax.annotation.Nullable com.jubitus.traveller.traveller.entityAI.EntityTraveller t) {
                                 return t != null && t.isEntityAlive() && !t.isInvisible();
                             }
                         }
@@ -49,7 +50,8 @@ public class MobTargetInjector {
                     // Here we do a conservative check by class name:
                     if (entry.action.toString().contains("EntityTraveller")) return true;
                 }
-            } catch (Throwable ignore) {}
+            } catch (Throwable ignore) {
+            }
         }
         return false;
     }

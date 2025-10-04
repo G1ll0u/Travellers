@@ -32,12 +32,12 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
         this.addLayer(new LayerBipedArmor(this) {
             @Override
             protected void initArmor() {
-                // Inner = leggings model, Outer = chest/boots model.
-                // Vanilla uses (0.5F, 1.0F). Try slimmer values:
-                this.modelLeggings = new ModelBiped(0.35F); // was 0.5F
-                this.modelArmor    = new ModelBiped(0.80F); // was 1.0F
+                // Inner = leggings (layer_2), Outer = chest/boots/helmet (layer_1)
+                this.modelLeggings = new ModelSimpleHumanoid(0.35F, 64, 32);
+                this.modelArmor = new ModelSimpleHumanoid(0.80F, 64, 32);
             }
         });
+
 
         // Optional: render skulls, pumpkins, etc. worn in HEAD slot (non-armor)
         this.addLayer(new LayerCustomHead(((ModelBiped) this.getMainModel()).bipedHead));
