@@ -25,13 +25,16 @@ public final class MovingTravellerSound extends net.minecraft.client.audio.Movin
         this.zPosF = (float) e.posZ;
     }
 
-    /** Called by our client bus to stop due to preemption. */
+    /**
+     * Called by our client bus to stop due to preemption.
+     */
     public void stopNow() {
         this.stoppedExternally = true;
         this.donePlaying = true;
     }
 
-    @Override public void update() {
+    @Override
+    public void update() {
         if (stoppedExternally || traveller == null || !traveller.isEntityAlive()) {
             this.donePlaying = true;
             return;

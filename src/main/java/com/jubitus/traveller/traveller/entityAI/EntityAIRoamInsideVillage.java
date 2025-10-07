@@ -185,8 +185,8 @@ public class EntityAIRoamInsideVillage extends EntityAIBase {
         for (int tries = 0; tries < 24; tries++) {
             double angle = r.nextDouble() * Math.PI * 2.0;
             double dist = 6.0 + r.nextDouble() * (radius - 6.0);
-            int x = center.getX() + (int)Math.round(Math.cos(angle) * dist);
-            int z = center.getZ() + (int)Math.round(Math.sin(angle) * dist);
+            int x = center.getX() + (int) Math.round(Math.cos(angle) * dist);
+            int z = center.getZ() + (int) Math.round(Math.sin(angle) * dist);
 
             // Find a plausible ground Y with a wider vertical sweep
             BlockPos surface = findGoodSurface(new BlockPos(x, center.getY(), z), 24);
@@ -246,9 +246,10 @@ public class EntityAIRoamInsideVillage extends EntityAIBase {
                 && (at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(mob.world, feet) == null)
                 && (head.getMaterial().isReplaceable() || head.getCollisionBoundingBox(mob.world, feet.up()) == null);
     }
+
     private boolean farEnough(BlockPos a, BlockPos b, double minSq) {
         double dx = (a.getX() + 0.5) - (b.getX() + 0.5);
         double dz = (a.getZ() + 0.5) - (b.getZ() + 0.5);
-        return (dx*dx + dz*dz) >= minSq;
+        return (dx * dx + dz * dz) >= minSq;
     }
 }

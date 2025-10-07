@@ -4,10 +4,10 @@ package com.jubitus.traveller.traveller.entityAI;
 import com.google.common.collect.Multimap;
 import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.pathing.TravellerNavigateGround;
-import com.jubitus.traveller.traveller.utils.sound.ModSounds;
-import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
 import com.jubitus.traveller.traveller.utils.commands.CommandFollowTraveller;
+import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
+import com.jubitus.traveller.traveller.utils.sound.ModSounds;
 import com.jubitus.traveller.traveller.utils.sound.MsgPlayTravellerVoice;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
@@ -64,7 +64,10 @@ import net.minecraftforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class EntityTraveller extends EntityCreature {
 
@@ -93,10 +96,24 @@ public class EntityTraveller extends EntityCreature {
     private static final int ARRIVE_IN = Math.max(8, VILLAGE_NEAR - 4); // e.g., 28 if near=32
     private static final int ARRIVE_OUT = VILLAGE_NEAR + 4;              // e.g., 36
     private static final double CORRIDOR_WIDTH = 48.0; // tune 32–64
+    private static final DataParameter<Boolean> AIMING_BOW =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
+    private static final String GHOST_BOW_TAG = "TravellerGhostBow";
+    // --- Grace hits vs players ---
+    private static final int PLAYER_FREE_HITS = 3;
+    private static final int PLAYER_FORGIVE_WINDOW_TICKS = 6 * 20; // reset window per attacker
+    private static final double AMBIENT_MUTE_RADIUS = 20.0; // blocks (sphere)
+    private static final double CHORUS_RADIUS = 20.0;
+    private static final int CHORUS_INTENT_WINDOW_TICKS = 10; // treat near-simultaneous intents as “together”
+    private static final SoundEvent[] DUO_SONGS = new SoundEvent[]{
+            ModSounds.TRAVELLER_SONG1, ModSounds.TRAVELLER_SONG2, ModSounds.TRAVELLER_SONG3
+    };
     private final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     // --- Route planning state ---
     private final java.util.List<BlockPos> route = new java.util.ArrayList<>();
     private final java.util.Map<java.util.UUID, Threat> threatMap = new java.util.HashMap<>();
+    private final java.util.Map<java.util.UUID, HitGrace> playerGrace = new java.util.HashMap<>();
+    int nextTravelAmbientTick = 0;  // you already had this
     private List<BlockPos> cachedVillages = java.util.Collections.emptyList();
     private int villageCacheTicker = 0;
     // ---- GAP / CLIFF handling control ----
@@ -140,34 +157,13 @@ public class EntityTraveller extends EntityCreature {
     // Personality: probability to insert an intermediate stop before the far destination
     private float hopPreference; // 0..1, e.g., 0.0 = never stop at B first, 1.0 = always
     private int pickupScanTicker = 0;
-
     private EntityAIRangedBowTravellerSafe aiRanged;
     private EntityAIAttackMeleeCustom aiMelee;
     private EntityAIDefendIfClose aiDefendIfClose;
     private EntityAIFollowTraveller aiFollow;
     private EntityAITravel aiTravel;
-
-    private static final DataParameter<Boolean> AIMING_BOW =
-            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
-    private static final String GHOST_BOW_TAG = "TravellerGhostBow";
-    // --- Grace hits vs players ---
-    private static final int PLAYER_FREE_HITS = 3;
-    private static final int PLAYER_FORGIVE_WINDOW_TICKS = 6 * 20; // reset window per attacker
-
-    private final java.util.Map<java.util.UUID, HitGrace> playerGrace = new java.util.HashMap<>();
-
     // --- Voice channel ---
     private int voiceLockUntilTick = 0;     // no new sounds until this tick (entity-local, server authoritative)
-    int nextTravelAmbientTick = 0;  // you already had this
-    private static final double AMBIENT_MUTE_RADIUS = 20.0; // blocks (sphere)
-    private static final double CHORUS_RADIUS = 20.0;
-    private static final int   CHORUS_INTENT_WINDOW_TICKS = 10; // treat near-simultaneous intents as “together”
-    private static final class HitGrace {
-        int count;
-        int expiresAt; // ticksExisted when this entry expires
-    }
-
-    private enum VoiceKind { NONE, AMBIENT, TALK, HURT }
     private VoiceKind voiceKindNow = VoiceKind.NONE;
 
     public EntityTraveller(World worldIn) {
@@ -180,7 +176,6 @@ public class EntityTraveller extends EntityCreature {
         this.setCanPickUpLoot(true);
         this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
     }
-
 
     // Helper: clamp angular delta and step toward a target
     private static float rotlerp(float current, float target, float maxStep) {
@@ -202,6 +197,10 @@ public class EntityTraveller extends EntityCreature {
         return P.subtract(H).lengthSquared();
     }
 
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent e) {
+        if (e.phase == TickEvent.Phase.END) FollowTravellerClient.onClientTick();
+    }
 
     public boolean isAtTargetStopHys(boolean lastWasInside) {
         BlockPos tv = this.getTargetVillage();
@@ -322,9 +321,6 @@ public class EntityTraveller extends EntityCreature {
                 /* ghostEquipBow */ true
         );
         this.tasks.addTask(2, aiRanged);
-
-
-
 
 
         aiMelee = new EntityAIAttackMeleeCustom(this, TravellersModConfig.attackMovementSpeed, true, 0.65);
@@ -611,7 +607,7 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             if (pickupCooldown > 0) pickupCooldown--;
         }
-    
+
 
         // Pick an initial random target only once
         if (!world.isRemote) {
@@ -831,14 +827,7 @@ public class EntityTraveller extends EntityCreature {
     private ItemArmor.ArmorMaterial getArmorMaterial(ItemStack s) {
         return (s.getItem() instanceof ItemArmor) ? ((ItemArmor) s.getItem()).getArmorMaterial() : null;
     }
-    @SubscribeEvent
-    public static void onClientTick(TickEvent.ClientTickEvent e) {
-        if (e.phase == TickEvent.Phase.END) FollowTravellerClient.onClientTick();
-    }
-    @Mod.EventHandler
-    public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent e) {
-        e.registerServerCommand(new CommandFollowTraveller());
-    }
+
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
         if (world.isRemote) return true;
@@ -880,11 +869,6 @@ public class EntityTraveller extends EntityCreature {
         playVoiceMoving(ModSounds.TRAVELLER_TALK, vol, pitch, dur, /*preempt=*/true, VoiceKind.TALK);
         scheduleNextTravelAmbient();
     }
-
-
-
-
-
 
     private void doInteractSwing(EnumHand hand) {
         // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
@@ -947,6 +931,29 @@ public class EntityTraveller extends EntityCreature {
         player.sendMessage(msg);
     }
 
+    private boolean playVoiceMoving(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, VoiceKind kind) {
+        if (!preempt && this.ticksExisted < voiceLockUntilTick) return false;
+
+        // Don’t also call playSound here; we only want the moving instance on clients.
+        sendFollowSound(evt, vol, pitch, 48.0);
+
+        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
+        voiceKindNow = kind;
+        return true;
+    }
+
+    public void scheduleNextTravelAmbient() {
+        // spreads entities out and respects config
+        if (!TravellersModConfig.travellerAmbient) {
+            nextTravelAmbientTick = Integer.MAX_VALUE;
+            return;
+        }
+        int min = Math.max(40, TravellersModConfig.travellerAmbientMinDelay);
+        int max = Math.max(min, TravellersModConfig.travellerAmbientMaxDelay);
+        int delta = min + this.rand.nextInt(Math.max(1, max - min + 1));
+        nextTravelAmbientTick = this.ticksExisted + delta;
+    }
+
     // Follower things
     public boolean hasFollowLeader() {
         return followLeaderId != null;
@@ -980,6 +987,13 @@ public class EntityTraveller extends EntityCreature {
         if (adx < adz * 0.5) return ns;       // mostly N/S
         if (adz < adx * 0.5) return ew;       // mostly E/W
         return ns + "-" + ew;                 // e.g., "north-east"
+    }
+
+    private void sendFollowSound(SoundEvent evt, float vol, float pitch, double radius) {
+        if (world.isRemote || evt == null) return;
+        MsgPlayTravellerVoice msg = new MsgPlayTravellerVoice(this, evt, vol, pitch /* duration now unused, keep or remove field */);
+        NetworkRegistry.TargetPoint tp = new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
+        TravellerFollowNet.CHANNEL.sendToAllAround(msg, tp);
     }
 
     public void setVillageIdling(boolean villageIdling) {
@@ -1222,6 +1236,11 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.set(TEXTURE_INDEX, index);
     }
 
+    @Mod.EventHandler
+    public void serverStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent e) {
+        e.registerServerCommand(new CommandFollowTraveller());
+    }
+
     // was: updateTargetVillage()
     private void updateNearestVillage() {
         List<BlockPos> villages = getVillagesCached();
@@ -1321,7 +1340,7 @@ public class EntityTraveller extends EntityCreature {
         }
         return true;
     }
-    @Override public SoundCategory getSoundCategory() { return SoundCategory.VOICE; }
+
     @Override
     public void onDeath(DamageSource cause) {
         // remove ghost item if present
@@ -1331,9 +1350,26 @@ public class EntityTraveller extends EntityCreature {
         super.onDeath(cause);
     }
 
+    @Override
+    @Nullable
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return ModSounds.TRAVELLER_HURT;  // plays at the entity’s position for all nearby players
+    }
+
     // Disabling fallDamage
     @Override
     public void fall(float distance, float damageMultiplier) { /* Immune to fall damage */ }
+
+    @Override
+    protected float getSoundVolume() {
+        return 0.95F; // a touch louder than default
+    }
+
+    @Override
+    protected float getSoundPitch() {
+        // small per-hit pitch variance so repeats don’t sound robotic
+        return 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
+    }
 
     // --- Combat Handling ---
     @Override
@@ -1404,20 +1440,6 @@ public class EntityTraveller extends EntityCreature {
         return super.hasCapability(capability, facing);
     }
 
-    public boolean isInCombat() {
-        return inCombat;
-    }
-
-    public void setInCombat(boolean combat) {
-        if (world.isRemote) return; // server authority only
-        this.inCombat = combat;
-        if (combat) {
-            if (autoEatTask != null) autoEatTask.cancel();
-            ensureBestSwordVisualNow();
-        }
-    }
-
-
     private void handleSwordVisibility() {
         if (isAimingBow()) return;
         if (world.isRemote) return;
@@ -1462,6 +1484,11 @@ public class EntityTraveller extends EntityCreature {
         super.setDead();
     }
 
+    @Override
+    public SoundCategory getSoundCategory() {
+        return SoundCategory.VOICE;
+    }
+
     private ItemStack findBestSwordInBackpack() {
         int bestIdx = -1;
         double bestScore = Double.NEGATIVE_INFINITY;
@@ -1480,14 +1507,6 @@ public class EntityTraveller extends EntityCreature {
     @SideOnly(Side.CLIENT)
     public float getForcedSwingProgress() {
         return (forcedSwingTicks <= 0) ? 0f : (1f - (forcedSwingTicks / 6.0f));
-    }
-
-    public BlockPos getCurrentWaypoint() {
-        return currentWaypoint;
-    }
-
-    public void setCurrentWaypoint(BlockPos currentWaypoint) {
-        this.currentWaypoint = currentWaypoint;
     }
 
     public BlockPos getRoamTarget() {
@@ -1622,10 +1641,6 @@ public class EntityTraveller extends EntityCreature {
                 }
             }
         }
-    }
-
-    public boolean isAutoEating() {
-        return autoEatTask != null && autoEatTask.isEating();
     }
 
     public void startFollowing(EntityTraveller leader, int durationTicks) {
@@ -2069,21 +2084,14 @@ public class EntityTraveller extends EntityCreature {
         if (aiTravel != null) aiTravel.setSpeed(TravellersModConfig.movementSpeedWhileTravel);
     }
 
-    private static final class Threat {
-        int score;           // higher = more urgent
-        int lastSeenTick;    // game tick when last updated
-
-        Threat(int s, int t) {
-            score = s;
-            lastSeenTick = t;
-        }
-    }
     public boolean isAimingBow() {
         return this.dataManager.get(AIMING_BOW);
     }
+
     public void setAimingBow(boolean v) {
         if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
     }
+
     ItemStack makeGhostBow(ItemStack src) {
         ItemStack copy = src.copy();
         copy.setCount(1);
@@ -2097,12 +2105,16 @@ public class EntityTraveller extends EntityCreature {
         copy.setTagCompound(tag);
         return copy;
     }
+
     public boolean hasBowAnywherePublic() {
         ItemStack hand = this.getHeldItemMainhand();
         boolean handBow = !hand.isEmpty() && hand.getItem() instanceof net.minecraft.item.ItemBow;
         return handBow || hasBowInBackpack();
     }
-    /** Increments the hit counter for this player and returns true while still under grace. */
+
+    /**
+     * Increments the hit counter for this player and returns true while still under grace.
+     */
     public boolean notePlayerHitAndIsStillGrace(net.minecraft.entity.player.EntityPlayer p) {
         final int now = this.ticksExisted;
         final java.util.UUID id = p.getUniqueID();
@@ -2119,37 +2131,12 @@ public class EntityTraveller extends EntityCreature {
         return g.count <= PLAYER_FREE_HITS;
     }
 
-    /** Optional: call occasionally to prune stale entries. */
+    /**
+     * Optional: call occasionally to prune stale entries.
+     */
     public void pruneGraceHits() {
         final int now = this.ticksExisted;
         playerGrace.entrySet().removeIf(e -> now > e.getValue().expiresAt);
-    }
-    @Override
-    @Nullable
-    protected SoundEvent getHurtSound(DamageSource source) {
-        return ModSounds.TRAVELLER_HURT;  // plays at the entity’s position for all nearby players
-    }
-
-    @Override
-    protected float getSoundVolume() {
-        return 0.95F; // a touch louder than default
-    }
-
-    @Override
-    protected float getSoundPitch() {
-        // small per-hit pitch variance so repeats don’t sound robotic
-        return 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
-    }
-    public void scheduleNextTravelAmbient() {
-        // spreads entities out and respects config
-        if (!TravellersModConfig.travellerAmbient) {
-            nextTravelAmbientTick = Integer.MAX_VALUE;
-            return;
-        }
-        int min = Math.max(40, TravellersModConfig.travellerAmbientMinDelay);
-        int max = Math.max(min, TravellersModConfig.travellerAmbientMaxDelay);
-        int delta = min + this.rand.nextInt(Math.max(1, max - min + 1));
-        nextTravelAmbientTick = this.ticksExisted + delta;
     }
 
     public void maybePlayTravelAmbient() {
@@ -2172,38 +2159,60 @@ public class EntityTraveller extends EntityCreature {
         }
     }
 
-    private void sendFollowSound(SoundEvent evt, float vol, float pitch, double radius) {
-        if (world.isRemote || evt == null) return;
-        MsgPlayTravellerVoice msg = new MsgPlayTravellerVoice(this, evt, vol, pitch /* duration now unused, keep or remove field */);
-        NetworkRegistry.TargetPoint tp = new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
-        TravellerFollowNet.CHANNEL.sendToAllAround(msg, tp);
+    public boolean isInCombat() {
+        return inCombat;
     }
 
-    private boolean playVoiceMoving(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, VoiceKind kind) {
-        if (!preempt && this.ticksExisted < voiceLockUntilTick) return false;
-
-        // Don’t also call playSound here; we only want the moving instance on clients.
-        sendFollowSound(evt, vol, pitch, 48.0);
-
-        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
-        voiceKindNow = kind;
-        return true;
+    public void setInCombat(boolean combat) {
+        if (world.isRemote) return; // server authority only
+        this.inCombat = combat;
+        if (combat) {
+            if (autoEatTask != null) autoEatTask.cancel();
+            ensureBestSwordVisualNow();
+        }
     }
 
+    public boolean isAutoEating() {
+        return autoEatTask != null && autoEatTask.isEating();
+    }
+
+    public BlockPos getCurrentWaypoint() {
+        return currentWaypoint;
+    }
+
+    public void setCurrentWaypoint(BlockPos currentWaypoint) {
+        this.currentWaypoint = currentWaypoint;
+    }
 
     private void beginVoiceLock(int durationTicks, VoiceKind kind) {
         voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
         voiceKindNow = kind;
     }
-    public boolean isVoiceLockedNow() {
-        return this.ticksExisted < voiceLockUntilTick;
-    }
+
     public boolean isAmbientPlayingNow() {
         return isVoiceLockedNow() && voiceKindNow == VoiceKind.AMBIENT;
     }
-    private static final SoundEvent[] DUO_SONGS = new SoundEvent[] {
-            ModSounds.TRAVELLER_SONG1, ModSounds.TRAVELLER_SONG2, ModSounds.TRAVELLER_SONG3
-    };
+
+    public boolean isVoiceLockedNow() {
+        return this.ticksExisted < voiceLockUntilTick;
+    }
+
+    private enum VoiceKind {NONE, AMBIENT, TALK, HURT}
+
+    private static final class HitGrace {
+        int count;
+        int expiresAt; // ticksExisted when this entry expires
+    }
+
+    private static final class Threat {
+        int score;           // higher = more urgent
+        int lastSeenTick;    // game tick when last updated
+
+        Threat(int s, int t) {
+            score = s;
+            lastSeenTick = t;
+        }
+    }
 
 
 }

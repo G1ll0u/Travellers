@@ -52,14 +52,14 @@ public class TravellersModConfig {
     public static double attackDamage;
     public static double attackTriggerRange;
     public static boolean travellerSpeaks;
-    static boolean enableTravellerEntity = true;
-    private static Configuration CONFIG;      // <— keep it
-    private static File CONFIG_FILE;          // <— keep it
-
     public static boolean travellerAmbient = true;           // NEW
     public static int travellerAmbientMinDelay;   // 10s
     public static int travellerAmbientMaxDelay;    // 30s
     public static float travellerAmbientVolume;      // 0.0–1.0
+    static boolean enableTravellerEntity = true;
+    private static Configuration CONFIG;      // <— keep it
+    private static File CONFIG_FILE;          // <— keep it
+
     public static void init(File configFile) {
         CONFIG_FILE = configFile;
         // Ensure parent folder exists

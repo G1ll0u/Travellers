@@ -53,7 +53,6 @@ public class TravellerHurtByTarget extends EntityAITarget {
     }
 
 
-
     @Override
     public void startExecuting() {
         EntityLivingBase attacker = this.owner.getRevengeTarget();
