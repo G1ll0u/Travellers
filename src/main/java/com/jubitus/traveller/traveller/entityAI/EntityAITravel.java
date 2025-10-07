@@ -72,7 +72,6 @@ public class EntityAITravel extends EntityAIBase {
     private int postRecoverGuardTicks = 0;
 
 
-
     public EntityAITravel(EntityTraveller mob, double speed, int stepBlocks) {
         this.mob = mob;
         this.speed = speed;
@@ -383,7 +382,8 @@ public class EntityAITravel extends EntityAIBase {
             PathPoint dest = current.getFinalPathPoint();
             if (dest != null) {
                 if (Math.abs(dest.x - currentWaypoint.getX()) <= 1 &&
-                        Math.abs(dest.z - currentWaypoint.getZ()) <= 1) return;            }
+                        Math.abs(dest.z - currentWaypoint.getZ()) <= 1) return;
+            }
         }
 
         // water
@@ -674,7 +674,7 @@ public class EntityAITravel extends EntityAIBase {
     private boolean segmentBlockedTwoHigh(BlockPos a, BlockPos b) {
         int dx = b.getX() - a.getX();
         int dz = b.getZ() - a.getZ();
-        int steps = Math.max(1, (int)Math.ceil(Math.sqrt(dx*dx + dz*dz)) / 2); // half density
+        int steps = Math.max(1, (int) Math.ceil(Math.sqrt(dx * dx + dz * dz)) / 2); // half density
         double ax = a.getX() + 0.5, az = a.getZ() + 0.5;
         double bx = b.getX() + 0.5, bz = b.getZ() + 0.5;
         double stepx = (bx - ax) / steps, stepz = (bz - az) / steps;

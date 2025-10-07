@@ -9,7 +9,8 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public final class TravellerVoiceClientBus {
     private static final java.util.Map<Integer, MovingTravellerSound> LIVE = new java.util.HashMap<>();
 
-    private TravellerVoiceClientBus() {}
+    private TravellerVoiceClientBus() {
+    }
 
     public static void play(EntityTraveller t, SoundEvent evt, float vol, float pitch) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();

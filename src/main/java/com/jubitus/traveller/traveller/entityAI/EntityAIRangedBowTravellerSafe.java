@@ -16,12 +16,11 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 /**
  * Safety-first ranged AI for 1.12.2 travellers, with vertical aim, enforced facing, and strafing.
- *
+ * <p>
  * Features:
  * - Runs only if the traveller has a bow (in hand or backpack; will ghost-equip for visuals).
  * - Min/max range gates; hands off to melee when too close; drops target when too far.
@@ -32,14 +31,13 @@ import java.util.List;
  */
 public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
+    private static final double BLOCK_WIDTH = 0.6D; // shot safety tube
     private final EntityTraveller mob;
     private final TravellerBlacklist blacklist;
-
     private final double minDistSq;
     private final double maxDistSq;
     private final double meleeHandOffSq; // slightly > minDistSq recommended
     private final int shootIntervalTicks; // cadence
-
     // Strafing knobs (feel free to tune)
     private final float strafeSpeed = 0.32f;     // 0.28–0.40 feels good in 1.12
     private final int strafeMinTicks = 20;       // 1.0s
@@ -48,16 +46,12 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private final double strafeAbsSpeed = 0.26D; // absolute cap while strafing (≈ skeleton pace)
     private final int backstepInterval = 30;     // try at most once every 1.5s
     private final float backstepSpeed = 0.22f;   // gentle backward slide
-
+    private final boolean ghostEquipBow;
     private int coolDown;
     private int aimWarmup;
     private int strafeDir = 1;     // +1 right, -1 left
     private int strafeTicks = 0;   // time left for current strafe direction
     private int backstepTicker = 0;
-
-    private final boolean ghostEquipBow;
-
-    private static final double BLOCK_WIDTH = 0.6D; // shot safety tube
 
     public EntityAIRangedBowTravellerSafe(EntityTraveller owner,
                                           double minDist,
@@ -102,8 +96,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         double d2 = mob.getDistanceSq(tgt);
         if (d2 > maxDistSq) return false;
         if (d2 < meleeHandOffSq) return false;
-        if (!mob.getEntitySenses().canSee(tgt)) return false;
-        return true;
+        return mob.getEntitySenses().canSee(tgt);
     }
 
     @Override
@@ -155,14 +148,61 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             return;
         }
 
-        if (aimWarmup > 0) { aimWarmup--; return; }
-        if (coolDown > 0) { coolDown--; return; }
+        if (aimWarmup > 0) {
+            aimWarmup--;
+            return;
+        }
+        if (coolDown > 0) {
+            coolDown--;
+            return;
+        }
 
         if (!mob.getEntitySenses().canSee(tgt)) return;
         if (d2 < minDistSq || d2 > maxDistSq) return;
 
         performShot(tgt, d);
         coolDown = shootIntervalTicks;
+    }
+
+    /**
+     * Force the traveller to face the target smoothly but authoritatively.
+     * This avoids LookHelper being overridden by other AIs in the same tick.
+     *
+     * @param target       the entity to face
+     * @param maxYawStep   max degrees of yaw change per tick
+     * @param maxPitchStep max degrees of pitch change per tick
+     * @param headLimit    max head/body divergence in degrees
+     */
+    private void hardFaceTarget(EntityLivingBase target, float maxYawStep, float maxPitchStep, float headLimit) {
+        // Vector from eyes to target mid-height
+        double sx = mob.posX;
+        double sy = mob.posY + mob.getEyeHeight();
+        double sz = mob.posZ;
+        double tx = target.posX;
+        double ty = target.posY + target.getEyeHeight() * 0.5;
+        double tz = target.posZ;
+        double dx = tx - sx;
+        double dy = ty - sy;
+        double dz = tz - sz;
+
+        double horiz = MathHelper.sqrt(dx * dx + dz * dz);
+        if (horiz < 1.0E-6 && Math.abs(dy) < 1.0E-6) return;
+
+        float desiredYaw = (float) (Math.atan2(dz, dx) * (180D / Math.PI)) - 90.0F;
+        float desiredPitch = (float) (-(Math.atan2(dy, horiz) * (180D / Math.PI)));
+
+        // Smoothly step head first
+        mob.rotationYawHead = rotlerp(mob.rotationYawHead, desiredYaw, maxYawStep);
+        mob.rotationPitch = rotlerp(mob.rotationPitch, desiredPitch, maxPitchStep);
+
+        // Pull body toward head so other visuals don't fight us
+        mob.rotationYaw = rotlerp(mob.rotationYaw, mob.rotationYawHead, maxYawStep);
+        mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, maxYawStep);
+
+        // Clamp head/body divergence
+        float diff = MathHelper.wrapDegrees(mob.rotationYawHead - mob.renderYawOffset);
+        if (diff < -headLimit) mob.rotationYawHead = mob.renderYawOffset - headLimit;
+        if (diff > headLimit) mob.rotationYawHead = mob.renderYawOffset + headLimit;
     }
 
     private void applyStrafeMovement(double dist, EntityLivingBase tgt) {
@@ -197,95 +237,6 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         mob.setAIMoveSpeed((float) Math.min(strafeAbsSpeed, mob.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue()));
     }
 
-    private int randBetween(int a, int b) {
-        return a + mob.getRNG().nextInt(Math.max(1, b - a + 1));
-    }
-
-    /**
-     * Force the traveller to face the target smoothly but authoritatively.
-     * This avoids LookHelper being overridden by other AIs in the same tick.
-     * @param target the entity to face
-     * @param maxYawStep max degrees of yaw change per tick
-     * @param maxPitchStep max degrees of pitch change per tick
-     * @param headLimit max head/body divergence in degrees
-     */
-    private void hardFaceTarget(EntityLivingBase target, float maxYawStep, float maxPitchStep, float headLimit) {
-        // Vector from eyes to target mid-height
-        double sx = mob.posX; double sy = mob.posY + mob.getEyeHeight(); double sz = mob.posZ;
-        double tx = target.posX; double ty = target.posY + target.getEyeHeight() * 0.5; double tz = target.posZ;
-        double dx = tx - sx; double dy = ty - sy; double dz = tz - sz;
-
-        double horiz = MathHelper.sqrt(dx * dx + dz * dz);
-        if (horiz < 1.0E-6 && Math.abs(dy) < 1.0E-6) return;
-
-        float desiredYaw = (float) (Math.atan2(dz, dx) * (180D / Math.PI)) - 90.0F;
-        float desiredPitch = (float) (-(Math.atan2(dy, horiz) * (180D / Math.PI)));
-
-        // Smoothly step head first
-        mob.rotationYawHead = rotlerp(mob.rotationYawHead, desiredYaw, maxYawStep);
-        mob.rotationPitch   = rotlerp(mob.rotationPitch,   desiredPitch, maxPitchStep);
-
-        // Pull body toward head so other visuals don't fight us
-        mob.rotationYaw = rotlerp(mob.rotationYaw, mob.rotationYawHead, maxYawStep);
-        mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, maxYawStep);
-
-        // Clamp head/body divergence
-        float diff = MathHelper.wrapDegrees(mob.rotationYawHead - mob.renderYawOffset);
-        if (diff < -headLimit) mob.rotationYawHead = mob.renderYawOffset - headLimit;
-        if (diff >  headLimit) mob.rotationYawHead = mob.renderYawOffset + headLimit;
-    }
-
-    private float rotlerp(float current, float target, float maxStep) {
-        float delta = MathHelper.wrapDegrees(target - current);
-        if (delta > maxStep) delta = maxStep;
-        if (delta < -maxStep) delta = -maxStep;
-        return current + delta;
-    }
-
-    private void performShot(EntityLivingBase target, double distance) {
-        World w = mob.world;
-        EntityTippedArrow arrow = new EntityTippedArrow(w, mob);
-        arrow.setEnchantmentEffectsFromEntity(mob, 1.0F);
-        arrow.pickupStatus = EntityTippedArrow.PickupStatus.DISALLOWED;
-
-        // Aim from shooter eye to target mid/eye height
-        double sx = mob.posX; double sy = mob.posY + mob.getEyeHeight(); double sz = mob.posZ;
-        double tx = target.posX; double ty = target.posY + target.getEyeHeight() * 0.5; double tz = target.posZ;
-
-        double dx = tx - sx;
-        double dy = ty - sy;
-        double dz = tz - sz;
-        double horiz = MathHelper.sqrt(dx * dx + dz * dz);
-
-        // Vanilla-like arc: add slight elevation for gravity over distance
-        double aimY = dy + horiz * 0.17D; // tweak 0.15–0.22 for feel
-
-        float velocity = 2.3F;  // bow power → arrow velocity
-        float inaccuracy = 5.5F; // slight spread
-        arrow.shoot(dx, aimY, dz, velocity, inaccuracy);
-
-        // scale damage a touch with distance so long shots aren’t too weak
-        arrow.setDamage(arrow.getDamage() + Math.max(0.0, 0.30 * (distance / 8.0)));
-
-        w.playSound(null, mob.posX, mob.posY, mob.posZ, SoundEvents.ENTITY_SKELETON_SHOOT,
-                SoundCategory.HOSTILE, 1.0F, 1.0F / (mob.getRNG().nextFloat() * 0.4F + 0.8F));
-        w.spawnEntity(arrow);
-        mob.swingArm(EnumHand.MAIN_HAND);
-    }
-
-    private void ensureBowInHand() {
-        ItemStack hand = mob.getHeldItemMainhand();
-        boolean holdingBow = !hand.isEmpty() && hand.getItem() instanceof ItemBow;
-        if (holdingBow) return;
-        if (!ghostEquipBow) return;
-        ItemStack bow = mob.findBowInBackpackPublic();
-        if (!bow.isEmpty()) mob.setHeldItem(EnumHand.MAIN_HAND, mob.makeGhostBow(bow));
-    }
-
-    private boolean isGhostBow(ItemStack s) {
-        return !s.isEmpty() && s.getItem() instanceof ItemBow && s.hasTagCompound() && s.getTagCompound().getBoolean("TravellerGhostBow");
-    }
-
     private boolean hasBlockingEntityAlongShot(EntityLivingBase target) {
         Vec3d from = new Vec3d(mob.posX, mob.posY + mob.getEyeHeight(), mob.posZ);
         Vec3d to = new Vec3d(target.posX, target.posY + target.getEyeHeight() * 0.5, target.posZ);
@@ -314,5 +265,64 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             if (e instanceof EntityLivingBase && blacklist != null && blacklist.isBlacklisted(e)) return true;
         }
         return false;
+    }
+
+    private void performShot(EntityLivingBase target, double distance) {
+        World w = mob.world;
+        EntityTippedArrow arrow = new EntityTippedArrow(w, mob);
+        arrow.setEnchantmentEffectsFromEntity(mob, 1.0F);
+        arrow.pickupStatus = EntityTippedArrow.PickupStatus.DISALLOWED;
+
+        // Aim from shooter eye to target mid/eye height
+        double sx = mob.posX;
+        double sy = mob.posY + mob.getEyeHeight();
+        double sz = mob.posZ;
+        double tx = target.posX;
+        double ty = target.posY + target.getEyeHeight() * 0.5;
+        double tz = target.posZ;
+
+        double dx = tx - sx;
+        double dy = ty - sy;
+        double dz = tz - sz;
+        double horiz = MathHelper.sqrt(dx * dx + dz * dz);
+
+        // Vanilla-like arc: add slight elevation for gravity over distance
+        double aimY = dy + horiz * 0.17D; // tweak 0.15–0.22 for feel
+
+        float velocity = 2.3F;  // bow power → arrow velocity
+        float inaccuracy = 5.5F; // slight spread
+        arrow.shoot(dx, aimY, dz, velocity, inaccuracy);
+
+        // scale damage a touch with distance so long shots aren’t too weak
+        arrow.setDamage(arrow.getDamage() + Math.max(0.0, 0.30 * (distance / 8.0)));
+
+        w.playSound(null, mob.posX, mob.posY, mob.posZ, SoundEvents.ENTITY_SKELETON_SHOOT,
+                SoundCategory.HOSTILE, 1.0F, 1.0F / (mob.getRNG().nextFloat() * 0.4F + 0.8F));
+        w.spawnEntity(arrow);
+        mob.swingArm(EnumHand.MAIN_HAND);
+    }
+
+    private float rotlerp(float current, float target, float maxStep) {
+        float delta = MathHelper.wrapDegrees(target - current);
+        if (delta > maxStep) delta = maxStep;
+        if (delta < -maxStep) delta = -maxStep;
+        return current + delta;
+    }
+
+    private boolean isGhostBow(ItemStack s) {
+        return !s.isEmpty() && s.getItem() instanceof ItemBow && s.hasTagCompound() && s.getTagCompound().getBoolean("TravellerGhostBow");
+    }
+
+    private int randBetween(int a, int b) {
+        return a + mob.getRNG().nextInt(Math.max(1, b - a + 1));
+    }
+
+    private void ensureBowInHand() {
+        ItemStack hand = mob.getHeldItemMainhand();
+        boolean holdingBow = !hand.isEmpty() && hand.getItem() instanceof ItemBow;
+        if (holdingBow) return;
+        if (!ghostEquipBow) return;
+        ItemStack bow = mob.findBowInBackpackPublic();
+        if (!bow.isEmpty()) mob.setHeldItem(EnumHand.MAIN_HAND, mob.makeGhostBow(bow));
     }
 }

@@ -24,16 +24,18 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
         double min = Math.max(0.0, TravellersModConfig.rangedMinDist);
         double commit = Math.max(0.0, min - 0.75);   // when we’ll allow melee to start
-        double hold   = Math.max(0.0, min - 0.25);   // a bit looser so we don’t ping-pong
+        double hold = Math.max(0.0, min - 0.25);   // a bit looser so we don’t ping-pong
         this.meleeCommitSq = commit * commit;
-        this.meleeHoldSq   = hold   * hold;
+        this.meleeHoldSq = hold * hold;
     }
 
     // Distance from our XZ to the target AABB in XZ (0 if already touching)
     private static double horizontalGapSq(Entity e, AxisAlignedBB bb) {
         double dx = 0.0D, dz = 0.0D;
-        if (e.posX < bb.minX) dx = bb.minX - e.posX; else if (e.posX > bb.maxX) dx = e.posX - bb.maxX;
-        if (e.posZ < bb.minZ) dz = bb.minZ - e.posZ; else if (e.posZ > bb.maxZ) dz = e.posZ - bb.maxZ;
+        if (e.posX < bb.minX) dx = bb.minX - e.posX;
+        else if (e.posX > bb.maxX) dx = e.posX - bb.maxX;
+        if (e.posZ < bb.minZ) dz = bb.minZ - e.posZ;
+        else if (e.posZ > bb.maxZ) dz = e.posZ - bb.maxZ;
         return dx * dx + dz * dz;
     }
 

@@ -4,7 +4,6 @@ import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.utils.mobs.TravellerBlacklist;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumDifficulty;
 
 import javax.annotation.Nullable;
@@ -43,28 +42,6 @@ public class EntityAIDefendIfClose extends net.minecraft.entity.ai.EntityAIBase 
         return this;
     }
 
-
-    private double currentTriggerRangeSq() {
-        boolean hasBow =
-                mob.hasBowInBackpackPublic() ||
-                        (!mob.getHeldItemMainhand().isEmpty() &&
-                                mob.getHeldItemMainhand().getItem() instanceof net.minecraft.item.ItemBow);
-
-        // start from the configured trigger range (already squared)
-        double effRangeSq = triggerRangeSq;
-
-        if (hasBow && bowRangeBonusFrac > 0.0) {
-            // convert to linear, apply +X%, then square again
-            double baseLin = Math.sqrt(effRangeSq);
-            double boostedLin = baseLin * (1.0 + bowRangeBonusFrac);
-            effRangeSq = boostedLin * boostedLin;
-        }
-
-        return effRangeSq;
-    }
-
-
-
     @Override
     public boolean shouldExecute() {
         if (mob.world.isRemote) return false;
@@ -78,7 +55,7 @@ public class EntityAIDefendIfClose extends net.minecraft.entity.ai.EntityAIBase 
 
         // Use effective (possibly extended) radius
         double effRangeSq = currentTriggerRangeSq();
-        double effRange   = Math.sqrt(effRangeSq);
+        double effRange = Math.sqrt(effRangeSq);
 
         AxisAlignedBB aabb = mob.getEntityBoundingBox().grow(effRange, 2.0, effRange);
         List<EntityLivingBase> list = mob.world.getEntitiesWithinAABB(
@@ -106,6 +83,24 @@ public class EntityAIDefendIfClose extends net.minecraft.entity.ai.EntityAIBase 
         return true;
     }
 
+    private double currentTriggerRangeSq() {
+        boolean hasBow =
+                mob.hasBowInBackpackPublic() ||
+                        (!mob.getHeldItemMainhand().isEmpty() &&
+                                mob.getHeldItemMainhand().getItem() instanceof net.minecraft.item.ItemBow);
+
+        // start from the configured trigger range (already squared)
+        double effRangeSq = triggerRangeSq;
+
+        if (hasBow && bowRangeBonusFrac > 0.0) {
+            // convert to linear, apply +X%, then square again
+            double baseLin = Math.sqrt(effRangeSq);
+            double boostedLin = baseLin * (1.0 + bowRangeBonusFrac);
+            effRangeSq = boostedLin * boostedLin;
+        }
+
+        return effRangeSq;
+    }
 
     @Override
     public boolean shouldContinueExecuting() {
@@ -130,6 +125,7 @@ public class EntityAIDefendIfClose extends net.minecraft.entity.ai.EntityAIBase 
         pending = null;
         // Do NOT clear mob's attack target here — we want them to keep fighting once engaged.
     }
+
     public EntityAIDefendIfClose setBowRangeBonus(double frac) {
         this.bowRangeBonusFrac = Math.max(0.0, frac);
         return this;

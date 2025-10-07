@@ -7,19 +7,13 @@ import com.jubitus.traveller.traveller.utils.commands.*;
 import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
 import com.jubitus.traveller.traveller.utils.mobs.MobTargetInjector;
-import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import com.jubitus.traveller.traveller.utils.villages.VillageIndex;
-import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EnumCreatureType;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import net.minecraft.entity.monster.IMob;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.EntityJoinWorldEvent;
-import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -38,7 +32,6 @@ import static com.jubitus.traveller.traveller.utils.villages.VillageDataLoader.l
 @Mod(modid = Reference.MOD_ID, name = Reference.MOD_NAME, version = Reference.VERSION, dependencies = "required-after:millenaire")
 public class Travellers {
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
-
 
 
     @SubscribeEvent

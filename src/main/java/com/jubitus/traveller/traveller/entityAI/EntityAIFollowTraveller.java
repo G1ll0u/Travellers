@@ -17,28 +17,22 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
     private static final int DURATION_MAX = TravellersModConfig.followDurationMax * 20;     // 4 minutes
     private static final float ANGLE_ALIGN_DEG = TravellersModConfig.followAngleAlignDeg;    // roughly same direction
     private static final float START_CHANCE = TravellersModConfig.followStartChance;     // 33% chance when meeting to follow
-
-    private final EntityTraveller mob;
-    private final double angleAlignCos;
-    private final double speed;
-    private final double rangeSq;
-
-    private EntityTraveller leader;
-    private int repathTicker;
-
-    private Vec3d smoothedFwd = Vec3d.ZERO;
-    private Vec3d lastLeaderPos = Vec3d.ZERO;
-    private double lateralOffset = 0.0;     // constant per follow session
-    private Vec3d lastBackPoint = null;     // last issued target
-
-    private int glanceCooldown = 0;
-    private int glanceTicks = 0;
-
     private static final double LEADER_MOVE_EPS = 1e-4;     // "moving" threshold (squared units from delta)
     private static final int IDLE_STILL_TICKS = 25;         // ~1.25s before we consider leader idle
     private static final int RANDOM_GAZE_MIN = 20;          // 1.0s
     private static final int RANDOM_GAZE_MAX = 50;          // 2.5s
-
+    private final EntityTraveller mob;
+    private final double angleAlignCos;
+    private final double speed;
+    private final double rangeSq;
+    private EntityTraveller leader;
+    private int repathTicker;
+    private Vec3d smoothedFwd = Vec3d.ZERO;
+    private Vec3d lastLeaderPos = Vec3d.ZERO;
+    private double lateralOffset = 0.0;     // constant per follow session
+    private Vec3d lastBackPoint = null;     // last issued target
+    private int glanceCooldown = 0;
+    private int glanceTicks = 0;
     private int leaderStillTicks = 0;       // how long leader has been effectively still
     private int nextRandomGazeTick = 0;     // when to pick the next idle/random gaze
     private Vec3d currentGaze = null;       // current random gaze target
@@ -61,9 +55,9 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         this.setMutexBits(1);
     }
 
-    private static Vec3d lastResortFacing(EntityTraveller t) {
-        return new Vec3d(-MathHelper.sin(t.rotationYaw * 0.017453292F), 0,
-                MathHelper.cos(t.rotationYaw * 0.017453292F)).normalize();
+    private static double cosDeg(float deg) {
+        // Want align >= cos(theta) where theta is the max allowed angle between headings.
+        return Math.cos(Math.toRadians(deg));
     }
 
     @Override
@@ -149,11 +143,6 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
 
     // --- helpers ---
 
-    private static double cosDeg(float deg) {
-        // Want align >= cos(theta) where theta is the max allowed angle between headings.
-        return Math.cos(Math.toRadians(deg));
-    }
-
     @Override
     public boolean shouldContinueExecuting() {
         if (leader == null || !leader.isEntityAlive()) return false;
@@ -200,6 +189,7 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         // Also require a fresh meeting edge next time
         hadCandidateLastTick = true;
     }
+
     @Override
     public void updateTask() {
         if (leader == null) return;
@@ -286,32 +276,10 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         }
     }
 
-
-    private Vec3d computeBackPoint() {
-        Vec3d fwd = (smoothedFwd.lengthSquared() > 1e-6) ? smoothedFwd
-                : new Vec3d(-MathHelper.sin(leader.rotationYaw * 0.017453292F), 0,
-                MathHelper.cos(leader.rotationYaw * 0.017453292F)).normalize();
-
-        Vec3d left = new Vec3d(-fwd.z, 0, fwd.x).normalize().scale(lateralOffset);
-        double x = leader.posX - fwd.x * DESIRED_DIST + left.x;
-        double z = leader.posZ - fwd.z * DESIRED_DIST + left.z;
-        double y = leader.posY;
-
-        return new Vec3d(x, y, z);
-    }
-
-    private void pushFollowPathTo(Vec3d p) {
-        mob.getNavigator().tryMoveToXYZ(p.x, p.y, p.z, speed);
-    }
     // ADD — is leader moving (horizontal)
     private static boolean isMovingHoriz(Vec3d delta) {
         double s = delta.x * delta.x + delta.z * delta.z;
         return s > LEADER_MOVE_EPS;
-    }
-
-    // ADD — set look to a point
-    private void lookAt(Vec3d p, float yawSpeed, float pitchSpeed) {
-        mob.getLookHelper().setLookPosition(p.x, p.y, p.z, yawSpeed, pitchSpeed);
     }
 
     // ADD — pick/maintain a natural random gaze around the mob (used for idle + "sometimes look elsewhere")
@@ -329,6 +297,33 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         }
         // gently look at the current random target
         lookAt(currentGaze, 10.0F, 10.0F);
+    }
+
+    private static Vec3d lastResortFacing(EntityTraveller t) {
+        return new Vec3d(-MathHelper.sin(t.rotationYaw * 0.017453292F), 0,
+                MathHelper.cos(t.rotationYaw * 0.017453292F)).normalize();
+    }
+
+    // ADD — set look to a point
+    private void lookAt(Vec3d p, float yawSpeed, float pitchSpeed) {
+        mob.getLookHelper().setLookPosition(p.x, p.y, p.z, yawSpeed, pitchSpeed);
+    }
+
+    private Vec3d computeBackPoint() {
+        Vec3d fwd = (smoothedFwd.lengthSquared() > 1e-6) ? smoothedFwd
+                : new Vec3d(-MathHelper.sin(leader.rotationYaw * 0.017453292F), 0,
+                MathHelper.cos(leader.rotationYaw * 0.017453292F)).normalize();
+
+        Vec3d left = new Vec3d(-fwd.z, 0, fwd.x).normalize().scale(lateralOffset);
+        double x = leader.posX - fwd.x * DESIRED_DIST + left.x;
+        double z = leader.posZ - fwd.z * DESIRED_DIST + left.z;
+        double y = leader.posY;
+
+        return new Vec3d(x, y, z);
+    }
+
+    private void pushFollowPathTo(Vec3d p) {
+        mob.getNavigator().tryMoveToXYZ(p.x, p.y, p.z, speed);
     }
 }
 
