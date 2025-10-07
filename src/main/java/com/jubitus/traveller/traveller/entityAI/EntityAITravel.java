@@ -1,5 +1,6 @@
 package com.jubitus.traveller.traveller.entityAI;
 
+import com.jubitus.traveller.TravellersModConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
@@ -70,6 +71,8 @@ public class EntityAITravel extends EntityAIBase {
     // --- Post-combat guard against backtracking ---
     private int postRecoverGuardTicks = 0;
 
+
+
     public EntityAITravel(EntityTraveller mob, double speed, int stepBlocks) {
         this.mob = mob;
         this.speed = speed;
@@ -137,10 +140,13 @@ public class EntityAITravel extends EntityAIBase {
         arriveInside = mob.isAtTargetStop();
         this.targetVillage = mob.getTargetVillage();
         if (this.targetVillage == null) return;
+        // NEW: seed ambient timer when we start travelling
+
         if (mob.getDistanceSqToCenter(this.targetVillage) <= this.targetNearSq) {
             onArrivedAtVillage();
             return;
         }
+
         this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
         mob.setCurrentWaypoint(this.currentWaypoint);
         pushPathToWaypoint();
@@ -166,6 +172,12 @@ public class EntityAITravel extends EntityAIBase {
 
     @Override
     public void updateTask() {
+        // --- ambient travel chatter (cheap) ---
+        if (!mob.world.isRemote && TravellersModConfig.travellerAmbient) {
+            if (mob.ticksExisted >= mob.nextTravelAmbientTick) {
+                mob.maybePlayTravelAmbient();
+            }
+        }
         if (hardUnstuckCooldown > 0) hardUnstuckCooldown--;
         if (projAccum >= 0.4) {
             ticksNoForward = 0; // made some forward component this tick window

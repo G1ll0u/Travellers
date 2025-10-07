@@ -4,9 +4,11 @@ package com.jubitus.traveller.traveller.entityAI;
 import com.google.common.collect.Multimap;
 import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.pathing.TravellerNavigateGround;
-import com.jubitus.traveller.traveller.sound.ModSounds;
+import com.jubitus.traveller.traveller.utils.sound.ModSounds;
 import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
 import com.jubitus.traveller.traveller.utils.commands.CommandFollowTraveller;
+import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
+import com.jubitus.traveller.traveller.utils.sound.MsgPlayTravellerVoice;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
 import com.jubitus.traveller.traveller.utils.villages.VillageIndex;
@@ -53,6 +55,7 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.CapabilityItemHandler;
@@ -153,15 +156,19 @@ public class EntityTraveller extends EntityCreature {
 
     private final java.util.Map<java.util.UUID, HitGrace> playerGrace = new java.util.HashMap<>();
 
+    // --- Voice channel ---
+    private int voiceLockUntilTick = 0;     // no new sounds until this tick (entity-local, server authoritative)
+    int nextTravelAmbientTick = 0;  // you already had this
+    private static final double AMBIENT_MUTE_RADIUS = 20.0; // blocks (sphere)
+    private static final double CHORUS_RADIUS = 20.0;
+    private static final int   CHORUS_INTENT_WINDOW_TICKS = 10; // treat near-simultaneous intents as “together”
     private static final class HitGrace {
         int count;
         int expiresAt; // ticksExisted when this entry expires
     }
-    private static final SoundEvent[] HURT_VARIANTS = new SoundEvent[] {
-            ModSounds.TRAVELLER_HURT1,
-            ModSounds.TRAVELLER_HURT2,
-            ModSounds.TRAVELLER_HURT3
-    };
+
+    private enum VoiceKind { NONE, AMBIENT, TALK, HURT }
+    private VoiceKind voiceKindNow = VoiceKind.NONE;
 
     public EntityTraveller(World worldIn) {
         super(worldIn);
@@ -427,6 +434,9 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public void onUpdate() {
         super.onUpdate();
+        if (!world.isRemote && voiceKindNow != VoiceKind.NONE && this.ticksExisted >= voiceLockUntilTick) {
+            voiceKindNow = VoiceKind.NONE;
+        }
 
         if (!world.isRemote) {
             if (departCooldownTicks > 0) departCooldownTicks--;
@@ -833,20 +843,22 @@ public class EntityTraveller extends EntityCreature {
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
         if (world.isRemote) return true;
 
-        if (speakCooldown > 0) return true; // avoid spam if someone spams clicks
+        if (speakCooldown > 0) return true;
         speakCooldown = 20; // ~1s
 
-        // 1) If following another traveller: do NOT reveal destination
+        // NEW: optional voice line
+        if (TravellersModConfig.travellerSpeaks) {
+            playTalkSound();
+        }
+        doInteractSwing(hand);
+        // … your existing logic …
         if (isFollowingSomeone()) {
             player.sendMessage(new TextComponentString(
                     TextFormatting.WHITE + "I'm travelling with someone right now. Ask me again later."
             ));
             return true;
         }
-
-        // 2) If we’re roaming/loitering inside a village: do NOT reveal destination
         if (isVillageIdling()) {
-            // Optional: say where we’re staying (nearest village name), *not* the next target
             String stayName = lookupNearestVillageNameOrCoords();
             player.sendMessage(new TextComponentString(
                     TextFormatting.WHITE + "I'm staying in " +
@@ -856,10 +868,31 @@ public class EntityTraveller extends EntityCreature {
             return true;
         }
 
-        // 3) Otherwise: normal “I’m heading to … in the …” line
-        world.setEntityState(this, (byte) 4); // tell clients to swing NOW
+        world.setEntityState(this, (byte) 4); // swing animation
         announceHeadingTo(player);
         return true;
+    }
+
+    private void playTalkSound() {
+        float vol = 1.0F;
+        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
+        int dur = 40 + this.rand.nextInt(20);
+        playVoiceMoving(ModSounds.TRAVELLER_TALK, vol, pitch, dur, /*preempt=*/true, VoiceKind.TALK);
+        scheduleNextTravelAmbient();
+    }
+
+
+
+
+
+
+    private void doInteractSwing(EnumHand hand) {
+        // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
+        world.setEntityState(this, (byte) (hand == EnumHand.OFF_HAND ? 5 : 4));
+        // Also update server-side state so other logic that checks swing progresses is consistent
+        this.swingArm(hand);
+        // If you use your forcedSwingTicks visual, give it a nudge
+        this.forcedSwingTicks = 6; // matches your handleStatusUpdate()
     }
 
     public boolean isFollowingSomeone() {
@@ -1258,7 +1291,8 @@ public class EntityTraveller extends EntityCreature {
     public boolean attackEntityFrom(DamageSource source, float amount) {
         boolean tookDamage = super.attackEntityFrom(source, amount);
         if (!tookDamage || world.isRemote) return tookDamage;
-
+        // Preempt ambience right now; duration ~1s (match your hurt clip length)
+        beginVoiceLock(20, VoiceKind.HURT); // ~1s, tune to your hurt clip
         Entity src = source.getTrueSource();
 
         // Allow Creative hits: take damage, but no aggro / no help ping
@@ -1287,7 +1321,7 @@ public class EntityTraveller extends EntityCreature {
         }
         return true;
     }
-
+    @Override public SoundCategory getSoundCategory() { return SoundCategory.VOICE; }
     @Override
     public void onDeath(DamageSource cause) {
         // remove ghost item if present
@@ -2092,14 +2126,8 @@ public class EntityTraveller extends EntityCreature {
     }
     @Override
     @Nullable
-    protected SoundEvent getHurtSound(DamageSource damageSourceIn) {
-        // 10% chance to play a special “rare” yelp if the hit is heavy or random
-        boolean heavy = this.getHealth() <= this.getMaxHealth() * 0.33F
-                || (damageSourceIn != null && damageSourceIn.isProjectile());
-        if (this.rand.nextInt(10) == 0 || heavy) {
-            return ModSounds.TRAVELLER_HURT_RARE;
-        }
-        return HURT_VARIANTS[this.rand.nextInt(HURT_VARIANTS.length)];
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return ModSounds.TRAVELLER_HURT;  // plays at the entity’s position for all nearby players
     }
 
     @Override
@@ -2112,4 +2140,70 @@ public class EntityTraveller extends EntityCreature {
         // small per-hit pitch variance so repeats don’t sound robotic
         return 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
     }
+    public void scheduleNextTravelAmbient() {
+        // spreads entities out and respects config
+        if (!TravellersModConfig.travellerAmbient) {
+            nextTravelAmbientTick = Integer.MAX_VALUE;
+            return;
+        }
+        int min = Math.max(40, TravellersModConfig.travellerAmbientMinDelay);
+        int max = Math.max(min, TravellersModConfig.travellerAmbientMaxDelay);
+        int delta = min + this.rand.nextInt(Math.max(1, max - min + 1));
+        nextTravelAmbientTick = this.ticksExisted + delta;
+    }
+
+    public void maybePlayTravelAmbient() {
+        if (!TravellersModConfig.travellerAmbient) return;
+        if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) return;
+        if (this.getTargetVillage() == null) return;
+        if (this.getNavigator().noPath() && this.getCurrentWaypoint() == null) return;
+        if (this.motionX * this.motionX + this.motionZ * this.motionZ < 0.005) return;
+
+        if (this.ticksExisted < voiceLockUntilTick) return;
+
+
+        // 3) Fallback: solo ambient
+        float vol = TravellersModConfig.travellerAmbientVolume;
+        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.06F;
+        int dur = 50 + this.rand.nextInt(30);
+
+        if (playVoiceMoving(ModSounds.AMBIENT, vol, pitch, dur, /*preempt=*/false, VoiceKind.AMBIENT)) {
+            scheduleNextTravelAmbient();
+        }
+    }
+
+    private void sendFollowSound(SoundEvent evt, float vol, float pitch, double radius) {
+        if (world.isRemote || evt == null) return;
+        MsgPlayTravellerVoice msg = new MsgPlayTravellerVoice(this, evt, vol, pitch /* duration now unused, keep or remove field */);
+        NetworkRegistry.TargetPoint tp = new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
+        TravellerFollowNet.CHANNEL.sendToAllAround(msg, tp);
+    }
+
+    private boolean playVoiceMoving(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, VoiceKind kind) {
+        if (!preempt && this.ticksExisted < voiceLockUntilTick) return false;
+
+        // Don’t also call playSound here; we only want the moving instance on clients.
+        sendFollowSound(evt, vol, pitch, 48.0);
+
+        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
+        voiceKindNow = kind;
+        return true;
+    }
+
+
+    private void beginVoiceLock(int durationTicks, VoiceKind kind) {
+        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
+        voiceKindNow = kind;
+    }
+    public boolean isVoiceLockedNow() {
+        return this.ticksExisted < voiceLockUntilTick;
+    }
+    public boolean isAmbientPlayingNow() {
+        return isVoiceLockedNow() && voiceKindNow == VoiceKind.AMBIENT;
+    }
+    private static final SoundEvent[] DUO_SONGS = new SoundEvent[] {
+            ModSounds.TRAVELLER_SONG1, ModSounds.TRAVELLER_SONG2, ModSounds.TRAVELLER_SONG3
+    };
+
+
 }

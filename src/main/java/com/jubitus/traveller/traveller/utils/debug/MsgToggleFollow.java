@@ -49,6 +49,7 @@ public class MsgToggleFollow implements net.minecraftforge.fml.common.network.si
             return null;
         }
     }
+
 }
 
 
