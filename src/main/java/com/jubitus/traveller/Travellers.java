@@ -39,6 +39,8 @@ import static com.jubitus.traveller.traveller.utils.villages.VillageDataLoader.l
 public class Travellers {
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
 
+
+
     @SubscribeEvent
     public static void onWorldLoad(WorldEvent.Load event) {
         if (!event.getWorld().isRemote) {

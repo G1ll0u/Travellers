@@ -17,6 +17,7 @@
 - Adjusted spawn behaviour to spawn less travellers
 - spawnWeight now defaults to 2 (instead of 10)
 - Added a traveller limit
+- New sounds
 
 #### Commands
 - Hot config reload

@@ -1,6 +1,40 @@
 {
-  "entity.traveller.hurt1": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt1" }] },
-  "entity.traveller.hurt2": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt2" }] },
-  "entity.traveller.hurt3": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt3" }] },
-  "entity.traveller.hurt_rare": { "category": "entity", "sounds": [{ "name": "travellers:traveller/hurt_rare" }] }
+  "entity.traveller.ambient1": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient1" }] },
+  "entity.traveller.ambient2": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient2" }] },
+  "entity.traveller.ambient3": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient3" }] },
+
+  "entity.traveller.ambient": {
+    "category": "voice",
+    "stream": true,
+    "sounds": [
+      { "name": "travellers:traveller/ambient1" },
+      { "name": "travellers:traveller/ambient2" },
+      { "name": "travellers:traveller/ambient3" }
+    ]
+  },
+  "entity.traveller.talk": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      { "name": "travellers:traveller/talk1" },
+      { "name": "travellers:traveller/talk2" },
+      { "name": "travellers:traveller/talk3" },
+      { "name": "travellers:traveller/talk4" },
+      { "name": "travellers:traveller/talk5" }
+    ]
+  },
+  "entity.traveller.hurt": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.hurt",
+    "stream": true,
+    "sounds": [
+      { "name": "travellers:traveller/hurt1" },
+      { "name": "travellers:traveller/hurt2" },
+      { "name": "travellers:traveller/hurt3" },
+      { "name": "travellers:traveller/hurt4" },
+      { "name": "travellers:traveller/hurt5" },
+      { "name": "travellers:traveller/hurt_rare" }
+    ]
+  }
 }
+

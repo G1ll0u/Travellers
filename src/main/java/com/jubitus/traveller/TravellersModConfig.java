@@ -12,7 +12,7 @@ public class TravellersModConfig {
 
     public static final TravellerBlacklist TRAVELLER_BLACKLIST = new TravellerBlacklist();
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "3.7";
+    private static final String CURRENT_VERSION = "3.8";
     public static int loadedTravellerCap;
     public static int MinGroupSizeAtSpawn;
     public static int MaxGroupSizeAtSpawn;
@@ -51,10 +51,15 @@ public class TravellersModConfig {
     public static double followRange;
     public static double attackDamage;
     public static double attackTriggerRange;
+    public static boolean travellerSpeaks;
     static boolean enableTravellerEntity = true;
     private static Configuration CONFIG;      // <— keep it
     private static File CONFIG_FILE;          // <— keep it
 
+    public static boolean travellerAmbient = true;           // NEW
+    public static int travellerAmbientMinDelay;   // 10s
+    public static int travellerAmbientMaxDelay;    // 30s
+    public static float travellerAmbientVolume;      // 0.0–1.0
     public static void init(File configFile) {
         CONFIG_FILE = configFile;
         // Ensure parent folder exists
@@ -224,7 +229,19 @@ public class TravellersModConfig {
 
 
         );
-
+        travellerSpeaks = cfg.getBoolean("travellerSpeaks", "misc", true,
+                "If true, travellers play a voice line when right-clicked.");
+        travellerAmbient = cfg.getBoolean("travellerAmbient", "misc", true,
+                "If true, travellers occasionally mutter/whistle while travelling.");
+        travellerAmbientMinDelay = cfg.getInt("travellerAmbientMinDelay", "misc", 200, 40, 20_000,
+                "Minimum ticks between ambient travel lines (default 200 = 10s).");
+        travellerAmbientMaxDelay = cfg.getInt("travellerAmbientMaxDelay", "misc", 600, 80, 60_000,
+                "Maximum ticks between ambient travel lines (default 600 = 30s).");
+        travellerAmbientVolume = cfg.getFloat("travellerAmbientVolume", "misc", 0.9F, 0.0F, 1.0F,
+                "Volume for ambient travel lines (0.0–1.0).");
+        if (travellerAmbientMaxDelay < travellerAmbientMinDelay) {
+            travellerAmbientMaxDelay = travellerAmbientMinDelay;
+        }
         enableTravellerEntity = cfg.getBoolean(
                 "enableTravellerEntity",
                 "General traveller settings",
@@ -325,7 +342,13 @@ public class TravellersModConfig {
                 true,
                 "If true, travellers will call nearby allies for help when attacked."
         );
-
+        //SOUND
+        travellerSpeaks = cfg.getBoolean(
+                "travellerSpeaks",
+                "Traveller misc",
+                true,
+                "If true, say hello when right click on them."
+        );
         helpRange = cfg.getFloat(
                 "helpRange",
                 "Traveller combat tweaks",
@@ -407,7 +430,7 @@ public class TravellersModConfig {
 
         followDurationMax = cfg.getInt(
                 "FollowDurationMax", "Traveller follow task tweaks",
-                240, 20, 40000,
+                320, 20, 40000,
                 "Maximum duration (seconds) to follow when starting. (20 ticks = 1s, 2400 = 2 min)."
         );
 
@@ -427,14 +450,14 @@ public class TravellersModConfig {
         villageRoamMinDuration = cfg.getInt(
                 "villageRoamMinDuration",
                 "Traveller roam inside village task tweaks",
-                30, 0, 24000,
+                10, 0, 24000,
                 "Minimum duration (in seconds) a traveller will roam before resetting its roam target."
         );
 
         villageRoamMaxDuration = cfg.getInt(
                 "villageRoamMaxDuration",
                 "Traveller roam inside village task tweaks",
-                120, 0, 24000,
+                30, 0, 24000,
                 "Maximum duration (in seconds) a traveller will roam before resetting its roam target."
         );
 
