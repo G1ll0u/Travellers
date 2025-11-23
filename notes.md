@@ -1,11 +1,12 @@
-# Travellers 1.0.2 (will be probably be renamed "Voyageurs" in future update)
+# Travellers 1.0.2
 
 **Old `travellers.cfg` will be backed up and a new one with new and default values will be created in `/minecraft/config`**
 
-**If you update and have a world with travellers, use /travellerConfigReload to apply eventual new config values to all loaded travellers**
-**Since it is my second mod, 
 ### Main changes
-- Refactored ranged AI (bow) to add animation and make it less buggy
+- New sounds (hit, right click and ambient)
+  - They will sing randomly when travelling
+  - Sounds made with love
+- Redone ranged AI (bow) to add animation and make it less buggy
 - More control for natural spawns in config
 - Better pathfinding, especially obstacle avoidance
 - Fixed visual bugs
@@ -15,9 +16,8 @@
 
 #### Traveller spawn
 - Adjusted spawn behaviour to spawn less travellers
-- spawnWeight now defaults to 2 (instead of 10)
+  - spawnWeight now defaults to 2 (instead of 10)
 - Added a traveller limit
-- New sounds
 
 #### Commands
 - Hot config reload
@@ -26,8 +26,6 @@
     - counts actually loaded travellers 
 - added command `/travellersglow [time in seconds]`
      - Applies glow effect to debug entities (make them highlighted to know position)
-- Added command `/followtraveller`
-    - makes the camera follow a nearby traveller (WIP, buggy and also a debug thing)
 
 #### Combat
 - Travellers now handle multiple attack targets better
@@ -53,3 +51,13 @@
 - Added some translation for entity name
 - Improved village recognition code to use actual millenaire API
     - Fixed loottables **(won't depend on polishmod anymore)**
+- New sounds
+
+## Travellers 1.0.3
+- Added agressive traveller named "Raider" (travellers:traveller_raider)
+  - Attacks player
+  - Attacks millenaire entities by default
+  - Configurable attack list
+  - Configurable attack blacklist
+  - still travel between villages
+- Improved swimming (was broken)

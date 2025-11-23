@@ -1,6 +1,8 @@
 package com.jubitus.traveller.traveller.render;
 
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerDog;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
 import net.minecraftforge.fml.client.registry.RenderingRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -11,6 +13,11 @@ public class ClientProxy {
     public static void registerRenderers() {
         RenderingRegistry.registerEntityRenderingHandler(EntityTraveller.class,
                 RenderTraveller::new);
+        RenderingRegistry.registerEntityRenderingHandler(EntityTravellerDog.class, manager ->
+                new net.minecraft.client.renderer.entity.RenderWolf(manager));
+
+        // NEW: raider renderer
+        RenderingRegistry.registerEntityRenderingHandler(EntityTravellerRaider.class,
+                RenderTravellerRaider::new);
     }
 }
-

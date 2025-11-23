@@ -1,6 +1,8 @@
 package com.jubitus.traveller;
 
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerDog;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
 import com.jubitus.traveller.traveller.render.ClientProxy;
 import com.jubitus.traveller.traveller.utils.TravellerSpawnGuards;
 import com.jubitus.traveller.traveller.utils.commands.*;
@@ -65,6 +67,7 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerReload());
         event.registerServerCommand(new CommandFollowTraveller());
         event.registerServerCommand(new CommandTravellerCount());
+        event.registerServerCommand(new CommandMountTraveller());
     }
 
     @Mod.EventHandler
@@ -75,7 +78,6 @@ public class Travellers {
         // Load config
         File configFile = event.getSuggestedConfigurationFile();
         TravellersModConfig.init(configFile);
-
         // Client-only stuff
         if (event.getSide().isClient()) {
             ClientProxy.registerRenderers();
@@ -93,7 +95,17 @@ public class Travellers {
                     128, 1, true,
                     0xaca288, 0x7D4D33
             );
-
+            EntityRegistry.registerModEntity(
+                    new ResourceLocation(Reference.MOD_ID, "traveller_dog"),
+                    EntityTravellerDog.class,
+                    Reference.MOD_ID + ".traveller_dog",
+                    3,                  // unique numeric id within this mod (not 1 or 2 you used above)
+                    this,
+                    128,                // tracking range
+                    1,                  // update frequency
+                    true,               // send velocity updates
+                    0x6A4E3B, 0xC7A67A  // (optional) egg colors
+            );
             // Add spawn to all biomes
             for (Biome biome : ForgeRegistries.BIOMES) {
                 EntityRegistry.addSpawn(
@@ -105,6 +117,31 @@ public class Travellers {
                         biome
                 );
             }
+            if (TravellersModConfig.enableTravellerRaider) {
+                EntityRegistry.registerModEntity(
+                        new ResourceLocation(Reference.MOD_ID, "traveller_raider"),
+                        EntityTravellerRaider.class,
+                        Reference.MOD_ID + ".traveller_raider",
+                        2,                    // <- per-mod unique numeric ID (different from traveller's 1)
+                        this,
+                        128, 1, true,
+                        0x3d2c1e, 0x8b2e1a    // spawn egg colors (optional)
+                );
+
+                // Choose where they spawn + category:
+                for (Biome biome : ForgeRegistries.BIOMES) {
+                    // Narrow if you want (e.g., only PLAINS, SAVANNA, etc.)
+                    EntityRegistry.addSpawn(
+                            EntityTravellerRaider.class,
+                            TravellersModConfig.RaiderWeight,              // e.g., 6–12
+                            TravellersModConfig.RaiderMinGroup,        // e.g., 1
+                            TravellersModConfig.RaiderMaxGroup,        // e.g., 2
+                            EnumCreatureType.CREATURE,                      // <- hostile list
+                            biome
+                    );
+                }
+            }
+
         } else {
             System.out.println("[Travellers] Traveller entityAI disabled in config.");
         }

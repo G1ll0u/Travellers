@@ -21,12 +21,14 @@ public class MsgPlayTravellerVoice implements net.minecraftforge.fml.common.netw
     public MsgPlayTravellerVoice() {
     }
 
-    public MsgPlayTravellerVoice(EntityTraveller e, SoundEvent evt, float vol, float pitch) {
+    public MsgPlayTravellerVoice(EntityTraveller e, SoundEvent evt, float vol, float pitch, int durationTicks) {
         this.entityId = e.getEntityId();
         this.soundKey = evt.getRegistryName().toString();
         this.vol = vol;
         this.pitch = pitch;
+        this.duration = Math.max(1, durationTicks);
     }
+
 
     @Override
     public void fromBytes(io.netty.buffer.ByteBuf buf) {

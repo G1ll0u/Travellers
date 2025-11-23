@@ -2,22 +2,31 @@ package com.jubitus.traveller.traveller.entityAI;
 
 import com.jubitus.traveller.TravellersModConfig;
 import net.minecraft.block.Block;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.init.Blocks;
 import net.minecraft.pathfinding.Path;
+import net.minecraft.pathfinding.PathNavigate;
 import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumParticleTypes;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
+import javax.annotation.Nullable;
 import java.util.Random;
 
 public class EntityAITravel extends EntityAIBase {
+    // --- Water crossing tuning ---
+    private static final int WATER_AHEAD_PROBE = 24; // look ~24 blocks ahead
+    private static final int WATER_AHEAD_MIN   = 6; // if >=12 of those are water, treat as water corridor
 
     private static final int NO_PATH_RESELECT = 20; // ~1s
     // Small detour headings, degrees
@@ -71,6 +80,11 @@ public class EntityAITravel extends EntityAIBase {
     // --- Post-combat guard against backtracking ---
     private int postRecoverGuardTicks = 0;
 
+    private int waterWaypointCooldown = 0;
+    // How far we're willing to path for a *single* waypoint (blocks)
+    private static final int LOCAL_PATH_RANGE = 48; // tune as you like
+
+
 
     public EntityAITravel(EntityTraveller mob, double speed, int stepBlocks) {
         this.mob = mob;
@@ -87,8 +101,10 @@ public class EntityAITravel extends EntityAIBase {
      * True if the block at `pos` can support standing on top (accepts ice).
      */
     private static boolean supportsStandingSurface(World w, BlockPos pos, IBlockState st) {
-        // guard again for safety (some callers pass in computed states, but be strict)
         if (!w.isBlockLoaded(pos)) return false;
+
+        // NEW: never stand on leaves
+        if (isLeafBlock(w, pos, st)) return false;
 
         if (st.getMaterial().isLiquid()) return false;
 
@@ -99,9 +115,13 @@ public class EntityAITravel extends EntityAIBase {
         if (bb != Block.NULL_AABB && (bb.maxY - bb.minY) > 0.001) return true;
 
         Block b = st.getBlock();
+        if (b == Blocks.SNOW_LAYER) return true;
+
         return b == Blocks.ICE || b == Blocks.PACKED_ICE || b == Blocks.FROSTED_ICE
                 || b == Blocks.GLASS || b == Blocks.STAINED_GLASS;
     }
+
+
 
     public void setSpeed(double s) {
         this.speed = s;
@@ -139,15 +159,22 @@ public class EntityAITravel extends EntityAIBase {
         arriveInside = mob.isAtTargetStop();
         this.targetVillage = mob.getTargetVillage();
         if (this.targetVillage == null) return;
-        // NEW: seed ambient timer when we start travelling
 
+        // already there?
+        mob.scheduleNextTravelAmbient();
         if (mob.getDistanceSqToCenter(this.targetVillage) <= this.targetNearSq) {
             onArrivedAtVillage();
             return;
         }
 
+        // NEW: torch on when starting travel at night
+        if (!mob.world.isDaytime()) {
+            mob.setTravelTorchVisible(true);
+        }
+
         this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
         mob.setCurrentWaypoint(this.currentWaypoint);
+        debugMark(this.currentWaypoint);
         pushPathToWaypoint();
 
         this.lastPos = mob.getPositionVector();
@@ -160,6 +187,7 @@ public class EntityAITravel extends EntityAIBase {
         this.lastProgressPos = mob.getPositionVector();
         this.projAccum = 0.0;
 
+
     }
 
     @Override
@@ -171,6 +199,33 @@ public class EntityAITravel extends EntityAIBase {
 
     @Override
     public void updateTask() {
+
+
+        if (hardUnstuckCooldown > 0) hardUnstuckCooldown--;
+        if (waterWaypointCooldown > 0) waterWaypointCooldown--;
+
+        // Reached current waypoint? pick next
+        if (this.currentWaypoint != null &&
+                mob.getDistanceSqToCenter(this.currentWaypoint) <= this.reachDistSq) {
+
+            // in water: avoid thrash, wait a moment before reseeding
+            if (mob.isInWater() && waterWaypointCooldown > 0) {
+                // keep going; do not change waypoint yet
+            } else {
+                this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
+                mob.setCurrentWaypoint(this.currentWaypoint);
+                debugMark(this.currentWaypoint);
+                if (mob.isInWater()) waterWaypointCooldown = 10; // ~0.5s guard
+            }
+        }
+
+// periodic refresh
+        if ((mob.ticksExisted + mob.getRecalcPhase()) % this.recalcTicks == 0) {
+            if (!(mob.isInWater() && waterWaypointCooldown > 0)) {
+                pushPathToWaypoint();
+            }
+        }
+
         // --- ambient travel chatter (cheap) ---
         if (!mob.world.isRemote && TravellersModConfig.travellerAmbient) {
             if (mob.ticksExisted >= mob.nextTravelAmbientTick) {
@@ -204,6 +259,7 @@ public class EntityAITravel extends EntityAIBase {
                     this.targetVillage = liveTarget;
                     this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
                     mob.setCurrentWaypoint(this.currentWaypoint);
+                    debugMark(this.currentWaypoint);
                 }
                 this.bestDistSq = mob.getDistanceSqToCenter(this.targetVillage);
                 this.ticksNoForward = 0;
@@ -255,6 +311,7 @@ public class EntityAITravel extends EntityAIBase {
                 mob.getDistanceSqToCenter(this.currentWaypoint) <= this.reachDistSq) {
             this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
             mob.setCurrentWaypoint(this.currentWaypoint);
+            debugMark(this.currentWaypoint);
         }
 
 // classic distance-to-goal check (keep it)
@@ -299,6 +356,7 @@ public class EntityAITravel extends EntityAIBase {
         if (noPathTicks >= NO_PATH_RESELECT) {
             this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
             mob.setCurrentWaypoint(this.currentWaypoint);
+            debugMark(this.currentWaypoint);
             pushPathToWaypoint();
             noPathTicks = 0;
         }
@@ -401,11 +459,15 @@ public class EntityAITravel extends EntityAIBase {
         this.currentWaypoint = null;
         mob.setCurrentWaypoint(null);
         mob.getNavigator().clearPath();
-
+        mob.setTravelTorchVisible(false);
         // Let Roam start this tick
         // (Roam’s shouldExecute() will pass now because distance ≤ VILLAGE_NEAR)
     }
 
+    /**
+     * Compute a "next" waypoint toward 'dest' that is inside currently loaded chunks.
+     * Does not force-load anything. Returns null if no safe waypoint is found.
+     */
     /**
      * Compute a "next" waypoint toward 'dest' that is inside currently loaded chunks.
      * Does not force-load anything. Returns null if no safe waypoint is found.
@@ -415,42 +477,61 @@ public class EntityAITravel extends EntityAIBase {
         Vec3d to = new Vec3d(dest.getX() - from.getX(), 0, dest.getZ() - from.getZ());
         if (to.lengthSquared() < 1.0) return null;
 
-// 3a) apply a tiny per-entityAI heading bias
+        // 3a) tiny per-entity heading bias
         double biasedYawRad = Math.toRadians(mob.getPathAngleBiasDeg());
         Vec3d dir = rotateY(to.normalize(), biasedYawRad);
 
-// 3b) jitter the step size slightly
+        // 3b) jitter step size slightly
         int step = Math.min(baseStep + mob.getPathStepJitter(),
                 (int) Math.sqrt(mob.getDistanceSqToCenter(dest)));
         step = Math.max(8, step);
+        boolean waterCorridor = isMostlyWaterAhead(from, dir, WATER_AHEAD_PROBE, WATER_AHEAD_MIN);
 
-// try straight candidates first (but they’re now slightly biased)
+// Land-first straight candidates; only fallback to water if corridor is truly water-dominant
         for (int s = step; s >= 16; s -= 16) {
-            // lane offset: a small perpendicular shift so paths don’t stack perfectly
             Vec3d left = new Vec3d(-dir.z, 0, dir.x).normalize().scale(mob.getPathLaneOffset());
-            BlockPos candidate = surfaceAtOffset(from, dir, s, left);
-            if (candidate != null) return candidate;
+            BlockPos candidate = surfaceAtOffsetDryFirst(from, dir, s, left, /*allowWaterFallback=*/waterCorridor);
+            if (candidate != null) {
+                // if we started in water, try to exit; if already dry, keep it
+                candidate = preferShoreWhenInWater(from, candidate, /*preferExit=*/true);
+                if (candidate != null) return candidate;
+            }
         }
 
-// detours (also from biased heading)
+
+
+
+        // Detours (also from biased heading)
         int detStep = Math.max(12, step / 2);
         for (int angle : new int[]{-60, 60, -30, 30, -90, 90}) {
             Vec3d r = rotateY(dir, Math.toRadians(angle));
-            Vec3d left = new Vec3d(-r.z, 0, r.x).normalize().scale(mob.getPathLaneOffset() * 0.6); // soften on detours
-            BlockPos candidate = surfaceAtOffset(from, r, detStep, left);
-            if (candidate != null) return candidate;
+            Vec3d left2 = new Vec3d(-r.z, 0, r.x).normalize().scale(mob.getPathLaneOffset() * 0.6);
+            BlockPos candidate = surfaceAtOffsetDryFirst(from, r, detStep, left2, /*allowWaterFallback=*/waterCorridor);
+            if (candidate != null) {
+                candidate = preferShoreWhenInWater(from, candidate, /*preferExit=*/true);
+                if (candidate != null && !segmentBlockedTwoHigh(from, candidate)) return candidate;
+            }
         }
 
-        // tiny random reseed
-        Random r = mob.getRNG();
+
+        // Tiny random reseed
+        Random rand = mob.getRNG();
         for (int i = 0; i < 6; i++) {
-            int nx = from.getX() + r.nextInt(9) - 4;
-            int nz = from.getZ() + r.nextInt(9) - 4;
-            BlockPos surf = findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
-            if (surf != null && isAreaLoaded(surf, 1) && isNavigable(surf)) return surf;
+            int nx = from.getX() + rand.nextInt(9) - 4;
+            int nz = from.getZ() + rand.nextInt(9) - 4;
+            BlockPos dry = findDrySurfaceNear(new BlockPos(nx, from.getY(), nz));
+            if (dry != null && isAreaLoaded(dry, 1) && isStandable(dry)) return dry;
+
+            if (waterCorridor) {
+                BlockPos wet = findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
+                if (wet != null && isAreaLoaded(wet, 1) && isSwimmable(wet)) return wet;
+            }
         }
+
         return null;
     }
+
+
 
     private BlockPos surfaceAtOffset(BlockPos from, Vec3d dir, int s, Vec3d lateral) {
         int nx = from.getX() + (int) Math.round(dir.x * s + lateral.x);
@@ -478,6 +559,7 @@ public class EntityAITravel extends EntityAIBase {
             BlockPos surface = findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
             if (surface != null && isAreaLoaded(surface, 1) && isNavigable(surface)) {
                 this.currentWaypoint = surface;
+                debugMark(this.currentWaypoint);
                 pushPathToWaypoint();
                 return;
             }
@@ -491,6 +573,7 @@ public class EntityAITravel extends EntityAIBase {
             BlockPos surface = findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
             if (surface != null && isAreaLoaded(surface, 1) && isNavigable(surface)) {
                 this.currentWaypoint = surface;
+                debugMark(this.currentWaypoint);
                 pushPathToWaypoint();
                 return;
             }
@@ -565,39 +648,53 @@ public class EntityAITravel extends EntityAIBase {
     private boolean isStandable(BlockPos feet) {
         World world = mob.world;
 
-        // HARD guards
-        if (!world.isBlockLoaded(feet)) return false;
-        if (!world.isBlockLoaded(feet.up())) return false;
-        if (!world.isBlockLoaded(feet.down())) return false;
+        if (!world.isBlockLoaded(feet) || !world.isBlockLoaded(feet.up()) || !world.isBlockLoaded(feet.down()))
+            return false;
 
-        final IBlockState below = world.getBlockState(feet.down());
+        final IBlockState below  = world.getBlockState(feet.down());
         final IBlockState atFeet = world.getBlockState(feet);
         final IBlockState atHead = world.getBlockState(feet.up());
+
+        // NEW: do not consider leaves as valid support
+        if (isLeafBlock(world, feet.down(), below)) return false;
 
         if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
         if (!supportsStandingSurface(world, feet.down(), below)) return false;
 
-        return atFeet.getMaterial().isReplaceable() && atHead.getMaterial().isReplaceable();
+        // --- NEW: allow standing where the feet cell is a snow_layer (thin collision) ---
+        boolean feetOk =
+                atFeet.getBlock() == Blocks.SNOW_LAYER
+                        ||  atFeet.getMaterial().isReplaceable()
+                        ||  atFeet.getCollisionBoundingBox(world, feet) == null;
+
+        boolean headOk =
+                atHead.getMaterial().isReplaceable()
+                        ||  atHead.getCollisionBoundingBox(world, feet.up()) == null
+                        ||  atHead.getBlock() == Blocks.SNOW_LAYER; // tiny dust on head cell is fine too
+
+        return feetOk && headOk;
     }
 
-    private boolean isSwimmable(BlockPos feet) {
+
+    private boolean isSwimmable(BlockPos feetPos) {
         World world = mob.world;
+        if (!world.isBlockLoaded(feetPos) || !world.isBlockLoaded(feetPos.up()) || !world.isBlockLoaded(feetPos.down()))
+            return false;
 
-        // HARD guards
-        if (!world.isBlockLoaded(feet)) return false;
-        if (!world.isBlockLoaded(feet.up())) return false;
-        if (!world.isBlockLoaded(feet.down())) return false;
+        IBlockState feet = world.getBlockState(feetPos);
+        IBlockState head = world.getBlockState(feetPos.up());
+        IBlockState below = world.getBlockState(feetPos.down());
 
-        IBlockState feetS = world.getBlockState(feet);
-        IBlockState headS = world.getBlockState(feet.up());
-        IBlockState belowS = world.getBlockState(feet.down());
+        // Feet must be vanilla water; head can be water or replaceable air
+        boolean feetOK = isVanillaWater(feet);
+        boolean headOK = isVanillaWater(head) || head.getMaterial().isReplaceable();
 
-        boolean feetWater = feetS.getMaterial() == net.minecraft.block.material.Material.WATER;
-        boolean headOK = headS.getMaterial() == net.minecraft.block.material.Material.WATER
-                || headS.getMaterial().isReplaceable();
+        // absolutely forbid any non-water liquids/quicksand/lava around
+        if (isForbiddenLiquid(feet) || isForbiddenLiquid(head) || isForbiddenLiquid(below)) return false;
 
-        return feetWater && headOK && belowS.getMaterial() != net.minecraft.block.material.Material.LAVA;
+        return feetOK && headOK;
     }
+
 
     private void tryDetourWide() {
         if (this.targetVillage == null) return;
@@ -607,7 +704,7 @@ public class EntityAITravel extends EntityAIBase {
 
         Vec3d base = to.normalize();
         int detStep = Math.max(24, this.stepBlocks);
-
+        boolean waterCorridor = isMostlyWaterAhead(from, base, WATER_AHEAD_PROBE, WATER_AHEAD_MIN);
         // Prefer forward-hemisphere first; allow deep-back only at max stall
         int[] ANG = (stallLevel >= 3)
                 ? new int[]{120, -120, 150, -150, 180, 90, -90, 60, -60, 30, -30}
@@ -615,13 +712,18 @@ public class EntityAITravel extends EntityAIBase {
 
         for (int angleDeg : ANG) {
             Vec3d dir = rotateY(base, Math.toRadians(angleDeg));
-            BlockPos candidate = surfaceAtOffset(from, dir, detStep,
+            BlockPos candidate = waterCorridor
+                    ? surfaceAtOffsetWater(from, dir, detStep)
+                    : surfaceAtOffset(from, dir, detStep,
                     new Vec3d(-dir.z, 0, dir.x).normalize().scale(mob.getPathLaneOffset() * 0.5));
+
             if (candidate != null && !segmentBlockedTwoHigh(from, candidate)) {
                 this.currentWaypoint = candidate;
+                debugMark(this.currentWaypoint);
                 pushPathToWaypoint();
                 return;
             }
+
         }
     }
 
@@ -661,6 +763,7 @@ public class EntityAITravel extends EntityAIBase {
                 // sanity: ensure we’re not “through” a two-high blocker between from→cand
                 if (!segmentBlockedTwoHigh(from, cand)) {
                     this.currentWaypoint = cand;
+                    debugMark(this.currentWaypoint);
                     pushPathToWaypoint();
                     return;
                 }
@@ -672,24 +775,69 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private boolean segmentBlockedTwoHigh(BlockPos a, BlockPos b) {
-        int dx = b.getX() - a.getX();
-        int dz = b.getZ() - a.getZ();
-        int steps = Math.max(1, (int) Math.ceil(Math.sqrt(dx * dx + dz * dz)) / 2); // half density
+        // How densely to sample along the segment (XZ)
+        int steps = Math.max(1, (int) Math.ceil(a.distanceSq(b) > 0 ? Math.sqrt(a.distanceSq(b)) : 1));
+
         double ax = a.getX() + 0.5, az = a.getZ() + 0.5;
         double bx = b.getX() + 0.5, bz = b.getZ() + 0.5;
         double stepx = (bx - ax) / steps, stepz = (bz - az) / steps;
+
+        // Soft budget like before (permit a few inconclusive samples)
+        int softFails = 0, softBudget = Math.max(1, steps / 6);
+
+        // We’ll compare against the mob’s current stepHeight (1.4F on land, 0.8F in water)
+        // Give a tiny epsilon to avoid flapping on equal heights.
+        final double stepAllowance = Math.max(0.8, mob.stepHeight) + 0.10;
+
+        // Seed previous effective Y with the start column
+        BlockPos col0 = new BlockPos(MathHelper.floor(ax), a.getY(), MathHelper.floor(az));
+        double prevY = effectiveTopY(mob.world, col0);
+        if (Double.isNaN(prevY)) return true; // treat unknown as blocked
 
         for (int i = 1; i <= steps; i++) {
             int x = (int) Math.floor(ax + stepx * i);
             int z = (int) Math.floor(az + stepz * i);
             BlockPos col = new BlockPos(x, a.getY(), z);
-            if (!isAreaLoaded(col, 1)) return true; // treat unloaded as blocked
+            if (!isAreaLoaded(col, 1)) return true; // never load chunks → treat as blocked
 
-            BlockPos surf = findSurfaceOrWaterY(col);      // ← recompute proper feet Y here
-            if (surf == null || !isNavigable(surf)) return true;
+            double y = effectiveTopY(mob.world, col);
+            if (Double.isNaN(y)) {
+                if (++softFails > softBudget) return true;
+                continue;
+            }
+
+            // --- NEW: fractional step check (handles snow_layer 3→5, etc.) ---
+            double dy = y - prevY;
+
+            // big upward cliff?
+            if (dy > stepAllowance) return true;
+
+            // big downward drop is fine for blocker test, but if you want to avoid cliffs,
+            // you can add: if (dy < -2.5) return true; // optional
+
+            // also ensure the *feet* column is navigable (land or vanilla-water only)
+            BlockPos feetPos = new BlockPos(x, (int)Math.floor(y), z);
+            if (!isNavigable(feetPos)) {
+                if (++softFails > softBudget) return true;
+            } else {
+                // check that headroom around this effective top doesn't intersect forbidden liquids
+                AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
+                        (x + 0.5) - mob.posX,
+                        (Math.floor(y) + 0.0) - mob.posY, // feet at column’s integer Y; collision boxes will clip actual top
+                        (z + 0.5) - mob.posZ
+                );
+                if (intersectsForbiddenLiquid(mob.world, aabb)) {
+                    if (++softFails > softBudget) return true;
+                } else {
+                    // sample counted as OK; update baseline height
+                    prevY = y;
+                }
+            }
         }
         return false;
     }
+
+
 
     private boolean localEscapeScan(int radius) {
         radius = Math.max(radius, currentEscapeScanRadius());
@@ -733,18 +881,18 @@ public class EntityAITravel extends EntityAIBase {
 
     // How much we're allowed to get "worse" (distance^2) when escaping
     private int backtrackAllowanceSq() {
-        // Allow only modest regressions; mountains punish large backtracks
         switch (stallLevel) {
             case 0:
-                return 4;     // ~2 blocks
+                return 9;   // was 4  (~3 blocks)
             case 1:
-                return 64;    // ~8 blocks
+                return 100; // was 64 (~10 blocks)
             case 2:
-                return 256;   // ~16 blocks
+                return 256;
             default:
-                return 900;   // ~30 blocks (was 64^2=4096)
+                return 900;
         }
     }
+
 
     /**
      * Escalate scan radius with stall level.
@@ -857,6 +1005,7 @@ public class EntityAITravel extends EntityAIBase {
 
     // Tiny score so we pick the best candidate (favor forward, penalize big turns & going away)
     private double scoreCandidate(BlockPos cand, BlockPos from, Vec3d toDir, long distSqNow, int angleDeg) {
+
         double f = forwardComponent(cand, from, toDir); // can be negative
         long d2 = (long) cand.distanceSq(this.targetVillage);
         double worse = Math.max(0, Math.sqrt(Math.max(0, d2 - distSqNow)));
@@ -868,6 +1017,9 @@ public class EntityAITravel extends EntityAIBase {
         score -= worse * 0.15;               // slightly stronger penalty
         score -= Math.sqrt(lateral) * 0.08;  // more lateral discipline
         score -= (Math.abs(angleDeg) * 0.02);// angle penalty ×2
+        double dy = cand.getY() - from.getY();
+        double slopePenalty = Math.max(0, Math.abs(dy) - 1) * 0.6; // punish >1 block up/down
+        score -= slopePenalty;
 
         return score;
     }
@@ -901,11 +1053,8 @@ public class EntityAITravel extends EntityAIBase {
             // Prefer dry landing: if feet is water but there is a dry standable a bit down, scan a few extra
             IBlockState below = mob.world.getBlockState(surf.down());
             IBlockState feet = mob.world.getBlockState(surf);
-            if (below.getMaterial() == net.minecraft.block.material.Material.LAVA
-                    || feet.getMaterial() == net.minecraft.block.material.Material.LAVA) {
-                continue;
-            }
-
+            if (isForbiddenLiquid(below) || isForbiddenLiquid(feet)) continue;
+            if (isLeafBlock(mob.world, surf.down(), below)) continue;
             // Must be navigable (your helper already checks feet/head)
             if (!isNavigable(surf)) continue;
 
@@ -917,6 +1066,8 @@ public class EntityAITravel extends EntityAIBase {
             );
             if (!isAreaLoaded(surf, 1)) continue;
             if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
+            if (intersectsForbiddenLiquid(mob.world, aabb)) continue; // <-- NEW
+
 
             // All good: perform the jump
             mob.setPositionAndUpdate(surf.getX() + 0.5, surf.getY(), surf.getZ() + 0.5);
@@ -936,6 +1087,7 @@ public class EntityAITravel extends EntityAIBase {
 
             // Re-seed a waypoint from the new spot
             this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
+            debugMark(this.currentWaypoint);
             hardUnstuckCooldown = HARD_UNSTUCK_COOLDOWN;
             hardUnstuckCount++;
             ticksNoForward = 0;
@@ -948,6 +1100,243 @@ public class EntityAITravel extends EntityAIBase {
         }
         return false;
     }
+
+
+    /**
+     * If preferExit==true and we're in water, nudge the candidate to a nearby rim.
+     * If preferExit==false, keep the candidate as-is (used for long water crossings).
+     */
+    @Nullable
+    private BlockPos preferShoreWhenInWater(BlockPos from, BlockPos candidateTowardTarget, boolean preferExit) {
+        if (!preferExit) return candidateTowardTarget;
+        if (!mob.isInWater()) return candidateTowardTarget;
+        if (candidateTowardTarget == null) return null;
+
+        World w = mob.world;
+        BlockPos c = candidateTowardTarget;
+
+        Vec3d dir = new Vec3d(
+                targetVillage.getX() + 0.5 - (from.getX() + 0.5),
+                0,
+                targetVillage.getZ() + 0.5 - (from.getZ() + 0.5)
+        );
+        if (dir.lengthSquared() < 1e-6) return candidateTowardTarget;
+        dir = dir.normalize();
+
+        int nx = c.getX() + (int) Math.signum(dir.x);
+        int nz = c.getZ() + (int) Math.signum(dir.z);
+
+        for (int dy = 0; dy <= 1; dy++) {
+            BlockPos up = new BlockPos(nx, c.getY() + dy, nz);
+            if (isStandable(up)) return up;
+        }
+        return candidateTowardTarget;
+    }
+    /**
+     * Return true if the next 'probe' blocks in the travel direction are mostly water
+     * (without loading chunks).
+     */
+    private boolean isMostlyWaterAhead(BlockPos from, Vec3d dir, int probe, int minWater) {
+        int wx = from.getX(), wy = from.getY(), wz = from.getZ();
+        int waterCount = 0, samples = 0;
+
+        for (int s = 2; s <= probe; s += 2) {
+            int nx = wx + (int)Math.round(dir.x * s);
+            int nz = wz + (int)Math.round(dir.z * s);
+            BlockPos col = new BlockPos(nx, wy, nz);
+            if (!isAreaLoaded(col, 1)) break; // don't load chunks
+
+            BlockPos surf = findSurfaceOrWaterY(col);
+            if (surf == null) continue;
+
+            IBlockState feet = mob.world.getBlockState(surf);
+            IBlockState below = mob.world.getBlockState(surf.down());
+
+            boolean waterFeet = isVanillaWater(feet);
+            boolean waterBelow = isVanillaWater(below);
+
+            if (waterFeet || waterBelow) waterCount++;
+            samples++;
+        }
+        return samples >= 6 && waterCount >= Math.min(samples, minWater);
+    }
+
+    /** Try a water-favoring surface pick (keeps you in water lanes if present). */
+    @Nullable
+    private BlockPos surfaceAtOffsetWater(BlockPos from, Vec3d dir, int s) {
+        int nx = from.getX() + (int)Math.round(dir.x * s);
+        int nz = from.getZ() + (int)Math.round(dir.z * s);
+        BlockPos guess = new BlockPos(nx, from.getY(), nz);
+        BlockPos surf = findSurfaceOrWaterY(guess);
+        if (surf == null || !isAreaLoaded(surf, 1)) return null;
+
+        // For water travel, prefer a water cell if both are valid
+        if (isSwimmable(surf)) return surf;
+        if (isNavigable(surf)) return surf;
+        return null;
+    }
+    /** True if feet cell is solid/walkable land (not liquid). */
+    private boolean isDryStandable(BlockPos feet) {
+        return isStandable(feet) && !mob.world.getBlockState(feet).getMaterial().isLiquid();
+    }
+    /** Try to get a land surface at/near XZ (without loading chunks). */
+    @Nullable
+    private BlockPos findDrySurfaceNear(BlockPos guess) {
+        BlockPos surf = findSurfaceOrWaterY(guess);
+        if (surf == null) return null;
+        if (isDryStandable(surf)) return surf;
+
+        // small lateral nudge to hop off pond tiles (±1 in a plus pattern)
+        final int[][] off = {{1,0},{-1,0},{0,1},{0,-1}};
+        for (int[] d : off) {
+            BlockPos n = new BlockPos(surf.getX()+d[0], surf.getY(), surf.getZ()+d[1]);
+            if (!isAreaLoaded(n, 1)) continue;
+            if (isDryStandable(n)) return n;
+        }
+        return null;
+    }
+
+    /** Land-first variant of surfaceAtOffset; falls back to water only if allowed. */
+    @Nullable
+    private BlockPos surfaceAtOffsetDryFirst(BlockPos from, Vec3d dir, int s, Vec3d lateral, boolean allowWaterFallback) {
+        int nx = from.getX() + (int)Math.round(dir.x * s + lateral.x);
+        int nz = from.getZ() + (int)Math.round(dir.z * s + lateral.z);
+        BlockPos g = new BlockPos(nx, from.getY(), nz);
+
+        BlockPos dry = findDrySurfaceNear(g);
+        if (dry != null && isAreaLoaded(dry, 1) && isStandable(dry)) return dry;
+
+        if (!allowWaterFallback) return null;
+
+        BlockPos wet = findSurfaceOrWaterY(g);
+        if (wet != null && isAreaLoaded(wet, 1) && isSwimmable(wet)) return wet;
+        return null;
+    }
+    // --- DEBUG ONLY ---
+    private void debugMark(@javax.annotation.Nullable BlockPos p) {
+        if (!TravellersModConfig.debug) return;
+        if (p == null) return;
+        if (mob.world.isRemote) return;
+
+        net.minecraft.world.World w = mob.world;
+        net.minecraft.entity.EntityAreaEffectCloud cloud = new net.minecraft.entity.EntityAreaEffectCloud(w,
+                p.getX() + 0.5, p.getY() + 1.1, p.getZ() + 0.5);
+
+        cloud.setDuration(Math.max(20, 5000)); // lifetime
+        cloud.setWaitTime(0);
+        cloud.setRadius(0.15F);          // tiny dot
+        cloud.setRadiusPerTick(0.0F);    // don't grow
+        cloud.setParticle(net.minecraft.util.EnumParticleTypes.FLAME); // pick any you like
+
+        // Optional: make it very obvious
+        // cloud.setColor(0x33FF66); // only shows with potion-based particles
+
+        w.spawnEntity(cloud);
+    }
+    // ---- Liquid filters: only vanilla water is allowed ----
+    private static boolean isVanillaWater(IBlockState s) {
+        Block b = s.getBlock();
+        return b == Blocks.WATER || b == Blocks.FLOWING_WATER; // 1.12.2
+    }
+
+    // BoP quicksand: user said it's registered as biomesoplenty:sand
+    private static boolean isBoPQuicksand(IBlockState s) {
+        ResourceLocation rl = s.getBlock().getRegistryName();
+        return rl != null && "biomesoplenty".equals(rl.getNamespace()) && "sand".equals(rl.getPath());
+    }
+
+    // Any liquid other than vanilla water is forbidden (lava, mod fluids, quicksand, etc.)
+    private static boolean isForbiddenLiquid(IBlockState s) {
+        if (isBoPQuicksand(s)) return true;
+        if (!s.getMaterial().isLiquid()) return false;
+        return !isVanillaWater(s);
+    }
+
+    // AxisAlignedBB check that ignores vanilla water but flags any forbidden liquid
+    public static boolean intersectsForbiddenLiquid(World w, AxisAlignedBB aabb) {
+        int minX = MathHelper.floor(aabb.minX);
+        int maxX = MathHelper.floor(aabb.maxX + 1.0);
+        int minY = MathHelper.floor(aabb.minY);
+        int maxY = MathHelper.floor(aabb.maxY + 1.0);
+        int minZ = MathHelper.floor(aabb.minZ);
+        int maxZ = MathHelper.floor(aabb.maxZ + 1.0);
+
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = minX; x < maxX; x++) {
+            for (int y = minY; y < maxY; y++) {
+                for (int z = minZ; z < maxZ; z++) {
+                    pos.setPos(x, y, z);
+                    IBlockState s = w.getBlockState(pos);
+                    if (isForbiddenLiquid(s)) return true;
+                }
+            }
+        }
+        return false;
+    }
+    // ---- Leaves helper (1.12.2 + modded leaves support) ----
+    private static boolean isLeafBlock(World w, BlockPos pos, IBlockState s) {
+        Block b = s.getBlock();
+        if (b instanceof net.minecraft.block.BlockLeaves) return true;
+        try {
+            return b.isLeaves(s, w, pos); // many mods override this
+        } catch (Throwable ignore) {
+            return false;
+        }
+    }
+    // --- Snow height helpers (1.12.2) ---
+    private static int snowLayers(IBlockState s) {
+        // BlockSnow (the thin "layer") has LAYERS 1..8; BlockSnow (full block) is Blocks.SNOW
+        if (s.getBlock() == Blocks.SNOW_LAYER) {
+            try {
+                return s.getValue(net.minecraft.block.BlockSnow.LAYERS);
+            } catch (Throwable ignore) {}
+        }
+        return 0;
+    }
+
+    // Effective top Y at a column, including fractional snow height.
+// Returns NaN if chunk is not loaded or no navigable surface found quickly.
+    private double effectiveTopY(World w, BlockPos col) {
+        if (!isAreaLoaded(col, 1)) return Double.NaN;
+
+        // Start from vanilla "top solid or liquid" of this column
+        BlockPos top = w.getTopSolidOrLiquidBlock(col);
+
+        // Walk up a few steps if needed (bridges/leaves can sit just above)
+        BlockPos p = top;
+        for (int i = 0; i < 3; i++) {
+            IBlockState s = w.getBlockState(p);
+            if (isStandable(p) || isSwimmable(p)) break;
+            p = p.up();
+            if (!isAreaLoaded(p, 1)) return Double.NaN;
+        }
+
+        // Then scan down a bit to land on something navigable
+        for (int i = 0; i < 12 && p.getY() > 1; i++) {
+            if (isStandable(p) || isSwimmable(p)) break;
+            p = p.down();
+            if (!isAreaLoaded(p, 1)) return Double.NaN;
+        }
+
+        if (!isNavigable(p)) return Double.NaN;
+
+        // Base integer top (feet block Y)
+        double y = p.getY();
+
+        // Add fractional height if the *feet* cell is a snow layer
+        IBlockState feet = w.getBlockState(p);
+        int layers = snowLayers(feet);
+        if (layers > 0) {
+            y += layers / 8.0; // each layer is 1/8th of a block
+        }
+
+        // If the feet cell is a full SNOW block, we’re already at +1.0 implicitly via p.getY()
+        // If there is an extra snow_layer on top of a full snow block, we’ll be sampling that
+        // as a higher feet position on the next columns already.
+
+        return y;
+    }
+
 
 }
 

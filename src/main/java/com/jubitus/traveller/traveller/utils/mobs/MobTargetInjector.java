@@ -18,24 +18,31 @@ public class MobTargetInjector {
         if (!(ent instanceof net.minecraft.entity.EntityCreature)) return;
         if (!(ent instanceof net.minecraft.entity.monster.IMob)) return;
 
-        // Configurable blacklist gate (supports vanilla+modded)
-        if (TravellersModConfig.TRAVELLER_BLACKLIST.isBlacklisted(ent)) return;
+
 
         EntityCreature mob = (EntityCreature) ent;
         if (hasTravellerTargetTask(mob)) return;
 
         mob.targetTasks.addTask(3,
-                new net.minecraft.entity.ai.EntityAINearestAttackableTarget<>(
+                new EntityAINearestAttackableTarget<>(
                         mob, com.jubitus.traveller.traveller.entityAI.EntityTraveller.class,
                         10, true, false,
                         new com.google.common.base.Predicate<com.jubitus.traveller.traveller.entityAI.EntityTraveller>() {
                             @Override
                             public boolean apply(@javax.annotation.Nullable com.jubitus.traveller.traveller.entityAI.EntityTraveller t) {
-                                return t != null && t.isEntityAlive() && !t.isInvisible();
+                                if (t == null || !t.isEntityAlive() || t.isInvisible()) return false;
+
+                                TravellerBlacklist list = (t instanceof com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider)
+                                        ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
+                                        : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+
+                                // Only allow targeting if THIS mob type is NOT blacklisted for that Traveller kind.
+                                return !list.isBlacklisted(mob);
                             }
                         }
                 )
         );
+
     }
 
     private boolean hasTravellerTargetTask(EntityCreature mob) {

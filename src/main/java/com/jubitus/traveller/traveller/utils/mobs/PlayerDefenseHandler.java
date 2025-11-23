@@ -1,5 +1,6 @@
 package com.jubitus.traveller.traveller.utils.mobs;
 
+import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -76,5 +77,26 @@ public final class PlayerDefenseHandler {
             t.rememberThreat(victim, EntityTraveller.THREAT_FOR_SEE_ATTACK);
         }
     }
+    @SubscribeEvent
+    public static void onAnyPlayerHurts(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+        Entity src = event.getSource().getTrueSource();
+        if (!(src instanceof EntityPlayer)) return;
+
+        EntityPlayer player = (EntityPlayer) src;
+        if (player.world.isRemote) return;
+        if (player.isCreative() || player.isSpectator()) return;
+
+        // Notify nearby travellers that this player was aggressive "just now"
+        double r = TravellersModConfig.playerCalmNotifyRadius;
+        AxisAlignedBB box = new AxisAlignedBB(
+                player.posX - r, player.posY - 8, player.posZ - r,
+                player.posX + r, player.posY + 8, player.posZ + r
+        );
+
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class, box, Entity::isEntityAlive)) {
+            t.markPlayerRecentAggro(player);
+        }
+    }
 }
+
 

@@ -1,4 +1,260 @@
 {
+  "entity.traveller.en.ambient": {
+    "category": "voice",
+    "stream": true,
+    "sounds": [
+      {
+        "name": "travellers:traveller/en/ambient1"
+      },
+      {
+        "name": "travellers:traveller/en/ambient2"
+      },
+      {
+        "name": "travellers:traveller/en/ambient3"
+      },
+      {
+        "name": "travellers:traveller/en/ambient4"
+      },
+      {
+        "name": "travellers:traveller/en/ambient5"
+      },
+      {
+        "name": "travellers:traveller/en/ambient6"
+      }
+    ]
+  },
+  "entity.traveller.en.talk": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      {
+        "name": "travellers:traveller/en/talk1"
+      },
+      {
+        "name": "travellers:traveller/en/talk2"
+      },
+      {
+        "name": "travellers:traveller/en/talk3"
+      },
+      {
+        "name": "travellers:traveller/en/talk4"
+      },
+      {
+        "name": "travellers:traveller/en/talk5"
+      }
+    ]
+  },
+  "entity.traveller.en.hurt": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.hurt",
+    "stream": true,
+    "sounds": [
+      {
+        "name": "travellers:traveller/en/hurt1"
+      },
+      {
+        "name": "travellers:traveller/en/hurt2"
+      },
+      {
+        "name": "travellers:traveller/en/hurt3"
+      },
+      {
+        "name": "travellers:traveller/en/hurt4"
+      },
+      {
+        "name": "travellers:traveller/en/hurt5"
+      },
+      {
+        "name": "travellers:traveller/en/hurt6"
+      },
+      {
+        "name": "travellers:traveller/en/hurt7"
+      },
+      {
+        "name": "travellers:traveller/en/hurt8"
+      },
+      {
+        "name": "travellers:traveller/en/hurt9"
+      },
+      {
+        "name": "travellers:traveller/en/hurt10"
+      },
+      {
+        "name": "travellers:traveller/en/hurt11"
+      }
+    ]
+  },
+  "entity.traveller.fr.hurt": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.hurt",
+    "stream": true,
+    "sounds": [
+      {
+        "name": "travellers:traveller/fr/hurt1"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt2"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt3"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt4"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt5"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt6"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt7"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt8"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt9"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt10"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt11"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt12"
+      },
+
+
+      {
+        "name": "travellers:traveller/fr/hurt15"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt16"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt17"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt18"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt19"
+      },
+      {
+        "name": "travellers:traveller/fr/hurt20"
+      }
+    ]
+  },
+
+  "entity.traveller.fr.ambient": {
+    "category": "voice",
+    "stream": true,
+    "sounds": [
+      {
+        "name": "travellers:traveller/fr/ambient1"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient2"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient3"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient4"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient5"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient6"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient7"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient8"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient9"
+      },
+      {
+        "name": "travellers:traveller/fr/ambient10"
+      }
+    ]
+  },
+  "entity.traveller.fr.talk": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      {
+        "name": "travellers:traveller/fr/talk1"
+      },
+      {
+        "name": "travellers:traveller/fr/talk2"
+      },
+      {
+        "name": "travellers:traveller/fr/talk3"
+      },
+      {
+        "name": "travellers:traveller/fr/talk4"
+      },
+      {
+        "name": "travellers:traveller/fr/talk5"
+      },
+      {
+        "name": "travellers:traveller/fr/talk6"
+      },
+      {
+        "name": "travellers:traveller/fr/talk7"
+      },
+      {
+        "name": "travellers:traveller/fr/talk8"
+      },
+      {
+        "name": "travellers:traveller/fr/talk9"
+      },
+      {
+        "name": "travellers:traveller/fr/talk10"
+      }
+    ]
+  },
+
+
+  "entity.traveller.en.hello": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      { "name": "travellers:traveller/en/hello1" },
+      { "name": "travellers:traveller/en/hello2" },
+      { "name": "travellers:traveller/en/hello3" },
+      { "name": "travellers:traveller/en/hello4" }
+    ]
+  },
+  "entity.traveller.fr.hello": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      { "name": "travellers:traveller/fr/bonjour1" },
+      { "name": "travellers:traveller/fr/bonjour2" },
+      { "name": "travellers:traveller/fr/bonjour3" },
+      { "name": "travellers:traveller/fr/bonjour4" },
+      { "name": "travellers:traveller/fr/bonjour5" }
+    ]
+  },
+
+  "entity.traveller.hello": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      { "name": "travellers:traveller/hello1" },
+      { "name": "travellers:traveller/hello2" },
+      { "name": "travellers:traveller/hello3" }
+    ]
+  },
+
+
   "entity.traveller.ambient1": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient1" }] },
   "entity.traveller.ambient2": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient2" }] },
   "entity.traveller.ambient3": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient3" }] },
@@ -9,7 +265,10 @@
     "sounds": [
       { "name": "travellers:traveller/ambient1" },
       { "name": "travellers:traveller/ambient2" },
-      { "name": "travellers:traveller/ambient3" }
+      { "name": "travellers:traveller/ambient3" },
+      { "name": "travellers:traveller/ambient4" },
+      { "name": "travellers:traveller/ambient5" },
+      { "name": "travellers:traveller/ambient6" }
     ]
   },
   "entity.traveller.talk": {
@@ -33,7 +292,12 @@
       { "name": "travellers:traveller/hurt3" },
       { "name": "travellers:traveller/hurt4" },
       { "name": "travellers:traveller/hurt5" },
-      { "name": "travellers:traveller/hurt_rare" }
+      { "name": "travellers:traveller/hurt6" },
+      { "name": "travellers:traveller/hurt7" },
+      { "name": "travellers:traveller/hurt8" },
+      { "name": "travellers:traveller/hurt9" },
+      { "name": "travellers:traveller/hurt10" },
+      { "name": "travellers:traveller/hurt11" }
     ]
   }
 }

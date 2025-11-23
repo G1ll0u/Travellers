@@ -89,5 +89,6 @@ public final class CampfireBlock {
         PropertyBool lit = propBool(s, "lit");
         return lit != null && s.getValue(lit);
     }
+
 }
 

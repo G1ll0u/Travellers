@@ -71,7 +71,7 @@ public class EntityAIAutoEat extends EntityAIBase {
         }
 
         // Must be idle to eat (keeps animation nice)
-        if (!mob.getNavigator().noPath()) return false;
+        if (!mob.getNavigator().noPath() && mob.getAttackTarget() != null) return false;
 
         // Healing need + session logic (unchanged)
         if (!isBelowFull(0.001F)) {

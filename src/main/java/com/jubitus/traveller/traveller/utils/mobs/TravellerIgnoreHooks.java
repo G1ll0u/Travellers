@@ -19,14 +19,12 @@ public class TravellerIgnoreHooks {
     public static void onSetAttackTarget(net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent e) {
         EntityLivingBase mob = e.getEntityLiving();
         if (!(mob instanceof EntityLiving)) return;
-        if (!isBlacklistMob(mob)) return;
 
         EntityLivingBase newTarget = e.getTarget();
-        if (isTraveller(newTarget)) {
+        if (isTraveller(newTarget) && isBlacklistedFor(mob, newTarget)) {
             EntityLiving el = (EntityLiving) mob;
             el.setAttackTarget(null);
             el.setRevengeTarget(null);
-            // also wipe any "last attacked" refs so AI like HurtByTarget has nothing to chase
             el.setLastAttackedEntity(null);
         }
     }
@@ -40,6 +38,16 @@ public class TravellerIgnoreHooks {
     private static boolean isTraveller(@Nullable Entity entity) {
         return entity instanceof com.jubitus.traveller.traveller.entityAI.EntityTraveller;
     }
+    private static boolean isBlacklistedFor(EntityLivingBase mob, @Nullable Entity target) {
+        if (!(mob instanceof net.minecraft.entity.monster.IMob)) return false;
+        if (!(target instanceof com.jubitus.traveller.traveller.entityAI.EntityTraveller)) return false;
+
+        boolean raider = target instanceof com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
+        TravellerBlacklist list = raider
+                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+        return list.isBlacklisted(mob);
+    }
 
     /**
      * 2) When the mob is hurt by a Traveller, prevent “revenge” aggro.
@@ -48,14 +56,12 @@ public class TravellerIgnoreHooks {
     public static void onHurt(net.minecraftforge.event.entity.living.LivingHurtEvent e) {
         EntityLivingBase victim = e.getEntityLiving();
         if (!(victim instanceof EntityLiving)) return;
-        if (!isBlacklistMob(victim)) return;
 
-        Entity trueSrc = e.getSource().getTrueSource();
-        if (isTraveller(trueSrc)) {
+        Entity src = e.getSource().getTrueSource();
+        if (isTraveller(src) && isBlacklistedFor(victim, src)) {
             EntityLiving el = (EntityLiving) victim;
             el.setRevengeTarget(null);
             el.setLastAttackedEntity(null);
-            // Some mobs cache path/aggro; clearing attack target again is harmless
             el.setAttackTarget(null);
         }
     }
@@ -67,13 +73,20 @@ public class TravellerIgnoreHooks {
     public static void onUpdate(net.minecraftforge.event.entity.living.LivingEvent.LivingUpdateEvent e) {
         if (!(e.getEntityLiving() instanceof EntityLiving)) return;
         EntityLiving el = (EntityLiving) e.getEntityLiving();
-        if (!isBlacklistMob(el)) return;
 
-        if (isTraveller(el.getAttackTarget()) || isTraveller(el.getRevengeTarget())) {
+        EntityLivingBase atk = el.getAttackTarget();
+        if (isTraveller(atk) && isBlacklistedFor(el, atk)) {
+            el.setAttackTarget(null);
+            el.setRevengeTarget(null);
+            el.setLastAttackedEntity(null);
+        }
+        EntityLivingBase rev = el.getRevengeTarget();
+        if (isTraveller(rev) && isBlacklistedFor(el, rev)) {
             el.setAttackTarget(null);
             el.setRevengeTarget(null);
             el.setLastAttackedEntity(null);
         }
     }
+
 }
 

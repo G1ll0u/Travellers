@@ -28,7 +28,7 @@
 
     {
       "name": "tools",
-      "rolls": 2,
+      "rolls": 1,
       "entries": [
         { "type": "item", "name": "minecraft:iron_pickaxe", "weight": 2 },
         { "type": "item", "name": "minecraft:iron_shovel", "weight": 3 },
@@ -41,9 +41,6 @@
         { "type": "item", "name": "millenaire:yumibow", "weight": 4 },
         { "type": "item", "name": "millenaire:inuitbow", "weight": 4 },
         { "type": "item", "name": "millenaire:seljukbow", "weight": 4 },
-
-
-
         { "type": "empty", "weight": 5 }
       ]
     },
@@ -53,7 +50,8 @@
       "entries": [
         { "type": "item", "name": "minecraft:iron_pickaxe", "weight": 2 },
         { "type": "item", "name": "minecraft:iron_shovel", "weight": 3 },
-        { "type": "item", "name": "minecraft:iron_axe", "weight": 3 }
+        { "type": "item", "name": "minecraft:iron_axe", "weight": 3 },
+        { "type": "empty", "weight": 5 }
       ]
     },
     {

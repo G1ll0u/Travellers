@@ -9,7 +9,7 @@ import net.minecraft.world.EnumDifficulty;
 
 import java.util.List;
 
-public class TravellerHurtByTarget extends EntityAITarget {
+public class  TravellerHurtByTarget extends EntityAITarget {
     private final EntityCreature owner;
     private final boolean callForHelp;
     private final double assistRadius;
@@ -26,15 +26,21 @@ public class TravellerHurtByTarget extends EntityAITarget {
     @Override
     public boolean shouldExecute() {
         if (owner.world.isRemote) return false;
-
         if (owner.getLastDamageSource() == null) return false;
 
         final int revengeTimer = owner.getRevengeTimer();
         EntityLivingBase attacker = owner.getRevengeTarget();
         if (attacker == null || !attacker.isEntityAlive()) return false;
 
-        // Never retaliate vs Travellers, creative/spectator already handled
-        if (attacker instanceof EntityTraveller) return false;
+        if (attacker instanceof EntityTraveller && owner instanceof EntityTraveller) {
+            boolean crossFaction = ((EntityTraveller) owner).isAggressiveToTravellers()
+                    ^ ((EntityTraveller) attacker).isAggressiveToTravellers();
+            if (!crossFaction) {
+                this.revengeTimerOld = revengeTimer;
+                owner.setRevengeTarget(null);
+                return false;
+            }
+        }
 
         // Ignore the FIRST 3 HITS from a PLAYER (per-player, with a short decay window)
         if (attacker instanceof EntityPlayer && owner instanceof EntityTraveller) {
@@ -56,11 +62,10 @@ public class TravellerHurtByTarget extends EntityAITarget {
     @Override
     public void startExecuting() {
         EntityLivingBase attacker = this.owner.getRevengeTarget();
-
+        if (owner.getDistanceSq(attacker) > assistRadius * assistRadius) return; // too far to call
         // Safety: if attacker is a traveller, do nothing
-        if (attacker instanceof EntityTraveller) {
+        if (attacker instanceof EntityTraveller && !((EntityTraveller) attacker).isAggressiveToTravellers()) {
             this.revengeTimerOld = this.owner.getRevengeTimer();
-            // Clear revenge so we don't re-trigger next tick
             owner.setRevengeTarget(null);
             return;
         }
@@ -78,12 +83,11 @@ public class TravellerHurtByTarget extends EntityAITarget {
             for (EntityTraveller ally : allies) {
                 if (ally == owner) continue;
                 if (!ally.isEntityAlive()) continue;
-
-                // Never assist against another traveller
                 if (attacker instanceof EntityTraveller) continue;
-
-                // Skip if ally can't/shouldn't attack
                 if (ally.world.getDifficulty() == EnumDifficulty.PEACEFUL) continue;
+
+                // NEW: only assist if the attacker is within helpRange of THIS ally
+                if (ally.getDistanceSq(attacker) > (assistRadius * assistRadius)) continue;
 
                 EntityLivingBase cur = ally.getAttackTarget();
                 boolean shouldRetarget = (cur == null || !cur.isEntityAlive());
@@ -100,6 +104,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
                     ally.getNavigator().clearPath();
                 }
             }
+
         }
 
         super.startExecuting();
