@@ -10,61 +10,11 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
-    public static boolean debug = false;
-    public static boolean enableTravellerOpenFenceGates = true;
-    public static boolean enableTravellerOpenDoors = true;
-
-    public static boolean enableMobFarmAvoidance = true;
-
-    public static int mobFarmCheckRadius = 6;
-
-
-    public static int mobFarmEntityThreshold = 15;
-
-
-    public static int mobFarmFenceRadius = 4;
-
-    public static int mobFarmFenceThreshold = 12;
-    public static int followMaxFollowersPerLeader = 4; // 0 or negative = unlimited
-
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
-    public static String[] excludedRaiderVillagerTagsRaw = new String[] {
-            // e.g. keep children for raiders if you want, or:
-            "child","chief"
-    };
-    public static String[] excludedRaiderVillagerFilesRaw = new String[] {
-            // maybe raiders should not look like chiefs:
-            "alchemist", "alchemistapprentice", "alchemistassistant"
-    };
-
     // NEW: Raider include filters (whitelist-style)
-    public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_TAGS  = new java.util.HashSet<>();
+    public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
-
-    // Raw config arrays for raider includes (default: empty = "no restriction")
-    public static String[] includedRaiderVillagerTagsRaw  = new String[]{
-            "hostile"
-    };
-    public static String[] includedRaiderVillagerFilesRaw = new String[]{
-    };
-
-    // How far villages/lonebuildings influence traveller spawns (in blocks)
-    public static int travellerVillageInfluenceRadius = 1200;  // e.g. 400 blocks
-    public static int travellerLoneInfluenceRadius    = 600;  // e.g. 250 blocks
-
-    // How strong each center type is
-    public static double travellerVillageWeight = 1.0;  // 1.0 = full strength
-    public static double travellerLoneWeight    = 0.4;  // lonebuildings weaker
-
-    // Shape of falloff: 1.0 = linear, >1 = steeper near edge, <1 = flatter
-    public static double travellerFalloffPower  = 1.0;
-
-    public static int travellerMaxPositionChecksPerAttempt = 4;
-    public static int raiderMaxPositionChecksPerAttempt = 4;
-
-    // Optional: cap on total density when multiple villages overlap
-    public static double travellerMaxDensity    = 1.5;
     public static final int DOG_SCAN_COOLDOWN_TICKS = 5 * 20;
     public static final int CAMP_SWING_EVERY = 80;         // ~4s baseline between “cooking” swings
     public static final int SPAWN_AMBIENT_DELAY_TICKS = 12 * 20;   // ~12s after spawn
@@ -77,8 +27,6 @@ public class TravellersModConfig {
     public static final java.util.Set<String> EXCLUDED_VILLAGER_FILES = new java.util.HashSet<>();
     public static final int CAMP_JOIN_COOLDOWN_TICKS = 20 * 60; // 60s; tweak as you like
     public static final int THREAT_FOR_SEE_ATTACK = 5;// when we "observe" hostiles hurting allies/players
-    private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "4.6"; // yes I always change ver when testing, that's stupid
     public static final int CAMP_RANDOM_COOLDOWN = 6 * 60 * 20; // ~6 min between pauses
     // --- Grace hits vs players ---
     public static final int PLAYER_FREE_HITS = 3;
@@ -92,9 +40,46 @@ public class TravellersModConfig {
     // --- Auto-eat state ---
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
+    private static final String CONFIG_VERSION_KEY = "configVersion";
+    private static final String CURRENT_VERSION = "4.6"; // yes I always change ver when testing, that's stupid
+    public static boolean debug = false;
+    public static boolean enableTravellerOpenFenceGates = true;
+    public static boolean enableTravellerOpenDoors = true;
+    public static boolean enableMobFarmAvoidance = true;
+    public static int mobFarmCheckRadius = 6;
+    public static int mobFarmEntityThreshold = 15;
+    public static int mobFarmFenceRadius = 4;
+    public static int mobFarmFenceThreshold = 12;
+    public static int followMaxFollowersPerLeader = 4; // 0 or negative = unlimited
+    public static String[] excludedRaiderVillagerTagsRaw = new String[]{
+            // e.g. keep children for raiders if you want, or:
+            "child", "chief"
+    };
+    public static String[] excludedRaiderVillagerFilesRaw = new String[]{
+            // maybe raiders should not look like chiefs:
+            "alchemist", "alchemistapprentice", "alchemistassistant"
+    };
+    // Raw config arrays for raider includes (default: empty = "no restriction")
+    public static String[] includedRaiderVillagerTagsRaw = new String[]{
+            "hostile"
+    };
+    public static String[] includedRaiderVillagerFilesRaw = new String[]{
+    };
+    // How far villages/lonebuildings influence traveller spawns (in blocks)
+    public static int travellerVillageInfluenceRadius = 1000;  // e.g. 400 blocks
+    public static int travellerLoneInfluenceRadius = 600;  // e.g. 250 blocks
+    // How strong each center type is
+    public static double travellerVillageWeight = 0.3;  // 1.0 = full strength
+    public static double travellerLoneWeight = 0.3;  // lonebuildings weaker
+    // Shape of falloff: 1.0 = linear, >1 = steeper near edge, <1 = flatter
+    public static double travellerFalloffPower = 1.0;
+    public static int travellerMaxPositionChecksPerAttempt = 4;
+    public static int raiderMaxPositionChecksPerAttempt = 4;
+    // Optional: cap on total density when multiple villages overlap
+    public static double travellerMaxDensity = 1.2;
     public static int CAMP_RADIUS = 8; // or expose a public constant on EntityTraveller
     // === CAMP / FIREPIT BEHAVIOR ===
-    public static int SEEK_RADIUS = 24; // how far to look for camps
+    public static int SEEK_RADIUS = 12; // how far to look for camps
     public static int MAX_JOINERS_PER_CAMP = 12;
     // Firecamp idle behavior (wander / look delays in ticks)
     public static int CAMP_WANDER_MIN_DELAY = 40;   // 2s  (20 tps)
@@ -140,7 +125,7 @@ public class TravellersModConfig {
     public static int followDurationMin;
     public static int followDurationMax;
     public static float followAngleAlignDeg;
-    public static float followStartChance;
+    public static float followStartChance = 0.75f;
     public static double movementSpeed;
     public static int followRange;
     public static double attackDamage;
@@ -204,58 +189,65 @@ public class TravellersModConfig {
     public static int fishMaxTimeTicks = 40 * 20;    // 16s
     public static int fishReelEveryTicks = 45;         // ticks
     public static int fishCastWindupTicks = 15;         // ticks
-    public static int fishCooldownTicks = 3 * 60 * 20; // 3 minutes
-    public static float fishStartChancePerTick = 0.0015f;
+    public static int fishCooldownTicks = 5 * 60 * 20; // 3 minutes
+    public static float fishStartChancePerTick = 0.004f;
     public static double fishApproachSpeed = 0.45D;
-    public static int stepBlocks = 32;
+    public static int stepBlocks = 64;
     // Minimum distance (in blocks) raiders must spawn away from any village TH
-    public static int raiderMinVillageDistance = 172;
-    static boolean enableTravellerEntity = true;
-    private static String[] raiderAttackIdRules = new String[0];
-    private static String[] raiderAttackClassRules = new String[0];
-    private static Configuration CONFIG;      // <— keep it
-    private static File CONFIG_FILE;          // <— keep it
+    public static int raiderMinVillageDistance = 120;
     public static boolean showTravellerNames = false;
     // Base chance per anchor attempt, before density (0..1)
     public static double travellerBaseSpawnChance = 0.6;
     public static float campStartChancePerTick = 0.0008f;
     // --- Traveller population-based spawn weighting ---
     public static boolean travellerPopulationWeightEnabled = true;
-    /** Horizontal radius (blocks) to look for the "host" village for a spawn pos */
+    /**
+     * Horizontal radius (blocks) to look for the "host" village for a spawn pos
+     */
     public static int travellerPopulationWeightRadius = 400;
-    /** Extra spawn weight per villager (0.02 => +2% per villager) */
+    /**
+     * Extra spawn weight per villager (0.02 => +2% per villager)
+     */
     public static double travellerPopulationWeightPerVillager = 0.05D;
-    /** Max overall multiplier from population (e.g. 3.0 => up to 3×) */
+    /**
+     * Max overall multiplier from population (e.g. 3.0 => up to 3×)
+     */
     public static double travellerPopulationWeightMaxMultiplier = 1.5D;
-
-    /** Baseline spawn density when no village/lonebuilding influence (0 = none) */
+    /**
+     * Baseline spawn density when no village/lonebuilding influence (0 = none)
+     */
     public static double travellerOutsideVillageBaseDensity = 0.2D;
-
     // --- Traveller culture-weighted spawns ---
     public static boolean travellerCultureWeightedSpawn = true;
-    /** Radius to scan for village cultures when choosing spawn culture */
+    /**
+     * Radius to scan for village cultures when choosing spawn culture
+     */
     public static int travellerCultureScanRadius = 512;
-    /** If true, cultures with bigger population get more weight */
+    /**
+     * If true, cultures with bigger population get more weight
+     */
     public static boolean travellerCultureWeightUseVillagePopulation = true;
-
     // ---- Dynamic traveller caps (world + regional) ----
     public static float travellerCapPerVillager;        // 1/3 = 1 traveller per ~3 villagers
-    public static int   travellerCapMinPerVillage;
-    public static int   travellerCapMaxPerVillage;
-    public static int   travellerCapPerLoneBuilding;
-    public static int   travellerCapGlobalMin;
-    public static int   travellerCapGlobalMax;
-    public static int   travellerRegionalRadius;
-
+    public static int travellerCapMinPerVillage;
+    public static int travellerCapMaxPerVillage;
+    public static int travellerCapPerLoneBuilding;
+    public static int travellerCapGlobalMin;
+    public static int travellerCapGlobalMax;
+    public static int travellerRegionalRadius = 600;
     // ---- Dynamic raider caps (regional) ----
     public static float raiderCapPerVillager;           // 1/5 = 1 raider per ~5 villagers
-    public static int   raiderCapMinPerVillage;
-    public static int   raiderCapMaxPerVillage;
-    public static int   raiderCapPerLoneBuilding;
-    public static int   raiderRegionalRadius;
-    
+    public static int raiderCapMinPerVillage;
+    public static int raiderCapMaxPerVillage;
+    public static int raiderCapPerLoneBuilding;
+    public static int raiderRegionalRadius = 600;
     // And a dedicated base spawn chance for raiders (instead of reusing traveller one)
     public static float raiderBaseSpawnChance;
+    static boolean enableTravellerEntity = true;
+    private static String[] raiderAttackIdRules = new String[0];
+    private static String[] raiderAttackClassRules = new String[0];
+    private static Configuration CONFIG;      // <— keep it
+    private static File CONFIG_FILE;          // <— keep it
 
     public static void init(File configFile) {
         CONFIG_FILE = configFile;
@@ -310,6 +302,36 @@ public class TravellersModConfig {
             if (needsRewrite) {
                 System.out.println("[ModConfig] Config updated due to legacy key removal.");
             }
+        }
+    }
+
+    /**
+     * Delete old config at /config/travellers.cfg (legacy location), if present.
+     */
+    private static void deleteLegacyRootConfig() {
+        try {
+            if (CONFIG_FILE == null) return;
+
+            // CONFIG_FILE is /config/travellers/travellers.cfg
+            File travellersDir = CONFIG_FILE.getParentFile();      // /config/travellers
+            if (travellersDir == null) return;
+
+            File configRoot = travellersDir.getParentFile();       // /config
+            if (configRoot == null) return;
+
+            File legacy = new File(configRoot, "travellers.cfg");  // /config/travellers.cfg
+
+            if (!legacy.exists()) {
+                return; // nothing to delete
+            }
+
+            if (legacy.delete()) {
+                System.out.println("[ModConfig] Deleted legacy config: " + legacy.getAbsolutePath());
+            } else {
+                System.err.println("[ModConfig] Failed to delete legacy config: " + legacy.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            System.err.println("[ModConfig] Error while deleting legacy /config/travellers.cfg: " + e.getMessage());
         }
     }
 
@@ -479,7 +501,7 @@ public class TravellersModConfig {
         travellerPopulationWeightMaxMultiplier = cfg.getFloat(
                 "PopulationWeightMaxMultiplier",
                 "Soft spawn — General",
-                1.5F,      // default
+                1.2F,      // default
                 0.1F,      // min
                 10.0F,     // max
                 "Maximum overall multiplier applied from population influence"
@@ -497,7 +519,7 @@ public class TravellersModConfig {
 
         travellerVillageInfluenceRadius = cfg.getInt(
                 "VillageInfluenceRadius", "Soft spawn — General",
-                1200, 0, 5000,
+                1000, 0, 5000,
                 "How far a Millénaire *village* influences traveller spawning (in blocks).\n" +
                         "Higher = larger halo around villages."
         );
@@ -511,14 +533,14 @@ public class TravellersModConfig {
 
         travellerVillageWeight = cfg.getFloat(
                 "VillageWeight", "Soft spawn — General",
-                1.0f, 0.0f, 10.0f,
+                0.3f, 0.0f, 10.0f,
                 "Strength of village influence.\n" +
                         "1.0 = normal, >1 = stronger, 0 disables villages."
         );
 
         travellerLoneWeight = cfg.getFloat(
                 "LoneWeight", "Soft spawn — General",
-                0.4f, 0.0f, 10.0f,
+                0.2f, 0.0f, 10.0f,
                 "Strength of lonebuilding influence.\n" +
                         "0.4 = weaker than villages, 0 disables lonebuilding influence."
         );
@@ -532,7 +554,7 @@ public class TravellersModConfig {
 
         travellerMaxDensity = cfg.getFloat(
                 "TravellerMaxDensity", "Soft spawn — General",
-                1.5f, 0.1f, 50.0f,
+                1.2f, 0.1f, 50.0f,
                 "Maximum combined density when multiple village/lonebuilding halos overlap.\n" +
                         "Prevents stacked villages from giving extreme spawn weights."
         );
@@ -933,13 +955,13 @@ public class TravellersModConfig {
 
         travellerCapPerLoneBuilding = cfg.getInt(
                 "TravellerCapPerLoneBuilding", "Soft spawn — Travellers",
-                1, 0, 16,
+                1, 0, 4,
                 "How many travellers each lone building contributes to the dynamic caps."
         );
 
         travellerCapGlobalMin = cfg.getInt(
                 "TravellerCapGlobalMin", "Soft spawn — Travellers",
-                0, 0, 128,
+                4, 0, 128,
                 "Global minimum for the dynamic world traveller target."
         );
 
@@ -951,7 +973,7 @@ public class TravellersModConfig {
 
         travellerRegionalRadius = cfg.getInt(
                 "TravellerRegionalRadius", "Soft spawn — Travellers",
-                1000, 128, 8000,
+                600, 128, 8000,
                 "Horizontal radius (in blocks) used when computing regional traveller caps around a player."
         );
 
@@ -976,21 +998,21 @@ public class TravellersModConfig {
 
         raiderCapPerLoneBuilding = cfg.getInt(
                 "RaiderCapPerLoneBuilding", "Soft spawn — Raiders",
-                0, 0, 16,
+                0, 0, 4,
                 "How many raiders each lone building contributes to the regional raider caps."
         );
 
         raiderRegionalRadius = cfg.getInt(
                 "RaiderRegionalRadius", "Soft spawn — Raiders",
-                1000, 128, 8000,
+                600, 128, 8000,
                 "Horizontal radius (in blocks) used when computing regional raider caps around a player."
         );
 
         // Distance from Town Hall / village center inside which raiders never soft-spawn
         raiderMinVillageDistance = cfg.getInt(
                 "RaiderMinVillageDistance", "Soft spawn — Raiders",
-                80, 16, 512,
-                "Minimum distance from Millénaire village centers where raiders are allowed to soft-spawn."
+                120, 16, 512,
+                "Minimum distance from Millénaire village centers where raiders are not allowed to soft-spawn."
         );
 
         raiderBaseSpawnChance = cfg.getFloat(
@@ -1284,12 +1306,11 @@ public class TravellersModConfig {
 
         fishStartChancePerTick = cfg.getFloat(
                 "FishStartChancePerTick", "Fishing",
-                0.008f, 0.0f, 1.0f,
+                0.002f, 0.0f, 1.0f,
                 "Per-tick chance (0–1) that a traveller decides to start fishing " +
                         "when all other conditions are met."
         );
-        
-        
+
 
 // Guard: ensure max >= min for raider ring
         if (raiderSpawnMaxDist < raiderSpawnMinDist) {
@@ -1356,35 +1377,6 @@ public class TravellersModConfig {
             name = name.substring(0, name.length() - 4);
         }
         return EXCLUDED_RAIDER_VILLAGER_FILES.contains(name);
-    }
-    /**
-     * Delete old config at /config/travellers.cfg (legacy location), if present.
-     */
-    private static void deleteLegacyRootConfig() {
-        try {
-            if (CONFIG_FILE == null) return;
-
-            // CONFIG_FILE is /config/travellers/travellers.cfg
-            File travellersDir = CONFIG_FILE.getParentFile();      // /config/travellers
-            if (travellersDir == null) return;
-
-            File configRoot = travellersDir.getParentFile();       // /config
-            if (configRoot == null) return;
-
-            File legacy = new File(configRoot, "travellers.cfg");  // /config/travellers.cfg
-
-            if (!legacy.exists()) {
-                return; // nothing to delete
-            }
-
-            if (legacy.delete()) {
-                System.out.println("[ModConfig] Deleted legacy config: " + legacy.getAbsolutePath());
-            } else {
-                System.err.println("[ModConfig] Failed to delete legacy config: " + legacy.getAbsolutePath());
-            }
-        } catch (Exception e) {
-            System.err.println("[ModConfig] Error while deleting legacy /config/travellers.cfg: " + e.getMessage());
-        }
     }
 
 }

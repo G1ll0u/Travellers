@@ -69,7 +69,6 @@ public final class TravellerSpawnGuards {
         if (regionalCount >= regionalCap) {
             // Region is “full” according to villages+lone buildings
             e.setResult(net.minecraftforge.fml.common.eventhandler.Event.Result.DENY);
-            return;
         }
 
         // otherwise, do NOT set a result here: let vanilla proceed

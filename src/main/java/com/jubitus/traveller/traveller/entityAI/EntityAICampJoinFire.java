@@ -216,8 +216,8 @@ public class EntityAICampJoinFire extends EntityAIBase {
                 }
 
                 // Make the delay bigger so checks are less frequent in the first place
-                int min = TravellersModConfig.CAMP_WANDER_MIN_DELAY ;
-                int max = TravellersModConfig.CAMP_WANDER_MAX_DELAY ;
+                int min = TravellersModConfig.CAMP_WANDER_MIN_DELAY;
+                int max = TravellersModConfig.CAMP_WANDER_MAX_DELAY;
                 campWanderCooldown = min + mob.getRNG().nextInt(max - min + 1);
             }
 
@@ -326,6 +326,37 @@ public class EntityAICampJoinFire extends EntityAIBase {
         return null;
     }
 
+    private void tickSocialLook() {
+        // continue an active social look if we still have a valid peer
+        if (socialLookTicks > 0 && socialPeer != null && socialPeer.isEntityAlive()) {
+            mob.getLookHelper().setLookPositionWithEntity(socialPeer, 30.0F, 30.0F);
+
+            // mild body turn toward peer
+            BlockPos peerPos = socialPeer.getPosition();
+            mob.faceTowards(peerPos, 6.0F, 12.0F);
+
+            socialLookTicks--;
+            return;
+        }
+
+        // ~1% chance per tick while camping => roughly once per ~5 seconds
+        if (mob.getRNG().nextInt(100) != 0) return;
+
+        BlockPos camp = targetCamp;
+        if (camp == null) return;
+
+        // pick any traveller at this camp
+        java.util.List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(
+                EntityTraveller.class,
+                new AxisAlignedBB(camp).grow(6.0, 3.0, 6.0),
+                e -> e != null && e != mob && e.isEntityAlive() && camp.equals(e.getCampfirePos())
+        );
+        if (peers.isEmpty()) return;
+
+        socialPeer = peers.get(mob.getRNG().nextInt(peers.size()));
+        socialLookTicks = 40 + mob.getRNG().nextInt(40); // 2–4 seconds
+    }
+
     /**
      * Occasionally look at the fire or another random camper.
      */
@@ -408,36 +439,6 @@ public class EntityAICampJoinFire extends EntityAIBase {
         AxisAlignedBB box = new AxisAlignedBB(pos).grow(0.35);
         return mob.world.getEntitiesWithinAABB(EntityTraveller.class, box,
                 e -> e != null && e.isEntityAlive()).isEmpty();
-    }
-    private void tickSocialLook() {
-        // continue an active social look if we still have a valid peer
-        if (socialLookTicks > 0 && socialPeer != null && socialPeer.isEntityAlive()) {
-            mob.getLookHelper().setLookPositionWithEntity(socialPeer, 30.0F, 30.0F);
-
-            // mild body turn toward peer
-            BlockPos peerPos = socialPeer.getPosition();
-            mob.faceTowards(peerPos, 6.0F, 12.0F);
-
-            socialLookTicks--;
-            return;
-        }
-
-        // ~1% chance per tick while camping => roughly once per ~5 seconds
-        if (mob.getRNG().nextInt(100) != 0) return;
-
-        BlockPos camp = targetCamp;
-        if (camp == null) return;
-
-        // pick any traveller at this camp
-        java.util.List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(
-                EntityTraveller.class,
-                new AxisAlignedBB(camp).grow(6.0, 3.0, 6.0),
-                e -> e != null && e != mob && e.isEntityAlive() && camp.equals(e.getCampfirePos())
-        );
-        if (peers.isEmpty()) return;
-
-        socialPeer = peers.get(mob.getRNG().nextInt(peers.size()));
-        socialLookTicks = 40 + mob.getRNG().nextInt(40); // 2–4 seconds
     }
 
 }

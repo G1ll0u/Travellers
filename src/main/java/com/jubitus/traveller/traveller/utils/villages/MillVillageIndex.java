@@ -198,6 +198,11 @@ public final class MillVillageIndex {
         return bestVI;
     }
 
+    // helper
+    private static String safeString(java.util.List<String> list, int idx, String def) {
+        return (idx >= 0 && idx < list.size() && list.get(idx) != null) ? list.get(idx) : def;
+    }
+
     private static MillVillageIndex.VillageInfo buildInfo(MillWorldData wd, Building th) {
         Integer idx = wd.villagesList.rankByPos.get(th.getPos());
         String name = th.toString();
@@ -223,11 +228,6 @@ public final class MillVillageIndex {
         long dx = a.getX() - p.getiX();
         long dz = a.getZ() - p.getiZ();
         return dx * dx + dz * dz;
-    }
-
-    // helper
-    private static String safeString(java.util.List<String> list, int idx, String def) {
-        return (idx >= 0 && idx < list.size() && list.get(idx) != null) ? list.get(idx) : def;
     }
 
     // ---------- Helpers ----------
@@ -340,13 +340,6 @@ public final class MillVillageIndex {
     public static boolean hasVillageData(World world) {
         MillWorldData wd = getWD(world);
         return wd != null && wd.villagesList != null && wd.villagesList.pos != null && !wd.villagesList.pos.isEmpty();
-    }
-
-    @Nullable
-    private static Building getTownHallBuilding(MillWorldData wd, BlockPos center) {
-        if (wd == null) return null;
-        Point p = new Point(center.getX(), center.getY(), center.getZ());
-        return wd.getBuilding(p);
     }
 
     public static java.util.List<BlockPos> getBuildingCenters(World world, BlockPos approxTH, int radiusXZ, int radiusY) {
@@ -496,160 +489,6 @@ public final class MillVillageIndex {
     }
 
     /**
-     * Lightweight view of a village (Town Hall).
-     */
-    public static final class VillageInfo {
-        public final BlockPos center;
-        public final boolean isVillage;     // true = village, false = lone building
-        public final String name;
-        public final String typeKey;
-        public final String cultureKey;
-
-        VillageInfo(BlockPos c, boolean v, String n, String t, String cu) {
-            this.center = c;
-            this.isVillage = v;
-            this.name = n;
-            this.typeKey = t;
-            this.cultureKey = cu;
-        }
-    }
-
-    public static final class BuildingInfo {
-        /**
-         * Chest position / internal anchor of the building.
-         */
-        public final BlockPos chestPos;
-        /**
-         * True if this building is the Town Hall of a village.
-         */
-        public final boolean isTownhall;
-        /**
-         * Millénaire internal plan key, e.g. "norman_farm", etc.
-         */
-        public final String planKey;
-        /**
-         * Culture key, e.g. "norman", "indian", etc.
-         */
-        public final String cultureKey;
-        /**
-         * Display name (same thing TH uses in tooltips / debug).
-         */
-        public final String displayName;
-        /**
-         * All tags on this building (e.g. “shop”, “pujas”, “sacrifices”…).
-         */
-        public final java.util.List<String> tags;
-        /**
-         * Raw Millénaire location object, if you need min/max bounds, etc.
-         */
-        public final BuildingLocation location;
-
-        public BuildingInfo(BlockPos chestPos,
-                            boolean isTownhall,
-                            String planKey,
-                            String cultureKey,
-                            String displayName,
-                            java.util.List<String> tags,
-                            @Nullable BuildingLocation location) {
-            this.chestPos = chestPos;
-            this.isTownhall = isTownhall;
-            this.planKey = planKey;
-            this.cultureKey = cultureKey;
-            this.displayName = displayName;
-            this.tags = tags;
-            this.location = location;
-        }
-
-        @Override
-        public String toString() {
-            return "BuildingInfo{" +
-                    "chestPos=" + chestPos +
-                    ", isTownhall=" + isTownhall +
-                    ", planKey='" + planKey + '\'' +
-                    ", cultureKey='" + cultureKey + '\'' +
-                    ", displayName='" + displayName + '\'' +
-                    ", tags=" + tags +
-                    '}';
-        }
-    }
-
-    public static Map<VillageInfo, Integer> countVillagersPerVillage(World world) {
-        MillWorldData wd = getWD(world);
-        Map<VillageInfo, Integer> result = new java.util.LinkedHashMap<>();
-
-        if (wd == null || wd.villagesList == null || wd.villagesList.pos == null) {
-            return result;
-        }
-
-        // 1) Build a Building -> count map from all known villagers
-        Map<Building, Integer> countsByTH = new java.util.IdentityHashMap<>();
-
-        for (MillVillager v : wd.getAllKnownVillagers()) {
-            if (v == null) continue;
-            Building th = v.getTownHall();
-            if (th == null) continue;
-
-            countsByTH.merge(th, 1, Integer::sum);
-        }
-
-        // 2) For every registered village center, turn it into VillageInfo
-        //    and look up its building's count.
-        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
-            Point p = wd.villagesList.pos.get(i);
-            if (p == null) continue;
-
-            Building th = wd.getBuilding(p);
-            if (th == null) {
-                // Town Hall not loaded / missing – treat as zero population
-                BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
-                VillageInfo vi = new VillageInfo(
-                        center,
-                        true,
-                        safeString(wd.villagesList.names, i, ""),
-                        safeString(wd.villagesList.types, i, ""),
-                        safeString(wd.villagesList.cultures, i, "")
-                );
-                result.put(vi, 0);
-                continue;
-            }
-
-            int count = countsByTH.getOrDefault(th, 0);
-
-            BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
-            VillageInfo vi = new VillageInfo(
-                    center,
-                    true,
-                    safeString(wd.villagesList.names, i, ""),
-                    safeString(wd.villagesList.types, i, ""),
-                    safeString(wd.villagesList.cultures, i, "")
-            );
-
-            result.put(vi, count);
-        }
-
-        return result;
-    }
-
-    public static int countVillagersInVillage(World world, BlockPos villageCenter) {
-        MillWorldData wd = getWD(world);
-        if (wd == null) return 0;
-
-        // Find the Town Hall building for that center
-        Building th = getTownHallBuilding(wd, villageCenter);
-        if (th == null) return 0;
-
-        int count = 0;
-        for (MillVillager v : wd.getAllKnownVillagers()) {
-            if (v == null) continue;
-            Building vTh = v.getTownHall();
-            if (vTh == th) { // same Building instance
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /**
      * Returns a multiplier >= 1.0 based on the population of the nearest village
      * around the given pos. Used to scale traveller spawn density:
      * <p>
@@ -681,6 +520,32 @@ public final class MillVillageIndex {
             mult = Math.min(mult, maxMult);
         }
         return Math.max(1.0D, mult);
+    }
+
+    public static int countVillagersInVillage(World world, BlockPos villageCenter) {
+        MillWorldData wd = getWD(world);
+        if (wd == null) return 0;
+
+        // Find the Town Hall building for that center
+        Building th = getTownHallBuilding(wd, villageCenter);
+        if (th == null) return 0;
+
+        int count = 0;
+        for (MillVillager v : wd.getAllKnownVillagers()) {
+            if (v == null) continue;
+            Building vTh = v.getTownHall();
+            if (vTh == th) { // same Building instance
+                count++;
+            }
+        }
+        return count;
+    }
+
+    @Nullable
+    private static Building getTownHallBuilding(MillWorldData wd, BlockPos center) {
+        if (wd == null) return null;
+        Point p = new Point(center.getX(), center.getY(), center.getZ());
+        return wd.getBuilding(p);
     }
 
     /**
@@ -847,6 +712,7 @@ public final class MillVillageIndex {
 
         return total;
     }
+
     // WORLD-WIDE dynamic target (used by soft spawner)
     public static int computeWorldTravellerTarget(WorldServer ws) {
 
@@ -854,8 +720,8 @@ public final class MillVillageIndex {
 
         // Tunables – move to config later if you like
         final double perVillager = TravellersModConfig.travellerCapPerVillager;
-        final int minPerVillage  = TravellersModConfig.travellerCapMinPerVillage;
-        final int maxPerVillage  = TravellersModConfig.travellerCapMaxPerVillage;
+        final int minPerVillage = TravellersModConfig.travellerCapMinPerVillage;
+        final int maxPerVillage = TravellersModConfig.travellerCapMaxPerVillage;
 
         final int globalMin = TravellersModConfig.travellerCapGlobalMin;
         final int globalMax = TravellersModConfig.travellerCapGlobalMax;
@@ -888,15 +754,72 @@ public final class MillVillageIndex {
         return total;
     }
 
+    public static Map<VillageInfo, Integer> countVillagersPerVillage(World world) {
+        MillWorldData wd = getWD(world);
+        Map<VillageInfo, Integer> result = new java.util.LinkedHashMap<>();
+
+        if (wd == null || wd.villagesList == null || wd.villagesList.pos == null) {
+            return result;
+        }
+
+        // 1) Build a Building -> count map from all known villagers
+        Map<Building, Integer> countsByTH = new java.util.IdentityHashMap<>();
+
+        for (MillVillager v : wd.getAllKnownVillagers()) {
+            if (v == null) continue;
+            Building th = v.getTownHall();
+            if (th == null) continue;
+
+            countsByTH.merge(th, 1, Integer::sum);
+        }
+
+        // 2) For every registered village center, turn it into VillageInfo
+        //    and look up its building's count.
+        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
+            Point p = wd.villagesList.pos.get(i);
+            if (p == null) continue;
+
+            Building th = wd.getBuilding(p);
+            if (th == null) {
+                // Town Hall not loaded / missing – treat as zero population
+                BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+                VillageInfo vi = new VillageInfo(
+                        center,
+                        true,
+                        safeString(wd.villagesList.names, i, ""),
+                        safeString(wd.villagesList.types, i, ""),
+                        safeString(wd.villagesList.cultures, i, "")
+                );
+                result.put(vi, 0);
+                continue;
+            }
+
+            int count = countsByTH.getOrDefault(th, 0);
+
+            BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+            VillageInfo vi = new VillageInfo(
+                    center,
+                    true,
+                    safeString(wd.villagesList.names, i, ""),
+                    safeString(wd.villagesList.types, i, ""),
+                    safeString(wd.villagesList.cultures, i, "")
+            );
+
+            result.put(vi, count);
+        }
+
+        return result;
+    }
+
     // REGIONAL cap around a center (for debug / info)
     public static int computeRegionalTravellerCap(WorldServer ws, BlockPos center, int radiusXZ) {
 
         Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
 
         final double perVillager = TravellersModConfig.travellerCapPerVillager;
-        final int minPerVillage  = TravellersModConfig.travellerCapMinPerVillage;
-        final int maxPerVillage  = TravellersModConfig.travellerCapMaxPerVillage;
-        final int perLone        = TravellersModConfig.travellerCapPerLoneBuilding;
+        final int minPerVillage = TravellersModConfig.travellerCapMinPerVillage;
+        final int maxPerVillage = TravellersModConfig.travellerCapMaxPerVillage;
+        final int perLone = TravellersModConfig.travellerCapPerLoneBuilding;
 
         int total = 0;
 
@@ -935,15 +858,16 @@ public final class MillVillageIndex {
         return total;
 
     }
+
     // REGIONAL cap around a center for *raiders*
     public static int computeRegionalRaiderCap(WorldServer ws, BlockPos center, int radiusXZ) {
 
         Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
 
         final double perVillager = TravellersModConfig.raiderCapPerVillager;
-        final int minPerVillage  = TravellersModConfig.raiderCapMinPerVillage;
-        final int maxPerVillage  = TravellersModConfig.raiderCapMaxPerVillage;
-        final int perLone        = TravellersModConfig.raiderCapPerLoneBuilding;
+        final int minPerVillage = TravellersModConfig.raiderCapMinPerVillage;
+        final int maxPerVillage = TravellersModConfig.raiderCapMaxPerVillage;
+        final int perLone = TravellersModConfig.raiderCapPerLoneBuilding;
 
         int total = 0;
 
@@ -980,6 +904,84 @@ public final class MillVillageIndex {
         }
 
         return total;
+    }
+
+    /**
+     * Lightweight view of a village (Town Hall).
+     */
+    public static final class VillageInfo {
+        public final BlockPos center;
+        public final boolean isVillage;     // true = village, false = lone building
+        public final String name;
+        public final String typeKey;
+        public final String cultureKey;
+
+        VillageInfo(BlockPos c, boolean v, String n, String t, String cu) {
+            this.center = c;
+            this.isVillage = v;
+            this.name = n;
+            this.typeKey = t;
+            this.cultureKey = cu;
+        }
+    }
+
+    public static final class BuildingInfo {
+        /**
+         * Chest position / internal anchor of the building.
+         */
+        public final BlockPos chestPos;
+        /**
+         * True if this building is the Town Hall of a village.
+         */
+        public final boolean isTownhall;
+        /**
+         * Millénaire internal plan key, e.g. "norman_farm", etc.
+         */
+        public final String planKey;
+        /**
+         * Culture key, e.g. "norman", "indian", etc.
+         */
+        public final String cultureKey;
+        /**
+         * Display name (same thing TH uses in tooltips / debug).
+         */
+        public final String displayName;
+        /**
+         * All tags on this building (e.g. “shop”, “pujas”, “sacrifices”…).
+         */
+        public final java.util.List<String> tags;
+        /**
+         * Raw Millénaire location object, if you need min/max bounds, etc.
+         */
+        public final BuildingLocation location;
+
+        public BuildingInfo(BlockPos chestPos,
+                            boolean isTownhall,
+                            String planKey,
+                            String cultureKey,
+                            String displayName,
+                            java.util.List<String> tags,
+                            @Nullable BuildingLocation location) {
+            this.chestPos = chestPos;
+            this.isTownhall = isTownhall;
+            this.planKey = planKey;
+            this.cultureKey = cultureKey;
+            this.displayName = displayName;
+            this.tags = tags;
+            this.location = location;
+        }
+
+        @Override
+        public String toString() {
+            return "BuildingInfo{" +
+                    "chestPos=" + chestPos +
+                    ", isTownhall=" + isTownhall +
+                    ", planKey='" + planKey + '\'' +
+                    ", cultureKey='" + cultureKey + '\'' +
+                    ", displayName='" + displayName + '\'' +
+                    ", tags=" + tags +
+                    '}';
+        }
     }
 
 }

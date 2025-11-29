@@ -5,7 +5,6 @@ import com.jubitus.traveller.traveller.SpawnThrottles;
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
-import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -18,14 +17,12 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumDifficulty;
-import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-import java.io.File;
 import java.util.List;
 import java.util.Random;
 
@@ -33,13 +30,14 @@ import static com.jubitus.traveller.traveller.entityAI.EntityAITravel.intersects
 
 @Mod.EventBusSubscriber
 public final class TravellerSoftSpawner {
-    private static int lastVillageReloadTick = -1;
     private static final int REGIONAL_RADIUS = 1000; // or pull from config later
-    private static int raiderTickCounter = 0;
-    private static int tickCounter = 0;
     // radius around a Town Hall that we consider "inside" the village
     // (tweak to taste or move to config)
     private static final int INNER_VILLAGE_NO_SPAWN_RADIUS = 128;
+    private static final int lastVillageReloadTick = -1;
+    private static int raiderTickCounter = 0;
+    private static int tickCounter = 0;
+
     private TravellerSoftSpawner() {
     }
 
@@ -371,6 +369,14 @@ public final class TravellerSoftSpawner {
         }
     }
 
+    public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                center.getX() - radiusXZ, 0, center.getZ() - radiusXZ,
+                center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
+        );
+        return ws.getEntitiesWithinAABB(EntityTraveller.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
+    }
+
     private static BlockPos pickSpawnPosAround(WorldServer ws, BlockPos center, Random r, int min, int max) {
         final int tries = 12;
         for (int i = 0; i < tries; i++) {
@@ -420,6 +426,14 @@ public final class TravellerSoftSpawner {
                 false, true, false) == null && p.getEntityBoundingBox().intersects(bb);
     }
 
+    public static int countRaidersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                center.getX() - radiusXZ, 0, center.getZ() - radiusXZ,
+                center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
+        );
+        return ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
+    }
+
     private static boolean isStandable(WorldServer w, BlockPos feet) {
         if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
         if (w.getBlockState(feet).getMaterial().isLiquid()) return false;
@@ -452,6 +466,7 @@ public final class TravellerSoftSpawner {
         // optional but very effective: reject if the neighbourhood looks "built"
         return !looksManMadeAround(w, feet, 2);
     }
+// --- mob farm / enclosure detection ---
 
     private static boolean isNaturalGround(World w, BlockPos pos) {
         IBlockState st = w.getBlockState(pos);
@@ -542,7 +557,20 @@ public final class TravellerSoftSpawner {
         }
         return false;
     }
-// --- mob farm / enclosure detection ---
+
+    /**
+     * Heuristic: "mob farm–like" = many mobs inside + fence ring around.
+     */
+    private static boolean isMobFarmLikeArea(WorldServer w, BlockPos pos) {
+        // Tunable knobs – consider putting in config if you want it tweakable
+        final int radius = TravellersModConfig.mobFarmCheckRadius;
+        final int minEntities = TravellersModConfig.mobFarmEntityThreshold;   // how many mobs before we call it crowded
+        final int fenceRadius = TravellersModConfig.mobFarmFenceRadius;
+        final int minFenceBlocks = TravellersModConfig.mobFarmFenceThreshold;
+
+        if (!isCrowdedArea(w, pos, radius, minEntities)) return false;
+        return hasFencePerimeter(w, pos, fenceRadius, minFenceBlocks);
+    }
 
     private static boolean isCrowdedArea(WorldServer w, BlockPos pos, int radius, int minEntities) {
         AxisAlignedBB box = new AxisAlignedBB(
@@ -590,35 +618,6 @@ public final class TravellerSoftSpawner {
             }
         }
         return false;
-    }
-
-    /**
-     * Heuristic: "mob farm–like" = many mobs inside + fence ring around.
-     */
-    private static boolean isMobFarmLikeArea(WorldServer w, BlockPos pos) {
-        // Tunable knobs – consider putting in config if you want it tweakable
-        final int radius = TravellersModConfig.mobFarmCheckRadius;
-        final int minEntities = TravellersModConfig.mobFarmEntityThreshold;   // how many mobs before we call it crowded
-        final int fenceRadius = TravellersModConfig.mobFarmFenceRadius;
-        final int minFenceBlocks = TravellersModConfig.mobFarmFenceThreshold;
-
-        if (!isCrowdedArea(w, pos, radius, minEntities)) return false;
-        if (!hasFencePerimeter(w, pos, fenceRadius, minFenceBlocks)) return false;
-        return true;
-    }
-    public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
-        AxisAlignedBB box = new AxisAlignedBB(
-                center.getX() - radiusXZ, 0, center.getZ() - radiusXZ,
-                center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
-        );
-        return ws.getEntitiesWithinAABB(EntityTraveller.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
-    }
-    public static int countRaidersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
-        AxisAlignedBB box = new AxisAlignedBB(
-                center.getX() - radiusXZ, 0, center.getZ() - radiusXZ,
-                center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
-        );
-        return ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
     }
 
 

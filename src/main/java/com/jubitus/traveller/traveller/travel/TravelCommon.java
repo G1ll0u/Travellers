@@ -30,8 +30,8 @@ import java.util.Comparator;
 import java.util.List;
 
 public class TravelCommon {
-    private final EntityTraveller owner;
     public final List<BlockPos> route = new ArrayList<BlockPos>();
+    private final EntityTraveller owner;
     public List<BlockPos> cachedVillages = Collections.emptyList();
     public int villageCacheTicker = 0;
     // --- AI State Fields (saved to disk)---
@@ -62,6 +62,7 @@ public class TravelCommon {
         this.owner = owner;
         this.lastDesiredTravelYaw = Float.NaN;
     }
+
     // Find a dry standable Y near XZ (no chunk loads)
     @Nullable
     public BlockPos topStandable(BlockPos guess) {
@@ -99,7 +100,7 @@ public class TravelCommon {
         // forbid non-water liquids intersecting our AABB
         AxisAlignedBB aabb = owner.getEntityBoundingBox().offset(
                 (feet.getX() + 0.5) - owner.posX,
-                (feet.getY())       - owner.posY,
+                (feet.getY()) - owner.posY,
                 (feet.getZ() + 0.5) - owner.posZ
         );
         if (EntityAITravel.intersectsForbiddenLiquid(w, aabb)) return false;
@@ -126,13 +127,6 @@ public class TravelCommon {
     public void setTargetVillage(@Nullable BlockPos pos) {
         this.targetVillage = pos;
     }// --- Arrival policy (ONE source of truth) ---
-
-    public int arrivalRadiusBlocks(BlockPos target) {
-        // Prefer Millénaire’s custom near radius if present, else your config
-        int r = MillenaireVillageDirectory.nearRadiusFor(target);
-        if (r <= 0) r = TravellersModConfig.VILLAGE_NEAR;
-        return r;
-    }
 
     public int getTravelRecoverTicks() {
         return owner.getTravelRecoverTicks();
@@ -191,12 +185,61 @@ public class TravelCommon {
             this.nearestVillage = best;
         } else {
             double curD2 = me.distanceSq(this.nearestVillage);
-            if (bestD2 + owner.NEAR_HYS_DELTA_SQ < curD2) {
+            if (bestD2 + EntityTraveller.NEAR_HYS_DELTA_SQ < curD2) {
                 this.nearestVillage = best;
             }
         }
 
         if (!owner.getEntityWorld().isRemote) syncBodyYawWhileTravelling();
+    }
+
+    public List<BlockPos> getVillagesCached() {
+        if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
+            cachedVillages = MillVillageIndex.getAllVillageCenters(owner.getEntityWorld());
+        }
+        return cachedVillages;
+    }
+
+    /**
+     * Align torso (renderYawOffset) to travel direction while pathing.
+     */
+    public void syncBodyYawWhileTravelling() {
+        if (owner.isInCombat() || owner.getAttackTarget() != null) return;
+        if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
+
+        double dx = owner.motionX, dz = owner.motionZ;
+
+        // In water, trust the waypoint over noisy motion
+        boolean water = owner.isInWater();
+        if (water || (dx * dx + dz * dz) < 0.0016D) { // speed < 0.04
+            BlockPos wp = owner.getCurrentWaypoint();
+            if (wp == null) return;
+            dx = (wp.getX() + 0.5D) - owner.posX;
+            dz = (wp.getZ() + 0.5D) - owner.posZ;
+            if (dx * dx + dz * dz < 1e-6) return;
+        }
+
+        float desired = (float) (Math.atan2(dz, dx) * 180D / Math.PI) - 90.0F;
+
+        // Low-pass desired yaw to avoid oscillation
+        if (Float.isNaN(lastDesiredTravelYaw)) lastDesiredTravelYaw = desired;
+        lastDesiredTravelYaw = EntityTraveller.rotlerp(
+                lastDesiredTravelYaw,
+                desired,
+                (water ? 6.0F : 10.0F)
+        );
+
+        float bodyTurn = water ? 24.0F : 45.0F;
+        float headTurn = water ? 30.0F : 60.0F;
+        float headLimit = 75.0F;
+
+        owner.rotationYaw = EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn);
+        owner.renderYawOffset = EntityTraveller.rotlerp(owner.renderYawOffset, owner.rotationYaw, bodyTurn);
+        owner.rotationYawHead = EntityTraveller.rotlerp(owner.rotationYawHead, owner.renderYawOffset, headTurn);
+
+        float diff = MathHelper.wrapDegrees(owner.rotationYawHead - owner.renderYawOffset);
+        if (diff < -headLimit) owner.rotationYawHead = owner.renderYawOffset - headLimit;
+        if (diff > headLimit) owner.rotationYawHead = owner.renderYawOffset + headLimit;
     }
 
     public BlockPos getRoamTarget() {
@@ -252,48 +295,6 @@ public class TravelCommon {
 
     public int getRecalcPhase() {
         return recalcPhase;
-    }
-
-    /**
-     * Align torso (renderYawOffset) to travel direction while pathing.
-     */
-    public void syncBodyYawWhileTravelling() {
-        if (owner.isInCombat() || owner.getAttackTarget() != null) return;
-        if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
-
-        double dx = owner.motionX, dz = owner.motionZ;
-
-        // In water, trust the waypoint over noisy motion
-        boolean water = owner.isInWater();
-        if (water || (dx * dx + dz * dz) < 0.0016D) { // speed < 0.04
-            BlockPos wp = owner.getCurrentWaypoint();
-            if (wp == null) return;
-            dx = (wp.getX() + 0.5D) - owner.posX;
-            dz = (wp.getZ() + 0.5D) - owner.posZ;
-            if (dx * dx + dz * dz < 1e-6) return;
-        }
-
-        float desired = (float) (Math.atan2(dz, dx) * 180D / Math.PI) - 90.0F;
-
-        // Low-pass desired yaw to avoid oscillation
-        if (Float.isNaN(lastDesiredTravelYaw)) lastDesiredTravelYaw = desired;
-        lastDesiredTravelYaw = EntityTraveller.rotlerp(
-                lastDesiredTravelYaw,
-                desired,
-                (water ? 6.0F : 10.0F)
-        );
-
-        float bodyTurn = water ? 24.0F : 45.0F;
-        float headTurn = water ? 30.0F : 60.0F;
-        float headLimit = 75.0F;
-
-        owner.rotationYaw = EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn);
-        owner.renderYawOffset = EntityTraveller.rotlerp(owner.renderYawOffset, owner.rotationYaw, bodyTurn);
-        owner.rotationYawHead = EntityTraveller.rotlerp(owner.rotationYawHead, owner.renderYawOffset, headTurn);
-
-        float diff = MathHelper.wrapDegrees(owner.rotationYawHead - owner.renderYawOffset);
-        if (diff < -headLimit) owner.rotationYawHead = owner.renderYawOffset - headLimit;
-        if (diff > headLimit)  owner.rotationYawHead = owner.renderYawOffset + headLimit;
     }
 
     public void ensureRoutePlanned() {
@@ -442,7 +443,7 @@ public class TravelCommon {
             double t = AB.dotProduct(P.subtract(A)) / ab2;     // along-track fraction
             if (t <= 0.02 || t >= 0.98) continue;              // strictly between A and C
             double cw2 = corridorWidth * corridorWidth;
-            if (owner.pointToSegment2DSq(P, A, B) <= cw2) {
+            if (EntityTraveller.pointToSegment2DSq(P, A, B) <= cw2) {
                 tmp.add(new Mid(t, v));
             }
         }
@@ -459,11 +460,11 @@ public class TravelCommon {
         return owner.getDistanceSqToCenter(tv) <= (double) (r * r);
     }
 
-    public List<BlockPos> getVillagesCached() {
-        if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
-            cachedVillages = MillVillageIndex.getAllVillageCenters(owner.getEntityWorld());
-        }
-        return cachedVillages;
+    public int arrivalRadiusBlocks(BlockPos target) {
+        // Prefer Millénaire’s custom near radius if present, else your config
+        int r = MillenaireVillageDirectory.nearRadiusFor(target);
+        if (r <= 0) r = TravellersModConfig.VILLAGE_NEAR;
+        return r;
     }
 
     public void maybePlayTravelAmbient() {

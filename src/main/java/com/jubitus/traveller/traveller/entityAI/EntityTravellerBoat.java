@@ -18,6 +18,7 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
     public EntityTravellerBoat(World worldIn, double x, double y, double z) {
         super(worldIn, x, y, z);
     }
+
     @Override
     public void onUpdate() {
         super.onUpdate();
@@ -55,7 +56,6 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         if (stallTicks >= STALL_LIMIT) {
             // Kill the boat → traveller dismounts automatically
             this.setDead();
-            return;
         }
     }
 

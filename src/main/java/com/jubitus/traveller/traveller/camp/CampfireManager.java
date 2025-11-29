@@ -231,13 +231,6 @@ public class CampfireManager extends WorldSavedData {
         return best;
     }
 
-    public static class Entry {
-        public BlockPos pos;
-        public int dimension;
-        public UUID owner;          // traveller UUID (optional)
-        public long expireAt;       // world.getTotalWorldTime() tick deadline
-        public int nearRadius;      // blocks for proximity cleanup
-    }
     public void extinguishAllForWorld(WorldServer ws) {
         Block fire = CampfireBlock.get();
         if (fire == null) {
@@ -260,6 +253,14 @@ public class CampfireManager extends WorldSavedData {
         }
 
         markDirty();
+    }
+
+    public static class Entry {
+        public BlockPos pos;
+        public int dimension;
+        public UUID owner;          // traveller UUID (optional)
+        public long expireAt;       // world.getTotalWorldTime() tick deadline
+        public int nearRadius;      // blocks for proximity cleanup
     }
 }
 

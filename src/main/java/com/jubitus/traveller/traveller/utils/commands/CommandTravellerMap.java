@@ -1,25 +1,20 @@
 package com.jubitus.traveller.traveller.utils.commands;
 
-import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
-import net.minecraft.command.NumberInvalidException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
-import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.Locale;
+import java.io.File;
+import java.io.IOException;
 
 public class CommandTravellerMap extends CommandBase {
 
@@ -33,11 +28,6 @@ public class CommandTravellerMap extends CommandBase {
         return "/travellermap [radius] [step]\n" +
                 "  radius: sampling radius in blocks (default 256)\n" +
                 "  step: sample spacing in blocks (default 8)";
-    }
-
-    @Override
-    public int getRequiredPermissionLevel() {
-        return 2; // OP only by default, tweak if you want
     }
 
     @Override
@@ -161,5 +151,10 @@ public class CommandTravellerMap extends CommandBase {
                 }
             }
         }
+    }
+
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 2; // OP only by default, tweak if you want
     }
 }

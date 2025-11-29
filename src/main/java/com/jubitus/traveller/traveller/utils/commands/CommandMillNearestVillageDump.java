@@ -205,6 +205,7 @@ public class CommandMillNearestVillageDump extends CommandBase {
         sender.sendMessage(new TextComponentString(
                 "Dump written to: " + outFile.getAbsolutePath()));
     }
+
     /**
      * Resolve a Millénaire Building at exactly given center BlockPos.
      */

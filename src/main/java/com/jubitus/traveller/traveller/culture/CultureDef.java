@@ -8,9 +8,9 @@ public final class CultureDef {
     public final String id;
     public final String displayName;
     private final java.util.List<TravellerAppearance> travellerLooks = new java.util.ArrayList<>();
-    private final java.util.List<TravellerAppearance> raiderLooks    = new java.util.ArrayList<>();
+    private final java.util.List<TravellerAppearance> raiderLooks = new java.util.ArrayList<>();
     private final java.util.List<String> maleFirstNames = new java.util.ArrayList<>();
-    private final java.util.List<String> familyNames    = new java.util.ArrayList<>();
+    private final java.util.List<String> familyNames = new java.util.ArrayList<>();
 
 
     // SIMPLE: category -> list of ItemStacks
@@ -64,6 +64,7 @@ public final class CultureDef {
     public void addTravellerAppearance(TravellerAppearance a) {
         travellerLooks.add(a);
     }
+
     // NEW
     public void addRaiderAppearance(TravellerAppearance a) {
         raiderLooks.add(a);
@@ -90,18 +91,16 @@ public final class CultureDef {
         return travellerLooks.get(i);
     }
 
-
-
-    public int getTravellerTextureCount() {
-        return travellerLooks != null ? travellerLooks.size() : 0;
-    }
-
     public int getRaiderTextureCount() {
         if (raiderLooks != null && !raiderLooks.isEmpty()) {
             return raiderLooks.size();
         }
         // fallback: share traveller pool if raider list is empty
         return getTravellerTextureCount();
+    }
+
+    public int getTravellerTextureCount() {
+        return travellerLooks != null ? travellerLooks.size() : 0;
     }
 
     public TravellerAppearance getRaiderAppearance(int index) {
@@ -117,7 +116,6 @@ public final class CultureDef {
         if (i >= list.size()) i = i % list.size();
         return list.get(i);
     }
-
 
 
     /**
@@ -215,10 +213,6 @@ public final class CultureDef {
         addAllUniqueTrimmed(maleFirstNames, names);
     }
 
-    public void addFamilyNames(java.util.List<String> names) {
-        addAllUniqueTrimmed(familyNames, names);
-    }
-
     private static void addAllUniqueTrimmed(java.util.List<String> target, java.util.List<String> src) {
         if (src == null) return;
         for (String s : src) {
@@ -231,12 +225,26 @@ public final class CultureDef {
         }
     }
 
+    public void addFamilyNames(java.util.List<String> names) {
+        addAllUniqueTrimmed(familyNames, names);
+    }
+
     public boolean hasMaleFirstNames() {
         return !maleFirstNames.isEmpty();
     }
 
     public boolean hasFamilyNames() {
         return !familyNames.isEmpty();
+    }
+
+    public String randomFullName(java.util.Random r) {
+        String first = randomMaleFirstName(r);
+        String last = randomFamilyName(r);
+
+        if (first.isEmpty() && last.isEmpty()) return "";
+        if (last.isEmpty()) return first;
+        if (first.isEmpty()) return last;
+        return first + " " + last;
     }
 
     public String randomMaleFirstName(java.util.Random r) {
@@ -247,16 +255,6 @@ public final class CultureDef {
     public String randomFamilyName(java.util.Random r) {
         if (familyNames.isEmpty()) return "";
         return familyNames.get(r.nextInt(familyNames.size()));
-    }
-
-    public String randomFullName(java.util.Random r) {
-        String first = randomMaleFirstName(r);
-        String last  = randomFamilyName(r);
-
-        if (first.isEmpty() && last.isEmpty()) return "";
-        if (last.isEmpty())  return first;
-        if (first.isEmpty()) return last;
-        return first + " " + last;
     }
 
 }

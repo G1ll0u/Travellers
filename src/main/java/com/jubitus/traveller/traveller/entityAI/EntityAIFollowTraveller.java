@@ -26,6 +26,12 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
     private static final int IDLE_STILL_TICKS = 25;         // ~1.25s before we consider leader idle
     private static final int RANDOM_GAZE_MIN = 20;          // 1.0s
     private static final int RANDOM_GAZE_MAX = 50;          // 2.5s
+    private static final int IDLE_MOVE_MIN = 25;          // ~1.25s
+    private static final int IDLE_MOVE_MAX = 80;          // up to 4s
+    private static final int IDLE_MOVE_COOLDOWN_MIN = 40; // 2s
+    private static final int IDLE_MOVE_COOLDOWN_MAX = 140;// up to 7s
+    private static final double IDLE_MOVE_RADIUS = 1.8;   // radius around the back point
+    private static final int MAX_FOLLOWERS_PER_LEADER = TravellersModConfig.followMaxFollowersPerLeader;
     private final EntityTraveller mob;
     private final double angleAlignCos;
     private final double speed;
@@ -44,14 +50,6 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
     // --- idle micro-behaviour state ---
     private int idleMoveTicks = 0;          // how long we keep walking a small idle move
     private int idleMoveCooldown = 0;       // delay before we can start another idle move
-    private static final int IDLE_MOVE_MIN = 25;          // ~1.25s
-    private static final int IDLE_MOVE_MAX = 80;          // up to 4s
-    private static final int IDLE_MOVE_COOLDOWN_MIN = 40; // 2s
-    private static final int IDLE_MOVE_COOLDOWN_MAX = 140;// up to 7s
-    private static final double IDLE_MOVE_RADIUS = 1.8;   // radius around the back point
-    private static final int MAX_FOLLOWERS_PER_LEADER = TravellersModConfig.followMaxFollowersPerLeader;
-
-
     // "talking" / social look-at
     private EntityTraveller socialLookTarget = null;
     private int socialLookTicks = 0;
@@ -77,9 +75,7 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         // Want align >= cos(theta) where theta is the max allowed angle between headings.
         return Math.cos(Math.toRadians(deg));
     }
-    private boolean isInBoat(EntityTraveller t) {
-        return t.isRiding() && t.getRidingEntity() instanceof EntityTravellerBoat;
-    }
+
     @Override
     public boolean shouldExecute() {
         if (mob.world.isRemote) return false;
@@ -147,6 +143,10 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         // Success: start following this candidate
         this.leader = cand;
         return true;
+    }
+
+    private boolean isInBoat(EntityTraveller t) {
+        return t.isRiding() && t.getRidingEntity() instanceof EntityTravellerBoat;
     }
 
     private static Vec3d travelDir(EntityTraveller t) {
@@ -346,100 +346,6 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         }
     }
 
-    // ADD — is leader moving (horizontal)
-    private static boolean isMovingHoriz(Vec3d delta) {
-        double s = delta.x * delta.x + delta.z * delta.z;
-        return s > LEADER_MOVE_EPS;
-    }
-
-    // ADD — pick/maintain a natural random gaze around the mob (used for idle + "sometimes look elsewhere")
-    private void randomGazeTick() {
-        // refresh target periodically
-        if (mob.ticksExisted >= nextRandomGazeTick || currentGaze == null) {
-            double ang = mob.getRNG().nextDouble() * Math.PI * 2.0;
-            double dist = 2.0 + mob.getRNG().nextDouble() * 4.0;     // 2–6 blocks away
-            double gx = mob.posX + Math.cos(ang) * dist;
-            double gz = mob.posZ + Math.sin(ang) * dist;
-            double gy = mob.posY + mob.getEyeHeight() * (0.85 + mob.getRNG().nextDouble() * 0.25); // near eye height
-
-            currentGaze = new Vec3d(gx, gy, gz);
-            nextRandomGazeTick = mob.ticksExisted + RANDOM_GAZE_MIN + mob.getRNG().nextInt(RANDOM_GAZE_MAX - RANDOM_GAZE_MIN + 1);
-        }
-        // gently look at the current random target
-        lookAt(currentGaze, 10.0F, 10.0F);
-    }
-
-    private static Vec3d lastResortFacing(EntityTraveller t) {
-        return new Vec3d(-MathHelper.sin(t.rotationYaw * 0.017453292F), 0,
-                MathHelper.cos(t.rotationYaw * 0.017453292F)).normalize();
-    }
-
-    // ADD — set look to a point
-    private void lookAt(Vec3d p, float yawSpeed, float pitchSpeed) {
-        mob.getLookHelper().setLookPosition(p.x, p.y, p.z, yawSpeed, pitchSpeed);
-    }
-
-    private Vec3d computeBackPoint() {
-        Vec3d fwd = (smoothedFwd.lengthSquared() > 1e-6) ? smoothedFwd
-                : new Vec3d(-MathHelper.sin(leader.rotationYaw * 0.017453292F), 0,
-                MathHelper.cos(leader.rotationYaw * 0.017453292F)).normalize();
-
-        Vec3d left = new Vec3d(-fwd.z, 0, fwd.x).normalize().scale(lateralOffset);
-        double x = leader.posX - fwd.x * DESIRED_DIST + left.x;
-        double z = leader.posZ - fwd.z * DESIRED_DIST + left.z;
-        double y = leader.posY;
-
-        return new Vec3d(x, y, z);
-    }
-
-    private void pushFollowPathTo(Vec3d p) {
-        mob.getNavigator().tryMoveToXYZ(p.x, p.y, p.z, speed);
-    }
-    private void idleMoveTick() {
-        // already in an idle move: just count it down
-        if (idleMoveTicks > 0) {
-            idleMoveTicks--;
-            return;
-        }
-
-        // cooldown before next move
-        if (idleMoveCooldown > 0) {
-            idleMoveCooldown--;
-            return;
-        }
-
-        // chance to start a new micro-move when we're idle
-        if (mob.getNavigator().noPath() && mob.getRNG().nextFloat() < 0.18f) {
-            Vec3d center = computeBackPoint();   // our usual follow slot
-            double ang = mob.getRNG().nextDouble() * Math.PI * 2.0;
-            double dist = 0.5 + mob.getRNG().nextDouble() * (IDLE_MOVE_RADIUS - 0.5);
-
-            double tx = center.x + Math.cos(ang) * dist;
-            double tz = center.z + Math.sin(ang) * dist;
-            double ty = center.y;
-
-            pushFollowPathTo(new Vec3d(tx, ty, tz));
-
-            idleMoveTicks = IDLE_MOVE_MIN + mob.getRNG().nextInt(IDLE_MOVE_MAX - IDLE_MOVE_MIN + 1);
-            idleMoveCooldown = IDLE_MOVE_COOLDOWN_MIN +
-                    mob.getRNG().nextInt(IDLE_MOVE_COOLDOWN_MAX - IDLE_MOVE_COOLDOWN_MIN + 1);
-        }
-    }
-
-    private EntityTraveller pickRandomFellowFollower() {
-        if (leader == null) return null;
-        List<EntityTraveller> nearbyFollowers = mob.world.getEntitiesWithinAABB(
-                EntityTraveller.class,
-                mob.getEntityBoundingBox().grow(4.0, 2.0, 4.0),
-                e -> e != null
-                        && e.isEntityAlive()
-                        && e != mob
-                        && e.hasFollowLeader()
-                        && e.getFollowLeader() == leader
-        );
-        if (nearbyFollowers.isEmpty()) return null;
-        return nearbyFollowers.get(mob.getRNG().nextInt(nearbyFollowers.size()));
-    }
     /**
      * Handle special follow behaviour when the leader is in a boat.
      * Returns true if we handled the tick in boat-mode and the caller
@@ -508,6 +414,86 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
         // Fallback: let normal logic run (e.g., we're on land while leader is in boat far away)
         return false;
     }
+
+    // ADD — is leader moving (horizontal)
+    private static boolean isMovingHoriz(Vec3d delta) {
+        double s = delta.x * delta.x + delta.z * delta.z;
+        return s > LEADER_MOVE_EPS;
+    }
+
+    private EntityTraveller pickRandomFellowFollower() {
+        if (leader == null) return null;
+        List<EntityTraveller> nearbyFollowers = mob.world.getEntitiesWithinAABB(
+                EntityTraveller.class,
+                mob.getEntityBoundingBox().grow(4.0, 2.0, 4.0),
+                e -> e != null
+                        && e.isEntityAlive()
+                        && e != mob
+                        && e.hasFollowLeader()
+                        && e.getFollowLeader() == leader
+        );
+        if (nearbyFollowers.isEmpty()) return null;
+        return nearbyFollowers.get(mob.getRNG().nextInt(nearbyFollowers.size()));
+    }
+
+    // ADD — pick/maintain a natural random gaze around the mob (used for idle + "sometimes look elsewhere")
+    private void randomGazeTick() {
+        // refresh target periodically
+        if (mob.ticksExisted >= nextRandomGazeTick || currentGaze == null) {
+            double ang = mob.getRNG().nextDouble() * Math.PI * 2.0;
+            double dist = 2.0 + mob.getRNG().nextDouble() * 4.0;     // 2–6 blocks away
+            double gx = mob.posX + Math.cos(ang) * dist;
+            double gz = mob.posZ + Math.sin(ang) * dist;
+            double gy = mob.posY + mob.getEyeHeight() * (0.85 + mob.getRNG().nextDouble() * 0.25); // near eye height
+
+            currentGaze = new Vec3d(gx, gy, gz);
+            nextRandomGazeTick = mob.ticksExisted + RANDOM_GAZE_MIN + mob.getRNG().nextInt(RANDOM_GAZE_MAX - RANDOM_GAZE_MIN + 1);
+        }
+        // gently look at the current random target
+        lookAt(currentGaze, 10.0F, 10.0F);
+    }
+
+    private void idleMoveTick() {
+        // already in an idle move: just count it down
+        if (idleMoveTicks > 0) {
+            idleMoveTicks--;
+            return;
+        }
+
+        // cooldown before next move
+        if (idleMoveCooldown > 0) {
+            idleMoveCooldown--;
+            return;
+        }
+
+        // chance to start a new micro-move when we're idle
+        if (mob.getNavigator().noPath() && mob.getRNG().nextFloat() < 0.18f) {
+            Vec3d center = computeBackPoint();   // our usual follow slot
+            double ang = mob.getRNG().nextDouble() * Math.PI * 2.0;
+            double dist = 0.5 + mob.getRNG().nextDouble() * (IDLE_MOVE_RADIUS - 0.5);
+
+            double tx = center.x + Math.cos(ang) * dist;
+            double tz = center.z + Math.sin(ang) * dist;
+            double ty = center.y;
+
+            pushFollowPathTo(new Vec3d(tx, ty, tz));
+
+            idleMoveTicks = IDLE_MOVE_MIN + mob.getRNG().nextInt(IDLE_MOVE_MAX - IDLE_MOVE_MIN + 1);
+            idleMoveCooldown = IDLE_MOVE_COOLDOWN_MIN +
+                    mob.getRNG().nextInt(IDLE_MOVE_COOLDOWN_MAX - IDLE_MOVE_COOLDOWN_MIN + 1);
+        }
+    }
+
+    private static Vec3d lastResortFacing(EntityTraveller t) {
+        return new Vec3d(-MathHelper.sin(t.rotationYaw * 0.017453292F), 0,
+                MathHelper.cos(t.rotationYaw * 0.017453292F)).normalize();
+    }
+
+    // ADD — set look to a point
+    private void lookAt(Vec3d p, float yawSpeed, float pitchSpeed) {
+        mob.getLookHelper().setLookPosition(p.x, p.y, p.z, yawSpeed, pitchSpeed);
+    }
+
     private void tryEnterOwnBoatForFollow() {
         if (mob.world.isRemote) return;
         if (isInBoat(mob)) return;
@@ -558,6 +544,7 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
 
         return new Vec3d(x, y, z);
     }
+
     private void steerOwnBoatTo(Vec3d target) {
         if (!isInBoat(mob)) return;
         EntityTravellerBoat boat =
@@ -589,6 +576,7 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
 
         boat.velocityChanged = true;
     }
+
     @Nullable
     private BlockPos findBoatSurfaceSpawnPosForFollow() {
         World w = mob.world;
@@ -641,6 +629,23 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
     private static boolean isVanillaWater(IBlockState s) {
         Block b = s.getBlock();
         return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
+    }
+
+    private Vec3d computeBackPoint() {
+        Vec3d fwd = (smoothedFwd.lengthSquared() > 1e-6) ? smoothedFwd
+                : new Vec3d(-MathHelper.sin(leader.rotationYaw * 0.017453292F), 0,
+                MathHelper.cos(leader.rotationYaw * 0.017453292F)).normalize();
+
+        Vec3d left = new Vec3d(-fwd.z, 0, fwd.x).normalize().scale(lateralOffset);
+        double x = leader.posX - fwd.x * DESIRED_DIST + left.x;
+        double z = leader.posZ - fwd.z * DESIRED_DIST + left.z;
+        double y = leader.posY;
+
+        return new Vec3d(x, y, z);
+    }
+
+    private void pushFollowPathTo(Vec3d p) {
+        mob.getNavigator().tryMoveToXYZ(p.x, p.y, p.z, speed);
     }
 }
 

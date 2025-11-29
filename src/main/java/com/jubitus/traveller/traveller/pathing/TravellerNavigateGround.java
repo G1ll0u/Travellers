@@ -37,81 +37,10 @@ public class TravellerNavigateGround extends PathNavigateGround {
      */
     @Override
     protected boolean isDirectPathBetweenPoints(Vec3d a, Vec3d b, int sx, int sy, int sz) {
-        if (this.world == null) return false;
-
-        // If this path starts/ends in water, let vanilla logic handle it.
-        BlockPos startFeet = new BlockPos(
-                net.minecraft.util.math.MathHelper.floor(a.x),
-                net.minecraft.util.math.MathHelper.floor(a.y),
-                net.minecraft.util.math.MathHelper.floor(a.z)
-        );
-        BlockPos endFeet = new BlockPos(
-                net.minecraft.util.math.MathHelper.floor(b.x),
-                net.minecraft.util.math.MathHelper.floor(b.y),
-                net.minecraft.util.math.MathHelper.floor(b.z)
-        );
-
-        int x0 = MathHelper.floor(a.x);
-        int z0 = MathHelper.floor(a.z);
-        int y  = MathHelper.floor(a.y);
-
-        int x1 = MathHelper.floor(b.x);
-        int z1 = MathHelper.floor(b.z);
-
-        int dx = Integer.compare(x1, x0);
-        int dz = Integer.compare(z1, z0);
-
-        if (x0 == x1 && z0 == z1) {
-            return isFootprintClear(x0, y, z0, sx, sy, sz);
-        }
-
-
-        if (x0 == x1 && z0 == z1) {
-            return isFootprintClear(x0, y, z0, sx, sy, sz);
-        }
-
-        double rx = (dx == 0) ? Double.POSITIVE_INFINITY
-                : (dx > 0 ? ((x0 + 1) - a.x) : (a.x - x0)) / Math.abs(b.x - a.x);
-        double rz = (dz == 0) ? Double.POSITIVE_INFINITY
-                : (dz > 0 ? ((z0 + 1) - a.z) : (a.z - z0)) / Math.abs(b.z - a.z);
-
-        double tMaxX = rx;
-        double tMaxZ = rz;
-        double tDeltaX = (dx == 0) ? Double.POSITIVE_INFINITY : 1.0 / Math.abs(b.x - a.x);
-        double tDeltaZ = (dz == 0) ? Double.POSITIVE_INFINITY : 1.0 / Math.abs(b.z - a.z);
-
-        if (!isFootprintClear(x0, y, z0, sx, sy, sz)) return false;
-
-        int cx = x0, cz = z0;
-
-        while (cx != x1 || cz != z1) {
-            boolean stepX   = tMaxX < tMaxZ;
-            boolean stepZ   = tMaxZ < tMaxX;
-            boolean stepDiag = !stepX && !stepZ;
-
-            if (stepX) {
-                cx += dx;
-                tMaxX += tDeltaX;
-                if (!isFootprintClear(cx, y, cz, sx, sy, sz)) return false;
-            } else if (stepZ) {
-                cz += dz;
-                tMaxZ += tDeltaZ;
-                if (!isFootprintClear(cx, y, cz, sx, sy, sz)) return false;
-            } else {
-                int nx = cx + dx;
-                int nz = cz + dz;
-                if (!isFootprintClear(nx, y, cz, sx, sy, sz)) return false;
-                if (!isFootprintClear(cx, y, nz, sx, sy, sz)) return false;
-
-                cx = nx;
-                cz = nz;
-                tMaxX += tDeltaX;
-                tMaxZ += tDeltaZ;
-                if (!isFootprintClear(cx, y, cz, sx, sy, sz)) return false;
-            }
-        }
-        return true;
+        // Force the pathfinder to always use full node graph.
+        return false;
     }
+
 
     /**
      * 2-high clearance test for the entity footprint at grid (x,z), allowing water columns.
@@ -164,7 +93,23 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return true;
     }
 
+    private boolean isDangerousBlock(IBlockState state) {
+        Block b = state.getBlock();
+        Material m = state.getMaterial();
 
+        // Vanilla cactus
+        if (b == Blocks.CACTUS || m == Material.CACTUS) return true;
+
+        // Vanilla fire & lava family
+        if (b == Blocks.FIRE ||
+                b == Blocks.LAVA || b == Blocks.FLOWING_LAVA) return true;
+
+        // Other painful vanilla stuff (optional, but usually good)
+        return b == Blocks.MAGMA || b == Blocks.LIT_FURNACE;
+
+        // If you have a custom campfire that isn’t the Millénaire fire pit,
+        // add it here too.
+    }
 
     /**
      * Minimal “can stand on” check (accepts ice/glass like your AI helper).
@@ -181,25 +126,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
         Block b = st.getBlock();
         return b == Blocks.ICE || b == Blocks.PACKED_ICE || b == Blocks.FROSTED_ICE
                 || b == Blocks.GLASS || b == Blocks.STAINED_GLASS;
-    }
-    private boolean isDangerousBlock(IBlockState state) {
-        Block b = state.getBlock();
-        Material m = state.getMaterial();
-
-        // Vanilla cactus
-        if (b == Blocks.CACTUS || m == Material.CACTUS) return true;
-
-        // Vanilla fire & lava family
-        if (b == Blocks.FIRE ||
-                b == Blocks.LAVA || b == Blocks.FLOWING_LAVA) return true;
-
-        // Other painful vanilla stuff (optional, but usually good)
-        if (b == Blocks.MAGMA || b == Blocks.LIT_FURNACE) return true;
-
-        // If you have a custom campfire that isn’t the Millénaire fire pit,
-        // add it here too.
-
-        return false;
     }
 
 }

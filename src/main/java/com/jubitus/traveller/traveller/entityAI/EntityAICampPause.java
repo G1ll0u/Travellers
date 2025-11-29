@@ -225,6 +225,35 @@ public class EntityAICampPause extends EntityAIBase {
 
     }
 
+    private void tickSocialLook() {
+        // If we already have an active social look, keep it for its remaining ticks
+        if (socialLookTicks > 0 && peerNow != null && peerNow.isEntityAlive()) {
+            // Softly aim at peer
+            mob.getLookHelper().setLookPositionWithEntity(peerNow, 30.0F, 30.0F);
+            // Nudge torso to follow a bit so it reads as “talking”
+            BlockPos peerPos = peerNow.getPosition();
+            mob.faceTowards(peerPos, 6.0F, 12.0F);
+            socialLookTicks--;
+            return;
+        }
+
+        // Chance to start a new social glance (~1% per second)
+        if (mob.getRNG().nextInt(100) != 0) return;
+
+        BlockPos fire = mob.getCampfirePos();
+        if (fire == null) return;
+
+        // Find a peer at the same camp within ~6 blocks
+        List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(EntityTraveller.class,
+                new AxisAlignedBB(fire).grow(6.0, 3.0, 6.0),
+                e -> e != null && e != mob && e.isEntityAlive() && fire.equals(e.getCampfirePos()));
+
+        if (peers.isEmpty()) return;
+
+        peerNow = peers.get(mob.getRNG().nextInt(peers.size()));
+        socialLookTicks = 40 + mob.getRNG().nextInt(40); // 2–4s glance
+    }
+
     @Nullable
     private BlockPos findCampSpot(BlockPos around, int r) {
         World w = mob.world;
@@ -342,35 +371,6 @@ public class EntityAICampPause extends EntityAIBase {
         }
 
         return true;
-    }
-
-    private void tickSocialLook() {
-        // If we already have an active social look, keep it for its remaining ticks
-        if (socialLookTicks > 0 && peerNow != null && peerNow.isEntityAlive()) {
-            // Softly aim at peer
-            mob.getLookHelper().setLookPositionWithEntity(peerNow, 30.0F, 30.0F);
-            // Nudge torso to follow a bit so it reads as “talking”
-            BlockPos peerPos = peerNow.getPosition();
-            mob.faceTowards(peerPos, 6.0F, 12.0F);
-            socialLookTicks--;
-            return;
-        }
-
-        // Chance to start a new social glance (~1% per second)
-        if (mob.getRNG().nextInt(100) != 0) return;
-
-        BlockPos fire = mob.getCampfirePos();
-        if (fire == null) return;
-
-        // Find a peer at the same camp within ~6 blocks
-        List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(EntityTraveller.class,
-                new AxisAlignedBB(fire).grow(6.0, 3.0, 6.0),
-                e -> e != null && e != mob && e.isEntityAlive() && fire.equals(e.getCampfirePos()));
-
-        if (peers.isEmpty()) return;
-
-        peerNow = peers.get(mob.getRNG().nextInt(peers.size()));
-        socialLookTicks = 40 + mob.getRNG().nextInt(40); // 2–4s glance
     }
 
 }

@@ -388,6 +388,7 @@ public final class CultureRegistry {
             }
         }
     }
+
     /**
      * Given something like .../cultures/norman/villagers/farmer.txt,
      * walk up to the "villagers" folder, then return its parent
@@ -405,7 +406,7 @@ public final class CultureRegistry {
 
     /**
      * Load a Millénaire namelist:
-     *   /cultures/<cultureId>/namelists/<listId>.txt
+     * /cultures/<cultureId>/namelists/<listId>.txt
      * One name per non-empty, non-comment line.
      */
     private static java.util.List<String> loadNameList(File cultureDir, String listId) {
@@ -447,6 +448,7 @@ public final class CultureRegistry {
 
         return result;
     }
+
     public static String makeTravellerNameForCulture(String cultureId, java.util.Random r) {
         CultureDef def = CULT.get(cultureId);
         if (def == null) return "";
@@ -578,7 +580,7 @@ public final class CultureRegistry {
 
         // 1) Direct hits first
         Map<String, Integer> bucket = null;
-        if (!name.isEmpty())   bucket = BIOME_CULTURE_WEIGHTS.get(name);
+        if (!name.isEmpty()) bucket = BIOME_CULTURE_WEIGHTS.get(name);
         if (bucket == null && !idFull.isEmpty()) bucket = BIOME_CULTURE_WEIGHTS.get(idFull);
         if (bucket == null && !idPath.isEmpty()) bucket = BIOME_CULTURE_WEIGHTS.get(idPath);
         if (bucket != null && !bucket.isEmpty()) {

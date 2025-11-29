@@ -43,27 +43,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             int dz = p.z - current.z;
 
             if (dx != 0 && dz != 0) {
-                // Look at the node types involved in this diagonal
-                PathNodeType here   = this.getPathNodeType(this.blockaccess, current.x,     current.y,     current.z);
-                PathNodeType there  = this.getPathNodeType(this.blockaccess, p.x,          p.y,          p.z);
-                PathNodeType side1  = this.getPathNodeType(this.blockaccess, current.x + dx, current.y,   current.z);
-                PathNodeType side2  = this.getPathNodeType(this.blockaccess, current.x,     current.y,     current.z + dz);
 
-                boolean anyLiquid =
-                        isLiquidNode(here)  ||
-                                isLiquidNode(there) ||
-                                isLiquidNode(side1) ||
-                                isLiquidNode(side2);
-
-                // On land: keep the strict 2-high-squeeze check to avoid cutting corners.
-                // In/around water: relax it so we can swim diagonally.
-                if (!anyLiquid) {
-                    if (!isTwoHighWalkable(current.x + dx, current.y, current.z)
-                            || !isTwoHighWalkable(current.x, current.y, current.z + dz)) {
-                        options[i] = null;
-                        continue;
-                    }
-                }
             }
 
 
@@ -132,6 +112,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
         return base;
     }
+
     private boolean isLiquidNode(PathNodeType t) {
         return t == PathNodeType.WATER;
     }
@@ -140,8 +121,17 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     private boolean isTwoHighWalkable(int x, int y, int z) {
         PathNodeType feet = this.getPathNodeType(this.blockaccess, x, y, z);
         PathNodeType head = this.getPathNodeType(this.blockaccess, x, y + 1, z);
-        return feet == PathNodeType.WALKABLE && head == PathNodeType.WALKABLE;
+
+        if (feet != PathNodeType.WALKABLE) return false;
+        // head only needs to be open, not walkable
+        return head == PathNodeType.WALKABLE || head == PathNodeType.OPEN;
     }
+
+    private boolean isDropOff(int x, int y, int z) {
+        PathNodeType below = this.getPathNodeType(this.blockaccess, x, y - 1, z);
+        return below == PathNodeType.DANGER_OTHER;
+    }
+
 
     private boolean isPathPreferred(BlockPos feet) {
         if (pathDirt == null) return false;

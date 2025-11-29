@@ -13,10 +13,9 @@ import java.util.*;
 
 public class TravellerCamp {
 
-    private final EntityTraveller owner;
-
     // --- Camp state ---
     final Map<BlockPos, Integer> campAvoidUntil = new HashMap<>();
+    private final EntityTraveller owner;
     public long campLeaveTime = 0L;   // world time, not ticksExisted
     public long campLeaveTick;
     int campRoamCooldown = 0;         // next time to pick a roam target
@@ -52,17 +51,8 @@ public class TravellerCamp {
         return campfirePos != null;
     }
 
-    @Nullable
-    public BlockPos getCampfirePos() {
-        return campfirePos;
-    }
-
     public boolean isCampJoinOnCooldown() {
         return campJoinCooldown > 0;
-    }
-
-    public void setCampJoinCooldown() {
-        this.campJoinCooldown = TravellersModConfig.CAMP_JOIN_COOLDOWN_TICKS;
     }
 
     public void setCampCooldown() {
@@ -73,9 +63,9 @@ public class TravellerCamp {
         return campGlobalCooldown > 0;
     }
 
-    // ----------------- Avoid / blacklist logic -----------------
-
-    /** Call every tick from onLivingUpdate to decay the avoid map. */
+    /**
+     * Call every tick from onLivingUpdate to decay the avoid map.
+     */
     public void tickCampAvoid() {
         if (campAvoidUntil.isEmpty()) return;
         Iterator<Map.Entry<BlockPos, Integer>> it = campAvoidUntil.entrySet().iterator();
@@ -87,24 +77,28 @@ public class TravellerCamp {
         }
     }
 
-    /** Mark a camp to avoid for N ticks. */
+    /**
+     * Mark a camp to avoid for N ticks.
+     */
     public void avoidCamp(BlockPos pos, int ticks) {
         if (pos != null) campAvoidUntil.put(pos.toImmutable(), ticks);
     }
 
-    /** True if this camp is currently blacklisted for this traveller. */
+    // ----------------- Avoid / blacklist logic -----------------
+
+    /**
+     * True if this camp is currently blacklisted for this traveller.
+     */
     public boolean isAvoidingCamp(BlockPos pos) {
         if (pos == null) return false;
         Integer left = campAvoidUntil.get(pos);
         return left != null && left > 0;
     }
 
-    // ----------------- Camp join / leave -----------------
-
     public void markCampLeader(BlockPos pos, int durationTicks) {
         this.campfirePos = pos.toImmutable();
         if (owner.world instanceof WorldServer) {
-            long now = ((WorldServer) owner.world).getTotalWorldTime();
+            long now = owner.world.getTotalWorldTime();
             this.campLeaveTime = now + durationTicks;
         } else {
             // FIX 1: use the field on Entity, not a non-existent getter
@@ -117,7 +111,7 @@ public class TravellerCamp {
     public void joinCampAt(BlockPos pos, int durationTicks) {
         this.campfirePos = pos.toImmutable();
         if (owner.world instanceof WorldServer) {
-            long now = ((WorldServer) owner.world).getTotalWorldTime();
+            long now = owner.world.getTotalWorldTime();
             this.campLeaveTime = now + durationTicks;
         } else {
             this.campLeaveTime = owner.ticksExisted + durationTicks;
@@ -125,12 +119,18 @@ public class TravellerCamp {
         this.campLeader = false;
     }
 
+    // ----------------- Camp join / leave -----------------
+
     public void clearCamp() {
         this.campfirePos = null;
         this.campLeader = false;
         this.campLeaveTick = 0;
         this.campRoamCooldown = 0;
         setCampJoinCooldown();
+    }
+
+    public void setCampJoinCooldown() {
+        this.campJoinCooldown = TravellersModConfig.CAMP_JOIN_COOLDOWN_TICKS;
     }
 
     void cleanupOwnedCampfireIfAny() {
@@ -141,28 +141,6 @@ public class TravellerCamp {
             ws.setBlockToAir(campfirePos);
         }
         CampfireManager.get(ws).remove(campfirePos, owner.dimension); // uses owner.dimension
-    }
-
-    // ----------------- Social / glance logic -----------------
-
-    public boolean isSocialLooking() {
-        if (socialTicks <= 0 || socialPeer == null || !socialPeer.isEntityAlive()) return false;
-
-        // make sure both travellers are actually at the same campfire
-        TravellerCamp peerCamp = socialPeer.getCamp();
-        return Objects.equals(this.campfirePos, peerCamp.campfirePos);
-    }
-
-    public void beginSocialLook(EntityTraveller peer, int ticks) {
-        if (peer == null || peer == owner) return;
-        this.socialPeer = peer;
-        this.socialTicks = Math.max(1, ticks);
-        this.socialCooldown = 40 + owner.getRNG().nextInt(60);
-    }
-
-    public void endSocialLook() {
-        this.socialTicks = 0;
-        this.socialPeer = null;
     }
 
     public void tickCampSocial() {
@@ -213,5 +191,32 @@ public class TravellerCamp {
 
         // cooldown before starting another new glance
         this.socialCooldown = 60 + owner.getRNG().nextInt(80);
+    }
+
+    // ----------------- Social / glance logic -----------------
+
+    public boolean isSocialLooking() {
+        if (socialTicks <= 0 || socialPeer == null || !socialPeer.isEntityAlive()) return false;
+
+        // make sure both travellers are actually at the same campfire
+        TravellerCamp peerCamp = socialPeer.getCamp();
+        return Objects.equals(this.campfirePos, peerCamp.campfirePos);
+    }
+
+    public void endSocialLook() {
+        this.socialTicks = 0;
+        this.socialPeer = null;
+    }
+
+    @Nullable
+    public BlockPos getCampfirePos() {
+        return campfirePos;
+    }
+
+    public void beginSocialLook(EntityTraveller peer, int ticks) {
+        if (peer == null || peer == owner) return;
+        this.socialPeer = peer;
+        this.socialTicks = Math.max(1, ticks);
+        this.socialCooldown = 40 + owner.getRNG().nextInt(60);
     }
 }

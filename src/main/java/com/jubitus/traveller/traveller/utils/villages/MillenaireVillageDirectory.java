@@ -17,16 +17,15 @@ public final class MillenaireVillageDirectory {
     private static volatile boolean loaded = false;
     private static long villagesMTime = 0L;
     private static long loneMTime = 0L;
+
     public static List<Entry> getAllEntries() {
         return new ArrayList<>(BY_POS.values());
     }
+
     public static synchronized void load(File millenaireFolder) {
         if (millenaireFolder == null) return;
         if (loaded) return;
         doLoad(millenaireFolder);
-    }
-    public static synchronized java.util.Collection<Entry> getEntries() {
-        return new java.util.ArrayList<>(BY_POS.values());
     }
 
     private static void doLoad(File folder) {
@@ -83,6 +82,10 @@ public final class MillenaireVillageDirectory {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    public static synchronized java.util.Collection<Entry> getEntries() {
+        return new java.util.ArrayList<>(BY_POS.values());
     }
 
     public static synchronized void reloadIfStale(File millenaireFolder) {
@@ -189,7 +192,6 @@ public final class MillenaireVillageDirectory {
 
         return total; // 0..~travellerMaxDensity
     }
-
 
 
     /**

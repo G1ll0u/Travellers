@@ -19,36 +19,7 @@ public final class TravelDebugLogger {
     private static PrintWriter out;
     private static boolean headerWritten = false;
 
-    private static void ensureOpen(World w) {
-        if (!ENABLED) return;
-        if (out != null) return;
-
-        try {
-            // Put it in the main run folder as "traveller_debug.csv"
-            File file = new File("traveller_debug.csv");
-            out = new PrintWriter(new FileWriter(file, true));
-        } catch (IOException e) {
-            e.printStackTrace();
-            ENABLED = false;
-        }
-    }
-
-    private static void writeHeader() {
-        if (!ENABLED || out == null || headerWritten) return;
-        headerWritten = true;
-        out.println(
-                "tick;worldTime;dim;entityId;"
-                        + "posX;posY;posZ;"
-                        + "targetX;targetY;targetZ;"
-                        + "waypointX;waypointY;waypointZ;"
-                        + "distSqToTarget;stallLevel;wallFollow;followSide;"
-                        + "bestDistSq;ticksSinceBest;projAccum;ticksNoForward;"
-                        + "noPathTicks;hardUnstuckCount;hardUnstuckCooldown;"
-                        + "postRecoverGuardTicks;"
-                        + "inWater;inCombat;hasPath;"
-                        + "event;note"
-        );
-        out.flush();
+    private TravelDebugLogger() {
     }
 
     /**
@@ -131,6 +102,38 @@ public final class TravelDebugLogger {
         out.flush();
     }
 
+    private static void ensureOpen(World w) {
+        if (!ENABLED) return;
+        if (out != null) return;
+
+        try {
+            // Put it in the main run folder as "traveller_debug.csv"
+            File file = new File("traveller_debug.csv");
+            out = new PrintWriter(new FileWriter(file, true));
+        } catch (IOException e) {
+            e.printStackTrace();
+            ENABLED = false;
+        }
+    }
+
+    private static void writeHeader() {
+        if (!ENABLED || out == null || headerWritten) return;
+        headerWritten = true;
+        out.println(
+                "tick;worldTime;dim;entityId;"
+                        + "posX;posY;posZ;"
+                        + "targetX;targetY;targetZ;"
+                        + "waypointX;waypointY;waypointZ;"
+                        + "distSqToTarget;stallLevel;wallFollow;followSide;"
+                        + "bestDistSq;ticksSinceBest;projAccum;ticksNoForward;"
+                        + "noPathTicks;hardUnstuckCount;hardUnstuckCooldown;"
+                        + "postRecoverGuardTicks;"
+                        + "inWater;inCombat;hasPath;"
+                        + "event;note"
+        );
+        out.flush();
+    }
+
     public static void close() {
         if (out != null) {
             out.flush();
@@ -139,7 +142,5 @@ public final class TravelDebugLogger {
             headerWritten = false;
         }
     }
-
-    private TravelDebugLogger() {}
 }
 

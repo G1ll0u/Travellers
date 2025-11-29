@@ -20,7 +20,6 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -64,7 +63,6 @@ public class Travellers {
         event.registerServerCommand(new CommandMillNearestVillageDump());
         event.registerServerCommand(new CommandTravellerMap());
         event.registerServerCommand(new CommandTravellerInfo());
-
 
 
     }

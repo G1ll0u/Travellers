@@ -1,16 +1,14 @@
 package com.jubitus.traveller.traveller.entityAI;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.ai.EntityAIBase;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * Very simple waypoint-based travel AI for EntityTraveller.
- *
+ * <p>
  * - Walks in straight-ish segments toward the current target village.
  * - Works in waypoints (step distance is configurable).
  * - Stops when "close enough" to the village.
@@ -70,9 +68,7 @@ public class EntityAITravelSimple extends EntityAIBase {
         // If the current target moved *a lot*, we give up and let the task restart.
         if (!roughlySameTarget(currentTarget, villageTargetSnapshot)) return false;
 
-        if (isInsideArrivalRadius(currentTarget)) return false;
-
-        return true;
+        return !isInsideArrivalRadius(currentTarget);
     }
 
     @Override
@@ -120,37 +116,13 @@ public class EntityAITravelSimple extends EntityAIBase {
 
     // -------------------------------------------------------
 
-    private boolean isBusy() {
-        if (traveller.isInCombat()) return true;
-        if (traveller.isAutoEating()) return true;
-        if (traveller.isHandActive()) return true;
-        return false;
-    }
-
-    private boolean isInsideArrivalRadius(BlockPos village) {
-        double dx = (village.getX() + 0.5) - traveller.posX;
-        double dz = (village.getZ() + 0.5) - traveller.posZ;
-        double distSq = dx * dx + dz * dz;
-        return distSq <= (double) arrivalRadius * (double) arrivalRadius;
-    }
-
-    /** Allow minor differences (e.g. Y changes or off-by-one). */
-    private boolean roughlySameTarget(BlockPos a, BlockPos b) {
-        if (a == null || b == null) return false;
-        int dx = Math.abs(a.getX() - b.getX());
-        int dz = Math.abs(a.getZ() - b.getZ());
-        return dx <= 2 && dz <= 2;
-    }
-
     private boolean needsNewWaypoint() {
         if (currentWaypoint == null) return true;
 
         double distSq = traveller.getDistanceSqToCenter(currentWaypoint);
         if (distSq < 2.0 * 2.0) return true;
 
-        if (traveller.getNavigator().noPath()) return true;
-
-        return false;
+        return traveller.getNavigator().noPath();
     }
 
     private void chooseNextWaypoint(BlockPos village) {
@@ -247,9 +219,30 @@ public class EntityAITravelSimple extends EntityAIBase {
         if (!mat.isLiquid()) return false;
 
         Block block = state.getBlock();
-        if (block == Blocks.WATER || block == Blocks.FLOWING_WATER) {
-            return false; // vanilla water allowed
-        }
-        return true; // everything else liquid = forbidden
+        return block != Blocks.WATER && block != Blocks.FLOWING_WATER; // vanilla water allowed
+// everything else liquid = forbidden
+    }
+
+    /**
+     * Allow minor differences (e.g. Y changes or off-by-one).
+     */
+    private boolean roughlySameTarget(BlockPos a, BlockPos b) {
+        if (a == null || b == null) return false;
+        int dx = Math.abs(a.getX() - b.getX());
+        int dz = Math.abs(a.getZ() - b.getZ());
+        return dx <= 2 && dz <= 2;
+    }
+
+    private boolean isInsideArrivalRadius(BlockPos village) {
+        double dx = (village.getX() + 0.5) - traveller.posX;
+        double dz = (village.getZ() + 0.5) - traveller.posZ;
+        double distSq = dx * dx + dz * dz;
+        return distSq <= (double) arrivalRadius * (double) arrivalRadius;
+    }
+
+    private boolean isBusy() {
+        if (traveller.isInCombat()) return true;
+        if (traveller.isAutoEating()) return true;
+        return traveller.isHandActive();
     }
 }

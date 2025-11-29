@@ -9,7 +9,6 @@ import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.culture.VoiceSet;
 import com.jubitus.traveller.traveller.pathing.TravellerNavigateGround;
 import com.jubitus.traveller.traveller.travel.TravelCommon;
-import com.jubitus.traveller.traveller.utils.debug.TravelDebugLogger;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
 import com.jubitus.traveller.traveller.utils.sound.ModSounds;
 import com.jubitus.traveller.traveller.utils.sound.MsgPlayTravellerVoice;
@@ -70,30 +69,27 @@ import org.millenaire.common.block.IBlockPath;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class EntityTraveller extends EntityCreature {
 
 
-    public final TravellerCamp travellerCamp = new TravellerCamp(this);
     public static final String GHOST_TORCH_TAG = "TravellerGhostTorch";
-    // --- Camp join cooldown (prevents placing a fire right after resting) ---
-    private final TravellerCamp camp = new TravellerCamp(this);
-
     // FISHING ROD
     public static final String GHOST_ROD_TAG = "TravellerGhostRod";
+    public static final double NEAR_HYS_DELTA_SQ = 4 * 4; // must be 4 blocks closer to switch
     // --- Threat memory (not persisted by default) ---
     static final int THREAT_FOR_HIT = 8;       // score added when this gets hit
-
-
-    public static final double NEAR_HYS_DELTA_SQ = 4 * 4; // must be 4 blocks closer to switch
     // --- Texture related fields ---
     private static final ResourceLocation TRAVELLER_LOOT =
             new ResourceLocation("travellers", "entities/traveller_pack");
     private static final DataParameter<Integer> TEXTURE_INDEX = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.VARINT);
     // ---- GAP / CLIFF handling ----
     private static final String GHOST_SWORD_TAG = "MillmixGhostSword";
-    private static final java.util.UUID SWIM_BOOST_UUID =
+    static final java.util.UUID SWIM_BOOST_UUID =
             java.util.UUID.fromString("b3b1a5ee-9c12-4e6f-a7e4-1c4ef2f35d61");
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
     private static final int ARRIVE_IN = Math.max(8, TravellersModConfig.VILLAGE_NEAR - 4); // e.g., 28 if near=32
@@ -105,7 +101,10 @@ public class EntityTraveller extends EntityCreature {
     private static final DataParameter<String> CULTURE_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
     private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
+    public final TravellerCamp travellerCamp = new TravellerCamp(this);
     final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
+    // --- Camp join cooldown (prevents placing a fire right after resting) ---
+    private final TravellerCamp camp = new TravellerCamp(this);
     private final java.util.Map<java.util.UUID, Threat> threatMap = new java.util.HashMap<>();
     private final java.util.Map<java.util.UUID, HitGrace> playerGrace = new java.util.HashMap<>();
     private final java.util.Map<java.util.UUID, Integer> playerLastAggroTick = new java.util.HashMap<>();
@@ -115,7 +114,7 @@ public class EntityTraveller extends EntityCreature {
     private final boolean wasInWater = false;
     private final int noPathTicks = 0;
     private final float baseWaterPenalty = 6.0F;
-    private final TravelCommon travelCommon = new TravelCommon(this);
+    final TravelCommon travelCommon = new TravelCommon(this);
     int nextTravelAmbientTick = 0;  // you already had this
     // field on EntityTraveller
     EntityAIAutoEat autoEatTask;
@@ -126,14 +125,14 @@ public class EntityTraveller extends EntityCreature {
     EntityAITravel aiTravel;
     int lastLOSorCloseTick = 0; // last time we either saw the player OR they were close
     private int dogScanCooldown = 0;
-    private int spawnAmbientCooldownTicks = 0;                       // counts down server-side
+    int spawnAmbientCooldownTicks = 0;                       // counts down server-side
     // --- Combat State Fields ---
     private boolean inCombat = false;
     private int swordHideTicks = 0;
     private int lastThreatDecayTick = 0;
 
     // NEW: cultural aggression toggle (per entity, persisted)
-    private boolean aggressiveToCultures = false;
+    private final boolean aggressiveToCultures = false;
 
     // --- Caravan / follow-other-traveller state ---
     @Nullable
@@ -160,6 +159,7 @@ public class EntityTraveller extends EntityCreature {
     private java.util.UUID chasingPlayerId = null;
     @Nullable
     private UUID dogId = null;
+    private int currentFollowers = 0;
 
     public EntityTraveller(World worldIn) {
         super(worldIn);
@@ -169,13 +169,13 @@ public class EntityTraveller extends EntityCreature {
         // Make dangerous stuff REALLY undesirable
         this.setPathPriority(PathNodeType.DANGER_CACTUS, -1.0F);
         this.setPathPriority(PathNodeType.DAMAGE_CACTUS, -1.0F);
-        this.setPathPriority(PathNodeType.DANGER_FIRE,   -1.0F);
-        this.setPathPriority(PathNodeType.DAMAGE_FIRE,   -1.0F);
-        this.setPathPriority(PathNodeType.DANGER_OTHER,  -1.0F);
+        this.setPathPriority(PathNodeType.DANGER_FIRE, -1.0F);
+        this.setPathPriority(PathNodeType.DAMAGE_FIRE, -1.0F);
+        this.setPathPriority(PathNodeType.DANGER_OTHER, -1.0F);
 
         // If you’re on 1.12 and these exist:
-        this.setPathPriority(PathNodeType.LAVA,          -1.0F);
-        this.setPathPriority(PathNodeType.DAMAGE_OTHER,  -1.0F);
+        this.setPathPriority(PathNodeType.LAVA, -1.0F);
+        this.setPathPriority(PathNodeType.DAMAGE_OTHER, -1.0F);
 
         this.setSize(0.5F, 1.6F);
         this.enablePersistence(); // make them persist in world
@@ -185,37 +185,12 @@ public class EntityTraveller extends EntityCreature {
         this.setLeftHanded(false);
 
     }
-    @Override
-    public float getBlockPathWeight(BlockPos pos) {
-        float base = super.getBlockPathWeight(pos);
-
-        // Check the block *under* the feet
-        BlockPos belowPos = pos.down();
-        IBlockState belowState = this.world.getBlockState(belowPos);
-        Block below = belowState.getBlock();
-
-        // Prefer any Millénaire path block (full or slab)
-        if (below instanceof IBlockPath) {
-            // Big bonus so paths beat plain ground
-            base += 4.0F;  // tweak to taste (2–6)
-        }
-
-        return base;
-    }
 
     public boolean isGhostTorch(ItemStack s) {
         return !s.isEmpty()
                 && s.getItem() == Item.getItemFromBlock(Blocks.TORCH)
                 && s.hasTagCompound()
                 && s.getTagCompound().getBoolean(GHOST_TORCH_TAG);
-    }
-
-    // Helper: clamp angular delta and step toward a target
-    public static float rotlerp(float current, float target, float maxStep) {
-        float delta = MathHelper.wrapDegrees(target - current);
-        if (delta > maxStep) delta = maxStep;
-        if (delta < -maxStep) delta = -maxStep;
-        return current + delta;
     }
 
     public static double pointToSegment2DSq(Vec3d P, Vec3d A, Vec3d B) {
@@ -241,6 +216,71 @@ public class EntityTraveller extends EntityCreature {
 
     public void setSuppressCompanionSpawn(boolean suppress) {
         this.suppressCompanionSpawn = suppress;
+    }
+
+    @Override
+    public float getBlockPathWeight(BlockPos pos) {
+        float base = super.getBlockPathWeight(pos);
+
+        // Check the block *under* the feet
+        BlockPos belowPos = pos.down();
+        IBlockState belowState = this.world.getBlockState(belowPos);
+        Block below = belowState.getBlock();
+
+        // Prefer any Millénaire path block (full or slab)
+        if (below instanceof IBlockPath) {
+            // Big bonus so paths beat plain ground
+            base += 4.0F;  // tweak to taste (2–6)
+        }
+
+        return base;
+    }
+
+    @Override
+    public boolean getCanSpawnHere() {
+        if (world.isRemote) return false;
+        // Global-per-dimension loaded cap
+        int cap = TravellersModConfig.loadedTravellerCap;
+        int loaded = this.world.getEntities(EntityTraveller.class, Entity::isEntityAlive).size();
+        if (loaded >= cap) return false;
+
+        // MUCH smaller “near a village”
+        BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
+        if (!isNearAnyVillage(this.world, pos, TravellersModConfig.villageSpawnRadius)) return false;
+
+        // Light & ground sanity (creature-like)
+        if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
+        if (world.getLight(pos) < 8) return false; // spawn mostly in lit village areas
+
+        // Local density throttle (see next section)
+        if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTraveller.class,
+                TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
+            return false;
+
+        return super.getCanSpawnHere();
+    }
+
+    @Override
+    public boolean isWithinHomeDistanceCurrentPosition() {
+        return true;
+    }
+
+    @Override
+    public void setHomePosAndDistance(BlockPos pos, int distance) {
+    }
+
+    // --- Home Override? Dunno if useful since I don't extend villager ---
+    @Override
+    public boolean hasHome() {
+        return false;
+    }
+
+    static boolean isNearAnyVillage(World world, BlockPos pos, int radius) {
+        long r2 = (long) radius * (long) radius;
+        for (BlockPos v : MillVillageIndex.getAllVillageCenters(world)) {
+            if (v.distanceSq(pos) <= r2) return true;
+        }
+        return false;
     }
 
     public boolean isCampLeader() {
@@ -284,6 +324,9 @@ public class EntityTraveller extends EntityCreature {
         travellerCamp.markCampLeader(pos, durationTicks);
     }
 
+
+// === Shared camp helpers ===
+
     // joiner
     public void joinCampAt(BlockPos pos, int durationTicks) {
         travellerCamp.joinCampAt(pos, durationTicks);
@@ -304,9 +347,6 @@ public class EntityTraveller extends EntityCreature {
     public boolean campOnCooldown() {
         return travellerCamp.campOnCooldown();
     }
-
-
-// === Shared camp helpers ===
 
     public boolean isGhostRod(ItemStack s) {
         return !s.isEmpty()
@@ -329,9 +369,11 @@ public class EntityTraveller extends EntityCreature {
         copy.setTagCompound(tag);
         return copy;
     }
+
     public TravellerCamp getCamp() {
         return camp;
     }
+
     public CultureDef getCulture() {
         return CultureRegistry.get(getCultureId());
     }
@@ -353,6 +395,14 @@ public class EntityTraveller extends EntityCreature {
         this.rotationYaw = rotlerp(this.rotationYaw, yaw, bodyStep);
         this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, bodyStep);
         this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, headStep);
+    }
+
+    // Helper: clamp angular delta and step toward a target
+    public static float rotlerp(float current, float target, float maxStep) {
+        float delta = MathHelper.wrapDegrees(target - current);
+        if (delta > maxStep) delta = maxStep;
+        if (delta < -maxStep) delta = -maxStep;
+        return current + delta;
     }
 
     // Convenience for the current campfire
@@ -469,6 +519,7 @@ public class EntityTraveller extends EntityCreature {
     public void setTravelRecoverTicks(int t) {
         this.travelRecoverTicks = t;
     }
+
     public boolean isReadyToDepart() {
         return travelCommon.isReadyToDepart();
     }
@@ -501,7 +552,6 @@ public class EntityTraveller extends EntityCreature {
         return voiceLockUntilTick;
     }
 
-
     // --- AI Init ---
     @Override
     protected void initEntityAI() {
@@ -515,8 +565,6 @@ public class EntityTraveller extends EntityCreature {
                 WalkNodeProcessor processor = (WalkNodeProcessor) nav.getNodeProcessor();
                 processor.setCanEnterDoors(true);
                 processor.setCanSwim(true); // example
-
-                this.setPathPriority(PathNodeType.LAVA, 8.0F);
             }
             try {
                 this.setPathPriority(net.minecraft.pathfinding.PathNodeType.valueOf("ICE"), 0.0F);
@@ -734,7 +782,8 @@ public class EntityTraveller extends EntityCreature {
 
 
         if (!world.isRemote) {
-            if (travelCommon.getDepartCooldownTicks() > 0) travelCommon.setDepartCooldownTicks(travelCommon.getDepartCooldownTicks() - 1);
+            if (travelCommon.getDepartCooldownTicks() > 0)
+                travelCommon.setDepartCooldownTicks(travelCommon.getDepartCooldownTicks() - 1);
 
             if (travelRecoverTicks > 0) travelRecoverTicks--;
             tickFollowTimer();
@@ -976,17 +1025,7 @@ public class EntityTraveller extends EntityCreature {
             }
         }
     }
-    @Override
-    public boolean getAlwaysRenderNameTag() {
-        // Hard disable via config: no name tag, even if custom name exists.
-        if (!TravellersModConfig.showTravellerNames) {
-            return false;
-        }
 
-        // Otherwise, behave like a custom-named entity that always shows its tag.
-        // (You can tweak this if you want vanilla distance behaviour instead.)
-        return this.hasCustomName();
-    }
     @Override
     public void setAIMoveSpeed(float speed) {
         double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
@@ -1167,19 +1206,37 @@ public class EntityTraveller extends EntityCreature {
         livingdata = super.onInitialSpawn(difficulty, livingdata);
 
         // --- culture pick/propagate ---
-        String cid;
+
+        String cid = null;
+
+        // 1) If the spawner (soft-spawner or vanilla group leader) already gave us a culture, honour it.
         if (livingdata instanceof SpawnData) {
             cid = ((SpawnData) livingdata).cultureId;
-        } else {
+        }
+
+        // 2) If we still don't have a culture, try village-based pick around our spawn position.
+        if (cid == null || cid.isEmpty()) {
+            // Uses the same logic as your soft spawner (weighted by nearby Millénaire villages).
+            String villageCid = MillVillageIndex.pickCultureForTravellerSpawn(this.world, this.getPosition(), this.rand);
+            if (villageCid != null && !villageCid.isEmpty()) {
+                cid = villageCid;
+                // Make sure vanilla group spawns copy this culture as SpawnData.
+                livingdata = new SpawnData(cid);
+            }
+        }
+
+        // 3) Fallback: biome-based culture (old behaviour) if no village influence / no village data.
+        if (cid == null || cid.isEmpty()) {
             net.minecraft.world.biome.Biome biome = this.world.getBiome(this.getPosition());
             cid = CultureRegistry.pickCultureIdForBiome(biome, this.rand);
             livingdata = new SpawnData(cid);
         }
+
         setCultureId(cid);
 
         CultureDef c = CultureRegistry.get(cid);
-        int tCount = c.travellerAppearanceCount();
-        setTextureIndex(this.rand.nextInt(Math.max(1, tCount)));
+        int tCount = (c != null) ? c.travellerAppearanceCount() : 0;
+        setTextureIndex(this.rand.nextInt(Math.max(1, tCount <= 0 ? 1 : tCount)));
 
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
@@ -1190,18 +1247,6 @@ public class EntityTraveller extends EntityCreature {
         }
 
         if (!world.isRemote) {
-            // 1) Roll the backpack loot
-//            LootTable table = world.getLootTableManager().getLootTableFromLocation(TRAVELLER_LOOT);
-//            LootContext ctx = new LootContext.Builder((WorldServer) world).withLootedEntity(this).build();
-//            for (ItemStack stack : table.generateLootForPools(this.rand, ctx)) {
-//                ItemHandlerHelper.insertItemStacked(inventory, stack, false);
-//            }
-//
-//            // 2) Rendered/equipped bits from backpack
-//            equipFromBackpackOnce();
-//            equipArmorSetFromBackpack();
-
-            // >>> NEW: culture equipment
             if (c != null) {
                 java.util.Random r = this.rand;
 
@@ -1211,35 +1256,34 @@ public class EntityTraveller extends EntityCreature {
                     this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
                 }
 
-                // --- OPTIONAL BOW: low chance, overrides mainhand if rolled ---
-                if (r.nextFloat() < 0.20f) { // 20% chance they are an archer-type
+                // --- OPTIONAL BOW ---
+                if (r.nextFloat() < 0.20f) {
                     ItemStack bow = c.randomBow(r);
                     if (!bow.isEmpty()) {
                         this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
                     }
                 }
 
-                // --- ARMOR: mostly without, small chances per slot ---
-                // tweak these numbers to taste
-                if (r.nextFloat() < 0.15f) { // 15% chance for helmet
+                // --- ARMOR: low chances per slot ---
+                if (r.nextFloat() < 0.15f) {
                     ItemStack helm = c.randomArmorForSlot(EntityEquipmentSlot.HEAD, r);
                     if (!helm.isEmpty()) {
                         this.setItemStackToSlot(EntityEquipmentSlot.HEAD, helm);
                     }
                 }
-                if (r.nextFloat() < 0.10f) { // 10% chest
+                if (r.nextFloat() < 0.10f) {
                     ItemStack chest = c.randomArmorForSlot(EntityEquipmentSlot.CHEST, r);
                     if (!chest.isEmpty()) {
                         this.setItemStackToSlot(EntityEquipmentSlot.CHEST, chest);
                     }
                 }
-                if (r.nextFloat() < 0.08f) { // 8% legs
+                if (r.nextFloat() < 0.08f) {
                     ItemStack legs = c.randomArmorForSlot(EntityEquipmentSlot.LEGS, r);
                     if (!legs.isEmpty()) {
                         this.setItemStackToSlot(EntityEquipmentSlot.LEGS, legs);
                     }
                 }
-                if (r.nextFloat() < 0.12f) { // 12% boots
+                if (r.nextFloat() < 0.12f) {
                     ItemStack boots = c.randomArmorForSlot(EntityEquipmentSlot.FEET, r);
                     if (!boots.isEmpty()) {
                         this.setItemStackToSlot(EntityEquipmentSlot.FEET, boots);
@@ -1255,7 +1299,6 @@ public class EntityTraveller extends EntityCreature {
             String fullName = CultureRegistry.makeTravellerNameForCulture(cid, this.rand);
             if (fullName != null && !fullName.isEmpty()) {
                 this.setCustomNameTag(fullName);
-                // you can flip this if you *always* want nameplates
                 this.setAlwaysRenderNameTag(false);
             }
         }
@@ -1737,11 +1780,6 @@ public class EntityTraveller extends EntityCreature {
         return true;
     }
 
-    // Follower things
-    public boolean hasFollowLeader() {
-        return followLeaderId != null;
-    }
-
     @Nullable
     public EntityTraveller getFollowLeader() {
         if (followLeaderId == null) return null;
@@ -1793,56 +1831,9 @@ public class EntityTraveller extends EntityCreature {
         travelCommon.updateNearestVillage();
     }
 
-    @Override
-    public boolean getCanSpawnHere() {
-        if (world.isRemote) return false;
-        // Global-per-dimension loaded cap
-        int cap = TravellersModConfig.loadedTravellerCap;
-        int loaded = this.world.getEntities(EntityTraveller.class, Entity::isEntityAlive).size();
-        if (loaded >= cap) return false;
-
-        // MUCH smaller “near a village”
-        BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
-        if (!isNearAnyVillage(this.world, pos, TravellersModConfig.villageSpawnRadius)) return false;
-
-        // Light & ground sanity (creature-like)
-        if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
-        if (world.getLight(pos) < 8) return false; // spawn mostly in lit village areas
-
-        // Local density throttle (see next section)
-        if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTraveller.class,
-                TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
-            return false;
-
-        return super.getCanSpawnHere();
-    }
-
-    @Override
-    public boolean isWithinHomeDistanceCurrentPosition() {
-        return true;
-    }
-
-    @Override
-    public void setHomePosAndDistance(BlockPos pos, int distance) {
-    }
-
-    // --- Home Override? Dunno if useful since I don't extend villager ---
-    @Override
-    public boolean hasHome() {
-        return false;
-    }
-
     // Disabling fallDamage
 //    @Override
 //    public void fall(float distance, float damageMultiplier) { /* Immune to fall damage */ }
-
-    static boolean isNearAnyVillage(World world, BlockPos pos, int radius) {
-        long r2 = (long) radius * (long) radius;
-        for (BlockPos v : MillVillageIndex.getAllVillageCenters(world)) {
-            if (v.distanceSq(pos) <= r2) return true;
-        }
-        return false;
-    }
 
     @Override
     public boolean attackEntityFrom(DamageSource source, float amount) {
@@ -1907,10 +1898,6 @@ public class EntityTraveller extends EntityCreature {
         }
 
         super.onDeath(cause);
-    }
-
-    void cleanupOwnedCampfireIfAny() {
-        travellerCamp.cleanupOwnedCampfireIfAny();
     }
 
     @Nullable
@@ -2018,6 +2005,10 @@ public class EntityTraveller extends EntityCreature {
         return super.hasCapability(capability, facing);
     }
 
+    void cleanupOwnedCampfireIfAny() {
+        travellerCamp.cleanupOwnedCampfireIfAny();
+    }
+
     private void handleSwordVisibility() {
         if (isAimingBow()) return;
         if (world.isRemote) return;
@@ -2055,6 +2046,7 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public void setDead() {
         if (!this.world.isRemote) {
+            travellerCamp.cleanupOwnedCampfireIfAny();
             // If we're in a boat, despawn the boat with us
             if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
                 net.minecraft.entity.item.EntityBoat boat =
@@ -2099,6 +2091,18 @@ public class EntityTraveller extends EntityCreature {
     @Override
     protected boolean canFitPassenger(Entity passenger) {
         return this.getPassengers().size() < 1;
+    }
+
+    @Override
+    public boolean getAlwaysRenderNameTag() {
+        // Hard disable via config: no name tag, even if custom name exists.
+        if (!TravellersModConfig.showTravellerNames) {
+            return false;
+        }
+
+        // Otherwise, behave like a custom-named entity that always shows its tag.
+        // (You can tweak this if you want vanilla distance behaviour instead.)
+        return this.hasCustomName();
     }
 
     @Override
@@ -2923,15 +2927,6 @@ public class EntityTraveller extends EntityCreature {
         return autoEatTask != null && autoEatTask.isEating();
     }
 
-    public boolean isVillageIdling() {  // you already store this
-        return travelCommon.isVillageIdling();
-    }
-
-    @Nullable
-    public BlockPos getCampfirePos() {
-        return travellerCamp.getCampfirePos();
-    }
-
     public boolean hasNearbyTravellerTorch(double radius) {
         if (world == null) return false;
 
@@ -2965,8 +2960,17 @@ public class EntityTraveller extends EntityCreature {
         return isGhostTorch(getItemStackFromSlot(EntityEquipmentSlot.OFFHAND));
     }
 
+    public boolean isVillageIdling() {  // you already store this
+        return travelCommon.isVillageIdling();
+    }
+
     public void setVillageIdling(boolean villageIdling) {
         travelCommon.setVillageIdling(villageIdling);
+    }
+
+    @Nullable
+    public BlockPos getCampfirePos() {
+        return travellerCamp.getCampfirePos();
     }
 
     private void maybeSpawnCompanionDog() {
@@ -3037,6 +3041,74 @@ public class EntityTraveller extends EntityCreature {
     }
 // --- companion dog spawn helpers ---
 
+    public int getTicksExisted() {
+        return this.ticksExisted;
+    }
+
+    public int getFollowerCount() {
+        return currentFollowers;
+    }
+
+    protected void onFollowerStarted() {
+        currentFollowers++;
+    }
+
+    protected void onFollowerStopped() {
+        if (currentFollowers > 0) currentFollowers--;
+    }
+
+    /**
+     * Number of travellers currently following this one.
+     * Uses followLeaderId directly (cheap) instead of calling getFollowLeader().
+     */
+    public int getCurrentFollowerCount() {
+        UUID myId = this.getUniqueID();
+        List<EntityTraveller> followers = this.world.getEntities(EntityTraveller.class, e ->
+                e != null
+                        && e.isEntityAlive()
+                        && e.hasFollowLeader()
+                        && myId.equals(e.followLeaderId)      // access is OK here: same class
+        );
+        return followers.size();
+    }
+
+    // Follower things
+    public boolean hasFollowLeader() {
+        return followLeaderId != null;
+    }
+
+    public boolean isDifferentCulture(EntityTraveller other) {
+        return !isSameCulture(other);
+    }
+
+    public boolean isSameCulture(EntityTraveller other) {
+        if (other == null) return false;
+        String a = this.getCultureId();
+        String b = other.getCultureId();
+        if (a == null) a = "";
+        if (b == null) b = "";
+        return a.equalsIgnoreCase(b);
+    }
+
+    private void ensureDismountIfInCombat() {
+        if (this.world.isRemote) return;
+        if (!this.isInCombat()) return;
+
+        if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
+            net.minecraft.entity.item.EntityBoat boat =
+                    (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
+
+            this.dismountRidingEntity();
+
+            // If it's our traveller boat, it'll auto-despawn when empty
+            // thanks to onUpdate() above. No need to force kill here,
+            // but you can be explicit if you want:
+            // if (boat instanceof EntityTravellerBoat) {
+            //     boat.setDead();
+            // }
+        }
+    }
+
     public enum VoiceKind {NONE, AMBIENT, TALK, HURT}
 
     public static final class SpawnData implements IEntityLivingData {
@@ -3059,66 +3131,6 @@ public class EntityTraveller extends EntityCreature {
         Threat(int s, int t) {
             score = s;
             lastSeenTick = t;
-        }
-    }
-    public int getTicksExisted() {
-        return this.ticksExisted;
-    }
-    private int currentFollowers = 0;
-
-    public int getFollowerCount() {
-        return currentFollowers;
-    }
-
-    protected void onFollowerStarted() {
-        currentFollowers++;
-    }
-
-    protected void onFollowerStopped() {
-        if (currentFollowers > 0) currentFollowers--;
-    }
-    /**
-     * Number of travellers currently following this one.
-     * Uses followLeaderId directly (cheap) instead of calling getFollowLeader().
-     */
-    public int getCurrentFollowerCount() {
-        UUID myId = this.getUniqueID();
-        List<EntityTraveller> followers = this.world.getEntities(EntityTraveller.class, e ->
-                e != null
-                        && e.isEntityAlive()
-                        && e.hasFollowLeader()
-                        && myId.equals(e.followLeaderId)      // access is OK here: same class
-        );
-        return followers.size();
-    }
-    public boolean isSameCulture(EntityTraveller other) {
-        if (other == null) return false;
-        String a = this.getCultureId();
-        String b = other.getCultureId();
-        if (a == null) a = "";
-        if (b == null) b = "";
-        return a.equalsIgnoreCase(b);
-    }
-
-    public boolean isDifferentCulture(EntityTraveller other) {
-        return !isSameCulture(other);
-    }
-    private void ensureDismountIfInCombat() {
-        if (this.world.isRemote) return;
-        if (!this.isInCombat()) return;
-
-        if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
-            net.minecraft.entity.item.EntityBoat boat =
-                    (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
-
-            this.dismountRidingEntity();
-
-            // If it's our traveller boat, it'll auto-despawn when empty
-            // thanks to onUpdate() above. No need to force kill here,
-            // but you can be explicit if you want:
-            // if (boat instanceof EntityTravellerBoat) {
-            //     boat.setDead();
-            // }
         }
     }
 

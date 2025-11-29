@@ -13,14 +13,54 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
-import net.minecraft.world.EnumSkyBlock;
-import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import org.millenaire.common.world.MillWorldData;
 
 import java.util.Map;
 
 public class CommandTravellerInfo extends CommandBase {
+
+    // ----------------------------------------------------------
+    // Dynamic target (same logic we discussed earlier)
+    // ----------------------------------------------------------
+    public static int computeDynamicTarget(WorldServer ws) {
+
+        Map<MillVillageIndex.VillageInfo, Integer> pops =
+                MillVillageIndex.countVillagersPerVillage(ws);
+
+        final double perVillager = 1.0 / 3.0;
+        final int minPerVillage = 2;
+        final int maxPerVillage = 8;
+
+        final int globalMin = 0;
+        final int globalMax = 64;
+
+        final int perLone = 1;
+
+        int total = 0;
+
+        // Villages
+        for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
+            int villagers = e.getValue();
+            if (villagers <= 0) continue;
+
+            int t = (int) Math.floor(villagers * perVillager);
+            if (t < minPerVillage) t = minPerVillage;
+            if (t > maxPerVillage) t = maxPerVillage;
+            total += t;
+        }
+
+        // Lone Buildings
+        MillWorldData wd = MillVillageIndex.getWD(ws);
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            total += wd.loneBuildingsList.pos.size() * perLone;
+        }
+
+        if (total < globalMin) total = globalMin;
+        if (total > globalMax) total = globalMax;
+
+        return total;
+    }
 
     @Override
     public String getName() {
@@ -30,11 +70,6 @@ public class CommandTravellerInfo extends CommandBase {
     @Override
     public String getUsage(ICommandSender sender) {
         return "/travellerinfo";
-    }
-
-    @Override
-    public int getRequiredPermissionLevel() {
-        return 2; // OP
     }
 
     @Override
@@ -64,7 +99,6 @@ public class CommandTravellerInfo extends CommandBase {
                 loadedTotal, dynamicTarget));
 
 
-
         // --------------------------------------------------
         // 2) Density / spawn chance at this position
         // --------------------------------------------------
@@ -77,7 +111,6 @@ public class CommandTravellerInfo extends CommandBase {
         msg(sender, String.format("§fPopulation Multiplier: §a%.4f", popMult));
         msg(sender, String.format("§fCombined Density: §a%.4f", combined));
         msg(sender, String.format("§fSpawn Chance Gate: §a%.2f", chanceGate));
-
 
 
 // Regional budget around the player (example radius 1000 blocks)
@@ -146,7 +179,6 @@ public class CommandTravellerInfo extends CommandBase {
         }
 
 
-
         // local cap at this anchor
         boolean localUnderCap = SpawnThrottles.underLocalCap(
                 ws, pos, EntityTraveller.class,
@@ -172,45 +204,8 @@ public class CommandTravellerInfo extends CommandBase {
         sender.sendMessage(new TextComponentString(text));
     }
 
-    // ----------------------------------------------------------
-    // Dynamic target (same logic we discussed earlier)
-    // ----------------------------------------------------------
-    public static int computeDynamicTarget(WorldServer ws) {
-
-        Map<MillVillageIndex.VillageInfo, Integer> pops =
-                MillVillageIndex.countVillagersPerVillage(ws);
-
-        final double perVillager = 1.0 / 3.0;
-        final int minPerVillage = 2;
-        final int maxPerVillage = 8;
-
-        final int globalMin = 0;
-        final int globalMax = 64;
-
-        final int perLone = 1;
-
-        int total = 0;
-
-        // Villages
-        for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
-            int villagers = e.getValue();
-            if (villagers <= 0) continue;
-
-            int t = (int) Math.floor(villagers * perVillager);
-            if (t < minPerVillage) t = minPerVillage;
-            if (t > maxPerVillage) t = maxPerVillage;
-            total += t;
-        }
-
-        // Lone Buildings
-        MillWorldData wd = MillVillageIndex.getWD(ws);
-        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
-            total += wd.loneBuildingsList.pos.size() * perLone;
-        }
-
-        if (total < globalMin) total = globalMin;
-        if (total > globalMax) total = globalMax;
-
-        return total;
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 2; // OP
     }
 }

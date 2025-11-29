@@ -7,13 +7,18 @@ import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.culture.VoiceSet;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
 import com.jubitus.traveller.traveller.utils.sound.MsgStopTravellerVoice;
+import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
+import net.minecraft.entity.ai.attributes.AttributeModifier;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.inventory.EntityEquipmentSlot;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundCategory;
@@ -43,11 +48,6 @@ public class EntityTravellerRaider extends EntityTraveller {
     @Override
     protected SoundEvent getDeathSound() {
         return SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
-    }    @Override
-    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
-        // Never include same-faction travellers (already handled by XOR rule elsewhere)
-        if (other instanceof EntityTraveller) return false;
-        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
     }
 
     private boolean isValidMonsterLight() {
@@ -65,38 +65,38 @@ public class EntityTravellerRaider extends EntityTraveller {
         return block <= rand.nextInt(8);
     }    // No friendly chat
 
+    // Hostile spawn rules (if keeping EntityCreature). If you extend EntityMob you get these for free.
     @Override
-    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, @Nullable IEntityLivingData data) {
-        // Let base traveller handle culture selection & SpawnData propagation
-        data = super.onInitialSpawn(diff, data);
+    public boolean getCanSpawnHere() {
+        if (world.isRemote) return false;
+        if (world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
 
-        String cid = getCultureId();
-        if (cid == null || cid.isEmpty()) {
-            // Just in case, but normally super already set this via SpawnData
-            cid = CultureRegistry.pickRandomId(this.rand);
-            setCultureId(cid);
-            data = new EntityTraveller.SpawnData(cid);
-        }
+        // HARD cap for loaded raiders
+        int cap = TravellersModConfig.loadedRaiderCap;
+        int loaded = this.world.getEntities(EntityTravellerRaider.class, Entity::isEntityAlive).size();
+        if (loaded >= cap) return false;
 
-        CultureDef def = CultureRegistry.get(cid);
-        int rCount = (def != null ? def.getRaiderTextureCount() : 0);
+        BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
 
-        // Fallback to traveller count if no specific raider looks
-        if (rCount <= 0 && def != null) {
-            rCount = def.getTravellerTextureCount();
-        }
-        if (rCount <= 0) {
-            rCount = 1; // steve fallback in CultureDef
-        }
+        // Must be near a Millénaire village
+        if (!isNearAnyVillage(this.world, pos, TravellersModConfig.villageSpawnRadius)) return false;
 
-        this.setTextureIndex(this.rand.nextInt(Math.max(1, rCount)));
+        // Local density
+        if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTravellerRaider.class,
+                TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius)) return false;
 
-        return data;
-    }
+        // Monster-style darkness: use BLOCK light, not combined
+        int blockLight = world.getLightFor(net.minecraft.world.EnumSkyBlock.BLOCK, pos);
+        if (blockLight > TravellersModConfig.raiderMaxBlockLight) return false;
 
-    @Override
-    public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        return false; // ignore right-clicks
+        // Optional: disallow daytime sky-exposed locations
+        // int skyLight = world.getLightFor(net.minecraft.world.EnumSkyBlock.SKY, pos);
+        // if (world.isDaytime() && skyLight > 0) return false;
+
+        // Ground sanity similar to vanilla
+        if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
+
+        return super.getCanSpawnHere();
     }
 
     @Override
@@ -104,31 +104,11 @@ public class EntityTravellerRaider extends EntityTraveller {
         return true;
     }
 
-    // Don’t mute combat for creative players; still avoid aggro if you prefer:
     @Override
-    public void setAttackTarget(@Nullable EntityLivingBase target) {
-        // Peaceful: no combat at all
-        if (world != null && world.getDifficulty() == EnumDifficulty.PEACEFUL) {
-            super.setAttackTarget(null);
-            setInCombat(false);
-            return;
-        }
-
-        if (target instanceof EntityTraveller) {
-            EntityTraveller other = (EntityTraveller) target;
-
-            // Never target same-culture travellers/raiders
-            if (!isDifferentCulture(other)) {
-                super.setAttackTarget(null);
-                return;
-            }
-        }
-
-        // (Optionally you might still want to ignore some blacklisted entities)
-        super.setAttackTarget(target);
-        if (!world.isRemote && target != null) {
-            setInCombat(true);
-        }
+    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
+        // Never include same-faction travellers (already handled by XOR rule elsewhere)
+        if (other instanceof EntityTraveller) return false;
+        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
     }
 
     @Override
@@ -265,6 +245,153 @@ public class EntityTravellerRaider extends EntityTraveller {
         autoEatTask = null;
     }
 
+    // Don’t mute combat for creative players; still avoid aggro if you prefer:
+    @Override
+    public void setAttackTarget(@Nullable EntityLivingBase target) {
+        // Peaceful: no combat at all
+        if (world != null && world.getDifficulty() == EnumDifficulty.PEACEFUL) {
+            super.setAttackTarget(null);
+            setInCombat(false);
+            return;
+        }
+
+        if (target instanceof EntityTraveller) {
+            EntityTraveller other = (EntityTraveller) target;
+
+            // Never target same-culture travellers/raiders
+            if (!isDifferentCulture(other)) {
+                super.setAttackTarget(null);
+                return;
+            }
+        }
+
+        // (Optionally you might still want to ignore some blacklisted entities)
+        super.setAttackTarget(target);
+        if (!world.isRemote && target != null) {
+            setInCombat(true);
+        }
+    }
+
+    @Override
+    public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, @Nullable IEntityLivingData livingdata) {
+        this.spawnAmbientCooldownTicks = TravellersModConfig.SPAWN_AMBIENT_DELAY_TICKS + this.rand.nextInt(5 * 20);
+
+        livingdata = super.onInitialSpawn(difficulty, livingdata);
+
+        // --- culture pick/propagate ---
+
+        String cid = null;
+
+        // 1) If the spawner (soft-spawner or vanilla group leader) already gave us a culture, honour it.
+        if (livingdata instanceof SpawnData) {
+            cid = ((SpawnData) livingdata).cultureId;
+        }
+
+        // 2) If we still don't have a culture, try village-based pick around our spawn position.
+        if (cid == null || cid.isEmpty()) {
+            // Uses the same logic as your soft spawner (weighted by nearby Millénaire villages).
+            String villageCid = MillVillageIndex.pickCultureForTravellerSpawn(this.world, this.getPosition(), this.rand);
+            if (villageCid != null && !villageCid.isEmpty()) {
+                cid = villageCid;
+                // Make sure vanilla group spawns copy this culture as SpawnData.
+                livingdata = new SpawnData(cid);
+            }
+        }
+
+        // 3) Fallback: biome-based culture (old behaviour) if no village influence / no village data.
+        if (cid == null || cid.isEmpty()) {
+            net.minecraft.world.biome.Biome biome = this.world.getBiome(this.getPosition());
+            cid = CultureRegistry.pickCultureIdForBiome(biome, this.rand);
+            livingdata = new SpawnData(cid);
+        }
+
+        setCultureId(cid);
+
+        CultureDef c = CultureRegistry.get(cid);
+        int tCount = (c != null) ? c.travellerAppearanceCount() : 0;
+        setTextureIndex(this.rand.nextInt(Math.max(1, tCount <= 0 ? 1 : tCount)));
+
+        // Reset move attr base and make sure no swim boost lingers
+        IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
+        if (attr != null) {
+            attr.setBaseValue(TravellersModConfig.movementSpeed);
+            AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
+            if (m != null) attr.removeModifier(m);
+        }
+
+        if (!world.isRemote) {
+            if (c != null) {
+                java.util.Random r = this.rand;
+
+                // --- MAIN HAND: random melee or tool from culture ---
+                ItemStack meleeOrTool = c.randomMeleeOrTool(r);
+                if (!meleeOrTool.isEmpty()) {
+                    this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
+                }
+
+                // --- OPTIONAL BOW ---
+                if (r.nextFloat() < 0.20f) {
+                    ItemStack bow = c.randomBow(r);
+                    if (!bow.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
+                    }
+                }
+
+                // --- ARMOR: low chances per slot ---
+                if (r.nextFloat() < 0.15f) {
+                    ItemStack helm = c.randomArmorForSlot(EntityEquipmentSlot.HEAD, r);
+                    if (!helm.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.HEAD, helm);
+                    }
+                }
+                if (r.nextFloat() < 0.10f) {
+                    ItemStack chest = c.randomArmorForSlot(EntityEquipmentSlot.CHEST, r);
+                    if (!chest.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.CHEST, chest);
+                    }
+                }
+                if (r.nextFloat() < 0.08f) {
+                    ItemStack legs = c.randomArmorForSlot(EntityEquipmentSlot.LEGS, r);
+                    if (!legs.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.LEGS, legs);
+                    }
+                }
+                if (r.nextFloat() < 0.12f) {
+                    ItemStack boots = c.randomArmorForSlot(EntityEquipmentSlot.FEET, r);
+                    if (!boots.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.FEET, boots);
+                    }
+                }
+            }
+
+            // 3) Seed ambient window if needed
+            if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
+                scheduleNextTravelAmbient();
+            }
+            // 4) Assign culture-based name from Millénaire namelists
+            String fullName = CultureRegistry.makeTravellerNameForCulture(cid, this.rand);
+            if (fullName != null && !fullName.isEmpty()) {
+                this.setCustomNameTag(fullName);
+                this.setAlwaysRenderNameTag(false);
+            }
+        }
+
+        // Personality seeds
+        this.setHealth(this.getMaxHealth());
+        java.util.Random r = new java.util.Random(this.getUniqueID().getMostSignificantBits()
+                ^ this.getUniqueID().getLeastSignificantBits());
+        this.travelCommon.wanderlust = 0.25f + r.nextFloat() * 0.60f;
+        this.travelCommon.exploreChance = 0.08f + r.nextFloat() * 0.06f;
+        this.travelCommon.hopPreference = 0.45f + r.nextFloat() * 0.25f;
+        this.travelCommon.pathAngleBiasDeg = 0;
+        this.travelCommon.pathLaneOffset = 0;
+        this.travelCommon.pathStepJitter = 0;
+        this.travelCommon.recalcPhase = r.nextInt(12);
+
+        return livingdata;
+    }
+
+
 //    @Override
 //    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, @Nullable IEntityLivingData data) {
 //        // Let base traveller handle spawn data & random culture if needed
@@ -294,61 +421,14 @@ public class EntityTravellerRaider extends EntityTraveller {
 //        return data;
 //    }
 
+    @Override
+    public boolean processInteract(EntityPlayer player, EnumHand hand) {
+        return false; // ignore right-clicks
+    }
 
     // Disable friendly voice/ambient entirely
     @Override
     public void scheduleNextTravelAmbient() { /* no-op */ }
-
-    @Override
-    public void maybePlayTravelAmbient() { /* no-op */ }
-
-    @Override
-    @Nullable
-    protected SoundEvent getHurtSound(DamageSource source) {
-        VoiceSet v = CultureRegistry.RAIDER_VOICES.get(getCultureId());
-        return (v != null && v.hurt != null) ? v.hurt : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
-    }
-
-
-    @Override
-    public SoundCategory getSoundCategory() {
-        return SoundCategory.HOSTILE;
-    }
-
-    // Hostile spawn rules (if keeping EntityCreature). If you extend EntityMob you get these for free.
-    @Override
-    public boolean getCanSpawnHere() {
-        if (world.isRemote) return false;
-        if (world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
-
-        // HARD cap for loaded raiders
-        int cap = TravellersModConfig.loadedRaiderCap;
-        int loaded = this.world.getEntities(EntityTravellerRaider.class, Entity::isEntityAlive).size();
-        if (loaded >= cap) return false;
-
-        BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
-
-        // Must be near a Millénaire village
-        if (!isNearAnyVillage(this.world, pos, TravellersModConfig.villageSpawnRadius)) return false;
-
-        // Local density
-        if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTravellerRaider.class,
-                TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius)) return false;
-
-        // Monster-style darkness: use BLOCK light, not combined
-        int blockLight = world.getLightFor(net.minecraft.world.EnumSkyBlock.BLOCK, pos);
-        if (blockLight > TravellersModConfig.raiderMaxBlockLight) return false;
-
-        // Optional: disallow daytime sky-exposed locations
-        // int skyLight = world.getLightFor(net.minecraft.world.EnumSkyBlock.SKY, pos);
-        // if (world.isDaytime() && skyLight > 0) return false;
-
-        // Ground sanity similar to vanilla
-        if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
-
-        return super.getCanSpawnHere();
-    }
-
 
     // Don’t run friendly ignore-logic when hurt
     @Override
@@ -403,6 +483,22 @@ public class EntityTravellerRaider extends EntityTraveller {
         }
         return true;
     }
+
+    @Override
+    @Nullable
+    protected SoundEvent getHurtSound(DamageSource source) {
+        VoiceSet v = CultureRegistry.RAIDER_VOICES.get(getCultureId());
+        return (v != null && v.hurt != null) ? v.hurt : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
+    }
+
+    @Override
+    public SoundCategory getSoundCategory() {
+        return SoundCategory.HOSTILE;
+    }
+
+    @Override
+    public void maybePlayTravelAmbient() { /* no-op */ }
+
     public boolean isDifferentCulture(EntityTraveller other) {
         if (other == null) return false;
         String my = this.getCultureId();
