@@ -9,7 +9,7 @@ import net.minecraft.world.EnumDifficulty;
 
 import java.util.List;
 
-public class  TravellerHurtByTarget extends EntityAITarget {
+public class TravellerHurtByTarget extends EntityAITarget {
     private final EntityCreature owner;
     private final boolean callForHelp;
     private final double assistRadius;

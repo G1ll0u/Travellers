@@ -29,15 +29,10 @@ public class TravellerIgnoreHooks {
         }
     }
 
-    // Helper: is this mob type blacklisted to ignore Travellers?
-    private static boolean isBlacklistMob(EntityLivingBase mob) {
-        return mob instanceof net.minecraft.entity.monster.IMob
-                && TravellersModConfig.TRAVELLER_BLACKLIST.isBlacklisted(mob);
-    }
-
     private static boolean isTraveller(@Nullable Entity entity) {
         return entity instanceof com.jubitus.traveller.traveller.entityAI.EntityTraveller;
     }
+
     private static boolean isBlacklistedFor(EntityLivingBase mob, @Nullable Entity target) {
         if (!(mob instanceof net.minecraft.entity.monster.IMob)) return false;
         if (!(target instanceof com.jubitus.traveller.traveller.entityAI.EntityTraveller)) return false;
@@ -47,6 +42,12 @@ public class TravellerIgnoreHooks {
                 ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
                 : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
         return list.isBlacklisted(mob);
+    }
+
+    // Helper: is this mob type blacklisted to ignore Travellers?
+    private static boolean isBlacklistMob(EntityLivingBase mob) {
+        return mob instanceof net.minecraft.entity.monster.IMob
+                && TravellersModConfig.TRAVELLER_BLACKLIST.isBlacklisted(mob);
     }
 
     /**

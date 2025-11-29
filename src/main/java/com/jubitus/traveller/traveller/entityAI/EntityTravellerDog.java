@@ -6,7 +6,6 @@ import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIFollowOwner;
-import net.minecraft.entity.ai.EntityAITarget;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
@@ -23,12 +22,14 @@ import java.util.UUID;
 public class EntityTravellerDog extends EntityWolf {
     // === Orphan flow ===
     private static final int ORPHAN_SIT_TIME_TICKS = 20 * 20; // ~20s, tune to taste
-    private static final int ORPHAN_RECHECK_EVERY   = 40;     // recheck owner every ~2s
-    private int orphanSinceTick = -1; // -1 = not orphaned / unknown yet
+    private static final int ORPHAN_RECHECK_EVERY = 40;     // recheck owner every ~2s
     // --- Config knobs ---
     private static final int ORPHAN_SIT_TICKS = 20 * 20;      // ~20s mourn
     private static final int ORPHAN_SCAN_COOLDOWN = 40;       // scan every 2s
     private static final double ADOPT_SCAN_RADIUS = 16.0D;    // search radius
+    private static final java.util.UUID SPEED_BOOST_UUID =
+            java.util.UUID.fromString("8a5f1c42-1c7f-4a63-9f3d-7f4b6d2a0a11");
+    private final int orphanSinceTick = -1; // -1 = not orphaned / unknown yet
     // --- Orphan state ---
     private boolean orphaned = false;
     private int orphanSitUntil = 0;
@@ -37,51 +38,37 @@ public class EntityTravellerDog extends EntityWolf {
 // === Despawn tracking (mirror traveller) ===
     private int nearUnloadTicks = 0;
     private int farFromPlayersTicks = 0;
-
-    private boolean isPlayerOwned() {
-        return this.isTamed() && this.getOwner() instanceof EntityPlayer;
-    }
-
-    // Simple “is in combat” and “idling” approximations for the dog
-    private boolean isInCombatLike() {
-        return this.getAttackTarget() != null || this.getRevengeTarget() != null;
-    }
-
-    private boolean isVillageIdlingLike() {
-        return this.getNavigator() == null || this.getNavigator().noPath();
-    }
-
-    /** Called once by the traveller/raider on death. */
-    public void onOwnerDied() {
-        // mark orphan only once
-        if (!this.orphaned) {
-            this.orphaned = true;
-            this.orphanSitUntil = this.ticksExisted + ORPHAN_SIT_TICKS;
-            this.setSitting(true);
-            this.setAttackTarget(null);
-            this.getNavigator().clearPath();
-        }
-    }
     // Travel goal (added below)
     private AIDogTravelToVillage aiTravel;
 
-    public EntityTravellerDog(World worldIn) { super(worldIn); }
-    private static final java.util.UUID SPEED_BOOST_UUID =
-            java.util.UUID.fromString("8a5f1c42-1c7f-4a63-9f3d-7f4b6d2a0a11");
-    @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-
-        // Faster than vanilla wolf
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                .setBaseValue(0.34D); // or whatever you liked
-
-        // IMPORTANT: how far A* pathfinding is allowed to search
-        if (this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE) != null) {
-            this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                    .setBaseValue(48.0D); // 48 blocks search radius (tune: 32–64)
-        }
+    public EntityTravellerDog(World worldIn) {
+        super(worldIn);
     }
+
+    /**
+     * Small helper for faction-friendly filtering.
+     */
+    public static boolean canAttackSameAsOwner(EntityTravellerDog dog, EntityLivingBase target) {
+        EntityLivingBase owner = dog.getOwner();
+        if (owner == null) return false;
+        if (target == null || !target.isEntityAlive()) return false;
+        if (target == owner || target == dog) return false;
+
+        if (owner instanceof EntityTraveller && target instanceof EntityTraveller) {
+            // Fight only across factions (XOR) — same as your travellers
+            return ((EntityTraveller) owner).isAggressiveToTravellers() ^ ((EntityTraveller) target).isAggressiveToTravellers();
+        }
+        if (owner instanceof EntityTravellerRaider) {
+            // Raiders: also attack anything in the raider list (your config)
+            if (!(target instanceof EntityTraveller)) {
+                return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(target)
+                        && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(target);
+            }
+        }
+        // For non-traveller targets just mirror the owner’s chosen target
+        return true;
+    }
+
     // Resolve non-player owners (your travellers) as well as players.
     @Override
     @Nullable
@@ -101,6 +88,34 @@ public class EntityTravellerDog extends EntityWolf {
         // (optional) cross-dimension lookup if you support that; skip for 1.12 simplicity
         return null;
     }
+
+    private boolean isPlayerOwned() {
+        return this.isTamed() && this.getOwner() instanceof EntityPlayer;
+    }
+
+    // Simple “is in combat” and “idling” approximations for the dog
+    private boolean isInCombatLike() {
+        return this.getAttackTarget() != null || this.getRevengeTarget() != null;
+    }
+
+    private boolean isVillageIdlingLike() {
+        return this.getNavigator() == null || this.getNavigator().noPath();
+    }
+
+    /**
+     * Called once by the traveller/raider on death.
+     */
+    public void onOwnerDied() {
+        // mark orphan only once
+        if (!this.orphaned) {
+            this.orphaned = true;
+            this.orphanSitUntil = this.ticksExisted + ORPHAN_SIT_TICKS;
+            this.setSitting(true);
+            this.setAttackTarget(null);
+            this.getNavigator().clearPath();
+        }
+    }
+
     @Override
     protected void initEntityAI() {
         super.initEntityAI(); // keeps OwnerHurtByTarget, OwnerHurtTarget, sit, etc.
@@ -122,9 +137,37 @@ public class EntityTravellerDog extends EntityWolf {
         this.targetTasks.addTask(3, new AIMirrorOwnerAttackTarget(this));
     }
 
-    /** Make sure dogs don’t despawn once recruited */
     @Override
-    protected boolean canDespawn() { return false; }
+    protected void applyEntityAttributes() {
+        super.applyEntityAttributes();
+
+        // Faster than vanilla wolf
+        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
+                .setBaseValue(0.34D); // or whatever you liked
+
+        // IMPORTANT: how far A* pathfinding is allowed to search
+        if (this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE) != null) {
+            this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
+                    .setBaseValue(48.0D); // 48 blocks search radius (tune: 32–64)
+        }
+    }
+
+    @Override
+    public void writeEntityToNBT(NBTTagCompound nbt) {
+        super.writeEntityToNBT(nbt);
+        nbt.setBoolean("Orphaned", orphaned);
+        nbt.setInteger("OrphanSitUntil", orphanSitUntil);
+        nbt.setInteger("OrphanScanCd", orphanScanCooldown);
+    }
+
+    @Override
+    public void readEntityFromNBT(NBTTagCompound nbt) {
+        super.readEntityFromNBT(nbt);
+        orphaned = nbt.getBoolean("Orphaned");
+        orphanSitUntil = nbt.getInteger("OrphanSitUntil");
+        orphanScanCooldown = nbt.getInteger("OrphanScanCd");
+    }
+
     @Override
     public void onLivingUpdate() {
         super.onLivingUpdate();
@@ -175,7 +218,18 @@ public class EntityTravellerDog extends EntityWolf {
             farFromPlayersTicks = 0;
         }
     }
-    /** Prefer raiders/travellers; fall back to players. */
+
+    /**
+     * Make sure dogs don’t despawn once recruited
+     */
+    @Override
+    protected boolean canDespawn() {
+        return false;
+    }
+
+    /**
+     * Prefer raiders/travellers; fall back to players.
+     */
     @Nullable
     private EntityLivingBase findAdoptionCandidate() {
         AxisAlignedBB box = this.getEntityBoundingBox().grow(ADOPT_SCAN_RADIUS, 4.0, ADOPT_SCAN_RADIUS);
@@ -195,7 +249,7 @@ public class EntityTravellerDog extends EntityWolf {
         for (EntityLivingBase e : list) {
             double pref =
                     (e instanceof EntityTravellerRaider) ? 3.0 :
-                            (e instanceof EntityTraveller)      ? 2.0 : 1.0; // player
+                            (e instanceof EntityTraveller) ? 2.0 : 1.0; // player
             double distBonus = 1.0 / (1.0 + this.getDistance(e));    // closer is better
             double score = pref + distBonus;
 
@@ -205,7 +259,10 @@ public class EntityTravellerDog extends EntityWolf {
                 if (p.isCreative() || p.isSpectator()) continue;
             }
 
-            if (score > bestScore) { bestScore = score; best = e; }
+            if (score > bestScore) {
+                bestScore = score;
+                best = e;
+            }
         }
         return best;
     }
@@ -214,7 +271,7 @@ public class EntityTravellerDog extends EntityWolf {
         // Set vanilla tame/owner fields so all built-in goals (follow/sit/defend) work.
         if (newOwner instanceof EntityPlayer) {
             setTamed(true);
-            setOwnerId(((EntityPlayer) newOwner).getUniqueID());
+            setOwnerId(newOwner.getUniqueID());
         } else {
             setTamed(true);
             setOwnerId(newOwner.getUniqueID()); // traveller/raider adoption
@@ -228,26 +285,33 @@ public class EntityTravellerDog extends EntityWolf {
         this.world.setEntityState(this, (byte) 7); // hearts
     }
 
-    /** Expose to the goal so it only runs when allowed. */
+    /**
+     * Expose to the goal so it only runs when allowed.
+     */
     boolean shouldRunOrphanTravel() {
         return orphanTravelActive() && isOrphanNow(); // still no owner
     }
-    @Override
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-        nbt.setBoolean("Orphaned", orphaned);
-        nbt.setInteger("OrphanSitUntil", orphanSitUntil);
-        nbt.setInteger("OrphanScanCd", orphanScanCooldown);
+
+    /**
+     * Dog can start autonomous travel when the sit timeout is over.
+     */
+    private boolean orphanTravelActive() {
+        return orphanSinceTick >= 0 && this.ticksExisted - orphanSinceTick >= ORPHAN_SIT_TIME_TICKS;
     }
 
-    @Override
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        orphaned = nbt.getBoolean("Orphaned");
-        orphanSitUntil = nbt.getInteger("OrphanSitUntil");
-        orphanScanCooldown = nbt.getInteger("OrphanScanCd");
+    /**
+     * Detect “true orphan”: has an owner UUID, but no living owner entity found.
+     */
+    private boolean isOrphanNow() {
+        java.util.UUID id = getOwnerId();
+        if (id == null) return false; // never had an owner → not our case
+        EntityLivingBase resolved = getOwner(); // your override resolves travellers too
+        return resolved == null; // couldn't find the entity in-world
     }
-    /** Where to go: nearest Millénaire village center. */
+
+    /**
+     * Where to go: nearest Millénaire village center.
+     */
     @Nullable
     BlockPos pickNearestVillage() {
         java.util.List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(this.world);
@@ -257,44 +321,14 @@ public class EntityTravellerDog extends EntityWolf {
         double bestD2 = Double.MAX_VALUE;
         for (BlockPos c : centers) {
             double d2 = me.distanceSq(c);
-            if (d2 < bestD2) { bestD2 = d2; best = c; }
+            if (d2 < bestD2) {
+                bestD2 = d2;
+                best = c;
+            }
         }
         return best;
     }
 
-    /** Small helper for faction-friendly filtering. */
-    public static boolean canAttackSameAsOwner(EntityTravellerDog dog, EntityLivingBase target) {
-        EntityLivingBase owner = dog.getOwner();
-        if (owner == null) return false;
-        if (target == null || !target.isEntityAlive()) return false;
-        if (target == owner || target == dog) return false;
-
-        if (owner instanceof EntityTraveller && target instanceof EntityTraveller) {
-            // Fight only across factions (XOR) — same as your travellers
-            return ((EntityTraveller) owner).isAggressiveToTravellers() ^ ((EntityTraveller) target).isAggressiveToTravellers();
-        }
-        if (owner instanceof EntityTravellerRaider) {
-            // Raiders: also attack anything in the raider list (your config)
-            if (!(target instanceof EntityTraveller)) {
-                return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(target)
-                        && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(target);
-            }
-        }
-        // For non-traveller targets just mirror the owner’s chosen target
-        return true;
-    }
-    /** Detect “true orphan”: has an owner UUID, but no living owner entity found. */
-    private boolean isOrphanNow() {
-        java.util.UUID id = getOwnerId();
-        if (id == null) return false; // never had an owner → not our case
-        EntityLivingBase resolved = getOwner(); // your override resolves travellers too
-        return resolved == null; // couldn't find the entity in-world
-    }
-
-    /** Dog can start autonomous travel when the sit timeout is over. */
-    private boolean orphanTravelActive() {
-        return orphanSinceTick >= 0 && this.ticksExisted - orphanSinceTick >= ORPHAN_SIT_TIME_TICKS;
-    }
     /**
      * Dog version: despawn near the not-loaded edge when travelling,
      * but never if owned by a player.

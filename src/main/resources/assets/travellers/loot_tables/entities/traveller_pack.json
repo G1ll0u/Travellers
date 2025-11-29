@@ -53,23 +53,6 @@
         { "type": "item", "name": "minecraft:iron_axe", "weight": 3 },
         { "type": "empty", "weight": 5 }
       ]
-    },
-    {
-      "name": "armor_sets",
-      "rolls": 1,
-      "entries": [
-        { "type": "empty", "weight": 6 },
-        { "type": "loot_table", "name": "travellers:sets/leather_traveller", "weight": 7 },
-        { "type": "loot_table", "name": "travellers:sets/leather_traveller_helmet", "weight": 7 },
-        { "type": "loot_table", "name": "travellers:sets/iron_traveller",   "weight": 3 },
-        { "type": "loot_table", "name": "travellers:sets/iron_traveller_helmet",   "weight": 3 },
-        { "type": "loot_table", "name": "travellers:sets/norman_traveller_helmet",   "weight": 3 },
-        { "type": "loot_table", "name": "travellers:sets/norman_traveller",   "weight": 3 },
-        { "type": "loot_table", "name": "travellers:sets/japanese_traveller",   "weight": 3 },
-
-        { "type": "loot_table", "name": "travellers:sets/fur_traveller_helmet",   "weight": 3 }
-      ]
     }
   ]
-
 }

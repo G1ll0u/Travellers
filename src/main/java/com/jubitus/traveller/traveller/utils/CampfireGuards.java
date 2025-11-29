@@ -1,7 +1,7 @@
 package com.jubitus.traveller.traveller.utils;
 
-import com.jubitus.traveller.traveller.utils.blocks.CampfireBlock;
-import com.jubitus.traveller.traveller.utils.blocks.CampfireManager;
+import com.jubitus.traveller.traveller.camp.CampfireBlock;
+import com.jubitus.traveller.traveller.camp.CampfireManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.world.World;
@@ -35,13 +35,14 @@ public final class CampfireGuards {
         e.setUseItem(Event.Result.DENY);
         e.setCanceled(true);
     }
+
     @SubscribeEvent
     public static void onHarvestDrops(BlockEvent.HarvestDropsEvent e) {
         Block fire = CampfireBlock.get();
         if (fire == null) return;
         if (e.getState().getBlock() != fire) return;
 
-        World w = (World) e.getWorld();
+        World w = e.getWorld();
         if (!(w instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) w;
 
@@ -68,7 +69,6 @@ public final class CampfireGuards {
             // No XP: BreakEvent has no xp field in 1.12.2; items are already zeroed via HarvestDropsEvent
         }
     }
-
 
 
     @SubscribeEvent

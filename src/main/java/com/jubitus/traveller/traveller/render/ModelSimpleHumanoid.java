@@ -9,7 +9,7 @@ import net.minecraft.util.math.MathHelper;
 public class ModelSimpleHumanoid extends ModelBiped {
 
     public ModelSimpleHumanoid() {
-        this(0.0F, 64, 64); // your entity’s main skin: 64×64
+        this(0.0F, 64, 32); // your entity’s main skin: 64×64
     }
 
     // Use this for armor: (modelSize, 64, 32)

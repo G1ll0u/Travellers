@@ -1,63 +1,103 @@
-# Travellers 1.0.2
+# Travellers 1.1.0
+**NOW CONFIG WILL BE LOCATED IN A NEW FOLDER AT `/config/travellers/travellers.cfg`**
+**OLD /config/travellers.cfg FILE WILL BE DELETED AT LAUNCH TO AVOID CONFUSION**
 
-**Old `travellers.cfg` will be backed up and a new one with new and default values will be created in `/minecraft/config`**
+New big feature update of my Travellers mod.
 
-### Main changes
-- New sounds (hit, right click and ambient)
-  - They will sing randomly when travelling
-  - Sounds made with love
-- Redone ranged AI (bow) to add animation and make it less buggy
-- More control for natural spawns in config
-- Better pathfinding, especially obstacle avoidance
-- Fixed visual bugs
+I added lots of things to make travellers way more "melt" Millénaire (like cheese fondue hmmmm...), adding culture and textures integration. You will see all cultures even modded ones and that's really cool. Culture of traveller depends on where he spawns and what village cultures surround him.
+
+They now spawn in a flow, travellers now depend on the actual number of villages and population
 
 
-### More detailed changes
+Here is a detailed changelog containing things I did but not all because I don't remember.
 
-#### Traveller spawn
-- Adjusted spawn behaviour to spawn less travellers
-  - spawnWeight now defaults to 2 (instead of 10)
-- Added a traveller limit
+### Added cultures integration
 
-#### Commands
-- Hot config reload
-    - Use `/travellerConfigReload` to hot-reload `travellers.cfg` (avoids to restart the game after editing config, should work for most config values)
-- added command /travellersCount
-    - counts actually loaded travellers 
-- added command `/travellersglow [time in seconds]`
-     - Applies glow effect to debug entities (make them highlighted to know position)
+  * Wired to Millénaire + addon cultures txts
+  * Uses Millénaire + addon textures (from txts)
+  * Specific sounds and songs for Normans (will be improved)
 
-#### Combat
-- Travellers now handle multiple attack targets better
+### New soft spawner system
 
-#### Pathfinding
-- Improved pathfinding performance to limit chunkloads (thanks @Skrode)
-- Improved pathfinding especially obstacle avoiding and behaviour if stuck somewhere too long
-- Improved pathfinding in water (was inexistent lol)
-- They now avoid walking on lilypad block type
+  * Dynamic, Millénaire-aware spawning for travellers and raiders
+  * Spawn amount depends on nearby Millénaire villages and their population
+  * Travellers now choose travel targets based on:
 
-#### Movement
-- Improved movement by enabling back diagonal walking
+    * Village population
+    * Number of nearby villages
+    * Number of lone buildings
+  * Added dynamic regional traveller cap per player
 
-#### Eating behaviour
-- Improved eating frequency to be more organic / player-like
-- Added eat animation (particles)
-- Suppressed heal particles
+    * Cap depends on local village density and lone buildings
+    * Adjustable scan radius
+    * Controls spawns regionally instead of globally
 
-#### Rendering
-- Fixed armor not following arm when doing "SwingArm" animation
+* Items also depend on culture txts
 
-#### Internals
-- Added some translation for entity name
-- Improved village recognition code to use actual millenaire API
-    - Fixed loottables **(won't depend on polishmod anymore)**
-- New sounds
+### Despawn
+* Travellers now despawn when far from player for overcrowding and performance reasons
 
-## Travellers 1.0.3
-- Added agressive traveller named "Raider" (travellers:traveller_raider)
-  - Attacks player
-  - Attacks millenaire entities by default
-  - Configurable attack list
-  - Configurable attack blacklist
-  - still travel between villages
-- Improved swimming (was broken)
+### Boat behaviour and ocean travel
+
+* Travellers can now **use boats** when crossing water
+
+### Raider entity
+
+* Added aggressive traveller named **"Raider"** (`travellers:traveller_raider`)
+
+  * Attacks players
+  * Attacks Millénaire entities by default
+  * Attacks travellers from different cultures
+  * Configurable attack whitelist
+  * Configurable attack blacklist
+  * Still travels between villages
+
+### Fishing
+  * They now sometimes go fishing (cosmetic)
+
+### Campfire
+  * They now sometimes make campfires
+
+### General things
+  * Improved pathfinding
+  * Added debug commands (search by doing `/traveller` or `/mill_` and TAB)
+    * Find by yourself
+    * It's more for me for debugging my mod
+
+NEW COMMANDS :
+```
+/travellerinfo 
+useful informations about how my mod deals with villages
+
+/travellermap [radius] [step]
+creates a map file with village weights (step = blocks per pixel)
+
+/travellersDumpCultureItems
+dump Millenaire items per culture to a txt file
+
+/travellerconfigreload
+hot-reload config (will make the game reload most of travellers.cfg values instantly)
+
+/travellerscount
+count actual loaded travellers
+
+/travellersglow <seconds|off> [color]
+make travellers glow to see them from far
+
+/mill_dump <x> <y> <z> <outputFileName>
+Dumps detailed Millénaire village info my mod use around a specific Town Hall position into a text file.
+
+/mill_nearest_village_dump [filename]
+Dumps the nearest Millénaire settlement to the player into a detailed text report.
+Dumps to a file in the world save folder:
+
+Village summary (center, name, culture, type, population).
+
+List of buildings with tags and bounds.
+
+Town Hall chest contents (using item handler or inventory).
+
+A trimmed list of resource needs / deficits. (WIP, probably broken)
+```
+  * Added `/mounttraveller` command to mount traveller nearby player (stupid)
+  * Revamped config

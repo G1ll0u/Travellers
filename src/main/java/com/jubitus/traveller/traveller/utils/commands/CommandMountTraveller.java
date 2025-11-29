@@ -1,7 +1,10 @@
 package com.jubitus.traveller.traveller.utils.commands;
 
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
-import net.minecraft.command.*;
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.CommandException;
+import net.minecraft.command.ICommandSender;
+import net.minecraft.command.NumberInvalidException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -21,11 +24,6 @@ public class CommandMountTraveller extends CommandBase {
     }
 
     @Override
-    public int getRequiredPermissionLevel() {
-        return 0; // let anyone use it; change to 2 if you want OP-only
-    }
-
-    @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
 
@@ -33,7 +31,8 @@ public class CommandMountTraveller extends CommandBase {
         if (args.length >= 1) {
             try {
                 range = Math.max(1.0D, parseDouble(args[0], 1.0D, 16.0D));
-            } catch (NumberInvalidException ignored) {}
+            } catch (NumberInvalidException ignored) {
+            }
         }
 
         AxisAlignedBB box = new AxisAlignedBB(
@@ -54,13 +53,21 @@ public class CommandMountTraveller extends CommandBase {
         for (int i = 1; i < candidates.size(); i++) {
             EntityTraveller t = candidates.get(i);
             double d2 = t.getDistanceSq(player);
-            if (d2 < bestD2) { best = t; bestD2 = d2; }
+            if (d2 < bestD2) {
+                best = t;
+                bestD2 = d2;
+            }
         }
 
         boolean ok = player.startRiding(best, true); // force = true so it replaces current vehicle if any
         if (!ok) throw new CommandException("Couldn't mount the Traveller (vehicle refused).");
 
         notifyCommandListener(sender, this, "Mounted Traveller.");
+    }
+
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 0; // let anyone use it; change to 2 if you want OP-only
     }
 }
 

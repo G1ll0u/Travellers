@@ -14,14 +14,12 @@ import java.util.Random;
 public class AIDogCompanionFollow extends EntityAIBase {
 
     private final EntityTravellerDog dog;
-    private EntityLivingBase owner;
-
     private final World world;
     private final double speed;
     private final double teleportDistSq;
     private final double leashRadiusMin;
     private final double leashRadiusMax;
-
+    private EntityLivingBase owner;
     private int rePathDelay;
     private int modeTicks;
     private CompanionMode mode = CompanionMode.AROUND;
@@ -30,12 +28,6 @@ public class AIDogCompanionFollow extends EntityAIBase {
     private double lastOwnerX, lastOwnerY, lastOwnerZ;
     private int ownerStillTicks;
     private boolean ownerIdle;
-
-    private enum CompanionMode {
-        AROUND,     // normal follow, around the sides/behind
-        AHEAD,      // run slightly ahead in owner direction
-        FALLBACK    // drop back behind owner
-    }
 
     public AIDogCompanionFollow(EntityTravellerDog dog, double speed) {
         this.dog = dog;
@@ -60,16 +52,13 @@ public class AIDogCompanionFollow extends EntityAIBase {
         if (owner instanceof EntityPlayer && ((EntityPlayer) owner).isSpectator()) return false;
 
         // If dog is currently doing orphan travel, don’t run.
-        if (dog.shouldRunOrphanTravel()) return false;
-
-        return true;
+        return !dog.shouldRunOrphanTravel();
     }
 
     @Override
     public boolean shouldContinueExecuting() {
         if (owner == null || !owner.isEntityAlive()) return false;
-        if (dog.shouldRunOrphanTravel()) return false;
-        return true;
+        return !dog.shouldRunOrphanTravel();
     }
 
     @Override
@@ -149,7 +138,33 @@ public class AIDogCompanionFollow extends EntityAIBase {
 
     }
 
-    /** Change companion “mode” every few seconds to add personality. */
+    /**
+     * Only used as a rare failsafe when completely lost.
+     */
+    private void tryTeleportNearOwner() {
+        BlockPos base = new BlockPos(owner).down();
+        for (int i = 0; i < 10; i++) {
+            int dx = (dog.getRNG().nextInt(5) - 2);
+            int dz = (dog.getRNG().nextInt(5) - 2);
+            BlockPos p = base.add(dx, 0, dz);
+
+            if (!world.isBlockFullCube(p) && !world.isBlockFullCube(p.up())) {
+                dog.setLocationAndAngles(
+                        p.getX() + 0.5D,
+                        p.getY(),
+                        p.getZ() + 0.5D,
+                        dog.rotationYaw,
+                        dog.rotationPitch
+                );
+                dog.getNavigator().clearPath();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Change companion “mode” every few seconds to add personality.
+     */
     private void updateModeIfNeeded(boolean ownerIdleNow) {
         if (--modeTicks > 0) return;
 
@@ -197,24 +212,24 @@ public class AIDogCompanionFollow extends EntityAIBase {
             // Choose a random point around the owner, not just tiny shuffles
             double angle = rand.nextDouble() * (Math.PI * 2.0D);
             ahead = Math.cos(angle) * radius * 0.7D; // mostly around, not way ahead
-            side  = Math.sin(angle) * radius * 0.7D;
+            side = Math.sin(angle) * radius * 0.7D;
         } else {
             // Normal moving behaviour
             switch (mode) {
                 case AROUND:
                     ahead = (rand.nextDouble() * 0.4D - 0.2D) * radius;
-                    side  = (rand.nextDouble() * 1.2D - 0.6D) * radius;
+                    side = (rand.nextDouble() * 1.2D - 0.6D) * radius;
                     break;
 
                 case AHEAD:
                     ahead = radius * 0.8D + rand.nextDouble() * 1.5D;    // a bit in front
-                    side  = (rand.nextDouble() * 0.6D - 0.3D) * radius;  // small side offset
+                    side = (rand.nextDouble() * 0.6D - 0.3D) * radius;  // small side offset
                     break;
 
                 case FALLBACK:
                 default:
                     ahead = -radius * (0.8D + rand.nextDouble() * 0.8D); // behind
-                    side  = (rand.nextDouble() * 0.6D - 0.3D) * radius * 0.5D;
+                    side = (rand.nextDouble() * 0.6D - 0.3D) * radius * 0.5D;
                     break;
             }
         }
@@ -241,26 +256,10 @@ public class AIDogCompanionFollow extends EntityAIBase {
         return p;
     }
 
-    /** Only used as a rare failsafe when completely lost. */
-    private void tryTeleportNearOwner() {
-        BlockPos base = new BlockPos(owner).down();
-        for (int i = 0; i < 10; i++) {
-            int dx = (dog.getRNG().nextInt(5) - 2);
-            int dz = (dog.getRNG().nextInt(5) - 2);
-            BlockPos p = base.add(dx, 0, dz);
-
-            if (!world.isBlockFullCube(p) && !world.isBlockFullCube(p.up())) {
-                dog.setLocationAndAngles(
-                        p.getX() + 0.5D,
-                        p.getY(),
-                        p.getZ() + 0.5D,
-                        dog.rotationYaw,
-                        dog.rotationPitch
-                );
-                dog.getNavigator().clearPath();
-                return;
-            }
-        }
+    private enum CompanionMode {
+        AROUND,     // normal follow, around the sides/behind
+        AHEAD,      // run slightly ahead in owner direction
+        FALLBACK    // drop back behind owner
     }
 }
 

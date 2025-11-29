@@ -1,17 +1,21 @@
 package com.jubitus.traveller.traveller.utils.villages;
 
+import com.jubitus.traveller.TravellersModConfig;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import org.millenaire.common.entity.MillVillager;
 import org.millenaire.common.forge.Mill;
 import org.millenaire.common.utilities.MillCommonUtilities;
 import org.millenaire.common.utilities.Point;
 import org.millenaire.common.village.Building;
+import org.millenaire.common.village.BuildingLocation;
 import org.millenaire.common.world.MillWorldData;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class MillVillageIndex {
 
@@ -35,7 +39,7 @@ public final class MillVillageIndex {
 
 
     @Nullable
-    private static MillWorldData getWD(World world) {
+    public static MillWorldData getWD(World world) {
         try {
             final WorldServer ws = (world instanceof WorldServer)
                     ? (WorldServer) world
@@ -75,26 +79,40 @@ public final class MillVillageIndex {
         MillWorldData wd = getWD(world);
         if (wd == null) return null;
 
-        // villages
-        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
-            Point p = wd.villagesList.pos.get(i);
-            if (p.getiX() == pos.getX() && p.getiY() == pos.getY() && p.getiZ() == pos.getZ()) {
-                return new VillageInfo(pos, true,
-                        wd.villagesList.names.get(i),
-                        wd.villagesList.types.get(i),
-                        wd.villagesList.cultures.get(i));
+        // --- villages list may be null or partially uninitialized ---
+        if (wd.villagesList != null && wd.villagesList.pos != null) {
+            for (int i = 0; i < wd.villagesList.pos.size(); i++) {
+                Point p = wd.villagesList.pos.get(i);
+                if (p == null) continue;
+                if (p.getiX() == pos.getX() && p.getiY() == pos.getY() && p.getiZ() == pos.getZ()) {
+                    return new VillageInfo(
+                            pos,
+                            true,
+                            safeString(wd.villagesList.names, i, ""),
+                            safeString(wd.villagesList.types, i, ""),
+                            safeString(wd.villagesList.cultures, i, "")
+                    );
+                }
             }
         }
-        // lone buildings
-        for (int i = 0; i < wd.loneBuildingsList.pos.size(); i++) {
-            Point p = wd.loneBuildingsList.pos.get(i);
-            if (p.getiX() == pos.getX() && p.getiY() == pos.getY() && p.getiZ() == pos.getZ()) {
-                return new VillageInfo(pos, false,
-                        wd.loneBuildingsList.names.get(i),
-                        wd.loneBuildingsList.types.get(i),
-                        wd.loneBuildingsList.cultures.get(i));
+
+        // --- lone buildings list may also be null or partially null ---
+        if (wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            for (int i = 0; i < wd.loneBuildingsList.pos.size(); i++) {
+                Point p = wd.loneBuildingsList.pos.get(i);
+                if (p == null) continue;
+                if (p.getiX() == pos.getX() && p.getiY() == pos.getY() && p.getiZ() == pos.getZ()) {
+                    return new VillageInfo(
+                            pos,
+                            false,
+                            safeString(wd.loneBuildingsList.names, i, ""),
+                            safeString(wd.loneBuildingsList.types, i, ""),
+                            safeString(wd.loneBuildingsList.cultures, i, "")
+                    );
+                }
             }
         }
+
         return null;
     }
 
@@ -105,6 +123,7 @@ public final class MillVillageIndex {
     public static VillageInfo findNearest3D(World world, BlockPos origin, int maxRadius) {
         MillWorldData wd = getWD(world);
         if (wd == null) return null;
+        if (wd.villagesList == null || wd.villagesList.pos == null) return null;
 
         long maxSq = (long) maxRadius * (long) maxRadius;
         Point op = new Point(origin.getX(), origin.getY(), origin.getZ());
@@ -113,12 +132,14 @@ public final class MillVillageIndex {
         long bestD = Long.MAX_VALUE;
 
         for (Point p : wd.villagesList.pos) {
+            if (p == null) continue;
             long d = (long) op.distanceToSquared(p);
             if (d <= maxSq && d < bestD) {
                 bestD = d;
                 bestP = p;
             }
         }
+
         if (bestP == null) return null;
         Building th = wd.getBuilding(bestP);
         return (th != null) ? buildInfo(wd, th) : null;
@@ -131,93 +152,52 @@ public final class MillVillageIndex {
     public static VillageInfo findNearest2D(World world, BlockPos pos, int maxRadius) {
         MillWorldData wd = getWD(world);
         if (wd == null) return null;
+
         long best = Long.MAX_VALUE;
         VillageInfo bestVI = null;
         long maxR2 = (long) maxRadius * (long) maxRadius;
 
         // villages
-        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
-            Point p = wd.villagesList.pos.get(i);
-            long d2 = dist2XZ(pos, p);
-            if (d2 <= maxR2 && d2 < best) {
-                best = d2;
-                bestVI = new VillageInfo(new BlockPos(p.getiX(), p.getiY(), p.getiZ()), true,
-                        wd.villagesList.names.get(i), wd.villagesList.types.get(i), wd.villagesList.cultures.get(i));
+        if (wd.villagesList != null && wd.villagesList.pos != null) {
+            for (int i = 0; i < wd.villagesList.pos.size(); i++) {
+                Point p = wd.villagesList.pos.get(i);
+                if (p == null) continue;
+                long d2 = dist2XZ(pos, p);
+                if (d2 <= maxR2 && d2 < best) {
+                    best = d2;
+                    bestVI = new VillageInfo(
+                            new BlockPos(p.getiX(), p.getiY(), p.getiZ()),
+                            true,
+                            safeString(wd.villagesList.names, i, ""),
+                            safeString(wd.villagesList.types, i, ""),
+                            safeString(wd.villagesList.cultures, i, "")
+                    );
+                }
             }
         }
+
         // lone buildings
-        for (int i = 0; i < wd.loneBuildingsList.pos.size(); i++) {
-            Point p = wd.loneBuildingsList.pos.get(i);
-            long d2 = dist2XZ(pos, p);
-            if (d2 <= maxR2 && d2 < best) {
-                best = d2;
-                bestVI = new VillageInfo(new BlockPos(p.getiX(), p.getiY(), p.getiZ()), false,
-                        wd.loneBuildingsList.names.get(i), wd.loneBuildingsList.types.get(i), wd.loneBuildingsList.cultures.get(i));
+        if (wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            for (int i = 0; i < wd.loneBuildingsList.pos.size(); i++) {
+                Point p = wd.loneBuildingsList.pos.get(i);
+                if (p == null) continue;
+                long d2 = dist2XZ(pos, p);
+                if (d2 <= maxR2 && d2 < best) {
+                    best = d2;
+                    bestVI = new VillageInfo(
+                            new BlockPos(p.getiX(), p.getiY(), p.getiZ()),
+                            false,
+                            safeString(wd.loneBuildingsList.names, i, ""),
+                            safeString(wd.loneBuildingsList.types, i, ""),
+                            safeString(wd.loneBuildingsList.cultures, i, "")
+                    );
+                }
             }
         }
 
         return bestVI;
-
     }
 
-    /**
-     * Exact classification by matching the saved centers.
-     */
-//    @Nullable
-//    public static VillageInfo newFindExact(World world, BlockPos pos) {
-//        MillWorldData wd = getWD(world);
-//        if (wd == null) return null;
-//
-//        // villages
-//        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
-//            Point p = wd.villagesList.pos.get(i);
-//            if (p.getiX() == pos.getX() && p.getiY() == pos.getY() && p.getiZ() == pos.getZ()) {
-//                return new VillageInfo(pos, true,
-//                        wd.villagesList.names.get(i),
-//                        wd.villagesList.types.get(i),
-//                        wd.villagesList.cultures.get(i));
-//            }
-//        }
-//        // lone buildings
-//        for (int i = 0; i < wd.loneBuildingsList.pos.size(); i++) {
-//            Point p = wd.loneBuildingsList.pos.get(i);
-//            if (p.getiX() == pos.getX() && p.getiY() == pos.getY() && p.getiZ() == pos.getZ()) {
-//                return new VillageInfo(pos, false,
-//                        wd.loneBuildingsList.names.get(i),
-//                        wd.loneBuildingsList.types.get(i),
-//                        wd.loneBuildingsList.cultures.get(i));
-//            }
-//        }
-//        return null;
-//    }
-
-//    /**
-//     * 2D (XZ) nearest Town Hall within radius (blocks). Useful if Y in your saved pos is off.
-//     */
-//    @Nullable
-//    public static VillageInfo newFindNearest2D(World world, BlockPos origin, int maxRadius) {
-//        MillWorldData wd = getWD(world);
-//        if (wd == null) return null;
-//
-//        int ox = origin.getX(), oz = origin.getZ();
-//        long maxSq = (long) maxRadius * (long) maxRadius;
-//
-//        Point bestP = null;
-//        long bestD = Long.MAX_VALUE;
-//
-//        for (Point p : wd.villagesList.pos) {
-//            int dx = p.getiX() - ox;
-//            int dz = p.getiZ() - oz;
-//            long d = (long) dx * dx + (long) dz * dz;
-//            if (d <= maxSq && d < bestD) {
-//                bestD = d;
-//                bestP = p;
-//            }
-//        }
-//        if (bestP == null) return null;
-//        Building th = wd.getBuilding(bestP);
-//        return (th != null) ? buildInfo(wd, th) : null;
-//    }
     private static MillVillageIndex.VillageInfo buildInfo(MillWorldData wd, Building th) {
         Integer idx = wd.villagesList.rankByPos.get(th.getPos());
         String name = th.toString();
@@ -362,6 +342,159 @@ public final class MillVillageIndex {
         return wd != null && wd.villagesList != null && wd.villagesList.pos != null && !wd.villagesList.pos.isEmpty();
     }
 
+    @Nullable
+    private static Building getTownHallBuilding(MillWorldData wd, BlockPos center) {
+        if (wd == null) return null;
+        Point p = new Point(center.getX(), center.getY(), center.getZ());
+        return wd.getBuilding(p);
+    }
+
+    public static java.util.List<BlockPos> getBuildingCenters(World world, BlockPos approxTH, int radiusXZ, int radiusY) {
+        java.util.List<BuildingInfo> infos = listBuildingsAroundVillage(world, approxTH, radiusXZ, radiusY);
+        java.util.List<BlockPos> out = new ArrayList<>(infos.size());
+        for (BuildingInfo bi : infos) out.add(bi.chestPos);
+        return out;
+    }
+
+    /**
+     * Brute-force scan around a village center to find Millénaire buildings and
+     * return lightweight {@link BuildingInfo} for each.
+     *
+     * @param world    MC world
+     * @param approxTH approximate Town Hall position (village center),
+     *                 can be the result of findExact/findNearest2D/3D, etc.
+     * @param radiusXZ horizontal radius (blocks) to scan
+     * @param radiusY  vertical radius (blocks up/down from TH Y) to scan
+     */
+    public static java.util.List<BuildingInfo> listBuildingsAroundVillage(
+            World world,
+            BlockPos approxTH,
+            int radiusXZ,
+            int radiusY) {
+
+        MillWorldData wd = getWD(world);
+        if (wd == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        // Try to lock to a “real” TH position (in case approxTH is slightly off)
+        VillageInfo vi = findExact(world, approxTH);
+        if (vi == null) vi = findNearest3D(world, approxTH, radiusXZ);
+        if (vi == null) vi = findNearest2D(world, approxTH, radiusXZ);
+
+        if (vi == null) {
+            // No village found around that center; nothing to scan.
+            return java.util.Collections.emptyList();
+        }
+
+        BlockPos center = vi.center;
+        int cx = center.getX();
+        int cy = center.getY();
+        int cz = center.getZ();
+
+        java.util.List<BuildingInfo> result = new ArrayList<>();
+        java.util.Set<Building> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+        // Brute-force scan; reasonable radius keeps it fine performance-wise
+        for (int dx = -radiusXZ; dx <= radiusXZ; dx++) {
+            for (int dz = -radiusXZ; dz <= radiusXZ; dz++) {
+                for (int dy = -radiusY; dy <= radiusY; dy++) {
+                    Point p = new Point(cx + dx, cy + dy, cz + dz);
+                    Building b = wd.getBuilding(p);
+                    if (b == null) continue;
+                    if (!seen.add(b)) continue; // multiple chest blocks → same Building
+
+                    result.add(buildBuildingInfo(b));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static BuildingInfo buildBuildingInfo(Building b) {
+        // Name used in logs/GUIs
+        String displayName = b.toString();
+
+        BuildingLocation loc = b.location; // public field in decompiled code
+        String planKey = "";
+        String cultureKey = "";
+
+        if (loc != null) {
+            if (loc.planKey != null) {
+                planKey = loc.planKey;
+            }
+            if (loc.culture != null && loc.culture.key != null) {
+                cultureKey = loc.culture.key;
+            }
+        }
+
+        // Fallback: if no chestPos set, use building main pos
+        Point chest = (loc != null && loc.chestPos != null) ? loc.chestPos : b.getPos();
+        BlockPos chestPos = new BlockPos(chest.getiX(), chest.getiY(), chest.getiZ());
+
+        java.util.List<String> tags = new ArrayList<>();
+
+        try {
+            java.util.Set<String> millTags = b.getTags(); // this is a Set<String>
+            if (millTags != null) {
+                tags.addAll(millTags); // List <- Set, fine
+            }
+        } catch (Throwable t) {
+            // swallow or log, up to you
+        }
+
+
+        boolean isTownhall = false;
+        try {
+            isTownhall = b.isTownhall; // public field in Millénaire
+        } catch (Throwable ignored) {
+        }
+
+        return new BuildingInfo(
+                chestPos,
+                isTownhall,
+                planKey,
+                cultureKey,
+                displayName,
+                tags,
+                loc
+        );
+    }
+
+    public static java.util.List<BuildingInfo> getBuildingsWithTag(World world, BlockPos approxTH,
+                                                                   int radiusXZ, int radiusY,
+                                                                   String tag) {
+        java.util.List<BuildingInfo> all = listBuildingsAroundVillage(world, approxTH, radiusXZ, radiusY);
+        java.util.List<BuildingInfo> out = new ArrayList<>();
+        for (BuildingInfo bi : all) {
+            if (bi.tags.contains(tag)) out.add(bi);
+        }
+        return out;
+    }
+
+    public static List<BlockPos> getVillageGates(World world,
+                                                 BlockPos approxTH,
+                                                 int radiusXZ,
+                                                 int radiusY) {
+
+        List<BuildingInfo> infos = listBuildingsAroundVillage(world, approxTH, radiusXZ, radiusY);
+        List<BlockPos> out = new ArrayList<>();
+
+        for (BuildingInfo bi : infos) {
+            // Identify gates:
+            //  - planKey starts with "full_wall_gateway"
+            //  - OR tags contain "borderpostsign"
+            boolean isGatewayPlan = bi.planKey != null && bi.planKey.startsWith("full_wall_gateway");
+            boolean hasBorderTag = bi.tags != null && bi.tags.contains("borderpostsign");
+
+            if (isGatewayPlan) {
+                out.add(bi.chestPos);
+            }
+        }
+        return out;
+    }
+
     /**
      * Lightweight view of a village (Town Hall).
      */
@@ -380,7 +513,473 @@ public final class MillVillageIndex {
             this.cultureKey = cu;
         }
     }
+
+    public static final class BuildingInfo {
+        /**
+         * Chest position / internal anchor of the building.
+         */
+        public final BlockPos chestPos;
+        /**
+         * True if this building is the Town Hall of a village.
+         */
+        public final boolean isTownhall;
+        /**
+         * Millénaire internal plan key, e.g. "norman_farm", etc.
+         */
+        public final String planKey;
+        /**
+         * Culture key, e.g. "norman", "indian", etc.
+         */
+        public final String cultureKey;
+        /**
+         * Display name (same thing TH uses in tooltips / debug).
+         */
+        public final String displayName;
+        /**
+         * All tags on this building (e.g. “shop”, “pujas”, “sacrifices”…).
+         */
+        public final java.util.List<String> tags;
+        /**
+         * Raw Millénaire location object, if you need min/max bounds, etc.
+         */
+        public final BuildingLocation location;
+
+        public BuildingInfo(BlockPos chestPos,
+                            boolean isTownhall,
+                            String planKey,
+                            String cultureKey,
+                            String displayName,
+                            java.util.List<String> tags,
+                            @Nullable BuildingLocation location) {
+            this.chestPos = chestPos;
+            this.isTownhall = isTownhall;
+            this.planKey = planKey;
+            this.cultureKey = cultureKey;
+            this.displayName = displayName;
+            this.tags = tags;
+            this.location = location;
+        }
+
+        @Override
+        public String toString() {
+            return "BuildingInfo{" +
+                    "chestPos=" + chestPos +
+                    ", isTownhall=" + isTownhall +
+                    ", planKey='" + planKey + '\'' +
+                    ", cultureKey='" + cultureKey + '\'' +
+                    ", displayName='" + displayName + '\'' +
+                    ", tags=" + tags +
+                    '}';
+        }
+    }
+
+    public static Map<VillageInfo, Integer> countVillagersPerVillage(World world) {
+        MillWorldData wd = getWD(world);
+        Map<VillageInfo, Integer> result = new java.util.LinkedHashMap<>();
+
+        if (wd == null || wd.villagesList == null || wd.villagesList.pos == null) {
+            return result;
+        }
+
+        // 1) Build a Building -> count map from all known villagers
+        Map<Building, Integer> countsByTH = new java.util.IdentityHashMap<>();
+
+        for (MillVillager v : wd.getAllKnownVillagers()) {
+            if (v == null) continue;
+            Building th = v.getTownHall();
+            if (th == null) continue;
+
+            countsByTH.merge(th, 1, Integer::sum);
+        }
+
+        // 2) For every registered village center, turn it into VillageInfo
+        //    and look up its building's count.
+        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
+            Point p = wd.villagesList.pos.get(i);
+            if (p == null) continue;
+
+            Building th = wd.getBuilding(p);
+            if (th == null) {
+                // Town Hall not loaded / missing – treat as zero population
+                BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+                VillageInfo vi = new VillageInfo(
+                        center,
+                        true,
+                        safeString(wd.villagesList.names, i, ""),
+                        safeString(wd.villagesList.types, i, ""),
+                        safeString(wd.villagesList.cultures, i, "")
+                );
+                result.put(vi, 0);
+                continue;
+            }
+
+            int count = countsByTH.getOrDefault(th, 0);
+
+            BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+            VillageInfo vi = new VillageInfo(
+                    center,
+                    true,
+                    safeString(wd.villagesList.names, i, ""),
+                    safeString(wd.villagesList.types, i, ""),
+                    safeString(wd.villagesList.cultures, i, "")
+            );
+
+            result.put(vi, count);
+        }
+
+        return result;
+    }
+
+    public static int countVillagersInVillage(World world, BlockPos villageCenter) {
+        MillWorldData wd = getWD(world);
+        if (wd == null) return 0;
+
+        // Find the Town Hall building for that center
+        Building th = getTownHallBuilding(wd, villageCenter);
+        if (th == null) return 0;
+
+        int count = 0;
+        for (MillVillager v : wd.getAllKnownVillagers()) {
+            if (v == null) continue;
+            Building vTh = v.getTownHall();
+            if (vTh == th) { // same Building instance
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Returns a multiplier >= 1.0 based on the population of the nearest village
+     * around the given pos. Used to scale traveller spawn density:
+     * <p>
+     * - 1.0  => no boost
+     * - >1.0 => more villagers nearby, more travellers
+     */
+    public static double populationWeightAt(World world, BlockPos pos) {
+        if (!TravellersModConfig.travellerPopulationWeightEnabled) {
+            return 1.0D;
+        }
+
+        // Find nearest *village* (not lone building) around this position
+        VillageInfo vi = findNearest2D(world, pos, TravellersModConfig.travellerPopulationWeightRadius);
+        if (vi == null || !vi.isVillage) {
+            return 1.0D;
+        }
+
+        int villagers = countVillagersInVillage(world, vi.center);
+        if (villagers <= 0) {
+            return 1.0D;
+        }
+
+        double perVillager = TravellersModConfig.travellerPopulationWeightPerVillager;
+        double maxMult = TravellersModConfig.travellerPopulationWeightMaxMultiplier;
+
+        // 1.0 + villagers * perVillager, but clamped
+        double mult = 1.0D + villagers * perVillager;
+        if (maxMult > 0.0D) {
+            mult = Math.min(mult, maxMult);
+        }
+        return Math.max(1.0D, mult);
+    }
+
+    /**
+     * Picks a culture id for a traveller spawn based on nearby Millénaire villages.
+     * Returns null if no suitable village/culture is found (caller should then fall
+     * back to existing biome-based logic in onInitialSpawn).
+     * <p>
+     * The selection is weighted by:
+     * - distance (closer villages get more weight)
+     * - optionally village population (bigger villages = more weight)
+     */
+    @Nullable
+    public static String pickCultureForTravellerSpawn(World world, BlockPos pos, java.util.Random rand) {
+        if (!TravellersModConfig.travellerCultureWeightedSpawn) {
+            return null;
+        }
+
+        MillWorldData wd = getWD(world);
+        if (wd == null || wd.villagesList == null || wd.villagesList.pos == null) {
+            return null;
+        }
+
+        final int radius = TravellersModConfig.travellerCultureScanRadius;
+        final long r2 = (long) radius * (long) radius;
+
+        final int px = pos.getX();
+        final int pz = pos.getZ();
+
+        java.util.Map<String, Double> weights = new java.util.HashMap<>();
+
+        // Scan all known villages; ignore lone buildings here
+        for (int i = 0; i < wd.villagesList.pos.size(); i++) {
+            Point p = wd.villagesList.pos.get(i);
+            if (p == null) continue;
+
+            long dx = p.getiX() - px;
+            long dz = p.getiZ() - pz;
+            long dist2 = dx * dx + dz * dz;
+            if (dist2 > r2) continue; // outside radius
+
+            String cultureKey = safeString(wd.villagesList.cultures, i, "");
+            if (cultureKey == null || cultureKey.isEmpty()) continue;
+
+            BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+
+            // Distance weight: closer villages = much more weight
+            double dist = Math.sqrt(dist2);
+            double distanceWeight = 1.0D / (1.0D + dist); // 1/(1+d) in [~0,1]
+
+            // Optional: population weight (bigger village = more influence)
+            double popWeight = 1.0D;
+            if (TravellersModConfig.travellerCultureWeightUseVillagePopulation) {
+                int villagers = countVillagersInVillage(world, center);
+                if (villagers > 0) {
+                    // Simple: 1 + villagers/10, but at least 1
+                    popWeight = 1.0D + (villagers / 10.0D);
+                }
+            }
+
+            double w = distanceWeight * popWeight;
+            if (w <= 0.0D) continue;
+
+            Double old = weights.get(cultureKey);
+            weights.put(cultureKey, (old == null ? w : old + w));
+        }
+
+        if (weights.isEmpty()) {
+            return null;
+        }
+
+        // Weighted random pick
+        double total = 0.0D;
+        for (double w : weights.values()) total += w;
+
+        double r = rand.nextDouble() * total;
+        for (java.util.Map.Entry<String, Double> e : weights.entrySet()) {
+            r -= e.getValue();
+            if (r <= 0.0D) {
+                return e.getKey();
+            }
+        }
+
+        // Fallback (shouldn't normally reach)
+        return weights.keySet().iterator().next();
+    }
+
+    /**
+     * World-data based traveller density around a position.
+     * Replaces MillenaireVillageDirectory.travellerDensityAt for spawning.
+     * <p>
+     * - 0.0 => no known center nearby (no travellers/raiders)
+     * - ~1.0 near the heart of a village
+     * - <1.0 near lone buildings (weaker influence)
+     */
+    public static double travellerDensityAt(World world, BlockPos pos) {
+        MillWorldData wd = getWD(world);
+
+        // Fallback: if MillWorldData isn't available, use the old directory-based density.
+        if (wd == null) {
+            return MillenaireVillageDirectory.travellerDensityAt(pos);
+        }
+
+        double total = 0.0;
+        int px = pos.getX();
+        int pz = pos.getZ();
+
+        // Villages
+        if (wd.villagesList != null && wd.villagesList.pos != null) {
+            for (Point p : wd.villagesList.pos) {
+                if (p == null) continue;
+
+                int radius = TravellersModConfig.travellerVillageInfluenceRadius;
+                if (radius <= 0) continue;
+
+                int dx = p.getiX() - px;
+                int dz = p.getiZ() - pz;
+                double dist2 = dx * dx + dz * dz;
+                double dist = Math.sqrt(dist2);
+                if (dist > radius) continue; // outside halo
+
+                double t = dist / (double) radius;   // 0 at center, 1 at edge
+                double base = 1.0 - t;               // linear falloff 1..0
+
+                double power = Math.max(0.01, TravellersModConfig.travellerFalloffPower);
+                double falloff = Math.pow(base, power);
+
+                double typeWeight = TravellersModConfig.travellerVillageWeight;
+                total += falloff * typeWeight;
+            }
+        }
+
+        // Lone buildings (unchanged)
+        if (wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            for (Point p : wd.loneBuildingsList.pos) {
+                if (p == null) continue;
+
+                int radius = TravellersModConfig.travellerLoneInfluenceRadius;
+                if (radius <= 0) continue;
+
+                int dx = p.getiX() - px;
+                int dz = p.getiZ() - pz;
+                double dist2 = dx * dx + dz * dz;
+                double dist = Math.sqrt(dist2);
+                if (dist > radius) continue; // outside halo
+
+                double t = dist / (double) radius;
+                double base = 1.0 - t;
+
+                double power = Math.max(0.01, TravellersModConfig.travellerFalloffPower);
+                double falloff = Math.pow(base, power);
+
+                double typeWeight = TravellersModConfig.travellerLoneWeight;
+                total += falloff * typeWeight;
+            }
+        }
+
+        double max = TravellersModConfig.travellerMaxDensity;
+        if (max > 0.0) total = Math.min(total, max);
+
+        // If no village influence, use a small baseline so travellers can still appear
+        if (total <= 0.0) {
+            return Math.max(0.0D, TravellersModConfig.travellerOutsideVillageBaseDensity);
+        }
+
+        return total;
+    }
+    // WORLD-WIDE dynamic target (used by soft spawner)
+    public static int computeWorldTravellerTarget(WorldServer ws) {
+
+        Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
+
+        // Tunables – move to config later if you like
+        final double perVillager = TravellersModConfig.travellerCapPerVillager;
+        final int minPerVillage  = TravellersModConfig.travellerCapMinPerVillage;
+        final int maxPerVillage  = TravellersModConfig.travellerCapMaxPerVillage;
+
+        final int globalMin = TravellersModConfig.travellerCapGlobalMin;
+        final int globalMax = TravellersModConfig.travellerCapGlobalMax;
+
+        final int perLone = TravellersModConfig.travellerCapPerLoneBuilding;
+
+
+        int total = 0;
+
+        // Villages
+        for (Map.Entry<VillageInfo, Integer> e : pops.entrySet()) {
+            int villagers = e.getValue();
+            if (villagers <= 0) continue;
+
+            int t = (int) Math.floor(villagers * perVillager);
+            if (t < minPerVillage) t = minPerVillage;
+            if (t > maxPerVillage) t = maxPerVillage;
+            total += t;
+        }
+
+        // Lone buildings
+        MillWorldData wd = getWD(ws);
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            total += wd.loneBuildingsList.pos.size() * perLone;
+        }
+
+        if (total < globalMin) total = globalMin;
+        if (total > globalMax) total = globalMax;
+
+        return total;
+    }
+
+    // REGIONAL cap around a center (for debug / info)
+    public static int computeRegionalTravellerCap(WorldServer ws, BlockPos center, int radiusXZ) {
+
+        Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
+
+        final double perVillager = TravellersModConfig.travellerCapPerVillager;
+        final int minPerVillage  = TravellersModConfig.travellerCapMinPerVillage;
+        final int maxPerVillage  = TravellersModConfig.travellerCapMaxPerVillage;
+        final int perLone        = TravellersModConfig.travellerCapPerLoneBuilding;
+
+        int total = 0;
+
+        int cx = center.getX();
+        int cz = center.getZ();
+        int r2 = radiusXZ * radiusXZ;
+
+        // Villages within radius
+        for (Map.Entry<VillageInfo, Integer> e : pops.entrySet()) {
+            VillageInfo vi = e.getKey();
+            int villagers = e.getValue();
+            if (villagers <= 0) continue;
+
+            int dx = vi.center.getX() - cx;
+            int dz = vi.center.getZ() - cz;
+            if (dx * dx + dz * dz > r2) continue; // outside region
+
+            int t = (int) Math.floor(villagers * perVillager);
+            if (t < minPerVillage) t = minPerVillage;
+            if (t > maxPerVillage) t = maxPerVillage;
+            total += t;
+        }
+
+        // Lone buildings within radius
+        MillWorldData wd = getWD(ws);
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            for (Point p : wd.loneBuildingsList.pos) {
+                int dx = p.getiX() - cx;
+                int dz = p.getiZ() - cz;
+                if (dx * dx + dz * dz <= r2) {
+                    total += perLone;
+                }
+            }
+        }
+
+        return total;
+
+    }
+    // REGIONAL cap around a center for *raiders*
+    public static int computeRegionalRaiderCap(WorldServer ws, BlockPos center, int radiusXZ) {
+
+        Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
+
+        final double perVillager = TravellersModConfig.raiderCapPerVillager;
+        final int minPerVillage  = TravellersModConfig.raiderCapMinPerVillage;
+        final int maxPerVillage  = TravellersModConfig.raiderCapMaxPerVillage;
+        final int perLone        = TravellersModConfig.raiderCapPerLoneBuilding;
+
+        int total = 0;
+
+        int cx = center.getX();
+        int cz = center.getZ();
+        int r2 = radiusXZ * radiusXZ;
+
+        // Villages within radius
+        for (Map.Entry<VillageInfo, Integer> e : pops.entrySet()) {
+            VillageInfo vi = e.getKey();
+            int villagers = e.getValue();
+            if (villagers <= 0) continue;
+
+            int dx = vi.center.getX() - cx;
+            int dz = vi.center.getZ() - cz;
+            if (dx * dx + dz * dz > r2) continue; // outside region
+
+            int t = (int) Math.floor(villagers * perVillager);
+            if (t < minPerVillage) t = minPerVillage;
+            if (t > maxPerVillage) t = maxPerVillage;
+            total += t;
+        }
+
+        // Lone buildings within radius
+        MillWorldData wd = getWD(ws);
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            for (Point p : wd.loneBuildingsList.pos) {
+                int dx = p.getiX() - cx;
+                int dz = p.getiZ() - cz;
+                if (dx * dx + dz * dz <= r2) {
+                    total += perLone;
+                }
+            }
+        }
+
+        return total;
+    }
+
 }
-
-
-

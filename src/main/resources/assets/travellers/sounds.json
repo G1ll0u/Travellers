@@ -125,8 +125,6 @@
       {
         "name": "travellers:traveller/fr/hurt12"
       },
-
-
       {
         "name": "travellers:traveller/fr/hurt15"
       },
@@ -147,7 +145,6 @@
       }
     ]
   },
-
   "entity.traveller.fr.ambient": {
     "category": "voice",
     "stream": true,
@@ -220,85 +217,145 @@
       }
     ]
   },
-
-
   "entity.traveller.en.hello": {
     "category": "voice",
     "subtitle": "subtitles.entity.traveller.talk",
     "sounds": [
-      { "name": "travellers:traveller/en/hello1" },
-      { "name": "travellers:traveller/en/hello2" },
-      { "name": "travellers:traveller/en/hello3" },
-      { "name": "travellers:traveller/en/hello4" }
+      {
+        "name": "travellers:traveller/en/hello1"
+      },
+      {
+        "name": "travellers:traveller/en/hello2"
+      },
+      {
+        "name": "travellers:traveller/en/hello3"
+      },
+      {
+        "name": "travellers:traveller/en/hello4"
+      }
     ]
   },
   "entity.traveller.fr.hello": {
     "category": "voice",
     "subtitle": "subtitles.entity.traveller.talk",
     "sounds": [
-      { "name": "travellers:traveller/fr/bonjour1" },
-      { "name": "travellers:traveller/fr/bonjour2" },
-      { "name": "travellers:traveller/fr/bonjour3" },
-      { "name": "travellers:traveller/fr/bonjour4" },
-      { "name": "travellers:traveller/fr/bonjour5" }
+      {
+        "name": "travellers:traveller/fr/bonjour1"
+      },
+      {
+        "name": "travellers:traveller/fr/bonjour2"
+      },
+      {
+        "name": "travellers:traveller/fr/bonjour3"
+      },
+      {
+        "name": "travellers:traveller/fr/bonjour4"
+      },
+      {
+        "name": "travellers:traveller/fr/bonjour5"
+      }
     ]
   },
-
-  "entity.traveller.hello": {
+  "entity.raider.en.talk": {
     "category": "voice",
     "subtitle": "subtitles.entity.traveller.talk",
     "sounds": [
-      { "name": "travellers:traveller/hello1" },
-      { "name": "travellers:traveller/hello2" },
-      { "name": "travellers:traveller/hello3" }
+      { "name": "travellers:traveller/raider/en/talk1" },
+      { "name": "travellers:traveller/raider/en/talk2" },
+      { "name": "travellers:traveller/raider/en/talk3" },
+      { "name": "travellers:traveller/raider/en/talk4" },
+      { "name": "travellers:traveller/raider/en/talk5" }
     ]
   },
-
-
-  "entity.traveller.ambient1": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient1" }] },
-  "entity.traveller.ambient2": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient2" }] },
-  "entity.traveller.ambient3": { "category": "voice", "stream": true, "sounds": [{ "name": "travellers:traveller/ambient3" }] },
-
-  "entity.traveller.ambient": {
-    "category": "voice",
-    "stream": true,
-    "sounds": [
-      { "name": "travellers:traveller/ambient1" },
-      { "name": "travellers:traveller/ambient2" },
-      { "name": "travellers:traveller/ambient3" },
-      { "name": "travellers:traveller/ambient4" },
-      { "name": "travellers:traveller/ambient5" },
-      { "name": "travellers:traveller/ambient6" }
-    ]
-  },
-  "entity.traveller.talk": {
-    "category": "voice",
-    "subtitle": "subtitles.entity.traveller.talk",
-    "sounds": [
-      { "name": "travellers:traveller/talk1" },
-      { "name": "travellers:traveller/talk2" },
-      { "name": "travellers:traveller/talk3" },
-      { "name": "travellers:traveller/talk4" },
-      { "name": "travellers:traveller/talk5" }
-    ]
-  },
-  "entity.traveller.hurt": {
+  "entity.raider.en.hurt": {
     "category": "voice",
     "subtitle": "subtitles.entity.traveller.hurt",
     "stream": true,
     "sounds": [
-      { "name": "travellers:traveller/hurt1" },
-      { "name": "travellers:traveller/hurt2" },
-      { "name": "travellers:traveller/hurt3" },
-      { "name": "travellers:traveller/hurt4" },
-      { "name": "travellers:traveller/hurt5" },
-      { "name": "travellers:traveller/hurt6" },
-      { "name": "travellers:traveller/hurt7" },
-      { "name": "travellers:traveller/hurt8" },
-      { "name": "travellers:traveller/hurt9" },
-      { "name": "travellers:traveller/hurt10" },
-      { "name": "travellers:traveller/hurt11" }
+      { "name": "travellers:traveller/raider/en/hurt1" },
+      { "name": "travellers:traveller/raider/en/hurt2" },
+      { "name": "travellers:traveller/raider/en/hurt3" },
+      { "name": "travellers:traveller/raider/en/hurt4" },
+      { "name": "travellers:traveller/raider/en/hurt5" },
+      { "name": "travellers:traveller/raider/en/hurt6" },
+      { "name": "travellers:traveller/raider/en/hurt7" },
+      { "name": "travellers:traveller/raider/en/hurt8" },
+      { "name": "travellers:traveller/raider/en/hurt9" },
+      { "name": "travellers:traveller/raider/en/hurt10" },
+      { "name": "travellers:traveller/raider/en/hurt11" }
+    ]
+  },
+  "entity.raider.en.ambient": {
+    "category": "voice",
+    "stream": true,
+    "sounds": [
+      { "name": "travellers:traveller/raider/en/ambient1" },
+      { "name": "travellers:traveller/raider/en/ambient2" },
+      { "name": "travellers:traveller/raider/en/ambient3" },
+      { "name": "travellers:traveller/raider/en/ambient4" },
+      { "name": "travellers:traveller/raider/en/ambient5" },
+      { "name": "travellers:traveller/raider/en/ambient6" }
+    ]
+  },
+  "entity.raider.fr.talk": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.talk",
+    "sounds": [
+      { "name": "travellers:traveller/raider/fr/talk1" },
+      { "name": "travellers:traveller/raider/fr/talk2" },
+      { "name": "travellers:traveller/raider/fr/talk3" },
+      { "name": "travellers:traveller/raider/fr/talk4" },
+      { "name": "travellers:traveller/raider/fr/talk5" },
+      { "name": "travellers:traveller/raider/fr/talk6" },
+      { "name": "travellers:traveller/raider/fr/talk7" },
+      { "name": "travellers:traveller/raider/fr/talk8" },
+      { "name": "travellers:traveller/raider/fr/talk9" },
+      { "name": "travellers:traveller/raider/fr/talk10" }
+    ]
+  },
+  "entity.raider.fr.hurt": {
+    "category": "voice",
+    "subtitle": "subtitles.entity.traveller.hurt",
+    "stream": true,
+    "sounds": [
+      { "name": "travellers:traveller/raider/fr/hurt1" },
+      { "name": "travellers:traveller/raider/fr/hurt2" },
+      { "name": "travellers:traveller/raider/fr/hurt3" },
+      { "name": "travellers:traveller/raider/fr/hurt4" },
+      { "name": "travellers:traveller/raider/fr/hurt5" },
+      { "name": "travellers:traveller/raider/fr/hurt6" },
+      { "name": "travellers:traveller/raider/fr/hurt7" },
+      { "name": "travellers:traveller/raider/fr/hurt8" },
+      { "name": "travellers:traveller/raider/fr/hurt9" },
+      { "name": "travellers:traveller/raider/fr/hurt10" },
+      { "name": "travellers:traveller/raider/fr/hurt11" },
+      { "name": "travellers:traveller/raider/fr/hurt12" },
+      { "name": "travellers:traveller/raider/fr/hurt13" },
+      { "name": "travellers:traveller/raider/fr/hurt14" },
+      { "name": "travellers:traveller/raider/fr/hurt15" },
+      { "name": "travellers:traveller/raider/fr/hurt16" },
+      { "name": "travellers:traveller/raider/fr/hurt17" },
+      { "name": "travellers:traveller/raider/fr/hurt18" },
+      { "name": "travellers:traveller/raider/fr/hurt19" },
+      { "name": "travellers:traveller/raider/fr/hurt20" }
+    ]
+  },
+  "entity.raider.fr.ambient": {
+    "category": "voice",
+    "stream": true,
+    "sounds": [
+      { "name": "travellers:traveller/raider/fr/ambient1" },
+      { "name": "travellers:traveller/raider/fr/ambient2" },
+      { "name": "travellers:traveller/raider/fr/ambient3" },
+      { "name": "travellers:traveller/raider/fr/ambient4" },
+      { "name": "travellers:traveller/raider/fr/ambient5" },
+      { "name": "travellers:traveller/raider/fr/ambient6" },
+      { "name": "travellers:traveller/raider/fr/ambient7" },
+      { "name": "travellers:traveller/raider/fr/ambient8" },
+      { "name": "travellers:traveller/raider/fr/ambient9" },
+      { "name": "travellers:traveller/raider/fr/ambient10" }
     ]
   }
+
 }
 

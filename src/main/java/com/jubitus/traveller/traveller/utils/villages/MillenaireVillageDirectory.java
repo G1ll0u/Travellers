@@ -17,11 +17,16 @@ public final class MillenaireVillageDirectory {
     private static volatile boolean loaded = false;
     private static long villagesMTime = 0L;
     private static long loneMTime = 0L;
-
+    public static List<Entry> getAllEntries() {
+        return new ArrayList<>(BY_POS.values());
+    }
     public static synchronized void load(File millenaireFolder) {
         if (millenaireFolder == null) return;
         if (loaded) return;
         doLoad(millenaireFolder);
+    }
+    public static synchronized java.util.Collection<Entry> getEntries() {
+        return new java.util.ArrayList<>(BY_POS.values());
     }
 
     private static void doLoad(File folder) {
@@ -122,6 +127,72 @@ public final class MillenaireVillageDirectory {
     }
 
     /**
+     * All village centers parsed from txt (excludes lone buildings).
+     */
+    public static List<BlockPos> getVillageCenters() {
+        List<BlockPos> out = new ArrayList<>();
+        for (Entry e : BY_POS.values()) if (e.isVillage) out.add(e.pos);
+        return out;
+    }
+
+    /**
+     * All centers (villages + lone buildings) if you ever need them.
+     */
+    public static List<BlockPos> getAllCenters() {
+        return new ArrayList<>(BY_POS.keySet());
+    }
+
+    /**
+     * Returns a weight in [0, 1+] indicating how strong traveller spawning
+     * should be at this position based on proximity to Millénaire centers.
+     * <p>
+     * - 0.0: no known center nearby -> no travellers
+     * - ~1.0 near the heart of a village
+     * - <1.0 near lonebuildings (weaker influence)
+     */
+    public static double travellerDensityAt(BlockPos pos) {
+        if (BY_POS.isEmpty()) return 0.0;
+
+        double total = 0.0;
+        int px = pos.getX();
+        int pz = pos.getZ();
+
+        for (Entry e : BY_POS.values()) {
+            int radius = e.isVillage
+                    ? TravellersModConfig.travellerVillageInfluenceRadius
+                    : TravellersModConfig.travellerLoneInfluenceRadius;
+
+            if (radius <= 0) continue;
+
+            int dx = e.pos.getX() - px;
+            int dz = e.pos.getZ() - pz;
+            double dist2 = dx * dx + dz * dz;
+            double dist = Math.sqrt(dist2);
+
+            if (dist > radius) continue; // outside halo
+
+            double t = dist / (double) radius;  // 0 at center, 1 at edge
+            double base = 1.0 - t;              // linear 0..1
+
+            double power = Math.max(0.01, TravellersModConfig.travellerFalloffPower);
+            double falloff = Math.pow(base, power);
+
+            double typeWeight = e.isVillage
+                    ? TravellersModConfig.travellerVillageWeight
+                    : TravellersModConfig.travellerLoneWeight;
+
+            total += falloff * typeWeight;
+        }
+
+        double max = TravellersModConfig.travellerMaxDensity;
+        if (max > 0.0) total = Math.min(total, max);
+
+        return total; // 0..~travellerMaxDensity
+    }
+
+
+
+    /**
      * 2D (XZ) nearest within radius — useful if Y differs a lot from the stored center.
      */
     @Nullable
@@ -140,22 +211,6 @@ public final class MillenaireVillageDirectory {
             }
         }
         return best;
-    }
-
-    /**
-     * All village centers parsed from txt (excludes lone buildings).
-     */
-    public static List<BlockPos> getVillageCenters() {
-        List<BlockPos> out = new ArrayList<>();
-        for (Entry e : BY_POS.values()) if (e.isVillage) out.add(e.pos);
-        return out;
-    }
-
-    /**
-     * All centers (villages + lone buildings) if you ever need them.
-     */
-    public static List<BlockPos> getAllCenters() {
-        return new ArrayList<>(BY_POS.keySet());
     }
 
     /**
@@ -185,4 +240,3 @@ public final class MillenaireVillageDirectory {
         }
     }
 }
-

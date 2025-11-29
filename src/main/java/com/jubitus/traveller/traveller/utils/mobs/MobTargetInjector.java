@@ -19,7 +19,6 @@ public class MobTargetInjector {
         if (!(ent instanceof net.minecraft.entity.monster.IMob)) return;
 
 
-
         EntityCreature mob = (EntityCreature) ent;
         if (hasTravellerTargetTask(mob)) return;
 

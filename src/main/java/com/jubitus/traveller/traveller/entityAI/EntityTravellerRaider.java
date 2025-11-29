@@ -2,18 +2,16 @@ package com.jubitus.traveller.traveller.entityAI;
 
 import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.SpawnThrottles;
+import com.jubitus.traveller.traveller.culture.CultureDef;
 import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.culture.VoiceSet;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
-import com.jubitus.traveller.traveller.utils.sound.ModSounds;
 import com.jubitus.traveller.traveller.utils.sound.MsgStopTravellerVoice;
-import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.*;
-import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.util.DamageSource;
@@ -31,12 +29,6 @@ import javax.annotation.Nullable;
 
 public class EntityTravellerRaider extends EntityTraveller {
 
-    @Override
-    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
-        // Never include same-faction travellers (already handled by XOR rule elsewhere)
-        if (other instanceof EntityTraveller) return false;
-        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
-    }
     public EntityTravellerRaider(World worldIn) {
         super(worldIn);
         // Raiders shouldn't talk/sing or follow, but can reuse swimming/route logic etc.
@@ -47,73 +39,160 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(
                 Math.max(0.28, TravellersModConfig.movementSpeed));
     }
+
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
+    }    @Override
+    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
+        // Never include same-faction travellers (already handled by XOR rule elsewhere)
+        if (other instanceof EntityTraveller) return false;
+        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
+    }
+
+    private boolean isValidMonsterLight() {
+        // mimic EntityMob#getCanSpawnHere light gating
+        BlockPos p = new BlockPos(this.posX, this.getEntityBoundingBox().minY, this.posZ);
+        if (world.isDaytime()) {
+            float f = world.getCelestialAngleRadians(1.0F);
+            if ((MathHelper.cos(f) > 0.0F ? 1 : 0) == 0) {
+                // (vanilla does sky light tweak during thunderstorms; optional to copy)
+            }
+        }
+        int sky = world.getLightFromNeighbors(p);
+        if (sky > rand.nextInt(32)) return false;
+        int block = world.getLight(p);
+        return block <= rand.nextInt(8);
+    }    // No friendly chat
+
     @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance diff, @Nullable IEntityLivingData data) {
+        // Let base traveller handle culture selection & SpawnData propagation
         data = super.onInitialSpawn(diff, data);
 
-        String cid;
-        if (data instanceof EntityTraveller.SpawnData) {
-            cid = ((EntityTraveller.SpawnData) data).cultureId;
-        } else {
+        String cid = getCultureId();
+        if (cid == null || cid.isEmpty()) {
+            // Just in case, but normally super already set this via SpawnData
             cid = CultureRegistry.pickRandomId(this.rand);
+            setCultureId(cid);
             data = new EntityTraveller.SpawnData(cid);
         }
-        setCultureId(cid);
 
-        int rCount = CultureRegistry.get(cid).raiderTextureCount;
+        CultureDef def = CultureRegistry.get(cid);
+        int rCount = (def != null ? def.getRaiderTextureCount() : 0);
+
+        // Fallback to traveller count if no specific raider looks
+        if (rCount <= 0 && def != null) {
+            rCount = def.getTravellerTextureCount();
+        }
+        if (rCount <= 0) {
+            rCount = 1; // steve fallback in CultureDef
+        }
+
         this.setTextureIndex(this.rand.nextInt(Math.max(1, rCount)));
 
         return data;
     }
 
-    // No friendly chat
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
         return false; // ignore right-clicks
     }
+
     @Override
-    protected boolean isAggressiveToTravellers() { return true; }
+    protected boolean isAggressiveToTravellers() {
+        return true;
+    }
+
     // Don’t mute combat for creative players; still avoid aggro if you prefer:
     @Override
     public void setAttackTarget(@Nullable EntityLivingBase target) {
-        // Peaceful: no combat
-        if (target instanceof EntityTravellerRaider) {
-            super.setAttackTarget(null);
-            return;
-        }
+        // Peaceful: no combat at all
         if (world != null && world.getDifficulty() == EnumDifficulty.PEACEFUL) {
             super.setAttackTarget(null);
             setInCombat(false);
             return;
         }
 
-        // Travellers: allow only if EITHER side is aggressive-to-travellers (i.e., it's a raider fight)
         if (target instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) target;
-            boolean thisAggro = this.isAggressiveToTravellers();
-            boolean otherAggro = other.isAggressiveToTravellers();
-            if (!thisAggro && !otherAggro) {
-                super.setAttackTarget(null); // friendly vs friendly: never
+
+            // Never target same-culture travellers/raiders
+            if (!isDifferentCulture(other)) {
+                super.setAttackTarget(null);
                 return;
             }
         }
 
+        // (Optionally you might still want to ignore some blacklisted entities)
         super.setAttackTarget(target);
-        if (!world.isRemote && target != null) setInCombat(true);
+        if (!world.isRemote && target != null) {
+            setInCombat(true);
+        }
     }
 
     @Override
     protected void initEntityAI() {
-        // Keep swim + movement helpers
+        // Reset AI
         this.tasks.taskEntries.clear();
         this.targetTasks.taskEntries.clear();
-        this.targetTasks.addTask(3, new TravellerHurtByTarget(this, true, TravellersModConfig.helpRange));
-        autoEatTask = new EntityAIAutoEat(this, 3);
 
-        // Movement / survival
+        // === TARGETING / COMBAT BEHAVIOR ======================================================
+
+        // 1) Retaliate when hurt
+        this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true));
+
+        // 2) Defend allies / villagers if something is close enough
+        this.targetTasks.addTask(
+                2,
+                new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true)
+                        .setAssistRadius(TravellersModConfig.helpRange)
+                        .setBowRangeBonus(0.0) // keep attackTriggerRange strict
+        );
+
+        // 3) Help allies that are hurt within helpRange
+        this.targetTasks.addTask(3, new TravellerHurtByTarget(this, true, TravellersModConfig.helpRange));
+
+        // 4) Attack anything in RAIDER_ATTACK_LIST (villagers, golems, modded guards, etc.)
+        //    No IMob requirement here.
+        this.targetTasks.addTask(
+                4,
+                new EntityAINearestAttackableTarget<>(
+                        this,
+                        EntityLivingBase.class,
+                        10,    // tick rate
+                        true,  // mustCheckSight
+                        false, // nearbyOnly
+                        e -> e != null
+                                && e.isEntityAlive()
+                                && !(e instanceof EntityTraveller) // travellers handled by the task below
+                                && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
+                                && this.shouldAttackExtraEntity(e) // uses RAIDER_ATTACK_LIST internally
+                )
+        );
+
+        // 5) Explicitly target players
+        this.targetTasks.addTask(5, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, true));
+
+        // 6) Target travellers/raiders of OTHER cultures
+        this.targetTasks.addTask(
+                6,
+                new EntityAINearestAttackableTarget<>(
+                        this,
+                        EntityTraveller.class,
+                        10,
+                        true,
+                        false,
+                        t -> t != null && isDifferentCulture(t)
+                )
+        );
+
+        // === MOVEMENT / COMBAT TASKS =========================================================
+
+        // Swimming / basic survival
         this.tasks.addTask(0, new EntityAISwimming(this));
 
-        // Use your existing ranged + melee (they already work well)
+        // Ranged combat (bow)
         aiRanged = new EntityAIRangedBowTravellerSafe(
                 this,
                 TravellersModConfig.rangedMinDist,
@@ -122,64 +201,107 @@ public class EntityTravellerRaider extends EntityTraveller {
                 Math.max(2.5D, TravellersModConfig.rangedMinDist + 1.0D),
                 /* ghostEquipBow */ true
         );
-        this.targetTasks.addTask(
-                2,
-                new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true)
-                        .setAssistRadius(TravellersModConfig.helpRange)
-                        .setBowRangeBonus(0.0) // keep attackTriggerRange strict
-        );
-
         this.tasks.addTask(2, aiRanged);
-        this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true));
-        double baseWalk = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-        double meleeSpeed = Math.min(TravellersModConfig.attackMovementSpeed, baseWalk * 0.95); // <= 95% of walk
-        aiMelee = new EntityAIAttackMeleeCustom(this, meleeSpeed, true, 0.65);        this.tasks.addTask(5, aiMelee);
 
-        // Simple “hostile” look/idle & doors etc. (optional utility tasks)
-        this.tasks.addTask(13, new EntityAIWatchClosest(this, EntityPlayer.class, 12.0F));
-        this.tasks.addTask(14, new EntityAILookIdle(this));
+        // Melee combat
+        double baseWalk = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
+        double meleeSpeed = Math.min(TravellersModConfig.attackMovementSpeed, baseWalk * 0.95D); // <= 95% of walk speed
+        aiMelee = new EntityAIAttackMeleeCustom(this, meleeSpeed, true, 0.65D);
+        this.tasks.addTask(5, aiMelee);
+
+        // === CAMP / GROUP BEHAVIOR ===========================================================
+
+        if (TravellersModConfig.campsEnabled) {
+            // 6: leader pauses at camp
+            this.tasks.addTask(6, new EntityAICampPause(this));
+
+            // 7: others join the campfire
+            this.tasks.addTask(7, new EntityAICampJoinFire(this, 0.34D));
+        }
+
+        // === TRAVEL / ROAMING / FOLLOWING ====================================================
+
+        // General travel route behavior
+        this.tasks.addTask(12, new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, 48));
+
+        // Roam inside villages
+        this.tasks.addTask(
+                11,
+                new EntityAIRoamInsideVillage(
+                        this,
+                        0.34D,
+                        3 * 20,
+                        10 * 20,
+                        TravellersModConfig.villageRoamMinDuration * 20,
+                        TravellersModConfig.villageRoamMaxDuration * 20
+                )
+        ); // Optional: customize 2-minute duration or wordlist at runtime
+
+        // Fish while travelling (adds flavor during travel phases)
+        this.tasks.addTask(11, new EntityAIFishWhileTravel(this));
+
+        // Follow leader / follow behavior for raiders
+        aiFollow = new EntityAIFollowTraveller(
+                this,
+                0.819D,
+                TravellersModConfig.movementSpeedWhileFollowing
+        );
+        this.tasks.addTask(15, aiFollow);
+
+        // === UTILITY / IDLE BEHAVIOR =========================================================
+
+        // Open gates and doors
         this.tasks.addTask(9, new EntityAIOpenFenceGate(this));
         this.tasks.addTask(10, new EntityAIOpenDoor(this, true));
-        this.tasks.addTask(12, new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, 48));
-        this.tasks.addTask(11, new EntityAIRoamInsideVillage(this, 0.34D, 3 * 20, 10 * 20, TravellersModConfig.villageRoamMinDuration * 20, TravellersModConfig.villageRoamMaxDuration * 20));// Optional: customize 2-minute duration or wordlist at runtime
 
-// Attack anything explicitly listed in RAIDER_ATTACK_LIST (villagers, golems, modded guards, etc.)
-// No IMob requirement here.
-        this.targetTasks.addTask(
-                4,
-                new EntityAINearestAttackableTarget<>(
-                        this,
-                        EntityLivingBase.class,
-                        10,   // tick rate
-                        true, // mustCheckSight
-                        false,// nearbyOnly
-                        e -> e != null
-                                && e.isEntityAlive()
-                                && !(e instanceof EntityTraveller) // travellers handled by the other task below
-                                && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
-                                && this.shouldAttackExtraEntity(e) // <- uses RAIDER_ATTACK_LIST internally
-                )
-        );
-// 3 = target opposite-faction travellers ONLY
-        this.targetTasks.addTask(
-                6,
-                new EntityAINearestAttackableTarget<>(
-                        this,
-                        EntityTraveller.class,
-                        10, true, false,
-                        t -> t != null && (this.isAggressiveToTravellers() ^ t.isAggressiveToTravellers())
-                )
-        );
-        this.targetTasks.addTask(5, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, true));
+        // Look at nearby players and idle looking around
+        this.tasks.addTask(13, new EntityAIWatchClosest(this, EntityPlayer.class, 12.0F));
+        this.tasks.addTask(14, new EntityAILookIdle(this));
 
-        aiFollow = null;
+        // === OPTIONAL / DISABLED FEATURES ====================================================
+
+        // Raiders don't auto-eat by default; add this back if you want survival-focused foes.
         aiTravel = null;
-        autoEatTask = null; // raiders don’t auto-eat by default; add back if you want survival-y foes
+        autoEatTask = null;
     }
 
+//    @Override
+//    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, @Nullable IEntityLivingData data) {
+//        // Let base traveller handle spawn data & random culture if needed
+//        data = super.onInitialSpawn(diff, data);
+//
+//        String cid = getCultureId();
+//        if (cid == null || cid.isEmpty()) {
+//            // Just in case super didn’t set it for some reason
+//            cid = CultureRegistry.pickRandomId(this.rand);
+//            setCultureId(cid);
+//            data = new EntityTraveller.SpawnData(cid);
+//        }
+//
+//        CultureDef def = CultureRegistry.get(cid);
+//        int rCount = (def != null ? def.getRaiderTextureCount() : 0);
+//
+//        // Fallback to traveller count if no specific raider looks
+//        if (rCount <= 0 && def != null) {
+//            rCount = def.getTravellerTextureCount();
+//        }
+//        if (rCount <= 0) {
+//            rCount = 1; // last-chance safety, steve fallback in CultureDef
+//        }
+//
+//        this.setTextureIndex(this.rand.nextInt(Math.max(1, rCount)));
+//
+//        return data;
+//    }
+
+
     // Disable friendly voice/ambient entirely
-    @Override public void scheduleNextTravelAmbient() { /* no-op */ }
-    @Override public void maybePlayTravelAmbient() { /* no-op */ }
+    @Override
+    public void scheduleNextTravelAmbient() { /* no-op */ }
+
+    @Override
+    public void maybePlayTravelAmbient() { /* no-op */ }
+
     @Override
     @Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
@@ -187,8 +309,11 @@ public class EntityTravellerRaider extends EntityTraveller {
         return (v != null && v.hurt != null) ? v.hurt : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
     }
 
-    @Override protected SoundEvent getDeathSound() { return SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT; }
-    @Override public SoundCategory getSoundCategory() { return SoundCategory.HOSTILE; }
+
+    @Override
+    public SoundCategory getSoundCategory() {
+        return SoundCategory.HOSTILE;
+    }
 
     // Hostile spawn rules (if keeping EntityCreature). If you extend EntityMob you get these for free.
     @Override
@@ -224,20 +349,6 @@ public class EntityTravellerRaider extends EntityTraveller {
         return super.getCanSpawnHere();
     }
 
-    private boolean isValidMonsterLight() {
-        // mimic EntityMob#getCanSpawnHere light gating
-        BlockPos p = new BlockPos(this.posX, this.getEntityBoundingBox().minY, this.posZ);
-        if (world.isDaytime()) {
-            float f = world.getCelestialAngleRadians(1.0F);
-            if ((MathHelper.cos(f) > 0.0F ? 1 : 0) == 0) {
-                // (vanilla does sky light tweak during thunderstorms; optional to copy)
-            }
-        }
-        int sky = world.getLightFromNeighbors(p);
-        if (sky > rand.nextInt(32)) return false;
-        int block = world.getLight(p);
-        return block <= rand.nextInt(8);
-    }
 
     // Don’t run friendly ignore-logic when hurt
     @Override
@@ -261,14 +372,15 @@ public class EntityTravellerRaider extends EntityTraveller {
         // --- key change: travellers as attackers ---
         if (src instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) src;
-            boolean attackerIsRaider = t.isAggressiveToTravellers();
-            if (!attackerIsRaider) {
-                // friendly traveller: ignore aggro
+
+            // Same culture: never aggro (could be "friendly fire" or civil squabble)
+            if (!isDifferentCulture(t)) {
                 this.setRevengeTarget(null);
                 return true;
             }
-            // attacker is a raider: DO retaliate
+            // Different culture: treat as an enemy below
         }
+
 
         if (world.getDifficulty() != EnumDifficulty.PEACEFUL) {
             if (autoEatTask != null) autoEatTask.cancel();
@@ -291,5 +403,14 @@ public class EntityTravellerRaider extends EntityTraveller {
         }
         return true;
     }
+    public boolean isDifferentCulture(EntityTraveller other) {
+        if (other == null) return false;
+        String my = this.getCultureId();
+        String theirs = other.getCultureId();
+        if (my == null) my = "";
+        if (theirs == null) theirs = "";
+        return !my.equalsIgnoreCase(theirs);
+    }
+
 }
 

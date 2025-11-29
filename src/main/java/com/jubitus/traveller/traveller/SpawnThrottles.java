@@ -7,7 +7,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public final class SpawnThrottles {
-    private SpawnThrottles() {}
+    private SpawnThrottles() {
+    }
 
     public static <T extends EntityLiving> boolean underLocalCap(
             World world, BlockPos pos, Class<T> cls, int cap, int radius) {

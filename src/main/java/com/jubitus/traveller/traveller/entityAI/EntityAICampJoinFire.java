@@ -1,8 +1,8 @@
 package com.jubitus.traveller.traveller.entityAI;
 
 import com.jubitus.traveller.TravellersModConfig;
-import com.jubitus.traveller.traveller.utils.blocks.CampfireBlock;
-import com.jubitus.traveller.traveller.utils.blocks.CampfireManager;
+import com.jubitus.traveller.traveller.camp.CampfireBlock;
+import com.jubitus.traveller.traveller.camp.CampfireManager;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.util.EnumFacing;
@@ -16,20 +16,21 @@ import java.util.List;
 
 public class EntityAICampJoinFire extends EntityAIBase {
 
-    private static final double RUN_SPEED_FAR   = 1.20D; // fast approach (>24 blocks)
-    private static final double JOG_SPEED_MID   = 0.80D; // 8–24 blocks
+    private static final double RUN_SPEED_FAR = 1.20D; // fast approach (>24 blocks)
+    private static final double JOG_SPEED_MID = 0.80D; // 8–24 blocks
     private static final double WALK_SPEED_NEAR = 0.35D; // <8 blocks (final alignment)
-    private static final int    REISSUE_EVERY   = 15;    // ticks between speed refreshes
-    private int lastReissueTick = 0;
+    private static final int REISSUE_EVERY = 15;    // ticks between speed refreshes
+    private static final double CAMP_WALK_SPEED = 0.25D;
     private final EntityTraveller mob;
     private final double approachSpeed;
-
-    private static final double CAMP_WALK_SPEED = 0.25D;
-
+    private int lastReissueTick = 0;
     private int campWanderCooldown = 0;
-    private int campLookCooldown   = 0;
+    private int campLookCooldown = 0;
     private BlockPos campWanderTarget = null;
-
+    // inside EntityAICampJoinFire
+    @Nullable
+    private EntityTraveller socialPeer = null;
+    private int socialLookTicks = 0;
 
     private BlockPos targetCamp;
     private BlockPos targetCampApproach; // where we actually walk to (never the fire block)
@@ -105,9 +106,17 @@ public class EntityAICampJoinFire extends EntityAIBase {
         }
 
         // Respect seek radius even after starting
-        if (mob.getDistanceSqToCenter(targetCamp) > (double) (TravellersModConfig.SEEK_RADIUS * TravellersModConfig.SEEK_RADIUS)) return false;
+        if (mob.getDistanceSqToCenter(targetCamp) > (double) (TravellersModConfig.SEEK_RADIUS * TravellersModConfig.SEEK_RADIUS))
+            return false;
 
         boolean enRoute = mob.getDistanceSqToCenter(targetCamp) > 9.0;
+        // --- personal leave time for joiners ---
+        if (mob.getCampfirePos() != null) {
+            long now = ws.getTotalWorldTime();
+            if (now >= mob.travellerCamp.campLeaveTime) {
+                return false; // done camping
+            }
+        }
         boolean alreadyJoined = mob.getCampfirePos() != null;
 
         // Keep AI alive either while walking in, or while we're a joined camper
@@ -125,6 +134,20 @@ public class EntityAICampJoinFire extends EntityAIBase {
             );
             lastReissueTick = mob.ticksExisted;
         }
+    }
+
+    @Override
+    public void resetTask() {
+
+        mob.clearCamp(); // joiners just forget; they never remove fire
+        mob.getNavigator().clearPath();
+        mob.setCampJoinCooldown(); // <-- add this
+        targetCamp = null;
+        targetCampApproach = null;
+
+        campWanderCooldown = 0;
+        campLookCooldown = 0;
+        campWanderTarget = null;
     }
 
     @Override
@@ -149,10 +172,13 @@ public class EntityAICampJoinFire extends EntityAIBase {
             }
 
             // ensure we're joined at this camp
-            int min = 20 * 30;   // 30s
-            int max = 20 * 120;  // 80s
-            int dur = min + mob.getRNG().nextInt(max - min + 1);
-            mob.joinCampAt(targetCamp, dur);
+            if (mob.getCampfirePos() == null || !targetCamp.equals(mob.getCampfirePos())) {
+                int min = 20 * 20;   // 30s
+                int max = 20 * 60;  // 80s
+                int dur = min + mob.getRNG().nextInt(max - min + 1);
+                mob.joinCampAt(targetCamp, dur);
+            }
+
 
             WorldServer ws = (WorldServer) mob.world;
             long now = ws.getTotalWorldTime();
@@ -161,27 +187,38 @@ public class EntityAICampJoinFire extends EntityAIBase {
             );
 
             // --- occasional swing / approach to the front of the fire ---
-            if (--mob.campSwingTimer <= 0) {
+            if (mob.travellerCamp.campSwingTimer-- <= 0) {
                 boolean did = approachAndSwingAtFire();
-                mob.campSwingTimer = did
-                        ? (EntityTraveller.CAMP_SWING_EVERY + mob.getRNG().nextInt(25))
+                mob.travellerCamp.campSwingTimer = did
+                        ? (TravellersModConfig.CAMP_SWING_EVERY + mob.getRNG().nextInt(25))
                         : (30 + mob.getRNG().nextInt(30));
             }
 
             // --- random, slow strolling around the campfire ---
+// --- random, slow strolling around the campfire (rarer) ---
             if (--campWanderCooldown <= 0 && mob.getNavigator().noPath()) {
-                BlockPos stroll = pickRandomCampStrollPos(targetCamp);
-                if (stroll != null) {
-                    mob.getNavigator().tryMoveToXYZ(
-                            stroll.getX() + 0.5,
-                            stroll.getY(),
-                            stroll.getZ() + 0.5,
-                            CAMP_WALK_SPEED
-                    );
+                // Only actually wander ~20% of the time when the cooldown ends
+                if (mob.getRNG().nextFloat() < 0.2F) {
+                    BlockPos stroll = pickRandomCampStrollPos(targetCamp);
+                    if (stroll != null) {
+                        mob.getNavigator().tryMoveToXYZ(
+                                stroll.getX() + 0.5,
+                                stroll.getY(),
+                                stroll.getZ() + 0.5,
+                                CAMP_WALK_SPEED
+                        );
+                        campWanderTarget = stroll;
+                        tickSocialLook();
+                    }
+
+                } else {
+                    campWanderTarget = null; // “decided not to move”
                 }
-                campWanderCooldown = TravellersModConfig.CAMP_WANDER_MIN_DELAY
-                        + mob.getRNG().nextInt(TravellersModConfig.CAMP_WANDER_MAX_DELAY - TravellersModConfig.CAMP_WANDER_MIN_DELAY + 1);
-                campWanderTarget = stroll;
+
+                // Make the delay bigger so checks are less frequent in the first place
+                int min = TravellersModConfig.CAMP_WANDER_MIN_DELAY ;
+                int max = TravellersModConfig.CAMP_WANDER_MAX_DELAY ;
+                campWanderCooldown = min + mob.getRNG().nextInt(max - min + 1);
             }
 
             // --- random look behaviour (fire vs other campers) ---
@@ -210,7 +247,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
 
             double dist = mob.getDistance(tx, ty, tz);
             double speed = (dist > 24.0) ? RUN_SPEED_FAR
-                    : (dist >  8.0) ? JOG_SPEED_MID
+                    : (dist > 8.0) ? JOG_SPEED_MID
                     : WALK_SPEED_NEAR;
 
             if (mob.getNavigator().noPath() || (mob.ticksExisted - lastReissueTick) >= REISSUE_EVERY) {
@@ -228,22 +265,9 @@ public class EntityAICampJoinFire extends EntityAIBase {
         }
     }
 
-    @Override
-    public void resetTask() {
-
-        mob.clearCamp(); // joiners just forget; they never remove fire
-        mob.getNavigator().clearPath();
-        targetCamp = null;
-        targetCampApproach = null;
-
-        campWanderCooldown = 0;
-        campLookCooldown   = 0;
-        campWanderTarget   = null;
-    }
-
-
-
-    /** Walk to front-of-fire, wait close, then swing. Returns true if we swung this tick. */
+    /**
+     * Walk to front-of-fire, wait close, then swing. Returns true if we swung this tick.
+     */
     private boolean approachAndSwingAtFire() {
         BlockPos fp = mob.getCampfirePos();
         if (fp == null) return false;
@@ -253,18 +277,21 @@ public class EntityAICampJoinFire extends EntityAIBase {
         double d2 = mob.getDistanceSqToCenter(front);
         if (d2 > 2.0) {
             // NOTE: use approachSpeed here (roamSpeed only exists on the leader AI)
-            mob.getNavigator().tryMoveToXYZ(front.getX()+0.5, front.getY(), front.getZ()+0.5, approachSpeed);
+            mob.getNavigator().tryMoveToXYZ(front.getX() + 0.5, front.getY(), front.getZ() + 0.5, approachSpeed);
             return false;
         }
 
         // close: look & swing
         mob.lookAtFire();
-        mob.world.setEntityState(mob, (byte)4);
+        mob.world.setEntityState(mob, (byte) 4);
         mob.swingArm(EnumHand.MAIN_HAND);
         mob.getNavigator().clearPath(); // stay near the front spot briefly
         return true;
     }
-    /** Pick a random walkable spot in a ring around the campfire, avoiding the fire block and crowded spots. */
+
+    /**
+     * Pick a random walkable spot in a ring around the campfire, avoiding the fire block and crowded spots.
+     */
     @Nullable
     private BlockPos pickRandomCampStrollPos(BlockPos camp) {
         for (int tries = 0; tries < 8; tries++) {
@@ -284,7 +311,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
             // basic "walkable" check: solid block below, non-solid / non-fire where we stand
             BlockPos below = pos.down();
             IBlockState belowSt = mob.world.getBlockState(below);
-            IBlockState atSt    = mob.world.getBlockState(pos);
+            IBlockState atSt = mob.world.getBlockState(pos);
 
             if (!belowSt.isSideSolid(mob.world, below, EnumFacing.UP)) continue;
             if (!atSt.getMaterial().isReplaceable()) continue;  // don't walk into solid full blocks
@@ -299,13 +326,9 @@ public class EntityAICampJoinFire extends EntityAIBase {
         return null;
     }
 
-    /** Small-radius check so we don't pick a spot already occupied by another camper (reduces pushing). */
-    private boolean isSpotFreeOfCampers(BlockPos pos) {
-        AxisAlignedBB box = new AxisAlignedBB(pos).grow(0.35);
-        return mob.world.getEntitiesWithinAABB(EntityTraveller.class, box,
-                e -> e != null && e.isEntityAlive()).isEmpty();
-    }
-    /** Occasionally look at the fire or another random camper. */
+    /**
+     * Occasionally look at the fire or another random camper.
+     */
     private void doRandomCampLook(BlockPos camp) {
         if (camp == null) return;
 
@@ -339,6 +362,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
         // choose random camper
         return list.get(mob.getRNG().nextInt(list.size()));
     }
+
     /**
      * Pick a solid, walkable spot in a ring around the fire (never the fire block itself).
      */
@@ -359,7 +383,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
 
             BlockPos below = pos.down();
             IBlockState belowState = mob.world.getBlockState(below);
-            IBlockState atState    = mob.world.getBlockState(pos);
+            IBlockState atState = mob.world.getBlockState(pos);
 
             // solid ground below
             if (!belowState.isSideSolid(mob.world, below, EnumFacing.UP)) continue;
@@ -376,4 +400,44 @@ public class EntityAICampJoinFire extends EntityAIBase {
 
         return null;
     }
+
+    /**
+     * Small-radius check so we don't pick a spot already occupied by another camper (reduces pushing).
+     */
+    private boolean isSpotFreeOfCampers(BlockPos pos) {
+        AxisAlignedBB box = new AxisAlignedBB(pos).grow(0.35);
+        return mob.world.getEntitiesWithinAABB(EntityTraveller.class, box,
+                e -> e != null && e.isEntityAlive()).isEmpty();
+    }
+    private void tickSocialLook() {
+        // continue an active social look if we still have a valid peer
+        if (socialLookTicks > 0 && socialPeer != null && socialPeer.isEntityAlive()) {
+            mob.getLookHelper().setLookPositionWithEntity(socialPeer, 30.0F, 30.0F);
+
+            // mild body turn toward peer
+            BlockPos peerPos = socialPeer.getPosition();
+            mob.faceTowards(peerPos, 6.0F, 12.0F);
+
+            socialLookTicks--;
+            return;
+        }
+
+        // ~1% chance per tick while camping => roughly once per ~5 seconds
+        if (mob.getRNG().nextInt(100) != 0) return;
+
+        BlockPos camp = targetCamp;
+        if (camp == null) return;
+
+        // pick any traveller at this camp
+        java.util.List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(
+                EntityTraveller.class,
+                new AxisAlignedBB(camp).grow(6.0, 3.0, 6.0),
+                e -> e != null && e != mob && e.isEntityAlive() && camp.equals(e.getCampfirePos())
+        );
+        if (peers.isEmpty()) return;
+
+        socialPeer = peers.get(mob.getRNG().nextInt(peers.size()));
+        socialLookTicks = 40 + mob.getRNG().nextInt(40); // 2–4 seconds
+    }
+
 }

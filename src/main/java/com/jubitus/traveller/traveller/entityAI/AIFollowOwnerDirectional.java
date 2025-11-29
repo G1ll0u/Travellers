@@ -28,8 +28,7 @@ public class AIFollowOwnerDirectional extends EntityAIBase {
     public boolean shouldExecute() {
         owner = dog.getOwner();
         if (owner == null) return false;
-        if (dog.isSitting()) return false;
-        return true;
+        return !dog.isSitting();
     }
 
     @Override

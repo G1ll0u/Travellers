@@ -1,50 +1,43 @@
 package com.jubitus.traveller.traveller.entityAI;
 
-import com.jubitus.traveller.traveller.utils.blocks.CampfireBlock;
-import com.jubitus.traveller.traveller.utils.blocks.CampfireManager;
+import com.jubitus.traveller.TravellersModConfig;
+import com.jubitus.traveller.traveller.camp.CampfireBlock;
+import com.jubitus.traveller.traveller.camp.CampfireManager;
 import net.minecraft.block.Block;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.ItemFood;
-import net.minecraft.item.ItemStack;
-import net.minecraft.pathfinding.PathNavigate;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Random;
-
-import static com.jubitus.traveller.traveller.entityAI.EntityTraveller.CAMP_RADIUS;
 
 public class EntityAICampPause extends EntityAIBase {
     private static final int NEAR_VILLAGE_RADIUS = 100; // reuse your constant
     private static final int SCAN_RADIUS = 6;           // search for flat spot near the path
-    private static final float START_CHANCE_PER_TICK = 0.0008f;
+    private static final float START_CHANCE_PER_TICK = TravellersModConfig.campStartChancePerTick;
+    private static final double MIN_DISTANCE_FROM_MOB_SQ = 5.0D; // at least 2 blocks away
+    // NEW: how far we must be from water, in blocks
+    private static final int MIN_WATER_DISTANCE = TravellersModConfig.CAMP_RADIUS;
+    // NEW: how big the flat clear area around the fire should be (radius in blocks)
+    private static final int CLEAR_RADIUS = 1; // 1 = 3x3 area
     private final EntityTraveller mob;
-
     private BlockPos campSpot;          // where the fire is placed
     private int campDuration;
     private int nextSwing;
-
-
-    private static final double MIN_DISTANCE_FROM_MOB_SQ = 5.0D; // at least 2 blocks away
-
-
-    @Nullable private BlockPos frontSlot = null;
+    @Nullable
+    private BlockPos frontSlot = null;
     private int socialLookTicks = 0;
-    @Nullable private EntityTraveller peerNow = null;
+    @Nullable
+    private EntityTraveller peerNow = null;
 
 
     public EntityAICampPause(EntityTraveller mob) {
@@ -52,10 +45,18 @@ public class EntityAICampPause extends EntityAIBase {
         this.setMutexBits(1 | 2); // move + look
     }
 
+    private static float rotlerp(float current, float target, float maxStep) {
+        float d = MathHelper.wrapDegrees(target - current);
+        if (d > maxStep) d = maxStep;
+        if (d < -maxStep) d = -maxStep;
+        return current + d;
+    }
+
     @Override
     public boolean shouldExecute() {
         if (mob.world.isRemote) return false;
         if (mob.isInCombat()) return false; // keep only this
+        if (mob.isInWater() || mob.isInLava()) return false;
         if (mob.isFollowingSomeone()) return false;
         if (mob.isVillageIdling()) return false;
         if (mob.getTargetVillage() == null) return false;
@@ -92,8 +93,10 @@ public class EntityAICampPause extends EntityAIBase {
         if (campBlock == null || st.getBlock() != campBlock) return false;
         if (!CampfireBlock.isLit(st)) return false;
 
-        // stay until our planned leave tick
-        return mob.ticksExisted < mob.campLeaveTick;
+        // stay until our planned leave tick (WORLD TIME)
+        if (!(mob.world instanceof WorldServer)) return false;
+        long now = mob.world.getTotalWorldTime();
+        return now < mob.travellerCamp.campLeaveTime;
     }
 
     @Override
@@ -114,11 +117,11 @@ public class EntityAICampPause extends EntityAIBase {
             mob.world.setBlockState(campSpot, lit, 3);
             frontSlot = mob.pickFrontOfFire(campSpot);
             if (frontSlot == null) frontSlot = campSpot; // fallback: center
-            mob.getNavigator().tryMoveToXYZ(frontSlot.getX()+0.5, frontSlot.getY(), frontSlot.getZ()+0.5, 0.25D);
+            mob.getNavigator().tryMoveToXYZ(frontSlot.getX() + 0.5, frontSlot.getY(), frontSlot.getZ() + 0.5, 0.25D);
 
             // Register with the manager so it auto-cleans even across restarts
             int nearRadius = 28;
-            long now = ((WorldServer) mob.world).getTotalWorldTime();
+            long now = mob.world.getTotalWorldTime();
             long ttl = now + (90 * 20); // ~90s initial budget; we’ll refresh below
             CampfireManager.get(mob.world).addOrRefresh(
                     campSpot, mob.dimension, mob.getUniqueID(), ttl, nearRadius
@@ -150,13 +153,10 @@ public class EntityAICampPause extends EntityAIBase {
 
     @Override
     public void resetTask() {
-        // Leader packs up the camp
-        mob.cleanupOwnedCampfireIfAny(); // your existing helper (removes the block and manager entry if owned)
+        mob.cleanupOwnedCampfireIfAny();
         BlockPos pos = mob.getCampfirePos();
         if (pos != null) {
-            // Extra safety: remove from manager even if another mod toggled the block
             CampfireManager.get(mob.world).removeIfManaged(mob.dimension, pos);
-            // And nuke the block if it’s still our fire
             Block fire = CampfireBlock.get();
             if (fire != null && mob.world.getBlockState(pos).getBlock() == fire) {
                 mob.world.setBlockToAir(pos);
@@ -166,12 +166,22 @@ public class EntityAICampPause extends EntityAIBase {
         mob.getNavigator().clearPath();
     }
 
+    // ---- helpers ----
+
     @Override
     public void updateTask() {
         // If the block vanished (player broke it), bail
-        if (mob.getCampfirePos() == null) { resetTask(); return; }
+        if (mob.getCampfirePos() == null) {
+            resetTask();
+            return;
+        }
         IBlockState st = mob.world.getBlockState(mob.getCampfirePos());
-        if (!CampfireBlock.isLit(st)) { resetTask(); return; }
+        if (!CampfireBlock.isLit(st)) {
+            resetTask();
+
+            return;
+        }
+
 
         // --- KEEP THIS RUNNING, every ~3s extend TTL ---
         if ((mob.ticksExisted & 0x3F) == 0) { // every 64 ticks
@@ -191,11 +201,12 @@ public class EntityAICampPause extends EntityAIBase {
             double d2 = mob.getDistanceSqToCenter(frontSlot);
             if (d2 > 2.0) {
                 if (mob.getNavigator().noPath()) {
-                    mob.getNavigator().tryMoveToXYZ(frontSlot.getX()+0.5, frontSlot.getY(), frontSlot.getZ()+0.5, 0.25D);
+                    mob.getNavigator().tryMoveToXYZ(frontSlot.getX() + 0.5, frontSlot.getY(), frontSlot.getZ() + 0.5, 0.25D);
                 }
             } else {
                 mob.getNavigator().clearPath(); // stand
             }
+            tickSocialLook();
         }
 
 // 2) Face fire every tick
@@ -204,18 +215,15 @@ public class EntityAICampPause extends EntityAIBase {
         if (--nextSwing <= 0) {
             boolean closeEnough = frontSlot != null && mob.getDistanceSqToCenter(frontSlot) <= 2.0;
             if (closeEnough) {
-                mob.world.setEntityState(mob, (byte)4);
+                mob.world.setEntityState(mob, (byte) 4);
                 mob.swingArm(EnumHand.MAIN_HAND);
             }
-            nextSwing = closeEnough ? (EntityTraveller.CAMP_SWING_EVERY + mob.getRNG().nextInt(25))
+            nextSwing = closeEnough ? (TravellersModConfig.CAMP_SWING_EVERY + mob.getRNG().nextInt(25))
                     : (30 + mob.getRNG().nextInt(30));
         }
 
 
-
     }
-
-    // ---- helpers ----
 
     @Nullable
     private BlockPos findCampSpot(BlockPos around, int r) {
@@ -225,7 +233,7 @@ public class EntityAICampPause extends EntityAIBase {
 
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
-                BlockPos col = new BlockPos(around.getX()+dx, around.getY(), around.getZ()+dz);
+                BlockPos col = new BlockPos(around.getX() + dx, around.getY(), around.getZ() + dz);
                 if (!isAreaLoaded(col, 1)) continue;
 
                 BlockPos y = mob.topStandable(col);
@@ -237,8 +245,14 @@ public class EntityAICampPause extends EntityAIBase {
 
                 double d2 = around.distanceSq(y);
 
-                // ⬇⬇⬇  new bit: do NOT place right under / too close to the mob
+                // do NOT place right under / too close to the mob
                 if (d2 < MIN_DISTANCE_FROM_MOB_SQ) continue;
+
+                // NEW: don't camp too close to water
+                if (isNearWater(y, MIN_WATER_DISTANCE)) continue;
+
+                // NEW: require a clear, flat standing area around the fire
+                if (!hasClearStandingArea(y, CLEAR_RADIUS)) continue;
 
                 if (d2 < bestD2) {
                     bestD2 = d2;
@@ -247,6 +261,18 @@ public class EntityAICampPause extends EntityAIBase {
             }
         }
         return best;
+    }
+
+    private boolean isAreaLoaded(BlockPos pos, int r) {
+        if (!(mob.world instanceof WorldServer)) return mob.world.isAreaLoaded(pos, r);
+        WorldServer ws = (WorldServer) mob.world;
+        int minCX = (pos.getX() - r) >> 4, maxCX = (pos.getX() + r) >> 4;
+        int minCZ = (pos.getZ() - r) >> 4, maxCZ = (pos.getZ() + r) >> 4;
+        for (int cx = minCX; cx <= maxCX; cx++)
+            for (int cz = minCZ; cz <= maxCZ; cz++) {
+                if (!ws.getChunkProvider().chunkExists(cx, cz)) return false;
+            }
+        return true;
     }
 
     private boolean canPlaceFireAt(BlockPos pos) {
@@ -266,28 +292,57 @@ public class EntityAICampPause extends EntityAIBase {
         return replaceable && solidBelow;
     }
 
+    private boolean isNearWater(BlockPos pos, int radius) {
+        World w = mob.world;
 
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                for (int dy = -1; dy <= 1; dy++) { // small vertical band around the fire
+                    BlockPos p = pos.add(dx, dy, dz);
+                    IBlockState st = w.getBlockState(p);
 
-
-    private boolean isAreaLoaded(BlockPos pos, int r) {
-        if (!(mob.world instanceof WorldServer)) return mob.world.isAreaLoaded(pos, r);
-        WorldServer ws = (WorldServer) mob.world;
-        int minCX = (pos.getX()-r) >> 4, maxCX = (pos.getX()+r) >> 4;
-        int minCZ = (pos.getZ()-r) >> 4, maxCZ = (pos.getZ()+r) >> 4;
-        for (int cx = minCX; cx <= maxCX; cx++) for (int cz = minCZ; cz <= maxCZ; cz++) {
-            if (!ws.getChunkProvider().chunkExists(cx, cz)) return false;
+                    // 1.12 style: material water catches still + flowing
+                    if (st.getMaterial() == Material.WATER) {
+                        return true;
+                    }
+                    // if you prefer explicit:
+                    // Block b = st.getBlock();
+                    // if (b == Blocks.WATER || b == Blocks.FLOWING_WATER) return true;
+                }
+            }
         }
+
+        return false;
+    }
+
+    private boolean hasClearStandingArea(BlockPos center, int radius) {
+        World w = mob.world;
+        int y = center.getY();
+
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                // skip the center itself; that's where the fire goes
+                if (dx == 0 && dz == 0) continue;
+
+                BlockPos check = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
+
+                // Ask your existing helper where a traveller could stand here
+                BlockPos stand = mob.topStandable(check);
+                if (stand == null) {
+                    // no standable spot at all
+                    return false;
+                }
+
+                // Require it to be on the same level as the fire.
+                // This enforces "clear, flat" terrain, not a janky slope.
+                if (stand.getY() != y) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
-
-
-    private static float rotlerp(float current, float target, float maxStep) {
-        float d = MathHelper.wrapDegrees(target - current);
-        if (d > maxStep) d = maxStep;
-        if (d < -maxStep) d = -maxStep;
-        return current + d;
-    }
-
 
     private void tickSocialLook() {
         // If we already have an active social look, keep it for its remaining ticks

@@ -35,6 +35,19 @@ import java.util.List;
 public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
     private static final double BLOCK_WIDTH = 0.75D; // shot safety tube
+    // --- accuracy tuning ---
+    private static final float ARROW_VEL = 3.2F;     // was 2.3F
+    private static final float INACC_NEAR = 1.5F;    // close-range spread
+    private static final float INACC_FAR = 3.1F;    // long-range spread
+    private static final double LEAD_FACTOR = 0.85;  // 0.7–1.0; how hard to lead target
+    private static final int STEADY_TICKS = 1;     // stop strafing right before shot
+    private static final int LOS_REACQUIRE_DELAY = 6; // start peeking sooner
+    private static final double APPROACH_SPEED = 0.34D; // when relocating for LOS
+    // Lead tuning
+    private static final double LEAD_GAIN_LATERAL = 1.18; // 1.10–1.25: sideways runners
+    private static final double LEAD_GAIN_RADIAL = 1.06; // 1.00–1.10: toward/away bias
+    private static final double RELEASE_LATENCY_TICKS = 2.0; // add ~2 ticks to time-of-flight
+    private static final int LEAD_ITERS = 3; // 2→3 helps convergence for long shotsc
     private final EntityTraveller mob;
     private final TravellerBlacklist blacklist;
     private final double minDistSq;
@@ -43,38 +56,22 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private final int shootIntervalTicks; // cadence
     // Strafing knobs (feel free to tune)
     private final float strafeSpeed = 0.32f;     // 0.28–0.40 feels good in 1.12
-    private final   int strafeMinTicks = 14;
-    private final   int strafeMaxTicks = 28;
+    private final int strafeMinTicks = 14;
+    private final int strafeMaxTicks = 28;
     private final float strafeInput = 0.25f;      // [-1..1] input strength
     private final double strafeAbsSpeed = 0.26D; // absolute cap while strafing (≈ skeleton pace)
     private final int backstepInterval = 30;     // try at most once every 1.5s
     private final float backstepSpeed = 0.22f;   // gentle backward slide
     private final boolean ghostEquipBow;
+    private final float strafingFactor = 0.90f;
+    private final double strafeAbsCeil = 0.26D;
     private int coolDown;
     private int aimWarmup;
     private int strafeDir = 1;     // +1 right, -1 left
     private int strafeTicks = 0;   // time left for current strafe direction
     private int backstepTicker = 0;
-    private final float strafingFactor = 0.90f;
-    private final double strafeAbsCeil = 0.26D;
-
-    // --- accuracy tuning ---
-    private static final float ARROW_VEL = 3.2F;     // was 2.3F
-    private static final float INACC_NEAR = 1.5F;    // close-range spread
-    private static final float INACC_FAR  = 3.1F;    // long-range spread
-    private static final double LEAD_FACTOR = 0.85;  // 0.7–1.0; how hard to lead target
-    private static final int   STEADY_TICKS = 1;     // stop strafing right before shot
     private int steadyTicksLeft = 0;
-
     private int noLOSTicks = 0;
-    private static final int   LOS_REACQUIRE_DELAY = 6; // start peeking sooner
-        private static final double APPROACH_SPEED = 0.34D; // when relocating for LOS
-    // Lead tuning
-    private static final double LEAD_GAIN_LATERAL = 1.18; // 1.10–1.25: sideways runners
-    private static final double LEAD_GAIN_RADIAL  = 1.06; // 1.00–1.10: toward/away bias
-    private static final double RELEASE_LATENCY_TICKS = 2.0; // add ~2 ticks to time-of-flight
-    private static final int    LEAD_ITERS = 3; // 2→3 helps convergence for long shotsc
-
     @Nullable
     private java.util.UUID lastTargetId = null;
     private double lastVX = 0, lastVY = 0, lastVZ = 0;
@@ -112,8 +109,8 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             // Just stop this AI; don't clear target here or the horde tracker will grab control.
             return false;
         }
-        if (d2 < meleeHandOffSq) return false; // melee owns close range
-        return true; // <-- do NOT require LOS here
+        return !(d2 < meleeHandOffSq); // melee owns close range
+// <-- do NOT require LOS here
     }
 
     @Override
@@ -122,8 +119,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         if (tgt == null || !tgt.isEntityAlive()) return false;
         double d2 = mob.getDistanceSq(tgt);
         if (d2 > maxDistSq) return false;
-        if (d2 < meleeHandOffSq) return false;
-        return true; // <-- likewise, don’t require LOS
+        return !(d2 < meleeHandOffSq);// <-- likewise, don’t require LOS
     }
 
     @Override
@@ -161,7 +157,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
         boolean see = mob.getEntitySenses().canSee(tgt);
         double d2 = mob.getDistanceSq(tgt);
-        double d  = Math.sqrt(d2);
+        double d = Math.sqrt(d2);
 
         if (see) {
             noLOSTicks = 0;
@@ -172,9 +168,18 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             if (!mob.isAimingBow()) mob.setAimingBow(true);
             applyStrafeMovement(d, tgt);
 
-            if (hasBlockingEntityAlongShot(tgt)) { coolDown = 0; return; }
-            if (aimWarmup > 0) { aimWarmup--; return; }
-            if (coolDown > 0) { coolDown--; return; }
+            if (hasBlockingEntityAlongShot(tgt)) {
+                coolDown = 0;
+                return;
+            }
+            if (aimWarmup > 0) {
+                aimWarmup--;
+                return;
+            }
+            if (coolDown > 0) {
+                coolDown--;
+                return;
+            }
             if (!mob.getEntitySenses().canSee(tgt)) return;
             if (d2 < minDistSq || d2 > maxDistSq) return;
 // after computing d2/d and confirming LOS/range
@@ -218,18 +223,21 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             double side = (mob.getRNG().nextBoolean() ? +1 : -1);
             double ox = (tgt.posX - mob.posX);
             double oz = (tgt.posZ - mob.posZ);
-            double len = Math.sqrt(ox*ox + oz*oz);
-            if (len > 1e-4) { ox /= len; oz /= len; } // normalize
+            double len = Math.sqrt(ox * ox + oz * oz);
+            if (len > 1e-4) {
+                ox /= len;
+                oz /= len;
+            } // normalize
             // perpendicular offset ~1.5 blocks
             double px = tgt.posX + (-oz * 1.5 * side);
-            double pz = tgt.posZ + ( ox * 1.5 * side);
+            double pz = tgt.posZ + (ox * 1.5 * side);
             BlockPos peek = new BlockPos(px, tgt.posY, pz);
 
             // If very far, just path to target; if near, path to peek
-            if (d > Math.sqrt(maxDistSq)*0.9) {
+            if (d > Math.sqrt(maxDistSq) * 0.9) {
                 mob.getNavigator().tryMoveToEntityLiving(tgt, APPROACH_SPEED);
             } else {
-                mob.getNavigator().tryMoveToXYZ(peek.getX()+0.5D, peek.getY(), peek.getZ()+0.5D, APPROACH_SPEED);
+                mob.getNavigator().tryMoveToXYZ(peek.getX() + 0.5D, peek.getY(), peek.getZ() + 0.5D, APPROACH_SPEED);
             }
             // keep turning toward last known area for nice head behavior
             hardFaceTarget(tgt, 32.0F, 22.0F, 75.0F);
@@ -241,7 +249,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         } else {
             // Short grace: hold still briefly to see if target reappears
             mob.getNavigator().clearPath();
-            mob.getMoveHelper().strafe(0,0);
+            mob.getMoveHelper().strafe(0, 0);
         }
     }
 
@@ -387,7 +395,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         for (int i = 0; i < LEAD_ITERS; i++) {
             // Vector from shooter to current aim
             double rx = aimX - sx, ry = aimY - sy, rz = aimZ - sz;
-            double xh = Math.sqrt(rx*rx + rz*rz); // horizontal range
+            double xh = Math.sqrt(rx * rx + rz * rz); // horizontal range
 
             // Unit forward & lateral on XZ
             double ux = (xh > 1e-6) ? rx / xh : 0.0;
@@ -437,7 +445,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         double fx = aimX - sx;
         double fy = aimY - sy;
         double fz = aimZ - sz;
-        double xh = Math.sqrt(fx*fx + fz*fz);
+        double xh = Math.sqrt(fx * fx + fz * fz);
 
         // Final lower-arc elevation
         double v2 = v * v;
@@ -453,11 +461,11 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // Calm just before release (1 tick)
         mob.getMoveHelper().strafe(0.0F, 0.0F);
         double base = mob.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-        mob.setAIMoveSpeed((float)Math.min(base * 0.60D, 0.22D));
+        mob.setAIMoveSpeed((float) Math.min(base * 0.60D, 0.22D));
 
         // Distance-scaled inaccuracy (keeps some misses)
         double dNorm = Math.min(1.0, xh / 24.0);
-        float inaccuracy = (float)(INACC_NEAR + (INACC_FAR - INACC_NEAR) * dNorm);
+        float inaccuracy = (float) (INACC_NEAR + (INACC_FAR - INACC_NEAR) * dNorm);
 
         // Fire
         arrow.shoot(fx, aimY, fz, ARROW_VEL, inaccuracy);
@@ -470,12 +478,31 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     }
 
 
-
     private float rotlerp(float current, float target, float maxStep) {
         float delta = MathHelper.wrapDegrees(target - current);
         if (delta > maxStep) delta = maxStep;
         if (delta < -maxStep) delta = -maxStep;
         return current + delta;
+    }
+
+    private Vec3d getSmoothedVelocity(EntityLivingBase t) {
+        double vx = (t.posX - t.prevPosX);
+        double vy = (t.posY - t.prevPosY);
+        double vz = (t.posZ - t.prevPosZ);
+
+        java.util.UUID id = t.getUniqueID();
+        if (lastTargetId != null && lastTargetId.equals(id) && mob.ticksExisted == lastVelTick + 1) {
+            double a = 0.60; // 60% previous sample, smooths jitter
+            vx = a * lastVX + (1.0 - a) * vx;
+            vy = a * lastVY + (1.0 - a) * vy;
+            vz = a * lastVZ + (1.0 - a) * vz;
+        }
+        lastTargetId = id;
+        lastVX = vx;
+        lastVY = vy;
+        lastVZ = vz;
+        lastVelTick = mob.ticksExisted;
+        return new Vec3d(vx, vy, vz);
     }
 
     private boolean isGhostBow(ItemStack s) {
@@ -493,23 +520,6 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         if (!ghostEquipBow) return;
         ItemStack bow = mob.findBowInBackpackPublic();
         if (!bow.isEmpty()) mob.setHeldItem(EnumHand.MAIN_HAND, mob.makeGhostBow(bow));
-    }
-    private Vec3d getSmoothedVelocity(EntityLivingBase t) {
-        double vx = (t.posX - t.prevPosX);
-        double vy = (t.posY - t.prevPosY);
-        double vz = (t.posZ - t.prevPosZ);
-
-        java.util.UUID id = t.getUniqueID();
-        if (lastTargetId != null && lastTargetId.equals(id) && mob.ticksExisted == lastVelTick + 1) {
-            double a = 0.60; // 60% previous sample, smooths jitter
-            vx = a * lastVX + (1.0 - a) * vx;
-            vy = a * lastVY + (1.0 - a) * vy;
-            vz = a * lastVZ + (1.0 - a) * vz;
-        }
-        lastTargetId = id;
-        lastVX = vx; lastVY = vy; lastVZ = vz;
-        lastVelTick = mob.ticksExisted;
-        return new Vec3d(vx, vy, vz);
     }
 
 }

@@ -8,30 +8,24 @@ import com.jubitus.traveller.traveller.culture.CultureDef;
 import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.culture.VoiceSet;
 import com.jubitus.traveller.traveller.pathing.TravellerNavigateGround;
-import com.jubitus.traveller.traveller.utils.blocks.CampfireBlock;
-import com.jubitus.traveller.traveller.utils.blocks.CampfireManager;
-import com.jubitus.traveller.traveller.utils.commands.CommandFollowTraveller;
-import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
+import com.jubitus.traveller.traveller.travel.TravelCommon;
+import com.jubitus.traveller.traveller.utils.debug.TravelDebugLogger;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
 import com.jubitus.traveller.traveller.utils.sound.ModSounds;
 import com.jubitus.traveller.traveller.utils.sound.MsgPlayTravellerVoice;
 import com.jubitus.traveller.traveller.utils.sound.MsgStopTravellerVoice;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
-import com.jubitus.traveller.traveller.utils.villages.VillageIndex;
 import net.minecraft.block.Block;
-import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 import net.minecraft.entity.ai.EntityAIOpenDoor;
 import net.minecraft.entity.ai.EntityAISwimming;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -43,6 +37,7 @@ import net.minecraft.item.*;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagIntArray;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.NBTUtil;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
@@ -62,253 +57,266 @@ import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraft.world.storage.loot.LootContext;
-import net.minecraft.world.storage.loot.LootTable;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
+import org.millenaire.common.block.IBlockPath;
 
 import javax.annotation.Nullable;
 import java.io.File;
 import java.util.*;
 
 public class EntityTraveller extends EntityCreature {
-    public static final class SpawnData implements IEntityLivingData {
-        public final String cultureId;
 
-        public SpawnData(String id) {
-            this.cultureId = id;
-        }
-    }
 
-    private static final int DOG_SCAN_COOLDOWN_TICKS = 5 * 20;
-    private int dogScanCooldown = 0;
+    public final TravellerCamp travellerCamp = new TravellerCamp(this);
+    public static final String GHOST_TORCH_TAG = "TravellerGhostTorch";
+    // --- Camp join cooldown (prevents placing a fire right after resting) ---
+    private final TravellerCamp camp = new TravellerCamp(this);
 
-    public static final int CAMP_RADIUS = 5;               // shared by leader/joiner
-    public static final int CAMP_SWING_EVERY = 80;         // ~4s baseline between “cooking” swings
+    // FISHING ROD
+    public static final String GHOST_ROD_TAG = "TravellerGhostRod";
+    // --- Threat memory (not persisted by default) ---
+    static final int THREAT_FOR_HIT = 8;       // score added when this gets hit
 
-    private int spawnAmbientCooldownTicks = 0;                       // counts down server-side
-    private static final int SPAWN_AMBIENT_DELAY_TICKS = 12 * 20;   // ~12s after spawn
-    public static final int VILLAGE_NEAR = TravellersModConfig.villageNear;       // distance considered "arrived"
-    public static final int VILLAGE_PICK_RADIUS = TravellersModConfig.villagePickRadius; // max radius for next-destination picks
-    public static final int VILLAGE_RADIUS = TravellersModConfig.villageRadius;     // area to roam in (blocks from center)
-    public static final int THREAT_FOR_SEE_ATTACK = 5;// when we "observe" hostiles hurting allies/players
-    private static final double NEAR_HYS_DELTA_SQ = 4 * 4; // must be 4 blocks closer to switch
-    private static final int THREAT_DECAY_INTERVAL_TICKS = 20; // 1s
-    private static final int SWORD_HIDE_DELAY = TravellersModConfig.swordHideDelay; // ticks until sword is hidden
+
+    public static final double NEAR_HYS_DELTA_SQ = 4 * 4; // must be 4 blocks closer to switch
     // --- Texture related fields ---
     private static final ResourceLocation TRAVELLER_LOOT =
             new ResourceLocation("travellers", "entities/traveller_pack");
     private static final DataParameter<Integer> TEXTURE_INDEX = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.VARINT);
     // ---- GAP / CLIFF handling ----
     private static final String GHOST_SWORD_TAG = "MillmixGhostSword";
-    // --- Threat memory (not persisted by default) ---
-    static final int THREAT_FOR_HIT = 8;       // score added when this gets hit
-    private static final int THREAT_DECAY_PER_SEC = 2; // decay rate
-    private static final int THREAT_TTL_TICKS = 20 * 30; // forget after 30s of not seeing it
     private static final java.util.UUID SWIM_BOOST_UUID =
             java.util.UUID.fromString("b3b1a5ee-9c12-4e6f-a7e4-1c4ef2f35d61");
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
-    // --- Auto-eat state ---
-    private static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
-    private static final int ARRIVE_IN = Math.max(8, VILLAGE_NEAR - 4); // e.g., 28 if near=32
-    private static final int ARRIVE_OUT = VILLAGE_NEAR + 4;              // e.g., 36
-    private static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
+    private static final int ARRIVE_IN = Math.max(8, TravellersModConfig.VILLAGE_NEAR - 4); // e.g., 28 if near=32
+    private static final int ARRIVE_OUT = TravellersModConfig.VILLAGE_NEAR + 4;              // e.g., 36
     private static final DataParameter<Boolean> AIMING_BOW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     private static final String GHOST_BOW_TAG = "TravellerGhostBow";
-
-    public static final String GHOST_TORCH_TAG = "TravellerGhostTorch";
-
-    // --- Grace hits vs players ---
-    private static final int PLAYER_FREE_HITS = 3;
-    private static final int PLAYER_FORGIVE_WINDOW_TICKS = 6 * 20; // reset window per attacker
-    private static final double CHORUS_RADIUS = 32.0;
+    // Configuration-ish knobs
+    private static final DataParameter<String> CULTURE_ID =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
+    private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
     final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
-    // --- Route planning state ---
-    private final java.util.List<BlockPos> route = new java.util.ArrayList<>();
     private final java.util.Map<java.util.UUID, Threat> threatMap = new java.util.HashMap<>();
     private final java.util.Map<java.util.UUID, HitGrace> playerGrace = new java.util.HashMap<>();
-    int nextTravelAmbientTick = 0;  // you already had this
-    private List<BlockPos> cachedVillages = java.util.Collections.emptyList();
-    private int villageCacheTicker = 0;
+    private final java.util.Map<java.util.UUID, Integer> playerLastAggroTick = new java.util.HashMap<>();
+    // per-player last hello tick (server-authoritative)
+    private final java.util.Map<java.util.UUID, Integer> lastHelloTickByPlayer = new java.util.HashMap<>();
     // ---- GAP / CLIFF handling control ----
-    private boolean wasInWater = false;
-    // --- AI State Fields (saved to disk)---
-    private BlockPos targetVillage;
-    private BlockPos currentWaypoint;
-    private BlockPos roamTarget;
-    private int pauseTicks;
-    private int villageIdleTicks;
-    private boolean villageIdling;
-    private BlockPos nearestVillage;   // updated every tick
+    private final boolean wasInWater = false;
+    private final int noPathTicks = 0;
+    private final float baseWaterPenalty = 6.0F;
+    private final TravelCommon travelCommon = new TravelCommon(this);
+    int nextTravelAmbientTick = 0;  // you already had this
+    // field on EntityTraveller
+    EntityAIAutoEat autoEatTask;
+    EntityAIRangedBowTravellerSafe aiRanged;
+    EntityAIAttackMeleeCustom aiMelee;
+    EntityAIDefendIfClose aiDefendIfClose;
+    EntityAIFollowTraveller aiFollow;
+    EntityAITravel aiTravel;
+    int lastLOSorCloseTick = 0; // last time we either saw the player OR they were close
+    private int dogScanCooldown = 0;
+    private int spawnAmbientCooldownTicks = 0;                       // counts down server-side
     // --- Combat State Fields ---
     private boolean inCombat = false;
     private int swordHideTicks = 0;
     private int lastThreatDecayTick = 0;
-    // field on EntityTraveller
-    EntityAIAutoEat autoEatTask;
+
+    // NEW: cultural aggression toggle (per entity, persisted)
+    private boolean aggressiveToCultures = false;
+
     // --- Caravan / follow-other-traveller state ---
     @Nullable
     private UUID followLeaderId = null;
     private int followTimeoutTicks = 0;
     // --- Equipment ---
     private int pickupCooldown = 0;
-    // --- Path personality (persistent), so they don't always follow exact same path ---
-    private float pathAngleBiasDeg;      // small left/right heading bias
-    private double pathLaneOffset;       // lateral offset from the beeline
-    private int pathStepJitter;          // jitter step size a little
-    private int recalcPhase;             // desync repath ticks
-    // Personality knobs
-    private float wanderlust;          // 0..1 (0 = likes short trips, 1 = likes long trips)
-    private float exploreChance;       // small epsilon to allow any village sometimes
     private int speakCooldown = 0;
     private int forcedSwingTicks = 0;
     private int hurtAnimCooldown = 0;
-    private int routeIndex = -1; // -1 = no active route
     private int travelRecoverTicks = 0;
-    // --- Village dwell/route handoff ---
-    private boolean readyToDepart = false;
-    private int departCooldownTicks = 0;
-    // Personality: probability to insert an intermediate stop before the far destination
-    private float hopPreference; // 0..1, e.g., 0.0 = never stop at B first, 1.0 = always
     private int pickupScanTicker = 0;
-    EntityAIRangedBowTravellerSafe aiRanged;
-    EntityAIAttackMeleeCustom aiMelee;
-    EntityAIDefendIfClose aiDefendIfClose;
-    EntityAIFollowTraveller aiFollow;
-    EntityAITravel aiTravel;
-    private final java.util.Map<java.util.UUID, Integer> playerLastAggroTick = new java.util.HashMap<>();
-
-    private int noPathTicks = 0;
-    private float baseWaterPenalty = 6.0F;
-
-    private float lastDesiredTravelYaw = Float.NaN;
-
-    // --- camp social state ---
-    @Nullable private EntityTraveller socialPeer = null;
-    private int socialTicks = 0;
-    private int socialCooldown = 0;
 
     // --- Voice channel ---
     private int voiceLockUntilTick = 0;     // no new sounds until this tick (entity-local, server authoritative)
     private VoiceKind voiceKindNow = VoiceKind.NONE;
-
     private int nearUnloadTicks = 0; // counts consecutive "at the edge" seconds
-
-    private static final int TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT = 20 * 10; // fallback if config 0
     private int travelTorchCooldown = 0;
-    private static final double TRAVEL_TORCH_NEARBY_RADIUS_DEFAULT = 10.0D;
+    // --- spawn helper flags ---
+    private boolean checkedCompanionSpawn = false;   // only run logic once
+    private boolean suppressCompanionSpawn = false;  // set for eggs/commands/etc.
+    private int farFromPlayersTicks = 0;
+    @Nullable
+    private java.util.UUID chasingPlayerId = null;
+    @Nullable
+    private UUID dogId = null;
 
+    public EntityTraveller(World worldIn) {
+        super(worldIn);
+        this.setPathPriority(PathNodeType.BLOCKED, -1.0F);
+        this.setPathPriority(PathNodeType.WATER, 1.0F);     // mildly worse than WALKABLE
 
-    // --- Camp join cooldown (prevents placing a fire right after resting) ---
-    public static final int CAMP_JOIN_COOLDOWN_TICKS = 20 * 60; // 60s; tweak as you like
-    private int campJoinCooldown = 0;
-    // --- Camps this traveller should temporarily avoid (because they were full) ---
-    private final java.util.Map<BlockPos, Integer> campAvoidUntil = new java.util.HashMap<>();
+        // Make dangerous stuff REALLY undesirable
+        this.setPathPriority(PathNodeType.DANGER_CACTUS, -1.0F);
+        this.setPathPriority(PathNodeType.DAMAGE_CACTUS, -1.0F);
+        this.setPathPriority(PathNodeType.DANGER_FIRE,   -1.0F);
+        this.setPathPriority(PathNodeType.DAMAGE_FIRE,   -1.0F);
+        this.setPathPriority(PathNodeType.DANGER_OTHER,  -1.0F);
 
-    /** Call every tick from onLivingUpdate to decay the avoid map. */
-    public void tickCampAvoid() {
-        if (campAvoidUntil.isEmpty()) return;
-        java.util.Iterator<java.util.Map.Entry<BlockPos, Integer>> it = campAvoidUntil.entrySet().iterator();
-        while (it.hasNext()) {
-            java.util.Map.Entry<BlockPos, Integer> e = it.next();
-            int t = e.getValue() - 1;
-            if (t <= 0) it.remove(); else e.setValue(t);
+        // If you’re on 1.12 and these exist:
+        this.setPathPriority(PathNodeType.LAVA,          -1.0F);
+        this.setPathPriority(PathNodeType.DAMAGE_OTHER,  -1.0F);
+
+        this.setSize(0.5F, 1.6F);
+        this.enablePersistence(); // make them persist in world
+        this.stepHeight = 1.0F; // Allow them to not jump but just stepUp 1 block height (avoids bugs with non-full blocks)
+        this.setCanPickUpLoot(true);
+        this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        this.setLeftHanded(false);
+
+    }
+    @Override
+    public float getBlockPathWeight(BlockPos pos) {
+        float base = super.getBlockPathWeight(pos);
+
+        // Check the block *under* the feet
+        BlockPos belowPos = pos.down();
+        IBlockState belowState = this.world.getBlockState(belowPos);
+        Block below = belowState.getBlock();
+
+        // Prefer any Millénaire path block (full or slab)
+        if (below instanceof IBlockPath) {
+            // Big bonus so paths beat plain ground
+            base += 4.0F;  // tweak to taste (2–6)
+        }
+
+        return base;
+    }
+
+    public boolean isGhostTorch(ItemStack s) {
+        return !s.isEmpty()
+                && s.getItem() == Item.getItemFromBlock(Blocks.TORCH)
+                && s.hasTagCompound()
+                && s.getTagCompound().getBoolean(GHOST_TORCH_TAG);
+    }
+
+    // Helper: clamp angular delta and step toward a target
+    public static float rotlerp(float current, float target, float maxStep) {
+        float delta = MathHelper.wrapDegrees(target - current);
+        if (delta > maxStep) delta = maxStep;
+        if (delta < -maxStep) delta = -maxStep;
+        return current + delta;
+    }
+
+    public static double pointToSegment2DSq(Vec3d P, Vec3d A, Vec3d B) {
+        Vec3d AP = P.subtract(A);
+        Vec3d AB = B.subtract(A);
+        double ab2 = AB.lengthSquared();
+        if (ab2 < 1e-9) return AP.lengthSquared();
+        double t = AP.dotProduct(AB) / ab2;
+        if (t < 0) return AP.lengthSquared();
+        if (t > 1) return P.subtract(B).lengthSquared();
+        Vec3d H = A.add(AB.scale(t));
+        return P.subtract(H).lengthSquared();
+    }
+
+    @SubscribeEvent
+    public static void onSpecialSpawn(LivingSpawnEvent.SpecialSpawn event) {
+        if (event.getEntityLiving() instanceof EntityTraveller) {
+            EntityTraveller t = (EntityTraveller) event.getEntityLiving();
+            // This traveller came from spawn egg, command, structure, etc.
+            t.setSuppressCompanionSpawn(true);
         }
     }
 
-    /** Mark a camp to avoid for N ticks. */
+    public void setSuppressCompanionSpawn(boolean suppress) {
+        this.suppressCompanionSpawn = suppress;
+    }
+
+    public boolean isCampLeader() {
+        return travellerCamp.isCampLeader();
+    }
+
+    public void setCampLeader(boolean campLeader) {
+        travellerCamp.setCampLeader(campLeader);
+    }
+
+    /**
+     * Call every tick from onLivingUpdate to decay the avoid map.
+     */
+    public void tickCampAvoid() {
+        travellerCamp.tickCampAvoid();
+    }
+
+    /**
+     * Mark a camp to avoid for N ticks.
+     */
     public void avoidCamp(BlockPos pos, int ticks) {
-        if (pos != null) campAvoidUntil.put(pos.toImmutable(), ticks);
+        travellerCamp.avoidCamp(pos, ticks);
     }
 
-    /** True if this camp is currently blacklisted for this traveller. */
+    /**
+     * True if this camp is currently blacklisted for this traveller.
+     */
     public boolean isAvoidingCamp(BlockPos pos) {
-        if (pos == null) return false;
-        Integer left = campAvoidUntil.get(pos);
-        return left != null && left > 0;
+        return travellerCamp.isAvoidingCamp(pos);
     }
+
     public boolean isCampJoinOnCooldown() {
-        return campJoinCooldown > 0;
+        return travellerCamp.isCampJoinOnCooldown();
     }
 
-    public void setCampJoinCooldown() {
-        this.campJoinCooldown = CAMP_JOIN_COOLDOWN_TICKS;
+    public boolean hasCampfire() {
+        return travellerCamp.hasCampfire();
     }
-
-
-    public static final String GHOST_ROD_TAG = "TravellerGhostRod";
-
-    // --- Ephemeral camp state (not persisted) ---
-    @Nullable
-    private BlockPos campfirePos = null;
-    private boolean campLeader = false;
-    int campLeaveTick = 0;            // absolute tick when leader will pack up
-    int campRoamCooldown = 0;         // next time to pick a roam target
-    static final int CAMP_MIN_TICKS = 10 * 20;   // ~40s min
-    static final int CAMP_MAX_TICKS = 80 * 20;   // ~80s max
-
-    int campSwingTimer = 0;
-
-    // Configuration-ish knobs
-    private static final int CAMP_RANDOM_COOLDOWN = 6 * 60 * 20; // ~6 min between pauses
-    private int campGlobalCooldown = 0;                          // leader cooldown gate
-
-    public boolean hasCampfire() { return campfirePos != null; }
-    @Nullable public BlockPos getCampfirePos() { return campfirePos; }
 
     public void markCampLeader(BlockPos pos, int durationTicks) {
-        this.campfirePos = pos;
-        this.campLeader = true;
-        this.campLeaveTick = this.ticksExisted + durationTicks;
-        this.campRoamCooldown = 0;
-        this.campSwingTimer = CAMP_SWING_EVERY;
+        travellerCamp.markCampLeader(pos, durationTicks);
     }
 
+    // joiner
     public void joinCampAt(BlockPos pos, int durationTicks) {
-        // Joiner: no ownership; we leave early if fire vanishes.
-        this.campfirePos = pos;
-        this.campLeader = false;
-        this.campLeaveTick = this.ticksExisted + durationTicks;
-        this.campRoamCooldown = 0;
-        this.campSwingTimer = CAMP_SWING_EVERY;
+        travellerCamp.joinCampAt(pos, durationTicks);
     }
 
     public void clearCamp() {
-        this.campfirePos = null;
-        this.campLeader = false;
-        this.campLeaveTick = 0;
-        this.campRoamCooldown = 0;
-        setCampJoinCooldown();
+        travellerCamp.clearCamp();
     }
 
-
+    public void setCampJoinCooldown() {
+        travellerCamp.setCampJoinCooldown();
+    }
 
     public void setCampCooldown() {
-        this.campGlobalCooldown = CAMP_RANDOM_COOLDOWN;
+        travellerCamp.setCampCooldown();
     }
 
     public boolean campOnCooldown() {
-        return campGlobalCooldown > 0;
+        return travellerCamp.campOnCooldown();
     }
 
-    public boolean isFishingRodLike(ItemStack s) {
-        return !s.isEmpty() && s.getItem() instanceof net.minecraft.item.ItemFishingRod;
-    }
+
+// === Shared camp helpers ===
 
     public boolean isGhostRod(ItemStack s) {
         return !s.isEmpty()
                 && isFishingRodLike(s)
                 && s.hasTagCompound()
                 && s.getTagCompound().getBoolean(GHOST_ROD_TAG);
+    }
+
+    public boolean isFishingRodLike(ItemStack s) {
+        return !s.isEmpty() && s.getItem() instanceof net.minecraft.item.ItemFishingRod;
     }
 
     public ItemStack makeGhostRod(ItemStack src) {
@@ -321,96 +329,27 @@ public class EntityTraveller extends EntityCreature {
         copy.setTagCompound(tag);
         return copy;
     }
-
-    private static final DataParameter<String> CULTURE_ID =
-            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
-    private int farFromPlayersTicks = 0;
-
-    public String getCultureId() {
-        return this.dataManager.get(CULTURE_ID);
+    public TravellerCamp getCamp() {
+        return camp;
     }
-
     public CultureDef getCulture() {
         return CultureRegistry.get(getCultureId());
     }
 
-    public void setCultureId(String id) {
-        this.dataManager.set(CULTURE_ID, id);
+    public String getCultureId() {
+        return this.dataManager.get(CULTURE_ID);
     }
-
-    // per-player last hello tick (server-authoritative)
-    private final java.util.Map<java.util.UUID, Integer> lastHelloTickByPlayer = new java.util.HashMap<>();
-    private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
-
 
     // Default: friendlies are NOT aggressive to other travellers.
     protected boolean isAggressiveToTravellers() {
         return false;
     }
 
-
-// === Shared camp helpers ===
-
-    // “Dry standable” check (single authoritative version)
-    public boolean isDryStandable(BlockPos feet) {
-        World w = this.world;
-        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
-
-        // never stand on Millénaire fire pit itself
-        Block campBlock = CampfireBlock.get();
-        if (campBlock != null && w.getBlockState(feet).getBlock() == campBlock) return false;
-
-        IBlockState below = w.getBlockState(feet.down());
-        if (below.getMaterial().isLiquid()) return false;
-
-        // forbid non-water liquids intersecting our AABB
-        AxisAlignedBB aabb = this.getEntityBoundingBox().offset(
-                (feet.getX() + 0.5) - this.posX,
-                (feet.getY()) - this.posY,
-                (feet.getZ() + 0.5) - this.posZ
-        );
-        if (EntityAITravel.intersectsForbiddenLiquid(w, aabb)) return false;
-
-        IBlockState atFeet = w.getBlockState(feet);
-        IBlockState atHead = w.getBlockState(feet.up());
-        boolean free = (atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(w, feet) == null)
-                && (atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(w, feet.up()) == null);
-
-        BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
-        boolean solidBelow = shape == BlockFaceShape.SOLID || below.getBlock() == Blocks.SNOW_LAYER
-                || below.getBlock() == Blocks.GRASS_PATH
-                || below.getBlock() == Blocks.ICE || below.getBlock() == Blocks.PACKED_ICE;
-
-        return free && solidBelow;
-    }
-
-    // Find a dry standable Y near XZ (no chunk loads)
-    @Nullable
-    public BlockPos topStandable(BlockPos guess) {
-        World w = this.world;
-        if (!(w instanceof WorldServer)) return w.getTopSolidOrLiquidBlock(guess); // fallback if needed
-        WorldServer ws = (WorldServer) w;
-        if (!ws.getChunkProvider().chunkExists(guess.getX() >> 4, guess.getZ() >> 4)) return null;
-
-        BlockPos p = w.getTopSolidOrLiquidBlock(guess);
-        for (int i = 0; i < 3; i++) {               // probe up
-            if (isDryStandable(p)) break;
-            p = p.up();
-            if (!ws.getChunkProvider().chunkExists(p.getX() >> 4, p.getZ() >> 4)) return null;
-        }
-        for (int i = 0; i < 6 && p.getY() > 1; i++) { // then probe down
-            if (isDryStandable(p)) break;
-            p = p.down();
-            if (!ws.getChunkProvider().chunkExists(p.getX() >> 4, p.getZ() >> 4)) return null;
-        }
-        return isDryStandable(p) ? p : null;
-    }
-
     // Smoothly turn to look at a block (used for fire & social glances)
     public void faceTowards(BlockPos pos, float bodyStep, float headStep) {
         double dx = pos.getX() + 0.5 - this.posX;
         double dz = pos.getZ() + 0.5 - this.posZ;
-        float yaw = (float)(Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
+        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
         this.rotationYaw = rotlerp(this.rotationYaw, yaw, bodyStep);
         this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, bodyStep);
         this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, headStep);
@@ -418,12 +357,12 @@ public class EntityTraveller extends EntityCreature {
 
     // Convenience for the current campfire
     public void lookAtFire() {
-        if (isSocialLooking()) return; // don't override a chat glance
-        BlockPos fp = getCampfirePos();
+        if (travellerCamp.isSocialLooking()) return; // don't override a chat glance
+        BlockPos fp = travellerCamp.getCampfirePos();
         if (fp == null) return;
         double dx = fp.getX() + 0.5 - this.posX;
         double dz = fp.getZ() + 0.5 - this.posZ;
-        float yaw = (float)(Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
+        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
         this.rotationYaw = rotlerp(this.rotationYaw, yaw, 10.0F);
         this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, 10.0F);
         this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, 12.0F);
@@ -432,88 +371,65 @@ public class EntityTraveller extends EntityCreature {
     // Choose a stand slot ~1.4 blocks in front of the fire (shared by both AIs)
     @Nullable
     public BlockPos pickFrontOfFire(BlockPos fire) {
-        Vec3d dir = new Vec3d(this.posX - (fire.getX()+0.5), 0, this.posZ - (fire.getZ()+0.5));
-        if (dir.lengthSquared() < 1.0E-4) dir = new Vec3d(1,0,0);
+        Vec3d dir = new Vec3d(this.posX - (fire.getX() + 0.5), 0, this.posZ - (fire.getZ() + 0.5));
+        if (dir.lengthSquared() < 1.0E-4) dir = new Vec3d(1, 0, 0);
         dir = dir.normalize();
 
         int[] angles = new int[]{0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180};
         for (int aDeg : angles) {
             double a = Math.toRadians(aDeg);
-            double cx = Math.cos(a)*dir.x - Math.sin(a)*dir.z;
-            double cz = Math.sin(a)*dir.x + Math.cos(a)*dir.z;
-            int x = fire.getX() + (int)Math.round(cx * 1.4);
-            int z = fire.getZ() + (int)Math.round(cz * 1.4);
-            BlockPos top = topStandable(new BlockPos(x, fire.getY(), z));
-            if (top != null && top.distanceSq(fire) <= (CAMP_RADIUS+2)*(CAMP_RADIUS+2)) return top;
+            double cx = Math.cos(a) * dir.x - Math.sin(a) * dir.z;
+            double cz = Math.sin(a) * dir.x + Math.cos(a) * dir.z;
+            int x = fire.getX() + (int) Math.round(cx * 1.4);
+            int z = fire.getZ() + (int) Math.round(cz * 1.4);
+            BlockPos top = travelCommon.topStandable(new BlockPos(x, fire.getY(), z));
+            if (top != null && top.distanceSq(fire) <= (TravellersModConfig.CAMP_RADIUS + 2) * (TravellersModConfig.CAMP_RADIUS + 2))
+                return top;
         }
         return null;
     }
 
-    public EntityTraveller(World worldIn) {
-        super(worldIn);
-// AFTER — make water expensive to *avoid* it during planning
-        this.setPathPriority(PathNodeType.WATER, 16.0F);
-// Optional: slightly discourage stepping right at water edges too
-        this.setPathPriority(PathNodeType.WATER, 6.0F);      // from 16 -> 6
-        try { this.setPathPriority(PathNodeType.valueOf("WATER_BORDER"), 3.0F); } catch (IllegalArgumentException ignored) {}
+    // Find a dry standable Y near XZ (no chunk loads)
+    @Nullable
+    public BlockPos topStandable(BlockPos guess) {
 
-        this.setSize(0.5F, 1.6F);
-        this.enablePersistence(); // make them persist in world
-        this.stepHeight = 1.4F; // Allow them to not jump but just stepUp 1 block height (avoids bugs with non-full blocks)
-        this.setCanPickUpLoot(true);
-        this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
-        this.setLeftHanded(false);
-
+        return travelCommon.topStandable(guess);
     }
 
-    // Helper: clamp angular delta and step toward a target
-    private static float rotlerp(float current, float target, float maxStep) {
-        float delta = MathHelper.wrapDegrees(target - current);
-        if (delta > maxStep) delta = maxStep;
-        if (delta < -maxStep) delta = -maxStep;
-        return current + delta;
-    }
+    // “Dry standable” check (single authoritative version)
+    public boolean isDryStandable(BlockPos feet) {
 
-    private static double pointToSegment2DSq(Vec3d P, Vec3d A, Vec3d B) {
-        Vec3d AP = P.subtract(A);
-        Vec3d AB = B.subtract(A);
-        double ab2 = AB.lengthSquared();
-        if (ab2 < 1e-9) return AP.lengthSquared();
-        double t = AP.dotProduct(AB) / ab2;
-        if (t < 0) return AP.lengthSquared();
-        if (t > 1) return P.subtract(B).lengthSquared();
-        Vec3d H = A.add(AB.scale(t));
-        return P.subtract(H).lengthSquared();
-    }
+        // never stand on Millénaire fire pit itself
 
+        // forbid non-water liquids intersecting our AABB
+
+        return travelCommon.isDryStandable(feet);
+    }
 
     public boolean isAtTargetStopHys(boolean lastWasInside) {
-        BlockPos tv = this.getTargetVillage();
+        BlockPos tv = travelCommon.getTargetVillage();
         if (tv == null) return false;
         double d2 = this.getDistanceSqToCenter(tv);
-        int r = arrivalRadiusBlocks(tv);
+        int r = travelCommon.arrivalRadiusBlocks(tv);
         int inR = Math.min(r, ARRIVE_IN);
         int outR = Math.max(r, ARRIVE_OUT);
         return lastWasInside ? d2 <= (double) outR * outR
                 : d2 <= (double) inR * inR;
     }
 
-
     // --- Getters & Setters for AI Fields ---
     public BlockPos getTargetVillage() {
-        return this.targetVillage;
+        return travelCommon.getTargetVillage();
     }
 
     public void setTargetVillage(@Nullable BlockPos pos) {
-        this.targetVillage = pos;
+        travelCommon.setTargetVillage(pos);
     }
 
     // --- Arrival policy (ONE source of truth) ---
     public int arrivalRadiusBlocks(BlockPos target) {
         // Prefer Millénaire’s custom near radius if present, else your config
-        int r = MillenaireVillageDirectory.nearRadiusFor(target);
-        if (r <= 0) r = EntityTraveller.VILLAGE_NEAR;
-        return r;
+        return travelCommon.arrivalRadiusBlocks(target);
     }
 
     // Allow AI to check/do these without touching your privates:
@@ -543,35 +459,46 @@ public class EntityTraveller extends EntityCreature {
 
     // Keep the existing visual behavior for swords while shooting:
     public void delaySwordHideVisual() {
-        this.swordHideTicks = SWORD_HIDE_DELAY;
+        this.swordHideTicks = TravellersModConfig.SWORD_HIDE_DELAY;
     }
 
     public int getTravelRecoverTicks() {
-        return travelRecoverTicks;
+        return this.travelRecoverTicks;
     }
 
     public void setTravelRecoverTicks(int t) {
-        travelRecoverTicks = t;
+        this.travelRecoverTicks = t;
     }
-
     public boolean isReadyToDepart() {
-        return readyToDepart;
+        return travelCommon.isReadyToDepart();
     }
 
     public void setReadyToDepart(boolean v) {
-        this.readyToDepart = v;
+        travelCommon.setReadyToDepart(v);
     }
 
     public int getDepartCooldownTicks() {
-        return departCooldownTicks;
+        return travelCommon.getDepartCooldownTicks();
     }
 
     public void setDepartCooldownTicks(int t) {
-        departCooldownTicks = t;
+        travelCommon.setDepartCooldownTicks(t);
     }
 
     protected boolean shouldAttackExtraEntity(net.minecraft.entity.EntityLivingBase other) {
         return false;
+    }
+
+    public int getSpawnAmbientCooldownTicks() {
+        return spawnAmbientCooldownTicks;
+    }
+
+    public void setNextTravelAmbientTick(int tick) {
+        this.nextTravelAmbientTick = tick;
+    }
+
+    public int getVoiceLockUntilTick() {
+        return voiceLockUntilTick;
     }
 
 
@@ -638,7 +565,10 @@ public class EntityTraveller extends EntityCreature {
         }
 
         this.tasks.addTask(10, new EntityAIStopAndLookAtPlayer(this, 3.2D, 30.0F, 30.0F));
-        this.tasks.addTask(11, new EntityAIFishWhileTravel(this, 0.35D));
+        if (TravellersModConfig.fishWhileTravelEnabled) {
+            this.tasks.addTask(11, new EntityAIFishWhileTravel(this));
+        }
+
         // Utility / travel
         this.tasks.addTask(12, new EntityAIOpenFenceGate(this));
 
@@ -649,23 +579,10 @@ public class EntityTraveller extends EntityCreature {
         aiFollow = new EntityAIFollowTraveller(this, 0.819, TravellersModConfig.movementSpeedWhileFollowing);
         this.tasks.addTask(15, aiFollow);
 
-        aiTravel = new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, 24);
+        aiTravel = new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, TravellersModConfig.stepBlocks);
         this.tasks.addTask(16, aiTravel);
 
         this.tasks.addTask(17, new EntityAILookIdle(this));
-    }
-
-    @Override
-    protected int getExperiencePoints(EntityPlayer player) {
-        int base = 4; // baseline
-        // small bonuses for gear
-        int gear =
-                (!getItemStackFromSlot(EntityEquipmentSlot.CHEST).isEmpty() ? 2 : 0) +
-                        (!getItemStackFromSlot(EntityEquipmentSlot.LEGS).isEmpty() ? 1 : 0) +
-                        (!getItemStackFromSlot(EntityEquipmentSlot.HEAD).isEmpty() ? 1 : 0);
-        // bonus for max health above 20
-        int hpBonus = Math.max(0, (int) Math.floor((getMaxHealth() - 20f) / 10f));
-        return base + gear + hpBonus; // tweak to taste
     }
 
     // Entity Attributes
@@ -697,12 +614,25 @@ public class EntityTraveller extends EntityCreature {
 
         if (target instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) target;
+
             // Block SAME-faction fights: (friendly↔friendly) and (raider↔raider)
             if (!isCrossFaction(other)) {
                 super.setAttackTarget(null);
                 return;
             }
+
+            // NEW: friendly travellers only fight raiders of a different culture
+            // this.isAggressiveToTravellers() == false  => normal traveller
+            // other.isAggressiveToTravellers() == true  => raider
+            if (!this.isAggressiveToTravellers() && other.isAggressiveToTravellers()) {
+                // Same culture? Then don't attack.
+                if (isSameCulture(other)) {
+                    super.setAttackTarget(null);
+                    return;
+                }
+            }
         }
+
 
         super.setAttackTarget(target);
 
@@ -717,7 +647,6 @@ public class EntityTraveller extends EntityCreature {
         }
     }
 
-
     // Traveller textures
     @Override
     protected void entityInit() {
@@ -726,6 +655,19 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(TEXTURE_INDEX, 0);
         this.dataManager.register(AIMING_BOW, Boolean.FALSE); // NEW
         // default texture index
+    }
+
+    @Override
+    protected int getExperiencePoints(EntityPlayer player) {
+        int base = 4; // baseline
+        // small bonuses for gear
+        int gear =
+                (!getItemStackFromSlot(EntityEquipmentSlot.CHEST).isEmpty() ? 2 : 0) +
+                        (!getItemStackFromSlot(EntityEquipmentSlot.LEGS).isEmpty() ? 1 : 0) +
+                        (!getItemStackFromSlot(EntityEquipmentSlot.HEAD).isEmpty() ? 1 : 0);
+        // bonus for max health above 20
+        int hpBonus = Math.max(0, (int) Math.floor((getMaxHealth() - 20f) / 10f));
+        return base + gear + hpBonus; // tweak to taste
     }
 
     @Override
@@ -755,21 +697,21 @@ public class EntityTraveller extends EntityCreature {
             voiceKindNow = VoiceKind.NONE;
         }
 
-        if (!world.isRemote && getTargetVillage() != null) {
-            if (this.getNavigator().noPath()) {
-                noPathTicks++;
-                if (noPathTicks == 60) { // ~3s stuck
-                    this.setPathPriority(PathNodeType.WATER, Math.max(1.0F, baseWaterPenalty - 3.0F));
-                } else if (noPathTicks == 140) { // ~7s stuck
-                    this.setPathPriority(PathNodeType.WATER, 0.0F); // treat as neutral
-                }
-            } else {
-                if (noPathTicks > 0) {
-                    noPathTicks = 0;
-                    this.setPathPriority(PathNodeType.WATER, baseWaterPenalty); // restore
-                }
-            }
-        }
+//        if (!world.isRemote && getTargetVillage() != null) {
+//            if (this.getNavigator().noPath()) {
+//                noPathTicks++;
+//                if (noPathTicks == 60) { // ~3s stuck
+//                    this.setPathPriority(PathNodeType.WATER, Math.max(1.0F, baseWaterPenalty - 3.0F));
+//                } else if (noPathTicks == 140) { // ~7s stuck
+//                    this.setPathPriority(PathNodeType.WATER, 0.0F); // treat as neutral
+//                }
+//            } else {
+//                if (noPathTicks > 0) {
+//                    noPathTicks = 0;
+//                    this.setPathPriority(PathNodeType.WATER, baseWaterPenalty); // restore
+//                }
+//            }
+//        }
 
         if (!world.isRemote) {
             EntityLivingBase tgt = this.getAttackTarget();
@@ -792,7 +734,7 @@ public class EntityTraveller extends EntityCreature {
 
 
         if (!world.isRemote) {
-            if (departCooldownTicks > 0) departCooldownTicks--;
+            if (travelCommon.getDepartCooldownTicks() > 0) travelCommon.setDepartCooldownTicks(travelCommon.getDepartCooldownTicks() - 1);
 
             if (travelRecoverTicks > 0) travelRecoverTicks--;
             tickFollowTimer();
@@ -800,11 +742,11 @@ public class EntityTraveller extends EntityCreature {
             if (getAttackTarget() == null || !getAttackTarget().isEntityAlive()) {
                 if (isInCombat()) {
                     setInCombat(false);
-                    setTravelRecoverTicks(60); // ~3s grace; tune 40–80
+                    travelCommon.setTravelRecoverTicks(60); // ~3s grace; tune 40–80
                 }
             }
             if (TravellersModConfig.travellerAmbient && this.ticksExisted >= nextTravelAmbientTick) {
-                maybePlayTravelAmbient();
+                travelCommon.maybePlayTravelAmbient();
             }
             handleSwordVisibility();
             decayAndPruneThreats();
@@ -868,7 +810,6 @@ public class EntityTraveller extends EntityCreature {
         }
     }
 
-
     // --- NBT Saving / Loading ---
     @Override
     public void writeEntityToNBT(NBTTagCompound compound) {
@@ -889,29 +830,39 @@ public class EntityTraveller extends EntityCreature {
             // ---- your existing writes below ----
             if (dogId != null) compound.setUniqueId("DogId", dogId);
             compound.setTag("TravellerInv", inventory.serializeNBT());
-            if (targetVillage != null)
-                compound.setTag("TargetVillage", net.minecraft.nbt.NBTUtil.createPosTag(targetVillage));
-            if (currentWaypoint != null)
-                compound.setIntArray("CurrentWaypoint", new int[]{currentWaypoint.getX(), currentWaypoint.getY(), currentWaypoint.getZ()});
-            if (roamTarget != null)
-                compound.setIntArray("RoamTarget", new int[]{roamTarget.getX(), roamTarget.getY(), roamTarget.getZ()});
-            compound.setInteger("PauseTicks", pauseTicks);
-            compound.setInteger("VillageIdleTicks", villageIdleTicks);
-            compound.setBoolean("VillageIdling", villageIdling);
-            compound.setInteger("RouteIndex", routeIndex);
+            if (travelCommon.getTargetVillage() != null)
+                compound.setTag("TargetVillage", net.minecraft.nbt.NBTUtil.createPosTag(travelCommon.getTargetVillage()));
+            if (travelCommon.getCurrentWaypoint() != null)
+                compound.setIntArray("CurrentWaypoint", new int[]{travelCommon.getCurrentWaypoint().getX(), travelCommon.getCurrentWaypoint().getY(), travelCommon.getCurrentWaypoint().getZ()});
+            if (travelCommon.getRoamTarget() != null)
+                compound.setIntArray("RoamTarget", new int[]{travelCommon.getRoamTarget().getX(), travelCommon.getRoamTarget().getY(), travelCommon.getRoamTarget().getZ()});
+            compound.setBoolean("CampLeader", this.travellerCamp.isCampLeader());
+            compound.setLong("CampLeaveTime", this.travellerCamp.campLeaveTime);
+
+            if (this.travellerCamp.getCampfirePos() != null) {
+                compound.setInteger("CampX", this.travellerCamp.getCampfirePos().getX());
+                compound.setInteger("CampY", this.travellerCamp.getCampfirePos().getY());
+                compound.setInteger("CampZ", this.travellerCamp.getCampfirePos().getZ());
+            }
+
+
+            compound.setInteger("PauseTicks", travelCommon.getPauseTicks());
+            compound.setInteger("VillageIdleTicks", travelCommon.getVillageIdleTicks());
+            compound.setBoolean("VillageIdling", travelCommon.isVillageIdling());
+            compound.setInteger("RouteIndex", travelCommon.routeIndex);
             compound.setInteger("TextureIdx", getTextureIndex());
-            compound.setFloat("Wanderlust", wanderlust);
-            compound.setFloat("ExploreChance", exploreChance);
-            compound.setFloat("HopPreference", hopPreference);
-            compound.setFloat("PathAngleBiasDeg", pathAngleBiasDeg);
-            compound.setDouble("PathLaneOffset", pathLaneOffset);
-            compound.setInteger("PathStepJitter", pathStepJitter);
-            compound.setInteger("RecalcPhase", recalcPhase);
-            compound.setBoolean("ReadyToDepart", readyToDepart);
-            compound.setInteger("DepartCooldown", departCooldownTicks);
+            compound.setFloat("Wanderlust", travelCommon.wanderlust);
+            compound.setFloat("ExploreChance", travelCommon.exploreChance);
+            compound.setFloat("HopPreference", travelCommon.hopPreference);
+            compound.setFloat("PathAngleBiasDeg", travelCommon.getPathAngleBiasDeg());
+            compound.setDouble("PathLaneOffset", travelCommon.getPathLaneOffset());
+            compound.setInteger("PathStepJitter", travelCommon.getPathStepJitter());
+            compound.setInteger("RecalcPhase", travelCommon.getRecalcPhase());
+            compound.setBoolean("ReadyToDepart", travelCommon.isReadyToDepart());
+            compound.setInteger("DepartCooldown", travelCommon.getDepartCooldownTicks());
             compound.setString("CultureId", getCultureId());
             NBTTagList lst = new NBTTagList();
-            for (BlockPos p : route) {
+            for (BlockPos p : travelCommon.route) {
                 lst.appendTag(new NBTTagIntArray(new int[]{p.getX(), p.getY(), p.getZ()}));
             }
             compound.setTag("RouteVillages", lst);
@@ -928,55 +879,66 @@ public class EntityTraveller extends EntityCreature {
     public void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
         if (compound.getBoolean("LeftHanded")) this.setLeftHanded(false);
+        this.travellerCamp.setCampLeader(compound.getBoolean("CampLeader"));
+        this.travellerCamp.campLeaveTime = compound.getLong("CampLeaveTime");
+
+        if (compound.hasKey("CampX")) {
+            int x = compound.getInteger("CampX");
+            int y = compound.getInteger("CampY");
+            int z = compound.getInteger("CampZ");
+            this.travellerCamp.campfirePos = new BlockPos(x, y, z);
+        } else {
+            this.travellerCamp.campfirePos = null;
+        }
         if (!this.world.isRemote) {
             this.spawnAmbientCooldownTicks = Math.max(this.spawnAmbientCooldownTicks, 4 * 20); // at least ~4s
         }
         dogId = compound.hasUniqueId("DogId") ? compound.getUniqueId("DogId") : null;
         if (compound.hasKey("TargetVillage", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND)) {
-            this.targetVillage = net.minecraft.nbt.NBTUtil.getPosFromTag(
-                    compound.getCompoundTag("TargetVillage"));
+            this.travelCommon.setTargetVillage(NBTUtil.getPosFromTag(
+                    compound.getCompoundTag("TargetVillage")));
         } else {
-            this.targetVillage = null;
+            this.travelCommon.setTargetVillage(null);
         }
 
         // CurrentWaypoint (only once)
         if (compound.hasKey("CurrentWaypoint")) {
             int[] a = compound.getIntArray("CurrentWaypoint");
-            if (a.length == 3) currentWaypoint = new BlockPos(a[0], a[1], a[2]);
+            if (a.length == 3) travelCommon.setCurrentWaypoint(new BlockPos(a[0], a[1], a[2]));
         } else {
-            currentWaypoint = null;
+            travelCommon.setCurrentWaypoint(null);
         }
 
         if (compound.hasKey("RoamTarget")) {
             int[] arr = compound.getIntArray("RoamTarget");
-            roamTarget = new BlockPos(arr[0], arr[1], arr[2]);
+            travelCommon.setRoamTarget(new BlockPos(arr[0], arr[1], arr[2]));
         } else {
-            roamTarget = null;
+            travelCommon.setRoamTarget(null);
         }
         if (compound.hasKey("TravellerInv", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND)) {
             inventory.deserializeNBT(compound.getCompoundTag("TravellerInv"));
         }
         if (compound.hasKey("TextureIdx")) setTextureIndex(compound.getInteger("TextureIdx"));
-        if (compound.hasKey("Wanderlust")) wanderlust = compound.getFloat("Wanderlust");
-        if (compound.hasKey("ExploreChance")) exploreChance = compound.getFloat("ExploreChance");
-        if (compound.hasKey("HopPreference")) hopPreference = compound.getFloat("HopPreference");
-        if (compound.hasKey("PathAngleBiasDeg")) pathAngleBiasDeg = compound.getFloat("PathAngleBiasDeg");
-        if (compound.hasKey("PathLaneOffset")) pathLaneOffset = compound.getDouble("PathLaneOffset");
-        if (compound.hasKey("PathStepJitter")) pathStepJitter = compound.getInteger("PathStepJitter");
-        if (compound.hasKey("RecalcPhase")) recalcPhase = compound.getInteger("RecalcPhase");
+        if (compound.hasKey("Wanderlust")) travelCommon.wanderlust = compound.getFloat("Wanderlust");
+        if (compound.hasKey("ExploreChance")) travelCommon.exploreChance = compound.getFloat("ExploreChance");
+        if (compound.hasKey("HopPreference")) travelCommon.hopPreference = compound.getFloat("HopPreference");
+        if (compound.hasKey("PathAngleBiasDeg")) travelCommon.pathAngleBiasDeg = compound.getFloat("PathAngleBiasDeg");
+        if (compound.hasKey("PathLaneOffset")) travelCommon.pathLaneOffset = compound.getDouble("PathLaneOffset");
+        if (compound.hasKey("PathStepJitter")) travelCommon.pathStepJitter = compound.getInteger("PathStepJitter");
+        if (compound.hasKey("RecalcPhase")) travelCommon.recalcPhase = compound.getInteger("RecalcPhase");
         if (compound.hasKey("CultureId")) setCultureId(compound.getString("CultureId"));
-        pauseTicks = compound.getInteger("PauseTicks");
-        villageIdleTicks = compound.getInteger("VillageIdleTicks");
-        villageIdling = compound.getBoolean("VillageIdling");
-        route.clear();
+        travelCommon.setPauseTicks(compound.getInteger("PauseTicks"));
+        travelCommon.setVillageIdleTicks(compound.getInteger("VillageIdleTicks"));
+        travelCommon.setVillageIdling(compound.getBoolean("VillageIdling"));
+        travelCommon.route.clear();
         if (compound.hasKey("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_LIST)) {
             NBTTagList lst = compound.getTagList("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_INT_ARRAY);
             for (int i = 0; i < lst.tagCount(); i++) {
                 int[] a = lst.getIntArrayAt(i);
-                if (a.length == 3) route.add(new BlockPos(a[0], a[1], a[2]));
+                if (a.length == 3) travelCommon.route.add(new BlockPos(a[0], a[1], a[2]));
             }
         }
-        routeIndex = compound.getInteger("RouteIndex");
+        travelCommon.routeIndex = compound.getInteger("RouteIndex");
     }
 
     @Override
@@ -1014,29 +976,53 @@ public class EntityTraveller extends EntityCreature {
             }
         }
     }
-    void cleanupOwnedCampfireIfAny() {
-        if (!campLeader || campfirePos == null || world.isRemote) return;
-        WorldServer ws = (WorldServer) world;
-        Block fire = CampfireBlock.get();
-        if (fire != null && ws.getBlockState(campfirePos).getBlock() == fire) {
-            ws.setBlockToAir(campfirePos);
+    @Override
+    public boolean getAlwaysRenderNameTag() {
+        // Hard disable via config: no name tag, even if custom name exists.
+        if (!TravellersModConfig.showTravellerNames) {
+            return false;
         }
-        CampfireManager.get(ws).remove(campfirePos, this.dimension); // NEW: drop the saved entry
-    }
 
+        // Otherwise, behave like a custom-named entity that always shows its tag.
+        // (You can tweak this if you want vanilla distance behaviour instead.)
+        return this.hasCustomName();
+    }
+    @Override
+    public void setAIMoveSpeed(float speed) {
+        double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
+
+        float cap;
+        if (this.isAimingBow()) {
+            cap = (float) Math.min(base * 0.98D, 0.30D); // was 0.26
+        } else if (this.getAttackTarget() != null) {
+            cap = (float) Math.min(base * 1.22D, 0.38D); // was 1.18 & 0.35
+        } else {
+            cap = (float) Math.min(base * 1.02D, 0.32D); // was 0.30
+        }
+        super.setAIMoveSpeed(Math.min(speed, cap));
+    }
 
     @Override
     public void onLivingUpdate() {
         if (!world.isRemote) {
+            if (!this.world.isRemote) {
+                ensureDismountIfInCombat();
+            }
+            // NEW: only once per traveller, on first server tick
+            if (!checkedCompanionSpawn) {
+                checkedCompanionSpawn = true;
+                maybeSpawnCompanionDog();
+            }
+
             if (spawnAmbientCooldownTicks > 0) spawnAmbientCooldownTicks--;
-            if (campGlobalCooldown > 0) campGlobalCooldown--;
+            if (travellerCamp.campGlobalCooldown > 0) travellerCamp.campGlobalCooldown--;
             maybeRecruitDog();
             if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
         }
 
         float NORMAL_STEP = 1.4F;
 // Use a *reduced* but nonzero step in water so we can climb a +1 rim out of water
-        float WATER_STEP = 0.8F; // was 0.0F
+        float WATER_STEP = 0.6F; // was 0.0F
         if (this.isInWater()) {
             if (this.stepHeight != WATER_STEP) this.stepHeight = WATER_STEP;
         } else {
@@ -1045,7 +1031,7 @@ public class EntityTraveller extends EntityCreature {
 
 
         super.onLivingUpdate();
-        if (campJoinCooldown > 0) campJoinCooldown--;
+        if (travellerCamp.campJoinCooldown > 0) travellerCamp.campJoinCooldown--;
         if (world.isRemote && hurtAnimCooldown > 0) hurtAnimCooldown--;
         if (speakCooldown > 0) speakCooldown--;
         if (world.isRemote) {
@@ -1054,37 +1040,37 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             if (pickupCooldown > 0) pickupCooldown--;
         }
-        tickCampAvoid();
+        travellerCamp.tickCampAvoid();
 
         // Pick an initial random target only once
         if (!world.isRemote) {
-            updateNearestVillage();
+            travelCommon.updateNearestVillage();
 
             // 1) Ensure we have a plan
-            if (routeIndex < 0 || routeIndex >= route.size()) {
-                ensureRoutePlanned();
+            if (travelCommon.routeIndex < 0 || travelCommon.routeIndex >= travelCommon.route.size()) {
+                travelCommon.ensureRoutePlanned();
             }
 
             // 2) Drive the current target from the route
-            if (routeIndex >= 0 && routeIndex < route.size()) {
-                BlockPos curStop = route.get(routeIndex);
-                this.setTargetVillage(curStop);
+            if (travelCommon.routeIndex >= 0 && travelCommon.routeIndex < travelCommon.route.size()) {
+                BlockPos curStop = travelCommon.route.get(travelCommon.routeIndex);
+                travelCommon.setTargetVillage(curStop);
 
-                boolean nearCurrentStop = this.isAtTargetStop();
+                boolean nearCurrentStop = travelCommon.isAtTargetStop();
 
                 // If we're inside the stop village AND the roam AI finished its stay, move to next hop
-                if (nearCurrentStop && !this.isVillageIdling() && this.isReadyToDepart()) {
-                    routeIndex++;
-                    this.setReadyToDepart(false);
-                    this.setDepartCooldownTicks(80); // ~4s @20tps (tune: 60–120 feels good)
-                    if (routeIndex < route.size()) {
-                        this.setTargetVillage(route.get(routeIndex));
+                if (nearCurrentStop && !travelCommon.isVillageIdling() && travelCommon.isReadyToDepart()) {
+                    travelCommon.routeIndex++;
+                    travelCommon.setReadyToDepart(false);
+                    travelCommon.setDepartCooldownTicks(80); // ~4s @20tps (tune: 60–120 feels good)
+                    if (travelCommon.routeIndex < travelCommon.route.size()) {
+                        travelCommon.setTargetVillage(travelCommon.route.get(travelCommon.routeIndex));
                         this.getNavigator().clearPath();
                     } else {
                         // Trip finished
-                        routeIndex = -1;
-                        route.clear();
-                        this.setTargetVillage(null);
+                        travelCommon.routeIndex = -1;
+                        travelCommon.route.clear();
+                        travelCommon.setTargetVillage(null);
                     }
                 }
 
@@ -1092,9 +1078,9 @@ public class EntityTraveller extends EntityCreature {
             if (this.canPickUpLoot() && !isInCombat() && pickupCooldown == 0) {
                 tryScanAndPickupGroundItemsThrottled();
             }
-            if (this.getCampfirePos() != null && this.isEntityAlive()) {
-                this.tickCampSocial();                // <— central place, runs for everyone
-                if (!this.isSocialLooking()) {
+            if (travellerCamp.getCampfirePos() != null && this.isEntityAlive()) {
+                travellerCamp.tickCampSocial();                // <— central place, runs for everyone
+                if (!travellerCamp.isSocialLooking()) {
                     this.lookAtFire();                // yield to social look if active
                 }
             }
@@ -1174,14 +1160,10 @@ public class EntityTraveller extends EntityCreature {
         super.setItemStackToSlot(slot, stack);
     }
 
-
-
-
     @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, @Nullable IEntityLivingData livingdata) {
-        this.spawnAmbientCooldownTicks = SPAWN_AMBIENT_DELAY_TICKS + this.rand.nextInt(5 * 20);
+        this.spawnAmbientCooldownTicks = TravellersModConfig.SPAWN_AMBIENT_DELAY_TICKS + this.rand.nextInt(5 * 20);
 
-        // Vanilla first
         livingdata = super.onInitialSpawn(difficulty, livingdata);
 
         // --- culture pick/propagate ---
@@ -1189,13 +1171,14 @@ public class EntityTraveller extends EntityCreature {
         if (livingdata instanceof SpawnData) {
             cid = ((SpawnData) livingdata).cultureId;
         } else {
-            cid = CultureRegistry.pickRandomId(this.rand);
+            net.minecraft.world.biome.Biome biome = this.world.getBiome(this.getPosition());
+            cid = CultureRegistry.pickCultureIdForBiome(biome, this.rand);
             livingdata = new SpawnData(cid);
         }
         setCultureId(cid);
 
-        // Set texture ONCE from culture
-        int tCount = CultureRegistry.get(cid).travellerTextureCount;
+        CultureDef c = CultureRegistry.get(cid);
+        int tCount = c.travellerAppearanceCount();
         setTextureIndex(this.rand.nextInt(Math.max(1, tCount)));
 
         // Reset move attr base and make sure no swim boost lingers
@@ -1208,152 +1191,88 @@ public class EntityTraveller extends EntityCreature {
 
         if (!world.isRemote) {
             // 1) Roll the backpack loot
-            LootTable table = world.getLootTableManager().getLootTableFromLocation(TRAVELLER_LOOT);
-            LootContext ctx = new LootContext.Builder((WorldServer) world).withLootedEntity(this).build();
-            for (ItemStack stack : table.generateLootForPools(this.rand, ctx)) {
-                ItemHandlerHelper.insertItemStacked(inventory, stack, false);
-            }
+//            LootTable table = world.getLootTableManager().getLootTableFromLocation(TRAVELLER_LOOT);
+//            LootContext ctx = new LootContext.Builder((WorldServer) world).withLootedEntity(this).build();
+//            for (ItemStack stack : table.generateLootForPools(this.rand, ctx)) {
+//                ItemHandlerHelper.insertItemStacked(inventory, stack, false);
+//            }
+//
+//            // 2) Rendered/equipped bits from backpack
+//            equipFromBackpackOnce();
+//            equipArmorSetFromBackpack();
 
-            // 2) Rendered/equipped bits
-            equipFromBackpackOnce();
-            equipArmorSetFromBackpack();
+            // >>> NEW: culture equipment
+            if (c != null) {
+                java.util.Random r = this.rand;
+
+                // --- MAIN HAND: random melee or tool from culture ---
+                ItemStack meleeOrTool = c.randomMeleeOrTool(r);
+                if (!meleeOrTool.isEmpty()) {
+                    this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
+                }
+
+                // --- OPTIONAL BOW: low chance, overrides mainhand if rolled ---
+                if (r.nextFloat() < 0.20f) { // 20% chance they are an archer-type
+                    ItemStack bow = c.randomBow(r);
+                    if (!bow.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
+                    }
+                }
+
+                // --- ARMOR: mostly without, small chances per slot ---
+                // tweak these numbers to taste
+                if (r.nextFloat() < 0.15f) { // 15% chance for helmet
+                    ItemStack helm = c.randomArmorForSlot(EntityEquipmentSlot.HEAD, r);
+                    if (!helm.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.HEAD, helm);
+                    }
+                }
+                if (r.nextFloat() < 0.10f) { // 10% chest
+                    ItemStack chest = c.randomArmorForSlot(EntityEquipmentSlot.CHEST, r);
+                    if (!chest.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.CHEST, chest);
+                    }
+                }
+                if (r.nextFloat() < 0.08f) { // 8% legs
+                    ItemStack legs = c.randomArmorForSlot(EntityEquipmentSlot.LEGS, r);
+                    if (!legs.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.LEGS, legs);
+                    }
+                }
+                if (r.nextFloat() < 0.12f) { // 12% boots
+                    ItemStack boots = c.randomArmorForSlot(EntityEquipmentSlot.FEET, r);
+                    if (!boots.isEmpty()) {
+                        this.setItemStackToSlot(EntityEquipmentSlot.FEET, boots);
+                    }
+                }
+            }
 
             // 3) Seed ambient window if needed
             if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
                 scheduleNextTravelAmbient();
             }
+            // 4) Assign culture-based name from Millénaire namelists
+            String fullName = CultureRegistry.makeTravellerNameForCulture(cid, this.rand);
+            if (fullName != null && !fullName.isEmpty()) {
+                this.setCustomNameTag(fullName);
+                // you can flip this if you *always* want nameplates
+                this.setAlwaysRenderNameTag(false);
+            }
         }
 
-        // Personality seeds
         // Personality seeds
         this.setHealth(this.getMaxHealth());
         java.util.Random r = new java.util.Random(this.getUniqueID().getMostSignificantBits()
                 ^ this.getUniqueID().getLeastSignificantBits());
-        this.wanderlust = 0.25f + r.nextFloat() * 0.60f;
-        this.exploreChance = 0.08f + r.nextFloat() * 0.06f;
-        this.hopPreference = 0.45f + r.nextFloat() * 0.25f;
-        this.pathAngleBiasDeg = (r.nextFloat() - 0.5f) * 12f;
-        this.pathLaneOffset = (r.nextBoolean() ? 1 : -1) * (0.6 + r.nextFloat() * 0.9);
-        this.pathStepJitter = r.nextInt(9) - 4;
-        this.recalcPhase = r.nextInt(12);
-
-        // --- NEW: optional dog companion on spawn ---
-        if (!world.isRemote
-                && TravellersModConfig.spawnTravellerWithDog
-                && this.dogId == null) { // don't overwrite if something set it earlier
-
-            // Use config chance if you added it; otherwise just hard-code something like 0.35f.
-            double chance = TravellersModConfig.travellerDogSpawnChance; // or 0.35;
-            if (this.rand.nextDouble() < chance) {
-                WorldServer ws = (WorldServer) this.world;
-
-                EntityTravellerDog dog = new EntityTravellerDog(ws);
-
-                BlockPos pos = this.getPosition();
-                // small offset so they don't suffocate in the same block
-                double ox = (this.rand.nextBoolean() ? 1 : -1) * 1.5;
-                double oz = (this.rand.nextBoolean() ? 1 : -1) * 1.5;
-
-                dog.setPosition(pos.getX() + 0.5 + ox,
-                        pos.getY(),
-                        pos.getZ() + 0.5 + oz);
-
-                // Let the dog do its own init
-                dog.onInitialSpawn(ws.getDifficultyForLocation(pos), null);
-
-                // Link them up via dogId (your existing NBT field)
-                this.dogId = dog.getUniqueID();
-
-                // If your dog has a dedicated setter to remember its leader, call it here:
-                // dog.setTravellerOwner(this);   // <- adjust to your actual API
-
-                ws.spawnEntity(dog);
-            }
-        }
+        this.travelCommon.wanderlust = 0.25f + r.nextFloat() * 0.60f;
+        this.travelCommon.exploreChance = 0.08f + r.nextFloat() * 0.06f;
+        this.travelCommon.hopPreference = 0.45f + r.nextFloat() * 0.25f;
+        this.travelCommon.pathAngleBiasDeg = 0;
+        this.travelCommon.pathLaneOffset = 0;
+        this.travelCommon.pathStepJitter = 0;
+        this.travelCommon.recalcPhase = r.nextInt(12);
 
         return livingdata;
-
-    }
-
-    private void equipFromBackpackOnce() {
-        tryEquipArmorPiece(EntityEquipmentSlot.HEAD);
-        tryEquipArmorPiece(EntityEquipmentSlot.CHEST);
-        tryEquipArmorPiece(EntityEquipmentSlot.LEGS);
-        tryEquipArmorPiece(EntityEquipmentSlot.FEET);
-
-        // Put a “non-combat” item in hand by default (maps/tools/etc).
-        if (getItemStackFromSlot(EntityEquipmentSlot.MAINHAND).isEmpty()) {
-            int idx = findFirstInInv(s ->
-                    s.getItem() == Items.MAP ||
-                            s.getItem() instanceof ItemTool ||
-                            s.getItem() instanceof ItemShears ||
-                            s.getItem() instanceof ItemFood);
-            if (idx >= 0) {
-                ItemStack taken = inventory.extractItem(idx, 1, false);
-                if (!taken.isEmpty()) setItemStackToSlot(EntityEquipmentSlot.MAINHAND, taken);
-            }
-        }
-        if (!getItemStackFromSlot(EntityEquipmentSlot.OFFHAND).isEmpty()) {
-            ItemStack off = getItemStackFromSlot(EntityEquipmentSlot.OFFHAND);
-            ItemStack remainder = ItemHandlerHelper.insertItemStacked(inventory, off, false);
-            if (!remainder.isEmpty()) {
-                EntityItem drop = new EntityItem(world, posX, posY + 0.5, posZ, remainder);
-                world.spawnEntity(drop);
-            }
-            setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
-        }
-    }
-
-    private void equipArmorSetFromBackpack() {
-        // Find 3 pieces in backpack
-        int bootsIdx = findFirstInInv(s -> isArmorForSlot(s, EntityEquipmentSlot.FEET));
-        int legsIdx = findFirstInInv(s -> isArmorForSlot(s, EntityEquipmentSlot.LEGS));
-        int chestIdx = findFirstInInv(s -> isArmorForSlot(s, EntityEquipmentSlot.CHEST));
-
-        if (bootsIdx < 0 || legsIdx < 0 || chestIdx < 0) return; // require full set
-
-        // (Optional) require matching material (leather vs iron)
-        ItemArmor.ArmorMaterial mat = getArmorMaterial(inventory.getStackInSlot(chestIdx));
-        if (mat != null) {
-            if (getArmorMaterial(inventory.getStackInSlot(bootsIdx)) != mat) return;
-            if (getArmorMaterial(inventory.getStackInSlot(legsIdx)) != mat) return;
-        }
-
-        // Equip them (leave helmet logic out)
-        if (getItemStackFromSlot(EntityEquipmentSlot.FEET).isEmpty())
-            setItemStackToSlot(EntityEquipmentSlot.FEET, inventory.extractItem(bootsIdx, 1, false));
-        if (getItemStackFromSlot(EntityEquipmentSlot.LEGS).isEmpty())
-            setItemStackToSlot(EntityEquipmentSlot.LEGS, inventory.extractItem(legsIdx, 1, false));
-        if (getItemStackFromSlot(EntityEquipmentSlot.CHEST).isEmpty())
-            setItemStackToSlot(EntityEquipmentSlot.CHEST, inventory.extractItem(chestIdx, 1, false));
-    }
-
-    private void tryEquipArmorPiece(EntityEquipmentSlot slot) {
-        if (!getItemStackFromSlot(slot).isEmpty()) return;
-
-        int idx = findFirstInInv(s -> !s.isEmpty() && s.getItem().isValidArmor(s, slot, this));
-        if (idx >= 0) {
-            ItemStack taken = inventory.extractItem(idx, 1, false);
-            if (!taken.isEmpty()) setItemStackToSlot(slot, taken);
-        }
-    }
-
-    private int findFirstInInv(java.util.function.Predicate<ItemStack> p) {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (!s.isEmpty() && p.test(s)) return i;
-        }
-        return -1;
-    }
-
-    private boolean isArmorForSlot(ItemStack s, EntityEquipmentSlot slot) {
-        return !s.isEmpty() && s.getItem() instanceof ItemArmor &&
-                ((ItemArmor) s.getItem()).armorType == slot;
-    }
-
-    @Nullable
-    private ItemArmor.ArmorMaterial getArmorMaterial(ItemStack s) {
-        return (s.getItem() instanceof ItemArmor) ? ((ItemArmor) s.getItem()).getArmorMaterial() : null;
     }
 
     @Override
@@ -1379,8 +1298,8 @@ public class EntityTraveller extends EntityCreature {
             ));
             return true;
         }
-        if (isVillageIdling()) {
-            String stayName = lookupNearestVillageNameOrCoords();
+        if (travelCommon.isVillageIdling()) {
+            String stayName = travelCommon.lookupNearestVillageNameOrCoords();
             player.sendMessage(new TextComponentString(
                     TextFormatting.WHITE + "I'm staying in " +
                             TextFormatting.GOLD + stayName +
@@ -1390,96 +1309,6 @@ public class EntityTraveller extends EntityCreature {
         }
         world.setEntityState(this, (byte) 4); // swing animation
         announceHeadingTo(player);
-        return true;
-    }
-
-    private void playTalkSound() {
-        String cid = getCultureId();
-        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(cid);
-        SoundEvent talk = (v != null && v.talk != null) ? v.talk : ModSounds.TRAVELLER_TALK;
-
-        float vol = 1.0F;
-        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
-        int dur = 40 + this.rand.nextInt(20);
-        playVoiceMoving(talk, vol, pitch, dur, /*preempt=*/true, VoiceKind.TALK);
-        scheduleNextTravelAmbient();
-    }
-
-
-    private void doInteractSwing(EnumHand hand) {
-        // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
-        world.setEntityState(this, (byte) (hand == EnumHand.OFF_HAND ? 5 : 4));
-        // Also update server-side state so other logic that checks swing progresses is consistent
-        this.swingArm(hand);
-        // If you use your forcedSwingTicks visual, give it a nudge
-        this.forcedSwingTicks = 6; // matches your handleStatusUpdate()
-    }
-
-    public boolean isFollowingSomeone() {
-        return this.hasFollowLeader() && this.getFollowLeader() != null;
-    }
-
-    public boolean isVillageIdling() {  // you already store this
-        return this.villageIdling;
-    }
-
-    public String debugId() {
-        return "[Traveller " + this.getEntityId() + " " +
-                (world != null && world.isRemote ? "CLIENT" : "SERVER") + "]";
-    }
-
-    // was: lookupNearestVillageNameOrCoords()
-    private String lookupNearestVillageNameOrCoords() {
-        BlockPos near = getNearestVillage();
-        if (near == null) return "this area";
-        return MillVillageIndex.nameForApprox(this.world, near);
-    }
-
-    // was: announceHeadingTo(player)
-    private void announceHeadingTo(EntityPlayer player) {
-        if (targetVillage == null) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "I don’t currently have a destination."
-            ));
-            return;
-        }
-
-        File millenaireFolder = new File(this.world.getSaveHandler().getWorldDirectory(), "millenaire");
-        MillenaireVillageDirectory.reloadIfStale(millenaireFolder); // <-- keep fresh
-
-        MillenaireVillageDirectory.Entry e = MillenaireVillageDirectory.findExact(targetVillage);
-        if (e == null) {
-            // Try up to ~128 blocks radius in 3D first
-            e = MillenaireVillageDirectory.findNearest(targetVillage, 128);
-            if (e == null) {
-                // If still nothing (Y might be far off), try 2D nearest
-                e = MillenaireVillageDirectory.findNearest2D(targetVillage, 160);
-            }
-        }
-
-        String name = (e != null)
-                ? e.name
-                : (targetVillage.getX() + "/" + targetVillage.getY() + "/" + targetVillage.getZ());
-        String dir = cardinalDirectionTo(targetVillage);
-
-        ITextComponent msg = new TextComponentString(
-                TextFormatting.WHITE + "I'm actually heading to " +
-                        TextFormatting.GOLD + name +
-                        TextFormatting.WHITE + " in the " +
-                        TextFormatting.GOLD + dir +
-                        TextFormatting.RESET + "."
-        );
-        player.sendMessage(msg);
-    }
-
-    private boolean playVoiceMoving(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, VoiceKind kind) {
-        if (!preempt && this.ticksExisted < voiceLockUntilTick) return false;
-
-        // Don’t also call playSound here; we only want the moving instance on clients.
-        sendFollowSound(evt, vol, pitch, 48.0);
-
-        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
-        voiceKindNow = kind;
         return true;
     }
 
@@ -1493,61 +1322,6 @@ public class EntityTraveller extends EntityCreature {
         int max = Math.max(min, TravellersModConfig.travellerAmbientMaxDelay);
         int delta = min + this.rand.nextInt(Math.max(1, max - min + 1));
         nextTravelAmbientTick = this.ticksExisted + delta;
-    }
-
-    // Follower things
-    public boolean hasFollowLeader() {
-        return followLeaderId != null;
-    }
-
-    @Nullable
-    public EntityTraveller getFollowLeader() {
-        if (followLeaderId == null) return null;
-        List<EntityTraveller> list = this.world.getEntities(EntityTraveller.class, e ->
-                e != null && e.isEntityAlive() && e.getUniqueID().equals(followLeaderId));
-        return list.isEmpty() ? null : list.get(0);
-    }
-
-    @Nullable
-    public BlockPos getNearestVillage() {
-        return this.nearestVillage; // may be null if none found yet
-    }
-
-    private String cardinalDirectionTo(BlockPos target) {
-        double dx = target.getX() + 0.5 - this.posX;
-        double dz = target.getZ() + 0.5 - this.posZ;
-
-        double adx = Math.abs(dx), adz = Math.abs(dz);
-        if (adx < 0.75 && adz < 0.75) return "here";
-
-        // Minecraft axis: +X = east, +Z = south, -Z = north
-        String ns = (dz < 0) ? "north" : "south";
-        String ew = (dx < 0) ? "west" : "east";
-
-        // bias toward cardinal if one axis dominates
-        if (adx < adz * 0.5) return ns;       // mostly N/S
-        if (adz < adx * 0.5) return ew;       // mostly E/W
-        return ns + "-" + ew;                 // e.g., "north-east"
-    }
-
-    private void sendFollowSound(SoundEvent evt, float vol, float pitch, double radius) {
-        if (world.isRemote || evt == null) return;
-
-        // If we’re currently “voice locked”, use the remaining lock as the clip’s duration hint.
-        // Otherwise just fall back to ~2s so short barks still work.
-        int remaining = Math.max(1, this.voiceLockUntilTick - this.ticksExisted);
-        int durationHint = (remaining > 0 ? remaining : 40); // 40 ticks = 2s
-
-        MsgPlayTravellerVoice msg = new MsgPlayTravellerVoice(this, evt, vol, pitch, durationHint);
-
-        NetworkRegistry.TargetPoint tp =
-                new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
-        TravellerFollowNet.CHANNEL.sendToAllAround(msg, tp);
-    }
-
-
-    public void setVillageIdling(boolean villageIdling) {
-        this.villageIdling = villageIdling;
     }
 
     private boolean isArmorItemForSlot(ItemStack s, EntityEquipmentSlot slot) {
@@ -1664,15 +1438,6 @@ public class EntityTraveller extends EntityCreature {
 
         return cand > have + 0.05;
     }
-    @Override
-    public void travel(float strafe, float vertical, float forward) {
-        if (this.isInWater()) {
-            float boost = (float) SWIM_MULT;
-            super.travel(strafe * boost, vertical, forward * boost);
-        } else {
-            super.travel(strafe, vertical, forward);
-        }
-    }
 
     // Equipment things
     private double armorScore(ItemStack s, EntityEquipmentSlot slot) {
@@ -1787,6 +1552,14 @@ public class EntityTraveller extends EntityCreature {
         return sum;
     }
 
+    public boolean isAimingBow() {
+        return this.dataManager.get(AIMING_BOW);
+    }
+
+    public void setAimingBow(boolean v) {
+        if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
+    }
+
     public int getTextureIndex() {
         return this.dataManager.get(TEXTURE_INDEX);
     }
@@ -1795,35 +1568,229 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.set(TEXTURE_INDEX, index);
     }
 
-    // was: updateTargetVillage()
-    private void updateNearestVillage() {
-        List<BlockPos> villages = getVillagesCached();
-        if (villages.isEmpty()) {
-            this.nearestVillage = null;
+    public void setCultureId(String id) {
+        this.dataManager.set(CULTURE_ID, id);
+    }
+
+    private void equipFromBackpackOnce() {
+        tryEquipArmorPiece(EntityEquipmentSlot.HEAD);
+        tryEquipArmorPiece(EntityEquipmentSlot.CHEST);
+        tryEquipArmorPiece(EntityEquipmentSlot.LEGS);
+        tryEquipArmorPiece(EntityEquipmentSlot.FEET);
+
+        // Put a “non-combat” item in hand by default (maps/tools/etc).
+        if (getItemStackFromSlot(EntityEquipmentSlot.MAINHAND).isEmpty()) {
+            int idx = findFirstInInv(s ->
+                    s.getItem() == Items.MAP ||
+                            s.getItem() instanceof ItemTool ||
+                            s.getItem() instanceof ItemShears ||
+                            s.getItem() instanceof ItemFood);
+            if (idx >= 0) {
+                ItemStack taken = inventory.extractItem(idx, 1, false);
+                if (!taken.isEmpty()) setItemStackToSlot(EntityEquipmentSlot.MAINHAND, taken);
+            }
+        }
+        if (!getItemStackFromSlot(EntityEquipmentSlot.OFFHAND).isEmpty()) {
+            ItemStack off = getItemStackFromSlot(EntityEquipmentSlot.OFFHAND);
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(inventory, off, false);
+            if (!remainder.isEmpty()) {
+                EntityItem drop = new EntityItem(world, posX, posY + 0.5, posZ, remainder);
+                world.spawnEntity(drop);
+            }
+            setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        }
+    }
+
+    private void equipArmorSetFromBackpack() {
+        // Find 3 pieces in backpack
+        int bootsIdx = findFirstInInv(s -> isArmorForSlot(s, EntityEquipmentSlot.FEET));
+        int legsIdx = findFirstInInv(s -> isArmorForSlot(s, EntityEquipmentSlot.LEGS));
+        int chestIdx = findFirstInInv(s -> isArmorForSlot(s, EntityEquipmentSlot.CHEST));
+
+        if (bootsIdx < 0 || legsIdx < 0 || chestIdx < 0) return; // require full set
+
+        // (Optional) require matching material (leather vs iron)
+        ItemArmor.ArmorMaterial mat = getArmorMaterial(inventory.getStackInSlot(chestIdx));
+        if (mat != null) {
+            if (getArmorMaterial(inventory.getStackInSlot(bootsIdx)) != mat) return;
+            if (getArmorMaterial(inventory.getStackInSlot(legsIdx)) != mat) return;
+        }
+
+        // Equip them (leave helmet logic out)
+        if (getItemStackFromSlot(EntityEquipmentSlot.FEET).isEmpty())
+            setItemStackToSlot(EntityEquipmentSlot.FEET, inventory.extractItem(bootsIdx, 1, false));
+        if (getItemStackFromSlot(EntityEquipmentSlot.LEGS).isEmpty())
+            setItemStackToSlot(EntityEquipmentSlot.LEGS, inventory.extractItem(legsIdx, 1, false));
+        if (getItemStackFromSlot(EntityEquipmentSlot.CHEST).isEmpty())
+            setItemStackToSlot(EntityEquipmentSlot.CHEST, inventory.extractItem(chestIdx, 1, false));
+    }
+
+    private int findFirstInInv(java.util.function.Predicate<ItemStack> p) {
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack s = inventory.getStackInSlot(i);
+            if (!s.isEmpty() && p.test(s)) return i;
+        }
+        return -1;
+    }
+
+    private boolean isArmorForSlot(ItemStack s, EntityEquipmentSlot slot) {
+        return !s.isEmpty() && s.getItem() instanceof ItemArmor &&
+                ((ItemArmor) s.getItem()).armorType == slot;
+    }
+
+    @Nullable
+    private ItemArmor.ArmorMaterial getArmorMaterial(ItemStack s) {
+        return (s.getItem() instanceof ItemArmor) ? ((ItemArmor) s.getItem()).getArmorMaterial() : null;
+    }
+
+    private void tryEquipArmorPiece(EntityEquipmentSlot slot) {
+        if (!getItemStackFromSlot(slot).isEmpty()) return;
+
+        int idx = findFirstInInv(s -> !s.isEmpty() && s.getItem().isValidArmor(s, slot, this));
+        if (idx >= 0) {
+            ItemStack taken = inventory.extractItem(idx, 1, false);
+            if (!taken.isEmpty()) setItemStackToSlot(slot, taken);
+        }
+    }
+
+    private void playTalkSound() {
+        String cid = getCultureId();
+        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(cid);
+
+        SoundEvent talk = (v != null && v.talk != null) ? v.talk : ModSounds.TRAVELLER_TALK;
+
+        float vol = 1.0F;
+        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
+        int dur = 40 + this.rand.nextInt(20);
+        playVoiceMoving(talk, vol, pitch, dur, /*preempt=*/true, VoiceKind.TALK);
+        scheduleNextTravelAmbient();
+    }
+
+    private void doInteractSwing(EnumHand hand) {
+        // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
+        world.setEntityState(this, (byte) (hand == EnumHand.OFF_HAND ? 5 : 4));
+        // Also update server-side state so other logic that checks swing progresses is consistent
+        this.swingArm(hand);
+        // If you use your forcedSwingTicks visual, give it a nudge
+        this.forcedSwingTicks = 6; // matches your handleStatusUpdate()
+    }
+
+    public boolean isFollowingSomeone() {
+        return this.hasFollowLeader() && this.getFollowLeader() != null;
+    }
+
+    public String debugId() {
+        return "[Traveller " + this.getEntityId() + " " +
+                (world != null && world.isRemote ? "CLIENT" : "SERVER") + "]";
+    }
+
+    // was: lookupNearestVillageNameOrCoords()
+    private String lookupNearestVillageNameOrCoords() {
+        return travelCommon.lookupNearestVillageNameOrCoords();
+    }
+
+    // was: announceHeadingTo(player)
+    private void announceHeadingTo(EntityPlayer player) {
+        if (travelCommon.getTargetVillage() == null) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.WHITE + "I don’t currently have a destination."
+            ));
             return;
         }
 
-        BlockPos me = this.getPosition();
-        BlockPos best = null;
-        double bestD2 = Double.MAX_VALUE;
-        for (BlockPos v : villages) {
-            double d2 = me.distanceSq(v);
-            if (d2 < bestD2) {
-                bestD2 = d2;
-                best = v;
+        File millenaireFolder = new File(this.world.getSaveHandler().getWorldDirectory(), "millenaire");
+        MillenaireVillageDirectory.reloadIfStale(millenaireFolder); // <-- keep fresh
+
+        MillenaireVillageDirectory.Entry e = MillenaireVillageDirectory.findExact(travelCommon.getTargetVillage());
+        if (e == null) {
+            // Try up to ~128 blocks radius in 3D first
+            e = MillenaireVillageDirectory.findNearest(travelCommon.getTargetVillage(), 128);
+            if (e == null) {
+                // If still nothing (Y might be far off), try 2D nearest
+                e = MillenaireVillageDirectory.findNearest2D(travelCommon.getTargetVillage(), 160);
             }
         }
 
-        if (this.nearestVillage == null) {
-            this.nearestVillage = best;
-        } else {
-            double curD2 = me.distanceSq(this.nearestVillage);
-            if (bestD2 + NEAR_HYS_DELTA_SQ < curD2) {
-                this.nearestVillage = best;
-            }
-        }
+        String name = (e != null)
+                ? e.name
+                : (travelCommon.getTargetVillage().getX() + "/" + travelCommon.getTargetVillage().getY() + "/" + travelCommon.getTargetVillage().getZ());
+        String dir = cardinalDirectionTo(travelCommon.getTargetVillage());
 
-        if (!world.isRemote) syncBodyYawWhileTravelling();
+        ITextComponent msg = new TextComponentString(
+                TextFormatting.WHITE + "I'm actually heading to " +
+                        TextFormatting.GOLD + name +
+                        TextFormatting.WHITE + " in the " +
+                        TextFormatting.GOLD + dir +
+                        TextFormatting.RESET + "."
+        );
+        player.sendMessage(msg);
+    }
+
+    public boolean playVoiceMoving(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, VoiceKind kind) {
+        if (!preempt && this.ticksExisted < voiceLockUntilTick) return false;
+
+        // Don’t also call playSound here; we only want the moving instance on clients.
+        sendFollowSound(evt, vol, pitch, 48.0);
+
+        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
+        voiceKindNow = kind;
+        return true;
+    }
+
+    // Follower things
+    public boolean hasFollowLeader() {
+        return followLeaderId != null;
+    }
+
+    @Nullable
+    public EntityTraveller getFollowLeader() {
+        if (followLeaderId == null) return null;
+        List<EntityTraveller> list = this.world.getEntities(EntityTraveller.class, e ->
+                e != null && e.isEntityAlive() && e.getUniqueID().equals(followLeaderId));
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    @Nullable
+    public BlockPos getNearestVillage() {
+        return travelCommon.getNearestVillage();
+    }
+
+    private String cardinalDirectionTo(BlockPos target) {
+        double dx = target.getX() + 0.5 - this.posX;
+        double dz = target.getZ() + 0.5 - this.posZ;
+
+        double adx = Math.abs(dx), adz = Math.abs(dz);
+        if (adx < 0.75 && adz < 0.75) return "here";
+
+        // Minecraft axis: +X = east, +Z = south, -Z = north
+        String ns = (dz < 0) ? "north" : "south";
+        String ew = (dx < 0) ? "west" : "east";
+
+        // bias toward cardinal if one axis dominates
+        if (adx < adz * 0.5) return ns;       // mostly N/S
+        if (adz < adx * 0.5) return ew;       // mostly E/W
+        return ns + "-" + ew;                 // e.g., "north-east"
+    }
+
+    private void sendFollowSound(SoundEvent evt, float vol, float pitch, double radius) {
+        if (world.isRemote || evt == null) return;
+
+        // If we’re currently “voice locked”, use the remaining lock as the clip’s duration hint.
+        // Otherwise just fall back to ~2s so short barks still work.
+        int remaining = Math.max(1, this.voiceLockUntilTick - this.ticksExisted);
+        int durationHint = (remaining > 0 ? remaining : 40); // 40 ticks = 2s
+
+        MsgPlayTravellerVoice msg = new MsgPlayTravellerVoice(this, evt, vol, pitch, durationHint);
+
+        NetworkRegistry.TargetPoint tp =
+                new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
+        TravellerFollowNet.CHANNEL.sendToAllAround(msg, tp);
+    }
+
+    // was: updateTargetVillage()
+    private void updateNearestVillage() {
+
+        travelCommon.updateNearestVillage();
     }
 
     @Override
@@ -1862,6 +1829,18 @@ public class EntityTraveller extends EntityCreature {
     // --- Home Override? Dunno if useful since I don't extend villager ---
     @Override
     public boolean hasHome() {
+        return false;
+    }
+
+    // Disabling fallDamage
+//    @Override
+//    public void fall(float distance, float damageMultiplier) { /* Immune to fall damage */ }
+
+    static boolean isNearAnyVillage(World world, BlockPos pos, int radius) {
+        long r2 = (long) radius * (long) radius;
+        for (BlockPos v : MillVillageIndex.getAllVillageCenters(world)) {
+            if (v.distanceSq(pos) <= r2) return true;
+        }
         return false;
     }
 
@@ -1906,14 +1885,18 @@ public class EntityTraveller extends EntityCreature {
         return true;
     }
 
-
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
             TravellerFollowNet.CHANNEL.sendToAllAround(
                     new MsgStopTravellerVoice(this),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
-            cleanupOwnedCampfireIfAny();
+            travellerCamp.cleanupOwnedCampfireIfAny();
+        }
+        if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
+            net.minecraft.entity.item.EntityBoat boat = (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
+            this.dismountRidingEntity();
+            boat.setDead();
         }
         if (isGhostSword(getHeldItemMainhand())) setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
         EntityTravellerDog dog = getDog();
@@ -1926,6 +1909,17 @@ public class EntityTraveller extends EntityCreature {
         super.onDeath(cause);
     }
 
+    void cleanupOwnedCampfireIfAny() {
+        travellerCamp.cleanupOwnedCampfireIfAny();
+    }
+
+    @Nullable
+    public EntityTravellerDog getDog() {
+        if (dogId == null) return null;
+        List<EntityTravellerDog> list = world.getEntities(EntityTravellerDog.class,
+                e -> e != null && e.isEntityAlive() && dogId.equals(e.getUniqueID()));
+        return list.isEmpty() ? null : list.get(0);
+    }
 
     @Override
     @Nullable
@@ -1933,10 +1927,6 @@ public class EntityTraveller extends EntityCreature {
         VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(getCultureId());
         return (v != null && v.hurt != null) ? v.hurt : ModSounds.TRAVELLER_HURT;
     }
-
-    // Disabling fallDamage
-//    @Override
-//    public void fall(float distance, float damageMultiplier) { /* Immune to fall damage */ }
 
     @Override
     protected float getSoundVolume() {
@@ -1947,6 +1937,16 @@ public class EntityTraveller extends EntityCreature {
     protected float getSoundPitch() {
         // small per-hit pitch variance so repeats don’t sound robotic
         return 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
+    }
+
+    @Override
+    public void travel(float strafe, float vertical, float forward) {
+        if (this.isInWater()) {
+            float boost = (float) TravellersModConfig.SWIM_MULT;
+            super.travel(strafe * boost, vertical, forward * boost);
+        } else {
+            super.travel(strafe, vertical, forward);
+        }
     }
 
     // --- Combat Handling ---
@@ -2023,7 +2023,7 @@ public class EntityTraveller extends EntityCreature {
         if (world.isRemote) return;
 
         if (inCombat) {
-            swordHideTicks = SWORD_HIDE_DELAY;
+            swordHideTicks = TravellersModConfig.SWORD_HIDE_DELAY;
 
             ItemStack best = findBestSwordInBackpack();
             if (!best.isEmpty()) {
@@ -2054,12 +2054,51 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     public void setDead() {
+        if (!this.world.isRemote) {
+            // If we're in a boat, despawn the boat with us
+            if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
+                net.minecraft.entity.item.EntityBoat boat =
+                        (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
+                this.dismountRidingEntity();
+                boat.setDead(); // no drops, just remove
+            }
+        }
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
+        if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
+            net.minecraft.entity.item.EntityBoat boat = (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
+            this.dismountRidingEntity();
+            boat.setDead(); // kill the boat, no leftovers
+        }
         if (attr != null) {
             net.minecraft.entity.ai.attributes.AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
             if (m != null) attr.removeModifier(m);
         }
+
         super.setDead();
+    }
+
+    // Keep the rider centered on the Traveller. No steering hand-off.
+    @Override
+    public void updatePassenger(Entity passenger) {
+        super.updatePassenger(passenger);
+        if (this.isPassenger(passenger)) {
+            double x = this.posX;
+            double y = this.posY + this.getMountedYOffset() + passenger.getYOffset();
+            double z = this.posZ;
+            passenger.setPosition(x, y, z);
+        }
+    }
+
+    // Seat height so the player doesn't clip the head.
+    @Override
+    public double getMountedYOffset() {
+        return this.height * 0.85D; // tweak 0.8–0.9 to taste
+    }
+
+    // Allow exactly one passenger.
+    @Override
+    protected boolean canFitPassenger(Entity passenger) {
+        return this.getPassengers().size() < 1;
     }
 
     @Override
@@ -2088,27 +2127,27 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public BlockPos getRoamTarget() {
-        return roamTarget;
+        return travelCommon.getRoamTarget();
     }
 
     public void setRoamTarget(BlockPos roamTarget) {
-        this.roamTarget = roamTarget;
+        travelCommon.setRoamTarget(roamTarget);
     }
 
     public int getPauseTicks() {
-        return pauseTicks;
+        return travelCommon.getPauseTicks();
     }
 
     public void setPauseTicks(int pauseTicks) {
-        this.pauseTicks = pauseTicks;
+        travelCommon.setPauseTicks(pauseTicks);
     }
 
     public int getVillageIdleTicks() {
-        return villageIdleTicks;
+        return travelCommon.getVillageIdleTicks();
     }
 
     public void setVillageIdleTicks(int villageIdleTicks) {
-        this.villageIdleTicks = villageIdleTicks;
+        travelCommon.setVillageIdleTicks(villageIdleTicks);
     }
 
     private void scanAndPickupGroundItems() {
@@ -2207,18 +2246,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public void breakNearbyLeaves() {
-        BlockPos base = this.getPosition();
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                for (int dy = -2; dy <= 2; dy++) {
-                    BlockPos p = base.add(dx, dy, dz);
-                    IBlockState st = world.getBlockState(p);
-                    if (st.getBlock() instanceof net.minecraft.block.BlockLeaves) {
-                        world.destroyBlock(p, true); // drop leaves
-                    }
-                }
-            }
-        }
+        travelCommon.breakNearbyLeaves();
     }
 
     public void startFollowing(EntityTraveller leader, int durationTicks) {
@@ -2239,206 +2267,75 @@ public class EntityTraveller extends EntityCreature {
 
     // Some path related getters
     public float getPathAngleBiasDeg() {
-        return pathAngleBiasDeg;
+        return travelCommon.getPathAngleBiasDeg();
     }
 
     public double getPathLaneOffset() {
-        return pathLaneOffset;
+        return travelCommon.getPathLaneOffset();
     }
 
     public int getPathStepJitter() {
-        return pathStepJitter;
+        return travelCommon.getPathStepJitter();
     }
 
     public int getRecalcPhase() {
-        return recalcPhase;
+        return travelCommon.getRecalcPhase();
     }
 
     /**
      * Align torso (renderYawOffset) to travel direction while pathing.
      */
     private void syncBodyYawWhileTravelling() {
-        if (this.isInCombat() || this.getAttackTarget() != null) return;
-        if (this.getNavigator().noPath() && this.getCurrentWaypoint() == null) return;
-
-        double dx = this.motionX, dz = this.motionZ;
 
         // In water, trust the waypoint over noisy motion
-        boolean water = this.isInWater();
-        if (water || (dx*dx + dz*dz) < 0.0016D) { // speed < 0.04
-            BlockPos wp = this.getCurrentWaypoint();
-            if (wp == null) return;
-            dx = (wp.getX() + 0.5D) - this.posX;
-            dz = (wp.getZ() + 0.5D) - this.posZ;
-            if (dx*dx + dz*dz < 1e-6) return;
-        }
-
-        float desired = (float)(Math.atan2(dz, dx) * 180D / Math.PI) - 90.0F;
 
         // Low-pass desired yaw to avoid oscillation
-        if (Float.isNaN(lastDesiredTravelYaw)) lastDesiredTravelYaw = desired;
-        float lerp = water ? 0.12F : 0.22F; // slower when swimming
-        lastDesiredTravelYaw = rotlerp(lastDesiredTravelYaw, desired, (water ? 6.0F : 10.0F));
 
-        float bodyTurn = water ? 24.0F : 45.0F;
-        float headTurn = water ? 30.0F : 60.0F;
-        float headLimit = 75.0F;
-
-        this.rotationYaw = rotlerp(this.rotationYaw, lastDesiredTravelYaw, bodyTurn);
-        this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, bodyTurn);
-        this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, headTurn);
-
-        float diff = MathHelper.wrapDegrees(this.rotationYawHead - this.renderYawOffset);
-        if (diff < -headLimit) this.rotationYawHead = this.renderYawOffset - headLimit;
-        if (diff > headLimit)  this.rotationYawHead = this.renderYawOffset + headLimit;
+        travelCommon.syncBodyYawWhileTravelling();
     }
 
-
     private void ensureRoutePlanned() {
-        if (routeIndex >= 0 && routeIndex < route.size()) return;
-
-        BlockPos here = this.getPosition();
 
         // diverse destination: may be near, mid, or far
-        BlockPos dest = pickDiverseDestination(here, VILLAGE_PICK_RADIUS * 4);
-        if (dest == null) return;
 
         // collect villages along the way (your JavaFX-free corridor code)
-        java.util.List<BlockPos> mids = collectMidsOnCorridor(here, dest, CORRIDOR_WIDTH);
-
-        this.route.clear();
 
         // Decide whether to stop at an intermediate first (same “hopPreference” idea as before)
-        boolean takeMidFirst = !mids.isEmpty() && (this.rand.nextFloat() < this.hopPreference);
-        if (takeMidFirst) {
-            // Usually choose the first mid (closest to start), occasionally a later one for variety
-            int idx = 0;
-            if (mids.size() >= 3 && this.rand.nextFloat() < 0.25f) {
-                idx = 1 + this.rand.nextInt(Math.min(2, mids.size() - 1));
-            }
-            this.route.add(mids.get(idx));
-        } else if (!mids.isEmpty() && this.rand.nextFloat() < 0.20f) {
-            // Sometimes include all mids
-            this.route.addAll(mids);
-        }
 
-        this.route.add(dest);   // final destination
-        this.routeIndex = 0;
-        this.setTargetVillage(this.route.get(0));
-        this.setCurrentWaypoint(null);
+        travelCommon.ensureRoutePlanned();
     }
 
     @Nullable
     private BlockPos pickDiverseDestination(BlockPos origin, int maxRadius) {
-        List<BlockPos> all = getVillagesCached();
-        if (all.isEmpty()) return null;
-
-        long r2 = (long) maxRadius * (long) maxRadius;
-        java.util.List<BlockPos> candidates = new java.util.ArrayList<>(all.size());
-        for (BlockPos v : all) {
-            if (v.equals(origin)) continue;
-            if (maxRadius > 0 && origin.distanceSq(v) > r2) continue;
-            candidates.add(v);
-        }
-        if (candidates.isEmpty()) return null;
 
         // Sort by distance ascending
-        candidates.sort(java.util.Comparator.comparingDouble(origin::distanceSq));
-
-        int n = candidates.size();
-        if (n == 1) return candidates.get(0);
 
         // Chance split driven by wanderlust:
         //   low wanderlust -> more short trips; high -> more long trips
-        float shortP = 0.40f * (1.0f - this.wanderlust) + 0.10f; // 0.10–0.50
-        float longP = 0.50f * (this.wanderlust) + 0.20f;        // 0.20–0.70
-        float midP = 1.0f - (shortP + longP);
-        if (midP < 0.10f) midP = 0.10f; // keep some mids
-        float rest = 1.0f - (shortP + longP + midP);
-        if (rest != 0) {
-            shortP += rest * 0.5f;
-        } // normalize
 
         // Exploration override: sometimes pick across all uniformly
-        if (this.rand.nextFloat() < this.exploreChance) {
-            return candidates.get(this.rand.nextInt(n));
-        }
 
         // Define bands by quantiles
-        int nearEnd = Math.max(1, n / 3);             // first ~third
-        int midStart = nearEnd;
-        int midEnd = Math.max(midStart + 1, (2 * n) / 3); // second ~third
-        int farStart = midEnd;
 
         // Decide which band to pick from
-        float roll = this.rand.nextFloat();
-        int from, to;
-        if (roll < shortP) {
-            from = 0;
-            to = nearEnd;
-        } else if (roll < shortP + midP) {
-            from = midStart;
-            to = midEnd;
-        } else {
-            from = farStart;
-            to = n;
-        }
 
         // Pick inside the band with a mild weight:
         // - near band: prefer slightly farther within near (avoid 1-block hops)
         // - mid band: flat
         // - far band: prefer the very far end
-        BlockPos pick = weightedPickInRange(candidates, origin, from, to,
-                (from == 0) ? +0.5 : (from == farStart ? -0.5 : 0.0));
-        return pick != null ? pick : candidates.get(this.rand.nextInt(n));
+        return travelCommon.pickDiverseDestination(origin, maxRadius);
     }
 
     /**
      * Returns [v1, v2, ..., dest], where each v is a village near the straight line
      */
     private java.util.List<BlockPos> collectMidsOnCorridor(BlockPos start, BlockPos dest, double corridorWidth) {
-        List<BlockPos> all = getVillagesCached();
-        java.util.List<BlockPos> mids = new java.util.ArrayList<>();
-        if (all.isEmpty()) return mids;
 
-        Vec3d A = new Vec3d(start.getX() + 0.5, 0, start.getZ() + 0.5);
-        Vec3d B = new Vec3d(dest.getX() + 0.5, 0, dest.getZ() + 0.5);
-        Vec3d AB = B.subtract(A);
-        double ab2 = AB.lengthSquared();
-        if (ab2 < 1e-6) return mids;
-
-        final class Mid implements Comparable<Mid> {
-            final double t;
-            final BlockPos p;
-
-            Mid(double t, BlockPos p) {
-                this.t = t;
-                this.p = p;
-            }
-
-            public int compareTo(Mid o) {
-                return Double.compare(this.t, o.t);
-            }
-        }
-        java.util.List<Mid> tmp = new java.util.ArrayList<>();
-
-        for (BlockPos v : all) {
-            if (v.equals(start) || v.equals(dest)) continue;
-            Vec3d P = new Vec3d(v.getX() + 0.5, 0, v.getZ() + 0.5);
-            double t = AB.dotProduct(P.subtract(A)) / ab2;     // along-track fraction
-            if (t <= 0.02 || t >= 0.98) continue;              // strictly between A and C
-            double cw2 = corridorWidth * corridorWidth;
-            if (pointToSegment2DSq(P, A, B) <= cw2) {
-                tmp.add(new Mid(t, v));
-            }
-        }
-        java.util.Collections.sort(tmp);
-        for (Mid m : tmp) mids.add(m.p);
-        return mids;
+        return travelCommon.collectMidsOnCorridor(start, dest, corridorWidth);
     }
 
-    private BlockPos weightedPickInRange(java.util.List<BlockPos> list, BlockPos origin,
-                                         int from, int to, double bias) {
+    public BlockPos weightedPickInRange(java.util.List<BlockPos> list, BlockPos origin,
+                                        int from, int to, double bias) {
         if (from >= to) return null;
         double total = 0;
         double[] w = new double[to - from];
@@ -2469,14 +2366,21 @@ public class EntityTraveller extends EntityCreature {
         // Travellers: only across factions (XOR)
         if (e instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) e;
-            if (!(this.isAggressiveToTravellers() ^ t.isAggressiveToTravellers())) return;
+
+            // Same-faction (friendly↔friendly or raider↔raider) are never threats
+            if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) return;
+
+            // NEW: friendly travellers do NOT treat same-culture raiders as threats
+            if (!this.isAggressiveToTravellers() && t.isAggressiveToTravellers()) {
+                if (isSameCulture(t)) return;
+            }
         } else {
             // Non-travellers: allow if raider says they’re extra-hostile
             if (!shouldAttackExtraEntity(e)) {
-                // still allow IMobs, if you want, or just return here.
                 if (!(e instanceof net.minecraft.entity.monster.IMob)) return;
             }
         }
+
 
         if (e instanceof EntityPlayer) {
             EntityPlayer p = (EntityPlayer) e;
@@ -2493,25 +2397,24 @@ public class EntityTraveller extends EntityCreature {
         }
     }
 
-
     private void decayAndPruneThreats() {
         if (threatMap.isEmpty()) return;
         int now = this.ticksExisted;
 
         // Only touch the map once per THREAT_DECAY_INTERVAL_TICKS
-        if (now - lastThreatDecayTick < THREAT_DECAY_INTERVAL_TICKS) return;
+        if (now - lastThreatDecayTick < TravellersModConfig.THREAT_DECAY_INTERVAL_TICKS) return;
         lastThreatDecayTick = now;
 
         Iterator<Map.Entry<UUID, Threat>> it = threatMap.entrySet().iterator();
         while (it.hasNext()) {
             Threat t = it.next().getValue();
             int age = now - t.lastSeenTick;
-            if (age > THREAT_TTL_TICKS) {
+            if (age > TravellersModConfig.THREAT_TTL_TICKS) {
                 it.remove();
                 continue;
             }
 
-            t.score = Math.max(0, t.score - THREAT_DECAY_PER_SEC);
+            t.score = Math.max(0, t.score - TravellersModConfig.THREAT_DECAY_PER_SEC);
             if (t.score == 0) it.remove();
         }
     }
@@ -2583,15 +2486,9 @@ public class EntityTraveller extends EntityCreature {
         }
     }
 
-
-
-
     public boolean isAtTargetStop() {
-        BlockPos tv = this.getTargetVillage();
-        if (tv == null) return false;
-        int r = arrivalRadiusBlocks(tv);
         // center-based distance is the least confusing
-        return this.getDistanceSqToCenter(tv) <= (double) (r * r);
+        return travelCommon.isAtTargetStop();
     }
 
     //    // --- tiny holder instead of javafx.util.Pair ---
@@ -2617,10 +2514,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private List<BlockPos> getVillagesCached() {
-        if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
-            cachedVillages = VillageIndex.getVillages(this.world);
-        }
-        return cachedVillages;
+        return travelCommon.getVillagesCached();
     }
 
     /**
@@ -2641,14 +2535,6 @@ public class EntityTraveller extends EntityCreature {
         if (aiDefendIfClose != null) aiDefendIfClose.setAssistRadius(TravellersModConfig.helpRange);
         if (aiTravel != null) aiTravel.setSpeed(TravellersModConfig.movementSpeedWhileTravel);
 
-    }
-
-    public boolean isAimingBow() {
-        return this.dataManager.get(AIMING_BOW);
-    }
-
-    public void setAimingBow(boolean v) {
-        if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
     }
 
     ItemStack makeGhostBow(ItemStack src) {
@@ -2684,10 +2570,10 @@ public class EntityTraveller extends EntityCreature {
             g.count = 0;
         }
         g.count++;
-        g.expiresAt = now + PLAYER_FORGIVE_WINDOW_TICKS;
+        g.expiresAt = now + TravellersModConfig.PLAYER_FORGIVE_WINDOW_TICKS;
 
         playerGrace.put(id, g);
-        return g.count <= PLAYER_FREE_HITS;
+        return g.count <= TravellersModConfig.PLAYER_FREE_HITS;
     }
 
     /**
@@ -2699,63 +2585,16 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public void maybePlayTravelAmbient() {
-        if (this.spawnAmbientCooldownTicks > 0) return;
-        if (this.getTravelRecoverTicks() > 0) return;
-        if (!TravellersModConfig.travellerAmbient) return;
-        if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) return;
-        if (this.getTargetVillage() == null) return;
-        if (this.getNavigator().noPath() && this.getCurrentWaypoint() == null) return;
-        if (this.motionX * this.motionX + this.motionZ * this.motionZ < 0.005) return;
 
-        if (!world.isRemote) {
-            final double radius = CHORUS_RADIUS;
-            boolean someoneSinging = !this.world.getEntitiesWithinAABB(EntityTraveller.class,
-                    this.getEntityBoundingBox().grow(radius, 8.0, radius),
-                    e -> e != null && e != this && e.isEntityAlive() && e.isAmbientPlayingNow()).isEmpty();
-            if (someoneSinging) {
-                nextTravelAmbientTick = this.ticksExisted + 60 + this.rand.nextInt(40);
-                return;
-            }
-        }
-        if (this.ticksExisted < voiceLockUntilTick) return;
-
-        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(getCultureId());
-        SoundEvent[] pool = (v != null && v.ambient != null && v.ambient.length > 0) ? v.ambient
-                : new SoundEvent[]{ModSounds.AMBIENT};
-
-        float vol = TravellersModConfig.travellerAmbientVolume;
-        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.06F;
-        int durTicks = 25 * 20 + this.rand.nextInt(6 * 20);
-
-        if (playVoiceMoving(pool[this.rand.nextInt(pool.length)], vol, pitch, durTicks, false, VoiceKind.AMBIENT)) {
-            scheduleNextTravelAmbient();
-        }
-    }
-
-
-    public boolean isInCombat() {
-        return inCombat;
-    }
-
-    public void setInCombat(boolean combat) {
-        if (world.isRemote) return; // server authority only
-        this.inCombat = combat;
-        if (combat) {
-            if (autoEatTask != null) autoEatTask.cancel();
-            ensureBestSwordVisualNow();
-        }
-    }
-
-    public boolean isAutoEating() {
-        return autoEatTask != null && autoEatTask.isEating();
+        travelCommon.maybePlayTravelAmbient();
     }
 
     public BlockPos getCurrentWaypoint() {
-        return currentWaypoint;
+        return travelCommon.getCurrentWaypoint();
     }
 
     public void setCurrentWaypoint(BlockPos currentWaypoint) {
-        this.currentWaypoint = currentWaypoint;
+        travelCommon.setCurrentWaypoint(currentWaypoint);
     }
 
     public boolean isAmbientPlayingNow() {
@@ -2769,23 +2608,6 @@ public class EntityTraveller extends EntityCreature {
     void beginVoiceLock(int durationTicks, VoiceKind kind) {
         voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
         voiceKindNow = kind;
-    }
-
-    enum VoiceKind {NONE, AMBIENT, TALK, HURT}
-
-    private static final class HitGrace {
-        int count;
-        int expiresAt; // ticksExisted when this entry expires
-    }
-
-    private static final class Threat {
-        int score;           // higher = more urgent
-        int lastSeenTick;    // game tick when last updated
-
-        Threat(int s, int t) {
-            score = s;
-            lastSeenTick = t;
-        }
     }
 
     private boolean isCrossFaction(EntityTraveller other) {
@@ -2802,36 +2624,9 @@ public class EntityTraveller extends EntityCreature {
         return (t == null) ? Integer.MAX_VALUE : (this.ticksExisted - t);
     }
 
-    @Nullable
-    private java.util.UUID chasingPlayerId = null;
-    int lastLOSorCloseTick = 0; // last time we either saw the player OR they were close
-
     private void resetChaseMemory() {
         chasingPlayerId = null;
         lastLOSorCloseTick = 0;
-    }
-
-    static boolean isNearAnyVillage(World world, BlockPos pos, int radius) {
-        long r2 = (long) radius * (long) radius;
-        for (BlockPos v : MillVillageIndex.getAllVillageCenters(world)) {
-            if (v.distanceSq(pos) <= r2) return true;
-        }
-        return false;
-    }
-
-    @Override
-    public void setAIMoveSpeed(float speed) {
-        double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-
-        float cap;
-        if (this.isAimingBow()) {
-            cap = (float) Math.min(base * 0.98D, 0.30D); // was 0.26
-        } else if (this.getAttackTarget() != null) {
-            cap = (float) Math.min(base * 1.22D, 0.38D); // was 1.18 & 0.35
-        } else {
-            cap = (float) Math.min(base * 1.02D, 0.32D); // was 0.30
-        }
-        super.setAIMoveSpeed(Math.min(speed, cap));
     }
 
     private boolean shouldHelloFor(EntityPlayer p) {
@@ -2859,23 +2654,12 @@ public class EntityTraveller extends EntityCreature {
         playVoiceMoving(hello, vol, pitch, dur, true, VoiceKind.TALK);
     }
 
-    @Nullable
-    private UUID dogId = null;
-
-    @Nullable
-    public EntityTravellerDog getDog() {
-        if (dogId == null) return null;
-        List<EntityTravellerDog> list = world.getEntities(EntityTravellerDog.class,
-                e -> e != null && e.isEntityAlive() && dogId.equals(e.getUniqueID()));
-        return list.isEmpty() ? null : list.get(0);
-    }
-
     private void maybeRecruitDog() {
         if (dogScanCooldown > 0) {
             dogScanCooldown--;
             return;
         }
-        dogScanCooldown = DOG_SCAN_COOLDOWN_TICKS;
+        dogScanCooldown = TravellersModConfig.DOG_SCAN_COOLDOWN_TICKS;
 
         if (this.isInCombat()) return;
         if (getDog() != null) return; // already have one
@@ -2940,7 +2724,7 @@ public class EntityTraveller extends EntityCreature {
             nearUnloadTicks = 0;
             return;
         }
-        if (this.isVillageIdling() || this.getTargetVillage() == null) {
+        if (travelCommon.isVillageIdling() || travelCommon.getTargetVillage() == null) {
             nearUnloadTicks = 0;
             return;
         }
@@ -2992,7 +2776,7 @@ public class EntityTraveller extends EntityCreature {
             farFromPlayersTicks = 0;
             return;
         }
-        if (this.isVillageIdling()) {
+        if (travelCommon.isVillageIdling()) {
             farFromPlayersTicks = 0;
             return;
         }
@@ -3029,29 +2813,7 @@ public class EntityTraveller extends EntityCreature {
             this.setDead(); // clean fade (no loot)
         }
     }
-    // Allow exactly one passenger.
-    @Override
-    protected boolean canFitPassenger(Entity passenger) {
-        return this.getPassengers().size() < 1;
-    }
 
-    // Seat height so the player doesn't clip the head.
-    @Override
-    public double getMountedYOffset() {
-        return this.height * 0.85D; // tweak 0.8–0.9 to taste
-    }
-
-    // Keep the rider centered on the Traveller. No steering hand-off.
-    @Override
-    public void updatePassenger(Entity passenger) {
-        super.updatePassenger(passenger);
-        if (this.isPassenger(passenger)) {
-            double x = this.posX;
-            double y = this.posY + this.getMountedYOffset() + passenger.getYOffset();
-            double z = this.posZ;
-            passenger.setPosition(x, y, z);
-        }
-    }
     public boolean hasPlayerPassenger() {
         if (this.getPassengers().isEmpty()) return false;
         for (Entity e : this.getPassengers()) {
@@ -3059,107 +2821,39 @@ public class EntityTraveller extends EntityCreature {
         }
         return false;
     }
+
     public boolean isSocialLooking() {
-        return socialTicks > 0 && socialPeer != null && socialPeer.isEntityAlive()
-                && Objects.equals(socialPeer.getCampfirePos(), this.getCampfirePos());
+        return travellerCamp.isSocialLooking();
     }
 
     public void beginSocialLook(EntityTraveller peer, int ticks) {
         if (peer == null || peer == this) return;
-        this.socialPeer = peer;
-        this.socialTicks = Math.max(1, ticks);
+        this.travellerCamp.socialPeer = peer;
+        this.travellerCamp.socialTicks = Math.max(1, ticks);
         // small desync so they don't snap in perfect lockstep
-        this.socialCooldown = 40 + rand.nextInt(60);
+        this.travellerCamp.socialCooldown = 40 + rand.nextInt(60);
     }
 
     public void endSocialLook() {
-        this.socialTicks = 0;
-        this.socialPeer = null;
+        travellerCamp.endSocialLook();
     }
 
     public void tickCampSocial() {
-        if (socialCooldown > 0) socialCooldown--;
 
         // maintain active glance
-        if (isSocialLooking()) {
-            // eyes
-            this.getLookHelper().setLookPositionWithEntity(socialPeer, 30.0F, 30.0F);
-            // gentle torso follow so it reads as "chatting"
-            BlockPos p = socialPeer.getPosition();
-            this.faceTowards(p, 6.0F, 12.0F);
-
-            if (--socialTicks <= 0) endSocialLook();
-            return;
-        }
 
         // (idle) occasionally start a new glance
-        if (socialCooldown > 0) return;
 
         // ~2% per second: adjust to taste
-        if (this.getRNG().nextInt(50) != 0) return;
 
-        BlockPos camp = this.getCampfirePos();
-        if (camp == null) return;
-
-        List<EntityTraveller> peers = this.world.getEntitiesWithinAABB(
-                EntityTraveller.class,
-                new AxisAlignedBB(camp).grow(6.0, 3.0, 6.0),
-                e -> e != null && e != this && e.isEntityAlive() && camp.equals(e.getCampfirePos())
-        );
-        if (peers.isEmpty()) return;
-
-        EntityTraveller peer = peers.get(this.getRNG().nextInt(peers.size()));
         // don't yank someone who's already looking at another traveller (unless it's at us)
-        if (peer.isSocialLooking() && peer.socialPeer != this) return;
 
-        int dur = 40 + this.getRNG().nextInt(40); // 2–4 s
-        this.beginSocialLook(peer, dur);
         // make it mutual most of the time
-        if (!peer.isSocialLooking() || peer.socialPeer == this) {
-            peer.beginSocialLook(this, dur - this.getRNG().nextInt(10));
-        }
 
         // cooldown before starting another new glance
-        this.socialCooldown = 60 + this.getRNG().nextInt(80);
+        travellerCamp.tickCampSocial();
     }
 
-    public boolean isGhostTorch(ItemStack s) {
-        return !s.isEmpty()
-                && s.getItem() == Item.getItemFromBlock(Blocks.TORCH)
-                && s.hasTagCompound()
-                && s.getTagCompound().getBoolean(GHOST_TORCH_TAG);
-    }
-
-    public ItemStack makeGhostTorch() {
-        ItemStack copy = new ItemStack(Blocks.TORCH);
-        NBTTagCompound tag = copy.getTagCompound();
-        if (tag == null) tag = new NBTTagCompound();
-
-        tag.setBoolean(GHOST_TORCH_TAG, true);
-        if (tag.hasKey("AttributeModifiers")) {
-            tag.removeTag("AttributeModifiers");
-        }
-
-        copy.setTagCompound(tag);
-        return copy;
-    }
-    public boolean hasTravelTorchVisible() {
-        return isGhostTorch(getItemStackFromSlot(EntityEquipmentSlot.OFFHAND));
-    }
-    public boolean hasNearbyTravellerTorch(double radius) {
-        if (world == null) return false;
-
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(radius, 2.0, radius);
-        java.util.List<EntityTraveller> peers = world.getEntitiesWithinAABB(
-                EntityTraveller.class,
-                box,
-                e -> e != null
-                        && e != this
-                        && e.isEntityAlive()
-                        && e.hasTravelTorchVisible()
-        );
-        return !peers.isEmpty();
-    }
     public void setTravelTorchVisible(boolean on) {
         if (world.isRemote) return;
 
@@ -3182,17 +2876,17 @@ public class EntityTraveller extends EntityCreature {
             // Don't show while fighting or doing something hand-active
             if (this.isInCombat() || this.isAutoEating()) return;
             // Don't show when idling at village or at a campfire
-            if (this.isVillageIdling() || this.getCampfirePos() != null) return;
+            if (travelCommon.isVillageIdling() || travellerCamp.getCampfirePos() != null) return;
             // Cooldown: don't re-enable immediately after we just turned it off
             int cd = TravellersModConfig.travelTorchCooldownTicks > 0
                     ? TravellersModConfig.travelTorchCooldownTicks
-                    : TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT;
+                    : TravellersModConfig.TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT;
             if (travelTorchCooldown > 0) return;
 
             // If another traveller nearby already has a torch, skip
             double rad = TravellersModConfig.travelTorchNearbyRadius > 0
                     ? TravellersModConfig.travelTorchNearbyRadius
-                    : TRAVEL_TORCH_NEARBY_RADIUS_DEFAULT;
+                    : TravellersModConfig.TRAVEL_TORCH_NEARBY_RADIUS_DEFAULT;
             if (hasNearbyTravellerTorch(rad)) return;
 
             // Only equip if offhand is empty or already ghost torch
@@ -3206,9 +2900,226 @@ public class EntityTraveller extends EntityCreature {
 
                 int cd = TravellersModConfig.travelTorchCooldownTicks > 0
                         ? TravellersModConfig.travelTorchCooldownTicks
-                        : TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT;
+                        : TravellersModConfig.TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT;
                 travelTorchCooldown = cd;
             }
         }
     }
+
+    public boolean isInCombat() {
+        return inCombat;
+    }
+
+    public void setInCombat(boolean combat) {
+        if (world.isRemote) return; // server authority only
+        this.inCombat = combat;
+        if (combat) {
+            if (autoEatTask != null) autoEatTask.cancel();
+            ensureBestSwordVisualNow();
+        }
+    }
+
+    public boolean isAutoEating() {
+        return autoEatTask != null && autoEatTask.isEating();
+    }
+
+    public boolean isVillageIdling() {  // you already store this
+        return travelCommon.isVillageIdling();
+    }
+
+    @Nullable
+    public BlockPos getCampfirePos() {
+        return travellerCamp.getCampfirePos();
+    }
+
+    public boolean hasNearbyTravellerTorch(double radius) {
+        if (world == null) return false;
+
+        AxisAlignedBB box = this.getEntityBoundingBox().grow(radius, 2.0, radius);
+        java.util.List<EntityTraveller> peers = world.getEntitiesWithinAABB(
+                EntityTraveller.class,
+                box,
+                e -> e != null
+                        && e != this
+                        && e.isEntityAlive()
+                        && e.hasTravelTorchVisible()
+        );
+        return !peers.isEmpty();
+    }
+
+    public ItemStack makeGhostTorch() {
+        ItemStack copy = new ItemStack(Blocks.TORCH);
+        NBTTagCompound tag = copy.getTagCompound();
+        if (tag == null) tag = new NBTTagCompound();
+
+        tag.setBoolean(GHOST_TORCH_TAG, true);
+        if (tag.hasKey("AttributeModifiers")) {
+            tag.removeTag("AttributeModifiers");
+        }
+
+        copy.setTagCompound(tag);
+        return copy;
+    }
+
+    public boolean hasTravelTorchVisible() {
+        return isGhostTorch(getItemStackFromSlot(EntityEquipmentSlot.OFFHAND));
+    }
+
+    public void setVillageIdling(boolean villageIdling) {
+        travelCommon.setVillageIdling(villageIdling);
+    }
+
+    private void maybeSpawnCompanionDog() {
+        if (world.isRemote) return;
+        if (suppressCompanionSpawn) return;                    // egg/command/etc.
+        if (!TravellersModConfig.spawnTravellerWithDog) return;
+        if (this.dogId != null) return;                        // already has one?
+
+        double chance = TravellersModConfig.travellerDogSpawnChance; // or hard-code 0.35
+        if (this.rand.nextDouble() >= chance) return;
+
+        WorldServer ws = (WorldServer) this.world;
+        BlockPos origin = this.getPosition();
+
+        BlockPos dogPos = findSafeDogSpawnPos(ws, origin);
+        if (dogPos == null) {
+            // No safe place found nearby, just give up silently
+            return;
+        }
+
+        EntityTravellerDog dog = new EntityTravellerDog(ws);
+        dog.setPosition(dogPos.getX() + 0.5, dogPos.getY(), dogPos.getZ() + 0.5);
+
+        dog.onInitialSpawn(ws.getDifficultyForLocation(dogPos), null);
+
+        this.dogId = dog.getUniqueID();
+        // If your dog has an API for owner, call it here:
+        // dog.setTravellerOwner(this);
+
+        ws.spawnEntity(dog);
+    }
+
+    /**
+     * Find a nearby, non-solid, ground-supported position where the dog
+     * won’t spawn inside a block.
+     */
+    @Nullable
+    private BlockPos findSafeDogSpawnPos(World world, BlockPos center) {
+        int radius = 2;
+
+        // Prefer around the traveller at same Y, then one block up
+        for (int dy = 0; dy <= 1; dy++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    BlockPos pos = center.add(dx, dy, dz);
+                    if (isSafeDogPos(world, pos)) {
+                        return pos;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isSafeDogPos(World world, BlockPos pos) {
+        BlockPos below = pos.down();
+
+        IBlockState belowState = world.getBlockState(below);
+        // Needs solid-ish floor to stand on
+        if (!belowState.isSideSolid(world, below, EnumFacing.UP)) return false;
+
+        IBlockState feet = world.getBlockState(pos);
+        IBlockState head = world.getBlockState(pos.up());
+
+        // Feet or head space must not be solid full blocks
+        if (feet.getMaterial().isSolid() && feet.isFullCube()) return false;
+        return !head.getMaterial().isSolid() || !head.isFullCube();
+    }
+// --- companion dog spawn helpers ---
+
+    public enum VoiceKind {NONE, AMBIENT, TALK, HURT}
+
+    public static final class SpawnData implements IEntityLivingData {
+        public final String cultureId;
+
+        public SpawnData(String id) {
+            this.cultureId = id;
+        }
+    }
+
+    private static final class HitGrace {
+        int count;
+        int expiresAt; // ticksExisted when this entry expires
+    }
+
+    private static final class Threat {
+        int score;           // higher = more urgent
+        int lastSeenTick;    // game tick when last updated
+
+        Threat(int s, int t) {
+            score = s;
+            lastSeenTick = t;
+        }
+    }
+    public int getTicksExisted() {
+        return this.ticksExisted;
+    }
+    private int currentFollowers = 0;
+
+    public int getFollowerCount() {
+        return currentFollowers;
+    }
+
+    protected void onFollowerStarted() {
+        currentFollowers++;
+    }
+
+    protected void onFollowerStopped() {
+        if (currentFollowers > 0) currentFollowers--;
+    }
+    /**
+     * Number of travellers currently following this one.
+     * Uses followLeaderId directly (cheap) instead of calling getFollowLeader().
+     */
+    public int getCurrentFollowerCount() {
+        UUID myId = this.getUniqueID();
+        List<EntityTraveller> followers = this.world.getEntities(EntityTraveller.class, e ->
+                e != null
+                        && e.isEntityAlive()
+                        && e.hasFollowLeader()
+                        && myId.equals(e.followLeaderId)      // access is OK here: same class
+        );
+        return followers.size();
+    }
+    public boolean isSameCulture(EntityTraveller other) {
+        if (other == null) return false;
+        String a = this.getCultureId();
+        String b = other.getCultureId();
+        if (a == null) a = "";
+        if (b == null) b = "";
+        return a.equalsIgnoreCase(b);
+    }
+
+    public boolean isDifferentCulture(EntityTraveller other) {
+        return !isSameCulture(other);
+    }
+    private void ensureDismountIfInCombat() {
+        if (this.world.isRemote) return;
+        if (!this.isInCombat()) return;
+
+        if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
+            net.minecraft.entity.item.EntityBoat boat =
+                    (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
+
+            this.dismountRidingEntity();
+
+            // If it's our traveller boat, it'll auto-despawn when empty
+            // thanks to onUpdate() above. No need to force kill here,
+            // but you can be explicit if you want:
+            // if (boat instanceof EntityTravellerBoat) {
+            //     boat.setDead();
+            // }
+        }
+    }
+
 }

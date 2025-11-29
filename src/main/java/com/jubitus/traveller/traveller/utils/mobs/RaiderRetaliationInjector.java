@@ -3,10 +3,10 @@ package com.jubitus.traveller.traveller.utils.mobs;
 import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.ai.EntityAITasks;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
+import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -55,7 +55,9 @@ public final class RaiderRetaliationInjector {
         }
     }
 
-    /** Heuristic: see if the mob already has some attack AI so we don’t add a target to pacifists. */
+    /**
+     * Heuristic: see if the mob already has some attack AI so we don’t add a target to pacifists.
+     */
     private static boolean hasAnyAttackGoal(EntityCreature creature) {
         for (EntityAITasks.EntityAITaskEntry en : creature.tasks.taskEntries) {
             Object ai = en.action;
@@ -67,7 +69,9 @@ public final class RaiderRetaliationInjector {
         return false;
     }
 
-    /** A tiny wrapper just so we can recognize the task type if you ever need to remove it. */
+    /**
+     * A tiny wrapper just so we can recognize the task type if you ever need to remove it.
+     */
     public static final class TargetRaidersGoal extends EntityAINearestAttackableTarget<EntityTravellerRaider> {
         public TargetRaidersGoal(EntityCreature owner) {
             super(owner,

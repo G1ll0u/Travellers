@@ -51,7 +51,7 @@ public final class PlayerDefenseHandler {
             // Engage!
             t.setAttackTarget(attacker);
             t.setInCombat(true);  // your helper ensures ghost sword shows & eating cancels
-            t.rememberThreat(attacker, EntityTraveller.THREAT_FOR_SEE_ATTACK);
+            t.rememberThreat(attacker, TravellersModConfig.THREAT_FOR_SEE_ATTACK);
         }
     }
 
@@ -74,9 +74,10 @@ public final class PlayerDefenseHandler {
             if (!t.getEntitySenses().canSee(victim)) continue;
             t.setAttackTarget(victim);
             t.setInCombat(true);
-            t.rememberThreat(victim, EntityTraveller.THREAT_FOR_SEE_ATTACK);
+            t.rememberThreat(victim, TravellersModConfig.THREAT_FOR_SEE_ATTACK);
         }
     }
+
     @SubscribeEvent
     public static void onAnyPlayerHurts(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
         Entity src = event.getSource().getTrueSource();

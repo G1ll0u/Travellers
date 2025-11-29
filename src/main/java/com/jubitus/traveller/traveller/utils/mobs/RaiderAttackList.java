@@ -45,7 +45,9 @@ public class RaiderAttackList {
         }
     }
 
-    /** True if this concrete entity is listed (by ID, namespace wildcard, or class). */
+    /**
+     * True if this concrete entity is listed (by ID, namespace wildcard, or class).
+     */
     public boolean isListed(net.minecraft.entity.Entity e) {
         // ID matching
         net.minecraft.util.ResourceLocation key = net.minecraft.entity.EntityList.getKey(e);

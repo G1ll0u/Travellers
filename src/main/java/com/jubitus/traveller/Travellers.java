@@ -1,6 +1,9 @@
 package com.jubitus.traveller;
 
+import com.jubitus.traveller.traveller.camp.CampfireManager;
+import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerBoat;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerDog;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
 import com.jubitus.traveller.traveller.render.ClientProxy;
@@ -9,15 +12,17 @@ import com.jubitus.traveller.traveller.utils.commands.*;
 import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
 import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
 import com.jubitus.traveller.traveller.utils.mobs.MobTargetInjector;
-import com.jubitus.traveller.traveller.utils.villages.VillageIndex;
 import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
@@ -37,21 +42,6 @@ public class Travellers {
 
 
     @SubscribeEvent
-    public static void onWorldLoad(WorldEvent.Load event) {
-        if (!event.getWorld().isRemote) {
-            VillageIndex.forceRefresh(event.getWorld());
-        }
-    }
-
-    @SubscribeEvent
-    public static void onWorldUnload(WorldEvent.Unload event) {
-        if (!event.getWorld().isRemote) {
-            VillageIndex.clear(event.getWorld());
-        }
-    }
-
-
-    @SubscribeEvent
     public static void onMouse(MouseEvent e) {
         if (!FollowTravellerClient.isActive()) return;
         int btn = e.getButton();
@@ -68,6 +58,15 @@ public class Travellers {
         event.registerServerCommand(new CommandFollowTraveller());
         event.registerServerCommand(new CommandTravellerCount());
         event.registerServerCommand(new CommandMountTraveller());
+        event.registerServerCommand(new CommandTravellerDebug());
+        event.registerServerCommand(new CommandDumpCultureItems());
+        event.registerServerCommand(new CommandMillDump());
+        event.registerServerCommand(new CommandMillNearestVillageDump());
+        event.registerServerCommand(new CommandTravellerMap());
+        event.registerServerCommand(new CommandTravellerInfo());
+
+
+
     }
 
     @Mod.EventHandler
@@ -76,7 +75,8 @@ public class Travellers {
         VILLAGE_CENTERS = loadVillageCenters(millenaireFolder);
         TravellerFollowNet.init();               // <-- runs on both sides
         // Load config
-        File configFile = event.getSuggestedConfigurationFile();
+        File configDir = new File(event.getModConfigurationDirectory(), "travellers");
+        File configFile = new File(configDir, "travellers.cfg");
         TravellersModConfig.init(configFile);
         // Client-only stuff
         if (event.getSide().isClient()) {
@@ -85,7 +85,6 @@ public class Travellers {
 
         // --- Register traveller entity if enabled in config ---
         if (TravellersModConfig.enableTravellerEntity) {
-            int entityId = 1; // unique for this mod
             EntityRegistry.registerModEntity(
                     new ResourceLocation(Reference.MOD_ID, "traveller"),  // registry name
                     EntityTraveller.class,
@@ -106,16 +105,28 @@ public class Travellers {
                     true,               // send velocity updates
                     0x6A4E3B, 0xC7A67A  // (optional) egg colors
             );
+            EntityRegistry.registerModEntity(
+                    new ResourceLocation(Reference.MOD_ID, "traveller_boat"),
+                    EntityTravellerBoat.class,
+                    "traveller_boat",
+                    4,
+                    this,          // your mod instance
+                    128,               // trackingRange: match traveller's follow range / desired visual range
+                    3,                 // updateFrequency (ticks between syncs, 2–5 is typical)
+                    true               // sendVelocityUpdates
+            );
             // Add spawn to all biomes
-            for (Biome biome : ForgeRegistries.BIOMES) {
-                EntityRegistry.addSpawn(
-                        EntityTraveller.class,
-                        TravellersModConfig.TravellerWeight,
-                        TravellersModConfig.MinGroupSizeAtSpawn,
-                        TravellersModConfig.MaxGroupSizeAtSpawn,
-                        EnumCreatureType.CREATURE,
-                        biome
-                );
+            if (TravellersModConfig.TravellerWeight > 0) {
+                for (Biome biome : ForgeRegistries.BIOMES) {
+                    EntityRegistry.addSpawn(
+                            EntityTraveller.class,
+                            TravellersModConfig.TravellerWeight,
+                            TravellersModConfig.MinGroupSizeAtSpawn,
+                            TravellersModConfig.MaxGroupSizeAtSpawn,
+                            EnumCreatureType.CREATURE,
+                            biome
+                    );
+                }
             }
             if (TravellersModConfig.enableTravellerRaider) {
                 EntityRegistry.registerModEntity(
@@ -129,17 +140,19 @@ public class Travellers {
                 );
 
                 // Choose where they spawn + category:
-                for (Biome biome : ForgeRegistries.BIOMES) {
-                    // Narrow if you want (e.g., only PLAINS, SAVANNA, etc.)
-                    EntityRegistry.addSpawn(
-                            EntityTravellerRaider.class,
-                            TravellersModConfig.RaiderWeight,              // e.g., 6–12
-                            TravellersModConfig.RaiderMinGroup,        // e.g., 1
-                            TravellersModConfig.RaiderMaxGroup,        // e.g., 2
-                            EnumCreatureType.CREATURE,                      // <- hostile list
-                            biome
-                    );
+                if (TravellersModConfig.RaiderWeight > 0) {
+                    for (Biome biome : ForgeRegistries.BIOMES) {
+                        EntityRegistry.addSpawn(
+                                EntityTravellerRaider.class,
+                                TravellersModConfig.RaiderWeight,
+                                TravellersModConfig.RaiderMinGroup,
+                                TravellersModConfig.RaiderMaxGroup,
+                                EnumCreatureType.CREATURE,
+                                biome
+                        );
+                    }
                 }
+
             }
 
         } else {
@@ -152,7 +165,28 @@ public class Travellers {
     }
 
     @Mod.EventHandler
-    public void onServerStopping(FMLServerStoppingEvent event) {
-        VillageIndex.clearAll();
+    public void onServerStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
+
+        CultureRegistry.initMillenaireData();
+
     }
+
+    @Mod.EventHandler
+    public void onServerStopping(FMLServerStoppingEvent event) {
+        // 1.12.2-safe: use FMLCommonHandler, same as your CampfireTicker
+        MinecraftServer server = net.minecraftforge.fml.common.FMLCommonHandler
+                .instance()
+                .getMinecraftServerInstance();
+        if (server == null) return;
+
+        for (WorldServer ws : server.worlds) {
+            CampfireManager.get(ws).extinguishAllForWorld(ws);
+        }
+    }
+
+    @Mod.EventHandler
+    public void postInit(FMLPostInitializationEvent event) {
+        CultureRegistry.initMillenaireData();
+    }
+
 }

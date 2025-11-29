@@ -11,8 +11,11 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
+    // Tuning knobs
+    private static final float CHASE_BOOST = 1.22f; // was 1.18
+    private static final float FIGHT_FACTOR = 1.00f; // was 0.98 (feel snappier while trading)
+    private static final float LERP = 0.55f;  // was 0.30 (faster convergence)
     private final double extraReach; // in blocks
-
     // Melee gating thresholds (squared), computed once; tweak the margins to taste.
     // commit: we only START melee when closer than rangedMinDist - 0.75
     // hold: we only KEEP melee while still within rangedMinDist - 0.25
@@ -20,11 +23,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private final double meleeHoldSq;
     // Smooth chase speed control
     private float aiSpeedNow = -1f;
-    // Tuning knobs
-    private static final float CHASE_BOOST = 1.22f; // was 1.18
-    private static final float FIGHT_FACTOR = 1.00f; // was 0.98 (feel snappier while trading)
-    private static final float LERP = 0.55f;  // was 0.30 (faster convergence)
-        private static float lerp(float a, float b, float t) { return a + (b - a) * t; }
+
     public EntityAIAttackMeleeCustom(EntityCreature creature, double speedIn, boolean useLongMemory, double extraReach) {
         super(creature, speedIn, useLongMemory);
         this.setMutexBits(1 | 2);
@@ -95,7 +94,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         // Initial chase kick (tiny), actual speed will be smoothed in updateTask()
         double base = this.attacker.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
 // start near the desired chase speed so there is no visible stall
-        aiSpeedNow = (float)(base * CHASE_BOOST);
+        aiSpeedNow = (float) (base * CHASE_BOOST);
         this.attacker.setSprinting(true);
         this.attacker.setAIMoveSpeed(aiSpeedNow);
 
@@ -115,37 +114,41 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     }
 
     @Override
-    public void updateTask () {
+    public void updateTask() {
         super.updateTask();
 
-            EntityLivingBase tgt = attacker.getAttackTarget();
-            if (tgt == null) return;
+        EntityLivingBase tgt = attacker.getAttackTarget();
+        if (tgt == null) return;
 
-            double d2 = attacker.getDistanceSq(tgt);
-            double base = this.attacker.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
+        double d2 = attacker.getDistanceSq(tgt);
+        double base = this.attacker.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
 
-            // Desired speed:
-            // - If we are still **outside** the hold band, run a bit faster to close
-            // - Once inside hold band (i.e., actually trading blows), drop to near-base
-            float desired;
-            if (d2 > meleeHoldSq) {
-                desired = (float) (base * CHASE_BOOST);  // run while closing
-            } else {
-                desired = (float) (base * FIGHT_FACTOR); // calm while in melee
-            }
-
-            // Smoothly converge so there’s no visible burst on handoff
-            if (aiSpeedNow < 0f) aiSpeedNow = (float) (base * 1.0);
-            aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
-
-            // Optional absolute ceiling (just in case)
-            if (aiSpeedNow > 0.35f) aiSpeedNow = 0.35f;
-
-            this.attacker.setAIMoveSpeed(aiSpeedNow);
-
-            // Sprint visual only when actually in the "closing" state
-            this.attacker.setSprinting(d2 > meleeHoldSq);
+        // Desired speed:
+        // - If we are still **outside** the hold band, run a bit faster to close
+        // - Once inside hold band (i.e., actually trading blows), drop to near-base
+        float desired;
+        if (d2 > meleeHoldSq) {
+            desired = (float) (base * CHASE_BOOST);  // run while closing
+        } else {
+            desired = (float) (base * FIGHT_FACTOR); // calm while in melee
         }
+
+        // Smoothly converge so there’s no visible burst on handoff
+        if (aiSpeedNow < 0f) aiSpeedNow = (float) (base);
+        aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
+
+        // Optional absolute ceiling (just in case)
+        if (aiSpeedNow > 0.35f) aiSpeedNow = 0.35f;
+
+        this.attacker.setAIMoveSpeed(aiSpeedNow);
+
+        // Sprint visual only when actually in the "closing" state
+        this.attacker.setSprinting(d2 > meleeHoldSq);
+    }
+
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
 
     @Override
     protected void checkAndPerformAttack(EntityLivingBase target, double ignoredDistToCenterSq) {
@@ -176,6 +179,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         double dz = (pz < bb.minZ) ? (bb.minZ - pz) : (pz > bb.maxZ ? pz - bb.maxZ : 0.0D);
         return dx * dx + dy * dy + dz * dz;
     }
+
     private boolean shouldForgivePlayerChaseForAI(EntityCreature attacker, EntityPlayer p) {
         EntityTraveller t = (EntityTraveller) attacker;
         boolean playerCalm = t.lastPlayerAggroAgeTicks(p) > TravellersModConfig.playerCalmForgiveTicks;

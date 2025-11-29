@@ -1,8 +1,11 @@
 package com.jubitus.traveller.traveller.pathing;
 
+import com.jubitus.traveller.traveller.camp.CampfireBlock;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockLilyPad;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLiving;
+import net.minecraft.init.Blocks;
 import net.minecraft.pathfinding.PathNodeType;
 import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.pathfinding.WalkNodeProcessor;
@@ -31,7 +34,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     public int findPathOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
         int count = super.findPathOptions(options, current, target, maxDistance);
 
-        // 1) forbid illegal diagonals (your code) AND forbid lilypads as supports
         for (int i = 0; i < count; i++) {
             PathPoint p = options[i];
             if (p == null) continue;
@@ -39,18 +41,36 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             // diagonal squeeze check
             int dx = p.x - current.x;
             int dz = p.z - current.z;
+
             if (dx != 0 && dz != 0) {
-                if (!isTwoHighWalkable(current.x + dx, current.y, current.z)
-                        || !isTwoHighWalkable(current.x, current.y, current.z + dz)) {
-                    options[i] = null;
-                    continue;
+                // Look at the node types involved in this diagonal
+                PathNodeType here   = this.getPathNodeType(this.blockaccess, current.x,     current.y,     current.z);
+                PathNodeType there  = this.getPathNodeType(this.blockaccess, p.x,          p.y,          p.z);
+                PathNodeType side1  = this.getPathNodeType(this.blockaccess, current.x + dx, current.y,   current.z);
+                PathNodeType side2  = this.getPathNodeType(this.blockaccess, current.x,     current.y,     current.z + dz);
+
+                boolean anyLiquid =
+                        isLiquidNode(here)  ||
+                                isLiquidNode(there) ||
+                                isLiquidNode(side1) ||
+                                isLiquidNode(side2);
+
+                // On land: keep the strict 2-high-squeeze check to avoid cutting corners.
+                // In/around water: relax it so we can swim diagonally.
+                if (!anyLiquid) {
+                    if (!isTwoHighWalkable(current.x + dx, current.y, current.z)
+                            || !isTwoHighWalkable(current.x, current.y, current.z + dz)) {
+                        options[i] = null;
+                        continue;
+                    }
                 }
             }
+
 
             // hard-ban lilypad underfoot
             BlockPos feet = new BlockPos(p.x, p.y, p.z);
             Block under = this.blockaccess.getBlockState(feet.down()).getBlock();
-            if (under == net.minecraft.init.Blocks.WATERLILY || under instanceof net.minecraft.block.BlockLilyPad) {
+            if (under == Blocks.WATERLILY || under instanceof BlockLilyPad) {
                 options[i] = null;
             }
         }
@@ -62,6 +82,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         // 3) your path-dirt preference logic (unchanged), iterate to w
         for (int i = 0; i < w; i++) {
             PathPoint p = options[i];
+
             if (p == null) continue;
             BlockPos feet = new BlockPos(p.x, p.y, p.z);
             if (isPathPreferred(feet)) {
@@ -75,24 +96,31 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
     @Override
     protected PathNodeType getPathNodeTypeRaw(IBlockAccess worldIn, int x, int y, int z) {
-        // --- HARD BLOCK lily pads (never stand on them, never plan through them)
         BlockPos pos = new BlockPos(x, y, z);
         IBlockState state = worldIn.getBlockState(pos);
         Block block = state.getBlock();
 
-        // direct lilypad at feet
+        // --- HARD BLOCK lily pads (existing) ---
         if (block == net.minecraft.init.Blocks.WATERLILY || block instanceof net.minecraft.block.BlockLilyPad) {
             return PathNodeType.BLOCKED;
         }
-        // lilypad directly below the feet (standing on it)
         IBlockState below = worldIn.getBlockState(pos.down());
-        if (below.getBlock() == net.minecraft.init.Blocks.WATERLILY || below.getBlock() instanceof net.minecraft.block.BlockLilyPad) {
+        if (below.getBlock() == net.minecraft.init.Blocks.WATERLILY
+                || below.getBlock() instanceof net.minecraft.block.BlockLilyPad) {
             return PathNodeType.BLOCKED;
+        }
+
+        // --- HARD BLOCK the Millénaire fire pit ---
+        Block fire = CampfireBlock.get();
+        if (fire != null) {
+            if (block == fire || below.getBlock() == fire) {
+                return PathNodeType.BLOCKED;
+            }
         }
 
         PathNodeType base = super.getPathNodeTypeRaw(worldIn, x, y, z);
 
-        // Reclassify fence gates for path planning:
+        // Fence-gate reclass (your existing logic)...
         if (block instanceof net.minecraft.block.BlockFenceGate) {
             boolean open = state.getValue(net.minecraft.block.BlockFenceGate.OPEN);
             return open ? PathNodeType.DOOR_OPEN : PathNodeType.DOOR_WOOD_CLOSED;
@@ -104,6 +132,10 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
         return base;
     }
+    private boolean isLiquidNode(PathNodeType t) {
+        return t == PathNodeType.WATER;
+    }
+
 
     private boolean isTwoHighWalkable(int x, int y, int z) {
         PathNodeType feet = this.getPathNodeType(this.blockaccess, x, y, z);

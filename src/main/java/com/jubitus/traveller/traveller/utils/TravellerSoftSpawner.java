@@ -5,11 +5,13 @@ import com.jubitus.traveller.traveller.SpawnThrottles;
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
+import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EnumCreatureType;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
@@ -19,11 +21,11 @@ import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.EnumSkyBlock;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.io.File;
 import java.util.List;
 import java.util.Random;
 
@@ -31,9 +33,17 @@ import static com.jubitus.traveller.traveller.entityAI.EntityAITravel.intersects
 
 @Mod.EventBusSubscriber
 public final class TravellerSoftSpawner {
-
+    private static int lastVillageReloadTick = -1;
+    private static final int REGIONAL_RADIUS = 1000; // or pull from config later
     private static int raiderTickCounter = 0;
     private static int tickCounter = 0;
+    // radius around a Town Hall that we consider "inside" the village
+    // (tweak to taste or move to config)
+    private static final int INNER_VILLAGE_NO_SPAWN_RADIUS = 128;
+    private TravellerSoftSpawner() {
+    }
+
+    // ----------------- helpers -----------------
 
     @SubscribeEvent
     public static void onWorldTick(TickEvent.WorldTickEvent e) {
@@ -42,126 +52,166 @@ public final class TravellerSoftSpawner {
         WorldServer ws = (WorldServer) e.world;
 
         // ---------- Traveller soft top-up ----------
+        // ---------- Traveller soft top-up ----------
         if (TravellersModConfig.enableTravellerSoftSpawns) {
 
             if ((++tickCounter % Math.max(1, TravellersModConfig.travellerTopUpEveryTicks)) == 0) {
 
-                // Global loaded cap across ALL worlds (fast)
-                int loadedTotal = 0;
-                for (WorldServer w : ws.getMinecraftServer().worlds) {
-                    loadedTotal += w.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
-                }
-                if (loadedTotal < TravellersModConfig.travellerTargetLoaded) {
+                for (EntityPlayerMP p : ws.getMinecraftServer().getPlayerList().getPlayers()) {
+                    if (p.world != ws) continue;
 
-                    // Try near each player on this world
-                    for (EntityPlayerMP p : ws.getMinecraftServer().getPlayerList().getPlayers()) {
-                        if (p.world != ws) continue;
+                    BlockPos playerPos = p.getPosition();
 
-                        Random r = p.getRNG();
-                        boolean spawnedAnyForPlayer = false; // NEW
-                        for (int attempt = 0; attempt < TravellersModConfig.travellerAttemptsPerPlayer; attempt++) {
-                            BlockPos pos = pickSpawnPosAround(ws, p.getPosition(), r,
-                                    TravellersModConfig.travellerSpawnMinDist,
-                                    TravellersModConfig.travellerSpawnMaxDist);
-                            if (pos == null) continue;
+                    int regionalCap = MillVillageIndex.computeRegionalTravellerCap(ws, playerPos,
+                            TravellersModConfig.travellerRegionalRadius);
+                    if (regionalCap <= 0) {
+                        continue;
+                    }
 
-                            // Must stay in loaded area
-                            if (!chunkExists(ws, pos)) continue;
+                    int regionalCount = countTravellersInRegion(ws, playerPos,
+                            TravellersModConfig.travellerRegionalRadius);
+                    if (regionalCount >= regionalCap) {
+                        continue;
+                    }
 
-                            // Village proximity (your own rule)
-                            if (!MillVillageIndex.isNearVillage(ws, pos, TravellersModConfig.villagePickRadius))
-                                continue;
+                    Random r = p.getRNG();
+                    boolean spawnedAnyForPlayer = false;
 
-                            // Respect your local density cap (reuse your helper)
-                            if (!SpawnThrottles.underLocalCap(ws, pos, EntityTraveller.class,
+                    for (int attempt = 0; attempt < TravellersModConfig.travellerMaxPositionChecksPerAttempt; attempt++) {
+
+                        // ✅ use traveller distances, not raider ones
+                        BlockPos pos = pickSpawnPosAround(ws, playerPos, r,
+                                TravellersModConfig.travellerSpawnMinDist,
+                                TravellersModConfig.travellerSpawnMaxDist);
+                        if (pos == null) continue;
+                        if (!chunkExists(ws, pos)) continue;
+
+                        // World-data based density (villages + lone buildings)
+                        double density = MillVillageIndex.travellerDensityAt(ws, pos);
+
+                        // Boost density based on village population (nearest village)
+                        double popMult = MillVillageIndex.populationWeightAt(ws, pos);
+                        density *= popMult;
+
+                        // If density is zero, no known center nearby -> skip
+                        if (density <= 0.0) {
+                            continue;
+                        }
+
+                        // Treat density as a chance gate (between 0 and ~1.0+ after boost)
+                        double gate = Math.min(1.0, density);
+                        if (ws.rand.nextDouble() > gate) {
+                            continue; // failed density roll
+                        }
+
+                        // Still keep local per-spot cap (prevents crazy clumps)
+                        if (!SpawnThrottles.underLocalCap(ws, pos, EntityTraveller.class,
+                                TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
+                            continue;
+
+                        // Vanilla-style veto at the anchor (cheap early bail)
+                        float sx = (float) (pos.getX() + 0.5);
+                        float sy = (float) pos.getY();
+                        float sz = (float) (pos.getZ() + 0.5);
+                        EntityTraveller probe = new EntityTraveller(ws);
+                        if (net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(probe, ws, sx, sy, sz)
+                                == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY) {
+                            continue;
+                        }
+
+                        // ---------- group spawn ----------
+                        int gMin = Math.max(1, TravellersModConfig.MinGroupSizeAtSpawn);
+                        int gMax = Math.max(gMin, TravellersModConfig.MaxGroupSizeAtSpawn);
+
+                        double d = Math.max(0.0, Math.min(1.0, density));
+                        double rawGroup = gMin + (gMax - gMin) * d;
+                        int group = (int) Math.round(rawGroup * (0.8 + r.nextDouble() * 0.4));
+                        group = Math.max(1, Math.min(group, gMax));
+
+                        IEntityLivingData sharedSpawnData = null;
+
+                        // decide culture once for the whole group, based on nearby villages
+                        EntityTraveller.SpawnData cultureSpawnData = null;
+                        if (TravellersModConfig.travellerCultureWeightedSpawn) {
+                            String cultureId = MillVillageIndex.pickCultureForTravellerSpawn(ws, pos, ws.rand);
+                            if (cultureId != null && !cultureId.isEmpty()) {
+                                cultureSpawnData = new EntityTraveller.SpawnData(cultureId);
+                            }
+                        }
+
+                        int spawned = 0;
+                        for (int i = 0; i < group && regionalCount < regionalCap; i++) {
+                            int ox = r.nextInt(5) - 2;
+                            int oz = r.nextInt(5) - 2;
+                            BlockPos posI = new BlockPos(pos.getX() + ox, pos.getY(), pos.getZ() + oz);
+
+                            if (!chunkExists(ws, posI)) continue;
+
+                            if (!SpawnThrottles.underLocalCap(ws, posI, EntityTraveller.class,
                                     TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
                                 continue;
 
-                            // Light & ground sanity (mirrors your getCanSpawnHere())
-                            int blockLight = ws.getLightFor(EnumSkyBlock.BLOCK, pos);
-                            if (blockLight < TravellersModConfig.travellerSpawnLightMin) continue;
+                            float mx = posI.getX() + 0.5f, my = posI.getY(), mz = posI.getZ() + 0.5f;
 
-                            // Vanilla-style veto at the anchor (cheap early bail)
-                            float sx = (float) (pos.getX() + 0.5);
-                            float sy = (float) pos.getY();
-                            float sz = (float) (pos.getZ() + 0.5);
-                            EntityTraveller probe = new EntityTraveller(ws);
-                            if (net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(probe, ws, sx, sy, sz)
-                                    == net.minecraftforge.fml.common.eventhandler.Event.Result.DENY) {
+                            EntityTraveller t = new EntityTraveller(ws);
+                            t.setLocationAndAngles(mx, my, mz, r.nextFloat() * 360f, 0f);
+
+                            if (tooCloseOrVisibleToPlayer(ws, t, p)) {
+                                t.setDead();
                                 continue;
                             }
 
-                            // ---------- CHANGED: spawn a group ----------
-                            int gMin = Math.max(1, TravellersModConfig.MinGroupSizeAtSpawn);
-                            int gMax = Math.max(gMin, TravellersModConfig.MaxGroupSizeAtSpawn);
-                            int group = gMin + r.nextInt(gMax - gMin + 1);
-
-                            int spawned = 0;
-                            for (int i = 0; i < group; i++) {
-                                // small XY jitter around anchor; keep chunks already loaded
-                                int ox = r.nextInt(5) - 2;
-                                int oz = r.nextInt(5) - 2;
-                                BlockPos posI = new BlockPos(pos.getX() + ox, pos.getY(), pos.getZ() + oz);
-
-                                if (!chunkExists(ws, posI)) continue;
-
-                                // local cap per member location
-                                if (!SpawnThrottles.underLocalCap(ws, posI, EntityTraveller.class,
-                                        TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
-                                    continue;
-
-                                // light/ground sanity per member (cheap)
-                                if (ws.getLightFor(EnumSkyBlock.BLOCK, posI) < TravellersModConfig.travellerSpawnLightMin) continue;
-
-                                float mx = posI.getX() + 0.5f, my = posI.getY(), mz = posI.getZ() + 0.5f;
-
-                                EntityTraveller t = new EntityTraveller(ws);
-                                t.setLocationAndAngles(mx, my, mz, r.nextFloat() * 360f, 0f);
-
-                                // avoid pop-in (line of sight / too close)
-                                if (tooCloseOrVisibleToPlayer(ws, t, p)) {
-                                    t.setDead();
-                                    continue;
-                                }
-
-                                // cheap collision/liquid sanity before init (prevents noisy fails)
-                                if (!ws.checkNoEntityCollision(t.getEntityBoundingBox())) { t.setDead(); continue; }
-                                if (!ws.getCollisionBoxes(t, t.getEntityBoundingBox()).isEmpty()) { t.setDead(); continue; }
-                                if (intersectsForbiddenLiquid(ws, t.getEntityBoundingBox())) { t.setDead(); continue; }
-
-                                // normal initial spawn logic
-                                t.onInitialSpawn(ws.getDifficultyForLocation(posI), (IEntityLivingData) null);
-
-                                // Final safety: hard cap (global, live)
-                                int nowLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
-                                if (nowLoaded >= TravellersModConfig.loadedTravellerCap) {
-                                    t.setDead();
-                                    break; // stop group
-                                }
-
-                                ws.spawnEntity(t);
-                                spawned++;
+                            if (!ws.checkNoEntityCollision(t.getEntityBoundingBox())) {
+                                t.setDead();
+                                continue;
+                            }
+                            if (!ws.getCollisionBoxes(t, t.getEntityBoundingBox()).isEmpty()) {
+                                t.setDead();
+                                continue;
+                            }
+                            if (intersectsForbiddenLiquid(ws, t.getEntityBoundingBox())) {
+                                t.setDead();
+                                continue;
                             }
 
-                            if (spawned > 0) {
-                                spawnedAnyForPlayer = true; // NEW
-                                break; // one successful group per player-cycle (keeps perf predictable)
+                            // If we pre-picked a culture, feed it into onInitialSpawn
+                            if (sharedSpawnData == null && cultureSpawnData != null) {
+                                sharedSpawnData = cultureSpawnData;
                             }
-                            // else: try another anchor attempt around this player
+
+                            sharedSpawnData = t.onInitialSpawn(ws.getDifficultyForLocation(posI), sharedSpawnData);
+
+                            // Keep the HARD global safety cap as last resort
+                            int nowLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
+                            if (nowLoaded >= TravellersModConfig.loadedTravellerCap) {
+                                t.setDead();
+                                break;
+                            }
+
+                            ws.spawnEntity(t);
+                            spawned++;
+                            regionalCount++; // IMPORTANT: keep regional usage in sync
                         }
 
-                        if (spawnedAnyForPlayer) {
-                            // optional: continue to next player, or keep trying this player if you want more groups
+                        if (spawned > 0) {
+                            spawnedAnyForPlayer = true;
+                            break; // one successful group per player per cycle
                         }
+                    }
+
+                    if (spawnedAnyForPlayer) {
+                        // move to next player
                     }
                 }
             }
 
             // ---------- Raider soft top-up ----------
+// ---------- Raider soft top-up ----------
+// ---------- Raider soft top-up ----------
             if (TravellersModConfig.enableRaiderSoftSpawns) {
                 if ((++raiderTickCounter % Math.max(1, TravellersModConfig.raiderTopUpEveryTicks)) == 0) {
 
-                    // Count loaded raiders across ALL worlds
+                    // Global safety cap from config (keep as an overall guard)
                     int loadedRaiders = 0;
                     for (WorldServer w : ws.getMinecraftServer().worlds) {
                         loadedRaiders += w.getEntities(EntityTravellerRaider.class, net.minecraft.entity.Entity::isEntityAlive).size();
@@ -174,28 +224,61 @@ public final class TravellerSoftSpawner {
                             if (p.world != ws) continue;
                             Random r = p.getRNG();
 
-                            boolean spawnedAnyForPlayer = false; // NEW
-                            for (int k = 0; k < TravellersModConfig.raiderAttemptsPerPlayer; k++) {
+                            BlockPos playerPos = p.getPosition();
+
+                            // --- NEW: regional raider cap (same inputs as travellers) ---
+                            int regionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, playerPos,
+                                    TravellersModConfig.raiderRegionalRadius);
+                            if (regionalCap <= 0) {
+                                // no Millénaire “threat budget” here → no raiders around this player
+                                continue;
+                            }
+
+                            int regionalCount = countRaidersInRegion(ws, playerPos,
+                                    TravellersModConfig.raiderRegionalRadius);
+                            if (regionalCount >= regionalCap) {
+                                // this area is already at or above its raider budget
+                                continue;
+                            }
+
+                            boolean spawnedAnyForPlayer = false;
+
+                            for (int k = 0; k < TravellersModConfig.raiderMaxPositionChecksPerAttempt; k++) {
                                 if (r.nextFloat() > TravellersModConfig.raiderSoftSpawnChancePerAttempt) continue;
 
-                                BlockPos pos = pickSpawnPosAround(ws, p.getPosition(), r,
+                                BlockPos pos = pickSpawnPosAround(ws, playerPos, r,
                                         TravellersModConfig.raiderSpawnMinDist,
                                         TravellersModConfig.raiderSpawnMaxDist);
                                 if (pos == null) continue;
                                 if (!chunkExists(ws, pos)) continue;
 
-                                // Raiders should hang around villages too
-                                if (!MillVillageIndex.isNearVillage(ws, pos, TravellersModConfig.villagePickRadius))
+                                // --- NEW: never spawn *inside* village ---
+                                // use a “too close” radius; tune this in config
+                                if (MillVillageIndex.isNearVillage(ws, pos, TravellersModConfig.raiderMinVillageDistance)) {
+                                    // too close to Town Hall / inside village bubble → skip
                                     continue;
+                                }
+
+                                // Raiders should still hang around Millénaire influence,
+                                // so require some density
+                                double density = MillVillageIndex.travellerDensityAt(ws, pos);
+                                if (density <= 0.0) {
+                                    continue; // no influence ⇒ no raiders
+                                }
+
+                                // Base chance from config
+                                double baseChance = Math.max(0.0, Math.min(1.0, TravellersModConfig.raiderBaseSpawnChance));
+                                double effectiveChance = Math.min(1.0, baseChance * density);
+
+                                if (ws.rand.nextDouble() > effectiveChance) {
+                                    continue; // this anchor fails, try another
+                                }
 
                                 // Raider local cap
                                 if (!SpawnThrottles.underLocalCap(ws, pos, EntityTravellerRaider.class,
                                         TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius))
                                     continue;
 
-                                // Darkness + ground
-                                int blockLight = ws.getLightFor(EnumSkyBlock.BLOCK, pos);
-                                if (blockLight < TravellersModConfig.travellerSpawnLightMin) continue;
                                 if (!ws.getBlockState(pos.down()).isOpaqueCube()) continue;
 
                                 float sx = (float) (pos.getX() + 0.5);
@@ -206,16 +289,22 @@ public final class TravellerSoftSpawner {
                                 EntityTravellerRaider anchorProbe = new EntityTravellerRaider(ws);
                                 anchorProbe.setLocationAndAngles(sx, sy, sz, r.nextFloat() * 360f, 0f);
                                 if (!ws.checkNoEntityCollision(anchorProbe.getEntityBoundingBox())) continue;
-                                if (!ws.getCollisionBoxes(anchorProbe, anchorProbe.getEntityBoundingBox()).isEmpty()) continue;
+                                if (!ws.getCollisionBoxes(anchorProbe, anchorProbe.getEntityBoundingBox()).isEmpty())
+                                    continue;
                                 if (ws.containsAnyLiquid(anchorProbe.getEntityBoundingBox())) continue;
 
-                                // ---------- CHANGED: spawn a group ----------
+                                // ---------- group spawn ----------
                                 int gMin = Math.max(1, TravellersModConfig.RaiderMinGroup);
                                 int gMax = Math.max(gMin, TravellersModConfig.RaiderMaxGroup);
                                 int group = gMin + r.nextInt(gMax - gMin + 1);
 
+                                IEntityLivingData sharedRaiderSpawnData = null;
+
                                 int spawned = 0;
                                 for (int i = 0; i < group; i++) {
+                                    // ALSO respect regional cap inside the group loop
+                                    if (regionalCount >= regionalCap) break;
+
                                     int ox = r.nextInt(5) - 2;
                                     int oz = r.nextInt(5) - 2;
                                     BlockPos posI = new BlockPos(pos.getX() + ox, pos.getY(), pos.getZ() + oz);
@@ -225,7 +314,6 @@ public final class TravellerSoftSpawner {
                                             TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius))
                                         continue;
 
-                                    if (ws.getLightFor(EnumSkyBlock.BLOCK, posI) < TravellersModConfig.travellerSpawnLightMin) continue;
                                     if (!ws.getBlockState(posI.down()).isOpaqueCube()) continue;
 
                                     float mx = posI.getX() + 0.5f, my = posI.getY(), mz = posI.getZ() + 0.5f;
@@ -233,17 +321,28 @@ public final class TravellerSoftSpawner {
                                     EntityTravellerRaider raider = new EntityTravellerRaider(ws);
                                     raider.setLocationAndAngles(mx, my, mz, r.nextFloat() * 360f, 0f);
 
-                                    // avoid popping right in front of the player
                                     if (tooCloseOrVisibleToPlayer(ws, raider, p)) {
                                         raider.setDead();
                                         continue;
                                     }
 
-                                    if (!ws.checkNoEntityCollision(raider.getEntityBoundingBox())) { raider.setDead(); continue; }
-                                    if (!ws.getCollisionBoxes(raider, raider.getEntityBoundingBox()).isEmpty()) { raider.setDead(); continue; }
-                                    if (ws.containsAnyLiquid(raider.getEntityBoundingBox())) { raider.setDead(); continue; }
+                                    if (!ws.checkNoEntityCollision(raider.getEntityBoundingBox())) {
+                                        raider.setDead();
+                                        continue;
+                                    }
+                                    if (!ws.getCollisionBoxes(raider, raider.getEntityBoundingBox()).isEmpty()) {
+                                        raider.setDead();
+                                        continue;
+                                    }
+                                    if (ws.containsAnyLiquid(raider.getEntityBoundingBox())) {
+                                        raider.setDead();
+                                        continue;
+                                    }
 
-                                    raider.onInitialSpawn(ws.getDifficultyForLocation(posI), null);
+                                    sharedRaiderSpawnData = raider.onInitialSpawn(
+                                            ws.getDifficultyForLocation(posI),
+                                            sharedRaiderSpawnData
+                                    );
 
                                     int nowR = ws.getEntities(EntityTravellerRaider.class, net.minecraft.entity.Entity::isEntityAlive).size();
                                     if (nowR >= TravellersModConfig.loadedRaiderCap) {
@@ -253,10 +352,11 @@ public final class TravellerSoftSpawner {
 
                                     ws.spawnEntity(raider);
                                     spawned++;
+                                    regionalCount++; // <--- IMPORTANT: track per-region budget
                                 }
 
                                 if (spawned > 0) {
-                                    spawnedAnyForPlayer = true; // NEW
+                                    spawnedAnyForPlayer = true;
                                     break; // one successful group per player-cycle
                                 }
                             }
@@ -269,13 +369,6 @@ public final class TravellerSoftSpawner {
                 }
             }
         }
-    }
-
-    // ----------------- helpers -----------------
-
-    private static boolean chunkExists(WorldServer ws, BlockPos pos) {
-        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        return ws.getChunkProvider().chunkExists(cx, cz);
     }
 
     private static BlockPos pickSpawnPosAround(WorldServer ws, BlockPos center, Random r, int min, int max) {
@@ -301,12 +394,30 @@ public final class TravellerSoftSpawner {
                 // quick downward probe
                 BlockPos q = top.down();
                 for (int down = 0; down < 6 && q.getY() > 1; down++, q = q.down()) {
-                    if (isStandable(ws, q)) { p = q; break; }
+                    if (isStandable(ws, q)) {
+                        p = q;
+                        break;
+                    }
                 }
             }
             if (isStandable(ws, p)) return p;
         }
         return null;
+    }
+
+    private static boolean chunkExists(WorldServer ws, BlockPos pos) {
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        return ws.getChunkProvider().chunkExists(cx, cz);
+    }
+
+    private static boolean tooCloseOrVisibleToPlayer(WorldServer ws, EntityTraveller t, EntityPlayerMP p) {
+        double d2 = t.getDistanceSq(p);
+        if (d2 < 26 * 26) return true; // keep a little reveal distance
+        // Optionally avoid direct LoS “pop-in”
+        AxisAlignedBB bb = t.getEntityBoundingBox().grow(0.5);
+        return ws.rayTraceBlocks(p.getPositionEyes(1f),
+                p.getPositionEyes(1f).add(p.getLookVec().scale(Math.sqrt(d2))),
+                false, true, false) == null && p.getEntityBoundingBox().intersects(bb);
     }
 
     private static boolean isStandable(WorldServer w, BlockPos feet) {
@@ -323,15 +434,6 @@ public final class TravellerSoftSpawner {
         return feetFree && headFree && support;
     }
 
-    private static boolean tooCloseOrVisibleToPlayer(WorldServer ws, EntityTraveller t, EntityPlayerMP p) {
-        double d2 = t.getDistanceSq(p);
-        if (d2 < 26 * 26) return true; // keep a little reveal distance
-        // Optionally avoid direct LoS “pop-in”
-        AxisAlignedBB bb = t.getEntityBoundingBox().grow(0.5);
-        return ws.rayTraceBlocks(p.getPositionEyes(1f),
-                p.getPositionEyes(1f).add(p.getLookVec().scale(Math.sqrt(d2))),
-                false, true, false) == null && p.getEntityBoundingBox().intersects(bb);
-    }
     private static boolean isNaturalStandable(WorldServer w, BlockPos feet) {
         if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
 
@@ -348,9 +450,7 @@ public final class TravellerSoftSpawner {
         if (!isNaturalGround(w, below)) return false;
 
         // optional but very effective: reject if the neighbourhood looks "built"
-        if (looksManMadeAround(w, feet, 2)) return false;
-
-        return true;
+        return !looksManMadeAround(w, feet, 2);
     }
 
     private static boolean isNaturalGround(World w, BlockPos pos) {
@@ -364,7 +464,8 @@ public final class TravellerSoftSpawner {
         if (!support) return false;
 
         // Fast material whitelist: typical terrain materials
-        if (m == Material.GRASS || m == Material.GROUND || m == Material.SAND || m == Material.CLAY || m == Material.SNOW) return true;
+        if (m == Material.GRASS || m == Material.GROUND || m == Material.SAND || m == Material.CLAY || m == Material.SNOW)
+            return true;
 
         // Rock: allow only truly-natural rock, not crafted rock blocks
         if (m == Material.ROCK) {
@@ -379,18 +480,15 @@ public final class TravellerSoftSpawner {
                 // Reject obvious building blocks
                 if (path.contains("brick") || path.contains("bricks") || path.contains("polished")
                         || path.contains("planks") || path.contains("stairs") || path.contains("slab")
-                        || path.contains("pillar") || path.contains("chiseled") ||path.contains("fuck")) return false;
+                        || path.contains("pillar") || path.contains("chiseled") || path.contains("fuck")) return false;
             }
             // For modded blocks, be conservative: treat unknown ROCK as man-made unless it looks like raw stone/sandstone/end
-            if (path.contains("stone") || path.contains("andesite") || path.contains("diorite") || path.contains("granite")
-                    || path.contains("end_stone") || path.contains("netherrack") || path.contains("sandstone")) return true;
-            return false;
+            return path.contains("stone") || path.contains("andesite") || path.contains("diorite") || path.contains("granite")
+                    || path.contains("end_stone") || path.contains("netherrack") || path.contains("sandstone");
         }
 
         // Special vanilla naturals that aren’t covered only by materials
-        if (b == net.minecraft.init.Blocks.MYCELIUM) return true;
-
-        return false;
+        return b == net.minecraft.init.Blocks.MYCELIUM;
     }
 
     private static boolean looksManMadeAround(World w, BlockPos center, int r) {
@@ -411,8 +509,10 @@ public final class TravellerSoftSpawner {
                     // Quick instanceof checks for common structure blocks
                     if (b instanceof net.minecraft.block.BlockStairs) return true;
                     if (b instanceof net.minecraft.block.BlockSlab) return true;
-                    if (b instanceof net.minecraft.block.BlockFence || b instanceof net.minecraft.block.BlockFenceGate) return true;
-                    if (b instanceof net.minecraft.block.BlockDoor || b instanceof net.minecraft.block.BlockTrapDoor) return true;
+                    if (b instanceof net.minecraft.block.BlockFence || b instanceof net.minecraft.block.BlockFenceGate)
+                        return true;
+                    if (b instanceof net.minecraft.block.BlockDoor || b instanceof net.minecraft.block.BlockTrapDoor)
+                        return true;
                     if (b instanceof net.minecraft.block.BlockPane) return true;
                     if (b instanceof net.minecraft.block.BlockLadder) return true;
                     if (b instanceof net.minecraft.block.BlockCarpet) return true;
@@ -431,8 +531,10 @@ public final class TravellerSoftSpawner {
                     if (id != null) {
                         String path = id.getPath();
                         if (path.contains("brick") || path.contains("concrete") || path.contains("tile")
-                                || path.contains("plaster") || path.contains("metal") || path.contains("factory")) return true;
-                        if (path.contains("roof") || path.contains("wall") || path.contains("window") || path.contains("lamp")) return true;
+                                || path.contains("plaster") || path.contains("metal") || path.contains("factory"))
+                            return true;
+                        if (path.contains("roof") || path.contains("wall") || path.contains("window") || path.contains("lamp"))
+                            return true;
                         if (path.contains("stairs") || path.contains("slab") || path.contains("planks")) return true;
                     }
                 }
@@ -440,6 +542,84 @@ public final class TravellerSoftSpawner {
         }
         return false;
     }
+// --- mob farm / enclosure detection ---
 
-    private TravellerSoftSpawner() {}
+    private static boolean isCrowdedArea(WorldServer w, BlockPos pos, int radius, int minEntities) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                pos.getX() - radius, pos.getY() - 2, pos.getZ() - radius,
+                pos.getX() + radius + 1, pos.getY() + 4, pos.getZ() + radius + 1
+        );
+
+        // Count living mobs except players + travellers/raiders
+        List<EntityLivingBase> list = w.getEntitiesWithinAABB(EntityLivingBase.class, box, e ->
+                !(e instanceof EntityPlayer) &&
+                        !(e instanceof EntityTraveller) &&
+                        !(e instanceof EntityTravellerRaider)
+        );
+
+        return list.size() >= minEntities;
+    }
+
+    /**
+     * Detects a fence/wall "ring" around the position, typical of a mob farm pen.
+     * It scans only the perimeter of a square with given radius.
+     */
+    private static boolean hasFencePerimeter(World w, BlockPos center, int radius, int minFenceBlocks) {
+        int fences = 0;
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                // Only perimeter: at least one coord must be at max distance
+                if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+
+                for (int dy = 0; dy <= 1; dy++) {
+                    p.setPos(center.getX() + dx, center.getY() + dy, center.getZ() + dz);
+                    if (!w.isBlockLoaded(p)) continue;
+
+                    Block b = w.getBlockState(p).getBlock();
+                    if (b instanceof net.minecraft.block.BlockFence
+                            || b instanceof net.minecraft.block.BlockWall
+                            || b instanceof net.minecraft.block.BlockFenceGate) {
+                        fences++;
+                        if (fences >= minFenceBlocks) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Heuristic: "mob farm–like" = many mobs inside + fence ring around.
+     */
+    private static boolean isMobFarmLikeArea(WorldServer w, BlockPos pos) {
+        // Tunable knobs – consider putting in config if you want it tweakable
+        final int radius = TravellersModConfig.mobFarmCheckRadius;
+        final int minEntities = TravellersModConfig.mobFarmEntityThreshold;   // how many mobs before we call it crowded
+        final int fenceRadius = TravellersModConfig.mobFarmFenceRadius;
+        final int minFenceBlocks = TravellersModConfig.mobFarmFenceThreshold;
+
+        if (!isCrowdedArea(w, pos, radius, minEntities)) return false;
+        if (!hasFencePerimeter(w, pos, fenceRadius, minFenceBlocks)) return false;
+        return true;
+    }
+    public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                center.getX() - radiusXZ, 0, center.getZ() - radiusXZ,
+                center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
+        );
+        return ws.getEntitiesWithinAABB(EntityTraveller.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
+    }
+    public static int countRaidersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                center.getX() - radiusXZ, 0, center.getZ() - radiusXZ,
+                center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
+        );
+        return ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
+    }
+
+
 }

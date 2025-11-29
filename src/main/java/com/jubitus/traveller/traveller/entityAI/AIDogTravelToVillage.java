@@ -14,14 +14,13 @@ import net.minecraft.world.WorldServer;
 import javax.annotation.Nullable;
 
 class AIDogTravelToVillage extends EntityAIBase {
+    private static final int RECALC_EVERY = 12; // ticks
     private final EntityTravellerDog dog;
     private final double speed;
     private final int stepBlocks;
-
     private BlockPos targetVillage = null;
     private BlockPos waypoint = null;
     private int recalcTicker = 0;
-    private static final int RECALC_EVERY = 12; // ticks
 
     AIDogTravelToVillage(EntityTravellerDog dog, double speed, int stepBlocks) {
         this.dog = dog;
@@ -97,8 +96,8 @@ class AIDogTravelToVillage extends EntityAIBase {
         dir = dir.normalize();
 
         // propose a point step blocks ahead
-        int nx = from.getX() + (int)Math.round(dir.x * step);
-        int nz = from.getZ() + (int)Math.round(dir.z * step);
+        int nx = from.getX() + (int) Math.round(dir.x * step);
+        int nz = from.getZ() + (int) Math.round(dir.z * step);
         BlockPos guess = new BlockPos(nx, from.getY(), nz);
 
         // keep it chunk-safe without forcing loads
@@ -107,10 +106,11 @@ class AIDogTravelToVillage extends EntityAIBase {
         int cx = nx >> 4, cz = nz >> 4;
         if (!ws.getChunkProvider().chunkExists(cx, cz)) {
             // fall back to a shorter step that’s still in the current chunk ring
-            nx = from.getX() + (int)Math.round(dir.x * Math.max(8, step / 2));
-            nz = from.getZ() + (int)Math.round(dir.z * Math.max(8, step / 2));
+            nx = from.getX() + (int) Math.round(dir.x * Math.max(8, step / 2));
+            nz = from.getZ() + (int) Math.round(dir.z * Math.max(8, step / 2));
             guess = new BlockPos(nx, from.getY(), nz);
-            cx = nx >> 4; cz = nz >> 4;
+            cx = nx >> 4;
+            cz = nz >> 4;
             if (!ws.getChunkProvider().chunkExists(cx, cz)) return null;
         }
 
@@ -151,7 +151,8 @@ class AIDogTravelToVillage extends EntityAIBase {
 
         // flat-enough or solid top?
         BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
-        if (shape == BlockFaceShape.SOLID) return atFeet.getMaterial().isReplaceable() && atHead.getMaterial().isReplaceable();
+        if (shape == BlockFaceShape.SOLID)
+            return atFeet.getMaterial().isReplaceable() && atHead.getMaterial().isReplaceable();
 
         AxisAlignedBB bb = below.getBoundingBox(w, feet.down());
         boolean thinTop = bb != Block.NULL_AABB && (bb.maxY - bb.minY) > 0.001;

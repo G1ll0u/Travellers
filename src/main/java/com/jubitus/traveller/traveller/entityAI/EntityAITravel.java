@@ -1,17 +1,21 @@
 package com.jubitus.traveller.traveller.entityAI;
 
 import com.jubitus.traveller.TravellersModConfig;
+import com.jubitus.traveller.traveller.travel.TravelCommon;
+import com.jubitus.traveller.traveller.utils.debug.TravelDebugLogger;
+import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
+import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.init.Blocks;
 import net.minecraft.pathfinding.Path;
 import net.minecraft.pathfinding.PathNavigate;
 import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
@@ -19,11 +23,21 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import org.millenaire.common.block.IBlockPath;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Random;
 
 public class EntityAITravel extends EntityAIBase {
+
+    // --- boat stall tracking ---
+    private Vec3d lastBoatPos = Vec3d.ZERO;
+    private int boatStallTicks = 0;
+    private static final int BOAT_STALL_TICKS = 40;      // ~2 seconds
+    private static final double BOAT_MIN_MOVE_SQ = 0.04 * 0.04; // ~0.04 blocks / tick
+
+
     // --- Water crossing tuning ---
     private static final int WATER_AHEAD_PROBE = 24; // look ~24 blocks ahead
     private static final int WATER_AHEAD_MIN   = 6; // if >=12 of those are water, treat as water corridor
@@ -41,7 +55,7 @@ public class EntityAITravel extends EntityAIBase {
     private static final int ESCAPE_SCAN_L2 = 96;
     private static final int ESCAPE_SCAN_L3 = 128;
     // --- Progress-aware hard-unstuck gates ---
-    private static final int HARD_UNSTUCK_MIN_STALL = 2;     // don't TP for light stalls
+    private static final int HARD_UNSTUCK_MIN_STALL = 3;     // don't TP for light stalls
     private static final int HARD_UNSTUCK_T_NOBEST = 12 * 20; // ≥12s since best distance improved
     private static final int HARD_UNSTUCK_T_NOPROJ = 6 * 20;  // ≥6s without forward component
     private static final double HARD_UNSTUCK_MOVE_SQ = 0.20 * 0.20; // barely moved (~0.2 block)
@@ -81,9 +95,15 @@ public class EntityAITravel extends EntityAIBase {
     private int postRecoverGuardTicks = 0;
 
     private int waterWaypointCooldown = 0;
-    // How far we're willing to path for a *single* waypoint (blocks)
-    private static final int LOCAL_PATH_RANGE = 48; // tune as you like
+    // --- Boat / ocean crossing tuning ---
+    private static final int BOAT_OCEAN_PROBE       = 64;   // how far ahead we scan for water when deciding to use a boat
+    private static final int BOAT_OCEAN_MIN_WATER   = 16;   // how many water samples required to call it an "ocean"
+    private static final double BOAT_MIN_DISTANCE   = 40.0; // only use boats if we’re at least this far from the destination
+    private static final double BOAT_EXIT_RADIUS    = 24.0; // when this close to target village, try to leave boat
+    private static final double BOAT_SPEED_MULT     = 1.0; // boat speed vs normal travel speed
 
+    // simple guard so we don't spam boat spawning
+    private boolean triedBoatThisLeg = false;
 
 
     public EntityAITravel(EntityTraveller mob, double speed, int stepBlocks) {
@@ -159,17 +179,11 @@ public class EntityAITravel extends EntityAIBase {
         arriveInside = mob.isAtTargetStop();
         this.targetVillage = mob.getTargetVillage();
         if (this.targetVillage == null) return;
-
-        // already there?
+        // NEW: seed ambient timer when we start travelling
         mob.scheduleNextTravelAmbient();
         if (mob.getDistanceSqToCenter(this.targetVillage) <= this.targetNearSq) {
             onArrivedAtVillage();
             return;
-        }
-
-        // NEW: torch on when starting travel at night
-        if (!mob.world.isDaytime()) {
-            mob.setTravelTorchVisible(true);
         }
 
         this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
@@ -186,7 +200,7 @@ public class EntityAITravel extends EntityAIBase {
 
         this.lastProgressPos = mob.getPositionVector();
         this.projAccum = 0.0;
-
+        triedBoatThisLeg = false; // NEW: fresh decision for this leg
 
     }
 
@@ -200,31 +214,8 @@ public class EntityAITravel extends EntityAIBase {
     @Override
     public void updateTask() {
 
-
         if (hardUnstuckCooldown > 0) hardUnstuckCooldown--;
         if (waterWaypointCooldown > 0) waterWaypointCooldown--;
-
-        // Reached current waypoint? pick next
-        if (this.currentWaypoint != null &&
-                mob.getDistanceSqToCenter(this.currentWaypoint) <= this.reachDistSq) {
-
-            // in water: avoid thrash, wait a moment before reseeding
-            if (mob.isInWater() && waterWaypointCooldown > 0) {
-                // keep going; do not change waypoint yet
-            } else {
-                this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
-                mob.setCurrentWaypoint(this.currentWaypoint);
-                debugMark(this.currentWaypoint);
-                if (mob.isInWater()) waterWaypointCooldown = 10; // ~0.5s guard
-            }
-        }
-
-// periodic refresh
-        if ((mob.ticksExisted + mob.getRecalcPhase()) % this.recalcTicks == 0) {
-            if (!(mob.isInWater() && waterWaypointCooldown > 0)) {
-                pushPathToWaypoint();
-            }
-        }
 
         // --- ambient travel chatter (cheap) ---
         if (!mob.world.isRemote && TravellersModConfig.travellerAmbient) {
@@ -232,28 +223,37 @@ public class EntityAITravel extends EntityAIBase {
                 mob.maybePlayTravelAmbient();
             }
         }
-        if (hardUnstuckCooldown > 0) hardUnstuckCooldown--;
+
         if (projAccum >= 0.4) {
             ticksNoForward = 0; // made some forward component this tick window
         } else {
             ticksNoForward++;
         }
-        if (mob.isAutoEating() || mob.isHandActive()) { // NEW: bail hard
+
+        if (mob.isAutoEating() || mob.isHandActive()) { // bail hard
             mob.getNavigator().clearPath();
             return;
         }
+
         if (targetVillage != null &&
                 mob.getDistanceSqToCenter(targetVillage) <= this.targetNearSq) {
             onArrivedAtVillage();
             return;
         }
+
         if (mob.isInCombat()) return;
+
+        // periodic refresh
+        if ((mob.ticksExisted + mob.getRecalcPhase()) % this.recalcTicks == 0) {
+            if (!(mob.isInWater() && waterWaypointCooldown > 0)) {
+                pushPathToWaypoint();
+            }
+        }
+
         // --- post-combat recovery handling ---
         int recover = mob.getTravelRecoverTicks();
         if (recover > 0) {
-            // one-shot reset of progress baselines so stall logic doesn't trigger
             if (!resetAfterCombatDone) {
-                // refresh the live target in case the route advanced
                 BlockPos liveTarget = mob.getTargetVillage();
                 if (liveTarget != null && (!liveTarget.equals(this.targetVillage))) {
                     this.targetVillage = liveTarget;
@@ -263,8 +263,8 @@ public class EntityAITravel extends EntityAIBase {
                 }
                 this.bestDistSq = mob.getDistanceSqToCenter(this.targetVillage);
                 this.ticksNoForward = 0;
-                this.hardUnstuckCooldown = Math.max(hardUnstuckCooldown, 20); // brief grace
-                this.hardUnstuckCount = 0; // optional: per-trip cap may reset on new leg
+                this.hardUnstuckCooldown = Math.max(hardUnstuckCooldown, 20);
+                this.hardUnstuckCount = 0;
                 this.lastTPProgressAnchor = mob.getPositionVector();
                 this.ticksSinceBest = 0;
                 this.stallLevel = 0;
@@ -274,52 +274,106 @@ public class EntityAITravel extends EntityAIBase {
                 mob.getNavigator().clearPath();
                 pushPathToWaypoint();
                 resetAfterCombatDone = true;
-                postRecoverGuardTicks = POST_RECOVER_GUARD; // forbid backward hops for a bit
+                postRecoverGuardTicks = POST_RECOVER_GUARD;
             }
             if (postRecoverGuardTicks > 0) postRecoverGuardTicks--;
-            // while recovering: just keep the path fresh, but DO NOT run stuck/escape logic
             if ((mob.ticksExisted % this.recalcTicks) == 0) {
                 pushPathToWaypoint();
             }
-            return; // skip the rest (stuck detection, detours, etc.)
+            return;
         } else {
-            resetAfterCombatDone = false; // ready for next time
+            resetAfterCombatDone = false;
         }
+
         BlockPos liveTarget = mob.getTargetVillage();
         if (liveTarget == null) return;
 
         if (!liveTarget.equals(this.targetVillage)) {
-            // The route advanced (or was reassigned) -> retarget cleanly
-            retarget(liveTarget);  // sets targetVillage and its per-type near radius
+            retarget(liveTarget);
             this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
             mob.setCurrentWaypoint(this.currentWaypoint);
 
-            // Reset progress trackers so stall logic doesn’t fight the new target
             this.bestDistSq = mob.getDistanceSqToCenter(this.targetVillage);
             this.ticksSinceBest = 0;
             this.stallLevel = 0;
             this.lastProgressPos = mob.getPositionVector();
             this.projAccum = 0.0;
 
-
             mob.getNavigator().clearPath();
             pushPathToWaypoint();
         }
 
-// Reached current waypoint? pick next
-        if (this.currentWaypoint != null &&
-                mob.getDistanceSqToCenter(this.currentWaypoint) <= this.reachDistSq) {
-            this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
-            mob.setCurrentWaypoint(this.currentWaypoint);
-            debugMark(this.currentWaypoint);
+        // --- BOAT STALL & KEEP-ALIVE ---
+        if (mob.isRiding() && mob.getRidingEntity() instanceof EntityTravellerBoat) {
+            EntityTravellerBoat boat =
+                    (EntityTravellerBoat) mob.getRidingEntity();
+
+            Vec3d bp = new Vec3d(boat.posX, boat.posY, boat.posZ);
+            if (lastBoatPos == Vec3d.ZERO) {
+                lastBoatPos = bp;
+            }
+
+            double movedSq = bp.squareDistanceTo(lastBoatPos);
+            if (movedSq < BOAT_MIN_MOVE_SQ) {
+                boatStallTicks++;
+            } else {
+                boatStallTicks = 0;
+                lastBoatPos = bp;
+            }
+
+            if (this.currentWaypoint != null) {
+                steerBoatToWaypoint();
+            } else if (this.targetVillage != null) {
+                this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
+                mob.setCurrentWaypoint(this.currentWaypoint);
+                debugMark(this.currentWaypoint);
+                steerBoatToWaypoint();
+            }
+
+            if (boatStallTicks >= BOAT_STALL_TICKS) {
+                boatStallTicks = 0;
+
+                if (this.targetVillage != null) {
+                    this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
+                    mob.setCurrentWaypoint(this.currentWaypoint);
+                    debugMark(this.currentWaypoint);
+                    steerBoatToWaypoint();
+                }
+            }
         }
 
-// classic distance-to-goal check (keep it)
-        double d2 = mob.getDistanceSqToCenter(this.targetVillage);
-        boolean distImproved = d2 < bestDistSq - 0.75; // ~0.86 blocks net
+        // --- BOAT COLLISION / DISMOUNT HOOK ---
+        if (isInBoat()) {
+            EntityTravellerBoat boat = currentBoat();
+            if (boat != null && boatHitSurface(boat)) {
+                handleBoatHitSurface(boat);
+            }
+        }
 
-// NEW: directional progress (component toward the village)
-// (XZ only)
+        if ((mob.ticksExisted % 5) == 0) {
+            logState("TICK", "");
+        }
+
+        // Reached current waypoint? pick next (single place)
+        if (this.currentWaypoint != null &&
+                mob.getDistanceSqToCenter(this.currentWaypoint) <= this.reachDistSq) {
+
+            if (mob.isInWater() && waterWaypointCooldown > 0) {
+                // keep going; do not change waypoint yet
+            } else {
+                this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
+                mob.setCurrentWaypoint(this.currentWaypoint);
+                debugMark(this.currentWaypoint);
+                if (mob.isInWater()) waterWaypointCooldown = 10; // ~0.5s guard
+
+                logState("WAYPOINT_RESEED", "reason=reached");
+            }
+        }
+
+        // classic distance-to-goal check
+        double d2 = mob.getDistanceSqToCenter(this.targetVillage);
+        boolean distImproved = d2 < bestDistSq - 0.75;
+
         Vec3d pos = mob.getPositionVector();
         Vec3d goalXZ = new Vec3d(targetVillage.getX() + 0.5 - pos.x, 0, targetVillage.getZ() + 0.5 - pos.z);
         if (goalXZ.lengthSquared() > 1e-6) goalXZ = goalXZ.normalize();
@@ -327,16 +381,16 @@ public class EntityAITravel extends EntityAIBase {
         double forward = deltaXZ.dotProduct(goalXZ);
         if (forward > PROJ_STEP_OK) {
             projAccum += forward;
-            this.lastProgressPos = pos;                // move the baseline so we measure fresh increments
+            this.lastProgressPos = pos;
         }
 
-        if (distImproved || projAccum >= 2.5) {        // EITHER got closer OR made ~2.5 blocks of forward component
+        if (distImproved || projAccum >= 2.5) {
             bestDistSq = Math.min(bestDistSq, d2);
             this.lastTPProgressAnchor = mob.getPositionVector();
             this.ticksNoForward = 0;
             ticksSinceBest = 0;
             projAccum = 0.0;
-            if (stallLevel > 0) stallLevel--;          // de-escalate on any real progress
+            if (stallLevel > 0) stallLevel--;
         } else {
             ticksSinceBest++;
             if (stallLevel == 0 && ticksSinceBest > STALL_T1) stallLevel = 1;
@@ -344,8 +398,7 @@ public class EntityAITravel extends EntityAIBase {
             else if (stallLevel == 2 && ticksSinceBest > STALL_T3) stallLevel = 3;
         }
 
-
-// ----- normal LAND logic below -----
+        // ----- normal LAND logic below -----
         if ((mob.ticksExisted + mob.getRecalcPhase()) % this.recalcTicks == 0) {
             pushPathToWaypoint();
         }
@@ -358,83 +411,71 @@ public class EntityAITravel extends EntityAIBase {
             mob.setCurrentWaypoint(this.currentWaypoint);
             debugMark(this.currentWaypoint);
             pushPathToWaypoint();
+            logState("WAYPOINT_RESEED", "reason=noPath");
             noPathTicks = 0;
         }
-// --- PROGRESS-AWARE LAST RESORT ---
-// If we have not improved 'bestDistSq' for a while OR not accumulated forward projection,
-// AND we have effectively not moved in world space, trigger hard TP nudge.
+
+        // --- PROGRESS-AWARE LAST RESORT ---
         if (stallLevel >= HARD_UNSTUCK_MIN_STALL &&
                 hardUnstuckCooldown == 0 &&
                 hardUnstuckCount < HARD_UNSTUCK_MAX_PER_TRIP) {
 
-            // "no net approach" gate
             boolean longNoBest = (ticksSinceBest >= HARD_UNSTUCK_T_NOBEST);
             boolean longNoForward = (ticksNoForward >= HARD_UNSTUCK_T_NOPROJ);
 
-            // "orbiting" / not moving gate (XZ-ish)
             Vec3d now = mob.getPositionVector();
             double movedSqSinceAnchor = now.squareDistanceTo(lastTPProgressAnchor);
 
             if ((longNoBest || longNoForward) && movedSqSinceAnchor <= HARD_UNSTUCK_MOVE_SQ) {
                 if (hardTeleportNudgeTowardTarget()) {
-                    // after successful TP, reset anchor so we don't immediately fire again
                     lastTPProgressAnchor = mob.getPositionVector();
-                    // and skip the rest of the stuck logic this tick
                     return;
                 } else {
-                    // failed to find a landing; push anchor forward once to avoid spamming
                     lastTPProgressAnchor = now;
                 }
             }
         }
+
         if (mob.ticksExisted % this.stuckCheckTicks == 0) {
             if (!mob.isAutoEating() && !mob.isHandActive()) {
                 double movedSq = mob.getPositionVector().squareDistanceTo(this.lastPos);
                 this.lastPos = mob.getPositionVector();
 
                 if (movedSq < 0.6 * 0.6) {
-                    // If we already escalated past T3 and still no progress for 5s → TP immediately
                     if (stallLevel >= 3 && ticksSinceBest > (STALL_T3 + 5 * 20) &&
                             hardUnstuckCooldown == 0 && hardUnstuckCount < HARD_UNSTUCK_MAX_PER_TRIP) {
+
                         if (hardTeleportNudgeTowardTarget()) {
                             lastTPProgressAnchor = mob.getPositionVector();
                             return;
                         }
                     }
 
-                    // otherwise run your ladder...
-                    if (stallLevel <= 1) {
-                        tryDetourWide();
-                    } else if (stallLevel == 2) {
-                        enterOrStepWallFollow();
-                    } else {
-                        int scan = currentEscapeScanRadius();
-                        if (localEscapeScan(scan)) {
-                            pushPathToWaypoint();
-                        } else if (macroLateralBypass()) {
-                            pushPathToWaypoint();
-                        } else {
-                            tryDetour(); // tiny reseed fallback
-                        }
-
-
-                    }
+                    handleStuckEscalation();
                     mob.breakNearbyLeaves();
-
                 }
             }
         }
     }
 
+
     private void retarget(BlockPos newTarget) {
         this.targetVillage = newTarget;
         int near = mob.arrivalRadiusBlocks(newTarget); // unified
         this.targetNearSq = near * near;
+        this.triedBoatThisLeg = false; // NEW
     }
 
     private void pushPathToWaypoint() {
         if (this.currentWaypoint == null) return;
 
+        // If we're in a boat, don't use Navigator; steer manually.
+        if (mob.isRiding() && mob.getRidingEntity() instanceof EntityBoat) {
+            steerBoatToWaypoint();
+            return;
+        }
+
+        // normal land/water navigation
         Path current = mob.getNavigator().getPath();
         if (current != null) {
             PathPoint dest = current.getFinalPathPoint();
@@ -444,8 +485,10 @@ public class EntityAITravel extends EntityAIBase {
             }
         }
 
-        // water
         double navSpeed = this.speed;
+        if (mob.isInWater()) {
+            navSpeed *= TravellersModConfig.SWIM_MULT;
+        }
         mob.getNavigator().tryMoveToXYZ(
                 currentWaypoint.getX() + 0.5,
                 currentWaypoint.getY(),
@@ -454,12 +497,17 @@ public class EntityAITravel extends EntityAIBase {
         );
     }
 
+
+
     private void onArrivedAtVillage() {
         // do NOT clear targetVillage here; route manager uses it to align with Roam
         this.currentWaypoint = null;
         mob.setCurrentWaypoint(null);
         mob.getNavigator().clearPath();
-        mob.setTravelTorchVisible(false);
+        if (isInBoat()) {
+            dismountAndDeleteBoat();
+        }
+        triedBoatThisLeg = false;
         // Let Roam start this tick
         // (Roam’s shouldExecute() will pass now because distance ≤ VILLAGE_NEAR)
     }
@@ -467,70 +515,194 @@ public class EntityAITravel extends EntityAIBase {
     /**
      * Compute a "next" waypoint toward 'dest' that is inside currently loaded chunks.
      * Does not force-load anything. Returns null if no safe waypoint is found.
+     * Now tries straight toward the target first, then small symmetric detours.
      */
-    /**
-     * Compute a "next" waypoint toward 'dest' that is inside currently loaded chunks.
-     * Does not force-load anything. Returns null if no safe waypoint is found.
-     */
-    private BlockPos computeNextWaypointToward(BlockPos dest, int baseStep) {
+    private BlockPos computeNextWaypointToward(BlockPos dest, int baseStepIgnored) {
+        if (dest == null) return null;
+
         BlockPos from = mob.getPosition();
-        Vec3d to = new Vec3d(dest.getX() - from.getX(), 0, dest.getZ() - from.getZ());
-        if (to.lengthSquared() < 1.0) return null;
+        Vec3d destVec = new Vec3d(dest.getX() - from.getX(), 0, dest.getZ() - from.getZ());
+        if (destVec.lengthSquared() < 1.0) return null;
 
-        // 3a) tiny per-entity heading bias
-        double biasedYawRad = Math.toRadians(mob.getPathAngleBiasDeg());
-        Vec3d dir = rotateY(to.normalize(), biasedYawRad);
+        Vec3d dir = gateBiasedDirection(from, dest, destVec);
+        if (dir.lengthSquared() < 1e-6) {
+            dir = destVec.normalize();
+        }
 
-        // 3b) jitter step size slightly
-        int step = Math.min(baseStep + mob.getPathStepJitter(),
-                (int) Math.sqrt(mob.getDistanceSqToCenter(dest)));
+        int baseStep = dynamicStep(from, dest);
+        int step = Math.min(
+                baseStep + mob.getPathStepJitter(),
+                (int) Math.sqrt(mob.getDistanceSqToCenter(dest))
+        );
         step = Math.max(8, step);
-        boolean waterCorridor = isMostlyWaterAhead(from, dir, WATER_AHEAD_PROBE, WATER_AHEAD_MIN);
 
-// Land-first straight candidates; only fallback to water if corridor is truly water-dominant
+        boolean boatMode = isInBoat();
+
+        // --- NEW: only enter boat after we have a safe boat waypoint + clear water corridor ---
+        if (!boatMode && !triedBoatThisLeg) {
+            triedBoatThisLeg = true;
+            if (shouldUseBoat(from, dest)) {
+                BlockPos boatWp = pickFirstBoatWaypoint(from, dest, dir, step);
+                if (boatWp != null) {
+                    // direction from traveller to first boat waypoint
+                    Vec3d boatDir = new Vec3d(
+                            boatWp.getX() + 0.5 - (from.getX() + 0.5),
+                            0,
+                            boatWp.getZ() + 0.5 - (from.getZ() + 0.5)
+                    ).normalize();
+                    if (tryEnterBoat(from, boatDir)) {
+                        this.currentWaypoint = boatWp;
+                        mob.setCurrentWaypoint(boatWp);
+                        debugMark(boatWp);
+                        return boatWp; // already in boat, first hop is safe
+                    }
+                }
+            }
+            // If we get here: either corridor not clear or boat spawn failed → just fall back to normal land/swim logic below.
+        }
+
+
+        // --- BOAT MODE PATHING ---
+        if (boatMode) {
+            double distToDest = Math.sqrt(from.distanceSq(dest));
+
+            // 1) If close enough to destination, try to find a shore exit and leave the boat.
+            if (distToDest <= BOAT_EXIT_RADIUS) {
+                BlockPos shore = findDrySurfaceNear(dest);
+                if (shore != null) {
+                    // exit boat and resume normal land nav
+                    dismountAndDeleteBoat();
+                    this.triedBoatThisLeg = false; // allow boat again on a future long leg if needed
+                    return shore;
+                }
+            }
+
+            // 2) Otherwise, pick a water waypoint using your water-specific helper.
+            BlockPos best = null;
+
+            for (int s = step; s >= 16; s -= 16) {
+                BlockPos cand = surfaceAtOffsetWater(from, dir, s);
+                if (cand != null && !segmentBlockedTwoHigh(from, cand)) {
+                    best = cand;
+                    break;
+                }
+            }
+
+            // 3) Small detours in water if straight fails
+            if (best == null) {
+                int detStep = Math.max(16, step / 2);
+                int[] detAngles = new int[]{30, -30, 60, -60, 90, -90};
+                for (int angleDeg : detAngles) {
+                    Vec3d r = rotateY(dir, Math.toRadians(angleDeg));
+                    BlockPos cand = surfaceAtOffsetWater(from, r, detStep);
+                    if (cand != null && !segmentBlockedTwoHigh(from, cand)) {
+                        best = cand;
+                        break;
+                    }
+                }
+            }
+
+            if (best != null) {
+                return best; // stay in water between waypoints
+            }
+
+            // 4) If we completely fail to find water waypoint, as a last resort try to exit boat
+            BlockPos shore = findDrySurfaceNear(from);
+            if (shore != null) {
+                dismountAndDeleteBoat();
+                this.triedBoatThisLeg = false;
+                return shore;
+            }
+
+            // give up for now
+            return null;
+        }
+        BlockPos bestPath = null;
+        // --- 1) straight candidates, no lane offset ---
         for (int s = step; s >= 16; s -= 16) {
-            Vec3d left = new Vec3d(-dir.z, 0, dir.x).normalize().scale(mob.getPathLaneOffset());
-            BlockPos candidate = surfaceAtOffsetDryFirst(from, dir, s, left, /*allowWaterFallback=*/waterCorridor);
-            if (candidate != null) {
-                // if we started in water, try to exit; if already dry, keep it
-                candidate = preferShoreWhenInWater(from, candidate, /*preferExit=*/true);
-                if (candidate != null) return candidate;
+            BlockPos candidate = surfaceAtOffset(from, dir, s, Vec3d.ZERO);
+            if (candidate != null && !segmentBlockedTwoHigh(from, candidate)) {
+                candidate = preferShoreWhenInWater(from, candidate);
+
+                if (candidate != null) {
+                    if (isPathBelow(candidate)) {
+                        // First time we see a path tile, remember it but keep scanning
+                        if (bestPath == null) {
+                            bestPath = candidate;
+                        }
+                    } else {
+                        // Non-path candidate: keep it as a fallback if we never saw a path
+                        if (bestPath == null) {
+                            bestPath = candidate;
+                        }
+                    }
+                }
+
+                if (TravellersModConfig.debug) {
+                    Vec3d toDir = gateBiasedDirection(from, dest, destVec);
+                    double stepDX = (candidate.getX() + 0.5) - (from.getX() + 0.5);
+                    double stepDZ = (candidate.getZ() + 0.5) - (from.getZ() + 0.5);
+                    double stepLen = Math.sqrt(stepDX * stepDX + stepDZ * stepDZ);
+                    double dotForward = (stepDX * toDir.x + stepDZ * toDir.z);
+                    double cosAngle = dotForward / (stepLen + 1e-6); // avoid div by zero
+
+                    TravelDebugLogger.log(
+                            mob,
+                            this.targetVillage,
+                            candidate,
+                            this.stallLevel,
+                            this.wallFollow,
+                            this.followSide,
+                            this.bestDistSq,
+                            this.ticksSinceBest,
+                            this.projAccum,
+                            this.ticksNoForward,
+                            this.noPathTicks,
+                            this.hardUnstuckCount,
+                            this.hardUnstuckCooldown,
+                            this.postRecoverGuardTicks,
+                            "WAYPOINT_PICK_STRAIGHT",
+                            "stepLen=" + stepLen +
+                                    ",dotForward=" + dotForward +
+                                    ",cosAngle=" + cosAngle +
+                                    ",destX=" + dest.getX() +
+                                    ",destZ=" + dest.getZ()
+                    );
+                }
+
+                if (bestPath != null) {
+                    return bestPath;
+                }
             }
         }
 
-
-
-
-        // Detours (also from biased heading)
+        // --- 2) small symmetric detours, still no lane offset ---
         int detStep = Math.max(12, step / 2);
-        for (int angle : new int[]{-60, 60, -30, 30, -90, 90}) {
-            Vec3d r = rotateY(dir, Math.toRadians(angle));
-            Vec3d left2 = new Vec3d(-r.z, 0, r.x).normalize().scale(mob.getPathLaneOffset() * 0.6);
-            BlockPos candidate = surfaceAtOffsetDryFirst(from, r, detStep, left2, /*allowWaterFallback=*/waterCorridor);
-            if (candidate != null) {
-                candidate = preferShoreWhenInWater(from, candidate, /*preferExit=*/true);
-                if (candidate != null && !segmentBlockedTwoHigh(from, candidate)) return candidate;
+        int[] detAngles = new int[]{30, -30, 60, -60, 90, -90};
+
+        for (int angleDeg : detAngles) {
+            Vec3d r = rotateY(dir, Math.toRadians(angleDeg));
+            BlockPos candidate = surfaceAtOffset(from, r, detStep, Vec3d.ZERO);
+            if (candidate != null && !segmentBlockedTwoHigh(from, candidate)) {
+                candidate = preferShoreWhenInWater(from, candidate);
+                return candidate;
             }
         }
 
-
-        // Tiny random reseed
+        // --- 3) tiny random reseed (unchanged) ---
         Random rand = mob.getRNG();
         for (int i = 0; i < 6; i++) {
             int nx = from.getX() + rand.nextInt(9) - 4;
             int nz = from.getZ() + rand.nextInt(9) - 4;
-            BlockPos dry = findDrySurfaceNear(new BlockPos(nx, from.getY(), nz));
-            if (dry != null && isAreaLoaded(dry, 1) && isStandable(dry)) return dry;
-
-            if (waterCorridor) {
-                BlockPos wet = findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
-                if (wet != null && isAreaLoaded(wet, 1) && isSwimmable(wet)) return wet;
+            BlockPos guess = new BlockPos(nx, from.getY(), nz);
+            BlockPos surface = findSurfaceOrWaterY(guess);
+            if (surface != null && isAreaLoaded(surface, 1) && isNavigable(surface)) {
+                return surface;
             }
         }
 
         return null;
     }
-
 
 
     private BlockPos surfaceAtOffset(BlockPos from, Vec3d dir, int s, Vec3d lateral) {
@@ -547,6 +719,7 @@ public class EntityAITravel extends EntityAIBase {
         if (this.targetVillage == null) return;
 
         BlockPos from = mob.getPosition();
+        logState("DETOUR_SMALL_START", "from=" + from.getX() + "," + from.getY() + "," + from.getZ());
         Vec3d to = new Vec3d(targetVillage.getX() - from.getX(), 0, targetVillage.getZ() - from.getZ());
         if (to.lengthSquared() < 1.0) return;
 
@@ -561,6 +734,7 @@ public class EntityAITravel extends EntityAIBase {
                 this.currentWaypoint = surface;
                 debugMark(this.currentWaypoint);
                 pushPathToWaypoint();
+                logState("DETOUR_SMALL_PICK", "cand=" + surface.getX() + "," + surface.getY() + "," + surface.getZ());
                 return;
             }
         }
@@ -596,22 +770,46 @@ public class EntityAITravel extends EntityAIBase {
         final BlockPos top = world.getTopSolidOrLiquidBlock(guess);
 
         // Quick hit: often top is already good.
-        if (isSwimmable(top) || isStandable(top)) return top;
+        if (isSwimmable(top)) {
+            return top;
+        }
+        if (isStandable(top)) {
+            // If we're on ground (not swimming), avoid tree canopies
+            if (!mob.isInWater()) {
+                return adjustTreeTopToGround(top);
+            }
+            return top;
+        }
 
         // 2. Small upward probe (bridges, slabs under ceilings, leaf canopies)
         final int actualMaxY = world.getActualHeight() - 1;
         BlockPos p = top;
         for (int i = 0; i < 3 && p.getY() < actualMaxY; i++) {
             p = p.up();
-            // same chunk column; safe after the isAreaLoaded(guess,1) gate
-            if (isSwimmable(p) || isStandable(p)) return p;
+            if (isSwimmable(p)) {
+                return p;
+            }
+            if (isStandable(p)) {
+                if (!mob.isInWater()) {
+                    return adjustTreeTopToGround(p);
+                }
+                return p;
+            }
         }
 
         // 3. Deeper downward probe (valleys, shallow water tops, snow layers)
         p = top;
         for (int dy = 0; dy < 12 && p.getY() > 1; dy++) {
             p = p.down();
-            if (isSwimmable(p) || isStandable(p)) return p;
+            if (isSwimmable(p)) {
+                return p;
+            }
+            if (isStandable(p)) {
+                if (!mob.isInWater()) {
+                    return adjustTreeTopToGround(p);
+                }
+                return p;
+            }
         }
 
         return null;
@@ -655,13 +853,31 @@ public class EntityAITravel extends EntityAIBase {
         final IBlockState atFeet = world.getBlockState(feet);
         final IBlockState atHead = world.getBlockState(feet.up());
 
-        // NEW: do not consider leaves as valid support
         if (isLeafBlock(world, feet.down(), below)) return false;
 
         if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
         if (!supportsStandingSurface(world, feet.down(), below)) return false;
 
-        // --- NEW: allow standing where the feet cell is a snow_layer (thin collision) ---
+        // --- NEW: if we're swimming, don't consider ledges that are too high above us exit-able ---
+        if (mob.isInWater()) {
+            // integer feet Y of the candidate stand position
+            double targetY = feet.getY();
+
+            // approximate “feet” of the mob now
+            double mobFeetY = Math.floor(mob.posY);
+
+            // how much we'd need to climb to stand here
+            double dy = targetY - mobFeetY;
+
+            // how much we can realistically climb out of water (tweak to taste)
+            double maxExitStep = mob.stepHeight + 0.25D; // eg. stepHeight (0.6 / 1.0) + small fudge
+
+            if (dy > maxExitStep) {
+                // From water we can't actually get up here → don't path to it as standable
+                return false;
+            }
+        }
+
         boolean feetOk =
                 atFeet.getBlock() == Blocks.SNOW_LAYER
                         ||  atFeet.getMaterial().isReplaceable()
@@ -670,68 +886,83 @@ public class EntityAITravel extends EntityAIBase {
         boolean headOk =
                 atHead.getMaterial().isReplaceable()
                         ||  atHead.getCollisionBoundingBox(world, feet.up()) == null
-                        ||  atHead.getBlock() == Blocks.SNOW_LAYER; // tiny dust on head cell is fine too
+                        ||  atHead.getBlock() == Blocks.SNOW_LAYER;
 
         return feetOk && headOk;
     }
 
 
+
     private boolean isSwimmable(BlockPos feetPos) {
         World world = mob.world;
-        if (!world.isBlockLoaded(feetPos) || !world.isBlockLoaded(feetPos.up()) || !world.isBlockLoaded(feetPos.down()))
+        if (!world.isBlockLoaded(feetPos) ||
+                !world.isBlockLoaded(feetPos.up()) ||
+                !world.isBlockLoaded(feetPos.down())) {
             return false;
+        }
 
-        IBlockState feet = world.getBlockState(feetPos);
-        IBlockState head = world.getBlockState(feetPos.up());
+        IBlockState feet  = world.getBlockState(feetPos);
+        IBlockState head  = world.getBlockState(feetPos.up());
         IBlockState below = world.getBlockState(feetPos.down());
 
-        // Feet must be vanilla water; head can be water or replaceable air
-        boolean feetOK = isVanillaWater(feet);
-        boolean headOK = isVanillaWater(head) || head.getMaterial().isReplaceable();
+        // Feet must be vanilla water
+        if (!isVanillaWater(feet)) return false;
 
-        // absolutely forbid any non-water liquids/quicksand/lava around
-        if (isForbiddenLiquid(feet) || isForbiddenLiquid(head) || isForbiddenLiquid(below)) return false;
+        // Absolutely forbid any non-water liquids / quicksand / lava
+        if (isForbiddenLiquid(feet) || isForbiddenLiquid(head) || isForbiddenLiquid(below)) {
+            return false;
+        }
 
-        return feetOK && headOK;
+        // Head can be air OR water; just don't allow solid, non-replaceable stuff there.
+        if (!head.getMaterial().isReplaceable() && !head.getMaterial().isLiquid()) {
+            // solid block right in front of face → not a swimming cell
+            return false;
+        }
+
+        // If you really want to forbid "head in lava / mod fluids", that’s already covered by isForbiddenLiquid above.
+
+        return true;
     }
+
+
 
 
     private void tryDetourWide() {
         if (this.targetVillage == null) return;
         BlockPos from = mob.getPosition();
+        logState("DETOUR_WIDE_START", "from=" + from.getX() + "," + from.getY() + "," + from.getZ());
         Vec3d to = new Vec3d(targetVillage.getX() - from.getX(), 0, targetVillage.getZ() - from.getZ());
         if (to.lengthSquared() < 1.0) return;
 
         Vec3d base = to.normalize();
         int detStep = Math.max(24, this.stepBlocks);
-        boolean waterCorridor = isMostlyWaterAhead(from, base, WATER_AHEAD_PROBE, WATER_AHEAD_MIN);
-        // Prefer forward-hemisphere first; allow deep-back only at max stall
+
         int[] ANG = (stallLevel >= 3)
                 ? new int[]{120, -120, 150, -150, 180, 90, -90, 60, -60, 30, -30}
                 : new int[]{120, -120, 90, -90, 60, -60, 30, -30};
 
         for (int angleDeg : ANG) {
             Vec3d dir = rotateY(base, Math.toRadians(angleDeg));
-            BlockPos candidate = waterCorridor
-                    ? surfaceAtOffsetWater(from, dir, detStep)
-                    : surfaceAtOffset(from, dir, detStep,
+            BlockPos candidate = surfaceAtOffset(from, dir, detStep,
                     new Vec3d(-dir.z, 0, dir.x).normalize().scale(mob.getPathLaneOffset() * 0.5));
 
             if (candidate != null && !segmentBlockedTwoHigh(from, candidate)) {
                 this.currentWaypoint = candidate;
                 debugMark(this.currentWaypoint);
                 pushPathToWaypoint();
+                logState("DETOUR_WIDE_PICK", "ang=" + angleDeg + ",step=" + detStep);
                 return;
             }
-
         }
     }
+
 
     private void enterOrStepWallFollow() {
         if (!wallFollow) {
             wallFollow = true;
             followSide = mob.getRNG().nextBoolean() ? 1 : -1;
             this.lastProgressPos = mob.getPositionVector(); // reset baseline
+            logState("WALLFOLLOW_ENTER", "side=" + followSide);
         }
 
         Vec3d pos = mob.getPositionVector();
@@ -741,6 +972,7 @@ public class EntityAITravel extends EntityAIBase {
 
         // normal wall-follow stepping
         stepWallFollow(goalDir, followSide);
+        logState("WALLFOLLOW_STEP", "");
 
         if (forward > 0.2) {   // making headway in the right general direction
             ticksSinceBest = 0;
@@ -775,65 +1007,65 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private boolean segmentBlockedTwoHigh(BlockPos a, BlockPos b) {
-        // How densely to sample along the segment (XZ)
-        int steps = Math.max(1, (int) Math.ceil(a.distanceSq(b) > 0 ? Math.sqrt(a.distanceSq(b)) : 1));
-
-        double ax = a.getX() + 0.5, az = a.getZ() + 0.5;
-        double bx = b.getX() + 0.5, bz = b.getZ() + 0.5;
-        double stepx = (bx - ax) / steps, stepz = (bz - az) / steps;
-
-        // Soft budget like before (permit a few inconclusive samples)
-        int softFails = 0, softBudget = Math.max(1, steps / 6);
-
-        // We’ll compare against the mob’s current stepHeight (1.4F on land, 0.8F in water)
-        // Give a tiny epsilon to avoid flapping on equal heights.
-        final double stepAllowance = Math.max(0.8, mob.stepHeight) + 0.10;
-
-        // Seed previous effective Y with the start column
-        BlockPos col0 = new BlockPos(MathHelper.floor(ax), a.getY(), MathHelper.floor(az));
-        double prevY = effectiveTopY(mob.world, col0);
-        if (Double.isNaN(prevY)) return true; // treat unknown as blocked
-
-        for (int i = 1; i <= steps; i++) {
-            int x = (int) Math.floor(ax + stepx * i);
-            int z = (int) Math.floor(az + stepz * i);
-            BlockPos col = new BlockPos(x, a.getY(), z);
-            if (!isAreaLoaded(col, 1)) return true; // never load chunks → treat as blocked
-
-            double y = effectiveTopY(mob.world, col);
-            if (Double.isNaN(y)) {
-                if (++softFails > softBudget) return true;
-                continue;
-            }
-
-            // --- NEW: fractional step check (handles snow_layer 3→5, etc.) ---
-            double dy = y - prevY;
-
-            // big upward cliff?
-            if (dy > stepAllowance) return true;
-
-            // big downward drop is fine for blocker test, but if you want to avoid cliffs,
-            // you can add: if (dy < -2.5) return true; // optional
-
-            // also ensure the *feet* column is navigable (land or vanilla-water only)
-            BlockPos feetPos = new BlockPos(x, (int)Math.floor(y), z);
-            if (!isNavigable(feetPos)) {
-                if (++softFails > softBudget) return true;
-            } else {
-                // check that headroom around this effective top doesn't intersect forbidden liquids
-                AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
-                        (x + 0.5) - mob.posX,
-                        (Math.floor(y) + 0.0) - mob.posY, // feet at column’s integer Y; collision boxes will clip actual top
-                        (z + 0.5) - mob.posZ
-                );
-                if (intersectsForbiddenLiquid(mob.world, aabb)) {
-                    if (++softFails > softBudget) return true;
-                } else {
-                    // sample counted as OK; update baseline height
-                    prevY = y;
-                }
-            }
-        }
+//        //         How densely to sample along the segment (XZ)
+//        int steps = Math.max(1, (int) Math.ceil(a.distanceSq(b) > 0 ? Math.sqrt(a.distanceSq(b)) : 1));
+//
+//        double ax = a.getX() + 0.5, az = a.getZ() + 0.5;
+//        double bx = b.getX() + 0.5, bz = b.getZ() + 0.5;
+//        double stepx = (bx - ax) / steps, stepz = (bz - az) / steps;
+//
+//        // Soft budget like before (permit a few inconclusive samples)
+//        int softFails = 0, softBudget = Math.max(1, steps / 6);
+//
+//        // We’ll compare against the mob’s current stepHeight (1.4F on land, 0.8F in water)
+//        // Give a tiny epsilon to avoid flapping on equal heights.
+//        final double stepAllowance = Math.max(0.8, mob.stepHeight) + 0.10;
+//
+//        // Seed previous effective Y with the start column
+//        BlockPos col0 = new BlockPos(MathHelper.floor(ax), a.getY(), MathHelper.floor(az));
+//        double prevY = effectiveTopY(mob.world, col0);
+//        if (Double.isNaN(prevY)) return true; // treat unknown as blocked
+//
+//        for (int i = 1; i <= steps; i++) {
+//            int x = (int) Math.floor(ax + stepx * i);
+//            int z = (int) Math.floor(az + stepz * i);
+//            BlockPos col = new BlockPos(x, a.getY(), z);
+//            if (!isAreaLoaded(col, 1)) return true; // never load chunks → treat as blocked
+//
+//            double y = effectiveTopY(mob.world, col);
+//            if (Double.isNaN(y)) {
+//                if (++softFails > softBudget) return true;
+//                continue;
+//            }
+//
+//            // --- NEW: fractional step check (handles snow_layer 3→5, etc.) ---
+//            double dy = y - prevY;
+//
+//            // big upward cliff?
+//            if (dy > stepAllowance) return true;
+//
+//            // big downward drop is fine for blocker test, but if you want to avoid cliffs,
+//            // you can add: if (dy < -2.5) return true; // optional
+//
+//            // also ensure the *feet* column is navigable (land or vanilla-water only)
+//            BlockPos feetPos = new BlockPos(x, (int)Math.floor(y), z);
+//            if (!isNavigable(feetPos)) {
+//                if (++softFails > softBudget) return true;
+//            } else {
+//                // check that headroom around this effective top doesn't intersect forbidden liquids
+//                AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
+//                        (x + 0.5) - mob.posX,
+//                        (Math.floor(y) + 0.0) - mob.posY, // feet at column’s integer Y; collision boxes will clip actual top
+//                        (z + 0.5) - mob.posZ
+//                );
+//                if (intersectsForbiddenLiquid(mob.world, aabb)) {
+//                    if (++softFails > softBudget) return true;
+//                } else {
+//                    // sample counted as OK; update baseline height
+//                    prevY = y;
+//                }
+//            }
+//        }
         return false;
     }
 
@@ -874,6 +1106,8 @@ public class EntityAITravel extends EntityAIBase {
 
         if (best != null) {
             this.currentWaypoint = best;
+            logState("ESCAPE_SCAN_PICK",
+                    "r=" + radius + ",best=" + best.getX() + "," + best.getY() + "," + best.getZ());
             return true;
         }
         return false;
@@ -930,6 +1164,8 @@ public class EntityAITravel extends EntityAIBase {
                 if (segmentBlockedTwoHigh(from, p)) continue;
 
                 this.currentWaypoint = p;
+                logState("MACRO_BYPASS_PICK",
+                        "ang=" + ang + ",dist=" + s + ",cand=" + p.getX() + "," + p.getY() + "," + p.getZ());
                 return true;
             }
         }
@@ -1020,9 +1256,13 @@ public class EntityAITravel extends EntityAIBase {
         double dy = cand.getY() - from.getY();
         double slopePenalty = Math.max(0, Math.abs(dy) - 1) * 0.6; // punish >1 block up/down
         score -= slopePenalty;
+        if (isPathBelow(cand)) {
+            score += 3.0; // strong bias; tweak 1.5–4.0
+        }
 
         return score;
     }
+
 
     private boolean hardTeleportNudgeTowardTarget() {
         if (mob.world.isRemote) return false;
@@ -1070,6 +1310,8 @@ public class EntityAITravel extends EntityAIBase {
 
 
             // All good: perform the jump
+            logState("TP_NUDGE",
+                    "step=" + s + ",surf=" + surf.getX() + "," + surf.getY() + "," + surf.getZ());
             mob.setPositionAndUpdate(surf.getX() + 0.5, surf.getY(), surf.getZ() + 0.5);
             mob.motionX = mob.motionY = mob.motionZ = 0.0D;
             mob.velocityChanged = true;
@@ -1098,9 +1340,16 @@ public class EntityAITravel extends EntityAIBase {
             projAccum = 0.0;
             return true;
         }
+        logState("TP_FAIL", "noLanding");
         return false;
+
+
     }
 
+    @Nullable
+    private BlockPos preferShoreWhenInWater(BlockPos from, BlockPos candidateTowardTarget) {
+        return preferShoreWhenInWater(from, candidateTowardTarget, /*preferExit=*/true);
+    }
 
     /**
      * If preferExit==true and we're in water, nudge the candidate to a nearby rim.
@@ -1336,7 +1585,739 @@ public class EntityAITravel extends EntityAIBase {
 
         return y;
     }
+    private void logState(String event, String note) {
+        if (!TravellersModConfig.debug) return; // or a new flag e.g. debugTravelLog
 
+        TravelDebugLogger.log(
+                mob,
+                this.targetVillage,
+                this.currentWaypoint,
+                this.stallLevel,
+                this.wallFollow,
+                this.followSide,
+                this.bestDistSq,
+                this.ticksSinceBest,
+                this.projAccum,
+                this.ticksNoForward,
+                this.noPathTicks,
+                this.hardUnstuckCount,
+                this.hardUnstuckCooldown,
+                this.postRecoverGuardTicks,
+                event,
+                note == null ? "" : note
+        );
+    }
+    /**
+     * Compute a direction toward 'dest' that is softly biased toward the nearest gate.
+     *
+     * - If we are inside / near a village that is NOT 'dest' (leaving a walled village),
+     *   we strongly bias toward that village's gate (pure gate heading).
+     *
+     * - Otherwise, when approaching the destination village, we only bias toward its gate
+     *   if the gate lies roughly between traveller and village center (to avoid weird
+     *   in-village orbiting).
+     */
+    private Vec3d gateBiasedDirection(BlockPos from, BlockPos dest, Vec3d destVec) {
+
+        World w = mob.world;
+
+        if (destVec.lengthSquared() < 1.0) {
+            return destVec; // too close, don't bother
+        }
+
+        double distToDest = Math.sqrt(destVec.lengthSquared());
+        Vec3d dirDest = destVec.normalize();
+
+        BlockPos gateBias = null;
+        double gateWeight = 0.0;     // 0 = pure dest, 1 = pure gate
+        boolean gateIsLeaving = false;
+
+        // --- 1) Gate of the village we are currently inside / near (for LEAVING) ---
+        MillVillageIndex.VillageInfo hereVi =
+                MillVillageIndex.findNearest2D(w, from, 80); // ~80-block search radius
+
+        if (hereVi != null
+                && !hereVi.center.equals(dest)                     // only if this isn't the dest village
+                && MillVillageIndex.isNearVillage(w, from, 50)) {  // "inside-ish" radius
+            BlockPos g = findNearestGate(w, hereVi.center, from);
+            if (g != null) {
+                gateBias = g;
+                gateIsLeaving = true;
+
+                // Leaving a walled village: go basically straight to the gate.
+                // You can make this <1.0 if you want some blending, but 1.0 is simple & robust.
+                gateWeight = 1.0;
+            }
+        }
+
+        // --- 2) Otherwise, gate of the destination village (for APPROACHING) ---
+        if (gateBias == null) {
+            final double GATE_BIAS_RADIUS = 120.0; // start caring about gates when within this range
+
+            if (distToDest < GATE_BIAS_RADIUS) {
+                BlockPos g = findNearestGate(w, dest, from);
+                if (g != null) {
+                    // only bias toward this gate if it is between us and the village center
+                    final double GATE_LATERAL_TOL = 8.0; // allowed sideways offset
+                    if (isGateBetween(from, dest, g, GATE_LATERAL_TOL)) {
+                        gateBias = g;
+
+                        // Weight ramps up as we get closer to the village
+                        double t = Math.max(0.0, Math.min(1.0,
+                                (GATE_BIAS_RADIUS - distToDest) / GATE_BIAS_RADIUS));
+                        gateWeight = 0.25 + 0.55 * t; // ≈ [0.25 .. 0.80]
+                    }
+                }
+            }
+        }
+
+        if (gateBias == null) {
+            // no valid gate to bias toward
+            return dirDest;
+        }
+
+        // --- Compute gate direction ---
+        Vec3d toGate = new Vec3d(
+                gateBias.getX() - from.getX(),
+                0,
+                gateBias.getZ() - from.getZ()
+        );
+        if (toGate.lengthSquared() < 1e-6) {
+            return dirDest; // gate is essentially at our feet
+        }
+        Vec3d dirGate = toGate.normalize();
+
+        // --- Leaving a village: just go to the gate directly ---
+        if (gateIsLeaving) {
+            // You *could* blend with dest if you want smoother curves:
+            // Vec3d mixed = dirGate.scale(gateWeight).add(dirDest.scale(1.0 - gateWeight));
+            // return mixed.normalize();
+            return dirGate;
+        }
+
+        // --- Approaching dest: mix gate + dest directions ---
+        double wGate = gateWeight;
+        double wDest = 1.0 - wGate;
+
+        Vec3d mixed = dirGate.scale(wGate).add(dirDest.scale(wDest));
+        if (mixed.lengthSquared() < 1e-6) {
+            return dirDest;
+        }
+
+        return mixed.normalize();
+    }
+
+
+    @Nullable
+    public static BlockPos findNearestGate(World world, BlockPos villageCenter, BlockPos from) {
+        List<BlockPos> gates = MillVillageIndex.getVillageGates(world, villageCenter, 80, 40);
+        if (gates == null || gates.isEmpty()) return null;
+
+        BlockPos best = null;
+        double bestD2 = Double.MAX_VALUE;
+
+        for (BlockPos g : gates) {
+            double d2 = g.distanceSq(from);
+            // Gates in Millénaire can be ~2 blocks thick; we want the middle of the opening
+            if (d2 < bestD2) {
+                best = g;
+                bestD2 = d2;
+            }
+        }
+        return best;
+    }
+    /**
+     * True if this block is likely part of a natural tree (log or leaf).
+     * We still allow standing on wood floors for buildings – this is just a heuristic,
+     * used only when we ask for "ground-ish" surface for waypoints.
+     */
+    private boolean isTreeSupportBlock(World w, BlockPos pos, IBlockState s) {
+        Block b = s.getBlock();
+
+        // Vanilla & basic mod detection first
+        if (b instanceof net.minecraft.block.BlockLog) return true;
+        if (b instanceof net.minecraft.block.BlockLeaves) return true;
+
+        // Millénaire / Modded overrides (instance methods)
+        try {
+            if (b.isLeaves(s, w, pos)) return true;
+        } catch (Throwable ignored) {}
+
+        try {
+            if (b.isWood(w, pos)) return true;
+        } catch (Throwable ignored) {}
+
+        // Fallback on material
+        Material m = s.getMaterial();
+        return (m == Material.WOOD || m == Material.LEAVES);
+    }
+
+
+
+    /**
+     * If 'standPos' is standing on a tree trunk/canopy, try to push it down to the
+     * first "ground-like" solid below (dirt/stone/grass/sand/etc) with free headroom.
+     * If nothing suitable is found, returns the original standPos.
+     */
+    private BlockPos adjustTreeTopToGround(BlockPos standPos) {
+        World w = mob.world;
+
+        BlockPos below = standPos.down();
+        if (!w.isBlockLoaded(below)) return standPos;
+
+        IBlockState under = w.getBlockState(below);
+        if (!isTreeSupportBlock(w, below, under)) {
+            // Already standing on something non-tree-like
+            return standPos;
+        }
+
+        // Scan downward looking for a "ground" support
+        BlockPos p = below;
+        for (int i = 0; i < 16 && p.getY() > 1; i++) {
+            p = p.down();
+            if (!w.isBlockLoaded(p) || !w.isBlockLoaded(p.up())) break;
+
+            IBlockState ground = w.getBlockState(p);
+            Material m = ground.getMaterial();
+
+            // "Ground-ish" materials – tweak to taste
+            boolean likelyGround =
+                    (m == Material.GROUND || m == Material.GRASS || m == Material.ROCK ||
+                            m == Material.SAND   || m == Material.CLAY  || m == Material.SNOW);
+
+            if (!likelyGround) continue;
+
+            BlockPos feet = p.up();
+            // reuse your nav test
+            if (isStandable(feet)) {
+                return feet;
+            }
+        }
+
+        // No better ground found, keep the original
+        return standPos;
+    }
+    private boolean isPathBelow(BlockPos feet) {
+        BlockPos below = feet.down();
+        if (!mob.world.isBlockLoaded(below)) return false;
+        IBlockState st = mob.world.getBlockState(below);
+        return st.getBlock() instanceof IBlockPath;
+    }
+    /**
+     * Escalating stuck handler:
+     *  - stallLevel 0: tiny local detour
+     *  - stallLevel 1: wider detour
+     *  - stallLevel 2: wall-follow mode
+     *  - stallLevel 3+: full escape scan / macro bypass
+     *
+     * Works in both land and water.
+     */
+    private void handleStuckEscalation() {
+        if (this.targetVillage == null) return;
+
+        if (stallLevel == 0) {
+            // smallest nudge: local little detour
+            tryDetour();
+        } else if (stallLevel == 1) {
+            // slightly larger, wider detours
+            tryDetourWide();
+        } else if (stallLevel == 2) {
+            // wall-follow mode along obstacles / shores
+            enterOrStepWallFollow();
+        } else {
+            // full local escape scan + macro bypass
+            int scan = currentEscapeScanRadius();
+            if (localEscapeScan(scan)) {
+                pushPathToWaypoint();
+            } else if (macroLateralBypass()) {
+                pushPathToWaypoint();
+            } else {
+                // if everything fails, fall back to tiny detour so we at least jiggle
+                tryDetour();
+            }
+        }
+    }
+    /**
+     * Compute a dynamic step size:
+     * - Far from the village: use the full stepBlocks (e.g. 64).
+     * - Closer in: shrink down so we can thread gates/streets precisely.
+     */
+    private int dynamicStep(BlockPos from, BlockPos dest) {
+        double dist = Math.sqrt(from.distanceSq(dest));
+
+        // How close is "arrival-ish"?
+        // We already have targetNearSq from retarget(), so use that to define a “near” radius.
+        double nearRadius = Math.max(24.0, Math.sqrt(this.targetNearSq) * 2.0); // start shrinking inside ~2× arrival radius
+        double farRadius  = 160.0;  // fully "far" beyond this (tweak as needed)
+
+        int minStep = 12;              // smallest waypoint step near village
+        int maxStep = this.stepBlocks; // e.g. 64
+
+        // Compute interpolation factor t in [0,1]
+        double t;
+        if (dist <= nearRadius) {
+            t = 0.0;         // at/inside near radius → minStep
+        } else if (dist >= farRadius) {
+            t = 1.0;         // far away → maxStep
+        } else {
+            t = (dist - nearRadius) / (farRadius - nearRadius);
+        }
+
+        int base = (int) Math.round(minStep + (maxStep - minStep) * t);
+
+        // Never step farther than our actual distance, and never below minStep
+        base = Math.min(base, (int) dist);
+        base = Math.max(minStep, base);
+
+        return base;
+    }
+    private boolean isInBoat() {
+        return mob.isRiding() && mob.getRidingEntity() instanceof EntityTravellerBoat;
+    }
+    @Nullable
+    private EntityTravellerBoat currentBoat() {
+        if (!isInBoat()) return null;
+        return (EntityTravellerBoat) mob.getRidingEntity();
+    }
+    /**
+     * True if it's worth spawning a boat: long-ish distance and a mostly-water corridor ahead.
+     */
+    private boolean shouldUseBoat(BlockPos from, BlockPos dest) {
+        double dist = Math.sqrt(from.distanceSq(dest));
+        if (dist < BOAT_MIN_DISTANCE) return false;  // too short, just swim/walk
+
+        Vec3d dir = new Vec3d(
+                dest.getX() + 0.5 - (from.getX() + 0.5),
+                0,
+                dest.getZ() + 0.5 - (from.getZ() + 0.5)
+        );
+        if (dir.lengthSquared() < 1e-6) return false;
+        dir = dir.normalize();
+
+        // re-use your corridor scanner but with longer probe
+        return isMostlyWaterAhead(from, dir, BOAT_OCEAN_PROBE, BOAT_OCEAN_MIN_WATER);
+    }
+    private boolean tryEnterBoat(BlockPos from, Vec3d dir) {
+        if (mob.world.isRemote) return false;
+        if (isInBoat()) return true; // already in one
+
+        World w = mob.world;
+
+        // Find a surface spawn pos (air just above top water)
+        BlockPos spawnPos = findBoatSurfaceSpawnPos(from, dir);
+        if (spawnPos == null) {
+            return false; // no suitable water column here
+        }
+
+        double spawnX = spawnPos.getX() + 0.5;
+        double spawnZ = spawnPos.getZ() + 0.5;
+        double spawnY = spawnPos.getY() + 0.02D; // tiny nudge above the surface
+
+        EntityTravellerBoat boat =
+                new EntityTravellerBoat(w, spawnX, spawnY, spawnZ);
+
+        Vec3d spawnDir = (dir.lengthSquared() > 1e-6) ? dir.normalize()
+                : new Vec3d(0, 0, 1);
+
+        float yaw = yawFromDirection(spawnDir);
+
+        boat.setLocationAndAngles(
+                spawnX,
+                spawnY,
+                spawnZ,
+                yaw,
+                boat.rotationPitch
+        );
+        boat.rotationYaw = yaw;
+        boat.prevRotationYaw = yaw;
+
+        // Sync rider orientation
+        mob.rotationYaw = yaw;
+        mob.rotationYawHead = yaw;
+        mob.renderYawOffset = yaw;
+
+        w.spawnEntity(boat);
+
+        mob.startRiding(boat, true);
+        lastBoatPos = new Vec3d(boat.posX, boat.posY, boat.posZ);
+        boatStallTicks = 0;
+
+        mob.getNavigator().clearPath(); // we steer manually while boating
+        return true;
+    }
+
+
+    private void dismountAndDeleteBoat() {
+        if (!isInBoat()) return;
+        if (mob.world.isRemote) return;
+
+        EntityTravellerBoat boat = currentBoat();
+        if (boat == null) return;
+
+        mob.dismountRidingEntity();
+        boat.setDead(); // 1.12: remove without drops
+    }
+    private void steerBoatToWaypoint() {
+        EntityTravellerBoat boat = currentBoat();
+        if (boat == null || this.currentWaypoint == null) return;
+
+        Vec3d pos = boat.getPositionVector();
+        Vec3d target = new Vec3d(
+                currentWaypoint.getX() + 0.5,
+                boat.posY, // stay roughly at current Y, boat handles vertical bobbing
+                currentWaypoint.getZ() + 0.5
+        );
+        Vec3d delta = target.subtract(pos);
+        double d2 = delta.lengthSquared();
+        if (d2 < 0.25) {
+            // close enough to this waypoint
+            boat.motionX = 0;
+            boat.motionZ = 0;
+            return;
+        }
+
+        Vec3d dir = delta.normalize();
+        double boatSpeed = this.speed * BOAT_SPEED_MULT;
+
+        boat.motionX = dir.x * boatSpeed;
+        boat.motionZ = dir.z * boatSpeed;
+        // rotate the boat to face direction of travel
+        float yaw = yawFromDirection(dir);
+
+// Rotate boat
+        boat.setLocationAndAngles(boat.posX, boat.posY, boat.posZ, yaw, boat.rotationPitch);
+        boat.rotationYaw = yaw;
+        boat.prevRotationYaw = yaw;
+
+// Sync traveller
+        mob.rotationYaw = yaw;
+        mob.rotationYawHead = yaw;
+        mob.renderYawOffset = yaw;
+
+
+        // clear mob path so navigator doesn't fight us
+        mob.getNavigator().clearPath();
+    }
+    @Nullable
+    private BlockPos findBoatWaterSurface(BlockPos xz) {
+        World w = mob.world;
+        if (!w.isBlockLoaded(xz)) return null;
+
+        int maxY = w.getActualHeight() - 1;
+        BlockPos pos = new BlockPos(xz.getX(), maxY, xz.getZ());
+
+        // Scan downward until we hit water
+        while (pos.getY() > 0) {
+            IBlockState s = w.getBlockState(pos);
+            if (isVanillaWater(s)) {
+                // Climb up to the topmost contiguous water block
+                while (pos.getY() < maxY && isVanillaWater(w.getBlockState(pos.up()))) {
+                    pos = pos.up();
+                }
+                return pos; // this is the top water block at the surface
+            }
+            pos = pos.down();
+        }
+        return null;
+    }
+    private float yawFromDirection(Vec3d dir) {
+        // Minecraft yaw: 0 = south (+Z), 90 = west (-X)
+        // Standard conversion:
+        // yaw = atan2(z, x) * 180/PI - 90
+        double yawRad = Math.atan2(dir.z, dir.x);
+        return (float)(yawRad * (180D / Math.PI) - 90.0D);
+    }
+    private boolean boatHitSurface(EntityTravellerBoat boat) {
+        World w = mob.world;
+
+        // Column under the boat's center
+        BlockPos boatCol = new BlockPos(
+                net.minecraft.util.math.MathHelper.floor(boat.posX),
+                net.minecraft.util.math.MathHelper.floor(boat.posY - 0.2D),
+                net.minecraft.util.math.MathHelper.floor(boat.posZ)
+        );
+
+        if (!w.isBlockLoaded(boatCol)) return false;
+
+        IBlockState feet  = w.getBlockState(boatCol);
+        IBlockState below = w.getBlockState(boatCol.down());
+
+        boolean feetWater  = isVanillaWater(feet);
+        boolean belowWater = isVanillaWater(below);
+
+        // --- 1) If we are no longer over ANY water in this column → we've run onto land/ice ---
+        if (!feetWater && !belowWater) {
+            return true;
+        }
+
+        // Still over a water column → don't dismount yet based only on depth.
+        // But we might be at the shore: check a couple blocks AHEAD for dry standable ground.
+
+        // Direction of travel: prefer actual motion; fall back to waypoint / target village
+        Vec3d dir = new Vec3d(boat.motionX, 0, boat.motionZ);
+        if (dir.lengthSquared() < 1e-4) {
+            if (this.currentWaypoint != null) {
+                dir = new Vec3d(
+                        this.currentWaypoint.getX() + 0.5 - boat.posX,
+                        0,
+                        this.currentWaypoint.getZ() + 0.5 - boat.posZ
+                );
+            } else if (this.targetVillage != null) {
+                dir = new Vec3d(
+                        this.targetVillage.getX() + 0.5 - boat.posX,
+                        0,
+                        this.targetVillage.getZ() + 0.5 - boat.posZ
+                );
+            } else {
+                return false;
+            }
+        }
+
+        if (dir.lengthSquared() < 1e-6) return false;
+        dir = dir.normalize();
+
+        int sx = (int) Math.signum(dir.x);
+        int sz = (int) Math.signum(dir.z);
+        if (sx == 0 && sz == 0) return false;
+
+        // Look 1–2 blocks ahead along the heading for a dry exit spot
+        for (int k = 1; k <= 2; k++) {
+            BlockPos aheadCol = new BlockPos(
+                    boatCol.getX() + sx * k,
+                    boatCol.getY(),
+                    boatCol.getZ() + sz * k
+            );
+            if (!isAreaLoaded(aheadCol, 1)) break;
+
+            BlockPos surf = findSurfaceOrWaterY(aheadCol);
+            if (surf == null) continue;
+
+            IBlockState s = w.getBlockState(surf);
+            // If the surface here is NOT water and is dry-standable, we treat that as "shore hit"
+            if (!isVanillaWater(s) && isDryStandableForBoatExit(surf)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    private boolean isDryStandableForBoatExit(BlockPos feet) {
+        World w = mob.world;
+
+        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down()))
+            return false;
+
+        IBlockState below = w.getBlockState(feet.down());
+        if (below.getMaterial().isLiquid()) return false;
+
+        IBlockState atFeet = w.getBlockState(feet);
+        IBlockState atHead = w.getBlockState(feet.up());
+
+        boolean free =
+                (atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(w, feet) == null)
+                        && (atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(w, feet.up()) == null);
+
+        BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
+        boolean solidBelow =
+                shape == BlockFaceShape.SOLID
+                        || below.getBlock() == Blocks.SNOW_LAYER
+                        || below.getBlock() == Blocks.GRASS_PATH
+                        || below.getBlock() == Blocks.ICE
+                        || below.getBlock() == Blocks.PACKED_ICE;
+
+        return free && solidBelow;
+    }
+
+    private void handleBoatHitSurface(EntityTravellerBoat boat) {
+        World w = mob.world;
+        BlockPos boatPos = new BlockPos(
+                net.minecraft.util.math.MathHelper.floor(boat.posX),
+                net.minecraft.util.math.MathHelper.floor(boat.posY),
+                net.minecraft.util.math.MathHelper.floor(boat.posZ)
+        );
+
+        // Try to find a dry standable block near where we hit
+        BlockPos shore = findDrySurfaceNear(boatPos);
+        // 1) Dismount + delete boat no matter what
+        dismountAndDeleteBoat();
+        triedBoatThisLeg = false;
+
+        // 2) If we found a shore tile, snap next waypoint to it
+        if (shore != null) {
+            this.currentWaypoint = shore;
+            mob.setCurrentWaypoint(shore);
+            debugMark(shore);
+            mob.getNavigator().clearPath();
+            pushPathToWaypoint();
+        } else {
+            // fallback: just let traveller swim / walk from wherever he ends up
+            mob.getNavigator().clearPath();
+        }
+    }
+    /**
+     * Returns true if the straight XZ corridor from 'from' to 'to' is "pure water":
+     * - every sampled column has a water surface (top block is vanilla water)
+     * - does not force-load chunks.
+     */
+    private boolean isWaterCorridorClear(BlockPos from, BlockPos to) {
+        World w = mob.world;
+
+        double dx = to.getX() + 0.5 - (from.getX() + 0.5);
+        double dz = to.getZ() + 0.5 - (from.getZ() + 0.5);
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 1.0) return false;
+
+        int steps = (int) Math.ceil(dist); // ~1 sample per block
+
+        double stepx = dx / steps;
+        double stepz = dz / steps;
+
+        double x = from.getX() + 0.5;
+        double z = from.getZ() + 0.5;
+
+        for (int i = 1; i <= steps; i++) {
+            int sx = net.minecraft.util.math.MathHelper.floor(x + stepx * i);
+            int sz = net.minecraft.util.math.MathHelper.floor(z + stepz * i);
+            BlockPos col = new BlockPos(sx, from.getY(), sz);
+
+            // never load chunks
+            if (!isAreaLoaded(col, 1)) return false;
+
+            // Use your existing "findSurfaceOrWaterY" to find the top navigable cell
+            BlockPos surf = findSurfaceOrWaterY(col);
+            if (surf == null) return false;
+
+            IBlockState s = w.getBlockState(surf);
+
+            // corridor is only valid if the *surface* is vanilla water
+            if (!isVanillaWater(s)) {
+                return false; // solid/ice/etc. -> obstacle
+            }
+        }
+        return true;
+    }
+    @Nullable
+    private BlockPos pickFirstBoatWaypoint(BlockPos from, BlockPos dest, Vec3d dir, int step) {
+        BlockPos best = null;
+
+        // Straight water candidates
+        for (int s = step; s >= 16; s -= 16) {
+            BlockPos cand = surfaceAtOffsetWater(from, dir, s);
+            if (cand != null && isWaterCorridorClear(from, cand)) {
+                best = cand;
+                break;
+            }
+        }
+
+        if (best != null) return best;
+
+        // Small detours if straight failed
+        int detStep = Math.max(16, step / 2);
+        int[] detAngles = new int[]{30, -30, 60, -60, 90, -90};
+
+        for (int angleDeg : detAngles) {
+            Vec3d r = rotateY(dir, Math.toRadians(angleDeg));
+            BlockPos cand = surfaceAtOffsetWater(from, r, detStep);
+            if (cand != null && isWaterCorridorClear(from, cand)) {
+                return cand;
+            }
+        }
+
+        return null;
+    }
+    /**
+     * True if 'gate' lies roughly between 'from' and 'dest' along the A->B line,
+     * within some lateral tolerance.
+     */
+    private boolean isGateBetween(BlockPos from, BlockPos dest, BlockPos gate, double maxLateral) {
+        Vec3d A = new Vec3d(from.getX() + 0.5, 0, from.getZ() + 0.5);
+        Vec3d B = new Vec3d(dest.getX() + 0.5, 0, dest.getZ() + 0.5);
+        Vec3d G = new Vec3d(gate.getX() + 0.5, 0, gate.getZ() + 0.5);
+
+        Vec3d AB = B.subtract(A);
+        double ab2 = AB.lengthSquared();
+        if (ab2 < 1e-6) return false;
+
+        // Projection of AG onto AB, as fraction along AB
+        double t = G.subtract(A).dotProduct(AB) / ab2;
+
+        // Gate must be between A and B (0 <= t <= 1)
+        if (t < 0.0 || t > 1.0) return false;
+
+        // Lateral distance from gate to the A->B line
+        Vec3d H = A.add(AB.scale(t)); // closest point on AB to G
+        double lateral = G.subtract(H).length();
+
+        return lateral <= maxLateral;
+    }
+    @Nullable
+    private BlockPos findBoatSurfaceSpawnPos(BlockPos from, Vec3d dir) {
+        World w = mob.world;
+
+        // Decide which XZ column to use: current or one step in front
+        BlockPos columnXZ = from;
+        IBlockState feet = w.getBlockState(from);
+        IBlockState below = w.getBlockState(from.down());
+
+        if (!isVanillaWater(feet) && !isVanillaWater(below) && dir != null) {
+            int stepX = (int) Math.signum(dir.x);
+            int stepZ = (int) Math.signum(dir.z);
+            if (stepX != 0 || stepZ != 0) {
+                columnXZ = new BlockPos(from.getX() + stepX, from.getY(), from.getZ() + stepZ);
+            }
+        }
+
+        int x = columnXZ.getX();
+        int z = columnXZ.getZ();
+        int startY = columnXZ.getY();
+        int maxY = w.getActualHeight() - 1;
+        int minY = 1;
+
+        BlockPos topWater = null;
+
+        // 1) Scan upwards: find the highest continuous vanilla water block
+        for (int y = startY; y <= maxY; y++) {
+            BlockPos p = new BlockPos(x, y, z);
+            if (!w.isBlockLoaded(p)) break;
+            IBlockState s = w.getBlockState(p);
+
+            if (isVanillaWater(s)) {
+                topWater = p; // keep updating as we go up
+            } else if (topWater != null) {
+                // we left the water column; topWater is the surface water
+                break;
+            }
+        }
+
+        // 2) If we never saw water above, scan a bit downward
+        if (topWater == null) {
+            for (int y = startY - 1; y >= minY; y--) {
+                BlockPos p = new BlockPos(x, y, z);
+                if (!w.isBlockLoaded(p)) break;
+                IBlockState s = w.getBlockState(p);
+                if (isVanillaWater(s)) {
+                    topWater = p;
+                    break;
+                }
+            }
+        }
+
+        if (topWater == null) {
+            // No vanilla water in this column → don't spawn a boat at all
+            return null;
+        }
+
+        // We want the AIR block directly above the topmost water
+        BlockPos spawnPos = topWater.up();
+
+        // Safety: don't spawn inside a solid ceiling (e.g. underwater cave roof)
+        IBlockState head = w.getBlockState(spawnPos);
+        if (!head.getMaterial().isReplaceable()
+                && head.getCollisionBoundingBox(w, spawnPos) != null) {
+            return null;
+        }
+
+        return spawnPos;
+    }
 
 }
-
