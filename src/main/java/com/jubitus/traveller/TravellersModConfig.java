@@ -10,6 +10,14 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
+
+    public static int merchantChunkRadius = 3;          // default radius per merchant
+    public static int merchantMaxForcedChunks = 400;    // hard cap per world
+    public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
+    public static int merchantMaxChunkloadingMerchants = 8; // if many merchants, only first N get chunkloading
+    public static boolean merchantChunkloadingEnabled = true;
+
+
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
     // NEW: Raider include filters (whitelist-style)

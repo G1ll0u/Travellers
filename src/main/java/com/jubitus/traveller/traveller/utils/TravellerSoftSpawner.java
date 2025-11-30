@@ -19,6 +19,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -620,5 +622,21 @@ public final class TravellerSoftSpawner {
         return false;
     }
 
+    @SubscribeEvent
+    public void onChunkLoad(ChunkEvent.Load event) {
+        World world = event.getWorld();
+        Chunk chunk = event.getChunk();
+        System.out.println("[CHUNK LOAD] " +
+                world.provider.getDimension() + " " +
+                chunk.x + "," + chunk.z);
+    }
 
+    @SubscribeEvent
+    public void onChunkUnload(ChunkEvent.Unload event) {
+        World world = event.getWorld();
+        Chunk chunk = event.getChunk();
+        System.out.println("[CHUNK UNLOAD] " +
+                world.provider.getDimension() + " " +
+                chunk.x + "," + chunk.z);
+    }
 }

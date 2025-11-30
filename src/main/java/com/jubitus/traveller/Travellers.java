@@ -2,10 +2,8 @@ package com.jubitus.traveller;
 
 import com.jubitus.traveller.traveller.camp.CampfireManager;
 import com.jubitus.traveller.traveller.culture.CultureRegistry;
-import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
-import com.jubitus.traveller.traveller.entityAI.EntityTravellerBoat;
-import com.jubitus.traveller.traveller.entityAI.EntityTravellerDog;
-import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
+import com.jubitus.traveller.traveller.entityAI.*;
+import com.jubitus.traveller.traveller.pathing.TravellerChunkLoadingCallback;
 import com.jubitus.traveller.traveller.render.ClientProxy;
 import com.jubitus.traveller.traveller.utils.TravellerSpawnGuards;
 import com.jubitus.traveller.traveller.utils.commands.*;
@@ -19,6 +17,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.client.event.MouseEvent;
+import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
@@ -38,7 +37,8 @@ import static com.jubitus.traveller.traveller.utils.villages.VillageDataLoader.l
 @Mod(modid = Reference.MOD_ID, name = Reference.MOD_NAME, version = Reference.VERSION, dependencies = "required-after:millenaire")
 public class Travellers {
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
-
+    @Mod.Instance(Reference.MOD_ID)
+    public static Travellers INSTANCE;
 
     @SubscribeEvent
     public static void onMouse(MouseEvent e) {
@@ -63,7 +63,7 @@ public class Travellers {
         event.registerServerCommand(new CommandMillNearestVillageDump());
         event.registerServerCommand(new CommandTravellerMap());
         event.registerServerCommand(new CommandTravellerInfo());
-
+        event.registerServerCommand(new CommandMerchantDebug());
 
     }
 
@@ -72,72 +72,87 @@ public class Travellers {
         File millenaireFolder = new File("millenaire");
         VILLAGE_CENTERS = loadVillageCenters(millenaireFolder);
         TravellerFollowNet.init();               // <-- runs on both sides
+
+        ForgeChunkManager.setForcedChunkLoadingCallback(
+                this, // or TravellersMod.INSTANCE, both are the same here
+                new TravellerChunkLoadingCallback()
+        );
+
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
         File configFile = new File(configDir, "travellers.cfg");
         TravellersModConfig.init(configFile);
+
         // Client-only stuff
         if (event.getSide().isClient()) {
             ClientProxy.registerRenderers();
         }
 
-        // --- Register traveller entity if enabled in config ---
+        // --- Register traveller entities if enabled in config ---
         if (TravellersModConfig.enableTravellerEntity) {
+
+            // Normal traveller
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller"),  // registry name
+                    new ResourceLocation(Reference.MOD_ID, "traveller"),
                     EntityTraveller.class,
-                    Reference.MOD_ID + ".traveller",                      // <<< globally-unique old name (no colon)
-                    1,                                                   // per-mod unique ID
+                    Reference.MOD_ID + ".traveller",
+                    1,              // ID already used by you
                     this,
                     128, 1, true,
                     0xaca288, 0x7D4D33
             );
+
+            // *** NEW: merchant traveller (non-despawning + chunk-loader entity class) ***
+            EntityRegistry.registerModEntity(
+                    new ResourceLocation(Reference.MOD_ID, "traveller_merchant"),
+                    EntityTravellerMerchant.class,              // <-- you'll create this class
+                    Reference.MOD_ID + ".traveller_merchant",   // old name, no colon
+                    5,                                          // <-- NEW unique numeric ID
+                    this,
+                    128,                                        // tracking range (match normal traveller)
+                    1,                                          // update frequency
+                    true,                                       // send velocity updates
+                    0xC0A060,                                   // egg primary colour (optional)
+                    0x302010                                    // egg secondary colour (optional)
+            );
+
+            // Dog
             EntityRegistry.registerModEntity(
                     new ResourceLocation(Reference.MOD_ID, "traveller_dog"),
                     EntityTravellerDog.class,
                     Reference.MOD_ID + ".traveller_dog",
-                    3,                  // unique numeric id within this mod (not 1 or 2 you used above)
+                    3,
                     this,
-                    128,                // tracking range
-                    1,                  // update frequency
-                    true,               // send velocity updates
-                    0x6A4E3B, 0xC7A67A  // (optional) egg colors
+                    128,
+                    1,
+                    true,
+                    0x6A4E3B, 0xC7A67A
             );
+
+            // Boat
             EntityRegistry.registerModEntity(
                     new ResourceLocation(Reference.MOD_ID, "traveller_boat"),
                     EntityTravellerBoat.class,
                     "traveller_boat",
                     4,
-                    this,          // your mod instance
-                    128,               // trackingRange: match traveller's follow range / desired visual range
-                    3,                 // updateFrequency (ticks between syncs, 2–5 is typical)
-                    true               // sendVelocityUpdates
+                    this,
+                    128,
+                    3,
+                    true
             );
-            // Add spawn to all biomes
-            if (TravellersModConfig.TravellerWeight > 0) {
-                for (Biome biome : ForgeRegistries.BIOMES) {
-                    EntityRegistry.addSpawn(
-                            EntityTraveller.class,
-                            TravellersModConfig.TravellerWeight,
-                            TravellersModConfig.MinGroupSizeAtSpawn,
-                            TravellersModConfig.MaxGroupSizeAtSpawn,
-                            EnumCreatureType.CREATURE,
-                            biome
-                    );
-                }
-            }
+
+            // Raider
             if (TravellersModConfig.enableTravellerRaider) {
                 EntityRegistry.registerModEntity(
                         new ResourceLocation(Reference.MOD_ID, "traveller_raider"),
                         EntityTravellerRaider.class,
                         Reference.MOD_ID + ".traveller_raider",
-                        2,                    // <- per-mod unique numeric ID (different from traveller's 1)
+                        2,
                         this,
                         128, 1, true,
-                        0x3d2c1e, 0x8b2e1a    // spawn egg colors (optional)
+                        0x3d2c1e, 0x8b2e1a
                 );
 
-                // Choose where they spawn + category:
                 if (TravellersModConfig.RaiderWeight > 0) {
                     for (Biome biome : ForgeRegistries.BIOMES) {
                         EntityRegistry.addSpawn(
@@ -150,7 +165,20 @@ public class Travellers {
                         );
                     }
                 }
+            }
 
+            // Spawns for normal travellers only (merchant is special, usually no random spawns)
+            if (TravellersModConfig.TravellerWeight > 0) {
+                for (Biome biome : ForgeRegistries.BIOMES) {
+                    EntityRegistry.addSpawn(
+                            EntityTraveller.class,
+                            TravellersModConfig.TravellerWeight,
+                            TravellersModConfig.MinGroupSizeAtSpawn,
+                            TravellersModConfig.MaxGroupSizeAtSpawn,
+                            EnumCreatureType.CREATURE,
+                            biome
+                    );
+                }
             }
 
         } else {

@@ -2721,6 +2721,9 @@ public class EntityTraveller extends EntityCreature {
      * despawn after a small grace window. This never force-loads chunks.
      */
     private void checkAndMaybeDespawnAtChunkEdge() {
+        if (this instanceof EntityTravellerMerchant) {
+            return;
+        }
         if (!TravellersModConfig.despawnNearUnloadedChunks) return;
         if (this.world.isRemote) return;                         // server only
         if (!(this.world instanceof WorldServer)) return;
@@ -2773,6 +2776,9 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private void checkAndMaybeDespawnFarFromPlayers() {
+        if (this instanceof EntityTravellerMerchant) {
+            return;
+        }
         if (!TravellersModConfig.despawnWhenFarFromPlayers) return;
         if (this.world.isRemote) return;
         if (!(this.world instanceof WorldServer)) return;
