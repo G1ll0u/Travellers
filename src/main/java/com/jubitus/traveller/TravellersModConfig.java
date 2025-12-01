@@ -11,10 +11,10 @@ import java.io.IOException;
 
 public class TravellersModConfig {
 
-    public static int merchantChunkRadius = 3;          // default radius per merchant
-    public static int merchantMaxForcedChunks = 400;    // hard cap per world
+    public static int merchantChunkRadius = 1;          // default radius per merchant
+    public static int merchantMaxForcedChunks = 1000;    // hard cap per world
     public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
-    public static int merchantMaxChunkloadingMerchants = 8; // if many merchants, only first N get chunkloading
+    public static int merchantMaxChunkloadingMerchants = 24; // if many merchants, only first N get chunkloading
     public static boolean merchantChunkloadingEnabled = true;
 
 

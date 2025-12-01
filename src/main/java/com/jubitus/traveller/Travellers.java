@@ -4,6 +4,7 @@ import com.jubitus.traveller.traveller.camp.CampfireManager;
 import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.entityAI.*;
 import com.jubitus.traveller.traveller.pathing.TravellerChunkLoadingCallback;
+import com.jubitus.traveller.traveller.pathing.TravellerChunkManager;
 import com.jubitus.traveller.traveller.render.ClientProxy;
 import com.jubitus.traveller.traveller.utils.TravellerSpawnGuards;
 import com.jubitus.traveller.traveller.utils.commands.*;
@@ -63,7 +64,7 @@ public class Travellers {
         event.registerServerCommand(new CommandMillNearestVillageDump());
         event.registerServerCommand(new CommandTravellerMap());
         event.registerServerCommand(new CommandTravellerInfo());
-        event.registerServerCommand(new CommandMerchantDebug());
+        event.registerServerCommand(new CommandTravellerMerchantDebug());
 
     }
 
@@ -73,16 +74,14 @@ public class Travellers {
         VILLAGE_CENTERS = loadVillageCenters(millenaireFolder);
         TravellerFollowNet.init();               // <-- runs on both sides
 
-        ForgeChunkManager.setForcedChunkLoadingCallback(
-                this, // or TravellersMod.INSTANCE, both are the same here
-                new TravellerChunkLoadingCallback()
-        );
 
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
         File configFile = new File(configDir, "travellers.cfg");
         TravellersModConfig.init(configFile);
 
+        TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
+        MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
         // Client-only stuff
         if (event.getSide().isClient()) {
             ClientProxy.registerRenderers();
@@ -109,7 +108,7 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller_merchant",   // old name, no colon
                     5,                                          // <-- NEW unique numeric ID
                     this,
-                    128,                                        // tracking range (match normal traveller)
+                    32,                                        // tracking range (match normal traveller)
                     1,                                          // update frequency
                     true,                                       // send velocity updates
                     0xC0A060,                                   // egg primary colour (optional)
