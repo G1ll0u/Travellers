@@ -49,31 +49,6 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
         } else {
             app = c.getAppearance(e.getTextureIndex());
         }
-        // --- DEBUG: log which textures this traveller uses, once ---
-        java.util.UUID id = e.getUniqueID();
-        if (LOGGED_TEXTURES.add(id)) { // only true the first time for this entity
-            StringBuilder sb = new StringBuilder();
-            sb.append("[Travellers] Texture selection for entity=")
-                    .append(id)
-                    .append(" culture=").append(c.id)
-                    .append(" texIndex=").append(e.getTextureIndex())
-                    .append(" base=").append(app.baseTexture);
-
-            if (app.clothes != null && !app.clothes.isEmpty()) {
-                sb.append(" clothes=[");
-                boolean first = true;
-                for (ResourceLocation r : app.clothes) {
-                    if (!first) sb.append(", ");
-                    first = false;
-                    sb.append(r);
-                }
-                sb.append("]");
-            }
-
-            System.out.println(sb);
-            // or if you have a logger:
-            // TravellersMod.LOGGER.info(sb.toString());
-        }
 
         // base nude or "underwear + hair" layer from Millénaire
         return app.baseTexture;

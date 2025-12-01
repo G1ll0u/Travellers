@@ -3139,5 +3139,8 @@ public class EntityTraveller extends EntityCreature {
             lastSeenTick = t;
         }
     }
+    public TravelCommon getTravelCommon() {
+        return this.travelCommon;
+    }
 
 }

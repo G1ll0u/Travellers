@@ -65,6 +65,7 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerMap());
         event.registerServerCommand(new CommandTravellerInfo());
         event.registerServerCommand(new CommandTravellerMerchantDebug());
+        event.registerServerCommand(new CommandVillageNeeds());
 
     }
 

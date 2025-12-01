@@ -6,6 +6,7 @@ import com.jubitus.traveller.traveller.culture.CultureRegistry;
 import com.jubitus.traveller.traveller.culture.VoiceSet;
 import com.jubitus.traveller.traveller.entityAI.EntityAITravel;
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerMerchant;
 import com.jubitus.traveller.traveller.utils.sound.ModSounds;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import com.jubitus.traveller.traveller.utils.villages.MillenaireVillageDirectory;
@@ -298,39 +299,89 @@ public class TravelCommon {
     }
 
     public void ensureRoutePlanned() {
-        if (routeIndex >= 0 && routeIndex < route.size()) return;
+        if (routeIndex >= 0 && routeIndex < route.size()) {
+            return; // already have an active route
+        }
 
-        BlockPos here = owner.getPosition();
+        // --- 1) Choose origin anchor ---
 
-        // diverse destination: may be near, mid, or far
-        BlockPos dest = pickDiverseDestination(here, TravellersModConfig.VILLAGE_PICK_RADIUS * 4);
-        if (dest == null) return;
+        BlockPos origin = owner.getPosition();
+        BlockPos nearest = getNearestVillage(); // updated in updateNearestVillage()
 
-        // collect villages along the way (your JavaFX-free corridor code)
-        List<BlockPos> mids = collectMidsOnCorridor(here, dest, TravellersModConfig.CORRIDOR_WIDTH);
+        // Merchants should always route *from* a village center if one is nearby
+        if (isMerchant() && nearest != null) {
+            origin = nearest;
+        }
+
+        // --- 2) Pick a destination village (still using your nice diverse selector) ---
+
+        BlockPos dest = pickDiverseDestination(
+                origin,
+                TravellersModConfig.VILLAGE_PICK_RADIUS * 4
+        );
+        if (dest == null) {
+            return; // no villages = no route
+        }
+
+        // --- 3) Collect intermediate village stops along the corridor ---
+
+        List<BlockPos> mids = collectMidsOnCorridor(
+                origin,
+                dest,
+                TravellersModConfig.CORRIDOR_WIDTH
+        );
 
         this.route.clear();
 
-        // Decide whether to stop at an intermediate first (same “hopPreference” idea as before)
-        boolean takeMidFirst = !mids.isEmpty() && (owner.getRNG().nextFloat() < this.hopPreference);
-        if (takeMidFirst) {
-            // Usually choose the first mid (closest to start), occasionally a later one for variety
-            int idx = 0;
-            if (mids.size() >= 3 && owner.getRNG().nextFloat()
-                    < 0.25f) {
-                idx = 1 + owner.getRNG().nextInt(Math.min(2, mids.size() - 1));
+        if (isMerchant()) {
+            // ====== STRICT VILLAGE-TO-VILLAGE ROUTING FOR MERCHANTS ======
+
+            // (a) Always start at the origin village anchor
+            if (nearest != null) {
+                route.add(origin); // current village center
             }
-            this.route.add(mids.get(idx));
-        } else if (!mids.isEmpty() && owner.getRNG().nextFloat() < 0.20f) {
-            // Sometimes include all mids
-            this.route.addAll(mids);
+
+            // (b) Add all corridor villages in order
+            for (BlockPos mid : mids) {
+                // Avoid duplicates
+                if (route.isEmpty() || !route.get(route.size() - 1).equals(mid)) {
+                    route.add(mid);
+                }
+            }
+
+            // (c) Add final destination (if it’s not already the last)
+            if (route.isEmpty() || !route.get(route.size() - 1).equals(dest)) {
+                route.add(dest);
+            }
+
+        } else {
+            // ====== EXISTING BEHAVIOUR FOR NORMAL TRAVELLERS ======
+
+            boolean takeMidFirst = !mids.isEmpty() && (owner.getRNG().nextFloat() < this.hopPreference);
+            if (takeMidFirst) {
+                int idx = 0;
+                if (mids.size() >= 3 && owner.getRNG().nextFloat() < 0.25f) {
+                    idx = 1 + owner.getRNG().nextInt(Math.min(2, mids.size() - 1));
+                }
+                this.route.add(mids.get(idx));
+            } else if (!mids.isEmpty() && owner.getRNG().nextFloat() < 0.20f) {
+                this.route.addAll(mids);
+            }
+
+            this.route.add(dest);
         }
 
-        this.route.add(dest);   // final destination
+        if (route.isEmpty()) {
+            return;
+        }
+
+        // --- 4) Start route at first stop ---
+
         this.routeIndex = 0;
         owner.setTargetVillage(this.route.get(0));
         owner.setCurrentWaypoint(null);
     }
+
 
     @Nullable
     public BlockPos pickDiverseDestination(BlockPos origin, int maxRadius) {
@@ -533,5 +584,7 @@ public class TravelCommon {
     public void setVillageIdling(boolean villageIdling) {
         this.villageIdling = villageIdling;
     }
-
+    private boolean isMerchant() {
+        return owner instanceof EntityTravellerMerchant;
+    }
 }
