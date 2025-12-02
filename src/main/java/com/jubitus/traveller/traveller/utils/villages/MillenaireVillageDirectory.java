@@ -241,4 +241,5 @@ public final class MillenaireVillageDirectory {
             this.isVillage = isVillage;
         }
     }
+
 }

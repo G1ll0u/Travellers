@@ -12,6 +12,14 @@ import java.io.IOException;
 
 public class TravellersModConfig {
 
+    public static int workerVillageDetectRadius = 2000;
+
+    public static int workerStepBlocks = 20;
+    public static int workerChunkRadius = 3; // whatever you want
+    public static double workerMaxHealth = 20.0D;
+    public static double workerFollowRange = 32.0D;
+    public static double workerMovementSpeedWhileTravel = 0.35D;
+
     // --- Traveller stats ---
     public static float travellerMaxHealth = 20.0F;
     public static float travellerFollowRange = 128.0F;
@@ -820,6 +828,21 @@ public class TravellersModConfig {
                 200, 20, 20 * 60 * 60,
                 "How often (in ticks) merchant logic rechecks villages (20 ticks = 1 second)."
         );
+
+        workerChunkRadius = cfg.getInt(
+                "WorkerChunkRadius",
+                "Worker behavior",
+                3, 1, 10,
+                "Chunk radius to keep loaded around a worker traveller."
+        );
+
+        workerStepBlocks = cfg.getInt(
+                "WorkerStepBlocks",
+                "Worker behavior",
+                20, 1, 64,
+                "Blocks per path step for worker travel."
+        );
+
         attackDamage = cfg.getFloat(
                 "TravellerAttackDamage", "Traveller base attributes",
                 2.0f, 0.0f, 100.0f,

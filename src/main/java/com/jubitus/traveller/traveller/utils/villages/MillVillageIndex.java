@@ -993,4 +993,43 @@ public final class MillVillageIndex {
         if (base > max) base = max;
         return base;
     }
+    /**
+     * Find any Town Hall building within a horizontal radius of the given center.
+     * Uses MillWorldData for the current dimension.
+     */
+    @Nullable
+    public static Building findAnyTownHallNear(World world, BlockPos center, int radiusXZ) {
+        MillWorldData wd = MillVillageIndex.getWD(world);
+        if (wd == null) return null;
+        return findAnyTownHallNear(wd, center, radiusXZ);
+    }
+
+    /**
+     * Same as above but takes an already-resolved MillWorldData.
+     */
+    @Nullable
+    public static Building findAnyTownHallNear(MillWorldData wd, BlockPos center, int radiusXZ) {
+        if (wd == null || wd.villagesList == null || wd.villagesList.pos == null) {
+            return null;
+        }
+
+        int cx = center.getX();
+        int cz = center.getZ();
+        int r2 = radiusXZ * radiusXZ;
+
+        for (Point p : wd.villagesList.pos) {
+            if (p == null) continue;
+
+            int dx = p.getiX() - cx;
+            int dz = p.getiZ() - cz;
+            if (dx * dx + dz * dz > r2) continue;
+
+            Building b = wd.getBuilding(p);
+            if (b != null && b.isTownhall) {
+                return b;
+            }
+        }
+        return null;
+    }
+
 }

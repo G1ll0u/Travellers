@@ -1,2 +1,4 @@
 entity.travellers.traveller.name=Traveller
 entity.travellers.traveller_raider.name=Raider
+travellers.worker.title=What should I give to village ?
+travellers.worker.send=Send

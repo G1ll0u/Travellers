@@ -20,14 +20,47 @@ public final class TravellerFollowNet {
     public static void init() {
         if (registered) return;
 
-        // toggle follow (example)
-        registerBoth(MsgToggleFollow.class, new MsgToggleFollow.Handler(), new MsgToggleFollow.NoopHandler());
+        // 1) Existing messages
+        registerBoth(
+                MsgToggleFollow.class,
+                new MsgToggleFollow.Handler(),
+                new MsgToggleFollow.NoopHandler()
+        );
 
-        registerClientOnly(MsgPlayTravellerVoice.class, new MsgPlayTravellerVoice.Handler());
-        registerClientOnly(MsgStopTravellerVoice.class, new MsgStopTravellerVoice.Handler());
+        registerBoth(
+                MsgWorkerSetDestination.class,
+                new MsgWorkerSetDestination.NoopHandler(),   // client side
+                new MsgWorkerSetDestination.Handler()        // server side
+        );
+
+        // 2) NEW: worker village request (client -> server)
+        registerBoth(
+                MsgWorkerRequestVillages.class,
+                new MsgWorkerRequestVillages.NoopHandler(),  // client side no-op
+                new MsgWorkerRequestVillages.Handler()       // server side logic
+        );
+
+        // 3) NEW: worker village list (server -> client)
+        // This still must be registered on BOTH physical sides (client & server),
+        // but its handler only runs on the CLIENT.
+        registerClientOnly(
+                MsgWorkerVillageList.class,
+                new MsgWorkerVillageList.Handler()
+        );
+
+        // 4) Existing client-only messages
+        registerClientOnly(
+                MsgPlayTravellerVoice.class,
+                new MsgPlayTravellerVoice.Handler()
+        );
+        registerClientOnly(
+                MsgStopTravellerVoice.class,
+                new MsgStopTravellerVoice.Handler()
+        );
 
         registered = true;
     }
+
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void registerBoth(Class<? extends IMessage> msgType,

@@ -6,6 +6,7 @@ import com.jubitus.traveller.traveller.entityAI.*;
 import com.jubitus.traveller.traveller.pathing.TravellerChunkLoadingCallback;
 import com.jubitus.traveller.traveller.pathing.TravellerChunkManager;
 import com.jubitus.traveller.traveller.render.ClientProxy;
+import com.jubitus.traveller.traveller.render.GuiHandler;
 import com.jubitus.traveller.traveller.utils.TravellerSpawnGuards;
 import com.jubitus.traveller.traveller.utils.commands.*;
 import com.jubitus.traveller.traveller.utils.debug.*;
@@ -83,9 +84,11 @@ public class Travellers {
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
         File configFile = new File(configDir, "travellers.cfg");
         TravellersModConfig.init(configFile);
-
+        NetworkRegistry.INSTANCE.registerGuiHandler(Travellers.INSTANCE, new GuiHandler());
+        TravellerFollowNet.init();
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
+
         // Client-only stuff
         if (event.getSide().isClient()) {
             ClientProxy.registerRenderers();
@@ -103,6 +106,7 @@ public class Travellers {
                 nextId++,
                 Side.SERVER
         );
+
 
         // --- Register traveller entities if enabled in config ---
         if (TravellersModConfig.enableTravellerEntity) {
@@ -125,13 +129,24 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller_merchant",   // old name, no colon
                     5,                                          // <-- NEW unique numeric ID
                     this,
-                    256,                                        // tracking range (match normal traveller)
+                    128,                                        // tracking range (match normal traveller)
                     1,                                          // update frequency
                     true,                                       // send velocity updates
                     0xC0A060,                                   // egg primary colour (optional)
                     0x302010                                    // egg secondary colour (optional)
             );
-
+            EntityRegistry.registerModEntity(
+                    new ResourceLocation(Reference.MOD_ID, "traveller_worker"),
+                    EntityTravellerWorker.class,              // <-- you'll create this class
+                    Reference.MOD_ID + ".traveller_worker",   // old name, no colon
+                    6,                                          // <-- NEW unique numeric ID
+                    this,
+                    128,                                        // tracking range (match normal traveller)
+                    1,                                          // update frequency
+                    true,                                       // send velocity updates
+                    0xEAE8B4,                                   // egg primary colour (optional)
+                    0x480607                                    // egg secondary colour (optional)
+            );
             // Dog
             EntityRegistry.registerModEntity(
                     new ResourceLocation(Reference.MOD_ID, "traveller_dog"),

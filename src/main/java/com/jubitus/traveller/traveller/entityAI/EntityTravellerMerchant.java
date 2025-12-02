@@ -71,14 +71,17 @@ public class EntityTravellerMerchant extends EntityTraveller {
 //    public void onLivingUpdate() {
 //        super.onLivingUpdate();
 //    }
-    @Override
-    public void onUpdate() {
-        super.onUpdate();
+@Override
+public void onUpdate() {
+    super.onUpdate();
 
-        if (!this.world.isRemote) {
-            TravellerChunkManager.INSTANCE.onMerchantTick(this);
-        }
+    if (!this.world.isRemote) {
+        TravellerChunkManager.INSTANCE.onChunkloaderTick(
+                this,
+                TravellersModConfig.merchantChunkRadius
+        );
     }
+}
     @Override
     protected void initEntityAI() {
         super.initEntityAI();
@@ -104,7 +107,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
-            TravellerChunkManager.INSTANCE.untrackMerchant(this);
+            TravellerChunkManager.INSTANCE.untrackChunkloader(this);
             if (this.homeVillageCenter != null && this.world instanceof WorldServer) {
                 TravellerSoftSpawner.spawnMerchantAtVillage(
                         (WorldServer) this.world,
@@ -164,27 +167,6 @@ public class EntityTravellerMerchant extends EntityTraveller {
     private Building getTownHallBuildingFromInfo(MillVillageIndex.BuildingInfo bi) {
         if (bi == null || bi.location == null) return null;
         return bi.location.getBuilding(this.world);
-    }
-    private void removeTaskOfType(Class<? extends EntityAIBase> clazz) {
-        // Remove from normal tasks
-        for (Object obj : this.tasks.taskEntries.toArray()) {
-            if (obj instanceof EntityAITasks.EntityAITaskEntry) {
-                EntityAITasks.EntityAITaskEntry entry = (EntityAITasks.EntityAITaskEntry) obj;
-                if (clazz.isInstance(entry.action)) {
-                    this.tasks.removeTask(entry.action);
-                }
-            }
-        }
-
-        // Remove from target tasks (not needed for roam, but good util)
-        for (Object obj : this.targetTasks.taskEntries.toArray()) {
-            if (obj instanceof EntityAITasks.EntityAITaskEntry) {
-                EntityAITasks.EntityAITaskEntry entry = (EntityAITasks.EntityAITaskEntry) obj;
-                if (clazz.isInstance(entry.action)) {
-                    this.targetTasks.removeTask(entry.action);
-                }
-            }
-        }
     }
 
 

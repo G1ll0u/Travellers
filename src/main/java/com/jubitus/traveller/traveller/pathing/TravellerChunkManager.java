@@ -2,6 +2,7 @@ package com.jubitus.traveller.traveller.pathing;
 
 import com.jubitus.traveller.Travellers;
 import com.jubitus.traveller.TravellersModConfig;
+import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerMerchant;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
@@ -113,30 +114,34 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     // Per-merchant API
     // ----------------------------------------------------------------
 
-    public void onMerchantTick(EntityTravellerMerchant m) {
-        if (m.world.isRemote) return;
-        if (!TravellersModConfig.merchantChunkloadingEnabled) return;
+    // Called each tick by any traveller that should chunkload (merchant, worker, etc.)
+    public void onChunkloaderTick(EntityTraveller traveller, int radius) {
+        if (traveller.world.isRemote) return;
+        if (!TravellersModConfig.merchantChunkloadingEnabled) return; // rename config later if you want
 
-        WorldServer ws = (WorldServer) m.world;
+        WorldServer ws = (WorldServer) traveller.world;
         WorldState state = getOrCreateState(ws);
 
-        MerchantData data = state.merchants.get(m.getUniqueID());
+        MerchantData data = state.merchants.get(traveller.getUniqueID());
         if (data == null) {
-            data = new MerchantData(m, TravellersModConfig.merchantChunkRadius);
-            state.merchants.put(m.getUniqueID(), data);
+            data = new MerchantData(traveller, radius);
+            state.merchants.put(traveller.getUniqueID(), data);
+        } else {
+            data.radius = radius; // in case radius can change (config reload, etc.)
+            data.updateFromEntity(traveller);
         }
-
-        data.updateFromEntity(m);
     }
 
-    public void onMerchantRemoved(EntityTravellerMerchant m) {
-        if (m.world.isRemote) return;
-        WorldServer ws = (WorldServer) m.world;
+    public void onChunkloaderRemoved(EntityTraveller traveller) {
+        if (traveller.world.isRemote) return;
+        if (!(traveller.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) traveller.world;
         WorldState state = getOrCreateState(ws);
 
-        state.merchants.remove(m.getUniqueID());
+        state.merchants.remove(traveller.getUniqueID());
         // We’ll drop any now-unused chunks on next recompute
     }
+
 
     // ----------------------------------------------------------------
     // Chunk recompute logic
@@ -148,7 +153,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         while (it.hasNext()) {
             Map.Entry<UUID, MerchantData> e = it.next();
             Entity ent = state.world.getEntityFromUuid(e.getKey());
-            if (!(ent instanceof EntityTravellerMerchant) || !ent.isEntityAlive()) {
+            if (!(ent instanceof EntityTraveller) || !ent.isEntityAlive()) {
                 it.remove();
             }
         }
@@ -270,21 +275,22 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         }
     }
 
-    public void untrackMerchant(EntityTravellerMerchant m) {
-        if (m.world.isRemote || !(m.world instanceof WorldServer)) return;
-        WorldServer ws = (WorldServer) m.world;
+    public void untrackChunkloader(EntityTraveller traveller) {
+        if (traveller.world.isRemote || !(traveller.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) traveller.world;
 
         WorldState state = getOrCreateState(ws);
 
-        if (state.merchants.remove(m.getUniqueID()) != null) {
+        if (state.merchants.remove(traveller.getUniqueID()) != null) {
             if (state.merchants.isEmpty()) {
-                // Last merchant in this world is gone: now we truly unload
+                // Last chunkloading traveller in this world is gone
                 clearForcedChunks(state);
             } else {
                 recomputeForWorld(state);
             }
         }
     }
+
 
 
 
@@ -329,19 +335,19 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         public double lastDistToTargetSq;
         public long lastProgressTick;
 
-        public MerchantData(EntityTravellerMerchant m, int radius) {
-            this.id = m.getUniqueID();
-            this.pos = m.getPosition();
+        public MerchantData(EntityTraveller t, int radius) {
+            this.id = t.getUniqueID();
+            this.pos = t.getPosition();
             this.radius = radius;
-            this.lastDistToTargetSq = computeDistSqToTarget(m);
-            this.lastProgressTick = m.world.getTotalWorldTime();
+            this.lastDistToTargetSq = computeDistSqToTarget(t);
+            this.lastProgressTick = t.world.getTotalWorldTime();
         }
 
-        public void updateFromEntity(EntityTravellerMerchant m) {
-            this.pos = m.getPosition();
+        public void updateFromEntity(EntityTraveller t) {
+            this.pos = t.getPosition();
 
-            double nowD2 = computeDistSqToTarget(m);
-            long nowTick = m.world.getTotalWorldTime();
+            double nowD2 = computeDistSqToTarget(t);
+            long nowTick = t.world.getTotalWorldTime();
 
             if (nowD2 < lastDistToTargetSq - 1.0) {
                 lastDistToTargetSq = nowD2;
@@ -349,10 +355,10 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             }
         }
 
-        private double computeDistSqToTarget(EntityTravellerMerchant m) {
-            BlockPos tv = m.getTargetVillage();
+        private double computeDistSqToTarget(EntityTraveller t) {
+            BlockPos tv = t.getTargetVillage();
             if (tv == null) return Double.MAX_VALUE;
-            return m.getDistanceSqToCenter(tv);
+            return t.getDistanceSqToCenter(tv);
         }
 
         public int ticksSinceLastProgress(WorldServer world) {

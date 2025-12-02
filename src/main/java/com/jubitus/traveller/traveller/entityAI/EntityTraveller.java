@@ -19,9 +19,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
-import net.minecraft.entity.ai.EntityAILookIdle;
-import net.minecraft.entity.ai.EntityAIOpenDoor;
-import net.minecraft.entity.ai.EntityAISwimming;
+import net.minecraft.entity.ai.*;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
@@ -75,6 +73,10 @@ import java.util.Map;
 import java.util.UUID;
 
 public class EntityTraveller extends EntityCreature {
+    public ItemStackHandler getBackpack() {
+        return this.inventory;
+    }
+
 
 
     public static final String GHOST_TORCH_TAG = "TravellerGhostTorch";
@@ -102,7 +104,7 @@ public class EntityTraveller extends EntityCreature {
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
     private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
     public final TravellerCamp travellerCamp = new TravellerCamp(this);
-    final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
+    public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     // --- Camp join cooldown (prevents placing a fire right after resting) ---
     private final TravellerCamp camp = new TravellerCamp(this);
     private final java.util.Map<java.util.UUID, Threat> threatMap = new java.util.HashMap<>();
@@ -160,7 +162,9 @@ public class EntityTraveller extends EntityCreature {
     @Nullable
     private UUID dogId = null;
     private int currentFollowers = 0;
-
+    protected boolean isRouteLocked() {
+        return false;
+    }
     public EntityTraveller(World worldIn) {
         super(worldIn);
         this.setPathPriority(PathNodeType.BLOCKED, -1.0F);
@@ -1070,6 +1074,31 @@ public class EntityTraveller extends EntityCreature {
         }
 
         super.onLivingUpdate();
+        if (!isRouteLocked()) {
+            if (travelCommon.routeIndex < 0 || travelCommon.routeIndex >= travelCommon.route.size()) {
+                travelCommon.ensureRoutePlanned();
+            }
+        }
+        if (travelCommon.routeIndex >= 0 && travelCommon.routeIndex < travelCommon.route.size()) {
+            BlockPos curStop = travelCommon.route.get(travelCommon.routeIndex);
+            travelCommon.setTargetVillage(curStop);
+
+            boolean nearCurrentStop = travelCommon.isAtTargetStop();
+
+            if (nearCurrentStop && !travelCommon.isVillageIdling() && travelCommon.isReadyToDepart()) {
+                travelCommon.routeIndex++;
+                travelCommon.setReadyToDepart(false);
+                travelCommon.setDepartCooldownTicks(80);
+                if (travelCommon.routeIndex < travelCommon.route.size()) {
+                    travelCommon.setTargetVillage(travelCommon.route.get(travelCommon.routeIndex));
+                    this.getNavigator().clearPath();
+                } else {
+                    travelCommon.routeIndex = -1;
+                    travelCommon.route.clear();
+                    travelCommon.setTargetVillage(null);
+                }
+            }
+        }
         if (travellerCamp.campJoinCooldown > 0) travellerCamp.campJoinCooldown--;
         if (world.isRemote && hurtAnimCooldown > 0) hurtAnimCooldown--;
         if (speakCooldown > 0) speakCooldown--;
@@ -1085,8 +1114,9 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             travelCommon.updateNearestVillage();
 
-            // 1) Ensure we have a plan
-            if (travelCommon.routeIndex < 0 || travelCommon.routeIndex >= travelCommon.route.size()) {
+            // 1) Ensure we have a plan (unless subclass has locked routing)
+            if (!isRouteLocked()
+                    && (travelCommon.routeIndex < 0 || travelCommon.routeIndex >= travelCommon.route.size())) {
                 travelCommon.ensureRoutePlanned();
             }
 
@@ -1097,11 +1127,10 @@ public class EntityTraveller extends EntityCreature {
 
                 boolean nearCurrentStop = travelCommon.isAtTargetStop();
 
-                // If we're inside the stop village AND the roam AI finished its stay, move to next hop
                 if (nearCurrentStop && !travelCommon.isVillageIdling() && travelCommon.isReadyToDepart()) {
                     travelCommon.routeIndex++;
                     travelCommon.setReadyToDepart(false);
-                    travelCommon.setDepartCooldownTicks(80); // ~4s @20tps (tune: 60–120 feels good)
+                    travelCommon.setDepartCooldownTicks(80);
                     if (travelCommon.routeIndex < travelCommon.route.size()) {
                         travelCommon.setTargetVillage(travelCommon.route.get(travelCommon.routeIndex));
                         this.getNavigator().clearPath();
@@ -3142,5 +3171,23 @@ public class EntityTraveller extends EntityCreature {
     public TravelCommon getTravelCommon() {
         return this.travelCommon;
     }
+    protected void removeTaskOfType(Class<? extends EntityAIBase> clazz) {
+        for (Object obj : this.tasks.taskEntries.toArray()) {
+            if (obj instanceof EntityAITasks.EntityAITaskEntry) {
+                EntityAITasks.EntityAITaskEntry entry = (EntityAITasks.EntityAITaskEntry) obj;
+                if (clazz.isInstance(entry.action)) {
+                    this.tasks.removeTask(entry.action);
+                }
+            }
+        }
 
+        for (Object obj : this.targetTasks.taskEntries.toArray()) {
+            if (obj instanceof EntityAITasks.EntityAITaskEntry) {
+                EntityAITasks.EntityAITaskEntry entry = (EntityAITasks.EntityAITaskEntry) obj;
+                if (clazz.isInstance(entry.action)) {
+                    this.targetTasks.removeTask(entry.action);
+                }
+            }
+        }
+    }
 }
