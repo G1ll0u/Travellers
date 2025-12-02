@@ -490,7 +490,11 @@ public class EntityAITravel extends EntityAIBase {
             boolean longNoForward = (ticksNoForward >= HARD_UNSTUCK_T_NOPROJ);
 
             Vec3d now = mob.getPositionVector();
-            double movedSqSinceAnchor = now.squareDistanceTo(lastTPProgressAnchor);
+
+// Ignore vertical bobbing: only care about horizontal displacement
+            double dx = now.x - lastTPProgressAnchor.x;
+            double dz = now.z - lastTPProgressAnchor.z;
+            double movedSqSinceAnchor = dx * dx + dz * dz;
 
             if ((longNoBest || longNoForward) && movedSqSinceAnchor <= HARD_UNSTUCK_MOVE_SQ) {
                 if (hardTeleportNudgeTowardTarget()) {
@@ -504,10 +508,16 @@ public class EntityAITravel extends EntityAIBase {
 
         if (mob.ticksExisted % this.stuckCheckTicks == 0) {
             if (!mob.isAutoEating() && !mob.isHandActive()) {
-                double movedSq = mob.getPositionVector().squareDistanceTo(this.lastPos);
-                this.lastPos = mob.getPositionVector();
+                Vec3d now = mob.getPositionVector();
 
-                if (movedSq < 0.6 * 0.6) {
+                // ---- use XZ only so water bobbing doesn't count as progress ----
+                double dx = now.x - this.lastPos.x;
+                double dz = now.z - this.lastPos.z;
+                double movedSqXZ = dx * dx + dz * dz;
+
+                this.lastPos = now;
+
+                if (movedSqXZ < 0.6 * 0.6) {
                     if (stallLevel >= 3 && ticksSinceBest > (STALL_T3 + 5 * 20) &&
                             hardUnstuckCooldown == 0 && hardUnstuckCount < HARD_UNSTUCK_MAX_PER_TRIP) {
 
@@ -1637,14 +1647,21 @@ public class EntityAITravel extends EntityAIBase {
         if (hereVi != null
                 && !hereVi.center.equals(dest)                     // only if this isn't the dest village
                 && MillVillageIndex.isNearVillage(w, from, 50)) {  // "inside-ish" radius
+
             BlockPos g = findNearestGate(w, hereVi.center, from);
             if (g != null) {
-                gateBias = g;
-                gateIsLeaving = true;
 
-                // Leaving a walled village: go basically straight to the gate.
-                // You can make this <1.0 if you want some blending, but 1.0 is simple & robust.
-                gateWeight = 1.0;
+                // NEW: only bias toward this gate if it lies between us and the destination
+                // (prevents going back to a gate that is now *behind* us)
+                final double LEAVE_GATE_LATERAL_TOL = 8.0; // tweak if needed
+                if (isGateBetween(from, dest, g, LEAVE_GATE_LATERAL_TOL)) {
+                    gateBias = g;
+                    gateIsLeaving = true;
+                    double distToHere = Math.sqrt(from.distanceSq(hereVi.center));
+                    double leaveRadius = 50.0; // same as isNearVillage radius
+                    double tLeave = Math.max(0.0, Math.min(1.0, distToHere / leaveRadius));
+                    gateWeight = 0.5 + 0.5 * (1.0 - tLeave); // ~1.0 near center, ~0.5 near edge
+                }
             }
         }
 
@@ -1687,9 +1704,6 @@ public class EntityAITravel extends EntityAIBase {
 
         // --- Leaving a village: just go to the gate directly ---
         if (gateIsLeaving) {
-            // You *could* blend with dest if you want smoother curves:
-            // Vec3d mixed = dirGate.scale(gateWeight).add(dirDest.scale(1.0 - gateWeight));
-            // return mixed.normalize();
             return dirGate;
         }
 
@@ -1704,6 +1718,7 @@ public class EntityAITravel extends EntityAIBase {
 
         return mixed.normalize();
     }
+
 
     /**
      * True if this block is likely part of a natural tree (log or leaf).

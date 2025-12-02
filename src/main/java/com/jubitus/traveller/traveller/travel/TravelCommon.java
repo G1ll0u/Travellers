@@ -304,24 +304,29 @@ public class TravelCommon {
         }
 
         // --- 1) Choose origin anchor ---
-
         BlockPos origin = owner.getPosition();
-        BlockPos nearest = getNearestVillage(); // updated in updateNearestVillage()
+        BlockPos nearest = getNearestVillage();
 
-        // Merchants should always route *from* a village center if one is nearby
-        if (isMerchant() && nearest != null) {
-            origin = nearest;
+        if (isMerchant()) {
+            // Merchants: make sure nearestVillage is populated at least once
+            if (nearest == null) {
+                updateNearestVillage();
+                nearest = getNearestVillage();
+            }
+            if (nearest != null) {
+                origin = nearest;  // always route FROM the village center
+            }
         }
 
-        // --- 2) Pick a destination village (still using your nice diverse selector) ---
-
+        // --- 2) Pick a destination village ---
         BlockPos dest = pickDiverseDestination(
                 origin,
                 TravellersModConfig.VILLAGE_PICK_RADIUS * 4
         );
         if (dest == null) {
-            return; // no villages = no route
+            return; // no other villages → no route (they'll stay at home)
         }
+
 
         // --- 3) Collect intermediate village stops along the corridor ---
 
@@ -335,28 +340,25 @@ public class TravelCommon {
 
         if (isMerchant()) {
             // ====== STRICT VILLAGE-TO-VILLAGE ROUTING FOR MERCHANTS ======
+            // Merchants are considered to already be *at* their current village;
+            // first travel target should be some *other* village.
 
-            // (a) Always start at the origin village anchor
-            if (nearest != null) {
-                route.add(origin); // current village center
-            }
-
-            // (b) Add all corridor villages in order
+            // (a) Add all corridor villages in order (between origin and dest)
             for (BlockPos mid : mids) {
-                // Avoid duplicates
+                if (mid.equals(origin)) continue; // just in case
                 if (route.isEmpty() || !route.get(route.size() - 1).equals(mid)) {
                     route.add(mid);
                 }
             }
 
-            // (c) Add final destination (if it’s not already the last)
-            if (route.isEmpty() || !route.get(route.size() - 1).equals(dest)) {
+            // (b) Add final destination (if it’s not already last)
+            if (!dest.equals(origin)
+                    && (route.isEmpty() || !route.get(route.size() - 1).equals(dest))) {
                 route.add(dest);
             }
 
         } else {
             // ====== EXISTING BEHAVIOUR FOR NORMAL TRAVELLERS ======
-
             boolean takeMidFirst = !mids.isEmpty() && (owner.getRNG().nextFloat() < this.hopPreference);
             if (takeMidFirst) {
                 int idx = 0;
@@ -370,6 +372,7 @@ public class TravelCommon {
 
             this.route.add(dest);
         }
+
 
         if (route.isEmpty()) {
             return;

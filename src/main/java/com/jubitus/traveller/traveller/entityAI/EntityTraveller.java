@@ -164,7 +164,7 @@ public class EntityTraveller extends EntityCreature {
     public EntityTraveller(World worldIn) {
         super(worldIn);
         this.setPathPriority(PathNodeType.BLOCKED, -1.0F);
-        this.setPathPriority(PathNodeType.WATER, 1.0F);     // mildly worse than WALKABLE
+        this.setPathPriority(PathNodeType.WATER, 3.0F);     // mildly worse than WALKABLE
 
         // Make dangerous stuff REALLY undesirable
         this.setPathPriority(PathNodeType.DANGER_CACTUS, -1.0F);
@@ -637,14 +637,23 @@ public class EntityTraveller extends EntityCreature {
     @Override
     protected void applyEntityAttributes() {
         super.applyEntityAttributes();
-        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(TravellersModConfig.maxHealth);
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(TravellersModConfig.movementSpeed);
-        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(TravellersModConfig.followRange);
+
+        // Generic traveller stats
+        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
+                .setBaseValue(TravellersModConfig.travellerMaxHealth);
+
+        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
+                .setBaseValue(TravellersModConfig.movementSpeed);
+
+        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
+                .setBaseValue(TravellersModConfig.travellerFollowRange);
+
         // ATTACK_DAMAGE is not present by default for many entities
         if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         }
-        this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(TravellersModConfig.attackDamage);
+        this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
+                .setBaseValue(TravellersModConfig.attackDamage);
     }
 
     @Override
@@ -1043,6 +1052,7 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     public void onLivingUpdate() {
+
         if (!world.isRemote) {
             if (!this.world.isRemote) {
                 ensureDismountIfInCombat();
@@ -1058,16 +1068,6 @@ public class EntityTraveller extends EntityCreature {
             maybeRecruitDog();
             if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
         }
-
-        float NORMAL_STEP = 1.4F;
-// Use a *reduced* but nonzero step in water so we can climb a +1 rim out of water
-        float WATER_STEP = 0.6F; // was 0.0F
-        if (this.isInWater()) {
-            if (this.stepHeight != WATER_STEP) this.stepHeight = WATER_STEP;
-        } else {
-            if (this.stepHeight != NORMAL_STEP) this.stepHeight = NORMAL_STEP;
-        }
-
 
         super.onLivingUpdate();
         if (travellerCamp.campJoinCooldown > 0) travellerCamp.campJoinCooldown--;

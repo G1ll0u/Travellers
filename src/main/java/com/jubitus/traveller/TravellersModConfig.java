@@ -1,6 +1,7 @@
 package com.jubitus.traveller;
 
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerMerchant;
 import com.jubitus.traveller.traveller.utils.mobs.RaiderAttackList;
 import com.jubitus.traveller.traveller.utils.mobs.TravellerBlacklist;
 import net.minecraftforge.common.config.Configuration;
@@ -11,12 +12,43 @@ import java.io.IOException;
 
 public class TravellersModConfig {
 
+    // --- Traveller stats ---
+    public static float travellerMaxHealth = 20.0F;
+    public static float travellerFollowRange = 128.0F;
+
+    // --- Merchant stats ---
+    public static float merchantMaxHealth = 20.0F;
+    public static float merchantFollowRange = 24.0F;
+
+
+
+    // Travel AI
+    public static int merchantStepBlocks = 20;
+
+    // Merchant spawn logic
+    public static int merchantMinPop = 8;
+    public static int merchantPopPerMerchant = 10;
+    public static int merchantMaxPerVillage = 4;
+    public static int merchantRecheckEveryTicks = 200;
+
+
     public static int merchantChunkRadius = 1;          // default radius per merchant
     public static int merchantMaxForcedChunks = 1000;    // hard cap per world
     public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
-    public static int merchantMaxChunkloadingMerchants = 24; // if many merchants, only first N get chunkloading
+    public static int merchantMaxChunkloadingMerchants = 256; // if many merchants, only first N get chunkloading
     public static boolean merchantChunkloadingEnabled = true;
+    // How big a slice of the total required amount the merchant tries to supply.
+// 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
+    public static double merchantGiveFraction = 1.0D / 12.0D;
 
+    // Minimum donation for "bulk" items (big stacks, e.g. planks).
+    public static int merchantMinBulkAmount = 1;
+
+    // Minimum donation for "small stack" items (banners, tools, etc.)
+    public static int merchantMinSmallAmount = 1;
+
+    // How many *different* items a merchant is allowed to donate during one visit.
+    public static int merchantMaxDistinctItems = 1;
 
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
@@ -400,27 +432,50 @@ public class TravellersModConfig {
     }
 
     private static void applyRuntimeEffects() {
-        // Example: update any existing Traveller entities with new attributes
         net.minecraftforge.fml.common.FMLCommonHandler fml = net.minecraftforge.fml.common.FMLCommonHandler.instance();
         net.minecraft.server.MinecraftServer srv = fml.getMinecraftServerInstance();
         if (srv == null) return;
+
         if (rangedMaxDist < attackTriggerRange) {
             rangedMaxDist = attackTriggerRange;
         }
+
         for (net.minecraft.world.World world : srv.worlds) {
             if (world == null) continue;
-            for (EntityTraveller t : world.getEntities(EntityTraveller.class, e -> true)) {
-                // Assuming your entity uses standard attributes:
-                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MAX_HEALTH).setBaseValue(maxHealth);
-                if (t.getHealth() > t.getMaxHealth()) t.setHealth(t.getMaxHealth());
 
-                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(attackDamage);
-                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(movementSpeed);
-                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(followRange);
+            for (EntityTraveller t : world.getEntities(EntityTraveller.class, e -> true)) {
+
+                final double cfgMaxHealth;
+                final double cfgFollowRange;
+
+                if (t instanceof EntityTravellerMerchant) {
+                    cfgMaxHealth = merchantMaxHealth;
+                    cfgFollowRange = merchantFollowRange;
+                } else {
+                    cfgMaxHealth = travellerMaxHealth;
+                    cfgFollowRange = travellerFollowRange;
+                }
+
+                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MAX_HEALTH)
+                        .setBaseValue(cfgMaxHealth);
+                if (t.getHealth() > t.getMaxHealth()) {
+                    t.setHealth(t.getMaxHealth());
+                }
+
+                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.ATTACK_DAMAGE)
+                        .setBaseValue(attackDamage);
+
+                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED)
+                        .setBaseValue(movementSpeed);
+
+                t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.FOLLOW_RANGE)
+                        .setBaseValue(cfgFollowRange);
+
                 t.onConfigReload();
             }
         }
     }
+
 
     /**
      * Write a clean file with current defaults and CURRENT_VERSION set.
@@ -677,40 +732,94 @@ public class TravellersModConfig {
         );
 
 // --- TRAVELLER BASE ATTRIBUTES ---
-        maxHealth = cfg.getFloat(
+// --- TRAVELLER BASE ATTRIBUTES ---
+// Keep old fields maxHealth/followRange for backwards-compat, but prefer travellerMaxHealth/travellerFollowRange
+
+        travellerMaxHealth = cfg.getFloat(
                 "TravellerMaxHealth", "Traveller base attributes",
                 40.0f, 1.0f, 1000.0f,
-                "Max health of traveller (20 = player default)."
+                "Max health of generic travellers (20 = player default)."
         );
-
+        maxHealth = travellerMaxHealth; // keep old field in sync
 
         movementSpeed = cfg.getFloat(
                 "MovementSpeedBase", "Traveller base attributes",
                 0.52f, 0.05f, 2.0f,
                 "Base speed mult."
         );
+
         movementSpeedWhileFollowing = cfg.getFloat(
                 "MovementSpeedWhileFollowing", "Traveller base attributes",
                 0.58f, 0.05f, 2.0f,
                 "Movement speed multiplier while following"
         );
+
         movementSpeedWhileTravel = cfg.getFloat(
                 "MovementSpeedWhileTravelling", "Traveller base attributes",
                 0.56f, 0.05f, 2.0f,
                 "Movement speed multiplier for travel task."
         );
+
         attackMovementSpeed = cfg.getFloat(
                 "MovementSpeedWhileAttacking", "Traveller base attributes",
                 0.67f, 0.05f, 2.0f,
                 "Movement speed multiplier while attacking."
         );
 
-        followRange = cfg.getInt(
+        travellerFollowRange = cfg.getFloat(
                 "TravellerTrackRange", "Traveller base attributes",
-                128, 4, 256,
-                "How far away (in blocks) the traveller can detect targets/points of interest."
+                128.0f, 4.0f, 256.0f,
+                "FOLLOW_RANGE (detection radius in blocks) for generic travellers."
+        );
+        followRange = (int) travellerFollowRange; // keep old int in sync
+
+        attackDamage = cfg.getFloat(
+                "TravellerAttackDamage", "Traveller base attributes",
+                2.0f, 0.0f, 100.0f,
+                "Base damage dealt per melee hit."
         );
 
+        // --- MERCHANT BASE ATTRIBUTES ---
+        merchantMaxHealth = cfg.getFloat(
+                "MerchantMaxHealth", "Merchant base attributes",
+                20.0f, 1.0f, 1000.0f,
+                "Max health of merchant travellers (20 = player default)."
+        );
+
+        merchantFollowRange = cfg.getFloat(
+                "MerchantTrackRange", "Merchant base attributes",
+                32.0f, 4.0f, 256.0f,
+                "FOLLOW_RANGE (detection radius in blocks) for merchants."
+        );
+        merchantStepBlocks = cfg.getInt(
+                "MerchantStepBlocks", "Merchant travel behaviour",
+                24, 1, 128,
+                "Distance in blocks between generated path waypoints while merchants travel to/from villages."
+        );
+// --- Merchant spawn logic ---
+        merchantMinPop = cfg.getInt(
+                "MerchantMinPopulation", "Merchant spawn behavior",
+                8, 0, 10_000,
+                "Minimum Millénaire village population required before any merchants are allowed."
+        );
+
+        merchantPopPerMerchant = cfg.getInt(
+                "MerchantPopPerMerchant", "Merchant spawn behavior",
+                10, 1, 10_000,
+                "Additional villagers required for each extra merchant in a village."
+        );
+
+        merchantMaxPerVillage = cfg.getInt(
+                "MerchantMaxPerVillage", "Merchant spawn behavior",
+                4, 0, 256,
+                "Maximum number of merchants that can be assigned to a single village."
+        );
+
+        merchantRecheckEveryTicks = cfg.getInt(
+                "MerchantRecheckEveryTicks", "Merchant spawn behavior",
+                200, 20, 20 * 60 * 60,
+                "How often (in ticks) merchant logic rechecks villages (20 ticks = 1 second)."
+        );
         attackDamage = cfg.getFloat(
                 "TravellerAttackDamage", "Traveller base attributes",
                 2.0f, 0.0f, 100.0f,
@@ -1317,6 +1426,38 @@ public class TravellersModConfig {
                 0.002f, 0.0f, 1.0f,
                 "Per-tick chance (0–1) that a traveller decides to start fishing " +
                         "when all other conditions are met."
+        );
+        merchantGiveFraction = cfg.getFloat(
+                "MerchantGiveFraction", "Merchant behavior",
+                1.0f / 12.0f,       // default
+                0.0f,               // minimum
+                1.0f,               // maximum
+                "Fraction of total required construction resources the merchant donates.\n" +
+                        "Example: 0.0833 = about 1/12 of the total needed. 0.1 = 10%. 0.25 = 25%."
+        );
+
+        merchantMinBulkAmount = cfg.getInt(
+                "MerchantMinBulkAmount", "Merchant behavior",
+                1,                 // default
+                0,                  // min
+                64000,              // max
+                "Minimum amount donated for bulk items (maxStack > 16). Example: planks, stone."
+        );
+
+        merchantMinSmallAmount = cfg.getInt(
+                "MerchantMinSmallAmount", "Merchant behavior",
+                1,                  // default
+                0,                  // min
+                64000,              // max
+                "Minimum amount donated for small-stack items (maxStack <= 16). Example: banners, tools."
+        );
+
+        merchantMaxDistinctItems = cfg.getInt(
+                "MerchantMaxDistinctItems", "Merchant behavior",
+                1,                  // default
+                0,                  // min
+                64,                 // max
+                "How many DIFFERENT item types a merchant can donate per village visit."
         );
 
 

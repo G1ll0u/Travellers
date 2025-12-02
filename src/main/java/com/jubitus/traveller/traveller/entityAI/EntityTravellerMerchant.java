@@ -3,13 +3,16 @@ package com.jubitus.traveller.traveller.entityAI;
 import com.jubitus.traveller.Travellers;
 import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.pathing.TravellerChunkManager;
+import com.jubitus.traveller.traveller.utils.TravellerSoftSpawner;
 import com.jubitus.traveller.traveller.utils.villages.MillChestHelper;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
+import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.EnumDyeColor;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -26,13 +29,13 @@ import javax.annotation.Nullable;
 public class EntityTravellerMerchant extends EntityTraveller {
     @Nullable
     private MillVillageIndex.BuildingInfo currentTH;
-    @Nullable
-    private BlockPos currentTHChestPos;
+
     @Nullable
     private BlockPos currentTHVillageCenter;
     private boolean hasDepositedHere = false;
     private int thRepathCooldown = 0;
-
+    @Nullable
+    private BlockPos homeVillageCenter;
 
     public EntityTravellerMerchant(World worldIn) {
         super(worldIn);
@@ -40,7 +43,16 @@ public class EntityTravellerMerchant extends EntityTraveller {
         removeTaskOfType(EntityAIRoamInsideVillage.class);
         this.tasks.addTask(9, new EntityAIMerchantDeliverGoods(this, TravellersModConfig.movementSpeedWhileTravel));
     }
+    // --- home village API ---
 
+    public void setHomeVillage(@Nullable BlockPos pos) {
+        this.homeVillageCenter = pos;
+    }
+
+    @Nullable
+    public BlockPos getHomeVillage() {
+        return this.homeVillageCenter;
+    }
     @Override
     protected boolean canDespawn() {
         return false;
@@ -67,6 +79,22 @@ public class EntityTravellerMerchant extends EntityTraveller {
             TravellerChunkManager.INSTANCE.onMerchantTick(this);
         }
     }
+    @Override
+    protected void initEntityAI() {
+        super.initEntityAI();
+
+        // Remove the default traveller AITravel (stepBlocks)
+        removeTaskOfType(EntityAITravel.class);
+
+        // Add our merchant version using merchantStepBlocks
+        this.tasks.addTask(16,
+                new EntityAITravel(
+                        this,
+                        TravellersModConfig.movementSpeedWhileTravel,
+                        TravellersModConfig.merchantStepBlocks
+                )
+        );
+    }
 
     @Override
     public void setDead() {
@@ -77,102 +105,60 @@ public class EntityTravellerMerchant extends EntityTraveller {
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
             TravellerChunkManager.INSTANCE.untrackMerchant(this);
+            if (this.homeVillageCenter != null && this.world instanceof WorldServer) {
+                TravellerSoftSpawner.spawnMerchantAtVillage(
+                        (WorldServer) this.world,
+                        this.homeVillageCenter
+                );
+            }
         }
+
         super.onDeath(cause);
     }
-    private void tickMerchantTownHallTrade() {
-        if (world.isRemote) return;
-        if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) return;
+    @Override
+    protected void applyEntityAttributes() {
+        super.applyEntityAttributes();
 
-        // We only care when the merchant is "at" his current stop village
-        BlockPos tv = this.getTargetVillage();
-        if (tv == null) return;
+        // Override with merchant-specific stats
+        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
+                .setBaseValue(TravellersModConfig.merchantMaxHealth);
 
-        // Use your existing arrival radius logic
-        if (!this.isAtTargetStopHys(false)) {
-            // moving between villages -> reset per-village trade state
-            currentTH = null;
-            currentTHChestPos = null;
-            currentTHVillageCenter = null;
-            hasDepositedHere = false;
-            thRepathCooldown = 0;
-            return;
+        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
+                .setBaseValue(TravellersModConfig.merchantFollowRange);
+
+        // Clamp current health to new max
+        if (this.getHealth() > this.getMaxHealth()) {
+            this.setHealth(this.getMaxHealth());
         }
+    }
+    // --- NBT ---
 
-        // We are inside the arrival radius of tv
-        if (currentTHVillageCenter == null || !currentTHVillageCenter.equals(tv)) {
-            // New village: reset and look up town hall
-            currentTHVillageCenter = tv;
-            currentTH = findTownHallFor(tv);
-            currentTHChestPos = (currentTH != null) ? currentTH.chestPos : null;
-            hasDepositedHere = false;
-            thRepathCooldown = 0;
+    @Override
+    public void writeEntityToNBT(NBTTagCompound nbt) {
+        super.writeEntityToNBT(nbt);
+
+        if (homeVillageCenter != null) {
+            nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
+            nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
+            nbt.setInteger("HomeVillageZ", homeVillageCenter.getZ());
         }
+    }
 
-        if (hasDepositedHere) return;           // already did our test trade in this village
-        if (currentTH == null || currentTHChestPos == null) return; // no TH found
+    @Override
+    public void readEntityFromNBT(NBTTagCompound nbt) {
+        super.readEntityFromNBT(nbt);
 
-        double d2 = this.getDistanceSqToCenter(currentTHChestPos);
-
-        // Not yet at the chest: walk there
-        if (d2 > 4.0D) { // > 2 blocks away
-            if (thRepathCooldown > 0) {
-                thRepathCooldown--;
-                return;
-            }
-
-            this.getNavigator().tryMoveToXYZ(
-                    currentTHChestPos.getX() + 0.5,
-                    currentTHChestPos.getY(),
-                    currentTHChestPos.getZ() + 0.5,
-                    TravellersModConfig.movementSpeedWhileTravel // or a custom merchant speed
-            );
-            thRepathCooldown = 20; // 1s before we reissue path
-            return;
-        }
-
-        // Close enough: attempt to deposit one red wool
-        IItemHandler handler = MillChestHelper.getBuildingChestItemHandler(world, currentTH);
-        if (handler == null) {
-            hasDepositedHere = true; // avoid retry spam
-            return;
-        }
-
-        ItemStack wool = new ItemStack(Blocks.WOOL, 1, EnumDyeColor.RED.getMetadata());
-        ItemStack remainder = ItemHandlerHelper.insertItemStacked(handler, wool, false);
-
-        if (remainder.isEmpty()) {
-            hasDepositedHere = true;
-
-            // Optional: feedback for testing
-            this.world.getMinecraftServer().getPlayerList().sendMessage(
-                    new TextComponentString(
-                            "[TravellerMerchant] Delivered 1 red wool to TH at " +
-                                    currentTHVillageCenter.getX() + "/" +
-                                    currentTHVillageCenter.getY() + "/" +
-                                    currentTHVillageCenter.getZ()
-                    )
-            );
+        if (nbt.hasKey("HomeVillageX")) {
+            int x = nbt.getInteger("HomeVillageX");
+            int y = nbt.getInteger("HomeVillageY");
+            int z = nbt.getInteger("HomeVillageZ");
+            this.homeVillageCenter = new BlockPos(x, y, z);
         } else {
-            // Chest full or can't accept – mark as done so we don't spam
-            hasDepositedHere = true;
+            this.homeVillageCenter = null;
         }
     }
-    @Nullable
-    private MillVillageIndex.BuildingInfo findTownHallFor(BlockPos villageCenter) {
-        int radiusXZ = 48;
-        int radiusY = 16;
 
-        java.util.List<MillVillageIndex.BuildingInfo> infos =
-                MillVillageIndex.listBuildingsAroundVillage(world, villageCenter, radiusXZ, radiusY);
 
-        for (MillVillageIndex.BuildingInfo bi : infos) {
-            if (bi != null && bi.isTownhall) {
-                return bi;
-            }
-        }
-        return null;
-    }
 
     @Nullable
     private Building getTownHallBuildingFromInfo(MillVillageIndex.BuildingInfo bi) {
@@ -200,5 +186,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
             }
         }
     }
+
+
 
 }

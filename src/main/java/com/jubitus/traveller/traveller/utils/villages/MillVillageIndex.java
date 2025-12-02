@@ -542,7 +542,7 @@ public final class MillVillageIndex {
     }
 
     @Nullable
-    private static Building getTownHallBuilding(MillWorldData wd, BlockPos center) {
+    public static Building getTownHallBuilding(MillWorldData wd, BlockPos center) {
         if (wd == null) return null;
         Point p = new Point(center.getX(), center.getY(), center.getZ());
         return wd.getBuilding(p);
@@ -983,5 +983,14 @@ public final class MillVillageIndex {
                     '}';
         }
     }
-
+    public static int desiredMerchantsForPopulation(int villagers) {
+        if (villagers < TravellersModConfig.merchantMinPop) {
+            return 0;
+        }
+        int per = Math.max(1, TravellersModConfig.merchantPopPerMerchant); // e.g. 10
+        int base = villagers / per;
+        int max = Math.max(1, TravellersModConfig.merchantMaxPerVillage);
+        if (base > max) base = max;
+        return base;
+    }
 }

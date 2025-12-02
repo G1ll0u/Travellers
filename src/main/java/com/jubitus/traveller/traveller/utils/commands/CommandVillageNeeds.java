@@ -1,15 +1,18 @@
 package com.jubitus.traveller.traveller.utils.commands;
 
+import com.jubitus.traveller.traveller.entityAI.TravellerMillHelper;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import org.millenaire.common.buildingplan.BuildingPlan;
 import org.millenaire.common.item.InvItem;
 import org.millenaire.common.item.TradeGood;
@@ -45,44 +48,32 @@ public class CommandVillageNeeds extends CommandBase {
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
-        World world = sender.getEntityWorld();
-        if (world == null) {
-            throw new CommandException("No world for sender");
+        if (!(sender instanceof EntityPlayerMP)) {
+            sender.sendMessage(new TextComponentString("Player only."));
+            return;
         }
 
-        int radius = 160;
-        if (args.length >= 1) {
-            try {
-                radius = Integer.parseInt(args[0]);
-            } catch (NumberFormatException ignored) {
-            }
-        }
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        WorldServer ws = (WorldServer) player.world;
 
-        BlockPos pos = sender.getPosition();
-        MillVillageIndex.VillageInfo vi = MillVillageIndex.findNearest2D(world, pos, radius);
+        BlockPos approx = player.getPosition(); // or parse coords from args
+
+        // Find nearest village center
+        MillVillageIndex.VillageInfo vi = MillVillageIndex.findNearest3D(ws, approx, 256);
         if (vi == null) {
-            sender.sendMessage(new TextComponentString(
-                    "[Traveller] No Millénaire village within " + radius + " blocks."));
+            player.sendMessage(new TextComponentString("[traveller] No Millénaire village found nearby."));
             return;
         }
 
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null) {
-            sender.sendMessage(new TextComponentString(
-                    "[Traveller] MillWorldData not available."));
-            return;
-        }
-
-        Point thPoint = new Point(vi.center.getX(), vi.center.getY(), vi.center.getZ());
-        Building townHall = wd.getBuilding(thPoint);
+        Building townHall = MillVillageIndex.getTownHallBuilding(MillVillageIndex.getWD(ws), vi.center);
         if (townHall == null) {
-            sender.sendMessage(new TextComponentString(
-                    "[Traveller] Could not resolve Town Hall at " + vi.center));
+            player.sendMessage(new TextComponentString("[traveller] Could not resolve Town Hall building at " + vi.center));
             return;
         }
 
-        dumpConstructionNeeds(townHall, sender);
+        TravellerMillHelper.debugVillageNeeds(player, townHall);
     }
+
 
     // ---------------------------------------------------------------------
     //  Actual construction needs (buildings + walls)

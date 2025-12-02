@@ -3,7 +3,9 @@ package com.jubitus.traveller.traveller.utils;
 import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.SpawnThrottles;
 import com.jubitus.traveller.traveller.entityAI.EntityTraveller;
+import com.jubitus.traveller.traveller.entityAI.EntityTravellerMerchant;
 import com.jubitus.traveller.traveller.entityAI.EntityTravellerRaider;
+import com.jubitus.traveller.traveller.travel.TravelCommon;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -20,12 +22,15 @@ import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.event.world.ChunkEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static com.jubitus.traveller.traveller.entityAI.EntityAITravel.intersectsForbiddenLiquid;
@@ -39,7 +44,8 @@ public final class TravellerSoftSpawner {
     private static final int lastVillageReloadTick = -1;
     private static int raiderTickCounter = 0;
     private static int tickCounter = 0;
-
+    // NEW: merchant maintenance tick
+    private static int merchantTickCounter = 0;
     private TravellerSoftSpawner() {
     }
 
@@ -369,6 +375,9 @@ public final class TravellerSoftSpawner {
                 }
             }
         }
+        if ((++merchantTickCounter % Math.max(1, TravellersModConfig.merchantRecheckEveryTicks)) == 0) {
+            ensureMerchantsForVillages(ws);
+        }
     }
 
     public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
@@ -639,4 +648,164 @@ public final class TravellerSoftSpawner {
                 world.provider.getDimension() + " " +
                 chunk.x + "," + chunk.z);
     }
+    /**
+     * Ensure each village has the desired number of traveller merchants
+     * based on its population. This:
+     *  - uses Millénaire population data
+     *  - groups existing merchants by their home village
+     *  - spawns additional ones at villages that are under-supplied
+     */
+    private static void ensureMerchantsForVillages(WorldServer ws) {
+
+        // 1) Get population per village
+        Map<MillVillageIndex.VillageInfo, Integer> pops = MillVillageIndex.countVillagersPerVillage(ws);
+        if (pops.isEmpty()) return;
+
+        // 2) Count existing merchants per home village center
+        Map<BlockPos, Integer> merchantsByVillage = new java.util.HashMap<>();
+        List<EntityTravellerMerchant> merchants =
+                ws.getEntities(EntityTravellerMerchant.class, net.minecraft.entity.Entity::isEntityAlive);
+
+        for (EntityTravellerMerchant m : merchants) {
+            BlockPos home = m.getHomeVillage();
+            if (home == null) continue;
+            merchantsByVillage.merge(home, 1, Integer::sum);
+        }
+
+        // 3) For each village, compare desired vs current and top up
+        for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
+            MillVillageIndex.VillageInfo vi = e.getKey();
+            int villagers = e.getValue();
+
+            // Only real villages, not lone buildings
+            if (!vi.isVillage) continue;
+
+            int desired = MillVillageIndex.desiredMerchantsForPopulation(villagers);
+            if (desired <= 0) continue;
+
+            int current = merchantsByVillage.getOrDefault(vi.center, 0);
+            int missing = desired - current;
+            if (missing <= 0) continue;
+
+            for (int i = 0; i < missing; i++) {
+                spawnMerchantAtVillage(ws, vi.center);
+            }
+        }
+    }
+
+    /**
+     * Spawns a traveller_merchant at (or near) the given village center,
+     * sets its home village, and puts it into the world.
+     */
+    public static void spawnMerchantAtVillage(WorldServer ws, BlockPos villageCenter) {
+
+        ensureVillageChunksLoaded(ws, villageCenter, 1);
+
+        BlockPos spawnPos = findGroundSpawnNear(ws, villageCenter, 6);
+        if (spawnPos == null) {
+            spawnPos = findGroundSpawnNear(ws, villageCenter, 12);
+        }
+        if (spawnPos == null) {
+            spawnPos = ws.getTopSolidOrLiquidBlock(villageCenter);
+        }
+
+        EntityTravellerMerchant m = new EntityTravellerMerchant(ws);
+        m.setHomeVillage(villageCenter);
+        m.setLocationAndAngles(
+                spawnPos.getX() + 0.5,
+                spawnPos.getY(),
+                spawnPos.getZ() + 0.5,
+                ws.rand.nextFloat() * 360f,
+                0
+        );
+
+        if (!ws.checkNoEntityCollision(m.getEntityBoundingBox())) return;
+        if (!ws.getCollisionBoxes(m, m.getEntityBoundingBox()).isEmpty()) return;
+
+        // Pre-seed travel route BEFORE spawning
+        TravelCommon tc = m.getTravelCommon();
+        tc.updateNearestVillage();      // ensure nearestVillage is filled
+        tc.ensureRoutePlanned();        // will set the first target village (not home)
+        tc.setReadyToDepart(true);      // let the travel AI move immediately
+        tc.setDepartCooldownTicks(0);
+
+        IEntityLivingData spawnData =
+                createCultureSpawnDataForPos(ws, spawnPos, ws.rand);
+        m.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+
+        ws.spawnEntity(m);
+    }
+
+
+
+    @Nullable
+    private static BlockPos findGroundSpawnNear(WorldServer ws, BlockPos origin, int radius) {
+        Random r = ws.rand;
+
+        for (int tries = 0; tries < 30; tries++) {
+            int dx = r.nextInt(radius * 2 + 1) - radius;
+            int dz = r.nextInt(radius * 2 + 1) - radius;
+
+            BlockPos guess = origin.add(dx, 0, dz);
+
+            // Don't load chunks
+            if (!ws.getChunkProvider().chunkExists(guess.getX() >> 4, guess.getZ() >> 4)) continue;
+
+            // Find topmost solid block at this column
+            BlockPos ground = ws.getTopSolidOrLiquidBlock(guess);
+
+            // Probe downward until we find a standable spot
+            for (int dy = 0; dy < 5; dy++) {
+                BlockPos p = ground.down(dy);
+
+                if (isStandable(p, ws)) {
+                    return p;
+                }
+            }
+        }
+        return null;
+    }
+    private static boolean isStandable(BlockPos pos, WorldServer w) {
+        if (!w.isBlockLoaded(pos) || !w.isBlockLoaded(pos.up())) return false;
+
+        // block below must be solid
+        BlockPos below = pos.down();
+        if (!w.getBlockState(below).isTopSolid()) return false;
+
+        // feet + head must be airlike
+        IBlockState feet = w.getBlockState(pos);
+        IBlockState head = w.getBlockState(pos.up());
+
+        if (!feet.getMaterial().isReplaceable()) return false;
+        if (!head.getMaterial().isReplaceable()) return false;
+
+        return true;
+    }
+    @Nullable
+    private static IEntityLivingData createCultureSpawnDataForPos(WorldServer ws, BlockPos pos, Random rand) {
+        if (!TravellersModConfig.travellerCultureWeightedSpawn) return null;
+
+        String cultureId = MillVillageIndex.pickCultureForTravellerSpawn(ws, pos, rand);
+        if (cultureId == null || cultureId.isEmpty()) return null;
+
+        // Same spawn data class you already use for normal travellers
+        return new EntityTraveller.SpawnData(cultureId);
+    }
+    private static void ensureVillageChunksLoaded(WorldServer ws, BlockPos center, int radiusChunks) {
+        int cx = center.getX() >> 4;
+        int cz = center.getZ() >> 4;
+
+        // WorldServer#getChunkProvider() returns IChunkProvider, cast to ChunkProviderServer
+        ChunkProviderServer cps = (ChunkProviderServer) ws.getChunkProvider();
+
+        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
+            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
+                // This will load or generate the chunk if needed
+                Chunk c = cps.provideChunk(cx + dx, cz + dz);
+                // you can ignore 'c', just forcing load is enough
+            }
+        }
+    }
+
+
 }

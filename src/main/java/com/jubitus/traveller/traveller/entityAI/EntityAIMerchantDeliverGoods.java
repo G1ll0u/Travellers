@@ -1,7 +1,11 @@
 package com.jubitus.traveller.traveller.entityAI;
 
+import com.jubitus.traveller.TravellersModConfig;
 import com.jubitus.traveller.traveller.travel.TravelCommon;
 import com.jubitus.traveller.traveller.utils.villages.MillVillageIndex;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockChest;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
@@ -10,6 +14,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.millenaire.common.buildingplan.BuildingPlan;
 import org.millenaire.common.config.MillConfigValues;
+import org.millenaire.common.forge.BuildingChunkLoader;
 import org.millenaire.common.item.InvItem;
 import org.millenaire.common.item.TradeGood;
 import org.millenaire.common.utilities.MillLog;
@@ -26,6 +31,15 @@ import java.util.Set;
 
 public class EntityAIMerchantDeliverGoods extends EntityAIBase {
 
+    private BlockPos townHallCenter;      // Center of the town hall
+    private boolean chestSearchDone = false; // Only search for chest once per visit
+
+    private BuildingChunkLoader chunkLoader;      // Millénaire chunk loader instance
+    private Building chunkLoaderTownHall;         // which TH this loader belongs to
+    private boolean villageChunksLoaded = false;  // our own flag
+    private BlockPos visitVillageCenter = null;
+    private boolean donatedThisVisit = false;
+
     private final EntityTravellerMerchant merchant;
     private final double speed;
 
@@ -37,6 +51,8 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
     private State state = State.IDLE;
 
     private int waitTicks = 0;
+
+
 
     // To avoid re-delivering repeatedly in same visit
     private BlockPos lastServicedVillage = null;
@@ -55,19 +71,32 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
 
         TravelCommon tc = merchant.getTravelCommon();
+
+        // 1) Use target village if present, otherwise fall back to nearestVillage
         BlockPos targetVillage = tc.getTargetVillage();
-        if (targetVillage == null) return false;
+        if (targetVillage == null) {
+            targetVillage = tc.getNearestVillage();
+        }
+        if (targetVillage == null) {
+            return false; // nowhere to donate
+        }
 
-        // Only when we've reached the village
-        if (!tc.isAtTargetStop()) return false;
-
-        // Avoid doing it twice for exactly same center without leaving
-        if (lastServicedVillage != null && lastServicedVillage.equals(targetVillage)
-                && !tc.isReadyToDepart()) {
+        // 2) Only run if we're actually inside that village's arrival radius
+        int r = tc.arrivalRadiusBlocks(targetVillage);
+        if (merchant.getDistanceSqToCenter(targetVillage) > (double) (r * r)) {
             return false;
         }
 
-        // Find Town Hall
+        // Per-visit tracking: new village ⇒ reset, same village & already donated ⇒ do nothing
+        if (visitVillageCenter == null || !visitVillageCenter.equals(targetVillage)) {
+            visitVillageCenter = targetVillage;
+            donatedThisVisit = false;
+        } else if (donatedThisVisit) {
+            // Already gifted this village for this visit, let travel AI handle departure
+            return false;
+        }
+
+        // ---------- Town hall lookup as before ----------
         World world = merchant.world;
         MillWorldData wd = MillVillageIndex.getWD(world);
         if (wd == null) return false;
@@ -86,38 +115,60 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         this.currentTownHall = th;
         this.currentVillageCenter = targetVillage;
 
-        // Decide where to walk: chestPos if present, else TH pos
-        Point chest = (th.location != null && th.location.chestPos != null)
-                ? th.location.chestPos
-                : th.getPos();
+        // Use the *building center* as the logical target, not chestPos
+        Point p = th.getPos();
+        this.townHallCenter = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
 
-        this.chestTarget = new BlockPos(chest.getiX(), chest.getiY(), chest.getiZ());
+        // Just find a standable spot near the center (radius 8)
+        BlockPos interior = findTownHallInteriorTarget(th);
+        if (interior == null) {
+            interior = this.townHallCenter;
+        }
+        this.chestTarget = interior;
+
+        // --- chunk loader block stays as you have it ---
+
         return true;
     }
-
     @Override
     public boolean shouldContinueExecuting() {
         if (state == State.IDLE) return false;
         if (merchant.isInCombat() || merchant.getAttackTarget() != null) return false;
 
-        // If we somehow left the village, abort
-        TravelCommon tc = merchant.getTravelCommon();
-        if (!tc.isAtTargetStop()) return false;
+        // If we somehow left the village bubble, abort
+        if (visitVillageCenter != null) {
+            int r = merchant.getTravelCommon().arrivalRadiusBlocks(visitVillageCenter);
+            if (merchant.getDistanceSqToCenter(visitVillageCenter) > (double) (r * r)) {
+                return false;
+            }
+        }
 
         return true;
     }
+
 
     @Override
     public void startExecuting() {
         state = State.WALKING;
         waitTicks = 0;
-        // Walk toward chest
-        merchant.getNavigator().tryMoveToXYZ(
-                chestTarget.getX() + 0.5,
-                chestTarget.getY(),
-                chestTarget.getZ() + 0.5,
-                speed
-        );
+        chestSearchDone = false; // new
+
+        merchant.getTravelCommon().setReadyToDepart(false);
+
+        // Load Millénaire chunks once per visit
+        if (!merchant.world.isRemote && chunkLoader != null && !villageChunksLoaded) {
+            chunkLoader.loadChunks();
+            villageChunksLoaded = true;
+        }
+
+        if (chestTarget != null) {
+            merchant.getNavigator().tryMoveToXYZ(
+                    chestTarget.getX() + 0.5,
+                    chestTarget.getY(),
+                    chestTarget.getZ() + 0.5,
+                    speed
+            );
+        }
     }
 
     @Override
@@ -126,8 +177,23 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         currentTownHall = null;
         chestTarget = null;
         currentVillageCenter = null;
+        townHallCenter = null;
+        chestSearchDone = false;
         waitTicks = 0;
         merchant.getNavigator().clearPath();
+
+        // Allow travel AI to take over again even on failure
+        if (!merchant.world.isRemote) {
+            TravelCommon tc = merchant.getTravelCommon();
+            tc.setReadyToDepart(true);
+            tc.setDepartCooldownTicks(0);
+        }
+
+        // If this behaviour is cancelled, clean up chunks
+        if (!merchant.world.isRemote && chunkLoader != null && villageChunksLoaded) {
+            chunkLoader.unloadChunks();
+            villageChunksLoaded = false;
+        }
     }
 
     @Override
@@ -148,16 +214,59 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
     }
 
     private void tickWalking() {
-        if (chestTarget == null) {
+        if (chestTarget == null || currentTownHall == null) {
             state = State.IDLE;
             return;
         }
 
+        // --- 1) When we enter radius 8 around the town hall center,
+        //        search for a chest once.
+        if (!chestSearchDone && townHallCenter != null) {
+            double distToCenterSq = merchant.getDistanceSqToCenter(townHallCenter);
+            if (distToCenterSq <= 16.0D * 16.0D) { // inside radius 8
+                chestSearchDone = true;
+
+                BlockPos chest = findFirstTownHallChest(townHallCenter, 8);
+
+                if (chest != null) {
+                    // Try to path to this chest
+                    boolean pathOk = merchant.getNavigator().tryMoveToXYZ(
+                            chest.getX() + 0.5,
+                            chest.getY(),
+                            chest.getZ() + 0.5,
+                            speed
+                    );
+
+                    if (pathOk) {
+                        // Now our final movement target is the chest
+                        chestTarget = chest;
+                        // keep WALKING, donation will happen when close to chest
+                    } else {
+                        // ❗ Chest is unpathable → just donate right here
+                        state = State.DELIVERING;
+                        return;
+                    }
+                } else {
+                    // ❗ No chest found in radius → just donate here
+                    state = State.DELIVERING;
+                    return;
+                }
+            }
+        }
+
+        // --- 2) Normal walking logic to whatever current chestTarget is
         double d2 = merchant.getDistanceSqToCenter(chestTarget);
-        if (d2 <= 3.0D) { // close enough
+        if (d2 <= 5.0D) { // close enough to chest OR standable center
             state = State.DELIVERING;
         } else if (merchant.getNavigator().noPath()) {
-            // Re-path occasionally if stuck
+            // ❗ NEW: if we've already done chest search and have no path,
+            //         give up on the chest and donate anyway.
+            if (chestSearchDone) {
+                state = State.DELIVERING;
+                return;
+            }
+
+            // Haven't searched yet / still heading to interior target: try re-path
             merchant.getNavigator().tryMoveToXYZ(
                     chestTarget.getX() + 0.5,
                     chestTarget.getY(),
@@ -167,6 +276,7 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
     }
 
+
     private void tickDelivering() {
         if (currentTownHall == null) {
             state = State.IDLE;
@@ -174,24 +284,32 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
 
         donateToVillageConstruction(this.currentTownHall);
+
+        donatedThisVisit = true;   // ← per-visit gate
+
         // After one delivery cycle, wait a bit, then let travel AI take over
         waitTicks = 8 * 20; // 8 seconds; tweak
         state = State.WAITING;
-
-        // Mark that we handled this village this visit
-        if (currentVillageCenter != null) {
-            lastServicedVillage = currentVillageCenter;
-        }
-
-        // Tell TravelCommon that we’re ready to leave after the idle time
-        merchant.getTravelCommon().setReadyToDepart(true);
     }
+
 
     private void tickWaiting() {
         if (--waitTicks <= 0) {
+            TravelCommon tc = merchant.getTravelCommon();
+            tc.setReadyToDepart(true);
+            tc.setDepartCooldownTicks(0);
+
+            // Visit done → unload village chunks
+            if (!merchant.world.isRemote && chunkLoader != null && villageChunksLoaded) {
+                chunkLoader.unloadChunks();
+                villageChunksLoaded = false;
+            }
+
             state = State.IDLE;
         }
     }
+
+
 
     /**
      * Merchant "magically" donates goods directly to the Town Hall,
@@ -266,6 +384,7 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
 
 
 
+
     // ------------------------
     // Helpers
     // ------------------------
@@ -289,153 +408,58 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
         return null;
     }
-    /**
-     * Compute construction-only material needs for the given Town Hall.
-     * Looks only at building plans (current goal + constructions in progress),
-     * and ignores trade stock, export buffers, villager food, etc.
-     *
-     * Returns a map of InvItem -> number of items still missing.
-     */
-    private Map<InvItem, Integer> computeConstructionNeeds(Building townHall) {
-        Map<InvItem, Integer> needs = new HashMap<>();
 
-        if (townHall == null || townHall.culture == null) {
-            return needs;
-        }
+    @Nullable
+    private BlockPos findTownHallInteriorTarget(Building th) {
+        TravelCommon tc = merchant.getTravelCommon();
 
-        // --- 1) Collect all InvItems used by any *active* construction (buildings, walls, etc.) ---
+        if (th == null) return null;
 
-        Set<InvItem> constructionKeys = new HashSet<>();
+        // Always use the building center, not chestPos
+        Point centerP = th.getPos();
+        BlockPos center = new BlockPos(centerP.getiX(), centerP.getiY(), centerP.getiZ());
 
-        // Current building goal
-        BuildingPlan goal = townHall.getCurrentGoalBuildingPlan();
-        if (goal != null && goal.resCost != null) {
-            constructionKeys.addAll(goal.resCost.keySet());
-        }
-
-        // Constructions in progress (includes walls, gateways, etc.)
-        for (ConstructionIP cip : townHall.getConstructionsInProgress()) {
-            if (cip == null || cip.getBuildingLocation() == null) continue;
-            BuildingPlan plan = cip.getBuildingLocation().getPlan();
-            if (plan == null || plan.resCost == null) continue;
-
-            constructionKeys.addAll(plan.resCost.keySet());
-        }
-
-        if (constructionKeys.isEmpty()) {
-            // No active constructions → nothing to donate
-            return needs;
-        }
-
-        // --- 2) Ask Millénaire how many of each trade good is needed,
-        //         but keep only those goods that are actually used in constructions. ---
-
-        for (TradeGood good : townHall.culture.goodsList) {
-            InvItem inv = good.item;
-            if (inv == null || inv.getItem() == null) continue;
-
-            // Check if this trade good is used by ANY active construction plan
-            boolean usedInConstruction = false;
-            for (InvItem key : constructionKeys) {
-                if (key != null && key.matches(inv)) {
-                    usedInConstruction = true;
-                    break;
+        final int radius = 16; // search radius around the town hall center
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                BlockPos guess = center.add(dx, 0, dz);
+                BlockPos stand = tc.topStandable(guess);
+                if (stand != null) {
+                    return stand;
                 }
             }
-            if (!usedInConstruction) {
-                continue;
-            }
-
-            // Let Millénaire compute "how many more of this item the village wants"
-            int missing = townHall.nbGoodNeeded(inv.getItem(), inv.meta);
-            if (missing > 0) {
-                needs.put(inv, missing);
-            }
         }
 
-        return needs;
+        // Fallback: try directly above the center
+        return tc.topStandable(center);
     }
-
     /**
-     * For a given plan, compute what is *still missing* in storage
-     * based purely on resCost and what we’ve already allocated
-     * for previous plans.
+     * Find the first chest within radius around a center.
+     * Used once when the merchant enters radius 8 of the town hall.
      */
-    private void accumulatePlanConstructionNeeds(
-            Building townHall,
-            BuildingPlan plan,
-            Map<InvItem, Integer> needs,
-            Map<InvItem, Integer> allocated
-    ) {
-        for (Map.Entry<InvItem, Integer> e : plan.resCost.entrySet()) {
-            InvItem key = e.getKey();
-            int required = e.getValue();
-            if (required <= 0 || key == null || key.getItem() == null) {
-                continue;
-            }
+    @Nullable
+    private BlockPos findFirstTownHallChest(BlockPos center, int radius) {
+        if (center == null) return null;
 
-            int totalHave = townHall.countGoods(key.getItem(), key.meta);
-            int alreadyAllocated = allocated.getOrDefault(key, 0);
+        World w = merchant.world;
 
-            int usableForThisPlan = Math.max(totalHave - alreadyAllocated, 0);
-            int missingForThisPlan = Math.max(required - usableForThisPlan, 0);
+        // Search a low vertical band around the town hall
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    BlockPos pos = center.add(dx, dy, dz);
+                    IBlockState state = w.getBlockState(pos);
+                    Block block = state.getBlock();
 
-            if (missingForThisPlan > 0) {
-                needs.merge(key, missingForThisPlan, Integer::sum);
-            }
-
-            int usedNow = Math.min(required, usableForThisPlan);
-            if (usedNow > 0) {
-                allocated.put(key, alreadyAllocated + usedNow);
-            }
-        }
-    }
-
-    /**
-     * Decide how many of a given item to donate, based on how many are still missing.
-     *
-     * Rules:
-     *  - Base amount: about 1/12 of the missing amount (ceil).
-     *  - If item is maxStack == 1 (banners/tools/etc): at least about 1/8 of missing.
-     *  - If item is maxStack >= 64 (bulk blocks): at least 64 if missing >= 64.
-     *  - Never exceed the missing amount.
-     */
-    private int computeDonationAmount(Item item, int meta, int missing) {
-        if (item == null || missing <= 0) {
-            return 0;
-        }
-
-        // Probe stack to detect stack size
-        ItemStack probe = new ItemStack(item, 1, meta);
-        int maxStack = probe.getMaxStackSize(); // in 1.12: probe.func_77976_d()
-
-        // Base: ~1/12th of missing (ceil)
-        int base = (missing + 11) / 12;
-        if (base < 1) base = 1;
-        int toGive = base;
-
-        if (maxStack == 1) {
-            // "Banner-like" (non-stackable) items:
-            // ~1/8 of missing, at least 1.
-            int bannersBase = (missing + 7) / 8;
-            if (bannersBase < 1) bannersBase = 1;
-            toGive = Math.max(toGive, bannersBase);
-        } else if (maxStack >= 64) {
-            // Bulk resources (planks, stone, etc.)
-            if (missing >= 64) {
-                toGive = Math.max(toGive, 64);
-            } else {
-                // If missing < 64, just aim to fill the gap completely
-                toGive = Math.max(toGive, missing);
+                    // 1.12: BlockChest is the chest block type
+                    if (block instanceof BlockChest) {
+                        return pos;
+                    }
+                }
             }
         }
 
-        // Never give more than what's missing
-        if (toGive > missing) {
-            toGive = missing;
-        }
-
-        return Math.max(1, toGive);
+        return null;
     }
 
 }

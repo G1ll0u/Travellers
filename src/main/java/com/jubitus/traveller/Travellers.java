@@ -8,8 +8,7 @@ import com.jubitus.traveller.traveller.pathing.TravellerChunkManager;
 import com.jubitus.traveller.traveller.render.ClientProxy;
 import com.jubitus.traveller.traveller.utils.TravellerSpawnGuards;
 import com.jubitus.traveller.traveller.utils.commands.*;
-import com.jubitus.traveller.traveller.utils.debug.FollowTravellerClient;
-import com.jubitus.traveller.traveller.utils.debug.TravellerFollowNet;
+import com.jubitus.traveller.traveller.utils.debug.*;
 import com.jubitus.traveller.traveller.utils.mobs.MobTargetInjector;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.server.MinecraftServer;
@@ -26,8 +25,11 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
+import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import net.minecraftforge.fml.common.registry.EntityRegistry;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
+import net.minecraftforge.fml.relauncher.Side;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -40,7 +42,8 @@ public class Travellers {
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
     @Mod.Instance(Reference.MOD_ID)
     public static Travellers INSTANCE;
-
+    public static final SimpleNetworkWrapper NETWORK =
+            NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
     @SubscribeEvent
     public static void onMouse(MouseEvent e) {
         if (!FollowTravellerClient.isActive()) return;
@@ -49,7 +52,7 @@ public class Travellers {
             e.setCanceled(true); // block attack/use while following
         }
     }
-
+    private static int nextId = 0;
     @Mod.EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandSpawnTraveller());
@@ -66,7 +69,7 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerInfo());
         event.registerServerCommand(new CommandTravellerMerchantDebug());
         event.registerServerCommand(new CommandVillageNeeds());
-
+        event.registerServerCommand(new TravellerCommandChunks());
     }
 
     @Mod.EventHandler
@@ -87,6 +90,19 @@ public class Travellers {
         if (event.getSide().isClient()) {
             ClientProxy.registerRenderers();
         }
+        NETWORK.registerMessage(
+                PacketTravellerChunks.Handler.class,
+                PacketTravellerChunks.class,
+                nextId++,
+                Side.CLIENT
+        );
+
+        NETWORK.registerMessage(
+                PacketTravellerChunksRequest.Handler.class,
+                PacketTravellerChunksRequest.class,
+                nextId++,
+                Side.SERVER
+        );
 
         // --- Register traveller entities if enabled in config ---
         if (TravellersModConfig.enableTravellerEntity) {
@@ -109,7 +125,7 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller_merchant",   // old name, no colon
                     5,                                          // <-- NEW unique numeric ID
                     this,
-                    32,                                        // tracking range (match normal traveller)
+                    256,                                        // tracking range (match normal traveller)
                     1,                                          // update frequency
                     true,                                       // send velocity updates
                     0xC0A060,                                   // egg primary colour (optional)

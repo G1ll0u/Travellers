@@ -136,20 +136,20 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             double d2 = mob.getDistanceSq(e);
             boolean see = mob.getEntitySenses().canSee(e);
 
-            // within start band, LOS not required
-            boolean inBand = (d2 <= closeStartSq);
-            boolean inNormal = d2 <= effRangeSq && (!requireLOS || see);
+// within start band, but still respect LOS if required
+            boolean inBand   = (d2 <= closeStartSq) && (!requireLOS || see);
+            boolean inNormal = (d2 <= effRangeSq)    && (!requireLOS || see);
 
             if (inBand || inNormal) {
                 if (d2 < best) {
                     best = d2;
                     pick = e;
-                    // If it's *very* close, don't bother scanning further
                     if (d2 <= (0.25 * closeStartSq)) {
-                        break; // early win
+                        break;
                     }
                 }
             }
+
         }
 
         if (pick == null) return false;
