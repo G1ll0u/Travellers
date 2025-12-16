@@ -107,19 +107,34 @@ repositories {
         name 'CleanroomMC Maven'
         url 'https://maven.cleanroommc.com'
     }
+    flatDir {
+        dirs 'libs'
+    }
 }
 
 dependencies {
     dependencies {
+        // JetBrains annotations as before
         implementation 'org.jetbrains:annotations:24.0.1'
-        implementation files("libs/millenaire-8.1.2.jar")
+
+        // 👉 Local mod jar (dev jar)
+        implementation files('libs/millenaire-8.1.2.jar')
+        implementation files('libs/millmix-1.1.6.jar')
+        implementation files('libs/DramaticTrees-1.12.2-0.13.4.jar')
+
+        // If the sources jar is named "millenaire-8.1.2-sources.jar"
+        // and sits in the same 'libs' folder, most IDEs will attach it automatically.
+        // You do NOT need a separate dependency line for it.
+
+        // JEI
+        implementation 'mezz:jei:4.29.12'
 
         // Common:
         annotationProcessor 'org.ow2.asm:asm-debug-all:5.2'
         annotationProcessor 'com.google.guava:guava:32.1.2-jre'
         annotationProcessor 'com.google.code.gson:gson:2.8.9'
 
-        // ForgeGradle:
+        // ForgeGradle / mixinbooter:
         implementation ('zone.rong:mixinbooter:9.1') {
             transitive = false
         }
@@ -129,7 +144,6 @@ dependencies {
 
         // RetroFuturaGradle:
         String mixinBooter = modUtils.enableMixins('zone.rong:mixinbooter:9.1')
-        // modUtils.enableMixins('zone.rong:mixinbooter:9.1', 'mod_id.mixins.refmap.json') << add refmap name as 2nd arg (optional)
         api (mixinBooter) {
             transitive = false
         }

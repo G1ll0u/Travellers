@@ -1,0 +1,13 @@
+{
+	"package": "com.jubitus.travellers",
+	"required": true,
+	"refmap": "mixins.travellers.refmap.json",
+	"target": "@env(DEFAULT)",
+	"minVersion": "0.8.5",
+	"compatibilityLevel": "JAVA_8",
+	"mixins": [
+		"utils.world.mill.MixinSummon"
+	],
+	"server": [],
+	"client": []
+}

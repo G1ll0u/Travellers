@@ -1,6 +1,24 @@
+# Travellers 1.2.0
+THE HENCHMAN UPDATE
+
+This is again a really big update
+
+This update is the one that really brings life to your world, it adds an entity that REALLY travel between villages without disappearing.
+
+
+### Henchman
+This update brings a new traveller variation named "henchman" (travellers:traveller_worker) this guy will spawn at villages and also travel. The difference between normal travellers is that he really travel even far from player (by loading chunks)
+
+By default, this guy interacts with villages by giving things needed by the village for construction (1% of one of items needed, configurable in .cfg).
+You can right-click on it to open the menu. You can send him sell (or donate) goods for you to a village.
+You can also hire him to make him a follower. You will be able to make him a leader and :
+- Making him leader makes all your followers follow him as if he was you
+  - You can make multiple groups :
+    - If you have multiple followers, set one of them leader and they will folloe
+- Hire other people and you'll be able to make another leader
+
 # Travellers 1.1.0
 **NOW CONFIG WILL BE LOCATED IN A NEW FOLDER AT `/config/travellers/travellers.cfg`**
-**OLD /config/travellers.cfg FILE WILL BE DELETED AT LAUNCH TO AVOID CONFUSION**
 
 **This is a really big update !**
 

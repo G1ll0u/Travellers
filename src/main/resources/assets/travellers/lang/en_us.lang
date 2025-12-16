@@ -1,4 +1,29 @@
 entity.travellers.traveller.name=Traveller
+entity.travellers.traveller_merchant.name=Merchant
+entity.travellers.traveller_worker.name=Henchman
 entity.travellers.traveller_raider.name=Raider
-travellers.worker.title=What should I give to village ?
-travellers.worker.send=Send
+travellers.worker.title=Transaction
+travellers.worker.send=Sell
+travellers.worker.not_enough_money=You need %s for this trip.
+travellers.worker.cost=Travel cost: %s
+travellers.worker.cost_unknown=Travel cost: (validate)
+travellers.worker.validate=Validate
+travellers.worker.donate=Donate
+
+
+travellers.worker.hub.title=Traveller Options
+travellers.worker.hub.transport=Transport
+travellers.worker.hub.follow=Orders
+travellers.worker.follow.title=Follower Options
+travellers.worker.orders.hire=Hire (2a)
+travellers.worker.orders.unhire=Unhire
+travellers.worker.orders.hired_other=Hired by somebody
+travellers.worker.follow.hired_success=The traveller is now following you.
+travellers.worker.follow.unhired_success=The traveller will no longer follow you.
+travellers.worker.follow.not_enough_money=You don't have enough money.
+travellers.worker.follow.hired_by_other=This traveller is already hired by someone else.
+travellers.worker.hub.inventory=Inventory
+travellers.worker.orders.make_leader=Make leader
+travellers.worker.orders.follow_on=Follow: ON
+travellers.worker.orders.follow_off=Follow: OFF
+travellers.worker.inventory.title=Personal inventory
