@@ -122,8 +122,8 @@ public class EntityTraveller extends EntityCreature {
     private static final DataParameter<Integer> TEXTURE_INDEX = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.VARINT);
     // ---- GAP / CLIFF handling ----
     private static final String GHOST_SWORD_TAG = "MillmixGhostSword";
-    static final java.util.UUID SWIM_BOOST_UUID =
-            java.util.UUID.fromString("b3b1a5ee-9c12-4e6f-a7e4-1c4ef2f35d61");
+    static final UUID SWIM_BOOST_UUID =
+            UUID.fromString("b3b1a5ee-9c12-4e6f-a7e4-1c4ef2f35d61");
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
     private static final int ARRIVE_IN = Math.max(8, TravellersModConfig.VILLAGE_NEAR - 4); // e.g., 28 if near=32
     private static final int ARRIVE_OUT = TravellersModConfig.VILLAGE_NEAR + 4;              // e.g., 36
@@ -138,11 +138,11 @@ public class EntityTraveller extends EntityCreature {
     public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     // --- Camp join cooldown (prevents placing a fire right after resting) ---
     private final TravellerCamp camp = new TravellerCamp(this);
-    private final java.util.Map<java.util.UUID, Threat> threatMap = new java.util.HashMap<>();
-    private final java.util.Map<java.util.UUID, HitGrace> playerGrace = new java.util.HashMap<>();
-    private final java.util.Map<java.util.UUID, Integer> playerLastAggroTick = new java.util.HashMap<>();
+    private final Map<UUID, Threat> threatMap = new java.util.HashMap<>();
+    private final Map<UUID, HitGrace> playerGrace = new java.util.HashMap<>();
+    private final Map<UUID, Integer> playerLastAggroTick = new java.util.HashMap<>();
     // per-player last hello tick (server-authoritative)
-    private final java.util.Map<java.util.UUID, Integer> lastHelloTickByPlayer = new java.util.HashMap<>();
+    private final Map<UUID, Integer> lastHelloTickByPlayer = new java.util.HashMap<>();
     // ---- GAP / CLIFF handling control ----
     private final boolean wasInWater = false;
     private final int noPathTicks = 0;
@@ -189,7 +189,7 @@ public class EntityTraveller extends EntityCreature {
     private boolean suppressCompanionSpawn = false;  // set for eggs/commands/etc.
     private int farFromPlayersTicks = 0;
     @Nullable
-    private java.util.UUID chasingPlayerId = null;
+    private UUID chasingPlayerId = null;
     @Nullable
     private UUID dogId = null;
     private int currentFollowers = 0;
@@ -390,7 +390,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public boolean isFishingRodLike(ItemStack s) {
-        return !s.isEmpty() && s.getItem() instanceof net.minecraft.item.ItemFishingRod;
+        return !s.isEmpty() && s.getItem() instanceof ItemFishingRod;
     }
 
     public ItemStack makeGhostRod(ItemStack src) {
@@ -534,7 +534,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private boolean isBowLike(ItemStack s) {
-        return !s.isEmpty() && s.getItem() instanceof net.minecraft.item.ItemBow;
+        return !s.isEmpty() && s.getItem() instanceof ItemBow;
     }
 
     public ItemStack findBowInBackpackPublic() {
@@ -624,7 +624,7 @@ public class EntityTraveller extends EntityCreature {
                 processor.setCanSwim(true); // example
             }
             try {
-                this.setPathPriority(net.minecraft.pathfinding.PathNodeType.valueOf("ICE"), 0.0F);
+                this.setPathPriority(PathNodeType.valueOf("ICE"), 0.0F);
             } catch (IllegalArgumentException ignored) {
 
             }
@@ -956,7 +956,7 @@ public class EntityTraveller extends EntityCreature {
             if (isAimingBow()) {
                 // Only cancel if the thing we're using is a bow, so eating stays intact
                 ItemStack hand = this.getHeldItemMainhand();
-                if (!hand.isEmpty() && hand.getItem() instanceof net.minecraft.item.ItemBow) {
+                if (!hand.isEmpty() && hand.getItem() instanceof ItemBow) {
                     resetActiveHand();
                 }
                 setAimingBow(false);
@@ -1031,7 +1031,7 @@ public class EntityTraveller extends EntityCreature {
             if (dogId != null) compound.setUniqueId("DogId", dogId);
             compound.setTag("TravellerInv", inventory.serializeNBT());
             if (travelCommon.getTargetVillage() != null)
-                compound.setTag("TargetVillage", net.minecraft.nbt.NBTUtil.createPosTag(travelCommon.getTargetVillage()));
+                compound.setTag("TargetVillage", NBTUtil.createPosTag(travelCommon.getTargetVillage()));
             if (travelCommon.getCurrentWaypoint() != null)
                 compound.setIntArray("CurrentWaypoint", new int[]{travelCommon.getCurrentWaypoint().getX(), travelCommon.getCurrentWaypoint().getY(), travelCommon.getCurrentWaypoint().getZ()});
             if (travelCommon.getRoamTarget() != null)
@@ -1154,7 +1154,7 @@ public class EntityTraveller extends EntityCreature {
 
         // Build and shuffle slot order to avoid early-slot bias
         int n = inventory.getSlots();
-        java.util.List<Integer> slots = new java.util.ArrayList<>(n);
+        List<Integer> slots = new java.util.ArrayList<>(n);
         for (int i = 0; i < n; i++) slots.add(i);
         java.util.Collections.shuffle(slots, rand);
 
@@ -1661,7 +1661,7 @@ public class EntityTraveller extends EntityCreature {
             } catch (Throwable ignored) {
             }
 
-            net.minecraft.util.ResourceLocation rl = Item.REGISTRY.getNameForObject(it);
+            ResourceLocation rl = Item.REGISTRY.getNameForObject(it);
             return rl == null || !rl.getPath().toLowerCase(java.util.Locale.ROOT).contains("axe");
         }
         return false;
@@ -1719,11 +1719,11 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private double getAttackDamage(ItemStack s, EntityEquipmentSlot slot) {
-        com.google.common.collect.Multimap<String, net.minecraft.entity.ai.attributes.AttributeModifier> map =
+        Multimap<String, AttributeModifier> map =
                 s.getAttributeModifiers(slot);
         double sum = 0.0;
-        for (net.minecraft.entity.ai.attributes.AttributeModifier m :
-                map.get(net.minecraft.entity.SharedMonsterAttributes.ATTACK_DAMAGE.getName())) {
+        for (AttributeModifier m :
+                map.get(SharedMonsterAttributes.ATTACK_DAMAGE.getName())) {
             if (m.getOperation() == 0) sum += m.getAmount(); // ADDITION only
         }
         return sum;
@@ -2194,7 +2194,7 @@ public class EntityTraveller extends EntityCreature {
         if (!weapon.isEmpty() && target instanceof EntityLivingBase) {
             EntityLivingBase victim = (EntityLivingBase) target;
             // 1.12 helper that returns the total bonus vs that creature
-            damage += net.minecraft.enchantment.EnchantmentHelper.getModifierForCreature(weapon, victim.getCreatureAttribute());
+            damage += EnchantmentHelper.getModifierForCreature(weapon, victim.getCreatureAttribute());
         }
 
         // Perform the hit
@@ -2227,7 +2227,7 @@ public class EntityTraveller extends EntityCreature {
         }
 
         // Fire Aspect
-        int fire = net.minecraft.enchantment.EnchantmentHelper.getFireAspectModifier(this);
+        int fire = EnchantmentHelper.getFireAspectModifier(this);
         if (fire > 0) {
             target.setFire(fire * 4); // same timing vanilla uses
         }
@@ -2313,7 +2313,7 @@ public class EntityTraveller extends EntityCreature {
             boat.setDead(); // kill the boat, no leftovers
         }
         if (attr != null) {
-            net.minecraft.entity.ai.attributes.AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
+            AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
             if (m != null) attr.removeModifier(m);
         }
 
@@ -2539,7 +2539,7 @@ public class EntityTraveller extends EntityCreature {
 
 
 
-    public BlockPos weightedPickInRange(java.util.List<BlockPos> list, BlockPos origin,
+    public BlockPos weightedPickInRange(List<BlockPos> list, BlockPos origin,
                                         int from, int to, double bias) {
         if (from >= to) return null;
         double total = 0;
@@ -2586,7 +2586,7 @@ public class EntityTraveller extends EntityCreature {
         else {
             // Non-travellers: allow if raider says they’re extra-hostile
             if (!shouldAttackExtraEntity(e)) {
-                if (!(e instanceof net.minecraft.entity.monster.IMob)) return;
+                if (!(e instanceof IMob)) return;
             }
         }
 
@@ -2762,7 +2762,7 @@ public class EntityTraveller extends EntityCreature {
 
                     } else {
                         // Non-travellers: IMob or extra
-                        if (!this.shouldAttackExtraEntity(e) && !(e instanceof net.minecraft.entity.monster.IMob)) {
+                        if (!this.shouldAttackExtraEntity(e) && !(e instanceof IMob)) {
                             return false;
                         }
                     }
@@ -2871,16 +2871,16 @@ public class EntityTraveller extends EntityCreature {
 
     public boolean hasBowAnywherePublic() {
         ItemStack hand = this.getHeldItemMainhand();
-        boolean handBow = !hand.isEmpty() && hand.getItem() instanceof net.minecraft.item.ItemBow;
+        boolean handBow = !hand.isEmpty() && hand.getItem() instanceof ItemBow;
         return handBow || hasBowInBackpack();
     }
 
     /**
      * Increments the hit counter for this player and returns true while still under grace.
      */
-    public boolean notePlayerHitAndIsStillGrace(net.minecraft.entity.player.EntityPlayer p) {
+    public boolean notePlayerHitAndIsStillGrace(EntityPlayer p) {
         final int now = this.ticksExisted;
-        final java.util.UUID id = p.getUniqueID();
+        final UUID id = p.getUniqueID();
 
         HitGrace g = playerGrace.get(id);
         if (g == null || now > g.expiresAt) {
@@ -3141,7 +3141,7 @@ public class EntityTraveller extends EntityCreature {
     public boolean hasPlayerPassenger() {
         if (this.getPassengers().isEmpty()) return false;
         for (Entity e : this.getPassengers()) {
-            if (e instanceof net.minecraft.entity.player.EntityPlayer) return true;
+            if (e instanceof EntityPlayer) return true;
         }
         return false;
     }
@@ -3271,7 +3271,7 @@ public class EntityTraveller extends EntityCreature {
         if (world == null) return false;
 
         AxisAlignedBB box = this.getEntityBoundingBox().grow(radius, 2.0, radius);
-        java.util.List<EntityTraveller> peers = world.getEntitiesWithinAABB(
+        List<EntityTraveller> peers = world.getEntitiesWithinAABB(
                 EntityTraveller.class,
                 box,
                 e -> e != null
@@ -3630,5 +3630,19 @@ public class EntityTraveller extends EntityCreature {
 
         return true;
     }
+    public boolean offscreenHopTowardTarget(int stepBlocks) {
+        TravelCommon tc = this.getTravelCommon();
+        if (tc == null) return false;
+
+        BlockPos target = this.getTargetVillage();
+        if (target == null) return false;
+
+        // If you store the travel AI instance (you do in worker), expose it in base:
+        EntityAITravel ai = this.aiTravel; // adjust if your field name differs / protected
+        if (ai == null) return false;
+
+        return ai.teleportToward(target, stepBlocks);
+    }
+    public EntityAITravel getTravelAI() { return this.aiTravel; }
 
 }

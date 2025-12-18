@@ -6,7 +6,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-public class MsgToggleFollow implements net.minecraftforge.fml.common.network.simpleimpl.IMessage {
+public class MsgToggleFollow implements IMessage {
     public int targetId;  // <-- the Traveller's entity ID
 
     public MsgToggleFollow() {
@@ -27,10 +27,10 @@ public class MsgToggleFollow implements net.minecraftforge.fml.common.network.si
     }
 
     // client handler
-    public static class Handler implements net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler<MsgToggleFollow, net.minecraftforge.fml.common.network.simpleimpl.IMessage> {
+    public static class Handler implements IMessageHandler<MsgToggleFollow, IMessage> {
         @Override
-        public net.minecraftforge.fml.common.network.simpleimpl.IMessage onMessage(MsgToggleFollow msg,
-                                                                                   net.minecraftforge.fml.common.network.simpleimpl.MessageContext ctx) {
+        public IMessage onMessage(MsgToggleFollow msg,
+                                                                                   MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 if (msg.targetId < 0) {
                     FollowTravellerClient.disable();

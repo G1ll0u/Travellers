@@ -16,9 +16,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public final class CultureRegistry {
-    public static final java.util.Map<String, VoiceSet> TRAVELLER_VOICES = new java.util.HashMap<>();
-    public static final java.util.Map<String, VoiceSet> RAIDER_VOICES = new java.util.HashMap<>();
-    private static final java.util.Map<String, CultureDef> CULT = new java.util.LinkedHashMap<>();
+    public static final Map<String, VoiceSet> TRAVELLER_VOICES = new HashMap<>();
+    public static final Map<String, VoiceSet> RAIDER_VOICES = new HashMap<>();
+    private static final Map<String, CultureDef> CULT = new LinkedHashMap<>();
     private static final String DEFAULT_BIOME_KEY = "plains";
     private static final Map<String, Map<String, Integer>> BIOME_CULTURE_WEIGHTS = new HashMap<>();
     private static final Map<String, ItemStack> MILLENAIRE_ITEMS = new HashMap<>();
@@ -32,7 +32,7 @@ public final class CultureRegistry {
     public static void bootstrapAllMillenaireCultures() {
         if (bootstrapped) return; // optional now, but fine
 
-        java.util.List<File> roots = new java.util.ArrayList<>();
+        List<File> roots = new ArrayList<>();
 
         File base = detectMillenaireBaseCultures();
         if (base != null) roots.add(base);
@@ -102,12 +102,12 @@ public final class CultureRegistry {
     }
 
     private static void parseVillageBiomeTxt(String cultureId, File file) {
-        java.util.Set<String> biomeKeysInThisFile = new java.util.HashSet<>();
+        Set<String> biomeKeysInThisFile = new HashSet<>();
 
-        try (java.io.BufferedReader r = new java.io.BufferedReader(
-                new java.io.InputStreamReader(
-                        new java.io.FileInputStream(file),
-                        java.nio.charset.StandardCharsets.UTF_8))) {
+        try (BufferedReader r = new BufferedReader(
+                new InputStreamReader(
+                        new FileInputStream(file),
+                        StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = r.readLine()) != null) {
@@ -142,8 +142,8 @@ public final class CultureRegistry {
 
         // Each file contributes +1 per (culture, biome) it references
         for (String biomeKey : biomeKeysInThisFile) {
-            java.util.Map<String, Integer> byCulture =
-                    BIOME_CULTURE_WEIGHTS.computeIfAbsent(biomeKey, k -> new java.util.HashMap<>());
+            Map<String, Integer> byCulture =
+                    BIOME_CULTURE_WEIGHTS.computeIfAbsent(biomeKey, k -> new HashMap<>());
 
             int prev = byCulture.getOrDefault(cultureId, 0);
             byCulture.put(cultureId, prev + 1);
@@ -180,7 +180,7 @@ public final class CultureRegistry {
                 continue;
             }
 
-            if (!f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".txt")) continue;
+            if (!f.getName().toLowerCase(Locale.ROOT).endsWith(".txt")) continue;
 
             // Let parseVillagerTxt decide travellers vs raider usage.
             // It handles travellers excludes + raider includes.
@@ -202,7 +202,7 @@ public final class CultureRegistry {
         boolean excludedTravellerByTag = false;
 
         // Raiders: we use a whitelist. Track all tags in the file.
-        java.util.Set<String> tagsInFile = new java.util.HashSet<>();
+        Set<String> tagsInFile = new HashSet<>();
 
         String firstNameListId = null;
         String familyNameListId = null;
@@ -366,7 +366,7 @@ public final class CultureRegistry {
         if (baseTextures.isEmpty()) return;
 
         // === 4) Build appearance objects once ===
-        java.util.List<TravellerAppearance> built = new java.util.ArrayList<>();
+        List<TravellerAppearance> built = new ArrayList<>();
         for (String texStr : baseTextures) {
             ResourceLocation base = normalizeMillenaireTexture(texStr);
 
@@ -435,13 +435,13 @@ public final class CultureRegistry {
             File cultureDir = findCultureDirForVillagerFile(txt);
             if (cultureDir != null) {
                 if (firstNameListId != null) {
-                    java.util.List<String> firstNames = loadNameList(cultureDir, firstNameListId);
+                    List<String> firstNames = loadNameList(cultureDir, firstNameListId);
                     if (!firstNames.isEmpty()) {
                         culture.addMaleFirstNames(firstNames);
                     }
                 }
                 if (familyNameListId != null) {
-                    java.util.List<String> familyNames = loadNameList(cultureDir, familyNameListId);
+                    List<String> familyNames = loadNameList(cultureDir, familyNameListId);
                     if (!familyNames.isEmpty()) {
                         culture.addFamilyNames(familyNames);
                     }
@@ -470,14 +470,14 @@ public final class CultureRegistry {
      * /cultures/<cultureId>/namelists/<listId>.txt
      * One name per non-empty, non-comment line.
      */
-    private static java.util.List<String> loadNameList(File cultureDir, String listId) {
-        java.util.List<String> result = new java.util.ArrayList<>();
+    private static List<String> loadNameList(File cultureDir, String listId) {
+        List<String> result = new ArrayList<>();
         if (cultureDir == null || listId == null) return result;
 
         String fileName = listId.trim();
         if (fileName.isEmpty()) return result;
 
-        if (!fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".txt")) {
+        if (!fileName.toLowerCase(Locale.ROOT).endsWith(".txt")) {
             fileName = fileName + ".txt";
         }
 
@@ -490,10 +490,10 @@ public final class CultureRegistry {
 
         System.out.println("[Travellers] Loading namelist " + f.getAbsolutePath());
 
-        try (java.io.BufferedReader br = new java.io.BufferedReader(
-                new java.io.InputStreamReader(
-                        new java.io.FileInputStream(f),
-                        java.nio.charset.StandardCharsets.UTF_8))) {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(
+                        new FileInputStream(f),
+                        StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = br.readLine()) != null) {
@@ -510,7 +510,7 @@ public final class CultureRegistry {
         return result;
     }
 
-    public static String makeTravellerNameForCulture(String cultureId, java.util.Random r) {
+    public static String makeTravellerNameForCulture(String cultureId, Random r) {
         CultureDef def = CULT.get(cultureId);
         if (def == null) return "";
         return def.randomFullName(r);
@@ -528,7 +528,7 @@ public final class CultureRegistry {
         return new ResourceLocation("millenaire", path);
     }
 
-    public static java.util.Collection<CultureDef> all() {
+    public static Collection<CultureDef> all() {
         return CULT.values();
     }
 
@@ -617,8 +617,8 @@ public final class CultureRegistry {
         return pickRandomId(rand);
     }
 
-    public static String pickRandomId(java.util.Random r) {
-        java.util.List<String> ids = new java.util.ArrayList<>(CULT.keySet());
+    public static String pickRandomId(Random r) {
+        List<String> ids = new ArrayList<>(CULT.keySet());
         if (ids.isEmpty()) return "default";
         return ids.get(r.nextInt(ids.size()));
     }
@@ -664,19 +664,12 @@ public final class CultureRegistry {
             }
         }
 
-        // 3) Optional debug log when nothing matches
-        if (net.minecraftforge.fml.common.FMLCommonHandler.instance().getSide().isServer()) {
-            System.out.println("[Travellers] No biome culture mapping for biome: " +
-                    biome.getBiomeName() + " (" + biome.getRegistryName() + ")" +
-                    " idPath=" + idPath);
-        }
-
         return null;
     }
 
 
     private static String normalizeBiomeKey(String s) {
-        return s == null ? "" : s.trim().toLowerCase(java.util.Locale.ROOT);
+        return s == null ? "" : s.trim().toLowerCase(Locale.ROOT);
     }
 
     public static Map<String, Map<String, Integer>> getBiomeWeights() {
@@ -693,8 +686,8 @@ public final class CultureRegistry {
         return baseRoot.isDirectory() ? baseRoot : null;
     }
 
-    public static java.util.List<File> detectMillenaireCustomCultureRoots() {
-        java.util.List<File> out = new java.util.ArrayList<>();
+    public static List<File> detectMillenaireCustomCultureRoots() {
+        List<File> out = new ArrayList<>();
 
         File mcDir = net.minecraftforge.fml.common.Loader.instance()
                 .getConfigDir()
@@ -734,7 +727,7 @@ public final class CultureRegistry {
             if (f.isDirectory()) {
                 if (hasAnyTxtRecursive(f)) return true;
             } else if (f.isFile()
-                    && f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".txt")) {
+                    && f.getName().toLowerCase(Locale.ROOT).endsWith(".txt")) {
                 return true;
             }
         }
@@ -767,7 +760,7 @@ public final class CultureRegistry {
                     File[] files = itemListRoot.listFiles();
                     if (files != null) {
                         for (File f : files) {
-                            if (f.isFile() && f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".txt")) {
+                            if (f.isFile() && f.getName().toLowerCase(Locale.ROOT).endsWith(".txt")) {
                                 parseMillenaireItemListFile(f);
                             }
                         }
@@ -848,10 +841,10 @@ public final class CultureRegistry {
         System.out.println("[Travellers] Parsing traded_goods for culture " + def.id +
                 " from " + tradedGoodsFile.getAbsolutePath());
 
-        try (java.io.BufferedReader r = new java.io.BufferedReader(
-                new java.io.InputStreamReader(
-                        new java.io.FileInputStream(tradedGoodsFile),
-                        java.nio.charset.StandardCharsets.UTF_8))) {
+        try (BufferedReader r = new BufferedReader(
+                new InputStreamReader(
+                        new FileInputStream(tradedGoodsFile),
+                        StandardCharsets.UTF_8))) {
 
             String line;
             while ((line = r.readLine()) != null) {
@@ -866,10 +859,10 @@ public final class CultureRegistry {
 
                 String category = "";
                 if (parts.length >= 10) {
-                    category = parts[9].trim().toLowerCase(java.util.Locale.ROOT);
+                    category = parts[9].trim().toLowerCase(Locale.ROOT);
                 }
 
-                ItemStack baseStack = MILLENAIRE_ITEMS.get(itemKey.toLowerCase(java.util.Locale.ROOT));
+                ItemStack baseStack = MILLENAIRE_ITEMS.get(itemKey.toLowerCase(Locale.ROOT));
                 if (baseStack == null || baseStack.isEmpty()) {
                     continue;
                 }

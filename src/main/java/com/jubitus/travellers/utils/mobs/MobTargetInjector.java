@@ -19,7 +19,7 @@ public class MobTargetInjector {
         if (e.getWorld().isRemote) return;
 
         Entity ent = e.getEntity();
-        if (!(ent instanceof net.minecraft.entity.EntityCreature)) return;
+        if (!(ent instanceof EntityCreature)) return;
         if (!(ent instanceof net.minecraft.entity.monster.IMob)) return;
 
 

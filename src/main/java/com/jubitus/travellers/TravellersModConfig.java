@@ -12,6 +12,11 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
+
+    public static boolean travellerOffscreenHopEnabled = true;
+    public static int travellerOffscreenHopIntervalTicks = 20 * 8; // 8s
+    public static int travellerOffscreenHopStepBlocks = 24;        // small hop
+
     public static double followerIdleJitterRadius = 0.25D;  // very small jitter when owner idle
     public static int    followerIdleRecalcTicks  = 24;     // slower path recalcs when owner idle
     public static double followerIdleStopRadius = 3.0D; // how close to owner to fully idle
@@ -64,21 +69,21 @@ public class TravellersModConfig {
     public static int workerVillageMinDistance   = 1200; // blocks between worker villages
 
     @Config.Comment("Maximum number of loaded travellers merchants in this world (0 = no limit)")
-    public static int merchantLoadedCap = 16;
+    public static int merchantLoadedCap = 1;
 
     @Config.Comment("Maximum number of loaded travellers workers in this world (0 = no limit)")
-    public static int workerLoadedCap = 16;
+    public static int workerLoadedCap = 1;
 
 // ---- worker population → workers per village ----
 
     @Config.Comment("Minimum Millénaire villagers before this village can get any travellers workers")
-    public static int workerMinPop = 16;
+    public static int workerMinPop = 120;
 
     @Config.Comment("Additional population required for each extra worker beyond the first")
-    public static int workerPopPerWorker = 10;
+    public static int workerPopPerWorker = 120;
 
     @Config.Comment("Maximum number of travellers workers per village")
-    public static int workerMaxPerVillage = 2;
+    public static int workerMaxPerVillage = 0;
 
     @Config.Comment("How often (ticks) we re-check villages for worker counts")
     public static int workerRecheckEveryTicks = 20*60*5;
@@ -117,17 +122,17 @@ public class TravellersModConfig {
     public static int merchantStepBlocks = 16;
 
     // Merchant spawn logic
-    public static int merchantMinPop = 8;
-    public static int merchantPopPerMerchant = 10;
-    public static int merchantMaxPerVillage = 2;
+    public static int merchantMinPop = 200;
+    public static int merchantPopPerMerchant = 200;
+    public static int merchantMaxPerVillage = 0;
     public static int merchantRecheckEveryTicks = 200;
 
 
     public static int merchantChunkRadius = 1;          // default radius per merchant
-    public static int merchantMaxForcedChunks = 1000;    // hard cap per world
+    public static int merchantMaxForcedChunks = 1;    // hard cap per world
     public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
     public static int merchantMaxChunkloadingMerchants = 256; // if many merchants, only first N get chunkloading
-    public static boolean merchantChunkloadingEnabled = true;
+    public static boolean merchantChunkloadingEnabled = false;
     // How big a slice of the total required amount the merchant tries to supply.
 // 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
     public static double merchantGiveFraction = 1.0D / 12.0D;
@@ -200,7 +205,7 @@ public class TravellersModConfig {
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "4.6"; // yes I always change ver when testing, that's stupid
+    private static final String CURRENT_VERSION = "4.8"; // yes I always change ver when testing, that's stupid
     public static boolean debug = false;
     public static boolean enableTravellerOpenFenceGates = true;
     public static boolean enableTravellerOpenDoors = true;
@@ -1599,20 +1604,20 @@ public class TravellersModConfig {
 
         workerMinPop = cfg.getInt(
                 "WorkerMinPop", "Soft spawn — Workers",
-                16, 0, 1024,
+                160, 0, 1024,
                 "Minimum Millénaire villagers required before a village can receive any travellers workers."
         );
 
         workerPopPerWorker = cfg.getInt(
                 "WorkerPopPerWorker", "Soft spawn — Workers",
-                12, 1, 1024,
+                120, 1, 1024,
                 "Additional Millénaire population required for each extra travellers worker beyond the first.\n" +
                         "Effective workers per village ≈ 1 + (population - workerMinPop) / workerPopPerWorker (clamped to workerMaxPerVillage)."
         );
 
         workerMaxPerVillage = cfg.getInt(
                 "WorkerMaxPerVillage", "Soft spawn — Workers",
-                1, 0, 16,
+                0, 0, 16,
                 "Maximum number of travellers workers assigned to a single village."
         );
 
@@ -1901,7 +1906,7 @@ public class TravellersModConfig {
 
     }
 
-    public static boolean isVillagerFileExcludedForTravellers(java.io.File file) {
+    public static boolean isVillagerFileExcludedForTravellers(File file) {
         if (file == null) return false;
         String name = file.getName().toLowerCase(java.util.Locale.ROOT);
         if (name.endsWith(".txt")) {
@@ -1910,7 +1915,7 @@ public class TravellersModConfig {
         return EXCLUDED_VILLAGER_FILES.contains(name);
     }
 
-    public static boolean isVillagerFileExcludedForRaiders(java.io.File file) {
+    public static boolean isVillagerFileExcludedForRaiders(File file) {
         if (file == null) return false;
         String name = file.getName().toLowerCase(java.util.Locale.ROOT);
         if (name.endsWith(".txt")) {

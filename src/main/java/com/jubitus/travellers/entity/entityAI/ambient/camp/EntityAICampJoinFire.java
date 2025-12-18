@@ -347,7 +347,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
         if (camp == null) return;
 
         // pick any travellers at this campcommon
-        java.util.List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(
+        List<EntityTraveller> peers = mob.world.getEntitiesWithinAABB(
                 EntityTraveller.class,
                 new AxisAlignedBB(camp).grow(6.0, 3.0, 6.0),
                 e -> e != null && e != mob && e.isEntityAlive() && camp.equals(e.getCampfirePos())

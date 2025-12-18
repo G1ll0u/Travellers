@@ -50,6 +50,8 @@ public final class TravellerSoftSpawner {
     private static int merchantTickCounter = 0;
     private static int workerTickCounter = 0;
 
+
+
     private TravellerSoftSpawner() {
     }
 
@@ -158,7 +160,7 @@ public final class TravellerSoftSpawner {
                         EntityTraveller probe = new EntityTraveller(ws);
                         probe.setLocationAndAngles(sx, sy, sz, 0f, 0f);
 
-                        net.minecraftforge.fml.common.eventhandler.Event.Result res =
+                        Event.Result res =
                                 net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(probe, ws, sx, sy, sz);
 
 

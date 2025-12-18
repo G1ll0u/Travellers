@@ -85,7 +85,7 @@ public final class MillenaireVillageDirectory {
     }
 
     public static synchronized java.util.Collection<Entry> getEntries() {
-        return new java.util.ArrayList<>(BY_POS.values());
+        return new ArrayList<>(BY_POS.values());
     }
 
     public static synchronized void reloadIfStale(File millenaireFolder) {

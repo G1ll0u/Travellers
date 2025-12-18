@@ -5,6 +5,7 @@ import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.entity.entityAI.ambient.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
@@ -66,7 +67,7 @@ import java.util.UUID;
 
 public class EntityTravellerWorker extends EntityTraveller {
     private static final double MOTION_EPSILON = 0.0004D;
-    private final java.util.Set<ChunkPos> forced = new java.util.HashSet<>();
+    private final Set<ChunkPos> forced = new java.util.HashSet<>();
     private static final DataParameter<Boolean> USING_TRAVEL_AI =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
 
@@ -194,10 +195,10 @@ public class EntityTravellerWorker extends EntityTraveller {
         removeTaskOfType(EntityAIRoamInsideVillage.class);
         removeTaskOfType(EntityAITravel.class);
         removeTaskOfType(EntityAIFollowTraveller.class);
-        removeTaskOfType(EntityAILookIdle.class);
         removeTaskOfType(EntityAICampJoinFire.class);
         removeTaskOfType(EntityAICampPause.class);
-
+        removeTaskOfType(EntityAIStopAndLookAtPlayer.class);
+        this.tasks.addTask(9, new EntityAIStopAndLookAtPlayer(this, 3.2D, 30.0F, 30.0F));
         this.targetTasks.addTask(0, new EntityAIOwnerHurtByTargetTraveller(this));
         this.targetTasks.addTask(1, new EntityAIOwnerHurtTargetTraveller(this));
         // Worker travel AI (for jobs)
@@ -206,7 +207,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 TravellersModConfig.movementSpeedWhileTravel * 0.85,
                 TravellersModConfig.workerStepBlocks
         );
-        this.tasks.addTask(9, aiTravel);
+        this.tasks.addTask(10, aiTravel);
 
         // Same donate goods AI as merchants
         this.tasks.addTask(12,

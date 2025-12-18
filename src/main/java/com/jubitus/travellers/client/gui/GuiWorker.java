@@ -41,7 +41,7 @@ public class GuiWorker extends GuiContainer {
 
     private int selectedIndex = -1;
 
-    private final java.util.List<VillageRow> villages = new java.util.ArrayList<>();
+    private final List<VillageRow> villages = new ArrayList<>();
 
 
 
@@ -422,7 +422,7 @@ public class GuiWorker extends GuiContainer {
 
         // 2) Fallback: if for some reason pops is empty, use raw centers
         if (villages.isEmpty()) {
-            java.util.List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(world);
+            List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(world);
             for (BlockPos center : centers) {
                 double dx = center.getX() + 0.5D - workerPos.getX();
                 double dz = center.getZ() + 0.5D - workerPos.getZ();
@@ -440,7 +440,7 @@ public class GuiWorker extends GuiContainer {
         }
 
         // 3) Sort by distance and update selection + button
-        villages.sort(java.util.Comparator.comparingInt(v -> v.distance));
+        villages.sort(Comparator.comparingInt(v -> v.distance));
 
         if (villages.isEmpty()) {
             selectedIndex = -1;
@@ -464,7 +464,7 @@ public class GuiWorker extends GuiContainer {
             this.villages.add(new VillageRow(centers.get(i), labels.get(i), distances.get(i)));
         }
 
-        this.villages.sort(java.util.Comparator.comparingInt(v -> v.distance));
+        this.villages.sort(Comparator.comparingInt(v -> v.distance));
 
         if (villages.isEmpty()) {
             this.selectedIndex = -1;

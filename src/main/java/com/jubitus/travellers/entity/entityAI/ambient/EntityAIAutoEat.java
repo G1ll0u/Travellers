@@ -217,7 +217,7 @@ public class EntityAIAutoEat extends EntityAIBase {
         double spread = 0.2D;
         double speed = 0.02D;
 
-        int itemId = net.minecraft.item.Item.getIdFromItem(item);
+        int itemId = Item.getIdFromItem(item);
         int meta = 0;
 
         if (mob.world instanceof net.minecraft.world.WorldServer) {
@@ -274,11 +274,11 @@ public class EntityAIAutoEat extends EntityAIBase {
 
     // simple food spec
     private static class FoodSpec {
-        final net.minecraft.item.Item item;
+        final Item item;
         final float healAmount;    // in half-hearts (1.0F = 1/2 heart)
         final int durationTicks;   // how long this bite takes
 
-        FoodSpec(net.minecraft.item.Item item, float healAmount, int durationTicks) {
+        FoodSpec(Item item, float healAmount, int durationTicks) {
             this.item = item;
             this.healAmount = Math.max(0F, healAmount);
             this.durationTicks = Math.max(6, durationTicks);

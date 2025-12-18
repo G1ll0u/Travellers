@@ -31,7 +31,7 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
                         net.minecraft.command.ICommandSender sender,
                         String[] args) throws net.minecraft.command.CommandException {
 
-        if (!(sender instanceof net.minecraft.entity.player.EntityPlayerMP)) {
+        if (!(sender instanceof EntityPlayerMP)) {
             return; // players only, nothing in chat
         }
 

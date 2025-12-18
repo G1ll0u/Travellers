@@ -28,8 +28,8 @@ public class EntityTravellerDog extends EntityWolf {
     private static final int ORPHAN_SIT_TICKS = 20 * 20;      // ~20s mourn
     private static final int ORPHAN_SCAN_COOLDOWN = 40;       // scan every 2s
     private static final double ADOPT_SCAN_RADIUS = 16.0D;    // search radius
-    private static final java.util.UUID SPEED_BOOST_UUID =
-            java.util.UUID.fromString("8a5f1c42-1c7f-4a63-9f3d-7f4b6d2a0a11");
+    private static final UUID SPEED_BOOST_UUID =
+            UUID.fromString("8a5f1c42-1c7f-4a63-9f3d-7f4b6d2a0a11");
     private final int orphanSinceTick = -1; // -1 = not orphaned / unknown yet
     // --- Orphan state ---
     private boolean orphaned = false;
@@ -120,7 +120,7 @@ public class EntityTravellerDog extends EntityWolf {
     protected void initEntityAI() {
         super.initEntityAI(); // keeps OwnerHurtByTarget, OwnerHurtTarget, sit, etc.
 
-        java.util.List<EntityAITasks.EntityAITaskEntry> copy =
+        List<EntityAITasks.EntityAITaskEntry> copy =
                 new java.util.ArrayList<>(this.tasks.taskEntries);
         for (EntityAITasks.EntityAITaskEntry e : copy) {
             if (e.action instanceof EntityAIFollowOwner) {
@@ -300,7 +300,7 @@ public class EntityTravellerDog extends EntityWolf {
      * Detect “true orphan”: has an owner UUID, but no living owner entity found.
      */
     private boolean isOrphanNow() {
-        java.util.UUID id = getOwnerId();
+        UUID id = getOwnerId();
         if (id == null) return false; // never had an owner → not our case
         EntityLivingBase resolved = getOwner(); // your override resolves travellers too
         return resolved == null; // couldn't find the entity in-world
@@ -311,7 +311,7 @@ public class EntityTravellerDog extends EntityWolf {
      */
     @Nullable
     public BlockPos pickNearestVillage() {
-        java.util.List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(this.world);
+        List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(this.world);
         if (centers == null || centers.isEmpty()) return null;
         BlockPos me = this.getPosition();
         BlockPos best = null;

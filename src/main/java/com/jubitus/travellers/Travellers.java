@@ -227,12 +227,12 @@ public class Travellers {
         }
 
         // Other event bus registrations
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(TravellerSpawnGuards.class);
+        MinecraftForge.EVENT_BUS.register(TravellerSpawnGuards.class);
         MinecraftForge.EVENT_BUS.register(new MobTargetInjector());
     }
 
     @Mod.EventHandler
-    public void onServerStarting(net.minecraftforge.fml.common.event.FMLServerStartingEvent event) {
+    public void onServerStarting(FMLServerStartingEvent event) {
 
         CultureRegistry.initMillenaireData();
 

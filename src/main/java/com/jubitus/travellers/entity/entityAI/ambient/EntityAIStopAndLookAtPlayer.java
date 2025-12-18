@@ -23,7 +23,7 @@ import org.millenaire.common.world.MillWorldData;
 import javax.annotation.Nullable;
 import java.util.*;
 
-public class EntityAIStopAndLookAtPlayer extends net.minecraft.entity.ai.EntityAIBase {
+public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
     private final EntityTraveller traveller;
     private final double triggerRangeSq;
     private final float yawLimit;

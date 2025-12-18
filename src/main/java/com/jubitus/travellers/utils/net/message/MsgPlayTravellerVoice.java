@@ -14,7 +14,7 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-public class MsgPlayTravellerVoice implements net.minecraftforge.fml.common.network.simpleimpl.IMessage {
+public class MsgPlayTravellerVoice implements IMessage {
     public int entityId;
     public String soundKey; // e.g., "<modid>:entity.travellers.ambient"
     public float vol;
@@ -51,9 +51,9 @@ public class MsgPlayTravellerVoice implements net.minecraftforge.fml.common.netw
         buf.writeInt(duration);
     }
 
-    public static class Handler implements net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler<MsgPlayTravellerVoice, IMessage> {
+    public static class Handler implements IMessageHandler<MsgPlayTravellerVoice, IMessage> {
         @Override
-        public IMessage onMessage(MsgPlayTravellerVoice msg, net.minecraftforge.fml.common.network.simpleimpl.MessageContext ctx) {
+        public IMessage onMessage(MsgPlayTravellerVoice msg, MessageContext ctx) {
             Minecraft mc = Minecraft.getMinecraft();
             mc.addScheduledTask(() -> {
                 World w = mc.world;

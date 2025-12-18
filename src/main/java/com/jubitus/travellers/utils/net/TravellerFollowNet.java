@@ -56,7 +56,7 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage((IMessageHandler) clientHandler, (Class) msgType, id, Side.CLIENT);
     }
 
-    public static void sendToPlayer(net.minecraft.entity.player.EntityPlayer player, net.minecraftforge.fml.common.network.simpleimpl.IMessage msg) {
+    public static void sendToPlayer(net.minecraft.entity.player.EntityPlayer player, IMessage msg) {
         if (player instanceof net.minecraft.entity.player.EntityPlayerMP) {
             CHANNEL.sendTo(msg, (net.minecraft.entity.player.EntityPlayerMP) player);
         }

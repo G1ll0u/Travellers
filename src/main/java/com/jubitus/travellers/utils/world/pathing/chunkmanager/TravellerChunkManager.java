@@ -26,6 +26,9 @@ import java.util.*;
 public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback {
     private static final int HARD_STUCK_TICKS = 20 * 60 * 5; // 5 minutes
     private static final String NBT_FORCED_CHUNKS = "ForcedChunks";
+    private static boolean isChunkloader(EntityTraveller t) {
+        return (t instanceof EntityTravellerWorker) || (t instanceof EntityTravellerMerchant);
+    }
 
     public static final TravellerChunkManager INSTANCE = new TravellerChunkManager();
     private void saveForcedToTicket(WorldState state) {
@@ -63,6 +66,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
         // Always recompute; recomputeForWorld will clean up if there are no merchants
         recomputeForWorld(state);
+        tickOffscreenHops(state);
+
     }
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
@@ -126,7 +131,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     // Called each tick by any travellers that should chunkload (merchant, worker, etc.)
     public void onChunkloaderTick(EntityTraveller traveller, int radius) {
         if (traveller.world.isRemote) return;
-        if (!TravellersModConfig.merchantChunkloadingEnabled) return; // rename config later if you want
+        if (!TravellersModConfig.merchantChunkloadingEnabled) return;
+        if (!isChunkloader(traveller)) return; // ✅ only workers/merchants participate
 
         WorldServer ws = (WorldServer) traveller.world;
         WorldState state = getOrCreateState(ws);
@@ -136,8 +142,44 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             data = new MerchantData(traveller, radius);
             state.merchants.put(traveller.getUniqueID(), data);
         } else {
-            data.radius = radius; // in case radius can change (config reload, etc.)
+            data.radius = radius;
             data.updateFromEntity(traveller);
+        }
+    }
+
+    private void tickOffscreenHops(WorldState state) {
+        if (!TravellersModConfig.travellerOffscreenHopEnabled) return;
+
+        int interval = TravellersModConfig.travellerOffscreenHopIntervalTicks;
+        if (interval <= 0) return;
+
+        long now = state.world.getTotalWorldTime();
+
+        for (MerchantData md : state.merchants.values()) {
+            Entity ent = state.world.getEntityFromUuid(md.id);
+            if (!(ent instanceof EntityTraveller)) continue;
+
+            EntityTraveller t = (EntityTraveller) ent;
+
+            // Only do this when really offscreen / outside activation
+            if (t.isInPlayerViewDistance()) continue;
+
+            // Don’t fight their combat/eating/hand state
+            if (t.isInCombat() || t.isAutoEating() || t.isHandActive()) continue;
+
+            // Need a target
+            if (t.getTargetVillage() == null) continue;
+
+            // Rate limit
+            if (now - md.lastOffscreenHopTick < interval) continue;
+
+            boolean ok = t.offscreenHopTowardTarget(TravellersModConfig.travellerOffscreenHopStepBlocks);
+            if (ok) {
+                md.lastOffscreenHopTick = now;
+
+                // Also update md position so chunk forcing follows hops even if entity AI doesn’t tick
+                md.pos = t.getPosition();
+            }
         }
     }
 
@@ -162,10 +204,18 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         while (it.hasNext()) {
             Map.Entry<UUID, MerchantData> e = it.next();
             Entity ent = state.world.getEntityFromUuid(e.getKey());
+
             if (!(ent instanceof EntityTraveller) || !ent.isEntityAlive()) {
+                it.remove();
+                continue;
+            }
+
+            EntityTraveller t = (EntityTraveller) ent;
+            if (!isChunkloader(t)) {   // ✅ kick non-worker/non-merchant travellers out
                 it.remove();
             }
         }
+
 
         if (state.merchants.isEmpty()) {
             // Nothing to schedule, but keep any existing ticket/forced chunks.
@@ -240,7 +290,6 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
             if (!md.chunkloading) continue;
 
-            addMerchantRadiusChunks(md, desired);
 
             if (desired.size() >= TravellersModConfig.merchantMaxForcedChunks) {
                 break;
@@ -311,16 +360,6 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     }
 
 
-    private void addMerchantRadiusChunks(MerchantData md, Set<ChunkPos> out) {
-        int r = md.radius;
-        ChunkPos center = new ChunkPos(md.pos);
-
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                out.add(new ChunkPos(center.x + dx, center.z + dz));
-            }
-        }
-    }
 
     public void untrackChunkloader(EntityTraveller traveller) {
         if (traveller.world.isRemote || !(traveller.world instanceof WorldServer)) return;
@@ -381,7 +420,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         public int radius;
         public double lastDistToTargetSq;
         public long lastProgressTick;
-
+        public long lastOffscreenHopTick = 0;
         @Nullable
         private BlockPos lastTargetVillage;
 
@@ -451,40 +490,6 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         if (e instanceof EntityTravellerWorker || e instanceof EntityTravellerMerchant) {
             event.setCanUpdate(true);
         }
-    }
-    private void hardUnstuckTeleport(EntityTraveller t, MerchantData md, WorldServer world) {
-        BlockPos target = t.getTargetVillage();
-
-        MillLog.major(t, "[Travellers] HARD-UNSTUCK triggered. "
-                + "idleTicks=" + md.ticksSinceLastProgress(world)
-                + " lastDistSq=" + md.lastDistToTargetSq
-                + " currentDistSq=" + (target == null ? -1 : t.getDistanceSqToCenter(target))
-                + " target=" + target
-                + " routeIndex=" + (t.getTravelCommon() != null ? t.getTravelCommon().routeIndex : -1)
-                + " hasPath=" + !t.getNavigator().noPath()
-                + " pos=" + t.posX + "," + t.posY + "," + t.posZ);
-
-        if (target == null) {
-            MillLog.major(t, "[Travellers] HARD-UNSTUCK aborted: targetVillage is null.");
-            return;
-        }
-
-        TravelCommon tc = t.getTravelCommon();
-        BlockPos stand = tc.topStandable(target);
-
-        if (stand == null) {
-            MillLog.major(t, "[Travellers] topStandable returned null, falling back to Y>=64.");
-            stand = new BlockPos(target.getX(), Math.max(64, target.getY()), target.getZ());
-        }
-
-        t.setPositionAndUpdate(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5);
-        t.getNavigator().clearPath();
-        tc.setTravelRecoverTicks(0);
-
-        md.lastDistToTargetSq = t.getDistanceSqToCenter(target);
-        md.lastProgressTick = world.getTotalWorldTime();
-
-        MillLog.major(t, "[Travellers] HARD-UNSTUCK -> Teleported to " + stand);
     }
 
 }

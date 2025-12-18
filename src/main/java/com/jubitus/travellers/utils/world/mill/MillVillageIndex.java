@@ -63,11 +63,11 @@ public final class MillVillageIndex {
     }
 
     private static final class BuildingsCacheEntry {
-        final java.util.List<BuildingInfo> list; // store immutable
+        final List<BuildingInfo> list; // store immutable
         final long expiresAtTick;
         volatile long lastAccessTick;
 
-        BuildingsCacheEntry(java.util.List<BuildingInfo> list, long expiresAtTick, long nowTick) {
+        BuildingsCacheEntry(List<BuildingInfo> list, long expiresAtTick, long nowTick) {
             this.list = list;
             this.expiresAtTick = expiresAtTick;
             this.lastAccessTick = nowTick;
@@ -88,7 +88,7 @@ public final class MillVillageIndex {
         if (n % CLEANUP_EVERY_N_CALLS != 0) return;
 
         // 1) Remove expired
-        for (java.util.Map.Entry<BuildingsCacheKey, BuildingsCacheEntry> e : BUILDINGS_CACHE.entrySet()) {
+        for (Map.Entry<BuildingsCacheKey, BuildingsCacheEntry> e : BUILDINGS_CACHE.entrySet()) {
             BuildingsCacheEntry ce = e.getValue();
             if (ce == null || !ce.valid(nowTick)) {
                 BUILDINGS_CACHE.remove(e.getKey(), ce);
@@ -104,7 +104,7 @@ public final class MillVillageIndex {
             BuildingsCacheKey worstKey = null;
             long worstAccess = Long.MAX_VALUE;
 
-            for (java.util.Map.Entry<BuildingsCacheKey, BuildingsCacheEntry> e : BUILDINGS_CACHE.entrySet()) {
+            for (Map.Entry<BuildingsCacheKey, BuildingsCacheEntry> e : BUILDINGS_CACHE.entrySet()) {
                 BuildingsCacheEntry ce = e.getValue();
                 if (ce == null) continue;
                 long acc = ce.lastAccessTick;
@@ -314,11 +314,11 @@ public final class MillVillageIndex {
     }
 
     // helper
-    private static String safeString(java.util.List<String> list, int idx, String def) {
+    private static String safeString(List<String> list, int idx, String def) {
         return (idx >= 0 && idx < list.size() && list.get(idx) != null) ? list.get(idx) : def;
     }
 
-    private static MillVillageIndex.VillageInfo buildInfo(MillWorldData wd, Building th) {
+    private static VillageInfo buildInfo(MillWorldData wd, Building th) {
         Integer idx = wd.villagesList.rankByPos.get(th.getPos());
         String name = th.toString();
         String culture = "";
@@ -330,7 +330,7 @@ public final class MillVillageIndex {
             typeKey = safeString(vl.types, idx, "");
         }
         Point p = th.getPos();
-        return new MillVillageIndex.VillageInfo(
+        return new VillageInfo(
                 new BlockPos(p.getiX(), p.getiY(), p.getiZ()),
                 true,           // this is a village (Town Hall), not a lone building
                 name,
@@ -390,7 +390,7 @@ public final class MillVillageIndex {
     }
 
     public static boolean isLoneBuildingStop(World world, BlockPos center) {
-        MillVillageIndex.VillageInfo vi = findExact(world, center);
+        VillageInfo vi = findExact(world, center);
         return vi != null && !vi.isVillage;
     }
 
@@ -457,9 +457,9 @@ public final class MillVillageIndex {
         return wd != null && wd.villagesList != null && wd.villagesList.pos != null && !wd.villagesList.pos.isEmpty();
     }
 
-    public static java.util.List<BlockPos> getBuildingCenters(World world, BlockPos approxTH, int radiusXZ, int radiusY) {
-        java.util.List<BuildingInfo> infos = listBuildingsAroundVillage(world, approxTH, radiusXZ, radiusY);
-        java.util.List<BlockPos> out = new ArrayList<>(infos.size());
+    public static List<BlockPos> getBuildingCenters(World world, BlockPos approxTH, int radiusXZ, int radiusY) {
+        List<BuildingInfo> infos = listBuildingsAroundVillage(world, approxTH, radiusXZ, radiusY);
+        List<BlockPos> out = new ArrayList<>(infos.size());
         for (BuildingInfo bi : infos) out.add(bi.chestPos);
         return out;
     }
@@ -520,7 +520,7 @@ public final class MillVillageIndex {
 //        return result;
 //    }
 
-    public static java.util.List<BuildingInfo> listBuildingsAroundVillageCached(
+    public static List<BuildingInfo> listBuildingsAroundVillageCached(
             World world,
             BlockPos approxTH,
             int radiusXZ,
@@ -549,11 +549,11 @@ public final class MillVillageIndex {
         }
 
         // Compute fresh
-        java.util.List<BuildingInfo> fresh = listBuildingsAroundVillage(world, center, radiusXZ, radiusY);
+        List<BuildingInfo> fresh = listBuildingsAroundVillage(world, center, radiusXZ, radiusY);
 
         // IMPORTANT: store immutable copy so callers can’t mutate the cache
-        java.util.List<BuildingInfo> frozen =
-                java.util.Collections.unmodifiableList(new java.util.ArrayList<>(fresh));
+        List<BuildingInfo> frozen =
+                java.util.Collections.unmodifiableList(new ArrayList<>(fresh));
 
         BuildingsCacheEntry entry = new BuildingsCacheEntry(
                 frozen,
@@ -566,7 +566,7 @@ public final class MillVillageIndex {
         return frozen;
     }
 
-    public static java.util.List<BuildingInfo> listBuildingsAroundVillage(
+    public static List<BuildingInfo> listBuildingsAroundVillage(
             World world,
             BlockPos approxTH,
             int radiusXZ,
@@ -592,7 +592,7 @@ public final class MillVillageIndex {
         int cy = center.getY();
         int cz = center.getZ();
 
-        java.util.List<BuildingInfo> result = new ArrayList<>();
+        List<BuildingInfo> result = new ArrayList<>();
         java.util.Set<Building> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
         // Brute-force scan; reasonable radius keeps it fine performance-wise
@@ -633,7 +633,7 @@ public final class MillVillageIndex {
         Point chest = (loc != null && loc.chestPos != null) ? loc.chestPos : b.getPos();
         BlockPos chestPos = new BlockPos(chest.getiX(), chest.getiY(), chest.getiZ());
 
-        java.util.List<String> tags = new ArrayList<>();
+        List<String> tags = new ArrayList<>();
 
         try {
             java.util.Set<String> millTags = b.getTags(); // this is a Set<String>
@@ -662,11 +662,11 @@ public final class MillVillageIndex {
         );
     }
 
-    public static java.util.List<BuildingInfo> getBuildingsWithTag(World world, BlockPos approxTH,
+    public static List<BuildingInfo> getBuildingsWithTag(World world, BlockPos approxTH,
                                                                    int radiusXZ, int radiusY,
                                                                    String tag) {
-        java.util.List<BuildingInfo> all = listBuildingsAroundVillageCached(world, approxTH, radiusXZ, radiusY);
-        java.util.List<BuildingInfo> out = new ArrayList<>();
+        List<BuildingInfo> all = listBuildingsAroundVillageCached(world, approxTH, radiusXZ, radiusY);
+        List<BuildingInfo> out = new ArrayList<>();
         for (BuildingInfo bi : all) {
             if (bi.tags.contains(tag)) out.add(bi);
         }
@@ -781,7 +781,7 @@ public final class MillVillageIndex {
         final int px = pos.getX();
         final int pz = pos.getZ();
 
-        java.util.Map<String, Double> weights = new java.util.HashMap<>();
+        Map<String, Double> weights = new java.util.HashMap<>();
 
         // Scan all known mill; ignore lone buildings here
         for (int i = 0; i < wd.villagesList.pos.size(); i++) {
@@ -828,7 +828,7 @@ public final class MillVillageIndex {
         for (double w : weights.values()) total += w;
 
         double r = rand.nextDouble() * total;
-        for (java.util.Map.Entry<String, Double> e : weights.entrySet()) {
+        for (Map.Entry<String, Double> e : weights.entrySet()) {
             r -= e.getValue();
             if (r <= 0.0D) {
                 return e.getKey();
@@ -1156,7 +1156,7 @@ public final class MillVillageIndex {
         /**
          * All tags on this building (e.g. “shop”, “pujas”, “sacrifices”…).
          */
-        public final java.util.List<String> tags;
+        public final List<String> tags;
         /**
          * Raw Millénaire location object, if you need min/max bounds, etc.
          */
@@ -1167,7 +1167,7 @@ public final class MillVillageIndex {
                             String planKey,
                             String cultureKey,
                             String displayName,
-                            java.util.List<String> tags,
+                            List<String> tags,
                             @Nullable BuildingLocation location) {
             this.chestPos = chestPos;
             this.isTownhall = isTownhall;

@@ -13,7 +13,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketTravellerChunks implements net.minecraftforge.fml.common.network.simpleimpl.IMessage {
+public class PacketTravellerChunks implements IMessage {
 
     private TravellerChunkSnapshot snapshot;
 
@@ -99,9 +99,9 @@ public class PacketTravellerChunks implements net.minecraftforge.fml.common.netw
     }
 
     // Handler
-    public static class Handler implements net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler<PacketTravellerChunks, IMessage> {
+    public static class Handler implements IMessageHandler<PacketTravellerChunks, IMessage> {
         @Override
-        public IMessage onMessage(PacketTravellerChunks message, net.minecraftforge.fml.common.network.simpleimpl.MessageContext ctx) {
+        public IMessage onMessage(PacketTravellerChunks message, MessageContext ctx) {
             net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
                 TravellerChunkSnapshot snapshot = message.getSnapshot();
                 net.minecraft.client.Minecraft.getMinecraft().displayGuiScreen(

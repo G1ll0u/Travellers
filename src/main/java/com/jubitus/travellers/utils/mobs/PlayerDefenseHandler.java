@@ -56,7 +56,7 @@ public final class PlayerDefenseHandler {
     }
 
     @SubscribeEvent
-    public static void onPlayerHurtsMob(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+    public static void onPlayerHurtsMob(LivingHurtEvent event) {
         EntityLivingBase victim = event.getEntityLiving();
         if (!(victim instanceof IMob)) return; // only defend you vs hostiles
         Entity src = event.getSource().getTrueSource();
@@ -79,7 +79,7 @@ public final class PlayerDefenseHandler {
     }
 
     @SubscribeEvent
-    public static void onAnyPlayerHurts(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+    public static void onAnyPlayerHurts(LivingHurtEvent event) {
         Entity src = event.getSource().getTrueSource();
         if (!(src instanceof EntityPlayer)) return;
 
