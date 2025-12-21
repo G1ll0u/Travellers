@@ -246,6 +246,7 @@ public class EntityAITravel extends EntityAIBase {
                 return false;
             }
         }
+
         if (mob.isInCombat() || mob.isAutoEating() || mob.isHandActive()) return false;
         if (mob.isAtTargetStop() || mob.isAtTargetStopHys(false)) return false; // already inside
         BlockPos tv = mob.getTargetVillage();

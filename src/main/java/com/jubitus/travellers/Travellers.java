@@ -89,6 +89,9 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(TravellerWorkerLootHandler.class);
         MinecraftForge.EVENT_BUS.register(TravellerOffscreenHandler.class);
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
+        MinecraftForge.EVENT_BUS.register(MobTargetInjector.class);
+        MinecraftForge.EVENT_BUS.register(TravellerSpawnGuards.class);
+        MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
 
 
         if (event.getSide().isClient()) {

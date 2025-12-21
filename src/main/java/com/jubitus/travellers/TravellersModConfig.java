@@ -69,21 +69,21 @@ public class TravellersModConfig {
     public static int workerVillageMinDistance   = 1200; // blocks between worker villages
 
     @Config.Comment("Maximum number of loaded travellers merchants in this world (0 = no limit)")
-    public static int merchantLoadedCap = 1;
+    public static int merchantLoadedCap = 16;
 
     @Config.Comment("Maximum number of loaded travellers workers in this world (0 = no limit)")
-    public static int workerLoadedCap = 1;
+    public static int workerLoadedCap = 16;
 
 // ---- worker population → workers per village ----
 
     @Config.Comment("Minimum Millénaire villagers before this village can get any travellers workers")
-    public static int workerMinPop = 120;
+    public static int workerMinPop = 16;
 
     @Config.Comment("Additional population required for each extra worker beyond the first")
-    public static int workerPopPerWorker = 120;
+    public static int workerPopPerWorker = 10;
 
     @Config.Comment("Maximum number of travellers workers per village")
-    public static int workerMaxPerVillage = 0;
+    public static int workerMaxPerVillage = 2;
 
     @Config.Comment("How often (ticks) we re-check villages for worker counts")
     public static int workerRecheckEveryTicks = 20*60*5;
@@ -122,17 +122,17 @@ public class TravellersModConfig {
     public static int merchantStepBlocks = 16;
 
     // Merchant spawn logic
-    public static int merchantMinPop = 200;
-    public static int merchantPopPerMerchant = 200;
-    public static int merchantMaxPerVillage = 0;
+    public static int merchantMinPop = 8;
+    public static int merchantPopPerMerchant = 10;
+    public static int merchantMaxPerVillage = 2;
     public static int merchantRecheckEveryTicks = 200;
 
 
     public static int merchantChunkRadius = 1;          // default radius per merchant
-    public static int merchantMaxForcedChunks = 1;    // hard cap per world
+    public static int merchantMaxForcedChunks = 1000;    // hard cap per world
     public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
     public static int merchantMaxChunkloadingMerchants = 256; // if many merchants, only first N get chunkloading
-    public static boolean merchantChunkloadingEnabled = false;
+    public static boolean merchantChunkloadingEnabled = true;
     // How big a slice of the total required amount the merchant tries to supply.
 // 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
     public static double merchantGiveFraction = 1.0D / 12.0D;
@@ -205,7 +205,7 @@ public class TravellersModConfig {
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "4.8"; // yes I always change ver when testing, that's stupid
+    private static final String CURRENT_VERSION = "4.6"; // yes I always change ver when testing, that's stupid
     public static boolean debug = false;
     public static boolean enableTravellerOpenFenceGates = true;
     public static boolean enableTravellerOpenDoors = true;
@@ -311,7 +311,7 @@ public class TravellersModConfig {
     public static int despawnProbeRadiusChunks = 1; // how many chunks around the mob must be loaded (1 = 3x3)
     public static int despawnEdgeGraceTicks = 3 * 20; // time standing near the edge before fading
     public static int travellerTargetLoaded = 24;       // total travellers you’d like loaded (across all dims)
-    public static int travellerTopUpEveryTicks = 20 * 60;    // how often to try
+    public static int travellerTopUpEveryTicks = 20 * 15;    // how often to try
     public static int travellerAttemptsPerPlayer = 1;   // attempts per player each cycle
     public static int travellerSpawnMinDist = 64;       // from player
     public static int travellerSpawnMaxDist = 128;       // from player
@@ -322,7 +322,7 @@ public class TravellersModConfig {
     public static int farMinDistanceBlocks = 128;   // hard floor even if view radius is tiny
     // Raiders — soft-spawn target & pacing
     public static int raiderTargetLoaded = 12;          // keep far lower than travellers
-    public static int raiderTopUpEveryTicks = 20 * 180;     // try every ~10s
+    public static int raiderTopUpEveryTicks = 600;     // try every ~10s
     public static int raiderAttemptsPerPlayer = 1;     // 1 try per player each cycle
     public static float raiderSoftSpawnChancePerAttempt = 1.0F; // only 25% of tries attempt
     // Where to place them relative to players (reuse/adjust ring)
@@ -1564,9 +1564,9 @@ public class TravellersModConfig {
                         "0.0 = immune, 0.2 = take 20% of normal damage (80% reduction), 1.0 = no reduction."
         );
 
-        travellerSimpleOffscreenTravel = cfg.getBoolean(
+        travellerOffscreenHopEnabled = cfg.getBoolean(
                 "TravellerSimpleOffscreenTravel", "despawn & performance",
-                false,
+                true,
                 "If true, travellers use a simplified travel mode when far from players and out of view.\n" +
                         "In this mode, heavy pathfinding is skipped and they \"hop\" toward their destination for performance."
         );
@@ -1604,20 +1604,20 @@ public class TravellersModConfig {
 
         workerMinPop = cfg.getInt(
                 "WorkerMinPop", "Soft spawn — Workers",
-                160, 0, 1024,
+                16, 0, 1024,
                 "Minimum Millénaire villagers required before a village can receive any travellers workers."
         );
 
         workerPopPerWorker = cfg.getInt(
                 "WorkerPopPerWorker", "Soft spawn — Workers",
-                120, 1, 1024,
+                12, 1, 1024,
                 "Additional Millénaire population required for each extra travellers worker beyond the first.\n" +
                         "Effective workers per village ≈ 1 + (population - workerMinPop) / workerPopPerWorker (clamped to workerMaxPerVillage)."
         );
 
         workerMaxPerVillage = cfg.getInt(
                 "WorkerMaxPerVillage", "Soft spawn — Workers",
-                0, 0, 16,
+                1, 0, 16,
                 "Maximum number of travellers workers assigned to a single village."
         );
 

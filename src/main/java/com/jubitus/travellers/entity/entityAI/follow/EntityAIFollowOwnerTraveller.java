@@ -101,27 +101,30 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     public boolean shouldExecute() {
         if (!worker.isHiredFollower()) return false;
         if (!worker.isFollowOrderActive()) return false;
-        if (worker.isJobActive()) return false;
+
+        // NEW: allow during RETURNING if worker decided to switch to follow
+        if (worker.isJobActive() && !worker.isReturnUsingFollow()) return false;
 
         EntityLivingBase t = worker.getEffectiveFollowTarget();
         if (t == null || t.isDead) return false;
         if (t instanceof EntityPlayer && ((EntityPlayer) t).isSpectator()) return false;
 
         this.followTarget = t;
-        return true; // always allowed to run; idling is handled inside updateTask()
+        return true;
     }
 
     @Override
     public boolean shouldContinueExecuting() {
         if (!worker.isHiredFollower()) return false;
         if (!worker.isFollowOrderActive()) return false;
-        if (worker.isJobActive()) return false;
+
+        // NEW: allow during RETURNING if worker decided to switch to follow
+        if (worker.isJobActive() && !worker.isReturnUsingFollow()) return false;
 
         EntityLivingBase current = worker.getEffectiveFollowTarget();
         if (current == null || current.isDead) return false;
         if (current instanceof EntityPlayer && ((EntityPlayer) current).isSpectator()) return false;
 
-        // If the target changed (owner vs another effective follow target), just update it.
         this.followTarget = current;
         return true;
     }
@@ -207,6 +210,29 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         double distSqToOwner = worker.getDistanceSq(followTarget);
         double distToOwner   = Math.sqrt(distSqToOwner);
+
+        if (distToOwner > 256.0D && worker.getNavigator().noPath()) {
+            // ~6 blocks/sec if applied every tick (0.3 blocks/tick is ~6 b/s)
+            double step = 0.30D;
+
+            double dx = followTarget.posX - worker.posX;
+            double dz = followTarget.posZ - worker.posZ;
+            double lenSq = dx*dx + dz*dz;
+
+            if (lenSq > 1e-6) {
+                double len = Math.sqrt(lenSq);
+                dx /= len; dz /= len;
+
+                double nx = worker.posX + dx * step;
+                double nz = worker.posZ + dz * step;
+
+                BlockPos feet = findSafeStandPos(nx, followTarget.posY, nz);
+                worker.setLocationAndAngles(feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D,
+                        worker.rotationYaw, worker.rotationPitch);
+                worker.getNavigator().clearPath();
+                return;
+            }
+        }
 
         double deltaOwnerDist = Math.abs(distToOwner - lastOwnerDist);
         lastOwnerDist = distToOwner;
@@ -365,7 +391,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (--timeToRecalcPath > 0) {
             return;
         }
-        timeToRecalcPath = 8;
+        timeToRecalcPath = (distToOwner > 64.0D) ? 4 : 8;
 
 // ~0.03 blocks/tick for AI, ~0.01 for players (tweak)
         final double DIR_EPS_SQ = targetIsPlayer ? 1.0e-4D : 9.0e-4D;
@@ -398,7 +424,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 lastDirZ =  Math.cos(yawRad);
                 hasLastDir = true;
             }
-            }
+        }
 
 
         double forwardX = lastDirX;
@@ -517,10 +543,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
 // Catch-up based on distance to slot
         double catchupFactor;
-        if (distToSlot3D > 16.0D)      catchupFactor = 1.38D;
-        else if (distToSlot3D > 8.0D)  catchupFactor = 1.35D;
-        else if (distToSlot3D > 4.0D)  catchupFactor = 1.30D;
-        else                           catchupFactor = 1.25D;
+        if (distToSlot3D > 128.0D)      catchupFactor = 2.20D;
+        else if (distToSlot3D > 64.0D)  catchupFactor = 1.90D;
+        else if (distToSlot3D > 32.0D)  catchupFactor = 1.65D;
+        else if (distToSlot3D > 16.0D)  catchupFactor = 1.45D;
+        else if (distToSlot3D > 8.0D)   catchupFactor = 1.35D;
+        else if (distToSlot3D > 4.0D)   catchupFactor = 1.25D;
+        else                            catchupFactor = 1.15D;
+
 
 // Player-only speed scaling from real motion
         double ownerBasedFactor = 1.0D;
@@ -540,47 +570,94 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
 // Clamp BEFORE using it
         double maxFollowSpeed = 3.0D;
+
+// allow more when very far from owner
+        if (distToOwner > 64.0D) maxFollowSpeed = 4.0D;
+        if (distToOwner > 128.0D) maxFollowSpeed = 5.0D;
+
         if (targetIsWorkerLeader) maxFollowSpeed = 1.10D; // tune 0.85–1.3
 
         moveSpeed = Math.max(0.08D, Math.min(moveSpeed, maxFollowSpeed));
 
 // Optional smoothing (use it!)
         double alpha = targetIsPlayer ? 0.35D : 0.15D;
+        if (distToOwner > 48.0D) alpha = 0.55D;
+        if (distToOwner > 96.0D) alpha = 0.75D;
+
         smoothedMoveSpeed = smoothedMoveSpeed + (moveSpeed - smoothedMoveSpeed) * alpha;
 
         worker.setSprinting(sprint);
+// --- segment target so we never ask pathfinder for huge paths ---
+        double sdx = targetX - worker.posX;
+        double sdz = targetZ - worker.posZ;
+        double sDistSq = sdx * sdx + sdz * sdz;
+
+        if (sDistSq > (SEGMENT_MAX_DIST * SEGMENT_MAX_DIST)) {
+            double sDist = Math.sqrt(sDistSq);
+            sdx /= sDist;
+            sdz /= sDist;
+
+            targetX = worker.posX + sdx * SEGMENT_MAX_DIST;
+            targetZ = worker.posZ + sdz * SEGMENT_MAX_DIST;
+            targetY = worker.posY; // keep local Y; avoid weird vertical targets
+        }
+
+        worker.setSprinting(sprint);
         worker.getNavigator().tryMoveToXYZ(targetX, targetY, targetZ, smoothedMoveSpeed);
-}
-
-    private BlockPos findNearbyGround(double x, double yHint, double z) {
-        World world = worker.world;
-        BlockPos base = new BlockPos(x, yHint, z);
-
-        // Scan a little down first
-        for (int dy = 0; dy >= -6; dy--) {
-            BlockPos pos = base.add(0, dy, 0);
-            IBlockState below = world.getBlockState(pos.down());
-            IBlockState here  = world.getBlockState(pos);
-
-            if (below.isFullCube() && !here.getMaterial().blocksMovement()) {
-                return pos;
-            }
-        }
-
-        // Then a little up if we didn't find anything
-        for (int dy = 1; dy <= 6; dy++) {
-            BlockPos pos = base.add(0, dy, 0);
-            IBlockState below = world.getBlockState(pos.down());
-            IBlockState here  = world.getBlockState(pos);
-
-            if (below.isFullCube() && !here.getMaterial().blocksMovement()) {
-                return pos;
-            }
-        }
-
-        // Fallback: just use the base position
-        return base;
     }
+
+    private BlockPos findSafeStandPos(double x, double yHint, double z) {
+        World w = worker.world;
+
+        int xi = net.minecraft.util.math.MathHelper.floor(x);
+        int zi = net.minecraft.util.math.MathHelper.floor(z);
+
+        // Start from a reasonable Y: try around yHint but clamp
+        int startY = net.minecraft.util.math.MathHelper.clamp(
+                net.minecraft.util.math.MathHelper.floor(yHint),
+                2,
+                w.getActualHeight() - 3
+        );
+
+        BlockPos base = new BlockPos(xi, startY, zi);
+
+        // Search down first (prefer ground)
+        for (int dy = 0; dy <= 32; dy++) {
+            BlockPos feet = base.down(dy);
+            if (isStandable(feet)) return feet;
+        }
+
+        // Then search up (for cliffs/trees)
+        for (int dy = 1; dy <= 32; dy++) {
+            BlockPos feet = base.up(dy);
+            if (isStandable(feet)) return feet;
+        }
+
+        // Final fallback: top solid block in the column
+        BlockPos top = w.getTopSolidOrLiquidBlock(new BlockPos(xi, 0, zi));
+        if (isStandable(top)) return top;
+
+        return base; // worst fallback
+    }
+
+    private boolean isStandable(BlockPos feet) {
+        World w = worker.world;
+        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
+
+        IBlockState below = w.getBlockState(feet.down());
+        if (below.getMaterial().isLiquid()) return false;
+
+        IBlockState atFeet = w.getBlockState(feet);
+        IBlockState atHead = w.getBlockState(feet.up());
+
+        boolean freeFeet = atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(w, feet) == null;
+        boolean freeHead = atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(w, feet.up()) == null;
+        if (!freeFeet || !freeHead) return false;
+
+        BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
+        return shape == BlockFaceShape.SOLID;
+    }
+
 
     /**
      * Check if we're stuck (barely moving) while still far from the followTarget.
@@ -654,7 +731,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         double tpX = worker.posX + dirX * step;
         double tpZ = worker.posZ + dirZ * step;
 
-        BlockPos ground = findNearbyGround(tpX, followTarget.posY, tpZ);
+        BlockPos ground = findSafeStandPos(tpX, followTarget.posY, tpZ);
 
         worker.setLocationAndAngles(
                 ground.getX() + 0.5D,
@@ -1013,6 +1090,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean ownerInBoat = owner.isRiding() && owner.getRidingEntity() instanceof EntityBoat;
         boolean ownerOnLand = !ownerInBoat && !owner.isInWater();
 
+
         // --- 1) We are close to owner AND owner is on land → try to dismount onto shore near owner ---
         if (ownerOnLand && distToOwnerSq < 12.0D * 12.0D) {
             if (tryDismountAtShore(boat, true)) {
@@ -1231,4 +1309,3 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     }
 
 }
-

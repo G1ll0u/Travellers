@@ -90,33 +90,73 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         System.out.println("[Travellers] ticketsLoaded: dim=" + ws.provider.getDimension()
                 + " tickets=" + tickets.size());
 
+        // 1) Read any saved chunk list from ANY ticket (NORMAL or ENTITY)
+        Set<ChunkPos> restored = new HashSet<>();
+
         for (ForgeChunkManager.Ticket t : tickets) {
-            if (state.ticket == null) {
-                state.ticket = t;
+            try {
+                NBTTagCompound tag = t.getModData();
+                NBTTagList list = tag.getTagList(NBT_FORCED_CHUNKS, 10); // 10 = compound
+
+                for (int i = 0; i < list.tagCount(); i++) {
+                    NBTTagCompound c = list.getCompoundTagAt(i);
+                    restored.add(new ChunkPos(c.getInteger("x"), c.getInteger("z")));
+                }
+            } catch (Throwable ignored) {
+                // ignore bad/empty tickets
+            }
+        }
+
+        // 2) Keep ONLY a NORMAL ticket (release entity tickets + extras)
+        ForgeChunkManager.Ticket normalTicket = null;
+
+        for (ForgeChunkManager.Ticket t : tickets) {
+            if (t.getType() == ForgeChunkManager.Type.NORMAL && normalTicket == null) {
+                normalTicket = t;
             } else {
-                ForgeChunkManager.releaseTicket(t); // discard extra
+                // release entity tickets and extra normal tickets
+                ForgeChunkManager.releaseTicket(t);
             }
         }
 
-        if (state.ticket != null) {
-            NBTTagCompound tag = state.ticket.getModData();
-            NBTTagList list = tag.getTagList(NBT_FORCED_CHUNKS, 10); // 10 = compound
+        state.ticket = normalTicket;
 
-            System.out.println("[Travellers] Restored ticket NBT with " + list.tagCount() + " chunks");
+        // 3) If we didn't have a NORMAL ticket, request one now
+        if (state.ticket == null) {
+            state.ticket = ForgeChunkManager.requestTicket(
+                    Travellers.INSTANCE,
+                    ws,
+                    ForgeChunkManager.Type.NORMAL
+            );
 
-            for (int i = 0; i < list.tagCount(); i++) {
-                NBTTagCompound c = list.getCompoundTagAt(i);
-                ChunkPos pos = new ChunkPos(c.getInteger("x"), c.getInteger("z"));
-
-                state.forced.add(pos);
-                ForgeChunkManager.forceChunk(state.ticket, pos);
-
-                // 🔸 NEW: actually load the chunk so travellers in it exist again
-                // and can tick / call onChunkloaderTick.
-                ws.getChunkProvider().loadChunk(pos.x, pos.z);
-                // or: ws.getChunkFromChunkCoords(pos.x, pos.z);
+            if (state.ticket == null) {
+                System.out.println("[Travellers] FAILED to get NORMAL ticket in dim " +
+                        ws.provider.getDimension());
+                return;
             }
+
+            System.out.println("[Travellers] Created NORMAL ticket for dim " + ws.provider.getDimension());
+            state.ticket.setChunkListDepth(TravellersModConfig.merchantMaxForcedChunks);
+        } else {
+            // Ensure depth is correct even on restored tickets
+            state.ticket.setChunkListDepth(TravellersModConfig.merchantMaxForcedChunks);
         }
+
+        // 4) Apply restored chunk forcing using the NORMAL ticket (safe)
+        state.forced.clear();
+        state.forced.addAll(restored);
+
+        System.out.println("[Travellers] Restoring " + restored.size() + " forced chunks");
+
+        for (ChunkPos pos : restored) {
+            ForgeChunkManager.forceChunk(state.ticket, pos);
+
+            // Optional: actually load the chunk so entities exist again
+            ws.getChunkProvider().loadChunk(pos.x, pos.z);
+        }
+
+        // 5) Save back into the ticket NBT so it persists cleanly
+        saveForcedToTicket(state);
     }
 
 
@@ -283,18 +323,38 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         );
 
         Set<ChunkPos> desired = new HashSet<>();
+        int maxForced = TravellersModConfig.merchantMaxForcedChunks;
 
         for (int i = 0; i < active.size(); i++) {
             MerchantData md = active.get(i);
             md.chunkloading = (i < allowedMerchants);
-
             if (!md.chunkloading) continue;
 
-
-            if (desired.size() >= TravellersModConfig.merchantMaxForcedChunks) {
-                break;
+            // Make sure we have a recent position
+            Entity ent = state.world.getEntityFromUuid(md.id);
+            if (ent instanceof EntityTraveller) {
+                md.pos = ent.getPosition();
             }
+
+            // radius is in blocks -> convert to chunks
+            int rChunks = (md.radius + 15) / 16;
+            int baseX = md.pos.getX() >> 4;
+            int baseZ = md.pos.getZ() >> 4;
+
+            // Add the square of chunks around the traveller
+            outer:
+            for (int dz = -rChunks; dz <= rChunks; dz++) {
+                for (int dx = -rChunks; dx <= rChunks; dx++) {
+                    desired.add(new ChunkPos(baseX + dx, baseZ + dz));
+
+                    // Stop if we hit the global forced chunk limit
+                    if (desired.size() >= maxForced) break outer;
+                }
+            }
+
+            if (desired.size() >= maxForced) break;
         }
+
 
         if (desired.isEmpty()) {
             // If we have merchants but no desired chunks (config limits, etc.),

@@ -276,7 +276,7 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
             if (distToCenterSq <= 32.0D * 32.0D) { // inside radius 8
                 chestSearchDone = true;
 
-                BlockPos chest = findFirstTownHallChest(townHallCenter, 8);
+                BlockPos chest = findFirstTownHallChest(townHallCenter, 32);
 
                 if (chest != null) {
                     // Try to path to this chest

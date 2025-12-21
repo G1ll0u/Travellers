@@ -782,12 +782,21 @@ public final class TravellerSoftSpawner {
      */
     public static void spawnMerchantAtVillage(WorldServer ws, BlockPos villageCenter) {
 
-        ensureVillageChunksLoaded(ws, villageCenter, 1);
+// Load a slightly larger area because we might spawn OUTSIDE the village center chunk
+        ensureVillageChunksLoaded(ws, villageCenter, 2);
 
-        BlockPos spawnPos = findGroundSpawnNear(ws, villageCenter, 6);
+// ring spawn: near village, not necessarily inside
+        final int minR = 10;  // don't spawn on the townhall roof
+        final int maxR = 28;  // still "near" the village
+
+        BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, minR, maxR, 80, 2);
+
+// fallback: try a wider ring
         if (spawnPos == null) {
-            spawnPos = findGroundSpawnNear(ws, villageCenter, 12);
+            spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 6, 40, 120, 1);
         }
+
+// last resort: keep your old behavior if everything fails
         if (spawnPos == null) {
             spawnPos = ws.getTopSolidOrLiquidBlock(villageCenter);
         }
@@ -992,15 +1001,20 @@ public final class TravellerSoftSpawner {
      */
     public static void spawnWorkerAtVillage(WorldServer ws, BlockPos villageCenter) {
 
-        ensureVillageChunksLoaded(ws, villageCenter, 1);
+        ensureVillageChunksLoaded(ws, villageCenter, 2);
 
-        BlockPos spawnPos = findGroundSpawnNear(ws, villageCenter, 6);
+        final int minR = 10;
+        final int maxR = 28;
+
+        BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, minR, maxR, 80, 2);
         if (spawnPos == null) {
-            spawnPos = findGroundSpawnNear(ws, villageCenter, 12);
+            spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 6, 40, 120, 1);
         }
         if (spawnPos == null) {
             spawnPos = ws.getTopSolidOrLiquidBlock(villageCenter);
         }
+
+
 
         EntityTravellerWorker w = new EntityTravellerWorker(ws);
         w.setHomeVillage(villageCenter);
@@ -1036,15 +1050,16 @@ public final class TravellerSoftSpawner {
     public static void respawnWorkerAtHome(WorldServer ws, BlockPos villageCenter) {
         if (villageCenter == null) return;
 
-        ensureVillageChunksLoaded(ws, villageCenter, 0);
+        ensureVillageChunksLoaded(ws, villageCenter, 2);
 
-        BlockPos spawnPos = findGroundSpawnNear(ws, villageCenter, 6);
+        BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 10, 28, 80, 2);
         if (spawnPos == null) {
-            spawnPos = findGroundSpawnNear(ws, villageCenter, 12);
+            spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 6, 40, 120, 1);
         }
         if (spawnPos == null) {
             spawnPos = ws.getTopSolidOrLiquidBlock(villageCenter);
         }
+
 
         EntityTravellerWorker w = new EntityTravellerWorker(ws);
         w.setHomeVillage(villageCenter);
@@ -1158,6 +1173,45 @@ public final class TravellerSoftSpawner {
         TravellerSoftSpawner.respawnMerchantAtHome((WorldServer) m.world, home);
     }
 
+    @Nullable
+    private static BlockPos findNaturalSpawnNearVillage(WorldServer ws, BlockPos center,
+                                                        int minDist, int maxDist,
+                                                        int tries, int manMadeScanRadius) {
+        Random r = ws.rand;
+
+        minDist = Math.max(0, minDist);
+        maxDist = Math.max(minDist + 1, maxDist);
+
+        for (int t = 0; t < tries; t++) {
+            double theta = r.nextDouble() * (Math.PI * 2.0);
+            int dist = minDist + r.nextInt(maxDist - minDist + 1);
+
+            int x = center.getX() + (int) Math.round(Math.cos(theta) * dist);
+            int z = center.getZ() + (int) Math.round(Math.sin(theta) * dist);
+
+            BlockPos guess = new BlockPos(x, center.getY(), z);
+
+            // Don’t load chunks unless you explicitly want to
+            if (!chunkExists(ws, guess)) continue;
+
+            BlockPos top = ws.getTopSolidOrLiquidBlock(guess);
+
+            // probe downward to find a natural standable “feet” position
+            for (int dy = 0; dy <= 10; dy++) {
+                BlockPos feet = top.down(dy);
+
+                if (!ws.isBlockLoaded(feet)) continue;
+
+                // must be natural terrain + not “built” neighborhood
+                if (!isNaturalStandable(ws, feet)) continue;
+                if (manMadeScanRadius > 0 && looksManMadeAround(ws, feet, manMadeScanRadius)) continue;
+
+                return feet;
+            }
+        }
+
+        return null;
+    }
 
 
 }

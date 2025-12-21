@@ -9,21 +9,26 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 @SideOnly(Side.CLIENT)
 public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
 
     private TravellerChunkSnapshot snapshot; // <-- was final, remove final
     private int tickCounter = 0;
+    private Set<ChunkPos> merchantSet;
+    private Set<ChunkPos> normalSet;
 
     public GuiTravellerChunks(TravellerChunkSnapshot snapshot) {
-        this.snapshot = snapshot;
+        updateSnapshot(snapshot);
     }
 
     public void updateSnapshot(TravellerChunkSnapshot snapshot) {
         this.snapshot = snapshot;
+        this.merchantSet = new HashSet<>(snapshot.merchantChunks);
+        this.normalSet = new HashSet<>(snapshot.normalChunks);
     }
-
     @Override
     public void updateScreen() {
         super.updateScreen();
@@ -84,11 +89,11 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
 
                 int color = 0xFF303030; // unloaded
 
-                if (snapshot.normalChunks.contains(cp)) {
-                    color = 0xFF555555; // normal loaded (dark grey)
+                if (normalSet.contains(cp)) {
+                    color = 0xFF555555; // normal loaded
                 }
-                if (snapshot.merchantChunks.contains(cp)) {
-                    color = 0xFF0066CC; // travellers merchant (blue-ish)
+                if (merchantSet.contains(cp)) {
+                    color = 0xFF0066CC; // merchant forced
                 }
 
                 drawRect(cellX, cellY, cellX2, cellY2, color);

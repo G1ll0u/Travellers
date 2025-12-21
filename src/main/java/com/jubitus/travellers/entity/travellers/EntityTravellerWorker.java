@@ -78,6 +78,10 @@ public class EntityTravellerWorker extends EntityTraveller {
     private static final DataParameter<Optional<UUID>> FOLLOW_OWNER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
 
+    private boolean returnUsingFollow = false;
+    private static final double RETURN_FOLLOW_SWITCH_DIST = 32.0D; // tweak (24–40 works well)
+
+
     // --- follower / hire state (existing) ---
     @Nullable
     public UUID followOwnerId = null;
@@ -312,15 +316,17 @@ public class EntityTravellerWorker extends EntityTraveller {
      * After this, worker will travel back to employerReturnPos.
      */
     public void onJobDelivered() {
-        if (this.jobDelivered) return; // guard
+        if (this.jobDelivered) return;
         this.jobDelivered = true;
         this.mode = WorkerMode.RETURNING;
 
-        // Make sure we head back toward the employer (approximate surface XZ)
+        if (this.isHiredFollower()) {
+            this.setFollowOrderActive(true); // clears idleAnchorPos
+        }
+
         EntityPlayer employer = getEmployer();
         if (employer != null) {
-            BlockPos approx = getApproximateSurfacePosNear(employer);
-            updateReturnRoute(approx);
+            updateReturnRoute(getApproximateSurfacePosNear(employer));
         } else if (employerReturnPos != null) {
             updateReturnRoute(employerReturnPos);
         }
@@ -371,7 +377,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             tickFollowerIdleBehaviour();
             tickStayAtIdleAnchor(); // NEW
             clearAggroIfOffscreen();
-            boolean travel = this.isJobActive(); // or your real condition
+            boolean travel = this.isJobActive() && !(this.mode == WorkerMode.RETURNING && returnUsingFollow);
             this.setUsingTravelAI(travel);
         }
 
@@ -389,43 +395,97 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
         // 2) RETURNING: re-path, walk to player, then wait for pickup
+// RETURNING: re-path with travel AI (long range), vanilla path only at close range
         if (mode == WorkerMode.RETURNING && jobDelivered) {
             EntityPlayer employer = getEmployer();
 
             if (employer != null) {
-                double distSq = this.getDistanceSq(employer);
 
-                // If we can SEE the player and are within 16 blocks, use vanilla pathing
-                // to walk directly to them for the last meters.
-                if (!awaitingPickup &&
-                        distSq > 4.0D * 4.0D &&
-                        distSq <= 9.0D * 9.0D) {
-                    this.getNavigator().tryMoveToEntityLiving(employer, this.getAIMoveSpeed());
+                // Use horizontal distance (better for caves / Y differences)
+                double dx = this.posX - employer.posX;
+                double dz = this.posZ - employer.posZ;
+                double distHsq = dx*dx + dz*dz;
+// --- Switch from Travel AI -> Follow AI when we can SEE the employer ---
+                if (!awaitingPickup) {
+                    // horizontal distance is better than 3D (caves / Y offsets)
+
+                    double switchSq = RETURN_FOLLOW_SWITCH_DIST * RETURN_FOLLOW_SWITCH_DIST;
+
+                    boolean sees = this.canEntityBeSeen(employer);
+
+                    // Use a little hysteresis so it doesn't flicker on/off
+                    double switchOffSq = (RETURN_FOLLOW_SWITCH_DIST + 10.0D);
+                    switchOffSq *= switchOffSq;
+
+                    if (!returnUsingFollow) {
+                        if (sees && distHsq <= switchSq) {
+                            returnUsingFollow = true;
+
+                            // Kill Travel AI state so it can't teleport when path drops
+                            TravelCommon tc2 = this.getTravelCommon();
+                            tc2.route.clear();
+                            tc2.routeIndex = -1;
+                            tc2.setTargetVillage(null);
+                            this.setTargetVillage(null); // IMPORTANT
+                            tc2.setCurrentWaypoint(null);
+                            tc2.setReadyToDepart(false);
+                            tc2.setDepartCooldownTicks(0);
+
+                            this.getNavigator().clearPath();
+
+                            // Ensure follow isn't off (clears idleAnchor)
+                            if (this.isHiredFollower()) {
+                                this.setFollowOrderActive(true);
+                            }
+                        }
+                    } else {
+                        // If we lost sight / got far again, let Travel AI take over again
+                        if (!sees || distHsq > switchOffSq) {
+                            returnUsingFollow = false;
+                        }
+                    }
                 }
 
-                // Periodic long-range repath back towards approximate surface XZ
-                if (!awaitingPickup) {
+                int near = 8;
+                double nearSq = (double)near * (double)near;
+
+                // If we were waiting but the player walked away, resume chasing/following
+                if (awaitingPickup) {
+                    double resumeSq = 12.0D * 12.0D;
+                    if (distHsq > resumeSq) {
+                        awaitingPickup = false;
+
+                        // If hired follower, follow AI can take over now
+                        if (this.isHiredFollower()) {
+                            this.setFollowOrderActive(true);
+                        } else {
+                            updateReturnRoute(getApproximateSurfacePosNear(employer));
+                        }
+                    }
+                }
+
+                // Keep long-range travel AI updated
+                if (!awaitingPickup && !returnUsingFollow) {
+                    // ONLY travel AI logic when we are NOT using follow
                     if (returnRepathCooldown-- <= 0) {
                         returnRepathCooldown = RETURN_REPATH_INTERVAL_TICKS;
                         BlockPos newApprox = getApproximateSurfacePosNear(employer);
-                        if (this.employerReturnPos == null ||
-                                this.employerReturnPos.distanceSq(newApprox) > (32 * 32)) {
+
+                        if (this.employerReturnPos == null
+                                || this.employerReturnPos.distanceSq(newApprox) > (32 * 32)) {
                             updateReturnRoute(newApprox);
                         }
                     }
                 }
 
-                // When close enough, STOP and wait for player to open GUI
-// Use the same "near" distance as villages (VillageNearDistance)
-                int near = 8;
-                double nearSq = (double) near * (double) near;
 
-// When close enough to the employer, STOP and wait for pickup
-                if (!awaitingPickup && distSq <= nearSq) {
-                    // Stop using the route + travel AI
+                // Arrival + message
+                if (!awaitingPickup && distHsq <= nearSq) {
+
                     tc.route.clear();
                     tc.routeIndex = -1;
                     tc.setTargetVillage(null);
+                    this.setTargetVillage(null); // IMPORTANT
                     tc.setCurrentWaypoint(null);
                     tc.setReadyToDepart(false);
                     tc.setDepartCooldownTicks(0);
@@ -433,17 +493,11 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                     awaitingPickup = true;
 
-                    // Optional: little sound cue on arrival
                     this.playHelloSound();
 
-                    // Arrival message (loot not yet handed over)
-                    String msg;
-                    if (this.hasUnsoldGoods) {
-                        msg = TextFormatting.WHITE + "I'm here. I couldn't sell everything, "
-                                + "some goods are still in my pack.";
-                    } else {
-                        msg = TextFormatting.WHITE + "I'm here with your goods. Check my pack.";
-                    }
+                    String msg = this.hasUnsoldGoods
+                            ? TextFormatting.WHITE + "I'm here. I couldn't sell everything, some goods are still in my pack."
+                            : TextFormatting.WHITE + "I'm here with your goods. Check my pack.";
                     employer.sendMessage(new TextComponentString(msg));
                 }
 
@@ -1342,7 +1396,10 @@ public class EntityTravellerWorker extends EntityTraveller {
     private void updateDynamicNavigation() {
         if (world.isRemote) return;
 
-        boolean shouldBoost = isInPlayerViewDistance();
+        boolean shouldBoost =
+                this.isJobActive()
+                        || this.isReturnUsingFollow()
+                        || (this.isHiredFollower() && this.isFollowOrderActive());
         if (shouldBoost == usingBoostedNav) return; // no change
 
         usingBoostedNav = shouldBoost;
@@ -1809,7 +1866,16 @@ public class EntityTravellerWorker extends EntityTraveller {
         } else if (this.getAttackTarget() != null) {
             cap = (float) Math.min(base * 1.22D, 0.38D); // same combat cap
         } else if (this.isHiredFollower() && !this.isJobActive()) {
-            cap = (float) (base * 1.30D);
+            double d = 0.0D;
+            EntityLivingBase t = this.getEffectiveFollowTarget();
+            if (t != null) d = this.getDistance(t);
+
+            double mult = 1.30D;
+            if (d > 32.0D)  mult = 1.60D;
+            if (d > 64.0D)  mult = 1.90D;
+            if (d > 128.0D) mult = 2.30D;
+
+            cap = (float) (base * mult);
         } else {
             // Normal idle travellers behaviour
             cap = (float) (base * 0.7D);
@@ -1836,16 +1902,16 @@ public class EntityTravellerWorker extends EntityTraveller {
             personalInventory.setStackInSlot(i, ItemStack.EMPTY);
         }
 
-    for (int i = 0; i < travelInventory.getSlots(); i++) {
-        ItemStack stack = travelInventory.getStackInSlot(i);
-        if (stack.isEmpty()) continue;
+        for (int i = 0; i < travelInventory.getSlots(); i++) {
+            ItemStack stack = travelInventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
 
-        EntityItem ei = new EntityItem(world, this.posX, this.posY + 0.5, this.posZ, stack.copy());
-        ei.setDefaultPickupDelay();
-        world.spawnEntity(ei);
+            EntityItem ei = new EntityItem(world, this.posX, this.posY + 0.5, this.posZ, stack.copy());
+            ei.setDefaultPickupDelay();
+            world.spawnEntity(ei);
 
-        travelInventory.setStackInSlot(i, ItemStack.EMPTY);
-    }
+            travelInventory.setStackInSlot(i, ItemStack.EMPTY);
+        }
 
     }
     /**
@@ -1896,6 +1962,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
     private void tickStayAtIdleAnchor() {
         if (!isHiredFollower()) return;
+        if (this.mode == WorkerMode.RETURNING && this.jobDelivered) return;
         if (isJobActive()) return;
         if (followOrderActive) return; // only care when follow is OFF
         if (idleAnchorPos == null) return;
@@ -1935,6 +2002,12 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public void clearEscortLeader() {
         this.escortLeaderEntityId = null;
+    }
+    public boolean isReturnUsingFollow() {
+        return this.mode == WorkerMode.RETURNING
+                && this.jobDelivered
+                && this.returnUsingFollow
+                && !this.awaitingPickup;
     }
 
 }
