@@ -79,9 +79,12 @@ public class EntityTravellerWorker extends EntityTraveller {
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
 
     private boolean returnUsingFollow = false;
-    private static final double RETURN_FOLLOW_SWITCH_DIST = 32.0D; // tweak (24–40 works well)
+    private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersModConfig.returnFollowSwitchDist; // tweak (24–40 works well)
 
+    // How often to refresh the catchup target (ticks)
+    private static final int CATCHUP_REPATH_INTERVAL_TICKS = 40; // 2s
 
+    private int catchupRepathCooldown = 0;
     // --- follower / hire state (existing) ---
     @Nullable
     public UUID followOwnerId = null;
@@ -148,6 +151,44 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     private BlockPos homeVillageCenter;
 
+    private boolean catchupTravel;
+
+    public boolean isCatchupTravel() { return catchupTravel; }
+
+    public void startOwnerCatchupTravel() {
+        EntityPlayer owner = getFollowOwner();
+        if (owner == null || owner.dimension != this.dimension) return;
+
+        this.catchupTravel = true;
+        this.catchupRepathCooldown = 0;
+
+        // Make sure we are not “anchored”
+        if (this.isHiredFollower()) {
+            this.setFollowOrderActive(true);
+        }
+
+        // Create a real travel route toward the owner
+        BlockPos pos = getApproximateSurfacePosNear(owner);
+        updateCatchupRoute(pos);
+    }
+    public void stopOwnerCatchupTravel() {
+        this.catchupTravel = false;
+        this.catchupRepathCooldown = 0;
+
+        TravelCommon tc = this.getTravelCommon();
+        tc.route.clear();
+        tc.routeIndex = -1;
+        tc.setTargetVillage(null);
+        this.setTargetVillage(null);
+        tc.setCurrentWaypoint(null);
+        tc.setReadyToDepart(false);
+        tc.setDepartCooldownTicks(0);
+
+        this.getNavigator().clearPath();
+    }
+
+
+
     public void setHomeVillage(@Nullable BlockPos pos) {
         this.homeVillageCenter = pos;
     }
@@ -195,6 +236,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public EntityTravellerWorker(World worldIn) {
         super(worldIn);
         this.enablePersistence();
+        this.forceSpawn = true;
 
         removeTaskOfType(EntityAIRoamInsideVillage.class);
         removeTaskOfType(EntityAITravel.class);
@@ -366,6 +408,40 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onLivingUpdate() {
         super.onLivingUpdate();
+        if (!world.isRemote && catchupTravel) {
+            EntityPlayer owner = getFollowOwner();
+            if (owner != null && owner.dimension == this.dimension && !owner.isDead) {
+
+                // Stop catchup if we can see owner and we're within your switch distance
+                double dx = this.posX - owner.posX;
+                double dz = this.posZ - owner.posZ;
+                double distHsq = dx * dx + dz * dz;
+
+                double switchSq = RETURN_FOLLOW_SWITCH_DIST * RETURN_FOLLOW_SWITCH_DIST;
+
+                if (this.canEntityBeSeen(owner) && distHsq <= switchSq) {
+                    stopOwnerCatchupTravel();
+                } else {
+                    // Keep refreshing the travel target (so we never “arrive” at a stale waypoint and idle)
+                    if (--catchupRepathCooldown <= 0) {
+                        catchupRepathCooldown = CATCHUP_REPATH_INTERVAL_TICKS;
+
+                        BlockPos approx = getApproximateSurfacePosNear(owner);
+
+                        // Optional: only refresh if target moved a bit
+                        if (this.getTravelCommon().getTargetVillage() == null
+                                || this.getTravelCommon().getTargetVillage().distanceSq(approx) > (16 * 16)) {
+                            updateCatchupRoute(approx);
+                        }
+                    }
+                }
+            } else {
+                // Lost owner / wrong dimension
+                stopOwnerCatchupTravel();
+            }
+        }
+
+
         // Server-side: register/update this worker as a chunkloader
         if (!world.isRemote) {
             TravellerChunkManager.INSTANCE.onChunkloaderTick(
@@ -377,8 +453,12 @@ public class EntityTravellerWorker extends EntityTraveller {
             tickFollowerIdleBehaviour();
             tickStayAtIdleAnchor(); // NEW
             clearAggroIfOffscreen();
-            boolean travel = this.isJobActive() && !(this.mode == WorkerMode.RETURNING && returnUsingFollow);
+            boolean travel =
+                    (this.isJobActive() && !(this.mode == WorkerMode.RETURNING && returnUsingFollow))
+                            || this.catchupTravel;
+
             this.setUsingTravelAI(travel);
+
         }
 
         if (world.isRemote) return;
@@ -405,6 +485,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 double dx = this.posX - employer.posX;
                 double dz = this.posZ - employer.posZ;
                 double distHsq = dx*dx + dz*dz;
+
 // --- Switch from Travel AI -> Follow AI when we can SEE the employer ---
                 if (!awaitingPickup) {
                     // horizontal distance is better than 3D (caves / Y offsets)
@@ -534,6 +615,20 @@ public class EntityTravellerWorker extends EntityTraveller {
                 this.getNavigator().clearPath();
             }
         }
+        if (!world.isRemote && this.isHiredFollower() && this.isFollowOrderActive() && !this.isJobActive()) {
+            EntityPlayer owner = getFollowOwner();
+            if (owner != null && !owner.isDead && owner.dimension == this.dimension) {
+                double dx = owner.posX - this.posX;
+                double dz = owner.posZ - this.posZ;
+                double distH = Math.sqrt(dx*dx + dz*dz);
+
+                if (distH > 200.0D && !this.catchupTravel) {
+                    this.startOwnerCatchupTravel();
+                }
+            }
+        }
+
+
         // --- NEW: idle roaming behaviour at player home chests ---
         // Only when not currently doing a job
         if (this.mode == WorkerMode.IDLE && !this.postJobFarewellActive && !this.isWaitingForPickup()) {
@@ -746,7 +841,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void readEntityFromNBT(NBTTagCompound nbt) {
         super.readEntityFromNBT(nbt);
-
+        this.forceSpawn = true;
         employerId = nbt.hasUniqueId("EmployerId") ? nbt.getUniqueId("EmployerId") : null;
         if (nbt.hasKey("EmpX")) {
             employerReturnPos = new BlockPos(
@@ -1396,10 +1491,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     private void updateDynamicNavigation() {
         if (world.isRemote) return;
 
-        boolean shouldBoost =
-                this.isJobActive()
-                        || this.isReturnUsingFollow()
-                        || (this.isHiredFollower() && this.isFollowOrderActive());
+        boolean shouldBoost = isInPlayerViewDistance();
         if (shouldBoost == usingBoostedNav) return; // no change
 
         usingBoostedNav = shouldBoost;
@@ -1870,10 +1962,10 @@ public class EntityTravellerWorker extends EntityTraveller {
             EntityLivingBase t = this.getEffectiveFollowTarget();
             if (t != null) d = this.getDistance(t);
 
-            double mult = 1.30D;
-            if (d > 32.0D)  mult = 1.60D;
-            if (d > 64.0D)  mult = 1.90D;
-            if (d > 128.0D) mult = 2.30D;
+            double mult = 1.35D;
+            if (d > 32.0D)  mult = 1.40D;
+            if (d > 64.0D)  mult = 1.60D;
+            if (d > 128.0D) mult = 1.80D;
 
             cap = (float) (base * mult);
         } else {
@@ -1914,21 +2006,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
     }
-    /**
-     * Long-range catch-up: plan a single-stop travel route to the owner,
-     * using the same travel AI the worker uses when returning from jobs.
-     */
-    public void startOwnerCatchupTravel() {
-        if (!isHiredFollower()) return;
 
-        EntityPlayer owner = getFollowOwner();
-        if (owner == null) return;
-
-        BlockPos approx = getApproximateSurfacePosNear(owner);
-
-        // Reuse the return route logic (now with readyToDepart = true)
-        updateReturnRoute(approx);
-    }
     public void setEscortLeader(@Nullable EntityTravellerWorker leader) {
         if (leader == null) {
             this.escortLeaderEntityId = null;
@@ -2009,5 +2087,27 @@ public class EntityTravellerWorker extends EntityTraveller {
                 && this.returnUsingFollow
                 && !this.awaitingPickup;
     }
+    /** Catchup route: one waypoint that is constantly refreshed */
+    private void updateCatchupRoute(BlockPos newPos) {
+        if (newPos == null) return;
 
+        TravelCommon tc = this.getTravelCommon();
+
+        tc.route.clear();
+        tc.routeIndex = -1;
+
+        tc.route.add(newPos);
+        tc.routeIndex = 0;
+
+        tc.setTargetVillage(newPos);
+        this.setTargetVillage(newPos);
+
+        tc.setCurrentWaypoint(null);
+
+        // IMPORTANT: do NOT "wait at stop" in catchup mode.
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+
+        this.getNavigator().clearPath();
+    }
 }

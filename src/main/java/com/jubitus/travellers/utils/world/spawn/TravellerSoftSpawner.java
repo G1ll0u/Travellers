@@ -11,6 +11,7 @@ import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
 import net.minecraft.entity.player.EntityPlayer;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 import static com.jubitus.travellers.entity.entityAI.travel.EntityAITravel.intersectsForbiddenLiquid;
 
@@ -240,8 +242,7 @@ public final class TravellerSoftSpawner {
                             }
                             spawned++;
                             regionalCount++;
-
-                            regionalCount++; // IMPORTANT: keep regional usage in sync
+                            
                         }
 
                         if (spawned > 0) {
@@ -906,42 +907,28 @@ public final class TravellerSoftSpawner {
      */
     private static void ensureWorkersForVillages(WorldServer ws) {
         MillWorldData wd = MillVillageIndex.getWD(ws);
-        if (wd == null) {
-            return;
-        }
+        if (wd == null) return;
 
         List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(ws);
-        if (centers.isEmpty()) {
-            return;
-        }
+        if (centers.isEmpty()) return;
 
-        // Count existing workers per home village (only LOADED entities)
-        Map<BlockPos, Integer> workersByVillage = new java.util.HashMap<>();
-        List<EntityTravellerWorker> workers =
-                ws.getEntities(EntityTravellerWorker.class, net.minecraft.entity.Entity::isEntityAlive);
+        TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
 
-        for (EntityTravellerWorker w : workers) {
-            BlockPos home = w.getHomeVillage();
-            if (home == null) continue;
-            workersByVillage.merge(home.toImmutable(), 1, Integer::sum);
-        }
+        // HARD global cap: total worker slots in the entire save
+        int cap = TravellersModConfig.workerGlobalAssignedCap;
+        if (cap <= 0) return;
 
-        // Global loaded worker cap (per world)
-        int globalLoadedWorkers = workers.size();
-        final int globalCap = TravellersModConfig.workerLoadedCap;
+        int alreadyAssigned = reg.getWorkerVillageCount();
+        int budget = cap - alreadyAssigned;
+        if (budget <= 0) return;
 
-        // NEW: "anchor" villages that are allowed to have workers
-        java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>();
+        // Existing worker “anchor” villages come from the REGISTRY (not loaded entities)
+        java.util.Set<BlockPos> workerAnchors = reg.getWorkerVillages();
+
         int minDist = TravellersModConfig.workerVillageMinDistance;
         if (minDist < 0) minDist = 0;
 
-        for (Map.Entry<BlockPos, Integer> e : workersByVillage.entrySet()) {
-            if (e.getValue() > 0) {
-                workerAnchors.add(e.getKey());
-            }
-        }
-
-        // Optional: prefer big villages as anchors
+        // Prefer big villages first (rarer workers, more “important” places)
         centers.sort((a, b) -> {
             int pa = MillVillageIndex.countVillagersInVillage(ws, a);
             int pb = MillVillageIndex.countVillagersInVillage(ws, b);
@@ -949,49 +936,44 @@ public final class TravellerSoftSpawner {
         });
 
         for (BlockPos center : centers) {
-            BlockPos immutableCenter = center.toImmutable();
+            if (budget <= 0) break;
 
-            // Skip ghost villages with no TH
-            Building th = MillVillageIndex.getTownHallBuilding(wd, immutableCenter);
-            if (th == null) {
-                continue;
-            }
+            BlockPos v = center.toImmutable();
 
-            // NEW: if this village is close to an anchor village, skip workers here
-            if (minDist > 0 && withinXZOfAny(immutableCenter, workerAnchors, minDist)) {
-                continue;
-            }
+            // Must have TH
+            Building th = MillVillageIndex.getTownHallBuilding(wd, v);
+            if (th == null) continue;
 
-            int villagers = MillVillageIndex.countVillagersInVillage(ws, immutableCenter);
-
-            // Population-based desired workers
-            int desired = MillVillageIndex.desiredWorkersForPopulation(villagers);
-            if (desired <= 0) {
-                continue;
-            }
-
-            int current = workersByVillage.getOrDefault(immutableCenter, 0);
-            int missing = desired - current;
-            if (missing <= 0) {
-                if (current > 0) {
-                    workerAnchors.add(immutableCenter);
+            // If registry says this village already has a worker, DO NOT spawn another.
+            UUID existing = reg.getWorkerFor(v);
+            if (existing != null) {
+                // Optional sanity check ONLY if entity is currently loaded:
+                Entity ent = ws.getEntityFromUuid(existing);
+                if (ent != null) {
+                    if (!(ent instanceof EntityTravellerWorker) || !ent.isEntityAlive()) {
+                        // Loaded and invalid -> clear and allow respawn
+                        reg.clearWorkerFor(v, existing);
+                        existing = null;
+                    }
                 }
+            }
+            if (existing != null) continue;
+
+            // Distance gating from existing anchors (prevents dense worker coverage)
+            if (minDist > 0 && withinXZOfAny(v, workerAnchors, minDist)) {
                 continue;
             }
 
-            // We are actually going to give workers to this village: mark as anchor
-            workerAnchors.add(immutableCenter);
+            // ✅ Spawn exactly ONE worker for this village and register it
+            spawnWorkerAtVillage(ws, v);
 
-            for (int i = 0; i < missing; i++) {
-                if (globalCap > 0 && globalLoadedWorkers >= globalCap) {
-                    return; // stop once global worker cap hit
-                }
+            // Mark as anchor so nearby villages won’t get one
+            workerAnchors.add(new BlockPos(v.getX(), 0, v.getZ()).toImmutable());
 
-                spawnWorkerAtVillage(ws, immutableCenter);
-                globalLoadedWorkers++;
-            }
+            budget--;
         }
     }
+
 
 
 

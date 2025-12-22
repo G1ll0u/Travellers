@@ -12,10 +12,11 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
+    public static int workerGlobalAssignedCap = 12; // example: 8–20 feels good
 
     public static boolean travellerOffscreenHopEnabled = true;
-    public static int travellerOffscreenHopIntervalTicks = 20 * 8; // 8s
-    public static int travellerOffscreenHopStepBlocks = 24;        // small hop
+    public static int travellerOffscreenHopIntervalTicks = 20 * 6; // 6s, every 6s, do a hop
+    public static int travellerOffscreenHopStepBlocks = 24;        // hop distance in blocks
 
     public static double followerIdleJitterRadius = 0.25D;  // very small jitter when owner idle
     public static int    followerIdleRecalcTicks  = 24;     // slower path recalcs when owner idle
@@ -104,7 +105,7 @@ public class TravellersModConfig {
     public static int workerVillageDetectRadius = 2000;
 
     public static int workerStepBlocks = 16;
-    public static int workerChunkRadius = 1; // whatever you want
+    public static int workerChunkRadius = 0; // whatever you want
     public static double workerMaxHealth = 60.0D;
     public static double workerFollowRange = 24.0D;
 
@@ -131,7 +132,7 @@ public class TravellersModConfig {
     public static int merchantChunkRadius = 1;          // default radius per merchant
     public static int merchantMaxForcedChunks = 1000;    // hard cap per world
     public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
-    public static int merchantMaxChunkloadingMerchants = 256; // if many merchants, only first N get chunkloading
+    public static int merchantMaxChunkloadingMerchants = 16; // if many merchants, only first N get chunkloading
     public static boolean merchantChunkloadingEnabled = true;
     // How big a slice of the total required amount the merchant tries to supply.
 // 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
@@ -405,6 +406,8 @@ public class TravellersModConfig {
     public static double travellerViewBoostBaseRadius = 128;
     public static double travellerViewBoostCombatBonus = 128;
     public static boolean allowTravellerChunkLoading = true;
+    public static double returnFollowSwitchDist = 128;
+    public static int chunkRecomputeIntervalTicks = 20;
     static boolean enableTravellerEntity = true;
     private static String[] raiderAttackIdRules = new String[0];
     private static String[] raiderAttackClassRules = new String[0];

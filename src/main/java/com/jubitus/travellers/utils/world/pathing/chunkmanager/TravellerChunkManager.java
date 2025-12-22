@@ -16,6 +16,7 @@ import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.millenaire.common.utilities.MillLog;
 
 import javax.annotation.Nullable;
@@ -56,18 +57,22 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         ForgeChunkManager.setForcedChunkLoadingCallback(Travellers.INSTANCE, INSTANCE);
     }
     @SubscribeEvent
-    public void onWorldTick(net.minecraftforge.fml.common.gameevent.TickEvent.WorldTickEvent event) {
-        if (event.phase != net.minecraftforge.fml.common.gameevent.TickEvent.Phase.END) return;
+    public void onWorldTick(TickEvent.WorldTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
         if (event.world.isRemote) return;
         if (!(event.world instanceof WorldServer)) return;
 
         WorldServer ws = (WorldServer) event.world;
         WorldState state = getOrCreateState(ws);
 
-        // Always recompute; recomputeForWorld will clean up if there are no merchants
-        recomputeForWorld(state);
+        // ✅ cheap: hops can stay frequent
         tickOffscreenHops(state);
 
+        // ✅ expensive: recompute less often
+        int interval = Math.max(1, TravellersModConfig.chunkRecomputeIntervalTicks); // add config
+        if ((ws.getTotalWorldTime() % interval) == 0) {
+            recomputeForWorld(state);
+        }
     }
     @SubscribeEvent
     public void onWorldUnload(WorldEvent.Unload event) {
@@ -330,27 +335,36 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             md.chunkloading = (i < allowedMerchants);
             if (!md.chunkloading) continue;
 
-            // Make sure we have a recent position
+            // radius is in blocks -> convert to chunks
+            int cx = md.pos.getX() >> 4;
+            int cz = md.pos.getZ() >> 4;
+            desired.add(new ChunkPos(cx, cz));
+
             Entity ent = state.world.getEntityFromUuid(md.id);
             if (ent instanceof EntityTraveller) {
-                md.pos = ent.getPosition();
-            }
+                EntityTraveller t = (EntityTraveller) ent;
+                BlockPos tv = t.getTargetVillage();
+                if (tv != null) {
+                    int tx = tv.getX() >> 4;
+                    int tz = tv.getZ() >> 4;
 
-            // radius is in blocks -> convert to chunks
-            int rChunks = (md.radius + 15) / 16;
-            int baseX = md.pos.getX() >> 4;
-            int baseZ = md.pos.getZ() >> 4;
+                    int dx = Integer.compare(tx, cx); // -1,0,1
+                    int dz = Integer.compare(tz, cz);
 
-            // Add the square of chunks around the traveller
-            outer:
-            for (int dz = -rChunks; dz <= rChunks; dz++) {
-                for (int dx = -rChunks; dx <= rChunks; dx++) {
-                    desired.add(new ChunkPos(baseX + dx, baseZ + dz));
+                    // 1 chunk "ahead" towards target
+                    desired.add(new ChunkPos(cx + dx, cz + dz));
 
-                    // Stop if we hit the global forced chunk limit
-                    if (desired.size() >= maxForced) break outer;
+                    // optional: second chunk ahead (helps travel AI)
+                    // desired.add(new ChunkPos(cx + 2*dx, cz + 2*dz));
                 }
             }
+
+// optional safety neighbors (prevents edge-stalling)
+            desired.add(new ChunkPos(cx + 1, cz));
+            desired.add(new ChunkPos(cx - 1, cz));
+            desired.add(new ChunkPos(cx, cz + 1));
+            desired.add(new ChunkPos(cx, cz - 1));
+
 
             if (desired.size() >= maxForced) break;
         }
@@ -538,11 +552,26 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         }
 
         public int chunkloadingPriority(WorldServer world) {
+            Entity e = world.getEntityFromUuid(this.id);
+
+            // ✅ hired followers must always be chunkloaded
+            if (e instanceof EntityTravellerWorker) {
+                EntityTravellerWorker w = (EntityTravellerWorker) e;
+                if (w.isHiredFollower()) return 1000;
+            }
+
+            // ✅ near-player chunkloaders should win (optional)
+            if (e instanceof EntityTraveller) {
+                EntityTraveller t = (EntityTraveller) e;
+                if (t.isInPlayerViewDistance()) return 50;
+            }
+
             int idleTicks = ticksSinceLastProgress(world);
             if (idleTicks < 200) return 2;
             if (idleTicks < 1200) return 1;
             return 0;
         }
+
     }
     @SubscribeEvent
     public void onCanEntityUpdate(net.minecraftforge.event.entity.EntityEvent.CanUpdate event) {

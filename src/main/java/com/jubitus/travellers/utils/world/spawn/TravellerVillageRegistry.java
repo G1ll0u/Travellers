@@ -14,6 +14,15 @@ import java.util.*;
 // New file: TravellerVillageRegistry.java
 public class TravellerVillageRegistry extends WorldSavedData {
 
+    public int getWorkerVillageCount() {
+        return workerByVillage.size();
+    }
+
+    public java.util.Set<BlockPos> getWorkerVillages() {
+        return new java.util.HashSet<>(workerByVillage.keySet());
+    }
+
+
     public static final String DATA_NAME = "TravellersVillageRegistry";
 
     // 1 worker per village

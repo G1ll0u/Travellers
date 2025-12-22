@@ -99,6 +99,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
     @Override
     public boolean shouldExecute() {
+        if (worker.isCatchupTravel()) return false;
         if (!worker.isHiredFollower()) return false;
         if (!worker.isFollowOrderActive()) return false;
 
@@ -115,6 +116,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
     @Override
     public boolean shouldContinueExecuting() {
+        if (worker.isCatchupTravel()) return false;
         if (!worker.isHiredFollower()) return false;
         if (!worker.isFollowOrderActive()) return false;
 
@@ -125,9 +127,26 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (current == null || current.isDead) return false;
         if (current instanceof EntityPlayer && ((EntityPlayer) current).isSpectator()) return false;
 
+        // ---- NEW: if target is too far, yield MOVE to Travel/Catchup ----
+        final double switchD = TravellersModConfig.returnFollowSwitchDist; // add this in config
+        double d2 = worker.getDistanceSq(current);
+
+        // If you're far beyond what follow should handle (teleport / huge separation),
+        // stop this AI so Travel AI can run.
+        if (d2 > switchD * switchD) {
+            worker.getNavigator().clearPath();
+
+            // Optional: tell worker to enter catchup-travel mode here
+            // (recommended if you added that flag)
+            worker.startOwnerCatchupTravel();
+
+            return false;
+        }
+
         this.followTarget = current;
         return true;
     }
+
 
     @Override
     public void startExecuting() {
@@ -578,7 +597,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (targetIsWorkerLeader) maxFollowSpeed = 1.10D; // tune 0.85–1.3
 
         moveSpeed = Math.max(0.08D, Math.min(moveSpeed, maxFollowSpeed));
-
+        final double MAX_VISUAL_NAV_SPEED = 1.15D; // tune 1.05–1.25
+        moveSpeed = Math.min(moveSpeed, MAX_VISUAL_NAV_SPEED);
 // Optional smoothing (use it!)
         double alpha = targetIsPlayer ? 0.35D : 0.15D;
         if (distToOwner > 48.0D) alpha = 0.55D;

@@ -238,43 +238,57 @@ public class EntityAITravel extends EntityAIBase {
     }
     @Override
     public boolean shouldExecute() {
+        boolean catchup = (mob instanceof EntityTravellerWorker) && ((EntityTravellerWorker) mob).isCatchupTravel();
+
         if (this.mob instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) this.mob;
-
-            // If he's hired and NOT on a job, do not run travel AI
-            if (w.isHiredFollower() && !w.isJobActive()) {
-                return false;
-            }
+            if (w.isHiredFollower() && !w.isJobActive() && !w.isCatchupTravel()) return false;
         }
 
         if (mob.isInCombat() || mob.isAutoEating() || mob.isHandActive()) return false;
-        if (mob.isAtTargetStop() || mob.isAtTargetStopHys(false)) return false; // already inside
+
+        // only block "already inside" when NOT in catchup
+        if (!catchup && (mob.isAtTargetStop() || mob.isAtTargetStopHys(false))) return false;
+
         BlockPos tv = mob.getTargetVillage();
         if (tv == null) return false;
         retarget(tv);
-        return !mob.isAtTargetStop(); // ← unified
+
+        // in catchup, always run if we have a target
+        return catchup || !mob.isAtTargetStop();
     }
+
 
     @Override
     public boolean shouldContinueExecuting() {
         if (mob.isInCombat() || mob.isAutoEating() || mob.isHandActive()) return false;
-        if (mob.isAtTargetStop() || mob.isAtTargetStopHys(false)) {
-            mob.getNavigator().clearPath();
-            return false;                           // yield to Roam
-        }
-        if (this.mob instanceof EntityTravellerWorker) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this.mob;
-            if (w.isHiredFollower() && !w.isJobActive()) {
+
+        // If we are NOT in catchup travel, then stopping at target is fine
+        if (mob instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) mob;
+
+            if (w.isHiredFollower() && !w.isJobActive() && !w.isCatchupTravel()) {
                 return false;
             }
+        }
+
+        if (mob.isAtTargetStop() || mob.isAtTargetStopHys(false)) {
+            mob.getNavigator().clearPath();
+            return false;
+        }
+        boolean catchup = (mob instanceof EntityTravellerWorker) && ((EntityTravellerWorker) mob).isCatchupTravel();
+
+        if (!catchup && (mob.isAtTargetStop() || mob.isAtTargetStopHys(false))) {
+            mob.getNavigator().clearPath();
+            return false;
         }
         BlockPos tv = mob.getTargetVillage();
         if (tv == null) return false;
         if (!tv.equals(this.targetVillage)) retarget(tv);
         arriveInside = mob.isAtTargetStopHys(arriveInside);
-
         return !arriveInside;
     }
+
 
     @Override
     public void startExecuting() {
@@ -412,10 +426,13 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         // Arrived?
-        if (mob.getDistanceSqToCenter(targetVillage) <= this.targetNearSq) {
+        boolean catchup = (mob instanceof EntityTravellerWorker) && ((EntityTravellerWorker) mob).isCatchupTravel();
+
+        if (!catchup && mob.getDistanceSqToCenter(targetVillage) <= this.targetNearSq) {
             onArrivedAtVillage();
             return;
         }
+
 
         // -----------------------------------------
         // Boat handling (keep it simple: steer + dismount when hit shore)
@@ -573,8 +590,8 @@ public class EntityAITravel extends EntityAIBase {
                 }
 
                 if (stuckTpCooldown == 0) {
-                    boolean rescued = teleportToSurfaceRescue(10, /*minRise*/ 6);
-                    rescued = teleportToward(targetVillage, TP_STEP_BLOCKS);
+                    boolean rescued = teleportToSurfaceRescue(10, 6);
+                    rescued |= teleportToward(targetVillage, TP_STEP_BLOCKS);
 
                     if (rescued) {
                         bestDistSq = mob.getDistanceSqToCenter(targetVillage);
