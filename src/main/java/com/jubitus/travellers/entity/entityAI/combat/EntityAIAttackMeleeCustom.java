@@ -2,6 +2,7 @@ package com.jubitus.travellers.entity.entityAI.combat;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLivingBase;
@@ -102,7 +103,16 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             EntityPlayer p = (EntityPlayer) attacker.getAttackTarget();
             if (shouldForgivePlayerChaseForAI(attacker, p)) return false;
         }
-
+        if (attacker instanceof EntityTraveller) {
+            EntityTraveller t = (EntityTraveller) attacker;
+            TravellerBlacklist bl = t.getAggroBlacklist(); // make it public/protected or add a helper
+            if (bl != null && bl.isBlacklisted(tgt)) {
+                attacker.setAttackTarget(null);
+                attacker.getNavigator().clearPath();
+                attacker.setSprinting(false);
+                return false;
+            }
+        }
         if (attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
             if (t.hasBowInBackpackPublic()) {

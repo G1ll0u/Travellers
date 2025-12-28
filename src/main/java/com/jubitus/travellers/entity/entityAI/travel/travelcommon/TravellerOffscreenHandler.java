@@ -38,9 +38,6 @@ public class TravellerOffscreenHandler {
             if (living.getAttackTarget() == traveller) {
                 living.setAttackTarget(null);
             }
-            if (living.getRevengeTarget() == traveller) {
-                living.setRevengeTarget(null);
-            }
 
             living.getNavigator().clearPath(); // stop them walking towards travellers
         }

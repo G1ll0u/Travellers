@@ -12,7 +12,23 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
-    public static int workerGlobalAssignedCap = 12; // example: 8–20 feels good
+    // Recruit mission tuning
+    public static int recruitMaxVillageRadius = 1500;        // max distance from player
+    public static int recruitVillagesMin = 1;
+    public static int recruitVillagesMax = 3;
+
+    public static int recruitSpawnMin = 1;                  // workers spawned per visited village
+    public static int recruitSpawnMax = 3;
+
+    public static int recruitLeaderAssignRadius = 32;        // radius to assign/clear escort leader
+
+    // Fee formula tuning (deniers)
+    public static int recruitFeeFlat = 128;                 // 2 argent if 64 deniers/argent
+    public static double recruitFeePerBlock = 0.05;         // per block of route (2D)
+    public static int recruitFeePerVillage = 4*64;            // +4 argent per village
+
+
+    public static int workerGlobalAssignedCap = 16; // example: 8–20 feels good
 
     public static boolean travellerOffscreenHopEnabled = true;
     public static int travellerOffscreenHopIntervalTicks = 20 * 6; // 6s, every 6s, do a hop
@@ -26,8 +42,8 @@ public class TravellersModConfig {
     public static int followerOwnerIdleTicks      = 10;  // how long owner must be still to count as "idle"
 
     public static boolean followerBoatConvoyEnabled = true;
-    public static double followerBoatConvoyAccel     = 0.10D; // per tick "thrust"
-    public static double followerBoatConvoyMaxSpeed  = 0.63D; // hard cap (tweak to taste)
+    public static double followerBoatConvoyAccel     = 0.16D; // per tick "thrust"
+    public static double followerBoatConvoyMaxSpeed  = 4.0D; // hard cap (tweak to taste)
     public static double followerBoatConvoyBrakeNear = 0.60D; // how much to damp when close
     // Tweakable convoy spacing
     public static double followerBoatBaseGap = 3.0D;   // distance behind owner’s boat
@@ -40,7 +56,7 @@ public class TravellersModConfig {
 
     // optional tuning knobs if you like:
     public static double followerBoatBoardRadius = 2.5D;      // how close to board
-    public static double followerBoatConvoySpeed = 0.9D;      // boats vs normal follow speed
+    public static double followerBoatConvoySpeed = 4.0D;      // boats vs normal follow speed
     public static double followerBoatSearchRadius = 8.0D;     // find other boats in this radius
 
 
@@ -402,11 +418,11 @@ public class TravellersModConfig {
     public static boolean requirePathForAggro = true;
     public static boolean requireLOSForMemoryTargets = true;
     public static boolean requireLOSForChainTargets = true;
-    public static double travellerOffscreenViewRadius = 128;
+    public static double travellerOffscreenViewRadius = 256;
     public static double travellerViewBoostBaseRadius = 128;
     public static double travellerViewBoostCombatBonus = 128;
     public static boolean allowTravellerChunkLoading = true;
-    public static double returnFollowSwitchDist = 128;
+    public static double returnFollowSwitchDist = 48;
     public static int chunkRecomputeIntervalTicks = 20;
     static boolean enableTravellerEntity = true;
     private static String[] raiderAttackIdRules = new String[0];

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.utils.net.message;
 
+import com.jubitus.travellers.client.gui.GuiWorkerRecruit;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.client.gui.GuiWorker;
 import io.netty.buffer.ByteBuf;
@@ -104,8 +105,9 @@ public class MsgWorkerVillageList implements IMessage {
 
             GuiScreen screen = mc.currentScreen;
             if (screen instanceof GuiWorker) {
-                GuiWorker gui = (GuiWorker) screen;
-                gui.receiveVillageList(msg.centers, msg.labels, msg.distances);
+                ((GuiWorker) screen).receiveVillageList(msg.centers, msg.labels, msg.distances);
+            } else if (screen instanceof GuiWorkerRecruit) {
+                ((GuiWorkerRecruit) screen).receiveVillageList(msg.centers, msg.labels, msg.distances);
             }
         }
     }

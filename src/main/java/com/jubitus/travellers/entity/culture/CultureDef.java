@@ -99,6 +99,10 @@ public final class CultureDef {
         // fallback: share travellers pool if raider list is empty
         return getTravellerTextureCount();
     }
+    public int getExplicitRaiderTextureCount() {
+        return (raiderLooks != null) ? raiderLooks.size() : 0;
+    }
+
 
     public int getTravellerTextureCount() {
         return travellerLooks != null ? travellerLooks.size() : 0;

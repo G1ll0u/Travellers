@@ -4,12 +4,16 @@ import com.jubitus.travellers.client.gui.*;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 
 public class CommonGuiHandler implements IGuiHandler {
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+
+
         if (id == TravellersGuiIds.WORKER) {
             Entity e = world.getEntityByID(x);
             return (e instanceof EntityTravellerWorker)
@@ -34,11 +38,38 @@ public class CommonGuiHandler implements IGuiHandler {
                     ? new ContainerWorkerInventory(player.inventory, (EntityTravellerWorker) e)
                     : null;
         }
+        if (id == TravellersGuiIds.WORKER_RECRUIT) {
+            Entity e = world.getEntityByID(x);
+            return (e instanceof EntityTravellerWorker)
+                    ? new ContainerWorkerRecruit(player.inventory, (EntityTravellerWorker) e)
+                    : null;
+        }
+        if (id == TravellersGuiIds.WORKER_BEHAVIOR) {
+            Entity e = world.getEntityByID(x);
+
+
+
+            return (e instanceof EntityTravellerWorker)
+                    ? new ContainerWorkerBehavior(player.inventory, (EntityTravellerWorker) e)
+                    : null;
+        }
+
+
+
+
         return null;
     }
 
     @Override
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
-        return null; // common side returns nothing
+
+
+
+        // IMPORTANT: keep your other GUI cases here too (WORKER, HUB, ORDERS, etc.)
+        // If you return null for those IDs, those GUIs will also fail.
+
+        return null;
     }
+
+
 }

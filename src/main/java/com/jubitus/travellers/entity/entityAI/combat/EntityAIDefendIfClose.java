@@ -173,6 +173,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
         for (EntityLivingBase e : list) {
             if (blacklist.isBlacklisted(e)) continue;
+            if (mob.isIgnoring(e)) continue;  // <--- NEW
             if (e.isInvisible()) continue;
 
             double d2 = mob.getDistanceSq(e);

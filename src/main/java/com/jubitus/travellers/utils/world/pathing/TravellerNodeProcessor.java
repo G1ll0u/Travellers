@@ -10,6 +10,7 @@ import net.minecraft.pathfinding.PathNodeType;
 import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.pathfinding.WalkNodeProcessor;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 
@@ -64,7 +65,31 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
                 options[w++] = options[i];
             }
         }
+// --- NEW: filter neighbors by TRUE step height (snow layers / fractional surfaces) ---
+        double curSurfY = surfaceYForNode(current.x, current.y, current.z);
+        double maxUp = this.entity.stepHeight + 1e-3;
 
+        for (int i = 0; i < w; i++) {
+            PathPoint p = options[i];
+            if (p == null) continue;
+
+            double nextSurfY = surfaceYForNode(p.x, p.y, p.z);
+
+            // If the floor rises more than we can step/jump-handle as a "walk" move, reject it.
+            // (This prevents paths that lead to infinite pushing at snow-block+layer edges.)
+            if ((nextSurfY - curSurfY) > maxUp) {
+                options[i] = null;
+            }
+        }
+
+// compact again
+        int w3 = 0;
+        for (int i = 0; i < w; i++) {
+            if (options[i] != null) {
+                options[w3++] = options[i];
+            }
+        }
+        w = w3;
 // --- 4b) NEW: forbid *unsafe* diagonal steps (no corner-cutting off cliffs) ---
         int cx = current.x;
         int cy = current.y;
@@ -132,7 +157,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         // ... your fence gate reclass ...
 
         if (this.entity != null) {
-            double mobFeetY = Math.floor(this.entity.getEntityBoundingBox().minY);
+            double mobFeetY = this.entity.getEntityBoundingBox().minY;
 
             // ---- NEW: snow-layer fractional step check ----
             // If the target node is a snow layer, stepping onto it is "y + layers/8" not "y".
@@ -262,4 +287,21 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         return 0;
     }
+    private double surfaceYForNode(int x, int y, int z) {
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        double best = y;
+
+        for (int dy = 0; dy >= -2; dy--) {
+            pos.setPos(x, y + dy, z);
+            IBlockState st = this.blockaccess.getBlockState(pos);
+
+            AxisAlignedBB bb = st.getBoundingBox(this.blockaccess, pos);
+            if (bb == null || bb == Block.NULL_AABB) continue;
+
+            double top = (y + dy) + bb.maxY;
+            if (top > best) best = top;
+        }
+        return best;
+    }
+
 }

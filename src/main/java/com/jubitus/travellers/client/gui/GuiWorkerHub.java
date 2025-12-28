@@ -13,6 +13,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @SideOnly(Side.CLIENT)
 public class GuiWorkerHub extends GuiContainer {
@@ -23,6 +24,9 @@ public class GuiWorkerHub extends GuiContainer {
     private GuiButton transportButton;
     private GuiButton followButton;
     private GuiButton inventoryButton; // NEW
+    private GuiButton behaviorButton;
+
+
 
     private static final ResourceLocation TEX =
             new ResourceLocation("travellers", "textures/gui/worker_hub.png");
@@ -52,36 +56,23 @@ public class GuiWorkerHub extends GuiContainer {
         int left = x + (this.xSize - totalW) / 2;
         int buttonsY = y + 40;
 
-        this.transportButton = this.addButton(new GuiButton(
-                0,
-                left,
-                buttonsY,
-                bw, bh,
-                I18n.format("travellers.worker.hub.transport", "Transport")
-        ));
+        this.transportButton = this.addButton(new GuiButton(0, left, buttonsY, bw, bh,
+                I18n.format("travellers.worker.hub.transport", "Transport")));
 
-        this.followButton = this.addButton(new GuiButton(
-                1,
-                left + bw + gap,
-                buttonsY,
-                bw, bh,
-                I18n.format("travellers.worker.hub.follow", "Follow")
-        ));
+        this.followButton = this.addButton(new GuiButton(1, left + bw + gap, buttonsY, bw, bh,
+                I18n.format("travellers.worker.hub.follow", "Follow")));
 
-        this.inventoryButton = this.addButton(new GuiButton(
-                2,
-                left + (bw + gap) * 2,
-                buttonsY,
-                bw, bh,
-                I18n.format("travellers.worker.hub.inventory", "Inventory")
-        ));
-//        // Only allow the hiring player to use this button
-//        boolean hiredByThisPlayer =
-//                worker.isHiredFollower()
-//                        && player.getUniqueID().equals(worker.getFollowOwnerId());
-//
-//        this.inventoryButton.enabled = hiredByThisPlayer;
+        this.inventoryButton = this.addButton(new GuiButton(2, left + (bw + gap) * 2, buttonsY, bw, bh,
+                I18n.format("travellers.worker.hub.inventory", "Inventory")));
+
+        // NEW: Behavior (second row, centered)
+        int row2Y = buttonsY + bh + 6;
+        this.behaviorButton = this.addButton(new GuiButton(3, x + (this.xSize - bw) / 2, row2Y, bw, bh,
+                I18n.format("travellers.worker.hub.behavior", "Behavior")));
+
+        refreshButtonStates();
     }
+
 
 
     @Override
@@ -108,6 +99,12 @@ public class GuiWorkerHub extends GuiContainer {
             // ❌ no mc.player.closeScreen() here
             return;
         }
+        if (button == behaviorButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.BEHAVIOR)
+            );
+            return;
+        }
 
         super.actionPerformed(button);
     }
@@ -119,6 +116,21 @@ public class GuiWorkerHub extends GuiContainer {
         int x = this.guiLeft;
         int y = this.guiTop;
         this.drawTexturedModalRect(x, y, 0, 0, this.xSize, this.ySize);
+    }
+    @Override
+    public void updateScreen() {
+        super.updateScreen();
+        refreshButtonStates();
+    }
+
+    private void refreshButtonStates() {
+        boolean hired = worker.isHiredFollower();
+        UUID ownerId  = worker.getFollowOwnerId();
+        boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
+
+        // only show behavior when hired by me
+        this.behaviorButton.visible = hiredByMe;
+        this.behaviorButton.enabled = hiredByMe;
     }
 
 }

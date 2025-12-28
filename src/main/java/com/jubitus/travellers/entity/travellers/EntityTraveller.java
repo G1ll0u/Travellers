@@ -196,6 +196,30 @@ public class EntityTraveller extends EntityCreature {
     public boolean isRouteLocked() {
         return false;
     }
+    private final Map<UUID, Integer> ignoreTargetsUntil = new java.util.HashMap<>();
+
+    public void ignoreTarget(EntityLivingBase e, int ticks) {
+        if (e == null) return;
+        ignoreTargetsUntil.put(e.getUniqueID(), this.ticksExisted + Math.max(1, ticks));
+    }
+
+    public boolean isIgnoring(EntityLivingBase e) {
+        if (e == null) return false;
+        Integer until = ignoreTargetsUntil.get(e.getUniqueID());
+        if (until == null) return false;
+        if (this.ticksExisted > until) {
+            ignoreTargetsUntil.remove(e.getUniqueID());
+            return false;
+        }
+        return true;
+    }
+
+    // optional: prune sometimes
+    private void pruneIgnoredTargets() {
+        if ((this.ticksExisted & 0x3F) != 0) return; // every ~64 ticks
+        int now = this.ticksExisted;
+        ignoreTargetsUntil.entrySet().removeIf(en -> now > en.getValue());
+    }
     public EntityTraveller(World worldIn) {
         super(worldIn);
         this.setPathPriority(PathNodeType.BLOCKED, -1.0F);
@@ -214,10 +238,10 @@ public class EntityTraveller extends EntityCreature {
 
         this.setSize(0.5F, 1.6F);
         this.enablePersistence(); // make them persist in world
-        this.stepHeight = 1.0F; // Allow them to not jump but just stepUp 1 block height (avoids bugs with non-full blocks)
         this.setCanPickUpLoot(true);
         this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
         this.setLeftHanded(false);
+        this.stepHeight = 1.4F;
 
     }
 
@@ -724,17 +748,6 @@ public class EntityTraveller extends EntityCreature {
             double d2 = this.getDistanceSq(target);
 
             if (d2 > r * r) {
-                // Throttle spam: once per second
-                if (this.ticksExisted >= debugNextTargetTraceTick) {
-                    debugNextTargetTraceTick = this.ticksExisted + 20;
-
-                    System.out.println("=== Traveller FAR TARGET ATTEMPT ===");
-                    System.out.println("self=" + this + " pos=" + this.getPosition());
-                    System.out.println("target=" + target + " pos=" + target.getPosition());
-                    System.out.println("d=" + Math.sqrt(d2) + "  trigger=" + r);
-                    new Exception("setAttackTarget stack").printStackTrace();
-                }
-
                 // hard reject
                 super.setAttackTarget(null);
                 setInCombat(false);
@@ -774,6 +787,7 @@ public class EntityTraveller extends EntityCreature {
         if (target != null) {
             TravellerBlacklist blacklist = getAggroBlacklist();
             if (blacklist.isBlacklisted(target)) {
+                ignoreTarget(target, 60); // 3s (tune 40–120)
                 rejectTarget();
                 return;
             }
@@ -951,6 +965,7 @@ public class EntityTraveller extends EntityCreature {
             handleSwordVisibility();
             decayAndPruneThreats();
             considerRetargetFromMemory();
+            pruneIgnoredTargets();
         }
         if (!isInCombat()) {
             if (isAimingBow()) {
@@ -1350,7 +1365,7 @@ public class EntityTraveller extends EntityCreature {
             if (isArmorItemForSlot(stack, slot) && isArmorUpgrade(stack, slot)) {
                 ItemStack one = stack.copy();
                 one.setCount(1);
-                safeReplaceInSlot(slot, one);
+                safeReplaceInSlot(slot, one, true /* dropOld */);
                 shrinkOrRemove(itemEntity);
                 this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
                 return;
@@ -1368,6 +1383,10 @@ public class EntityTraveller extends EntityCreature {
         if (isSwordLike(stack) && isSwordUpgrade(stack)) {
             takeOneAndStash(itemEntity);
             this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
+
+            // NEW: prune swords (drop old ones)
+            keepOnlyBestSwordAndDropRest();
+
             return;
         }
 
@@ -1604,19 +1623,20 @@ public class EntityTraveller extends EntityCreature {
         return cand > have + 0.05; // small epsilon avoids thrash on ties
     }
 
-    private void safeReplaceInSlot(EntityEquipmentSlot slot, ItemStack newStack) {
+    private void safeReplaceInSlot(EntityEquipmentSlot slot, ItemStack newStack, boolean dropOld) {
         ItemStack old = getItemStackFromSlot(slot);
         setItemStackToSlot(slot, newStack);
 
         if (!old.isEmpty()) {
-            ItemStack rem = ItemHandlerHelper.insertItemStacked(inventory, old, false);
-            if (!rem.isEmpty()) {
-                // backpack full -> drop the remainder so nothing “vanishes”
-                EntityItem drop = new EntityItem(world, posX, posY + 0.5, posZ, rem);
-                world.spawnEntity(drop);
+            if (dropOld) {
+                dropStack(old.copy());
+            } else {
+                ItemStack rem = ItemHandlerHelper.insertItemStacked(inventory, old, false);
+                if (!rem.isEmpty()) dropStack(rem); // backpack full safety
             }
         }
     }
+
 
     private void shrinkOrRemove(EntityItem ei) {
         ItemStack s = ei.getItem();
@@ -2660,6 +2680,7 @@ public class EntityTraveller extends EntityCreature {
             // NEW: reject big vertical offsets (e.g. caves far below)
             double dy = e.posY - this.posY;
             if (Math.abs(dy) > 3.0D) continue; // tweak as you like
+            if (this.isIgnoring(e)) continue;
 
             boolean see = this.getEntitySenses().canSee(e);
 
@@ -2753,6 +2774,7 @@ public class EntityTraveller extends EntityCreature {
                     if (e == null || e == this) return false;
                     if (!e.isEntityAlive()) return false;
                     if (e.isInvisible()) return false;
+                    if (this.isIgnoring(e)) return false;
 
                     // Travellers: only cross-faction
                     if (e instanceof EntityTraveller) {
@@ -3593,15 +3615,19 @@ public class EntityTraveller extends EntityCreature {
         return travelTicket;
     }
     private void rejectTarget() {
+        EntityLivingBase cur = this.getAttackTarget();
+        if (cur != null) ignoreTarget(cur, 60);
+
         super.setAttackTarget(null);
         if (!world.isRemote) {
             setInCombat(false);
             resetChaseMemory();
-            setRevengeTarget(null);        // optional but helps prevent loops
-            getNavigator().clearPath();     // optional
+            setRevengeTarget(null);
+            getNavigator().clearPath();
         }
     }
-    private TravellerBlacklist getAggroBlacklist() {
+
+    public TravellerBlacklist getAggroBlacklist() {
         return (this instanceof EntityTravellerRaider)
                 ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
                 : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
@@ -3644,5 +3670,63 @@ public class EntityTraveller extends EntityCreature {
         return ai.teleportToward(target, stepBlocks);
     }
     public EntityAITravel getTravelAI() { return this.aiTravel; }
+    private void dropStack(ItemStack stack) {
+        if (stack.isEmpty() || world.isRemote) return;
+
+        EntityItem item = new EntityItem(world, posX, posY + 0.5, posZ, stack);
+        item.motionX = (rand.nextDouble() - 0.5) * 0.1;
+        item.motionY = 0.15;
+        item.motionZ = (rand.nextDouble() - 0.5) * 0.1;
+        item.setDefaultPickupDelay();
+        world.spawnEntity(item);
+    }
+    private void keepOnlyBestSwordAndDropRest() {
+        if (world.isRemote) return;
+
+        int bestInvIdx = -1;
+        double bestInvScore = Double.NEGATIVE_INFINITY;
+
+        // Find best sword in backpack
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            ItemStack s = inventory.getStackInSlot(i);
+            if (!isSwordLike(s)) continue;
+            double sc = swordScore(s);
+            if (sc > bestInvScore) {
+                bestInvScore = sc;
+                bestInvIdx = i;
+            }
+        }
+
+        // Compare vs a REAL sword in hand (ignore ghost)
+        ItemStack hand = getHeldItemMainhand();
+        boolean handRealSword = !hand.isEmpty() && isSwordLike(hand) && !isGhostSword(hand);
+        double bestScore = bestInvScore;
+        boolean bestIsHand = false;
+
+        if (handRealSword) {
+            double handScore = swordScore(hand);
+            if (handScore >= bestScore) {
+                bestScore = handScore;
+                bestIsHand = true;
+            }
+        }
+
+        // If best is in backpack, and we're holding a real sword that's worse, drop the hand sword
+        if (!bestIsHand && handRealSword && bestInvIdx >= 0) {
+            // Drop the worse hand sword (since we only keep best)
+            dropStack(hand.copy());
+            setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
+        }
+
+        // Drop all other swords in backpack except the best one
+        for (int i = 0; i < inventory.getSlots(); i++) {
+            if (i == bestInvIdx) continue;
+            ItemStack s = inventory.getStackInSlot(i);
+            if (!isSwordLike(s)) continue;
+
+            ItemStack extracted = inventory.extractItem(i, s.getCount(), false);
+            if (!extracted.isEmpty()) dropStack(extracted);
+        }
+    }
 
 }

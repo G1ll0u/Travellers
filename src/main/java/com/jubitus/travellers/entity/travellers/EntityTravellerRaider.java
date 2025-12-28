@@ -42,6 +42,9 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class EntityTravellerRaider extends EntityTraveller {
 
@@ -286,6 +289,18 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         String cid = null;
 
+        boolean whitelistActive =
+                !TravellersModConfig.INCLUDED_RAIDER_VILLAGER_FILES.isEmpty()
+                        || !TravellersModConfig.INCLUDED_RAIDER_VILLAGER_TAGS.isEmpty();
+
+        if (whitelistActive) {
+            String forced = CultureRegistry.pickRandomCultureIdWithRaiders(this.rand); // you implement
+            if (forced != null && !forced.isEmpty()) {
+                cid = forced;
+                livingdata = new SpawnData(cid);
+            }
+        }
+
         // 1) If the spawner (soft-spawner or vanilla group leader) already gave us a culture, honour it.
         if (livingdata instanceof SpawnData) {
             cid = ((SpawnData) livingdata).cultureId;
@@ -312,8 +327,13 @@ public class EntityTravellerRaider extends EntityTraveller {
         setCultureId(cid);
 
         CultureDef c = CultureRegistry.get(cid);
-        int tCount = (c != null) ? c.travellerAppearanceCount() : 0;
-        setTextureIndex(this.rand.nextInt(Math.max(1, tCount <= 0 ? 1 : tCount)));
+
+// pick from RAIDER pool first
+        int rCount = (c != null) ? c.getRaiderTextureCount() : 0;
+        if (rCount <= 0) rCount = 1;
+
+        setTextureIndex(this.rand.nextInt(rCount));
+
 
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
@@ -511,6 +531,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (theirs == null) theirs = "";
         return !my.equalsIgnoreCase(theirs);
     }
+
 
 }
 

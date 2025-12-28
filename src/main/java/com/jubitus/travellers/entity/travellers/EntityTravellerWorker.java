@@ -23,6 +23,7 @@ import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
 import com.jubitus.travellers.utils.world.spawn.TravellerVillageRegistry;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
@@ -49,6 +50,8 @@ import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.ItemStackHandler;
 import org.millenaire.common.culture.Culture;
 import org.millenaire.common.item.InvItem;
@@ -60,10 +63,7 @@ import org.millenaire.common.village.Building;
 import org.millenaire.common.world.MillWorldData;
 
 import javax.annotation.Nullable;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class EntityTravellerWorker extends EntityTraveller {
     private static final double MOTION_EPSILON = 0.0004D;
@@ -78,6 +78,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     private static final DataParameter<Optional<UUID>> FOLLOW_OWNER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
 
+    private static final DataParameter<Optional<UUID>> ESCORT_LEADER_DM =
+            EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
+
     private boolean returnUsingFollow = false;
     private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersModConfig.returnFollowSwitchDist; // tweak (24–40 works well)
 
@@ -85,6 +88,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     private static final int CATCHUP_REPATH_INTERVAL_TICKS = 40; // 2s
 
     private int catchupRepathCooldown = 0;
+
+    // recruit mission return phase: follow owner home
+    private boolean recruitReturningToOwner = false;
     // --- follower / hire state (existing) ---
     @Nullable
     public UUID followOwnerId = null;
@@ -99,8 +105,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     // NEW: leader logic – if non-null, this worker follows another worker instead of the player
     @Nullable
-    private Integer escortLeaderEntityId = null; // entityId of leader worker
-
+    private UUID escortLeaderUUID = null;
 
     // NEW: 18-slot personal inventory (like a small chest on the worker)
     private final ItemStackHandler personalInventory = new ItemStackHandler(18);
@@ -129,7 +134,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         return o.isPresent() ? o.get() : null;
     }
     // Players explicitly marked as hostile by the owner
-    private final Set<UUID> hostilePlayers = new java.util.HashSet<>();
+    public final Set<UUID> hostilePlayers = new java.util.HashSet<>();
 
     // --- home chest idle behaviour (unemployed roaming) ---
     private static final int HOME_CHEST_WAIT_MAX_TICKS = 5 * 60 * 20; // 5 minutes
@@ -153,24 +158,74 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     private boolean catchupTravel;
 
+    @Nullable private UUID catchupTargetUUID = null;
+
+    @Nullable
+    private EntityTravellerWorker getHostileListOwner() {
+        UUID leaderId = getEscortLeaderUUID();
+        if (leaderId != null) {
+            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
+            if (leader != null && !leader.isDead) {
+                return leader; // leader owns the list
+            }
+        }
+        return this; // no leader -> self owns list
+    }
+
+    public Set<UUID> getEffectiveHostilePlayers() {
+        return getGroupLeaderOrSelf().hostilePlayers;
+    }
+
+
+
+    public void addHostilePlayer(UUID id) {
+        if (id == null) return;
+        EntityTravellerWorker owner = getHostileListOwner();
+        if (owner != null) owner.hostilePlayers.add(id);
+    }
+
+    public void removeHostilePlayer(UUID id) {
+        if (id == null) return;
+        EntityTravellerWorker owner = getHostileListOwner();
+        if (owner != null) owner.hostilePlayers.remove(id);
+    }
+
+
+    @Nullable
+    private EntityLivingBase resolveCatchupTarget() {
+        if (catchupTargetUUID == null) return null;
+
+        if (world instanceof WorldServer) {
+            Entity e = ((WorldServer) world).getEntityFromUuid(catchupTargetUUID);
+            if (e instanceof EntityLivingBase && !e.isDead) return (EntityLivingBase) e;
+        }
+        return null;
+    }
+
+
     public boolean isCatchupTravel() { return catchupTravel; }
 
-    public void startOwnerCatchupTravel() {
-        EntityPlayer owner = getFollowOwner();
-        if (owner == null || owner.dimension != this.dimension) return;
+    public void startCatchupTravelTo(@Nullable EntityLivingBase target) {
+        if (target == null) return;
+        if (target.dimension != this.dimension) return;
 
         this.catchupTravel = true;
         this.catchupRepathCooldown = 0;
+        this.catchupTargetUUID = target.getUniqueID();
 
-        // Make sure we are not “anchored”
         if (this.isHiredFollower()) {
             this.setFollowOrderActive(true);
         }
 
-        // Create a real travel route toward the owner
-        BlockPos pos = getApproximateSurfacePosNear(owner);
+        BlockPos pos = getApproximateSurfacePosNear(target);
         updateCatchupRoute(pos);
     }
+
+    public void startOwnerCatchupTravel() {
+        startCatchupTravelTo(getFollowOwner());
+    }
+
+
     public void stopOwnerCatchupTravel() {
         this.catchupTravel = false;
         this.catchupRepathCooldown = 0;
@@ -187,6 +242,11 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.getNavigator().clearPath();
     }
 
+    public void setHostile(UUID target, boolean hostile) {
+        EntityTravellerWorker leader = getGroupLeaderOrSelf();
+        if (hostile) leader.hostilePlayers.add(target);
+        else leader.hostilePlayers.remove(target);
+    }
 
 
     public void setHomeVillage(@Nullable BlockPos pos) {
@@ -209,14 +269,31 @@ public class EntityTravellerWorker extends EntityTraveller {
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
     private static final int WORKER_SLOTS = 18; // cargo slots
+
+    // --- recruit mission state ---
+    private final List<BlockPos> recruitVillages = new ArrayList<>();
+    private int recruitIndex = 0;
+    @Nullable private BlockPos recruitReturnPos = null;
+    private boolean recruitActive = false;
+
+    // track which villages already spawned recruits (avoid double spawn)
+    private final Set<BlockPos> recruitSpawnedAt = new HashSet<>();
+
     public ItemStackHandler getTravelInventory() {
         return travelInventory;
+    }
+    public boolean canStartRecruitMission() {
+        return this.mode == WorkerMode.IDLE
+                && !this.postJobFarewellActive
+                && !this.isWaitingForPickup()
+                && !this.recruitActive;
     }
 
     public enum WorkerMode {
         IDLE,
         TO_VILLAGE,
-        RETURNING
+        RETURNING,
+        RECRUITING
     }
 
     @Nullable
@@ -250,7 +327,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Worker travel AI (for jobs)
         this.aiTravel = new EntityAITravel(
                 this,
-                TravellersModConfig.movementSpeedWhileTravel * 0.85,
+                TravellersModConfig.movementSpeedWhileTravel,
                 TravellersModConfig.workerStepBlocks
         );
         this.tasks.addTask(10, aiTravel);
@@ -277,6 +354,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.dataManager.register(USING_TRAVEL_AI, false);
         this.dataManager.register(HIRED_FOLLOWER_DM, false);
         this.dataManager.register(FOLLOW_OWNER_DM, Optional.absent());
+        this.dataManager.register(ESCORT_LEADER_DM, Optional.absent());
     }
     public boolean isUsingTravelAI() {
         return this.dataManager.get(USING_TRAVEL_AI);
@@ -287,6 +365,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             this.dataManager.set(USING_TRAVEL_AI, using);
         }
     }
+
 
     // Base hook: auto-planner will skip this entity when true
     @Override
@@ -409,26 +488,26 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void onLivingUpdate() {
         super.onLivingUpdate();
         if (!world.isRemote && catchupTravel) {
-            EntityPlayer owner = getFollowOwner();
-            if (owner != null && owner.dimension == this.dimension && !owner.isDead) {
+            EntityLivingBase t = resolveCatchupTarget();
 
-                // Stop catchup if we can see owner and we're within your switch distance
-                double dx = this.posX - owner.posX;
-                double dz = this.posZ - owner.posZ;
-                double distHsq = dx * dx + dz * dz;
+            // fallback: if target not loaded, try effective follow target
+            if (t == null) t = getEffectiveFollowTarget();
+
+            if (t != null && !t.isDead && t.dimension == this.dimension) {
+                double dx = this.posX - t.posX;
+                double dz = this.posZ - t.posZ;
+                double distHsq = dx*dx + dz*dz;
 
                 double switchSq = RETURN_FOLLOW_SWITCH_DIST * RETURN_FOLLOW_SWITCH_DIST;
 
-                if (this.canEntityBeSeen(owner) && distHsq <= switchSq) {
-                    stopOwnerCatchupTravel();
+                if (this.canEntityBeSeen(t) && distHsq <= switchSq) {
+                    stopOwnerCatchupTravel(); // rename if you want
                 } else {
-                    // Keep refreshing the travel target (so we never “arrive” at a stale waypoint and idle)
                     if (--catchupRepathCooldown <= 0) {
                         catchupRepathCooldown = CATCHUP_REPATH_INTERVAL_TICKS;
 
-                        BlockPos approx = getApproximateSurfacePosNear(owner);
+                        BlockPos approx = getApproximateSurfacePosNear(t);
 
-                        // Optional: only refresh if target moved a bit
                         if (this.getTravelCommon().getTargetVillage() == null
                                 || this.getTravelCommon().getTargetVillage().distanceSq(approx) > (16 * 16)) {
                             updateCatchupRoute(approx);
@@ -436,11 +515,14 @@ public class EntityTravellerWorker extends EntityTraveller {
                     }
                 }
             } else {
-                // Lost owner / wrong dimension
                 stopOwnerCatchupTravel();
             }
         }
 
+
+        if (!world.isRemote && recruitReturningToOwner) {
+            tickRecruitReturnToOwner();
+        }
 
         // Server-side: register/update this worker as a chunkloader
         if (!world.isRemote) {
@@ -464,7 +546,9 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (world.isRemote) return;
 
         TravelCommon tc = this.getTravelCommon();
-
+        if (!world.isRemote && this.mode == WorkerMode.RECRUITING && recruitActive) {
+            tickRecruitMission();
+        }
         // 1) Going TO the village (unchanged)
         if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null && !jobDelivered) {
             int r = tc.arrivalRadiusBlocks(jobVillageCenter);
@@ -616,17 +700,18 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
         }
         if (!world.isRemote && this.isHiredFollower() && this.isFollowOrderActive() && !this.isJobActive()) {
-            EntityPlayer owner = getFollowOwner();
-            if (owner != null && !owner.isDead && owner.dimension == this.dimension) {
-                double dx = owner.posX - this.posX;
-                double dz = owner.posZ - this.posZ;
-                double distH = Math.sqrt(dx*dx + dz*dz);
+            EntityLivingBase follow = getEffectiveFollowTarget(); // leader worker OR owner player
+            if (follow != null && !follow.isDead && follow.dimension == this.dimension) {
+                double dx = follow.posX - this.posX;
+                double dz = follow.posZ - this.posZ;
+                double distH = Math.sqrt(dx * dx + dz * dz);
 
                 if (distH > 200.0D && !this.catchupTravel) {
-                    this.startOwnerCatchupTravel();
+                    this.startCatchupTravelTo(follow); // IMPORTANT: catch up to leader if escorting
                 }
             }
         }
+
 
 
         // --- NEW: idle roaming behaviour at player home chests ---
@@ -830,12 +915,37 @@ public class EntityTravellerWorker extends EntityTraveller {
             nbt.setInteger("IdleAy", idleAnchorPos.getY());
             nbt.setInteger("IdleAz", idleAnchorPos.getZ());
         }
-        if (escortLeaderEntityId != null) {
-            nbt.setInteger("EscortLeaderId", escortLeaderEntityId);
+        UUID leaderId = this.getEscortLeaderUUID(); // from DataManager
+        if (leaderId != null) {
+            nbt.setUniqueId("EscortLeaderUUID", leaderId);
         }
         nbt.setBoolean("HiredFollower", this.dataManager.get(HIRED_FOLLOWER_DM));
         Optional<UUID> o = this.dataManager.get(FOLLOW_OWNER_DM);
         if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
+        nbt.setBoolean("RecruitActive", recruitActive);
+        nbt.setBoolean("RecruitReturning", recruitReturningToOwner);
+        nbt.setInteger("RecruitIndex", recruitIndex);
+
+        NBTTagList vlist = new NBTTagList();
+        for (BlockPos p : recruitVillages) {
+            NBTTagCompound c = new NBTTagCompound();
+            c.setInteger("x", p.getX());
+            c.setInteger("y", p.getY());
+            c.setInteger("z", p.getZ());
+            vlist.appendTag(c);
+        }
+        nbt.setTag("RecruitVillages", vlist);
+
+        NBTTagList spawned = new NBTTagList();
+        for (BlockPos p : recruitSpawnedAt) {
+            NBTTagCompound c = new NBTTagCompound();
+            c.setInteger("x", p.getX());
+            c.setInteger("y", p.getY());
+            c.setInteger("z", p.getZ());
+            spawned.appendTag(c);
+        }
+        nbt.setTag("RecruitSpawnedAt", spawned);
+
     }
 
     @Override
@@ -916,13 +1026,41 @@ public class EntityTravellerWorker extends EntityTraveller {
             this.idleAnchorPos = null;
         }
 
-        if (nbt.hasKey("EscortLeaderId")) {
-            this.escortLeaderEntityId = nbt.getInteger("EscortLeaderId");
-        } else {
-            this.escortLeaderEntityId = null;
+        UUID leaderId = nbt.hasUniqueId("EscortLeaderUUID")
+                ? nbt.getUniqueId("EscortLeaderUUID")
+                : null;
+
+// Keep local field in sync (optional, but fine)
+        this.escortLeaderUUID = leaderId;
+
+// IMPORTANT: set the synced DataParameter on the server
+        if (!this.world.isRemote) {
+            this.setEscortLeaderUUID(leaderId); // this updates ESCORT_LEADER_DM
         }
+
         if (this.mode != WorkerMode.RETURNING || !this.jobDelivered) {
             this.awaitingPickup = false;
+        }
+        recruitActive = nbt.getBoolean("RecruitActive");
+        recruitReturningToOwner = nbt.getBoolean("RecruitReturning");
+        recruitIndex = nbt.getInteger("RecruitIndex");
+
+        recruitVillages.clear();
+        if (nbt.hasKey("RecruitVillages", Constants.NBT.TAG_LIST)) {
+            NBTTagList vlist = nbt.getTagList("RecruitVillages", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < vlist.tagCount(); i++) {
+                NBTTagCompound c = vlist.getCompoundTagAt(i);
+                recruitVillages.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
+            }
+        }
+
+        recruitSpawnedAt.clear();
+        if (nbt.hasKey("RecruitSpawnedAt", Constants.NBT.TAG_LIST)) {
+            NBTTagList slist = nbt.getTagList("RecruitSpawnedAt", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < slist.tagCount(); i++) {
+                NBTTagCompound c = slist.getCompoundTagAt(i);
+                recruitSpawnedAt.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
+            }
         }
 
 // If farewell isn't active, no need to keep a non-zero counter
@@ -939,6 +1077,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         this.dataManager.set(HIRED_FOLLOWER_DM, hired);
         this.dataManager.set(FOLLOW_OWNER_DM, owner);
+        if (recruitReturningToOwner && this.isHiredFollower()) {
+            this.setFollowOrderActive(true);
+        }
 
     }
 
@@ -1339,37 +1480,34 @@ public class EntityTravellerWorker extends EntityTraveller {
         return hasUnsoldGoods;
     }
     // Approximate surface position above player's XZ
-    private BlockPos getApproximateSurfacePosNear(@Nullable EntityPlayer player) {
-        if (player == null) {
-            return this.employerReturnPos != null
-                    ? this.employerReturnPos
-                    : this.getPosition();
+// Approximate surface position near any follow target (player OR leader worker)
+    public BlockPos getApproximateSurfacePosNear(@Nullable EntityLivingBase target) {
+        if (target == null) {
+            return this.employerReturnPos != null ? this.employerReturnPos : this.getPosition();
         }
 
-        BlockPos playerPos = player.getPosition();
+        BlockPos pos = target.getPosition();
+
         BlockPos columnTop;
-
         try {
-            columnTop = this.world.getTopSolidOrLiquidBlock(
-                    new BlockPos(playerPos.getX(), 0, playerPos.getZ())
-            );
+            columnTop = this.world.getTopSolidOrLiquidBlock(new BlockPos(pos.getX(), 0, pos.getZ()));
         } catch (Exception e) {
-            columnTop = new BlockPos(playerPos.getX(), (int) this.posY, playerPos.getZ());
+            columnTop = new BlockPos(pos.getX(), (int) this.posY, pos.getZ());
         }
 
-        // If the player is clearly underground / in a cave, follow their actual Y
-        boolean underground =
-                playerPos.getY() + 2 < columnTop.getY() &&
-                        !this.world.canSeeSky(playerPos);
+        // Only do "underground" behavior for players
+        if (target instanceof EntityPlayer) {
+            boolean underground =
+                    pos.getY() + 2 < columnTop.getY() &&
+                            !this.world.canSeeSky(pos);
 
-        if (underground) {
-            // Go roughly to the player's real position (cave height)
-            return playerPos;
-        } else {
-            // Normal overground behaviour
-            return columnTop;
+            return underground ? pos : columnTop;
         }
+
+        // Non-player target (leader worker etc.): surface at their XZ
+        return columnTop;
     }
+
 
 
 
@@ -1600,8 +1738,13 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean isPlayerMarkedHostile(EntityPlayer p) {
-        return p != null && hostilePlayers.contains(p.getUniqueID());
+        if (p == null) return false;
+
+        EntityTravellerWorker leader = getGroupLeaderOrSelf();
+        return leader.hostilePlayers.contains(p.getUniqueID());
     }
+
+
     private void tickFollowerIdleBehaviour() {
 
         if (!world.isRemote && this.isHiredFollower()) {
@@ -2008,36 +2151,40 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public void setEscortLeader(@Nullable EntityTravellerWorker leader) {
-        if (leader == null) {
-            this.escortLeaderEntityId = null;
-        } else if (leader != this) {
-            this.escortLeaderEntityId = leader.getEntityId();
+        if (leader == null || leader == this) {
+            setEscortLeaderUUID(null);
+        } else {
+            setEscortLeaderUUID(leader.getUniqueID());
         }
     }
+
+
 
     /**
      * Effective follow target: either a leader worker, or the owner player.
      */
     @Nullable
     public EntityLivingBase getEffectiveFollowTarget() {
-        // Leader takes precedence if valid
-        if (escortLeaderEntityId != null) {
-            Entity e = this.world.getEntityByID(escortLeaderEntityId);
-            if (e instanceof EntityTravellerWorker) {
-                EntityTravellerWorker leader = (EntityTravellerWorker) e;
+        UUID leaderId = getEscortLeaderUUID();
+        if (leaderId != null) {
+            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
 
-                // Only valid if leader is alive and still ultimately hired by same owner
-                if (!leader.isDead && leader.isHiredFollower()
-                        && Objects.equals(leader.getFollowOwnerId(), this.getFollowOwnerId())) {
-                    return leader;
-                }
+            if (leader != null
+                    && !leader.isDead
+                    && leader.isHiredFollower()
+                    && Objects.equals(leader.getFollowOwnerId(), this.getFollowOwnerId())) {
+                return leader;
             }
-            // Leader invalid: fall back to owner
-            escortLeaderEntityId = null;
-        }
 
+            // invalid leader (loaded but wrong) -> clear on server
+            if (!world.isRemote && leader != null) {
+                clearEscortLeader();
+            }
+        }
         return getFollowOwner();
     }
+
+
     private void tickStayAtIdleAnchor() {
         if (!isHiredFollower()) return;
         if (this.mode == WorkerMode.RETURNING && this.jobDelivered) return;
@@ -2070,17 +2217,33 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean isEscortingLeader(EntityTravellerWorker leader) {
-        return escortLeaderEntityId != null
-                && escortLeaderEntityId == leader.getEntityId();
+        return escortLeaderUUID != null && leader != null
+                && escortLeaderUUID.equals(leader.getUniqueID());
+    }
+
+
+    @Nullable
+    public UUID getEscortLeaderUUID() {
+        Optional<UUID> o = this.dataManager.get(ESCORT_LEADER_DM);
+        return o.isPresent() ? o.get() : null;
     }
 
     public boolean hasEscortLeader() {
-        return escortLeaderEntityId != null;
+        return getEscortLeaderUUID() != null;
     }
 
     public void clearEscortLeader() {
-        this.escortLeaderEntityId = null;
+        setEscortLeaderUUID(null);
     }
+
+    public void setEscortLeaderUUID(@Nullable UUID id) {
+        this.escortLeaderUUID = id; // keep your field too (optional)
+        if (!world.isRemote) {
+            this.dataManager.set(ESCORT_LEADER_DM, id == null ? Optional.absent() : Optional.of(id));
+        }
+    }
+
+
     public boolean isReturnUsingFollow() {
         return this.mode == WorkerMode.RETURNING
                 && this.jobDelivered
@@ -2110,4 +2273,418 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         this.getNavigator().clearPath();
     }
+    public List<BlockPos> pickRecruitVillages(EntityPlayer player) {
+        World world = this.world;
+        BlockPos origin = player.getPosition();
+
+        int maxRadius = TravellersModConfig.recruitMaxVillageRadius;
+        int minN = TravellersModConfig.recruitVillagesMin;
+        int maxN = TravellersModConfig.recruitVillagesMax;
+
+        List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(world);
+        List<BlockPos> inRange = new ArrayList<>();
+
+        for (BlockPos c : centers) {
+            int d = dist2D(origin, c);
+            if (d <= maxRadius) inRange.add(c);
+        }
+
+        inRange.sort(Comparator.comparingInt(c -> dist2D(origin, c)));
+
+        if (inRange.isEmpty()) return Collections.emptyList();
+
+        int n = minN + this.rand.nextInt(Math.max(1, (maxN - minN + 1)));
+        n = Math.min(n, inRange.size());
+
+        return new ArrayList<>(inRange.subList(0, n));
+    }
+
+    private static int dist2D(BlockPos a, BlockPos b) {
+        double dx = (a.getX() + 0.5D) - (b.getX() + 0.5D);
+        double dz = (a.getZ() + 0.5D) - (b.getZ() + 0.5D);
+        return (int) Math.round(Math.sqrt(dx*dx + dz*dz));
+    }
+    public static int computeRouteDistance2D(BlockPos start, List<BlockPos> villages, BlockPos end) {
+        if (villages == null || villages.isEmpty()) {
+            return dist2D(start, end);
+        }
+        int total = 0;
+        BlockPos prev = start;
+        for (BlockPos v : villages) {
+            total += dist2D(prev, v);
+            prev = v;
+        }
+        total += dist2D(prev, end);
+        return total;
+    }
+
+    public static int computeRecruitFee(int routeDistance, int villagesCount) {
+        int flat = TravellersModConfig.recruitFeeFlat;
+        int perVillage = TravellersModConfig.recruitFeePerVillage * villagesCount;
+        int perDist = (int) Math.ceil(routeDistance * TravellersModConfig.recruitFeePerBlock);
+        return Math.max(0, flat + perVillage + perDist);
+    }
+    public void startRecruitMission(EntityPlayer player, List<BlockPos> villages, BlockPos returnPos) {
+        if (world.isRemote) return;
+        if (villages == null || villages.isEmpty()) return;
+
+        this.recruitVillages.clear();
+        this.recruitVillages.addAll(villages);
+
+        this.recruitIndex = 0;
+        this.recruitReturnPos = returnPos;
+        this.recruitActive = true;
+        this.recruitSpawnedAt.clear();
+
+        // Recruiter becomes a "job entity" temporarily
+        this.mode = WorkerMode.RECRUITING;
+        this.routeLocked = true;
+
+        // Make sure he’s not anchored
+        if (this.isHiredFollower()) {
+            this.setFollowOrderActive(true);
+        }
+
+        // Build travel route: villages then return
+        TravelCommon tc = this.getTravelCommon();
+        tc.route.clear();
+        tc.routeIndex = -1;
+
+        for (BlockPos v : recruitVillages) tc.route.add(v);
+        if (returnPos != null) tc.route.add(returnPos);
+
+        tc.routeIndex = 0;
+        tc.setTargetVillage(tc.route.get(0));
+        this.setTargetVillage(tc.route.get(0));
+        tc.setCurrentWaypoint(null);
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+
+        this.getNavigator().clearPath();
+    }
+    private void tickRecruitMission() {
+        TravelCommon tc = this.getTravelCommon();
+
+        // 1) Still visiting villages
+        if (recruitIndex < recruitVillages.size()) {
+            BlockPos targetVillage = recruitVillages.get(recruitIndex);
+
+            int r = tc.arrivalRadiusBlocks(targetVillage);
+            if (this.getDistanceSqToCenter(targetVillage) <= (double)(r*r)) {
+
+                // Spawn recruits once per village
+                if (!recruitSpawnedAt.contains(targetVillage)) {
+                    recruitSpawnedAt.add(targetVillage);
+                    spawnRecruitsAtVillage(targetVillage);
+                }
+
+                // Advance to next village
+                recruitIndex++;
+
+                if (recruitIndex < recruitVillages.size()) {
+                    // go next village (keep Travel AI)
+                    BlockPos next = recruitVillages.get(recruitIndex);
+                    tc.setTargetVillage(next);
+                    this.setTargetVillage(next);
+                    tc.setReadyToDepart(true);
+                    tc.setDepartCooldownTicks(0);
+                    this.getNavigator().clearPath();
+                } else {
+                    beginRecruitReturnToOwner();
+                    // Switch to return point (last point in tc.route is return)
+                    if (recruitReturnPos != null) {
+                        tc.setTargetVillage(recruitReturnPos);
+                        this.setTargetVillage(recruitReturnPos);
+                        tc.setReadyToDepart(true);
+                        tc.setDepartCooldownTicks(0);
+                        this.getNavigator().clearPath();
+                    }
+                }
+            }
+            return;
+        }
+
+        // 2) Returning to player (simple: once close to owner, finish)
+        EntityPlayer owner = getFollowOwner();
+        if (owner != null && !owner.isDead && owner.dimension == this.dimension) {
+            double dx = this.posX - owner.posX;
+            double dz = this.posZ - owner.posZ;
+            double distHsq = dx*dx + dz*dz;
+
+            if (distHsq <= 8.0D * 8.0D) {
+                finishRecruitMission(owner);
+            }
+        } else {
+            // If owner not found, just stop recruiting and go idle-travelling again
+            finishRecruitMission(null);
+        }
+    }
+    private void spawnRecruitsAtVillage(BlockPos villageCenter) {
+        if (!(this.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) this.world;
+
+        EntityPlayer owner = getFollowOwner();
+        if (owner == null) return;
+
+        int min = TravellersModConfig.recruitSpawnMin;
+        int max = TravellersModConfig.recruitSpawnMax;
+        int count = min + this.rand.nextInt(Math.max(1, (max - min + 1)));
+
+        for (int i = 0; i < count; i++) {
+            BlockPos spawnPos = EntityTravellerWorker.findRecruitSpawnPos(world, villageCenter, this.rand);
+            EntityTravellerWorker w = new EntityTravellerWorker(ws);
+
+            // Spawn near village center, on surface
+            BlockPos top = ws.getTopSolidOrLiquidBlock(new BlockPos(villageCenter.getX(), 0, villageCenter.getZ()));
+
+
+            w.setPosition(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
+            w.onInitialSpawn(ws.getDifficultyForLocation(top), null);
+
+            // IMPORTANT: no home village, so no respawn-on-death
+            w.setHomeVillage(null);
+
+            // Make them hired followers of the SAME owner, but escort THIS recruiter as leader
+            w.hireAsFollower(owner);
+            w.setEscortLeader(this);
+
+            ws.spawnEntity(w);
+        }
+
+        owner.sendMessage(new TextComponentString(
+                TextFormatting.WHITE + "Recruited " + count + " workers at a village."
+        ));
+    }
+    private void finishRecruitMission(@Nullable EntityPlayer owner) {
+        this.recruitActive = false;
+        this.recruitVillages.clear();
+        this.recruitSpawnedAt.clear();
+        this.recruitIndex = 0;
+        this.recruitReturnPos = null;
+
+        // Clear travel route
+        TravelCommon tc = this.getTravelCommon();
+        tc.route.clear();
+        tc.routeIndex = -1;
+        tc.setTargetVillage(null);
+        this.setTargetVillage(null);
+        tc.setCurrentWaypoint(null);
+        tc.setReadyToDepart(false);
+        tc.setDepartCooldownTicks(0);
+        this.getNavigator().clearPath();
+
+        // Back to companion idle
+        this.mode = WorkerMode.IDLE;
+        this.routeLocked = true; // keep companion mode
+        this.setFollowOrderActive(true);
+
+        if (owner != null) {
+            owner.sendMessage(new TextComponentString(TextFormatting.GREEN + "Recruit mission completed."));
+        }
+    }
+    private void beginRecruitReturnToOwner() {
+        // We want Follow AI + catchupTravel to do the long-range work
+        this.recruitReturningToOwner = true;
+
+        // Make sure Follow order is ON
+        if (this.isHiredFollower()) {
+            this.setFollowOrderActive(true); // clears idleAnchorPos
+        }
+
+        // Stop Travel AI route completely
+        TravelCommon tc = this.getTravelCommon();
+        tc.route.clear();
+        tc.routeIndex = -1;
+        tc.setTargetVillage(null);
+        this.setTargetVillage(null);
+        tc.setCurrentWaypoint(null);
+        tc.setReadyToDepart(false);
+        tc.setDepartCooldownTicks(0);
+
+        this.getNavigator().clearPath();
+
+        // IMPORTANT:
+        // If your Follow AI is gated by "job active", we must NOT be "job active" anymore.
+        // So drop to IDLE companion mode (but keep routeLocked=true so he doesn't auto-roam).
+        this.mode = WorkerMode.IDLE;
+        this.routeLocked = true;
+
+        // Also ensure we are not in catchupTravel stale state
+        this.catchupTravel = false;
+    }
+    private void tickRecruitReturnToOwner() {
+        EntityPlayer owner = getFollowOwner();
+        if (owner == null || owner.isDead || owner.dimension != this.dimension) {
+            // Owner missing → abort safely
+            recruitReturningToOwner = false;
+            finishRecruitMission(null);
+            return;
+        }
+
+        double dx = this.posX - owner.posX;
+        double dz = this.posZ - owner.posZ;
+        double distHsq = dx * dx + dz * dz;
+
+        // When close enough, finish
+        if (distHsq <= 8.0D * 8.0D) {
+            recruitReturningToOwner = false;
+            finishRecruitMission(owner);
+        }
+
+        // No navigation commands here:
+        // Follow AI will pull him in, and your existing "dist > 200 → startOwnerCatchupTravel()"
+        // will kick in automatically because mode is IDLE and followOrderActive is true.
+    }
+    /** Find a safe spawn pos near a village center: prefers ground, can fall back to inside-safe. */
+    public static BlockPos findRecruitSpawnPos(World world, BlockPos villageCenter, Random rand) {
+        if (world == null || villageCenter == null) return villageCenter;
+
+        // 1) Try some random offsets around the center, pick best safe spot
+        final int tries = 24;
+        final int radius = 10; // tweak: how far from center we allow
+
+        for (int i = 0; i < tries; i++) {
+            int dx = rand.nextInt(radius * 2 + 1) - radius;
+            int dz = rand.nextInt(radius * 2 + 1) - radius;
+
+            BlockPos col = new BlockPos(villageCenter.getX() + dx, 0, villageCenter.getZ() + dz);
+
+            // top block at that XZ
+            BlockPos top = world.getTopSolidOrLiquidBlock(col);
+
+            // Spawn on top block (usually top is the air block above ground)
+            BlockPos spawn = top;
+
+            // If top is still too high (roof), we want the *ground*.
+            // Simple heuristic: if top is higher than villageCenter by a lot, search downward for first solid with air above.
+            if (spawn.getY() > villageCenter.getY() + 3) {
+                BlockPos downFixed = findGroundBelow(world, new BlockPos(spawn.getX(), spawn.getY(), spawn.getZ()), 20);
+                if (downFixed != null) spawn = downFixed;
+            }
+
+            if (isSafeSpawn(world, spawn)) return spawn;
+        }
+
+        // 2) Spiral search around center (deterministic fallback)
+        BlockPos best = null;
+        int bestDist = Integer.MAX_VALUE;
+
+        for (int r = 1; r <= 16; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.abs(dx) != r && Math.abs(dz) != r) continue;
+
+                    BlockPos col = new BlockPos(villageCenter.getX() + dx, 0, villageCenter.getZ() + dz);
+                    BlockPos top = world.getTopSolidOrLiquidBlock(col);
+                    BlockPos spawn = top;
+
+                    if (spawn.getY() > villageCenter.getY() + 3) {
+                        BlockPos downFixed = findGroundBelow(world, new BlockPos(spawn.getX(), spawn.getY(), spawn.getZ()), 24);
+                        if (downFixed != null) spawn = downFixed;
+                    }
+
+                    if (isSafeSpawn(world, spawn)) {
+                        int d = dx * dx + dz * dz;
+                        if (d < bestDist) {
+                            bestDist = d;
+                            best = spawn;
+                        }
+                    }
+                }
+            }
+            if (best != null) return best;
+        }
+
+        // 3) Last resort: whatever we had
+        return villageCenter;
+    }
+
+    private static BlockPos findGroundBelow(World world, BlockPos start, int maxDown) {
+        BlockPos p = start;
+        for (int i = 0; i < maxDown && p.getY() > 2; i++) {
+            BlockPos below = p.down();
+            if (world.getBlockState(below).getMaterial().isSolid()
+                    && world.isAirBlock(p)
+                    && world.isAirBlock(p.up())) {
+                return p;
+            }
+            p = below;
+        }
+        return null;
+    }
+
+    /** Checks 2-block-high collision free + not inside liquids. */
+    private static boolean isSafeSpawn(World world, BlockPos pos) {
+        if (pos == null) return false;
+
+        // Need air for feet + head
+        if (!world.isAirBlock(pos)) return false;
+        if (!world.isAirBlock(pos.up())) return false;
+
+        // Block below must be solid
+        IBlockState below = world.getBlockState(pos.down());
+        if (!below.getMaterial().isSolid()) return false;
+
+        // Avoid water/lava
+        IBlockState feet = world.getBlockState(pos);
+        if (feet.getMaterial().isLiquid()) return false;
+
+        // Collision check (optional but nice)
+        AxisAlignedBB bb = new AxisAlignedBB(pos).expand(0, 1, 0); // 2 blocks tall
+        return world.getCollisionBoxes(null, bb).isEmpty();
+    }
+    @Nullable
+    private EntityTravellerWorker resolveEscortLeader(UUID id) {
+        if (id == null) return null;
+        if (!(world instanceof WorldServer)) return null;
+
+        Entity e = ((WorldServer) world).getEntityFromUuid(id);
+        return (e instanceof EntityTravellerWorker) ? (EntityTravellerWorker) e : null;
+    }
+
+
+
+    public void startFollowCatchupTravel() {
+        startCatchupTravelTo(getEffectiveFollowTarget());
+    }
+    @Nullable
+    public EntityTravellerWorker getGroupLeaderOrSelf() {
+        UUID leaderId = getEscortLeaderUUID();
+        if (leaderId != null) {
+            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
+            if (leader != null && !leader.isDead) return leader;
+        }
+        return this;
+    }
+
+    @Override
+    public boolean shouldAttackExtraEntity(Entity e) {
+        if (e == null || e == this) return false;
+
+        // If this worker is a hired follower, allow "marked hostile" players as valid targets
+        if (this.isHiredFollower() && e instanceof EntityPlayer) {
+            EntityPlayer p = (EntityPlayer) e;
+            if (p.isCreative() || p.isSpectator()) return false;
+            if (isOwner(p)) return false;
+
+            if (isPlayerMarkedHostile(p)) return true;
+        }
+
+        return super.shouldAttackExtraEntity(e);
+    }
+    // CLIENT ONLY cache for GUI display (UUID + last known name)
+    @SideOnly(Side.CLIENT)
+    private final java.util.List<String> hostileNamesClient = new java.util.ArrayList<>();
+
+    @SideOnly(Side.CLIENT)
+    public java.util.List<String> getHostileNamesClient() {
+        return hostileNamesClient;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public void setHostileNamesClient(java.util.List<String> names) {
+        hostileNamesClient.clear();
+        hostileNamesClient.addAll(names);
+    }
+
 }

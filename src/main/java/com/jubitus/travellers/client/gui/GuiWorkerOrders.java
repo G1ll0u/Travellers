@@ -1,9 +1,7 @@
 package com.jubitus.travellers.client.gui;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.net.message.MsgHireWorker;
-import com.jubitus.travellers.utils.net.message.MsgMakeWorkerLeader;
-import com.jubitus.travellers.utils.net.message.MsgToggleWorkerFollow;
+import com.jubitus.travellers.utils.net.message.*;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -19,9 +17,10 @@ import java.util.UUID;
 
 @SideOnly(Side.CLIENT)
 public class GuiWorkerOrders extends GuiContainer {
-
+    private GuiButton recruitButton;
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
+    private GuiButton followPlayerButton; // NEW
 
     private GuiButton hireButton;
     private GuiButton followButton;
@@ -62,6 +61,15 @@ public class GuiWorkerOrders extends GuiContainer {
         this.leaderButton = this.addButton(new GuiButton(
                 2, centerX + gap / 2, yBase + bh + gap, bw, bh,
                 I18n.format("travellers.worker.orders.make_leader", "Make leader")
+        ));
+        this.followPlayerButton = this.addButton(new GuiButton(
+                4, centerX - bw / 2, yBase + (bh + gap) * 3, bw, bh,
+                I18n.format("travellers.worker.orders.follow_player", "Follow player")
+        ));
+
+        this.recruitButton = this.addButton(new GuiButton(
+                3, centerX - bw / 2, yBase + (bh + gap) * 2, bw, bh,
+                I18n.format("travellers.worker.orders.recruit", "Recruit")
         ));
 
         // First state update
@@ -106,9 +114,25 @@ public class GuiWorkerOrders extends GuiContainer {
                     : I18n.format("travellers.worker.orders.follow_off", "Follow: OFF");
         }
 
+        boolean followingLeader = worker.hasEscortLeader();
+
+        this.followPlayerButton.visible = hiredByMe;
+        this.followPlayerButton.enabled = hiredByMe && followingLeader;
+
+        if (hiredByMe) {
+            this.followPlayerButton.displayString = followingLeader
+                    ? I18n.format("travellers.worker.orders.follow_player", "Follow player")
+                    : I18n.format("travellers.worker.orders.following_player", "Following player");
+        }
+
+
         // --- Leader button (only when hired by me) ---
         this.leaderButton.visible = hiredByMe;
         this.leaderButton.enabled = hiredByMe;
+
+        this.recruitButton.visible = hiredByMe;
+        this.recruitButton.enabled = hiredByMe; // keep simple; server will reject if busy
+
     }
 
     @Override
@@ -131,6 +155,18 @@ public class GuiWorkerOrders extends GuiContainer {
         if (button == leaderButton) {
             TravellerFollowNet.CHANNEL.sendToServer(
                     new MsgMakeWorkerLeader(worker.getEntityId())
+            );
+            return;
+        }
+        if (button == recruitButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.RECRUIT)
+            );
+            return;
+        }
+        if (button == followPlayerButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgClearEscortLeader(worker.getEntityId())
             );
             return;
         }

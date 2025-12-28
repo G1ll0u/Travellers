@@ -5,6 +5,8 @@ import com.jubitus.travellers.client.server.CommonGuiHandler;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -35,6 +37,19 @@ public class ClientGuiHandler extends CommonGuiHandler {
             Entity e = world.getEntityByID(x);
             return (e instanceof EntityTravellerWorker)
                     ? new GuiWorkerInventory(player, (EntityTravellerWorker) e)
+                    : null;
+        }
+        if (id == TravellersGuiIds.WORKER_RECRUIT) {
+            Entity e = world.getEntityByID(x);
+            return (e instanceof EntityTravellerWorker)
+                    ? new GuiWorkerRecruit(player, (EntityTravellerWorker) e)
+                    : null;
+        }
+
+        if (id == TravellersGuiIds.WORKER_BEHAVIOR) {
+            Entity e = world.getEntityByID(x);
+            return (e instanceof EntityTravellerWorker)
+                    ? new GuiWorkerBehavior(player, (EntityTravellerWorker) e)
                     : null;
         }
         return null;

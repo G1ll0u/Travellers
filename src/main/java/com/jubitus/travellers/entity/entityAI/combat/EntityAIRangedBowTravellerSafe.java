@@ -475,7 +475,22 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
         // Fire
         arrow.shoot(fx, aimY, fz, ARROW_VEL, inaccuracy);
-        arrow.setDamage(arrow.getDamage() + Math.max(0.0, 0.30 * (distance / 8.0)));
+
+// Desired FINAL damage in Minecraft health points:
+// 2.0 = 1 heart, 6.0 = 3 hearts, 8.0 = 4 hearts, etc.
+        double desiredFinal = 6.0D; // example: 3 hearts
+
+        double speed = Math.sqrt(arrow.motionX * arrow.motionX
+                + arrow.motionY * arrow.motionY
+                + arrow.motionZ * arrow.motionZ);
+
+        if (speed < 1.0e-6) speed = 1.0; // safety
+
+        arrow.setDamage(desiredFinal / speed);
+
+// Also kill crit randomness (optional but recommended for “consistent”)
+        arrow.setIsCritical(false);
+
 
         w.playSound(null, mob.posX, mob.posY, mob.posZ, SoundEvents.ENTITY_SKELETON_SHOOT,
                 SoundCategory.HOSTILE, 1.0F, 1.0F / (mob.getRNG().nextFloat() * 0.4F + 0.8F));

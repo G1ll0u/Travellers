@@ -573,13 +573,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         }
 
     }
-    @SubscribeEvent
-    public void onCanEntityUpdate(net.minecraftforge.event.entity.EntityEvent.CanUpdate event) {
-        Entity e = event.getEntity();
-        if (e instanceof EntityTravellerWorker || e instanceof EntityTravellerMerchant) {
-            event.setCanUpdate(true);
-        }
-    }
+
+
 
 }
 

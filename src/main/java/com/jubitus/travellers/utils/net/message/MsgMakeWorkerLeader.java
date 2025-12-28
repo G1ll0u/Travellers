@@ -1,9 +1,11 @@
 package com.jubitus.travellers.utils.net.message;
 
+import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -51,19 +53,26 @@ public class MsgMakeWorkerLeader implements IMessage {
 
                 UUID ownerId = leader.getFollowOwnerId();
 
-                // All hired workers of this owner
-                List<EntityTravellerWorker> all = world.getEntities(
+                // ✅ Radius-limited: only touch followers near the leader
+                final int R = TravellersModConfig.recruitLeaderAssignRadius; // e.g. 32
+                AxisAlignedBB box = leader.getEntityBoundingBox().grow(R, 6.0D, R);
+
+                List<EntityTravellerWorker> nearby = world.getEntitiesWithinAABB(
                         EntityTravellerWorker.class,
+                        box,
                         w -> w != null
                                 && !w.isDead
+                                && w != leader
                                 && w.isHiredFollower()
                                 && Objects.equals(w.getFollowOwnerId(), ownerId)
+                                // recommended: don't mess with active jobs
+                                && !w.isJobActive()
+                                && !w.isWaitingForPickup()
                 );
 
-                // Does this leader currently have *any* followers?
+                // Does THIS leader currently have any nearby escorts?
                 boolean hasFollowers = false;
-                for (EntityTravellerWorker w : all) {
-                    if (w == leader) continue;
+                for (EntityTravellerWorker w : nearby) {
                     if (w.isEscortingLeader(leader)) {
                         hasFollowers = true;
                         break;
@@ -71,28 +80,22 @@ public class MsgMakeWorkerLeader implements IMessage {
                 }
 
                 if (hasFollowers) {
-                    // 🔁 TOGGLE OFF:
-                    //   Only workers that currently follow THIS leader
-                    //   go back to following the player directly.
-                    for (EntityTravellerWorker w : all) {
-                        if (w == leader) continue;
+                    // 🔁 TOGGLE OFF: only workers escorting THIS leader go back to player
+                    int cleared = 0;
+                    for (EntityTravellerWorker w : nearby) {
                         if (w.isEscortingLeader(leader)) {
                             w.clearEscortLeader();
+                            cleared++;
                         }
                     }
 
                     player.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "This leader’s followers now follow you again."
+                            TextFormatting.YELLOW + "Released " + cleared + " followers back to you."
                     ));
                 } else {
-                    // ✅ TOGGLE ON:
-                    //   Only workers that currently follow the PLAYER directly
-                    //   (no escortLeader) are assigned to this leader.
+                    // ✅ TOGGLE ON: only nearby direct followers (no leader) get assigned
                     int count = 0;
-                    for (EntityTravellerWorker w : all) {
-                        if (w == leader) continue;
-
-                        // Only steal direct followers of the player (no current leader)
+                    for (EntityTravellerWorker w : nearby) {
                         if (!w.hasEscortLeader()) {
                             w.setEscortLeader(leader);
                             count++;
@@ -101,11 +104,11 @@ public class MsgMakeWorkerLeader implements IMessage {
 
                     if (count > 0) {
                         player.sendMessage(new TextComponentString(
-                                TextFormatting.GREEN + "This worker is now leading " + count + " of your followers."
+                                TextFormatting.GREEN + "This worker is now leading " + count + " nearby followers."
                         ));
                     } else {
                         player.sendMessage(new TextComponentString(
-                                TextFormatting.YELLOW + "None of your followers were available to assign to this leader."
+                                TextFormatting.YELLOW + "No nearby direct followers to assign."
                         ));
                     }
                 }
@@ -113,5 +116,6 @@ public class MsgMakeWorkerLeader implements IMessage {
             return null;
         }
     }
+
 }
 

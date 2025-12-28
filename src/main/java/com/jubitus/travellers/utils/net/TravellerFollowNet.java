@@ -29,13 +29,20 @@ public final class TravellerFollowNet {
         registerClientOnly(MsgPlayTravellerVoice.class, isClient ? new MsgPlayTravellerVoice.Handler() : new MsgPlayTravellerVoice.NoopHandler());
         registerClientOnly(MsgStopTravellerVoice.class, isClient ? new MsgStopTravellerVoice.Handler() : new MsgStopTravellerVoice.NoopHandler());
         registerClientOnly(MsgSyncWorkerHireState.class, isClient ? new MsgSyncWorkerHireState.Handler() : new MsgSyncWorkerHireState.NoopHandler());
-
-        registerBoth(MsgOpenWorkerSubGui.class, new MsgOpenWorkerSubGui.NoopHandler(), new MsgOpenWorkerSubGui.Handler());
-
+        registerClientOnly(
+                MsgSyncWorkerHostileList.class,
+                isClient ? new MsgSyncWorkerHostileList.Handler() : new MsgSyncWorkerHostileList.NoopHandler()
+        );
         CHANNEL.registerMessage(MsgHireWorker.Handler.class, MsgHireWorker.class, NEXT_ID++, Side.SERVER);
         CHANNEL.registerMessage(MsgToggleWorkerFollow.Handler.class, MsgToggleWorkerFollow.class, NEXT_ID++, Side.SERVER);
         CHANNEL.registerMessage(MsgMakeWorkerLeader.Handler.class, MsgMakeWorkerLeader.class, NEXT_ID++, Side.SERVER);
-
+        CHANNEL.registerMessage(MsgRecruitWorkers.Handler.class, MsgRecruitWorkers.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgRecruitStartSelectedVillages.Handler.class,
+                MsgRecruitStartSelectedVillages.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgClearEscortLeader.Handler.class, MsgClearEscortLeader.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgSetWorkerHostile.Handler.class, MsgSetWorkerHostile.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgOpenWorkerSubGui.Handler.class,
+                MsgOpenWorkerSubGui.class, NEXT_ID++, Side.SERVER);
         registered = true;
     }
 

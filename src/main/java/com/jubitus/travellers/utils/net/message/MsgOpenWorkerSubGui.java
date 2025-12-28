@@ -4,9 +4,11 @@ import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
+import com.mojang.authlib.GameProfile;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
@@ -14,13 +16,19 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
+import java.util.UUID;
+
 public class MsgOpenWorkerSubGui implements IMessage {
 
     public enum Type {
         TRANSPORT,
         ORDERS,
-        INVENTORY // NEW
+        RECRUIT,
+        INVENTORY,
+        BEHAVIOR, // NEW
+        HUB
     }
+
 
     private int entityId;
     private Type type;
@@ -36,8 +44,11 @@ public class MsgOpenWorkerSubGui implements IMessage {
     @Override
     public void fromBytes(ByteBuf buf) {
         this.entityId = buf.readInt();
-        this.type = Type.values()[buf.readByte()];
+        int idx = buf.readUnsignedByte();
+        Type[] vals = Type.values();
+        this.type = (idx >= 0 && idx < vals.length) ? vals[idx] : Type.TRANSPORT;
     }
+
 
     @Override
     public void toBytes(ByteBuf buf) {
@@ -70,6 +81,14 @@ public class MsgOpenWorkerSubGui implements IMessage {
                                 player
                         );
                         break;
+                    case RECRUIT:
+                        guiId = TravellersGuiIds.WORKER_RECRUIT;
+
+                        TravellerFollowNet.CHANNEL.sendTo(
+                                new MsgSyncWorkerHireState(worker),
+                                player
+                        );
+                        break;
 
                     case INVENTORY:
                         if (!worker.isHiredFollower()
@@ -83,10 +102,37 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                         // Optional: also sync here if you want inventory GUI to know follow state
                         break;
+                    case BEHAVIOR:
+                        if (!worker.isHiredFollower()
+                                || !player.getUniqueID().equals(worker.getFollowOwnerId())) {
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.RED + "You can only manage behavior of a worker you've hired."
+                            ));
+                            return;
+                        }
+
+                        guiId = TravellersGuiIds.WORKER_BEHAVIOR;
+
+                        // sync state if your GUI needs it (recommended)
+                        TravellerFollowNet.CHANNEL.sendTo(
+                                new MsgSyncWorkerHireState(worker),
+                                player
+
+                        );
+                        TravellerFollowNet.CHANNEL.sendTo(
+                                buildHostileListPacket(worker),
+                                player
+                        );
+                        break;
+
+                    case HUB:
+                        guiId = TravellersGuiIds.WORKER_HUB;
+                        break;
 
                     default:
                         return;
                 }
+
 
                 player.openGui(
                         Travellers.INSTANCE,
@@ -106,6 +152,20 @@ public class MsgOpenWorkerSubGui implements IMessage {
             // client side: do nothing
             return null;
         }
+    }
+    static MsgSyncWorkerHostileList buildHostileListPacket(EntityTravellerWorker worker) {
+        EntityTravellerWorker leader = worker.getGroupLeaderOrSelf();
+
+        java.util.List<String> out = new java.util.ArrayList<>();
+        MinecraftServer srv = worker.world.getMinecraftServer();
+        if (srv != null) {
+            for (UUID id : leader.getEffectiveHostilePlayers()) {
+                GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(id);
+                out.add(gp != null && gp.getName() != null ? gp.getName() : id.toString());
+            }
+        }
+        java.util.Collections.sort(out, String.CASE_INSENSITIVE_ORDER);
+        return new MsgSyncWorkerHostileList(worker.getEntityId(), out);
     }
 
 }

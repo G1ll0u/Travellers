@@ -900,6 +900,16 @@ public final class CultureRegistry {
         bootstrapAllMillenaireCultures(); // will parse traded_goods and attach items
         ModSounds.assignVoicesToCultures();
     }
+    public static String pickRandomCultureIdWithRaiders(Random r) {
+        List<String> ids = new ArrayList<>();
+        for (CultureDef d : CULT.values()) {
+            if (d != null && d.getExplicitRaiderTextureCount() > 0) {
+                ids.add(d.id);
+            }
+        }
+        if (ids.isEmpty()) return pickRandomId(r); // or "default"
+        return ids.get(r.nextInt(ids.size()));
+    }
 }
 
 
