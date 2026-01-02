@@ -31,8 +31,8 @@ public class TravellersModConfig {
     public static int workerGlobalAssignedCap = 16; // example: 8–20 feels good
 
     public static boolean travellerOffscreenHopEnabled = true;
-    public static int travellerOffscreenHopIntervalTicks = 20 * 6; // 6s, every 6s, do a hop
-    public static int travellerOffscreenHopStepBlocks = 24;        // hop distance in blocks
+    public static int travellerOffscreenHopIntervalTicks = 20 * 3; // 6s, every 6s, do a hop
+    public static int travellerOffscreenHopStepBlocks = 12;        // hop distance in blocks
 
     public static double followerIdleJitterRadius = 0.25D;  // very small jitter when owner idle
     public static int    followerIdleRecalcTicks  = 24;     // slower path recalcs when owner idle
@@ -146,9 +146,8 @@ public class TravellersModConfig {
 
 
     public static int merchantChunkRadius = 1;          // default radius per merchant
-    public static int merchantMaxForcedChunks = 1000;    // hard cap per world
-    public static int merchantChunkUpdateInterval = 10; // ticks between recomputes
-    public static int merchantMaxChunkloadingMerchants = 16; // if many merchants, only first N get chunkloading
+    public static int merchantMaxForcedChunks = 128;    // hard cap per world
+    public static int merchantMaxChunkloadingMerchants = 32; // if many merchants, only first N get chunkloading
     public static boolean merchantChunkloadingEnabled = true;
     // How big a slice of the total required amount the merchant tries to supply.
 // 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
@@ -422,7 +421,7 @@ public class TravellersModConfig {
     public static double travellerViewBoostBaseRadius = 128;
     public static double travellerViewBoostCombatBonus = 128;
     public static boolean allowTravellerChunkLoading = true;
-    public static double returnFollowSwitchDist = 48;
+    public static double returnFollowSwitchDist = 128;
     public static int chunkRecomputeIntervalTicks = 20;
     static boolean enableTravellerEntity = true;
     private static String[] raiderAttackIdRules = new String[0];

@@ -82,9 +82,14 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         WorldServer ws = (WorldServer) event.getWorld();
         int dim = ws.provider.getDimension();
 
-        // Just drop our in-memory state; do NOT release the ticket.
+        WorldState state = worldStates.get(dim);
+        if (state != null) {
+            saveForcedToTicket(state); // <- persist latest list
+        }
+
         worldStates.remove(dim);
     }
+
     // Called by Forge on world load to restore tickets
     @Override
     public void ticketsLoaded(List<ForgeChunkManager.Ticket> tickets, World world) {
@@ -199,6 +204,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         if (interval <= 0) return;
 
         long now = state.world.getTotalWorldTime();
+        boolean anyHop = false;
 
         for (MerchantData md : state.merchants.values()) {
             Entity ent = state.world.getEntityFromUuid(md.id);
@@ -206,27 +212,28 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
             EntityTraveller t = (EntityTraveller) ent;
 
-            // Only do this when really offscreen / outside activation
             if (t.isInPlayerViewDistance()) continue;
-
-            // Don’t fight their combat/eating/hand state
             if (t.isInCombat() || t.isAutoEating() || t.isHandActive()) continue;
-
-            // Need a target
             if (t.getTargetVillage() == null) continue;
-
-            // Rate limit
             if (now - md.lastOffscreenHopTick < interval) continue;
 
             boolean ok = t.offscreenHopTowardTarget(TravellersModConfig.travellerOffscreenHopStepBlocks);
             if (ok) {
                 md.lastOffscreenHopTick = now;
 
-                // Also update md position so chunk forcing follows hops even if entity AI doesn’t tick
-                md.pos = t.getPosition();
+                // ✅ very important
+                md.updateFromEntity(t);
+
+                anyHop = true;
             }
         }
+
+        // ✅ Make forced chunks follow immediately
+        if (anyHop) {
+            recomputeForWorld(state);
+        }
     }
+
 
     public void onChunkloaderRemoved(EntityTraveller traveller) {
         if (traveller.world.isRemote) return;

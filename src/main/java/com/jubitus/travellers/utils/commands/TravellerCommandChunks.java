@@ -40,7 +40,7 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
 
         int radiusBlocks = 256; // default
         if (args.length >= 1) {
-            radiusBlocks = parseInt(args[0], 16, 4096); // clamp a bit
+            radiusBlocks = parseInt(args[0], 16, 8192); // clamp a bit
         }
 
         BlockPos center = player.getPosition();

@@ -1602,22 +1602,37 @@ public class EntityTravellerWorker extends EntityTraveller {
         tc.setDepartCooldownTicks(0);
         this.getNavigator().clearPath();
 
-        homeChestWaitTicks++;
-
-        // Look for any nearby player (owner or not)
+// Look for any nearby player (owner or not)
         final double playerRadius = 8.0D;
         AxisAlignedBB box = this.getEntityBoundingBox().grow(playerRadius, 4.0D, playerRadius);
-        boolean playerNearby = !world.getEntitiesWithinAABB(EntityPlayer.class, box).isEmpty();
+        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, box);
+        boolean playerNearby = !players.isEmpty();
 
-        // Optional: say one-time hello when someone first comes
-        if (playerNearby && homeChestWaitTicks == 20) { // 1 second after arrival
-            this.playHelloSound();
+// --- Social behavior while waiting ---
+        if (playerNearby) {
+            // Look at the closest player
+            EntityPlayer p = players.get(0);
+            this.getLookHelper().setLookPositionWithEntity(
+                    p,
+                    10.0F,
+                    (float) this.getVerticalFaceSpeed()
+            );
+
+            // Say hello once shortly after arriving
+            if (homeChestWaitTicks == 20) {
+                this.playHelloSound();
+            }
+
+            // IMPORTANT: don't count waiting time while someone is nearby
+            // so he won't leave while being "discovered".
+            return;
         }
 
-        // Leave if:
-        //  - we waited full 5 minutes, OR
-        //  - a player is nearby (we've "seen" someone at this home)
-        if (homeChestWaitTicks >= HOME_CHEST_WAIT_MAX_TICKS || playerNearby) {
+// No player nearby -> count down the "leave home" timer
+        homeChestWaitTicks++;
+
+// Leave only after timeout AND no player nearby
+        if (homeChestWaitTicks >= HOME_CHEST_WAIT_MAX_TICKS) {
             homeChestWaitTicks = 0;
             atHomeChest = false;
 
@@ -1625,24 +1640,32 @@ public class EntityTravellerWorker extends EntityTraveller {
             tc.setReadyToDepart(true);
             tc.setDepartCooldownTicks(0);
         }
+
     }
     private void updateDynamicNavigation() {
         if (world.isRemote) return;
 
-        boolean shouldBoost = isInPlayerViewDistance();
-        if (shouldBoost == usingBoostedNav) return; // no change
+        boolean shouldBoost =
+                isInPlayerViewDistance()
+                        || isUsingTravelAI()      // << key
+                        || catchupTravel;         // << key
 
+        if (shouldBoost == usingBoostedNav) return;
         usingBoostedNav = shouldBoost;
 
-        // FOLLOW_RANGE
         IAttributeInstance followAttr =
                 this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
         if (followAttr != null) {
             followAttr.setBaseValue(shouldBoost ? boostedFollowRange : baseFollowRange);
         }
 
-        // stepBlocks (see next section: needs setter on EntityAITravel)
+        // Optional but strongly recommended: also keep travel step sane vs follow range
+        if (aiTravel != null) {
+            int fr = (int) Math.floor(followAttr.getAttributeValue());
+            aiTravel.setStepBlocks(Math.min(TravellersModConfig.workerStepBlocks, Math.max(12, fr - 8)));
+        }
     }
+
     public boolean isFollowOrderActive() {
         return followOrderActive;
     }
@@ -2661,27 +2684,67 @@ public class EntityTravellerWorker extends EntityTraveller {
     public boolean shouldAttackExtraEntity(Entity e) {
         if (e == null || e == this) return false;
 
-        // If this worker is a hired follower, allow "marked hostile" players as valid targets
-        if (this.isHiredFollower() && e instanceof EntityPlayer) {
+        // Only hired followers use the "owner hostility" logic
+        if (!this.isHiredFollower()) {
+            return super.shouldAttackExtraEntity(e);
+        }
+
+        // --------------------------------------------------------------------
+        // 1) ATTACK HOSTILE PLAYERS (your existing behavior)
+        // --------------------------------------------------------------------
+        if (e instanceof EntityPlayer) {
             EntityPlayer p = (EntityPlayer) e;
             if (p.isCreative() || p.isSpectator()) return false;
             if (isOwner(p)) return false;
 
+            // explicit mark
             if (isPlayerMarkedHostile(p)) return true;
+
+            // NOTE: We do NOT try to infer "reciprocal" hostility for players here,
+            // because your hostility list is stored on workers, not on the player.
+            return false;
+        }
+
+        // --------------------------------------------------------------------
+        // 2) NEW: ATTACK ENEMY OWNERS' HIRED WORKERS
+        // --------------------------------------------------------------------
+        if (e instanceof EntityTravellerWorker) {
+            EntityTravellerWorker other = (EntityTravellerWorker) e;
+
+            // Only fight other hired followers
+            if (!other.isHiredFollower()) return false;
+
+            UUID myOwner = this.getFollowOwnerId();
+            UUID otherOwner = other.getFollowOwnerId();
+            if (myOwner == null || otherOwner == null) return false;
+
+            // Never attack same-owner followers
+            if (myOwner.equals(otherOwner)) return false;
+
+            // Use the LEADER's hostile list for each side (escort groups)
+            EntityTravellerWorker myLeader = this.getGroupLeaderOrSelf();
+            EntityTravellerWorker otherLeader = other.getGroupLeaderOrSelf();
+
+            boolean iHateOtherOwner = myLeader != null && myLeader.hostilePlayers.contains(otherOwner);
+            boolean otherOwnerHatesMe = otherLeader != null && otherLeader.hostilePlayers.contains(myOwner);
+
+            // Reciprocal: if either owner considers the other hostile, followers fight
+            if (iHateOtherOwner || otherOwnerHatesMe) {
+                return true;
+            }
         }
 
         return super.shouldAttackExtraEntity(e);
     }
+
     // CLIENT ONLY cache for GUI display (UUID + last known name)
-    @SideOnly(Side.CLIENT)
+
     private final java.util.List<String> hostileNamesClient = new java.util.ArrayList<>();
 
-    @SideOnly(Side.CLIENT)
     public java.util.List<String> getHostileNamesClient() {
         return hostileNamesClient;
     }
 
-    @SideOnly(Side.CLIENT)
     public void setHostileNamesClient(java.util.List<String> names) {
         hostileNamesClient.clear();
         hostileNamesClient.addAll(names);

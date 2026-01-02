@@ -24,7 +24,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     private final boolean requireLOS;
     private final int tickRate;
     private final int tickPhase;
-    private final TravellerBlacklist blacklist;
 
     private double triggerRangeSq;
     private double closeStartSq;
@@ -60,7 +59,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         this.requireLOS = requireLOS;
         this.tickRate = Math.max(3, tickRate);
         this.tickPhase = tickPhase;
-        this.blacklist = blacklist;
         this.setMutexBits(0);
 
         this.baseTriggerRange = triggerRange;                // linear
@@ -170,10 +168,10 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
         EntityLivingBase pick = null;
         double best = Double.POSITIVE_INFINITY;
+        TravellerBlacklist bl = currentBlacklist();
 
         for (EntityLivingBase e : list) {
-            if (blacklist.isBlacklisted(e)) continue;
-            if (mob.isIgnoring(e)) continue;  // <--- NEW
+            if (bl != null && bl.isBlacklisted(e)) continue;
             if (e.isInvisible()) continue;
 
             double d2 = mob.getDistanceSq(e);
@@ -261,6 +259,11 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     public EntityAIDefendIfClose setBowRangeBonus(double frac) {
         this.bowRangeBonusFrac = Math.max(0.0, frac);
         return this;
+    }
+    private TravellerBlacklist currentBlacklist() {
+        return (mob instanceof EntityTravellerRaider)
+                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
     }
 
 }

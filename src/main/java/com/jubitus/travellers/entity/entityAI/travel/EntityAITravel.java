@@ -10,6 +10,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBase;
@@ -362,54 +363,6 @@ public class EntityAITravel extends EntityAIBase {
     @Override
     public void updateTask() {
 
-        // -----------------------------------------
-        // Chunk forcing (keep as-is)
-        // -----------------------------------------
-        if (!mob.world.isRemote && mob.ticksExisted % 20 == 0) {
-            WorldServer ws = (WorldServer) mob.world;
-            ForgeChunkManager.Ticket t = mob.getOrCreateTravelTicket();
-            if (t != null) {
-
-                java.util.HashSet<ChunkPos> desired = new java.util.HashSet<>();
-                ChunkPos c = new ChunkPos(mob.getPosition());
-
-                // 3x3 bubble
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        desired.add(new ChunkPos(c.x + dx, c.z + dz));
-                    }
-                }
-
-                // 1 chunk ahead toward waypoint/target
-                BlockPos aim = (currentWaypoint != null) ? currentWaypoint : targetVillage;
-                if (aim != null) {
-                    int ax = Integer.signum(aim.getX() - mob.getPosition().getX());
-                    int az = Integer.signum(aim.getZ() - mob.getPosition().getZ());
-                    desired.add(new ChunkPos(c.x + ax * 2, c.z + az * 2));
-                }
-
-                java.util.HashSet<ChunkPos> forcedNow = new java.util.HashSet<>(t.getChunkList());
-
-                for (ChunkPos old : forcedNow) {
-                    if (!desired.contains(old)) {
-                        ForgeChunkManager.unforceChunk(t, old);
-
-                        if (!mob.isInPlayerViewDistance() && isFarEnoughFromAnyPlayer()) {
-                            net.minecraft.world.chunk.Chunk loaded = ws.getChunkProvider().getLoadedChunk(old.x, old.z);
-                            if (loaded != null) {
-                                ws.getChunkProvider().queueUnload(loaded);
-                            }
-                        }
-                    }
-                }
-
-                for (ChunkPos need : desired) {
-                    if (!forcedNow.contains(need)) {
-                        ForgeChunkManager.forceChunk(t, need);
-                    }
-                }
-            }
-        }
 
         // -----------------------------------------
         // Cooldowns for the SIMPLE stuck system
@@ -435,7 +388,16 @@ public class EntityAITravel extends EntityAIBase {
             mob.getNavigator().clearPath();
             return;
         }
+// -----------------------------------------
+// OFFSCREEN: do not pathfind (Forge 1.12.2 pathfinder can load chunks)
+// -----------------------------------------
+        if (!mob.world.isRemote && !mob.isInPlayerViewDistance()) {
+            mob.getNavigator().clearPath();
 
+            // If you already have TravellerChunkManager "offscreenHopTowardTarget" enabled,
+            // it will move them without pathfinding. So we just stop here.
+            return;
+        }
         // -----------------------------------------
         // Keep target up to date
         // -----------------------------------------
@@ -462,6 +424,19 @@ public class EntityAITravel extends EntityAIBase {
         // -----------------------------------------
         // Boat handling (keep it simple: steer + dismount when hit shore)
         // -----------------------------------------
+
+        EntityTravellerBoat boat = currentBoat();
+        if (boat != null) {
+            // if boat is colliding and not making progress, bail out
+            boolean pinned = boat.collidedHorizontally
+                    && (boat.motionX*boat.motionX + boat.motionZ*boat.motionZ) < 0.0004; // ~0.02^2
+
+            if (pinned) {
+                handleBoatHitSurface(boat); // dismount + delete + try shore
+                return;
+            }
+        }
+
         if (isInBoat()) {
 
             if (currentWaypoint == null) {
@@ -472,7 +447,6 @@ public class EntityAITravel extends EntityAIBase {
             steerBoatToWaypoint();
 
 // ---- Boat reached waypoint? pick the next one (THIS WAS MISSING) ----
-            EntityTravellerBoat boat = currentBoat();
             if (boat != null && currentWaypoint != null) {
                 double d2xz = horizDistSq(
                         new BlockPos(MathHelper.floor(boat.posX), 0, MathHelper.floor(boat.posZ)),
@@ -630,6 +604,15 @@ public class EntityAITravel extends EntityAIBase {
         double d2 = horizDistSq(mob.getPosition(), targetVillage);
 
         if (bestDistSq == Double.MAX_VALUE) bestDistSq = d2;
+        if (!mob.world.isRemote && mob.isInWater() && noMoveTicks >= 3*20) {
+            if (teleportToNearestShoreTowardTarget(24, 6)) {
+                resetStuckState();
+                currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
+                mob.setCurrentWaypoint(currentWaypoint);
+                pushPathToWaypoint(true);
+                return;
+            }
+        }
 
 // improvement since best-ever
         double improve = bestDistSq - d2;
@@ -1149,9 +1132,12 @@ public class EntityAITravel extends EntityAIBase {
                 return p;
             }
             if (isStandable(p)) {
-                if (!mob.isInWater()) {
-                    return adjustTreeTopToGround(p);
+                // If p itself is a snow layer, treat feet as the AIR block above it.
+                if (world.getBlockState(p).getBlock() == Blocks.SNOW_LAYER) {
+                    BlockPos airAbove = p.up();
+                    if (isAreaLoaded(airAbove, 1) && isStandable(airAbove)) return airAbove;
                 }
+                if (!mob.isInWater()) return adjustTreeTopToGround(p);
                 return p;
             }
         }
@@ -1727,13 +1713,17 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private boolean isInBoat() {
-        return mob.isRiding() && mob.getRidingEntity() instanceof EntityTravellerBoat;
+        return mob != null
+                && mob.isRiding()
+                && mob.getRidingEntity() instanceof EntityBoat; // covers vanilla + subclasses
+        // or: instanceof EntityTravellerBoat if you ONLY ever ride your custom boat
     }
 
     @Nullable
     private EntityTravellerBoat currentBoat() {
         if (!isInBoat()) return null;
-        return (EntityTravellerBoat) mob.getRidingEntity();
+        Entity r = mob.getRidingEntity();
+        return (r instanceof EntityTravellerBoat) ? (EntityTravellerBoat) r : null;
     }
 
     /**
@@ -1803,13 +1793,13 @@ public class EntityAITravel extends EntityAIBase {
 
     private void dismountAndDeleteBoat() {
         if (!isInBoat()) return;
-        if (mob.world.isRemote) return;
-
-        EntityTravellerBoat boat = currentBoat();
-        if (boat == null) return;
-
+        Entity r = mob.getRidingEntity();
         mob.dismountRidingEntity();
-        boat.setDead(); // 1.12: remove without drops
+
+        // Only delete if it's YOUR boat entity (don’t grief a random vanilla boat).
+        if (r instanceof EntityTravellerBoat) {
+            r.setDead();
+        }
     }
 
     private void steerBoatToWaypoint() {
@@ -2276,11 +2266,14 @@ public class EntityAITravel extends EntityAIBase {
             surf = adjustTreeTopToGround(surf);
             if (!isNavigable(surf)) continue;
 
+            double landY = candidateLandingY(surf);
+
             AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
                     (surf.getX() + 0.5) - mob.posX,
-                    surf.getY() - mob.posY,
+                    landY - mob.posY,
                     (surf.getZ() + 0.5) - mob.posZ
             );
+
             if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
             if (intersectsForbiddenLiquid(mob.world, aabb)) continue;
 
@@ -2313,7 +2306,7 @@ public class EntityAITravel extends EntityAIBase {
     }
 
 
-    private boolean teleportToSurfaceRescue(int radius, int minRise) {
+    public boolean teleportToSurfaceRescue(int radius, int minRise) {
         if (mob.world.isRemote) return false;
 
         World w = mob.world;
@@ -2358,13 +2351,17 @@ public class EntityAITravel extends EntityAIBase {
                 }
                 if (!okSupport) continue;
 
+                double landY = candidateLandingY(feet);
+
                 AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
                         (feet.getX() + 0.5) - mob.posX,
-                        feet.getY() - mob.posY,
+                        landY - mob.posY,
                         (feet.getZ() + 0.5) - mob.posZ
                 );
+
                 if (!w.getCollisionBoxes(mob, aabb).isEmpty()) continue;
                 if (intersectsForbiddenLiquid(w, aabb)) continue;
+
 
                 // ---- Fallback (old behaviour): closest to origin ----
                 double closestScore = feet.distanceSq(origin);
@@ -2551,6 +2548,77 @@ public class EntityAITravel extends EntityAIBase {
 
         // Normal case: feetPos is air/replaceable; stand on the block below.
         return feetYOnTopOf(feetPos.down());
+    }
+    private double candidateLandingY(BlockPos feetPos) {
+        return isSwimmable(feetPos) ? feetPos.getY() : teleportLandingY(feetPos);
+    }
+    // Finds a dry standable tile near us, biased forward toward target, and teleports there.
+// radius = XZ scan radius, minForward = require at least this many blocks forward (soft).
+    public boolean teleportToNearestShoreTowardTarget(int radius, int minForward) {
+        if (mob.world.isRemote) return false;
+        if (targetVillage == null) return false;
+
+        BlockPos origin = mob.getPosition();
+        Vec3d fwd = goalDirXZ(mob, targetVillage);
+
+        BlockPos best = null;
+        double bestScore = -1e18;
+
+        for (int dz = -radius; dz <= radius; dz++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+
+                BlockPos probe = origin.add(dx, 0, dz);
+                if (!isAreaLoaded(probe, 1)) continue;
+
+                BlockPos top = mob.world.getTopSolidOrLiquidBlock(probe);
+                BlockPos feet = adjustTreeTopToGround(top);
+
+                // We want DRY land only
+                if (!isDryStandableForBoatExit(feet)) continue;
+
+                double sx = (feet.getX() + 0.5) - (origin.getX() + 0.5);
+                double sz = (feet.getZ() + 0.5) - (origin.getZ() + 0.5);
+                Vec3d step = new Vec3d(sx, 0, sz);
+
+                double forward = step.dotProduct(fwd);
+                if (forward < -2.0) continue; // don't go backwards unless desperate
+
+                // Optional soft forward preference
+                double forwardBonus = Math.max(0.0, forward - minForward);
+
+                double d2ToTarget = horizDistSq(feet, targetVillage);
+                double dist2FromMe = sx*sx + sz*sz;
+
+                // Score: prefer closer to target + forward + not too far
+                double score = -(d2ToTarget * 0.01) + (forwardBonus * 5.0) - (dist2FromMe * 0.001);
+
+                // Collision check at REAL landing Y (snow-safe)
+                double landY = teleportLandingY(feet);
+                AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
+                        (feet.getX() + 0.5) - mob.posX,
+                        landY - mob.posY,
+                        (feet.getZ() + 0.5) - mob.posZ
+                );
+                if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
+                if (intersectsForbiddenLiquid(mob.world, aabb)) continue;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = feet;
+                }
+            }
+        }
+
+        if (best == null) return false;
+
+        if (isInBoat()) dismountAndDeleteBoat();
+
+        double y = teleportLandingY(best);
+        mob.setPositionAndUpdate(best.getX() + 0.5, y, best.getZ() + 0.5);
+        mob.motionX = mob.motionY = mob.motionZ = 0.0D;
+        mob.velocityChanged = true;
+        mob.getNavigator().clearPath();
+        return true;
     }
 
 }

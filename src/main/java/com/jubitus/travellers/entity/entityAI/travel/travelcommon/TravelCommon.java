@@ -424,6 +424,8 @@ public class TravelCommon {
         this.targetVillage = firstStop;           // <--- ADD THIS
         owner.setTargetVillage(firstStop);
         owner.setCurrentWaypoint(null);
+        this.readyToDepart = true;
+        this.departCooldownTicks = 0;
 
     }
 

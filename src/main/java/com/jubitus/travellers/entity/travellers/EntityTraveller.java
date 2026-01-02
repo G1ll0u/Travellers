@@ -89,6 +89,12 @@ import java.util.UUID;
 
 public class EntityTraveller extends EntityCreature {
 
+    private final int retargetPhase = this.rand.nextInt(10); // 0..9
+    private boolean shouldRunRetarget() {
+        // every 10 ticks per entity, staggered
+        return ((this.ticksExisted + retargetPhase) % 10) == 0;
+    }
+
     private static final DataParameter<String> BACKPACK_STYLE =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
 
@@ -241,7 +247,7 @@ public class EntityTraveller extends EntityCreature {
         this.setCanPickUpLoot(true);
         this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
         this.setLeftHanded(false);
-        this.stepHeight = 1.4F;
+        this.stepHeight = 1.45F;
 
     }
 
@@ -787,7 +793,7 @@ public class EntityTraveller extends EntityCreature {
         if (target != null) {
             TravellerBlacklist blacklist = getAggroBlacklist();
             if (blacklist.isBlacklisted(target)) {
-                ignoreTarget(target, 60); // 3s (tune 40–120)
+                ignoreTarget(target, 20*60);
                 rejectTarget();
                 return;
             }
@@ -964,7 +970,6 @@ public class EntityTraveller extends EntityCreature {
             }
             handleSwordVisibility();
             decayAndPruneThreats();
-            considerRetargetFromMemory();
             pruneIgnoredTargets();
         }
         if (!isInCombat()) {
@@ -1241,8 +1246,12 @@ public class EntityTraveller extends EntityCreature {
             maybeRecruitDog();
             if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
         }
+        if (!world.isRemote && shouldRunRetarget()) {
+            considerRetargetFromMemory();
+        }
 
         super.onLivingUpdate();
+
         boolean inCombat =
                 this.getAttackTarget() != null
                         || this.getRevengeTarget() != null
@@ -1251,6 +1260,7 @@ public class EntityTraveller extends EntityCreature {
         if (inCombat) {
             markCombatNow();
         }
+
         if (!isRouteLocked()) {
             if (travelCommon.routeIndex < 0 || travelCommon.routeIndex >= travelCommon.route.size()) {
                 travelCommon.ensureRoutePlanned();
@@ -2619,10 +2629,13 @@ public class EntityTraveller extends EntityCreature {
         // ...insert/throttle into threatMap (your existing code)...
         UUID id = e.getUniqueID();
         Threat th = threatMap.get(id);
-        if (th == null) threatMap.put(id, new Threat(Math.max(1, addScore), this.ticksExisted));
+        int eid = e.getEntityId();
+
+        if (th == null) threatMap.put(id, new Threat(Math.max(1, addScore), this.ticksExisted, eid));
         else {
             th.score = Math.min(1000, th.score + addScore);
             th.lastSeenTick = this.ticksExisted;
+            th.entityId = eid; // keep fresh
         }
     }
 
@@ -2656,57 +2669,47 @@ public class EntityTraveller extends EntityCreature {
     private EntityLivingBase pickBestTargetFromMemory(double range) {
         if (threatMap.isEmpty()) return null;
 
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(range, 8.0, range);
-        List<EntityLivingBase> seen = this.world.getEntitiesWithinAABB(
-                EntityLivingBase.class, box,
-                e -> e != null
-                        && e.isEntityAlive()
-                        && threatMap.containsKey(e.getUniqueID())
-        );
-        if (seen.isEmpty()) return null;
-
-        EntityLivingBase best = null;
-        double bestScore = Double.NEGATIVE_INFINITY;
         final double r2 = range * range;
         TravellerBlacklist bl = getAggroBlacklist();
 
+        EntityLivingBase best = null;
+        double bestScore = Double.NEGATIVE_INFINITY;
 
-        for (EntityLivingBase e : seen) {
-            if (this.getDistanceSq(e) > r2) continue;
+        for (Threat t : threatMap.values()) {
+            Entity ent = this.world.getEntityByID(t.entityId);
+            if (!(ent instanceof EntityLivingBase)) continue;
+
+            EntityLivingBase e = (EntityLivingBase) ent;
+            if (!e.isEntityAlive()) continue;
             if (bl != null && bl.isBlacklisted(e)) continue;
-            Threat t = threatMap.get(e.getUniqueID());
-            if (t == null) continue;
 
-            // NEW: reject big vertical offsets (e.g. caves far below)
-            double dy = e.posY - this.posY;
-            if (Math.abs(dy) > 3.0D) continue; // tweak as you like
-            if (this.isIgnoring(e)) continue;
+            double d2 = this.getDistanceSq(e);
+            if (d2 > r2) continue;
+
+            if (Math.abs(e.posY - this.posY) > 3.0D) continue;
 
             boolean see = this.getEntitySenses().canSee(e);
-
-            // NEW: if you want strict LOS here:
             if (TravellersModConfig.requireLOSForMemoryTargets && !see) continue;
 
-            // NEW: optional path requirement
-            if (TravellersModConfig.requirePathForAggro) {
-                if (this.getNavigator().getPathToEntityLiving(e) == null) {
-                    continue;
-                }
-            }
-
             double s = t.score;
-
-            if (see) s += 2.0; // prefer LOS
-            double d = Math.max(1.0, this.getDistance(e));
-            s += 10.0 / d; // closer is slightly more urgent
+            if (see) s += 2.0;
+            // avoid sqrt: use inverse-ish by d2
+            s += 10.0 / Math.max(1.0, d2);
 
             if (s > bestScore) {
                 bestScore = s;
                 best = e;
             }
         }
+
+        // Optional: ONE path check at the end
+        if (best != null && TravellersModConfig.requirePathForAggro) {
+            if (this.getNavigator().getPathToEntityLiving(best) == null) return null;
+        }
+
         return best;
     }
+
 
     /**
      * Consider switching to a higher-priority remembered hostile.
@@ -2768,62 +2771,62 @@ public class EntityTraveller extends EntityCreature {
     private EntityLivingBase pickBestNearbyHostile(double range) {
         AxisAlignedBB box = this.getEntityBoundingBox().grow(range, 4.0, range);
 
-        List<EntityLivingBase> list = this.world.getEntitiesWithinAABB(
-                EntityLivingBase.class, box,
-                e -> {
-                    if (e == null || e == this) return false;
-                    if (!e.isEntityAlive()) return false;
-                    if (e.isInvisible()) return false;
-                    if (this.isIgnoring(e)) return false;
-
-                    // Travellers: only cross-faction
-                    if (e instanceof EntityTraveller) {
-                        EntityTraveller t = (EntityTraveller) e;
-                        // Only across factions (XOR); culture no longer matters
-                        if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) return false;
-
-                    } else {
-                        // Non-travellers: IMob or extra
-                        if (!this.shouldAttackExtraEntity(e) && !(e instanceof IMob)) {
-                            return false;
-                        }
-                    }
-
-                    // optional global blacklist, if you have one
-                    // if (TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST.isBlacklisted(e)) return false;
-
-                    // vertical sanity: avoid caves far below
-                    if (Math.abs(e.posY - this.posY) > 3.0D) return false;
-
-                    // LOS required for chaining so we don't chain into cave mobs
-                    if (TravellersModConfig.requireLOSForChainTargets &&
-                            !this.getEntitySenses().canSee(e)) {
-                        return false;
-                    }
-
-                    // optional: require path
-                    return !TravellersModConfig.requirePathForAggro ||
-                            this.getNavigator().getPathToEntityLiving(e) != null;
-                }
-        );
-
-        if (list.isEmpty()) return null;
+        TravellerBlacklist bl = getAggroBlacklist();
+        final double r2 = range * range;
 
         EntityLivingBase best = null;
-        double bestScore = Double.POSITIVE_INFINITY; // we’ll prefer nearest
-        final double r2 = range * range;
-        TravellerBlacklist bl = getAggroBlacklist();
+        double bestD2 = Double.POSITIVE_INFINITY;
+
+        // Keep a backup so we don't rescan if the best fails path
+        EntityLivingBase backup = null;
+        double backupD2 = Double.POSITIVE_INFINITY;
+
+        List<EntityLivingBase> list = this.world.getEntitiesWithinAABB(
+                EntityLivingBase.class, box,
+                e -> e != null && e.isEntityAlive() && e != this && !e.isInvisible()
+        );
+
         for (EntityLivingBase e : list) {
+            if (bl != null && bl.isBlacklisted(e)) continue;
+
+            // your hostility rules...
+            if (e instanceof EntityTraveller) {
+                EntityTraveller t = (EntityTraveller) e;
+                if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) continue;
+            } else {
+                if (!this.shouldAttackExtraEntity(e) && !(e instanceof IMob)) continue;
+            }
+
+            // vertical sanity
+            if (Math.abs(e.posY - this.posY) > 3.0D) continue;
+
             double d2 = this.getDistanceSq(e);
-            if (d2 > r2) continue;                                  // HARD radial clamp
-            if (bl != null && bl.isBlacklisted(e)) continue;         // HARD blacklist
-            if (d2 < bestScore) {
-                bestScore = d2;
-                best = e;
+            if (d2 > r2) continue;
+
+            // OPTIONAL: LOS requirement here (cheap-ish) — but avoid if you can
+            if (TravellersModConfig.requireLOSForChainTargets && !this.getEntitySenses().canSee(e)) continue;
+
+            if (d2 < bestD2) {
+                backup = best; backupD2 = bestD2;
+                best = e; bestD2 = d2;
+            } else if (d2 < backupD2) {
+                backup = e; backupD2 = d2;
             }
         }
+
+        if (best == null) return null;
+
+        // Only now do the expensive pathing once (or twice)
+        if (TravellersModConfig.requirePathForAggro) {
+            if (this.getNavigator().getPathToEntityLiving(best) == null) {
+                if (backup != null && this.getNavigator().getPathToEntityLiving(backup) != null) return backup;
+                return null;
+            }
+        }
+
         return best;
     }
+
 
 
     public boolean isAtTargetStop() {
@@ -3487,14 +3490,17 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private static final class Threat {
-        int score;           // higher = more urgent
-        int lastSeenTick;    // game tick when last updated
+        int score;
+        int lastSeenTick;
+        int entityId; // NEW
 
-        Threat(int s, int t) {
+        Threat(int s, int t, int eid) {
             score = s;
             lastSeenTick = t;
+            entityId = eid;
         }
     }
+
     public TravelCommon getTravelCommon() {
         return this.travelCommon;
     }
@@ -3616,7 +3622,7 @@ public class EntityTraveller extends EntityCreature {
     }
     private void rejectTarget() {
         EntityLivingBase cur = this.getAttackTarget();
-        if (cur != null) ignoreTarget(cur, 60);
+        if (cur != null) ignoreTarget(cur, 20*60);
 
         super.setAttackTarget(null);
         if (!world.isRemote) {
@@ -3663,12 +3669,24 @@ public class EntityTraveller extends EntityCreature {
         BlockPos target = this.getTargetVillage();
         if (target == null) return false;
 
-        // If you store the travel AI instance (you do in worker), expose it in base:
-        EntityAITravel ai = this.aiTravel; // adjust if your field name differs / protected
+        EntityAITravel ai = this.aiTravel;
         if (ai == null) return false;
 
-        return ai.teleportToward(target, stepBlocks);
+        // 1) normal toward-target hop
+        if (ai.teleportToward(target, stepBlocks)) return true;
+
+        // 2) if we failed and we're in water, try "shore rescue" first
+        if (this.isInWater()) {
+            if (ai.teleportToNearestShoreTowardTarget(24, 8)) return true;
+        }
+
+        // 3) general surface rescue (bigger scan)
+        if (ai.teleportToSurfaceRescue(24, 6)) return true;
+
+        // 4) last-ditch: smaller step sometimes succeeds when big step doesn't
+        return ai.teleportToward(target, Math.max(8, stepBlocks / 2));
     }
+
     public EntityAITravel getTravelAI() { return this.aiTravel; }
     private void dropStack(ItemStack stack) {
         if (stack.isEmpty() || world.isRemote) return;

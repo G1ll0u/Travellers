@@ -125,7 +125,6 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
     @Override
     public void startExecuting() {
-        coolDown = 0;
         steadyTicksLeft = 0;
         aimWarmup = 3 + mob.getRNG().nextInt(4); // 3–6 ticks instead of 8–13
         strafeDir = mob.getRNG().nextBoolean() ? 1 : -1;
@@ -170,7 +169,6 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             applyStrafeMovement(d, tgt);
 
             if (hasBlockingEntityAlongShot(tgt)) {
-                coolDown = 0;
                 return;
             }
             if (aimWarmup > 0) {

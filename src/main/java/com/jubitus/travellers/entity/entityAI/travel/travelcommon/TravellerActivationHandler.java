@@ -13,11 +13,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 @Mod.EventBusSubscriber(modid = Reference.MOD_ID)
 public class TravellerActivationHandler {
 
-    @SubscribeEvent(
-            priority = EventPriority.LOWEST,     // run AFTER all other handlers
-            receiveCanceled = true               // still receive event even if someone cancelled
-    )
-    public void onCanEntityUpdate(net.minecraftforge.event.entity.EntityEvent.CanUpdate event) {
+    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+    public static void onCanEntityUpdate(net.minecraftforge.event.entity.EntityEvent.CanUpdate event) {
         Entity e = event.getEntity();
         if (!(e instanceof EntityTravellerWorker || e instanceof EntityTravellerMerchant)) return;
 

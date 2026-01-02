@@ -733,13 +733,13 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
 // Catch-up based on distance to slot
         double catchupFactor;
-        if (distToSlot3D > 128.0D)      catchupFactor = 2.20D;
-        else if (distToSlot3D > 64.0D)  catchupFactor = 1.90D;
-        else if (distToSlot3D > 32.0D)  catchupFactor = 1.65D;
-        else if (distToSlot3D > 16.0D)  catchupFactor = 1.45D;
+        if (distToSlot3D > 128.0D)      catchupFactor = 1.D;
+        else if (distToSlot3D > 64.0D)  catchupFactor = 1.45D;
+        else if (distToSlot3D > 32.0D)  catchupFactor = 1.37D;
+        else if (distToSlot3D > 16.0D)  catchupFactor = 1.35D;
         else if (distToSlot3D > 8.0D)   catchupFactor = 1.35D;
         else if (distToSlot3D > 4.0D)   catchupFactor = 1.25D;
-        else                            catchupFactor = 1.15D;
+        else                            catchupFactor = 1.25D;
 
 
 // Player-only speed scaling from real motion
