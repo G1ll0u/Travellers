@@ -62,7 +62,7 @@ public class EntityAITravel extends EntityAIBase {
     private double progressCheckpointSq = Double.MAX_VALUE;
     private int lastPathIndex = -1;
     private int pathNoAdvanceTicks = 0;
-    private static final int PATH_NO_ADVANCE_TRIGGER = 4 * 20; // 4s
+    private static final int PATH_NO_ADVANCE_TRIGGER = 6 * 20; // 4s
 
 
     // --- water entry trigger for boats ---
@@ -83,9 +83,9 @@ public class EntityAITravel extends EntityAIBase {
     private static final double MEANINGFUL_PROGRESS_SQ = 6.0 * 6.0;
 
     // ---- SIMPLE GLOBAL STUCK SYSTEM ----
-    private static final int STUCK_T1 = 3 * 20;   // 5s -> small detour
-    private static final int STUCK_T2 = 6 * 20;   // 10s -> big detour
-    private static final int STUCK_T3 = 9 * 20;  // 20 -> teleport nudge
+    private static final int STUCK_T1 = 5 * 20;   // 5s -> small detour
+    private static final int STUCK_T2 = 15 * 20;   // 10s -> big detour
+    private static final int STUCK_T3 = 20 * 20;  // 20 -> teleport nudge
     private static final int STUCK_ACTION_CD = 2 * 20;   // 2s between actions
     private static final int STUCK_TP_CD = 10 * 20;      // 10s between teleports
     private static final int TP_STEP_BLOCKS = 5;
@@ -201,6 +201,8 @@ public class EntityAITravel extends EntityAIBase {
             for (int y = minY; y < maxY; y++) {
                 for (int z = minZ; z < maxZ; z++) {
                     pos.setPos(x, y, z);
+// ✅ DO NOT LOAD CHUNKS just to check fluids
+                    if (!w.isBlockLoaded(pos)) return true; // treat unknown as unsafe
                     IBlockState s = w.getBlockState(pos);
                     if (isForbiddenLiquid(s)) return true;
                 }
@@ -273,7 +275,7 @@ public class EntityAITravel extends EntityAIBase {
         // only block "already inside" when NOT in catchup
         if (!catchup && (mob.isAtTargetStop() || mob.isAtTargetStopHys(false))) return false;
 
-        BlockPos tv = mob.getTargetVillage();
+        BlockPos tv = getLiveGoalPos();
         if (tv == null) return false;
         retarget(tv);
 
@@ -305,7 +307,7 @@ public class EntityAITravel extends EntityAIBase {
             mob.getNavigator().clearPath();
             return false;
         }
-        BlockPos tv = mob.getTargetVillage();
+        BlockPos tv = getLiveGoalPos();
         if (tv == null) return false;
         if (!tv.equals(this.targetVillage)) retarget(tv);
         arriveInside = mob.isAtTargetStopHys(arriveInside);
@@ -319,7 +321,7 @@ public class EntityAITravel extends EntityAIBase {
             ((EntityTravellerWorker) mob).setUsingTravelAI(true);
         }
         arriveInside = mob.isAtTargetStop();
-        this.targetVillage = mob.getTargetVillage();
+        this.targetVillage = getLiveGoalPos();
         if (this.targetVillage == null) return;
 
         mob.scheduleNextTravelAmbient();
@@ -401,7 +403,7 @@ public class EntityAITravel extends EntityAIBase {
         // -----------------------------------------
         // Keep target up to date
         // -----------------------------------------
-        BlockPos liveTarget = mob.getTargetVillage();
+        BlockPos liveTarget = getLiveGoalPos();
         if (liveTarget == null) return;
 
         if (targetVillage == null || !liveTarget.equals(targetVillage)) {
@@ -690,37 +692,44 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         if (!mob.world.isRemote && stuckActionCooldown == 0) {
-            // Early detour if we're not getting closer for a bit
-            if (stuckStage == 0 && noProgressTicks >= NO_PROGRESS_TRIGGER) {
-                mob.getNavigator().clearPath(); // important: break out of "bad but valid" path
-                tryDetour();
-                pushPathToWaypoint(true);
-                stuckStage = 1;
-                stuckActionCooldown = STUCK_ACTION_CD;
-                detourGraceTicks = DETOUR_GRACE_TICKS;
-            }
-            if (underground && (stuckTicks >= STUCK_T1)) {
-                stuckTicks = Math.max(stuckTicks, STUCK_T3);
-                stuckStage = 2;
-            }
-            if (stuckStage == 0 && stuckTicks >= STUCK_T1) {
-                tryDetour();
-                pushPathToWaypoint();
-                stuckStage = 1;
-                stuckActionCooldown = STUCK_ACTION_CD;
-                detourGraceTicks = DETOUR_GRACE_TICKS;
-            }
-            else if (stuckStage == 1 && stuckTicks >= STUCK_T2) {
-                tryDetourWide();
-                pushPathToWaypoint();
-                stuckStage = 2;
-                stuckActionCooldown = STUCK_ACTION_CD;
-                detourGraceTicks = DETOUR_GRACE_TICKS;
+
+            // ✅ TP stage first (highest priority)
+            if (stuckTicks >= STUCK_T3) {
+                boolean hardPinned =
+                        (noMoveTicks >= HARD_PIN_TP_TICKS)
+                                || (pathNoAdvanceTicks >= PATH_NO_ADVANCE_TRIGGER)
+                                || (noProgressTicks >= HARD_PIN_TP_TICKS);
+
+                if (!hardPinned && detourGraceTicks > 0) return;
+
+                if (stuckTpCooldown == 0) {
+                    boolean rescued = teleportToSurfaceRescue(10, 6);
+                    rescued |= teleportToward(targetVillage, TP_STEP_BLOCKS);
+
+                    if (rescued) {
+                        resetStuckState();
+                        bestDistSq = mob.getDistanceSqToCenter(targetVillage);
+                        stuckTpCooldown = STUCK_TP_CD;
+                        stuckActionCooldown = STUCK_ACTION_CD;
+                        detourGraceTicks = 0;
+
+                        currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
+                        mob.setCurrentWaypoint(currentWaypoint);
+                        debugMark(currentWaypoint);
+                        pushPathToWaypoint();
+                    } else {
+                        tryDetourWide();
+                        pushPathToWaypoint();
+                        stuckActionCooldown = STUCK_ACTION_CD;
+                        detourGraceTicks = DETOUR_GRACE_TICKS;
+                    }
+                }
+                return;
             }
 
-            if (stuckActionCooldown == 0
-                    && stuckTicks >= STUCK_T1
-                    && noMoveTicks >= 20   // 1s of not moving
+            // ✅ Only do cliff detours while NOT in TP stage
+            if (stuckTicks >= STUCK_T1
+                    && noMoveTicks >= 20
                     && isCliffAheadTowardTarget(6, 4)) {
                 tryDetourWide();
                 pushPathToWaypoint();
@@ -778,6 +787,11 @@ public class EntityAITravel extends EntityAIBase {
         this.targetVillage = newTarget;
         resetStuckState();
         int near = mob.arrivalRadiusBlocks(newTarget);
+        if (mob instanceof EntityTravellerWorker && ((EntityTravellerWorker) mob).isCatchupTravel()) {
+            near = 6; // treat "arrived" when within ~6 blocks of the moving goal
+        } else {
+            near = mob.arrivalRadiusBlocks(newTarget);
+        }
         this.targetNearSq = near * near;
 
         this.bestDistSq = horizDistSq(mob.getPosition(), newTarget);
@@ -1512,6 +1526,9 @@ public class EntityAITravel extends EntityAIBase {
 
         if (destVec.lengthSquared() < 1.0) {
             return destVec; // too close, don't bother
+        }
+        if (mob instanceof EntityTravellerWorker && ((EntityTravellerWorker) mob).isCatchupTravel()) {
+            return destVec.normalize(); // no gates when chasing player
         }
 
         double distToDest = Math.sqrt(destVec.lengthSquared());
@@ -2274,8 +2291,10 @@ public class EntityAITravel extends EntityAIBase {
                     (surf.getZ() + 0.5) - mob.posZ
             );
 
+            if (!isAabbAreaLoaded(aabb)) continue;
             if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
             if (intersectsForbiddenLiquid(mob.world, aabb)) continue;
+
 
             // forward + backslide gating
             double sx = (surf.getX() + 0.5) - (start.getX() + 0.5);
@@ -2358,6 +2377,7 @@ public class EntityAITravel extends EntityAIBase {
                         landY - mob.posY,
                         (feet.getZ() + 0.5) - mob.posZ
                 );
+                if (!isAabbAreaLoaded(aabb)) continue;
 
                 if (!w.getCollisionBoxes(mob, aabb).isEmpty()) continue;
                 if (intersectsForbiddenLiquid(w, aabb)) continue;
@@ -2619,6 +2639,35 @@ public class EntityAITravel extends EntityAIBase {
         mob.velocityChanged = true;
         mob.getNavigator().clearPath();
         return true;
+    }
+    @Nullable
+    private BlockPos getLiveGoalPos() {
+        // Worker-only dynamic goal (catchup/return-to-owner)
+        if (mob instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) mob;
+
+            // Use your dynamic goal only when catchup travel is active
+            if (w.isCatchupTravel()) {
+                BlockPos cg = w.getDynamicCatchupGoal(); // <- the 10s refreshed BlockPos you added
+                if (cg != null) return cg;
+            }
+        }
+
+        // Everyone else: normal village travel goal
+        return mob.getTargetVillage();
+    }
+    private boolean isAabbAreaLoaded(AxisAlignedBB aabb) {
+        BlockPos min = new BlockPos(
+                MathHelper.floor(aabb.minX),
+                MathHelper.floor(aabb.minY),
+                MathHelper.floor(aabb.minZ)
+        );
+        BlockPos max = new BlockPos(
+                MathHelper.floor(aabb.maxX),
+                MathHelper.floor(aabb.maxY),
+                MathHelper.floor(aabb.maxZ)
+        );
+        return mob.world.isAreaLoaded(min, max, false); // false = never load
     }
 
 }

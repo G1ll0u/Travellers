@@ -66,6 +66,25 @@ import javax.annotation.Nullable;
 import java.util.*;
 
 public class EntityTravellerWorker extends EntityTraveller {
+
+    // --- anchor guard tuning ---
+    private static final double ANCHOR_GUARD_RADIUS = 192.0D;     // can fight within this radius of anchor
+    private static final double ANCHOR_HARD_LEASH   = 256.0D;     // if worker itself goes beyond this, disengage & return
+
+    // --- anchor defense ---
+    private static final double ANCHOR_DEFEND_RADIUS = 12.0D; // blocks
+    private static final int ANCHOR_SCAN_INTERVAL_TICKS = 20; // 1 time per second
+    private int anchorScanCooldown = 0;
+
+
+    // --- dynamic owner catchup goal ---
+    private UUID catchupTargetId = null;
+    private BlockPos cachedCatchupGoal = null;
+    private long nextCatchupRefreshTick = 0;
+
+    private static final int CATCHUP_REFRESH_TICKS = 20 * 10; // 10 seconds
+
+
     private static final double MOTION_EPSILON = 0.0004D;
     private final Set<ChunkPos> forced = new java.util.HashSet<>();
     private static final DataParameter<Boolean> USING_TRAVEL_AI =
@@ -208,6 +227,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void startCatchupTravelTo(@Nullable EntityLivingBase target) {
         if (target == null) return;
         if (target.dimension != this.dimension) return;
+
+        this.setCatchupTravel(true);
+
+        this.catchupTargetId = target.getUniqueID();
+        this.cachedCatchupGoal = null;
+        this.nextCatchupRefreshTick = 0; // refresh immediately
 
         this.catchupTravel = true;
         this.catchupRepathCooldown = 0;
@@ -526,6 +551,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Server-side: register/update this worker as a chunkloader
         if (!world.isRemote) {
+
             TravellerChunkManager.INSTANCE.onChunkloaderTick(
                     this,
                     TravellersModConfig.workerChunkRadius
@@ -534,6 +560,33 @@ public class EntityTravellerWorker extends EntityTraveller {
             updateDynamicNavigation();
             tickFollowerIdleBehaviour();
             tickStayAtIdleAnchor(); // NEW
+            // --- NEW: guard leash when Follow is OFF ---
+            if (!world.isRemote && isGuardingAnchor()) {
+                EntityLivingBase tgt = this.getAttackTarget();
+
+                double hardLeashSq = ANCHOR_HARD_LEASH * ANCHOR_HARD_LEASH;
+
+                // If WE got pulled too far from the anchor, stop fighting and go back.
+                if (this.getDistanceSqToCenter(idleAnchorPos) > hardLeashSq) {
+                    this.setAttackTarget(null);
+                    this.setRevengeTarget(null);
+                    this.setInCombat(false);
+                    this.getNavigator().clearPath();
+                    // tickStayAtIdleAnchor() will pull us back to idleAnchorPos after this.
+                }
+
+                // Optional: don't even ACCEPT targets that are far from the anchor.
+                if (tgt != null) {
+                    double guardSq = ANCHOR_GUARD_RADIUS * ANCHOR_GUARD_RADIUS;
+                    if (distSqFromAnchor(tgt) > guardSq) {
+                        this.setAttackTarget(null);
+                        this.setRevengeTarget(null);
+                        this.setInCombat(false);
+                        this.getNavigator().clearPath();
+                    }
+                }
+            }
+
             clearAggroIfOffscreen();
             boolean travel =
                     (this.isJobActive() && !(this.mode == WorkerMode.RETURNING && returnUsingFollow))
@@ -2122,7 +2175,10 @@ public class EntityTravellerWorker extends EntityTraveller {
             // Keep this conservative so aiming looks right
             cap = (float) Math.min(base * 0.98D, 0.30D);
         } else if (this.getAttackTarget() != null) {
-            cap = (float) Math.min(base * 1.22D, 0.38D); // same combat cap
+            // Slightly faster when guarding an anchor so they don't look sluggish.
+            double mult = isGuardingAnchor() ? 1.35D : 1.22D;
+            double max  = isGuardingAnchor() ? 0.87D : 0.80D;
+            cap = (float) Math.min(base * mult, max);
         } else if (this.isHiredFollower() && !this.isJobActive()) {
             double d = 0.0D;
             EntityLivingBase t = this.getEffectiveFollowTarget();
@@ -2748,6 +2804,106 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void setHostileNamesClient(java.util.List<String> names) {
         hostileNamesClient.clear();
         hostileNamesClient.addAll(names);
+    }
+    public void setCatchupTravel(boolean v) {
+        this.catchupTravel = v;
+    }
+    @Nullable
+    public BlockPos getDynamicCatchupGoal() {
+        if (!isCatchupTravel()) return null;
+        if (world.isRemote) return cachedCatchupGoal;
+        if (!(world instanceof WorldServer)) return cachedCatchupGoal;
+        if (catchupTargetId == null) return cachedCatchupGoal;
+
+        long now = world.getTotalWorldTime();
+        if (cachedCatchupGoal == null || now >= nextCatchupRefreshTick) {
+            Entity e = ((WorldServer) world).getEntityFromUuid(catchupTargetId);
+            if (e != null && e.isEntityAlive()) {
+                BlockPos p = new BlockPos(e.posX, e.posY, e.posZ);
+
+                // OPTIONAL (recommended): quantize so we don't retarget for tiny player movement
+                // (keeps pathing stable and reduces thrash)
+                int q = 4; // 4-block grid
+                p = new BlockPos((p.getX() / q) * q, p.getY(), (p.getZ() / q) * q);
+
+                cachedCatchupGoal = p;
+            }
+            nextCatchupRefreshTick = now + CATCHUP_REFRESH_TICKS;
+        }
+        return cachedCatchupGoal;
+    }
+    @Nullable
+    public BlockPos getTravelGoalPos() {
+        // Catchup/return-to-owner uses dynamic goal
+        BlockPos cg = getDynamicCatchupGoal();
+        if (cg != null) return cg;
+
+        // Normal travel uses the village goal
+        return getTargetVillage();
+    }
+
+    public void stopCatchupTravel() {
+        this.setCatchupTravel(false);
+        this.catchupTargetId = null;
+        this.cachedCatchupGoal = null;
+        this.nextCatchupRefreshTick = 0;
+    }
+    private void tickAnchorDefense() {
+        if (world.isRemote) return;
+
+        // Only when hired + follow OFF + we actually have an anchor
+        if (!isHiredFollower()) return;
+        if (followOrderActive) return;
+        if (idleAnchorPos == null) return;
+
+        // Already fighting
+        if (this.getAttackTarget() != null) return;
+
+        if (anchorScanCooldown-- > 0) return;
+        anchorScanCooldown = ANCHOR_SCAN_INTERVAL_TICKS;
+
+        AxisAlignedBB box = new AxisAlignedBB(idleAnchorPos).grow(ANCHOR_DEFEND_RADIUS, 4.0D, ANCHOR_DEFEND_RADIUS);
+
+        // 1) hostile-marked players first (your existing hostile list)
+        java.util.List<EntityPlayer> hostilePs = world.getEntitiesWithinAABB(EntityPlayer.class, box,
+                p -> p != null
+                        && !p.isDead
+                        && !p.isCreative()
+                        && !p.isSpectator()
+                        && !isOwner(p)
+                        && isPlayerMarkedHostile(p));
+
+        if (!hostilePs.isEmpty()) {
+            this.setAttackTarget(hostilePs.get(0));
+            return;
+        }
+
+        // 2) hostile mobs (IMob = vanilla hostile mobs)
+        java.util.List<EntityLivingBase> mobs = world.getEntitiesWithinAABB(EntityLivingBase.class, box,
+                e -> e != null
+                        && e.isEntityAlive()
+                        && e != this
+                        && (e instanceof net.minecraft.entity.monster.IMob));
+
+        if (!mobs.isEmpty()) {
+            this.setAttackTarget(mobs.get(0)); // your setAttackTarget() already respects blacklist/owner
+        }
+    }
+    private boolean isGuardingAnchor() {
+        return this.isHiredFollower()
+                && !this.isFollowOrderActive()
+                && this.idleAnchorPos != null
+                && !this.isJobActive()
+                && !(this.mode == WorkerMode.RETURNING && this.jobDelivered);
+    }
+
+    private double distSqFromAnchor(EntityLivingBase e) {
+        if (idleAnchorPos == null || e == null) return 0.0D;
+        double ax = idleAnchorPos.getX() + 0.5D;
+        double az = idleAnchorPos.getZ() + 0.5D;
+        double dx = e.posX - ax;
+        double dz = e.posZ - az;
+        return dx*dx + dz*dz;
     }
 
 }

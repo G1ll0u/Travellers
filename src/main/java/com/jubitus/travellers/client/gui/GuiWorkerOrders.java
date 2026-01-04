@@ -22,7 +22,7 @@ public class GuiWorkerOrders extends GuiContainer {
     private final EntityPlayer player;
     private GuiButton followPlayerButton; // NEW
 
-    private GuiButton hireButton;
+
     private GuiButton followButton;
     private GuiButton leaderButton;
 
@@ -50,9 +50,6 @@ public class GuiWorkerOrders extends GuiContainer {
         int gap = 4;
 
         // Create buttons ONCE. Logic (text/visible/enabled) will be done in updateScreen()
-        this.hireButton = this.addButton(new GuiButton(
-                0, centerX - bw / 2, yBase, bw, bh, ""
-        ));
 
         this.followButton = this.addButton(new GuiButton(
                 1, centerX - bw - gap / 2, yBase + bh + gap, bw, bh, ""
@@ -88,20 +85,7 @@ public class GuiWorkerOrders extends GuiContainer {
         UUID ownerId  = worker.getFollowOwnerId();
         boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
 
-        // --- Hire button ---
-        String hireLabel;
-        boolean hireEnabled = true;
 
-        if (!hired) {
-            hireLabel = I18n.format("travellers.worker.orders.hire", "Hire (2a)");
-        } else if (hiredByMe) {
-            hireLabel = I18n.format("travellers.worker.orders.unhire", "Dismiss");
-        } else {
-            hireLabel = I18n.format("travellers.worker.orders.hired_other", "Hired by someone else");
-            hireEnabled = false;
-        }
-        this.hireButton.displayString = hireLabel;
-        this.hireButton.enabled = hireEnabled;
 
         // --- Follow button (only when hired by me) ---
         boolean followActive = worker.isFollowOrderActive(); // synced via your data/packet
@@ -137,13 +121,6 @@ public class GuiWorkerOrders extends GuiContainer {
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-        if (button == hireButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgHireWorker(worker.getEntityId())
-            );
-            // ❌ DO NOT close the screen here
-            return;
-        }
 
         if (button == followButton) {
             TravellerFollowNet.CHANNEL.sendToServer(

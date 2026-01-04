@@ -61,6 +61,23 @@ public class GuiWorker extends GuiContainer {
     @Override
     public void initGui() {
         super.initGui();
+        boolean hired = worker.isHiredFollower();
+        UUID ownerId  = worker.getFollowOwnerId();
+        boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
+
+        if (!hiredByMe) {
+            // Disable all transport actions
+            this.sendButton.enabled = false;
+            this.donateButton.enabled = false;
+            this.validateButton.enabled = false;
+
+            // Optional: don't even request villages
+            // return;
+        } else {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgWorkerRequestVillages(worker.getEntityId())
+            );
+        }
 
         this.xSize = 176;
         this.ySize = 150;
@@ -385,7 +402,7 @@ public class GuiWorker extends GuiContainer {
         }
 
         BlockPos workerPos = worker.getPosition();
-        int maxRadius = TravellersModConfig.workerVillageDetectRadius;
+        int maxRadius = TravellersModConfig.workerVillageDetectRadius * 2;
         if (maxRadius <= 0) {
             maxRadius = 2000; // sane fallback
         }

@@ -23,6 +23,13 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class EntityAIFollowOwnerTraveller extends EntityAIBase {
+
+    // --- OFFSCREEN FOLLOW (no pathfinding) ---
+    private int offscreenHopCooldown = 0;
+    private static final int OFFSCREEN_HOP_CD = 20;     // once per second
+    private static final double OFFSCREEN_HOP_DIST_SQ = 20.0D * 20.0D; // only hop if far
+
+
     // --- boat stuck detection ---
     private Vec3d lastBoatPosStill = Vec3d.ZERO;
     private Vec3d lastBoatPosStuck = Vec3d.ZERO;
@@ -257,6 +264,23 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         if (followTarget == null) {
             return;
+        }
+// -----------------------------------------
+// OFFSCREEN: do not pathfind; hop/teleport toward owner instead
+// -----------------------------------------
+        if (!worker.world.isRemote && !worker.isInPlayerViewDistance()) {
+            worker.getNavigator().clearPath();
+            hasCachedGoal = false;
+            worker.setSprinting(false);
+
+            if (offscreenHopCooldown > 0) offscreenHopCooldown--;
+
+            // only hop occasionally (cheap) and only if we're not already basically with the owner
+            if (offscreenHopCooldown == 0 && worker.getDistanceSq(followTarget) > OFFSCREEN_HOP_DIST_SQ) {
+                offscreenHopCooldown = OFFSCREEN_HOP_CD;
+                offscreenHopNearOwner();   // helper you’ll add below
+            }
+            return; // IMPORTANT: skip ALL pathfinding below
         }
 
         // --- NEW: convoy logic when worker is in a boat ---
@@ -1886,6 +1910,69 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             }
         }
         return best;
+    }
+    private void offscreenHopNearOwner() {
+        EntityLivingBase owner = this.followTarget;
+        if (owner == null) return;
+
+        // If owner is riding a boat and it's YOUR boat type, prefer mounting (keeps convoy tight)
+        if (owner.isRiding() && owner.getRidingEntity() instanceof EntityBoat) {
+            EntityBoat ob = (EntityBoat) owner.getRidingEntity();
+
+            // If there is room, just ride with them (best for "follow leader tps")
+            if (ob instanceof EntityTravellerBoat && ob.getPassengers().size() < BOAT_MAX_PASSENGERS) {
+                worker.startRiding(ob, true);
+                worker.getNavigator().clearPath();
+                hasCachedGoal = false;
+                return;
+            }
+
+            // Otherwise just hop near the boat (land or water-safe)
+            BlockPos feet = findSafeStandPos(ob.posX, owner.posY, ob.posZ);
+            worker.setLocationAndAngles(feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D,
+                    worker.rotationYaw, worker.rotationPitch);
+            worker.getNavigator().clearPath();
+            hasCachedGoal = false;
+            return;
+        }
+
+        // Normal case: hop near owner (NOT exactly on them -> prevents stacking)
+        // Keep it deterministic per-worker so they don't scatter.
+        int hash = worker.getUniqueID().hashCode();
+
+        // Use owner's body yaw for a stable "behind" direction offscreen
+        float yaw = owner.renderYawOffset;
+        double yawRad = Math.toRadians(yaw);
+
+        double fwdX = -Math.sin(yawRad);
+        double fwdZ =  Math.cos(yawRad);
+        double backX = -fwdX;
+        double backZ = -fwdZ;
+
+        // small ring behind the owner
+        double baseR = 2.2D + ((hash >>> 1) & 3) * 0.6D; // 2.2..4.0
+        double rightX = -fwdZ;
+        double rightZ =  fwdX;
+
+        // lane left/right
+        double lane = ((hash & 1) == 0) ? -1.0D : 1.0D;
+        double laneOff = 0.9D;
+
+        double tx = owner.posX + backX * baseR + rightX * lane * laneOff;
+        double tz = owner.posZ + backZ * baseR + rightZ * lane * laneOff;
+
+        BlockPos feet = findSafeStandPos(tx, owner.posY, tz);
+
+        worker.setLocationAndAngles(
+                feet.getX() + 0.5D,
+                feet.getY(),
+                feet.getZ() + 0.5D,
+                worker.rotationYaw,
+                worker.rotationPitch
+        );
+
+        worker.getNavigator().clearPath();
+        hasCachedGoal = false;
     }
 
 }

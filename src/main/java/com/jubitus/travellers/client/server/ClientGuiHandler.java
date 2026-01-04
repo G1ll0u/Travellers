@@ -1,12 +1,9 @@
-package com.jubitus.travellers.client;
+package com.jubitus.travellers.client.server;
 
 import com.jubitus.travellers.client.gui.*;
-import com.jubitus.travellers.client.server.CommonGuiHandler;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.client.gui;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.net.message.MsgHireWorker;
 import com.jubitus.travellers.utils.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import net.minecraft.client.gui.GuiButton;
@@ -25,6 +26,7 @@ public class GuiWorkerHub extends GuiContainer {
     private GuiButton followButton;
     private GuiButton inventoryButton; // NEW
     private GuiButton behaviorButton;
+    private GuiButton hireButton; // NEW
 
 
 
@@ -66,9 +68,29 @@ public class GuiWorkerHub extends GuiContainer {
                 I18n.format("travellers.worker.hub.inventory", "Inventory")));
 
         // NEW: Behavior (second row, centered)
+// Row 2: Hire + Behavior
         int row2Y = buttonsY + bh + 6;
-        this.behaviorButton = this.addButton(new GuiButton(3, x + (this.xSize - bw) / 2, row2Y, bw, bh,
-                I18n.format("travellers.worker.hub.behavior", "Behavior")));
+        int centerX = x + this.xSize / 2;
+
+// Hire (left)
+        this.hireButton = this.addButton(new GuiButton(
+                4,
+                centerX - bw - gap / 2,
+                row2Y,
+                bw,
+                bh,
+                "" // label set in refreshButtonStates()
+        ));
+
+// Behavior (right)
+        this.behaviorButton = this.addButton(new GuiButton(
+                3,
+                centerX + gap / 2,
+                row2Y,
+                bw,
+                bh,
+                I18n.format("travellers.worker.hub.behavior", "Behavior")
+        ));
 
         refreshButtonStates();
     }
@@ -105,7 +127,12 @@ public class GuiWorkerHub extends GuiContainer {
             );
             return;
         }
-
+        if (button == hireButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgHireWorker(worker.getEntityId())
+            );
+            return;
+        }
         super.actionPerformed(button);
     }
 
@@ -128,9 +155,49 @@ public class GuiWorkerHub extends GuiContainer {
         UUID ownerId  = worker.getFollowOwnerId();
         boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
 
-        // only show behavior when hired by me
-        this.behaviorButton.visible = hiredByMe;
-        this.behaviorButton.enabled = hiredByMe;
+        // --- Hire button label + enable ---
+        String hireLabel;
+        boolean hireEnabled = true;
+
+        if (!hired) {
+            hireLabel = I18n.format("travellers.worker.orders.hire", "Hire (2a)");
+        } else if (hiredByMe) {
+            hireLabel = I18n.format("travellers.worker.orders.unhire", "Dismiss");
+        } else {
+            hireLabel = I18n.format("travellers.worker.orders.hired_other", "Hired by someone else");
+            hireEnabled = false;
+        }
+
+        if (hireButton != null) {
+            hireButton.displayString = hireLabel;
+            hireButton.enabled = hireEnabled;
+            hireButton.visible = true;
+        }
+
+        // --- Buttons that require being hired by me ---
+        if (transportButton != null) {
+            transportButton.visible = true;
+            transportButton.enabled = hiredByMe;
+        }
+
+        if (inventoryButton != null) {
+            inventoryButton.visible = true;
+            inventoryButton.enabled = hiredByMe; // ✅ now it greys out
+        }
+
+        if (followButton != null) {
+            followButton.visible = true;
+            followButton.enabled = hiredByMe;
+        }
+
+        // ✅ Behavior stays visible, just disabled if not hired
+        if (behaviorButton != null) {
+            behaviorButton.visible = true;
+            behaviorButton.enabled = hiredByMe;
+        }
     }
+
+
+
 
 }

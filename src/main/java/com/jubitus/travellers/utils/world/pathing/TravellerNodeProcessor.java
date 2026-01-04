@@ -3,6 +3,7 @@ package com.jubitus.travellers.utils.world.pathing;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLilyPad;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.init.Blocks;
@@ -12,6 +13,7 @@ import net.minecraft.pathfinding.WalkNodeProcessor;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.IBlockAccess;
 
 import javax.annotation.Nullable;
@@ -30,11 +32,121 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             pathDirt = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS.getValue(PATH_DIRT_ID);
         }
     }
+    // How far the landing can be (2 = jump over 1-block gap, 3 = over 2-block gap, 4 = over 3-block gap)
+// How far the landing can be (2 = jump over 1-block gap, 3 = over 2-block gap, 4 = over 3-block gap)
+    private static final int MAX_JUMP_LAND_DIST = 4; // change to 3 if you want to be safer
+    private static final int MAX_JUMP_UP = 1;              // can jump up 1 block
+    private static final int MAX_JUMP_DOWN_SOLID = 2;      // allow drop-jumps down onto solid
+    private static final int MAX_JUMP_DOWN_WATER = 32;      // allow bigger drops if landing is water
+    private static final int MAX_WATER_JUMP_DIST = 3;
+
+    private int addGapJumpNeighbors(PathPoint[] options, int count, PathPoint current, PathPoint target, float maxDistance) {
+
+        // 4 cardinal directions only (diagonal gap jumps are messy and usually look bad)
+        final int[][] DIRS = new int[][] { {1,0}, {-1,0}, {0,1}, {0,-1} };
+
+        for (int[] d : DIRS) {
+            int dx = d[0];
+            int dz = d[1];
+
+            // Try landing at 2..MAX_JUMP_LAND_DIST blocks away
+// Try landing at MAX..2 blocks away (prefer LONGER, safer jumps)
+            for (int dist = MAX_JUMP_LAND_DIST; dist >= 2; dist--) {
+
+                int lx = current.x + dx * dist;
+                int lz = current.z + dz * dist;
+
+                for (int dy = MAX_JUMP_UP; dy >= -MAX_JUMP_DOWN_WATER; dy--) {
+                    int ly = current.y + dy;
+
+                    if (!canGapJump(current.x, current.y, current.z, lx, ly, lz, dx, dz, dist)) {
+                        continue;
+                    }
+
+                    PathPoint p = this.openPoint(lx, ly, lz);
+                    if (p == null || p.visited) continue;
+                    if (p.distanceTo(target) >= maxDistance) continue;
+
+                    float extra = 0.05f;
+                    if (isWaterBlock(lx, ly, lz) && dy < 0) extra -= 0.30f;
+
+                    float islandPenalty = 0.0f;
+                    BlockPos afterBelow = new BlockPos(lx + dx, ly - 1, lz + dz);
+                    if (isGapOrHazardBelow(afterBelow)) islandPenalty = 0.8f;
+
+                    p.costMalus += extra + islandPenalty;
+
+                    if (count >= options.length) return count;
+                    options[count++] = p;
+
+                    break;
+                }
+            }
+
+        }
+
+        return count;
+    }
+
+    private boolean canGapJump(int sx, int sy, int sz,
+                               int lx, int ly, int lz,
+                               int dx, int dz, int dist) {
+
+        // landing must be standable (2-high clearance)
+// landing can be solid-walkable OR water (special case)
+        boolean landingWater = isWaterBlock(lx, ly, lz);
+
+        if (landingWater) {
+            if (!isWaterLandingOk(lx, ly, lz)) return false;
+        } else {
+            // Limit how far down we allow onto solid (but allow deeper for water)
+            if ((ly - sy) < -MAX_JUMP_DOWN_SOLID) return false;
+            if (!isTwoHighWalkable(lx, ly, lz)) return false;
+        }
+
+
+        boolean sawGapOrHazard = false;
+
+        for (int i = 1; i < dist; i++) {
+            int x = sx + dx * i;
+            int y = sy;
+            int z = sz + dz * i;
+
+            BlockPos midFeet = new BlockPos(x, y, z);
+            BlockPos midHead = midFeet.up();
+            BlockPos midBelow = midFeet.down();
+
+            // Must be able to pass through (air-like at feet and head)
+            if (!isAirLike(midFeet) || !isAirLike(midHead)) return false;
+
+            // Must actually be a gap/hazard under us (otherwise we'd jump on flat ground)
+            if (isGapOrHazardBelow(midBelow)) {
+                sawGapOrHazard = true;
+            }
+        }
+
+        return sawGapOrHazard;
+    }
+
+
+    // Feet+head must be OPEN-ish so we can pass through while jumping
+    private boolean isJumpAirColumn(int x, int y, int z) {
+        PathNodeType feet = this.getPathNodeType(this.blockaccess, x, y, z);
+        PathNodeType head = this.getPathNodeType(this.blockaccess, x, y + 1, z);
+
+        // OPEN means air-like; WALKABLE means it thinks you can stand there (not what we want mid-air)
+        boolean feetOk = (feet == PathNodeType.OPEN);
+        boolean headOk = (head == PathNodeType.OPEN);
+
+        return feetOk && headOk;
+    }
 
     @Override
     public int findPathOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
         // 1) Let super fill the basic neighbors
         int count = super.findPathOptions(options, current, target, maxDistance);
+// --- NEW: allow "gap jumps" up to N blocks forward (adds long neighbors) ---
+        count = addGapJumpNeighbors(options, count, current, target, maxDistance);
 
         // 2) Ladder-specific vertical neighbors (NO getSafePoint!)
 //        if (isLadderColumn(current.x, current.y, current.z)) {
@@ -57,6 +169,25 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
                 options[i] = null;
             }
         }
+// NEW: avoid stepping into water unless we are already swimming
+        if (this.entity != null && !this.entity.isInWater()) {
+            for (int i = 0; i < count; i++) {
+                PathPoint p = options[i];
+                if (p == null) continue;
+
+                PathNodeType t = this.getPathNodeType(this.blockaccess, p.x, p.y, p.z);
+                if (t == PathNodeType.WATER && this.entity != null && !this.entity.isInWater()) {
+                    int man = Math.abs(p.x - current.x) + Math.abs(p.z - current.z);
+                    boolean isTarget = (p.x == target.x && p.y == target.y && p.z == target.z);
+
+                    if (man <= 1 && !isTarget) {
+                        p.costMalus += 8.0F; // "avoid water", but allow if needed
+                    }
+                }
+
+            }
+        }
+
 
         // 4) compact after nulls
         int w = 0;
@@ -91,31 +222,29 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         w = w3;
 // --- 4b) NEW: forbid *unsafe* diagonal steps (no corner-cutting off cliffs) ---
-        int cx = current.x;
-        int cy = current.y;
-        int cz = current.z;
-
-        for (int i = 0; i < w; i++) {
-            PathPoint p = options[i];
-            if (p == null) continue;
-
-            int dx = p.x - cx;
-            int dz = p.z - cz;
-
-            // Diagonal move?
-            if (dx != 0 && dz != 0) {
-                int sx = cx + dx; // side X cell
-                int sz = cz + dz; // side Z cell
-
-                boolean sideXSafe = isCardinalSafeForDiagonal(sx, cy, cz);
-                boolean sideZSafe = isCardinalSafeForDiagonal(cx, cy, sz);
-
-                // If either “side” is blocked or a drop-off, do NOT allow the diagonal.
-                if (!sideXSafe || !sideZSafe) {
-                    options[i] = null;
-                }
-            }
-        }
+//        int cx = current.x;
+//        int cy = current.y;
+//        int cz = current.z;
+//
+//        for (int i = 0; i < w; i++) {
+//            PathPoint p = options[i];
+//            if (p == null) continue;
+//
+//            int dx = p.x - cx;
+//            int dz = p.z - cz;
+//
+//            // Diagonal move?
+//            if (dx != 0 && dz != 0) {
+//                int sx = cx + dx; // side X cell
+//                int sz = cz + dz; // side Z cell
+//                    boolean sideXSafe = isCardinalSafeForDiagonal(sx, cy, cz);
+//                    boolean sideZSafe = isCardinalSafeForDiagonal(cx, cy, sz);
+//                boolean canX = false, canZ = false;
+//                    if (!sideXSafe || !sideZSafe) {
+//                        options[i] = null;   // <-- this removes diagonals
+//                    }
+//                }
+//            }
 
 // Re-compact after killing unsafe diagonals
         int w2 = 0;
@@ -196,9 +325,9 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         PathNodeType feet = this.getPathNodeType(this.blockaccess, x, y, z);
         PathNodeType head = this.getPathNodeType(this.blockaccess, x, y + 1, z);
 
-        if (feet != PathNodeType.WALKABLE) return false;
-        // head only needs to be open, not walkable
-        return head == PathNodeType.WALKABLE || head == PathNodeType.OPEN;
+        if (!(feet == PathNodeType.WALKABLE)) return false;
+// head must be open-ish
+        return (head == PathNodeType.OPEN || head == PathNodeType.WALKABLE);
     }
 
     private boolean isCardinalSafeForDiagonal(int x, int y, int z) {
@@ -303,5 +432,59 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         return best;
     }
+    private boolean isAirLike(BlockPos p) {
+        IBlockState s = this.blockaccess.getBlockState(p);
+
+        // NEW: liquids are NEVER air-like (water has null collision box, so we must special-case it)
+        if (s.getMaterial().isLiquid()) return false;
+
+        // passable if replaceable OR no collision box
+        return s.getMaterial().isReplaceable() || s.getCollisionBoundingBox(this.blockaccess, p) == null;
+    }
+
+
+    private boolean isGapOrHazardBelow(BlockPos below1) {
+        IBlockState s1 = this.blockaccess.getBlockState(below1);
+        Material m1 = s1.getMaterial();
+
+        // liquids count as hazards
+        if (m1 == Material.LAVA) return true;
+        if (m1 == Material.WATER) return true;
+
+        // 2-deep hole: below1 is air-like AND below2 is air-like
+        if (s1.getCollisionBoundingBox(this.blockaccess, below1) != null) return false;
+
+        BlockPos below2 = below1.down();
+        IBlockState s2 = this.blockaccess.getBlockState(below2);
+        Material m2 = s2.getMaterial();
+
+        if (m2 == Material.LAVA) return true;
+        if (m2 == Material.WATER) return true;
+
+        return s2.getCollisionBoundingBox(this.blockaccess, below2) == null;
+    }
+    private boolean isWaterBlock(int x, int y, int z) {
+        IBlockState s = this.blockaccess.getBlockState(new BlockPos(x, y, z));
+        return s.getMaterial() == Material.WATER;
+    }
+    private boolean isWaterLandingOk(int x, int y, int z) {
+        BlockPos feet = new BlockPos(x, y, z);
+        IBlockState sf = this.blockaccess.getBlockState(feet);
+        if (sf.getMaterial() != Material.WATER) return false;
+
+        // Don’t “land” in water with a solid block immediately above (bonks look bad)
+        BlockPos head = feet.up();
+        IBlockState sh = this.blockaccess.getBlockState(head);
+        if (!sh.getMaterial().isReplaceable() && sh.getCollisionBoundingBox(this.blockaccess, head) != null) {
+            return false;
+        }
+
+        // Optional: require at least 1-deep water (feet water is enough usually)
+        // Optional stricter: require 2-deep:
+        // if (this.blockaccess.getBlockState(feet.down()).getMaterial() != Material.WATER) return false;
+
+        return true;
+    }
+
 
 }

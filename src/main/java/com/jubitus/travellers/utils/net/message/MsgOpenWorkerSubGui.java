@@ -69,42 +69,53 @@ public class MsgOpenWorkerSubGui implements IMessage {
                 int guiId;
                 switch (msg.type) {
                     case TRANSPORT:
+                        // Only allow transport when hired by *this* player
+                        if (!isHiredByPlayer(worker, player)) {
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.RED + "You must hire this worker to use Transport."
+                            ));
+                            return;
+                        }
+
                         guiId = TravellersGuiIds.WORKER;
+
+                        // Optional but recommended: sync hire state before GUI builds
+                        TravellerFollowNet.CHANNEL.sendTo(
+                                new MsgSyncWorkerHireState(worker),
+                                player
+                        );
                         break;
+
 
                     case ORDERS:
+                        if (!isHiredByPlayer(worker, player)) {
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.RED + "You can only give orders to a worker you've hired."
+                            ));
+                            return;
+                        }
+
                         guiId = TravellersGuiIds.WORKER_ORDERS;
 
-                        // *** NEW: make sure client knows hire/follow state BEFORE Orders GUI builds ***
                         TravellerFollowNet.CHANNEL.sendTo(
                                 new MsgSyncWorkerHireState(worker),
                                 player
                         );
                         break;
-                    case RECRUIT:
-                        guiId = TravellersGuiIds.WORKER_RECRUIT;
 
-                        TravellerFollowNet.CHANNEL.sendTo(
-                                new MsgSyncWorkerHireState(worker),
-                                player
-                        );
-                        break;
 
                     case INVENTORY:
-                        if (!worker.isHiredFollower()
-                                || !player.getUniqueID().equals(worker.getFollowOwnerId())) {
+                        if (!isHiredByPlayer(worker, player)) {
                             player.sendMessage(new TextComponentString(
                                     TextFormatting.RED + "You can only access the pack of a worker you've hired."
                             ));
                             return;
                         }
                         guiId = TravellersGuiIds.WORKER_INV;
-
-                        // Optional: also sync here if you want inventory GUI to know follow state
                         break;
+
                     case BEHAVIOR:
-                        if (!worker.isHiredFollower()
-                                || !player.getUniqueID().equals(worker.getFollowOwnerId())) {
+                        if (!isHiredByPlayer(worker, player)) {
                             player.sendMessage(new TextComponentString(
                                     TextFormatting.RED + "You can only manage behavior of a worker you've hired."
                             ));
@@ -113,21 +124,33 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                         guiId = TravellersGuiIds.WORKER_BEHAVIOR;
 
-                        // sync state if your GUI needs it (recommended)
+                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellerFollowNet.CHANNEL.sendTo(buildHostileListPacket(worker), player);
+                        break;
+
+
+                    case RECRUIT:
+                        if (!isHiredByPlayer(worker, player)) {
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.RED + "You can only recruit with a worker you've hired."
+                            ));
+                            return;
+                        }
+
+                        guiId = TravellersGuiIds.WORKER_RECRUIT;
+
                         TravellerFollowNet.CHANNEL.sendTo(
                                 new MsgSyncWorkerHireState(worker),
                                 player
-
-                        );
-                        TravellerFollowNet.CHANNEL.sendTo(
-                                buildHostileListPacket(worker),
-                                player
                         );
                         break;
+
 
                     case HUB:
                         guiId = TravellersGuiIds.WORKER_HUB;
                         break;
+
+
 
                     default:
                         return;
@@ -166,6 +189,11 @@ public class MsgOpenWorkerSubGui implements IMessage {
         }
         java.util.Collections.sort(out, String.CASE_INSENSITIVE_ORDER);
         return new MsgSyncWorkerHostileList(worker.getEntityId(), out);
+    }
+    private static boolean isHiredByPlayer(EntityTravellerWorker worker, EntityPlayerMP player) {
+        return worker.isHiredFollower()
+                && worker.getFollowOwnerId() != null
+                && player.getUniqueID().equals(worker.getFollowOwnerId());
     }
 
 }

@@ -118,7 +118,7 @@ public class TravellersModConfig {
     // Optional: multiplier on top (for global tuning)
     public static double workerTravelCostMultiplier = 1.0D;
 
-    public static int workerVillageDetectRadius = 2000;
+    public static int workerVillageDetectRadius = 4000;
 
     public static int workerStepBlocks = 16;
     public static int workerChunkRadius = 0; // whatever you want
@@ -361,7 +361,7 @@ public class TravellersModConfig {
     public static int fishReelEveryTicks = 45;         // ticks
     public static int fishCastWindupTicks = 15;         // ticks
     public static int fishCooldownTicks = 5 * 60 * 20; // 3 minutes
-    public static float fishStartChancePerTick = 0.004f;
+    public static float fishStartChancePerTick = 0.002f;
     public static double fishApproachSpeed = 0.45D;
     public static int stepBlocks = 48;
     // Minimum distance (in blocks) raiders must spawn away from any village TH

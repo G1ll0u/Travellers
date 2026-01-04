@@ -2719,10 +2719,14 @@ public class EntityTraveller extends EntityCreature {
 
         if (this instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) this;
-            if (w.isHiredFollower()) {
+
+            // Only skip retargeting when the worker is actively in "Follow" mode.
+            // If Follow is OFF (anchored guard), we WANT retargeting so they defend themselves.
+            if (w.isHiredFollower() && w.isFollowOrderActive()) {
                 return;
             }
         }
+
 
         // keep current target if fine
         EntityLivingBase cur = this.getAttackTarget();
@@ -3745,6 +3749,24 @@ public class EntityTraveller extends EntityCreature {
             ItemStack extracted = inventory.extractItem(i, s.getCount(), false);
             if (!extracted.isEmpty()) dropStack(extracted);
         }
+    }
+    public boolean offscreenHopTowardPos(@Nullable BlockPos goal, int stepBlocks) {
+        TravelCommon tc = this.getTravelCommon();
+        if (tc == null) return false;
+
+        if (goal == null) return false;
+
+        EntityAITravel ai = this.aiTravel;
+        if (ai == null) return false;
+
+        // 1) normal toward-goal hop
+        if (ai.teleportToward(goal, stepBlocks)) return true;
+
+        // 3) general surface rescue (bigger scan)
+        if (ai.teleportToSurfaceRescue(24, 6)) return true;
+
+        // 4) last-ditch: smaller step sometimes succeeds when big step doesn't
+        return ai.teleportToward(goal, Math.max(8, stepBlocks / 2));
     }
 
 }

@@ -10,6 +10,7 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.pathfinding.Path;
+import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.EnumDifficulty;
 
@@ -35,8 +36,31 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     private EntityLivingBase pending;
     private double bowRangeBonusFrac = 0.0;
 
-    // --- helpers ---
 
+    private static final double CLOSE_NO_LOS_RANGE = 8.0D;
+    private static final double CLOSE_NO_LOS_RANGE_SQ = CLOSE_NO_LOS_RANGE * CLOSE_NO_LOS_RANGE;
+    // --- helpers ---
+// “Not behind walls” substitute when no LOS: require a real path.
+// This lets them react around corners but not through sealed walls.
+    private boolean hasShortPathTo(EntityLivingBase e) {
+        if (mob.getNavigator() == null) return false;
+
+        Path path = mob.getNavigator().getPathToEntityLiving(e);
+        if (path == null) return false;
+
+        // Optional: reject long detours (prevents “pathing around the mountain”)
+        // Tune this; 16–24 is usually fine for an 8-block “awareness” feel.
+        if (path.getCurrentPathLength() > 20) return false;
+
+        // Optional: ensure the path actually ends near the target
+        PathPoint end = path.getFinalPathPoint();
+        if (end == null) return false;
+
+        double dx = (end.x + 0.5D) - e.posX;
+        double dy = (end.y) - e.posY;
+        double dz = (end.z + 0.5D) - e.posZ;
+        return (dx*dx + dy*dy + dz*dz) <= 2.25D; // within ~1.5 blocks of entity
+    }
     // OLD SIGNATURE – used at call site
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS) {
         // default tickRate = 8, random phase [0,8)
@@ -106,7 +130,20 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         if (mob.world.isRemote) return false;
         if (mob.world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
         if (mob.isAutoEating()) return false;
-        if ((mob.ticksExisted + tickPhase) % tickRate != 0) return false; // staggered
+// staggered (dynamic scan rate)
+        int effectiveTickRate = tickRate;
+
+// Pick whatever “recently in combat” signal you actually have.
+// Examples that usually exist:
+// - mob.inCombat (your comment suggests you have this)
+// - mob.getRevengeTarget() != null
+// - mob.getLastAttackedEntity() != null (depends on your codebase)
+        if (mob.isInCombat() /* || mob.getRevengeTarget() != null */) {
+            effectiveTickRate = 3; // scan faster during/just after combat
+        }
+
+        if ((mob.ticksExisted + tickPhase) % effectiveTickRate != 0) return false;
+
 
         // keep any existing target
         EntityLivingBase current = mob.getAttackTarget();
@@ -184,9 +221,17 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             }
 
             // NEW: if LOS is required but we can’t see, skip
+// If LOS is required, still allow *very close* targets if a short path exists.
+// This catches “around the corner” and “behind me but reachable” cases,
+// but won’t aggro through solid walls (no path).
             if (requireLOS && !see) {
-                continue;
+                if (d2 <= CLOSE_NO_LOS_RANGE_SQ) {
+                    if (!hasShortPathTo(e)) continue;
+                } else {
+                    continue;
+                }
             }
+
 
 //            // OPTIONAL (recommended): require a path or at least a partial path
 //            if (TravellersModConfig.requirePathForAggro) {

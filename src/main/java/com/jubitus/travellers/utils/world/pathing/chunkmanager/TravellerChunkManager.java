@@ -13,6 +13,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.common.ForgeChunkManager;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -162,7 +164,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             ForgeChunkManager.forceChunk(state.ticket, pos);
 
             // Optional: actually load the chunk so entities exist again
-            ws.getChunkProvider().loadChunk(pos.x, pos.z);
+            ForgeChunkManager.forceChunk(state.ticket, pos);
         }
 
         // 5) Save back into the ticket NBT so it persists cleanly
@@ -214,10 +216,11 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
             if (t.isInPlayerViewDistance()) continue;
             if (t.isInCombat() || t.isAutoEating() || t.isHandActive()) continue;
-            if (t.getTargetVillage() == null) continue;
+            BlockPos goal = getChunkloadGoal(t);
+            if (goal == null) continue;
             if (now - md.lastOffscreenHopTick < interval) continue;
 
-            boolean ok = t.offscreenHopTowardTarget(TravellersModConfig.travellerOffscreenHopStepBlocks);
+            boolean ok = t.offscreenHopTowardPos(goal, TravellersModConfig.travellerOffscreenHopStepBlocks);
             if (ok) {
                 md.lastOffscreenHopTick = now;
 
@@ -257,9 +260,13 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             Map.Entry<UUID, MerchantData> e = it.next();
             Entity ent = state.world.getEntityFromUuid(e.getKey());
 
+            if (ent == null) {
+                // entity not currently loaded; keep tracking data so chunkloading can bring it back
+                continue;
+            }
+
             if (!(ent instanceof EntityTraveller) || !ent.isEntityAlive()) {
                 it.remove();
-                continue;
             }
 
             EntityTraveller t = (EntityTraveller) ent;
@@ -270,10 +277,17 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
 
         if (state.merchants.isEmpty()) {
-            // Nothing to schedule, but keep any existing ticket/forced chunks.
-            // This is important so tickets survive across restarts.
+            // Nobody needs chunkloading right now -> unforce everything we forced.
+            if (state.ticket != null) {
+                for (ChunkPos cp : state.forced) {
+                    ForgeChunkManager.unforceChunk(state.ticket, cp);
+                }
+            }
+            state.forced.clear();
+            saveForcedToTicket(state); // persist empty list
             return;
         }
+
 
         ensureTicket(state);
 
@@ -350,27 +364,33 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             Entity ent = state.world.getEntityFromUuid(md.id);
             if (ent instanceof EntityTraveller) {
                 EntityTraveller t = (EntityTraveller) ent;
-                BlockPos tv = t.getTargetVillage();
+
+                BlockPos tv = getChunkloadGoal(t);
                 if (tv != null) {
                     int tx = tv.getX() >> 4;
                     int tz = tv.getZ() >> 4;
 
-                    int dx = Integer.compare(tx, cx); // -1,0,1
+                    int dx = Integer.compare(tx, cx);
                     int dz = Integer.compare(tz, cz);
 
-                    // 1 chunk "ahead" towards target
-                    desired.add(new ChunkPos(cx + dx, cz + dz));
+                    int ncx = cx + dx;
+                    int ncz = cz + dz;
 
-                    // optional: second chunk ahead (helps travel AI)
-                    // desired.add(new ChunkPos(cx + 2*dx, cz + 2*dz));
+                    for (int ox = -1; ox <= 1; ox++) {
+                        for (int oz = -1; oz <= 1; oz++) {
+                            desired.add(new ChunkPos(ncx + ox, ncz + oz));
+                        }
+                    }
                 }
             }
 
+
 // optional safety neighbors (prevents edge-stalling)
-            desired.add(new ChunkPos(cx + 1, cz));
-            desired.add(new ChunkPos(cx - 1, cz));
-            desired.add(new ChunkPos(cx, cz + 1));
-            desired.add(new ChunkPos(cx, cz - 1));
+            for (int ox = -1; ox <= 1; ox++) {
+                for (int oz = -1; oz <= 1; oz++) {
+                    desired.add(new ChunkPos(cx + ox, cz + oz));
+                }
+            }
 
 
             if (desired.size() >= maxForced) break;
@@ -392,7 +412,14 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
         for (ChunkPos cp : toUnforce) {
             ForgeChunkManager.unforceChunk(state.ticket, cp);
+
+            ChunkProviderServer cps = state.world.getChunkProvider();
+            Chunk ch = cps.getLoadedChunk(cp.x, cp.z);
+            if (ch != null) {
+                cps.queueUnload(ch); // in 1.12.2 this exists on ChunkProviderServer
+            }
         }
+
         for (ChunkPos cp : toForce) {
             ForgeChunkManager.forceChunk(state.ticket, cp);
         }
@@ -510,9 +537,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             this.pos = t.getPosition();
             this.radius = radius;
 
-            BlockPos tv = t.getTargetVillage();
-            this.lastTargetVillage = (tv == null ? null : tv.toImmutable());
-            this.lastDistToTargetSq = computeDistSqToTarget(t);
+            BlockPos goal = TravellerChunkManager.getChunkloadGoal(t);
+            this.lastTargetVillage = (goal == null ? null : goal.toImmutable());
+            this.lastDistToTargetSq = computeDistSqToGoal(t);
             this.lastProgressTick = t.world.getTotalWorldTime();
         }
 
@@ -520,7 +547,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         public void updateFromEntity(EntityTraveller t) {
             this.pos = t.getPosition();
 
-            BlockPos tv = t.getTargetVillage();
+            BlockPos tv = TravellerChunkManager.getChunkloadGoal(t);
             long nowTick = t.world.getTotalWorldTime();
 
             if (tv == null) {
@@ -546,6 +573,11 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             }
         }
 
+        private double computeDistSqToGoal(EntityTraveller t) {
+            BlockPos goal = TravellerChunkManager.getChunkloadGoal(t);
+            if (goal == null) return Double.MAX_VALUE;
+            return t.getDistanceSqToCenter(goal);
+        }
 
         private double computeDistSqToTarget(EntityTraveller t) {
             BlockPos tv = t.getTargetVillage();
@@ -579,6 +611,21 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             return 0;
         }
 
+    }
+    @Nullable
+    private static BlockPos getChunkloadGoal(EntityTraveller t) {
+        // Worker-only: when catchup is active, follow the dynamic goal (owner/player pos)
+        if (t instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) t;
+
+            if (w.isCatchupTravel()) { // your flag
+                BlockPos cg = w.getDynamicCatchupGoal(); // your cached/updated goal (eg every 200 ticks)
+                if (cg != null) return cg;
+            }
+        }
+
+        // Everyone else: existing behavior
+        return t.getTargetVillage();
     }
 
 
