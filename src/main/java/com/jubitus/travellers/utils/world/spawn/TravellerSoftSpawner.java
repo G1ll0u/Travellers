@@ -51,7 +51,8 @@ public final class TravellerSoftSpawner {
     // NEW: merchant maintenance tick
     private static int merchantTickCounter = 0;
     private static int workerTickCounter = 0;
-
+    private static int merchantVillageCursor = 0;
+    private static int workerVillageCursor = 0;
 
 
     private TravellerSoftSpawner() {
@@ -59,21 +60,7 @@ public final class TravellerSoftSpawner {
 
     // ----------------- helpers -----------------
 
-    @SubscribeEvent
-    public static void onWorldTick(TickEvent.WorldTickEvent e) {
-        if (e.phase != TickEvent.Phase.END) return;
-        if (e.world.isRemote) return;
-        WorldServer ws = (WorldServer) e.world;
-// Merchant maintenance
-        if ((++merchantTickCounter % Math.max(1, TravellersModConfig.merchantRecheckEveryTicks)) == 0) {
-            ensureMerchantsForVillages(ws);
-        }
 
-// Worker maintenance (separate knob)
-        if ((++workerTickCounter % Math.max(1, TravellersModConfig.workerRecheckEveryTicks)) == 0) {
-            ensureWorkersForVillages(ws);
-        }
-    }
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent e) {
         if (e.phase != TickEvent.Phase.END) return;
@@ -84,24 +71,34 @@ public final class TravellerSoftSpawner {
         WorldServer ws = server.getWorld(0); // overworld only
         if (ws == null) return;
 
-        // now your counters are truly "per server tick"
+        // Traveller top-up
         if (TravellersModConfig.enableTravellerSoftSpawns) {
             if ((++tickCounter % Math.max(1, TravellersModConfig.travellerTopUpEveryTicks)) == 0) {
                 runTravellerTopUp(ws);
             }
         }
 
+        // Raider top-up
         if (TravellersModConfig.enableRaiderSoftSpawns) {
             if ((++raiderTickCounter % Math.max(1, TravellersModConfig.raiderTopUpEveryTicks)) == 0) {
                 runRaiderTopUp(ws);
             }
         }
+
+        // Merchants maintenance
+        if ((++merchantTickCounter % Math.max(1, TravellersModConfig.merchantRecheckEveryTicks)) == 0) {
+            ensureMerchantsForVillages(ws);
+        }
+
+        // Workers maintenance
+        if ((++workerTickCounter % Math.max(1, TravellersModConfig.workerRecheckEveryTicks)) == 0) {
+            ensureWorkersForVillages(ws);
+        }
     }
 
-    private static void runRaiderTopUp(WorldServer ws) {
-        if (TravellersModConfig.enableTravellerSoftSpawns) {
 
-            if ((++tickCounter % Math.max(1, TravellersModConfig.travellerTopUpEveryTicks)) == 0) {
+    private static void runTravellerTopUp(WorldServer ws) {
+        if (TravellersModConfig.enableTravellerSoftSpawns) {
 
                 for (EntityPlayerMP p : ws.getMinecraftServer().getPlayerList().getPlayers()) {
                     if (p.world != ws) continue;
@@ -257,14 +254,12 @@ public final class TravellerSoftSpawner {
                 }
             }
         }
-    }
 
-    private static void runTravellerTopUp(WorldServer ws) {
+    private static void runRaiderTopUp(WorldServer ws) {
         // ---------- Raider soft top-up ----------
 // ---------- Raider soft top-up ----------
 // ---------- Raider soft top-up ----------
         if (TravellersModConfig.enableRaiderSoftSpawns) {
-            if ((++raiderTickCounter % Math.max(1, TravellersModConfig.raiderTopUpEveryTicks)) == 0) {
 
                 // Global safety cap from config (keep as an overall guard)
                 int loadedRaiders = 0;
@@ -422,7 +417,6 @@ public final class TravellerSoftSpawner {
                     }
                 }
             }
-        }
     }
 
     public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
@@ -551,7 +545,7 @@ public final class TravellerSoftSpawner {
                 // Reject obvious building blocks
                 if (path.contains("brick") || path.contains("bricks") || path.contains("polished")
                         || path.contains("planks") || path.contains("stairs") || path.contains("slab")
-                        || path.contains("pillar") || path.contains("chiseled") || path.contains("fuck")) return false;
+                        || path.contains("pillar") || path.contains("chiseled")) return false;
             }
             // For modded blocks, be conservative: treat unknown ROCK as man-made unless it looks like raw stone/sandstone/end
             return path.contains("stone") || path.contains("andesite") || path.contains("diorite") || path.contains("granite")
@@ -683,14 +677,10 @@ public final class TravellerSoftSpawner {
      */
     private static void ensureMerchantsForVillages(WorldServer ws) {
         MillWorldData wd = MillVillageIndex.getWD(ws);
-        if (wd == null) {
-            return;
-        }
+        if (wd == null) return;
 
         List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(ws);
-        if (centers.isEmpty()) {
-            return;
-        }
+        if (centers.isEmpty()) return;
 
         // Count existing merchants per home village (only LOADED entities)
         Map<BlockPos, Integer> merchantsByVillage = new java.util.HashMap<>();
@@ -703,72 +693,64 @@ public final class TravellerSoftSpawner {
             merchantsByVillage.merge(home.toImmutable(), 1, Integer::sum);
         }
 
-        // Global loaded merchant cap (per world)
         int globalLoadedMerchants = merchants.size();
         final int globalCap = TravellersModConfig.merchantLoadedCap;
+        if (globalCap > 0 && globalLoadedMerchants >= globalCap) return;
 
-        // --- NEW: "anchor" villages that are allowed to have merchants ---
-        // Start with all villages that ALREADY have at least 1 merchant
-        java.util.Set<BlockPos> merchantAnchors = new java.util.HashSet<>();
         int minDist = TravellersModConfig.merchantVillageMinDistance;
         if (minDist < 0) minDist = 0;
 
-        for (Map.Entry<BlockPos, Integer> e : merchantsByVillage.entrySet()) {
-            if (e.getValue() > 0) {
-                merchantAnchors.add(e.getKey());
-            }
-        }
+        // Anchors start with villages that CURRENTLY have loaded merchants
+        java.util.Set<BlockPos> merchantAnchors = new java.util.HashSet<>(merchantsByVillage.keySet());
 
-        // Optional: sort centers by population descending,
-        // so big villages “win” as anchors when close together.
-        centers.sort((a, b) -> {
-            int pa = MillVillageIndex.countVillagersInVillage(ws, a);
-            int pb = MillVillageIndex.countVillagersInVillage(ws, b);
-            return Integer.compare(pb, pa); // descending
-        });
+        // --- NEW: only process a small batch per pass ---
+        final int total = centers.size();
+        final int n = Math.min(TravellersModConfig.MERCHANT_VILLAGES_PER_PASS, total);
 
-        for (BlockPos center : centers) {
-            BlockPos immutableCenter = center.toImmutable();
+        for (int it = 0; it < n; it++) {
+            if (globalCap > 0 && globalLoadedMerchants >= globalCap) return;
 
-            // Skip ghost villages with no TH
-            Building th = MillVillageIndex.getTownHallBuilding(wd, immutableCenter);
-            if (th == null) {
+            BlockPos v = centers.get((merchantVillageCursor++ % total + total) % total).toImmutable();
+
+            // Must have TH
+            Building th = MillVillageIndex.getTownHallBuilding(wd, v);
+            if (th == null) continue;
+
+            // --- NEW: do NOT load chunks during maintenance ---
+            if (!areVillageChunksLoaded(ws, v, 2)) {
                 continue;
             }
 
-            // --- NEW: if this village is "too close" to an anchor, skip it entirely ---
-            if (minDist > 0 && withinXZOfAny(immutableCenter, merchantAnchors, minDist)) {
-                continue; // another village nearby already has / will have merchants
+            // Skip if too close to an existing anchor
+            if (minDist > 0 && withinXZOfAny(v, merchantAnchors, minDist)) {
+                continue;
             }
 
-            int villagers = MillVillageIndex.countVillagersInVillage(ws, immutableCenter);
-
+            int villagers = MillVillageIndex.countVillagersInVillage(ws, v);
             int desired = MillVillageIndex.desiredMerchantsForPopulation(villagers);
-            if (desired <= 0) {
-                continue;
-            }
+            if (desired <= 0) continue;
 
-            int current = merchantsByVillage.getOrDefault(immutableCenter, 0);
+            int current = merchantsByVillage.getOrDefault(v, 0);
             int missing = desired - current;
             if (missing <= 0) {
-                // This center still acts as an "anchor" for neighbors if it already has merchants.
-                if (current > 0) {
-                    merchantAnchors.add(immutableCenter);
-                }
+                // Still an anchor if it already has merchants loaded
+                if (current > 0) merchantAnchors.add(v);
                 continue;
             }
 
-            // We are going to actually assign merchants to this village → mark as anchor
-            merchantAnchors.add(immutableCenter);
+            // Mark as anchor so we don’t populate neighbours in the same pass
+            merchantAnchors.add(v);
 
+            // Spawn missing, but honor global loaded cap
             for (int i = 0; i < missing; i++) {
-                // Honor global merchant cap
-                if (globalCap > 0 && globalLoadedMerchants >= globalCap) {
-                    return; // stop spawning anywhere once cap is hit
-                }
+                if (globalCap > 0 && globalLoadedMerchants >= globalCap) return;
 
-                spawnMerchantAtVillage(ws, immutableCenter);
+                spawnMerchantAtVillage(ws, v);
                 globalLoadedMerchants++;
+
+                // Also update our local “loaded merchants per village” map,
+                // so we don't keep spawning more in the same pass
+                merchantsByVillage.merge(v, 1, Integer::sum);
             }
         }
     }
@@ -784,7 +766,10 @@ public final class TravellerSoftSpawner {
     public static void spawnMerchantAtVillage(WorldServer ws, BlockPos villageCenter) {
 
 // Load a slightly larger area because we might spawn OUTSIDE the village center chunk
-        ensureVillageChunksLoaded(ws, villageCenter, 2);
+// NEW:
+        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+            return; // will be handled later when a player loads the area
+        }
 
 // ring spawn: near village, not necessarily inside
         final int minR = 10;  // don't spawn on the townhall roof
@@ -886,21 +871,22 @@ public final class TravellerSoftSpawner {
         // Same spawn data class you already use for normal travellers
         return new EntityTraveller.SpawnData(cultureId);
     }
-    private static void ensureVillageChunksLoaded(WorldServer ws, BlockPos center, int radiusChunks) {
+    private static boolean areVillageChunksLoaded(WorldServer ws, BlockPos center, int radiusChunks) {
         int cx = center.getX() >> 4;
         int cz = center.getZ() >> 4;
 
-        // WorldServer#getChunkProvider() returns IChunkProvider, cast to ChunkProviderServer
         ChunkProviderServer cps = (ChunkProviderServer) ws.getChunkProvider();
 
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
             for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                // This will load or generate the chunk if needed
-                Chunk c = cps.provideChunk(cx + dx, cz + dz);
-                // you can ignore 'c', just forcing load is enough
+                if (cps.getLoadedChunk(cx + dx, cz + dz) == null) {
+                    return false;
+                }
             }
         }
+        return true;
     }
+
     /**
      * Ensure each (Millénaire) village has a *population-based* number of travellers workers.
      * Uses the same kind of formula as merchants, but with worker config knobs.
@@ -914,7 +900,6 @@ public final class TravellerSoftSpawner {
 
         TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
 
-        // HARD global cap: total worker slots in the entire save
         int cap = TravellersModConfig.workerGlobalAssignedCap;
         if (cap <= 0) return;
 
@@ -922,37 +907,37 @@ public final class TravellerSoftSpawner {
         int budget = cap - alreadyAssigned;
         if (budget <= 0) return;
 
-        // Existing worker “anchor” villages come from the REGISTRY (not loaded entities)
+        // Anchors are registry-based (good) but copy so we can add during this pass
         java.util.Set<BlockPos> workerAnchors = reg.getWorkerVillages();
 
         int minDist = TravellersModConfig.workerVillageMinDistance;
         if (minDist < 0) minDist = 0;
 
-        // Prefer big villages first (rarer workers, more “important” places)
-        centers.sort((a, b) -> {
-            int pa = MillVillageIndex.countVillagersInVillage(ws, a);
-            int pb = MillVillageIndex.countVillagersInVillage(ws, b);
-            return Integer.compare(pb, pa);
-        });
+        // --- NEW: only process a small batch per pass ---
+        final int total = centers.size();
+        final int n = Math.min(TravellersModConfig.WORKER_VILLAGES_PER_PASS, total);
 
-        for (BlockPos center : centers) {
-            if (budget <= 0) break;
+        for (int it = 0; it < n && budget > 0; it++) {
+            BlockPos center = centers.get((workerVillageCursor++ % total + total) % total).toImmutable();
 
-            BlockPos v = center.toImmutable();
-
-            // Must have TH
-            Building th = MillVillageIndex.getTownHallBuilding(wd, v);
+            // Must have TH (cheap-ish, do before chunk checks sometimes)
+            Building th = MillVillageIndex.getTownHallBuilding(wd, center);
             if (th == null) continue;
 
+            // --- NEW: do NOT load chunks during maintenance ---
+            // Only spawn when the village area is already loaded (player nearby)
+            if (!areVillageChunksLoaded(ws, center, 2)) {
+                continue;
+            }
+
             // If registry says this village already has a worker, DO NOT spawn another.
-            UUID existing = reg.getWorkerFor(v);
+            UUID existing = reg.getWorkerFor(center);
             if (existing != null) {
                 // Optional sanity check ONLY if entity is currently loaded:
                 Entity ent = ws.getEntityFromUuid(existing);
                 if (ent != null) {
                     if (!(ent instanceof EntityTravellerWorker) || !ent.isEntityAlive()) {
-                        // Loaded and invalid -> clear and allow respawn
-                        reg.clearWorkerFor(v, existing);
+                        reg.clearWorkerFor(center, existing);
                         existing = null;
                     }
                 }
@@ -960,19 +945,20 @@ public final class TravellerSoftSpawner {
             if (existing != null) continue;
 
             // Distance gating from existing anchors (prevents dense worker coverage)
-            if (minDist > 0 && withinXZOfAny(v, workerAnchors, minDist)) {
+            if (minDist > 0 && withinXZOfAny(center, workerAnchors, minDist)) {
                 continue;
             }
 
-            // ✅ Spawn exactly ONE worker for this village and register it
-            spawnWorkerAtVillage(ws, v);
+            // Spawn exactly ONE worker for this village and register it
+            spawnWorkerAtVillage(ws, center);
 
             // Mark as anchor so nearby villages won’t get one
-            workerAnchors.add(new BlockPos(v.getX(), 0, v.getZ()).toImmutable());
+            workerAnchors.add(new BlockPos(center.getX(), 0, center.getZ()).toImmutable());
 
             budget--;
         }
     }
+
 
 
 
@@ -983,7 +969,9 @@ public final class TravellerSoftSpawner {
      */
     public static void spawnWorkerAtVillage(WorldServer ws, BlockPos villageCenter) {
 
-        ensureVillageChunksLoaded(ws, villageCenter, 2);
+        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+            return; // will be handled later when a player loads the area
+        }
 
         final int minR = 10;
         final int maxR = 28;
@@ -1022,17 +1010,27 @@ public final class TravellerSoftSpawner {
                 createCultureSpawnDataForPos(ws, spawnPos, ws.rand);
         w.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
 
-        ws.spawnEntity(w);
+// Optional: last gate (Forge/vanilla spawn checks) to avoid weird spawns
+        Event.Result res = net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(w, ws,
+                (float) w.posX, (float) w.posY, (float) w.posZ);
+        if (res == Event.Result.DENY) return;
 
-        // NEW: register this worker for that village
+// Spawn and only then register
+        boolean ok = ws.spawnEntity(w);
+        if (!ok) return;
+
         TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
         reg.setWorkerFor(villageCenter, w.getUniqueID());
+
     }
 
     public static void respawnWorkerAtHome(WorldServer ws, BlockPos villageCenter) {
         if (villageCenter == null) return;
 
-        ensureVillageChunksLoaded(ws, villageCenter, 2);
+// NEW:
+        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+            return; // will be handled later when a player loads the area
+        }
 
         BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 10, 28, 80, 2);
         if (spawnPos == null) {
@@ -1060,11 +1058,18 @@ public final class TravellerSoftSpawner {
                 createCultureSpawnDataForPos(ws, spawnPos, ws.rand);
         w.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
 
-        ws.spawnEntity(w);
+// Optional: last gate (Forge/vanilla spawn checks) to avoid weird spawns
+        Event.Result res = net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(w, ws,
+                (float) w.posX, (float) w.posY, (float) w.posZ);
+        if (res == Event.Result.DENY) return;
 
-        // NEW: re-register worker
+// Spawn and only then register
+        boolean ok = ws.spawnEntity(w);
+        if (!ok) return;
+
         TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
         reg.setWorkerFor(villageCenter, w.getUniqueID());
+
     }
 
 
@@ -1074,7 +1079,9 @@ public final class TravellerSoftSpawner {
         if (villageCenter == null) return;
 
         // 1) force-load chunks around the village
-        ensureVillageChunksLoaded(ws, villageCenter, 0);
+        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+            return; // will be handled later when a player loads the area
+        }
 
         // 2) OPTIONAL: only respawn if the village actually still has a TH
         MillWorldData wd = MillVillageIndex.getWD(ws);
@@ -1111,7 +1118,12 @@ public final class TravellerSoftSpawner {
                 createCultureSpawnDataForPos(ws, spawnPos, ws.rand);
         m.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
 
-        ws.spawnEntity(m);
+        Event.Result res = net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(m, ws,
+                (float) m.posX, (float) m.posY, (float) m.posZ);
+        if (res == Event.Result.DENY) return;
+
+        boolean ok = ws.spawnEntity(m);
+        if (!ok) return;
 
         TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
         reg.addMerchantFor(villageCenter, m.getUniqueID());
@@ -1152,8 +1164,12 @@ public final class TravellerSoftSpawner {
         BlockPos home = m.getHomeVillage();
         if (home == null) return;
 
-        TravellerSoftSpawner.respawnMerchantAtHome((WorldServer) m.world, home);
+        TravellerVillageRegistry reg = TravellerVillageRegistry.get((WorldServer) m.world);
+        reg.removeMerchantFor(home, m.getUniqueID());
+
+        // Do NOT respawn here. ensureMerchantsForVillages will respawn later (batched + loaded-only).
     }
+
 
     @Nullable
     private static BlockPos findNaturalSpawnNearVillage(WorldServer ws, BlockPos center,

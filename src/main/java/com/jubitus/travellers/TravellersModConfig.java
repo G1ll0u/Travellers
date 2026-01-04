@@ -12,6 +12,11 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
+    // process only N villages per maintenance pass
+    public static final int MERCHANT_VILLAGES_PER_PASS = 5;
+    public static final int WORKER_VILLAGES_PER_PASS = 5;
+
+
     // Recruit mission tuning
     public static int recruitMaxVillageRadius = 1500;        // max distance from player
     public static int recruitVillagesMin = 1;
