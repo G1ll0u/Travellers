@@ -1,7 +1,7 @@
 package com.jubitus.travellers.utils.commands;
 
-import com.jubitus.travellers.utils.world.mill.TravellerMillHelper;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.mill.TravellerMillHelper;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -36,11 +36,6 @@ public class CommandVillageNeeds extends CommandBase {
     }
 
     @Override
-    public int getRequiredPermissionLevel() {
-        return 2; // op-only
-    }
-
-    @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         if (!(sender instanceof EntityPlayerMP)) {
             sender.sendMessage(new TextComponentString("Player only."));
@@ -66,6 +61,11 @@ public class CommandVillageNeeds extends CommandBase {
         }
 
         TravellerMillHelper.debugVillageNeeds(player, townHall);
+    }
+
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 2; // op-only
     }
 
 
@@ -186,7 +186,7 @@ public class CommandVillageNeeds extends CommandBase {
                 continue;
             }
 
-            String projLabel = "  §c[WALL PROJECT]§7 " + project.toString();
+            String projLabel = "  §c[WALL PROJECT]§7 " + project;
             if (next != null) {
                 projLabel += " -> nextPlan=" + next.planName + " lvl=" + next.level;
             }

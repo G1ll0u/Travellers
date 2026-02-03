@@ -338,7 +338,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
     private boolean hasBlockingEntityAlongShot(EntityLivingBase target) {
         Vec3d from = new Vec3d(mob.posX, mob.posY + mob.getEyeHeight(), mob.posZ);
-        Vec3d to   = new Vec3d(target.posX, target.posY + target.getEyeHeight() * 0.5, target.posZ);
+        Vec3d to = new Vec3d(target.posX, target.posY + target.getEyeHeight() * 0.5, target.posZ);
 
         if (from.squareDistanceTo(to) < 1.0E-6D) return false;
 
@@ -540,5 +540,6 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         ItemStack bow = mob.findBowInBackpackPublic();
         if (!bow.isEmpty()) mob.setHeldItem(EnumHand.MAIN_HAND, mob.makeGhostBow(bow));
     }
+
 
 }

@@ -38,13 +38,14 @@ public class CampfireManager extends WorldSavedData {
         return mgr;
     }
 
-    public void addOrRefresh(BlockPos pos, int dim, @Nullable UUID owner, long expireAt, int nearRadius) {
+    public void addOrRefresh(BlockPos pos, int dim, @Nullable UUID owner, long expireAt, long expireAtMs, int nearRadius) {
         for (Entry e : list) {
             if (e.dimension == dim && e.pos.equals(pos)) {
                 if (owner != null) {
                     e.owner = owner;  // keep existing non-null owner if caller passes null
                 }
                 e.expireAt = expireAt;
+                e.expireAtMs = expireAtMs; // NEW
                 e.nearRadius = nearRadius;
                 markDirty();
                 return;
@@ -55,6 +56,7 @@ public class CampfireManager extends WorldSavedData {
         e.dimension = dim;
         e.owner = owner;
         e.expireAt = expireAt;
+        e.expireAtMs = expireAtMs; // NEW
         e.nearRadius = nearRadius;
         list.add(e);
         markDirty();
@@ -86,7 +88,8 @@ public class CampfireManager extends WorldSavedData {
                 continue;
             }
 
-            boolean expired = now >= e.expireAt;
+            boolean expired = (now >= e.expireAt) || (e.expireAtMs > 0L && System.currentTimeMillis() >= e.expireAtMs);
+
 
             // If block is gone or not a lit campfire, drop entry (and don't touch the world).
             if (!isMillenaireFireLit(ws, e.pos)) {
@@ -118,9 +121,11 @@ public class CampfireManager extends WorldSavedData {
             // If someone *is* near but the TTL is already in the past
             // (e.g. we restarted after a disconnect), lazily extend it.
             if (anyoneNear && expired) {
-                e.expireAt = now + (20 * 60); // keep it alive for another ~60s
+                e.expireAt = now + (20 * 60);
+                e.expireAtMs = System.currentTimeMillis() + (20 * 60 * 50L);
                 markDirty();
             }
+
         }
     }
 
@@ -149,6 +154,8 @@ public class CampfireManager extends WorldSavedData {
             e.nearRadius = t.getInteger("r");
             if (t.hasUniqueId("owner")) e.owner = t.getUniqueId("owner");
             list.add(e);
+            if (t.hasKey("expMs")) e.expireAtMs = t.getLong("expMs");
+            else e.expireAtMs = 0L; // backward compat
         }
     }
 
@@ -163,6 +170,7 @@ public class CampfireManager extends WorldSavedData {
             t.setInteger("dim", e.dimension);
             t.setLong("exp", e.expireAt);
             t.setInteger("r", e.nearRadius);
+            t.setLong("expMs", e.expireAtMs);
             if (e.owner != null) t.setUniqueId("owner", e.owner);
             arr.appendTag(t);
         }
@@ -200,13 +208,23 @@ public class CampfireManager extends WorldSavedData {
             if (e.dimension != dim) continue;
             if (excludeOwner != null && excludeOwner.equals(e.owner)) continue;
 
-            // TTL check first
-            if (now >= e.expireAt) {
-                // stale → drop it eagerly
-                it.remove();
-                markDirty();
+            boolean expired = now >= e.expireAt;
+
+// IMPORTANT:
+// Do NOT remove purely because TTL passed.
+// If the chunk is unloaded, removing here can orphan a real firepit block forever.
+            if (expired) {
+                // If we're allowed to verify and the chunk is loaded, we *can* prune ghosts safely.
+                if (verifyLit && ws.getChunkProvider().chunkExists(e.pos.getX() >> 4, e.pos.getZ() >> 4)) {
+                    if (!isMillenaireFireLit(ws, e.pos)) {
+                        it.remove();
+                        markDirty();
+                    }
+                }
+                // Either way, treat expired as "not active" for search purposes
                 continue;
             }
+
 
             // Optional verification against the actual world state
             if (verifyLit) {
@@ -258,10 +276,12 @@ public class CampfireManager extends WorldSavedData {
     public static class Entry {
         public BlockPos pos;
         public int dimension;
-        public UUID owner;          // travellers UUID (optional)
-        public long expireAt;       // world.getTotalWorldTime() tick deadline
-        public int nearRadius;      // blocks for proximity cleanup
+        public UUID owner;
+        public long expireAt;       // world ticks
+        public long expireAtMs;     // NEW: wall clock time
+        public int nearRadius;
     }
+
 }
 
 

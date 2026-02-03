@@ -1,9 +1,9 @@
 package com.jubitus.travellers.entity.entityAI.travel;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.mill.TravellerMillHelper;
 import net.minecraft.block.Block;
@@ -27,34 +27,25 @@ import java.util.Map;
 public class EntityAIMerchantDeliverGoods extends EntityAIBase {
 
     private static final int BUGGED_LOG_THROTTLE_TICKS = 20 * 60; // 60s between logs per visit
+    private final double speed;
+    private final EntityTraveller owner;
+    // To avoid re-delivering repeatedly in same visit
+    private final BlockPos lastServicedVillage = null;
     private int buggedVillageLogCooldown = 0;
-
     private BlockPos townHallCenter;      // Center of the town hall
     private boolean chestSearchDone = false; // Only search for chest once per visit
-
     private BuildingChunkLoader chunkLoader;      // Millénaire chunk loader instance
     private Building chunkLoaderTownHall;         // which TH this loader belongs to
     private boolean villageChunksLoaded = false;  // our own flag
     private BlockPos visitVillageCenter = null;
     private boolean donatedThisVisit = false;
-
-    private final double speed;
-
-    private final EntityTraveller owner;
-
     private Building currentTownHall;
     private BlockPos chestTarget;
     private BlockPos currentVillageCenter;
-
-    private enum State { IDLE, WALKING, DELIVERING, WAITING }
     private State state = State.IDLE;
 
     private int waitTicks = 0;
 
-
-
-    // To avoid re-delivering repeatedly in same visit
-    private final BlockPos lastServicedVillage = null;
 
     public EntityAIMerchantDeliverGoods(EntityTraveller owner, double speed) {
         this.owner = owner;
@@ -163,6 +154,7 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
 
         return true;
     }
+
     @Override
     public boolean shouldContinueExecuting() {
         if (state == State.IDLE) return false;
@@ -188,7 +180,6 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
 
         return true;
     }
-
 
     @Override
     public void startExecuting() {
@@ -326,7 +317,6 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
     }
 
-
     private void tickDelivering() {
         if (currentTownHall == null) {
             state = State.IDLE;
@@ -341,7 +331,6 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         waitTicks = 8 * 20; // 8 seconds; tweak
         state = State.WAITING;
     }
-
 
     private void tickWaiting() {
         if (--waitTicks <= 0) {
@@ -360,6 +349,34 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
     }
 
+    /**
+     * Find the first chest within radius around a center.
+     * Used once when the merchant enters radius 8 of the town hall.
+     */
+    @Nullable
+    private BlockPos findFirstTownHallChest(BlockPos center, int radius) {
+        if (center == null) return null;
+
+        World w = owner.world;
+
+        // Search a low vertical band around the town hall
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    BlockPos pos = center.add(dx, dy, dz);
+                    IBlockState state = w.getBlockState(pos);
+                    Block block = state.getBlock();
+
+                    // 1.12: BlockChest is the chest block type
+                    if (block instanceof BlockChest) {
+                        return pos;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 
 
     /**
@@ -368,10 +385,11 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
      *
      * No merchant inventory is used – we just top up the village a bit.
      */
+
     /**
      * Merchant "magically" donates goods directly to the Town Hall,
      * but ONLY for building construction (resCost of plans).
-     *
+     * <p>
      * No merchant inventory is used – we just top up the village a bit.
      */
     private void donateToVillageConstruction(Building townHall) {
@@ -460,13 +478,34 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
     }
 
 
-
-
-
     // ------------------------
     // Helpers
     // ------------------------
 
+    private void skipBuggedVillage(BlockPos center, String reason) {
+        if (center == null || owner.world.isRemote) {
+            return;
+        }
+
+        TravelCommon tc = owner.getTravelCommon();
+
+        // Mark this "visit" as already handled so we don't spam shouldExecute()
+        visitVillageCenter = center;
+        donatedThisVisit = true;
+
+        // Let travel AI move on from this stop
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+        tc.setVillageIdling(false);
+
+        // Optional simple log throttling per AI instance
+        if (buggedVillageLogCooldown <= 0) {
+            MillLog.major(owner, "[Travellers] Skipping bugged village at " +
+                    center + " : " + reason);
+            buggedVillageLogCooldown = BUGGED_LOG_THROTTLE_TICKS;
+        }
+        tc.markVillageBad(center);
+    }
 
     @Nullable
     private Building findAnyTownHallNear(MillWorldData wd, BlockPos center, int radiusXZ) {
@@ -511,58 +550,8 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         // Fallback: try directly above the center
         return tc.topStandable(center);
     }
-    /**
-     * Find the first chest within radius around a center.
-     * Used once when the merchant enters radius 8 of the town hall.
-     */
-    @Nullable
-    private BlockPos findFirstTownHallChest(BlockPos center, int radius) {
-        if (center == null) return null;
 
-        World w = owner.world;
-
-        // Search a low vertical band around the town hall
-        for (int dy = -2; dy <= 2; dy++) {
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    BlockPos pos = center.add(dx, dy, dz);
-                    IBlockState state = w.getBlockState(pos);
-                    Block block = state.getBlock();
-
-                    // 1.12: BlockChest is the chest block type
-                    if (block instanceof BlockChest) {
-                        return pos;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-    private void skipBuggedVillage(BlockPos center, String reason) {
-        if (center == null || owner.world.isRemote) {
-            return;
-        }
-
-        TravelCommon tc = owner.getTravelCommon();
-
-        // Mark this "visit" as already handled so we don't spam shouldExecute()
-        visitVillageCenter = center;
-        donatedThisVisit = true;
-
-        // Let travel AI move on from this stop
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
-        tc.setVillageIdling(false);
-
-        // Optional simple log throttling per AI instance
-        if (buggedVillageLogCooldown <= 0) {
-            MillLog.major(owner, "[Travellers] Skipping bugged village at " +
-                    center + " : " + reason);
-            buggedVillageLogCooldown = BUGGED_LOG_THROTTLE_TICKS;
-        }
-        tc.markVillageBad(center);
-    }
+    private enum State {IDLE, WALKING, DELIVERING, WAITING}
 
 }
 

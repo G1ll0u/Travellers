@@ -1,9 +1,44 @@
 {
   "pools": [
-    { "name": "boots", "rolls": 1, "entries": [{ "type": "item", "name": "millenaire:normanboots" }] },
-    { "name": "legs",  "rolls": 1, "entries": [{ "type": "item", "name": "millenaire:normanlegs" }] },
-    { "name": "chest", "rolls": 1, "entries": [{ "type": "item", "name": "millenaire:normanplate" }] },
-    { "name": "chest", "rolls": 1, "entries": [{ "type": "item", "name": "minecraft:leather_helmet" }] }
-
+    {
+      "name": "boots",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "millenaire:normanboots"
+        }
+      ]
+    },
+    {
+      "name": "legs",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "millenaire:normanlegs"
+        }
+      ]
+    },
+    {
+      "name": "chest",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "millenaire:normanplate"
+        }
+      ]
+    },
+    {
+      "name": "chest",
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "item",
+          "name": "minecraft:leather_helmet"
+        }
+      ]
+    }
   ]
 }

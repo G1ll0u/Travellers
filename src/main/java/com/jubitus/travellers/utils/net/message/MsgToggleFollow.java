@@ -30,7 +30,7 @@ public class MsgToggleFollow implements IMessage {
     public static class Handler implements IMessageHandler<MsgToggleFollow, IMessage> {
         @Override
         public IMessage onMessage(MsgToggleFollow msg,
-                                                                                   MessageContext ctx) {
+                                  MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 if (msg.targetId < 0) {
                     FollowTravellerClient.disable();

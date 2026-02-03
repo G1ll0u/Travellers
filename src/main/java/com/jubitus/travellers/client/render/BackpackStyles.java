@@ -82,16 +82,12 @@ public final class BackpackStyles {
     // Tiny helper style implementation
     private static final class SimpleStyle implements IBackpackStyle {
 
-        interface PoseApplier { void apply(RenderTraveller r); }
-        interface Matcher { boolean matches(EntityTraveller e); }
-
         private final String id;
         private final boolean hideable;
         private final Matcher matcher;
         private final ResourceLocation texture;
         private final net.minecraft.client.model.ModelBase model;
         private final PoseApplier pose;
-
         SimpleStyle(String id, boolean hideable, Matcher matcher,
                     ResourceLocation texture, net.minecraft.client.model.ModelBase model,
                     PoseApplier pose) {
@@ -103,10 +99,25 @@ public final class BackpackStyles {
             this.pose = pose;
         }
 
-        @Override public String id() { return id; }
-        @Override public boolean isHideable() { return hideable; }
-        @Override public boolean matches(EntityTraveller e) { return matcher.matches(e); }
-        @Override public ResourceLocation texture(EntityTraveller e) { return texture; }
+        @Override
+        public String id() {
+            return id;
+        }
+
+        @Override
+        public boolean isHideable() {
+            return hideable;
+        }
+
+        @Override
+        public boolean matches(EntityTraveller e) {
+            return matcher.matches(e);
+        }
+
+        @Override
+        public ResourceLocation texture(EntityTraveller e) {
+            return texture;
+        }
 
         @Override
         public void render(RenderTraveller renderer, EntityTraveller e,
@@ -122,6 +133,14 @@ public final class BackpackStyles {
 
             GlStateManager.doPolygonOffset(0.0F, 0.0F);
             GlStateManager.disablePolygonOffset();
+        }
+
+        interface PoseApplier {
+            void apply(RenderTraveller r);
+        }
+
+        interface Matcher {
+            boolean matches(EntityTraveller e);
         }
     }
 }

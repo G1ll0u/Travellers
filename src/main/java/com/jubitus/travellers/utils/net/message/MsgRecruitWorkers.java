@@ -18,14 +18,22 @@ import java.util.List;
 public class MsgRecruitWorkers implements IMessage {
     private int workerId;
 
-    public MsgRecruitWorkers() {}
-    public MsgRecruitWorkers(int workerId) { this.workerId = workerId; }
+    public MsgRecruitWorkers() {
+    }
+
+    public MsgRecruitWorkers(int workerId) {
+        this.workerId = workerId;
+    }
 
     @Override
-    public void fromBytes(ByteBuf buf) { workerId = buf.readInt(); }
+    public void fromBytes(ByteBuf buf) {
+        workerId = buf.readInt();
+    }
 
     @Override
-    public void toBytes(ByteBuf buf) { buf.writeInt(workerId); }
+    public void toBytes(ByteBuf buf) {
+        buf.writeInt(workerId);
+    }
 
     public static class Handler implements IMessageHandler<MsgRecruitWorkers, IMessage> {
         @Override

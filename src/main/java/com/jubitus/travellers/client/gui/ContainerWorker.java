@@ -9,6 +9,7 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
+
 public class ContainerWorker extends Container {
 
     private static final int WORKER_SLOTS = 18;
@@ -51,12 +52,6 @@ public class ContainerWorker extends Container {
 
     public void markJobStarted() {
         this.jobStarted = true;
-    }
-
-    @Override
-    public boolean canInteractWith(EntityPlayer playerIn) {
-        return worker.isEntityAlive()
-                && worker.getDistanceSq(playerIn) <= 64.0D;
     }
 
     @Override
@@ -146,6 +141,12 @@ public class ContainerWorker extends Container {
 
         // 3) Only now call super (removes listener etc.)
         super.onContainerClosed(playerIn);
+    }
+
+    @Override
+    public boolean canInteractWith(EntityPlayer playerIn) {
+        return worker.isEntityAlive()
+                && worker.getDistanceSq(playerIn) <= 64.0D;
     }
 
 }

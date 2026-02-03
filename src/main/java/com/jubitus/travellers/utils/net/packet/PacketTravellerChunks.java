@@ -7,8 +7,6 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -111,7 +109,11 @@ public class PacketTravellerChunks implements IMessage {
             return null;
         }
     }
+
     public static class NoopHandler implements IMessageHandler<PacketTravellerChunks, IMessage> {
-        @Override public IMessage onMessage(PacketTravellerChunks msg, MessageContext ctx) { return null; }
+        @Override
+        public IMessage onMessage(PacketTravellerChunks msg, MessageContext ctx) {
+            return null;
+        }
     }
 }

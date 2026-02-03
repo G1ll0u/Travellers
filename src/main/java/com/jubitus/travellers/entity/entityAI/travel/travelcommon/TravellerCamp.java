@@ -4,11 +4,7 @@ import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerDog;
 import net.minecraft.block.Block;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.ai.EntityAITarget;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
@@ -23,20 +19,18 @@ public class TravellerCamp {
     private final EntityTraveller owner;
     public long campLeaveTime = 0L;   // world time, not ticksExisted
     public long campLeaveTick;
-    int campRoamCooldown = 0;         // next time to pick a roam target
     public int campSwingTimer = 0;
     public int campGlobalCooldown = 0;       // leader cooldown gate
     public int campJoinCooldown = 0;
-
     @Nullable
     public BlockPos campfirePos = null;
-    boolean campLeader = false;
-
     // --- Camp social state ---
     @Nullable
     public EntityTraveller socialPeer = null;
     public int socialTicks = 0;
     public int socialCooldown = 0;
+    int campRoamCooldown = 0;         // next time to pick a roam target
+    boolean campLeader = false;
 
     public TravellerCamp(EntityTraveller owner) {
         this.owner = owner;
@@ -225,57 +219,5 @@ public class TravellerCamp {
         this.socialCooldown = 40 + owner.getRNG().nextInt(60);
     }
 
-    public static class AIMirrorOwnerAttackTarget extends EntityAITarget {
-        private final EntityTravellerDog dog;
 
-        public AIMirrorOwnerAttackTarget(EntityTravellerDog dog) {
-            super(dog, false);
-            this.dog = dog;
-            this.setMutexBits(1);
-        }
-
-        @Override
-        public boolean shouldExecute() {
-            EntityLivingBase owner = dog.getOwner();
-            if (owner == null) return false;
-
-            EntityLivingBase ownerTgt = ownersAttackTarget(owner);
-            if (ownerTgt == null) return false;
-            if (!EntityTravellerDog.canAttackSameAsOwner(dog, ownerTgt)) return false;
-
-            return dog.getAttackTarget() != ownerTgt;
-        }
-
-        @Nullable
-        private EntityLivingBase ownersAttackTarget(EntityLivingBase owner) {
-            // Only EntityLiving (not plain EntityLivingBase) has getAttackTarget() in 1.12
-            return (owner instanceof EntityLiving)
-                    ? ((EntityLiving) owner).getAttackTarget()
-                    : null;
-        }
-
-        @Override
-        public boolean shouldContinueExecuting() {
-            EntityLivingBase owner = dog.getOwner();
-            EntityLivingBase tgt = dog.getAttackTarget();
-            if (owner == null || tgt == null || !tgt.isEntityAlive()) return false;
-
-            EntityLivingBase ownerTgt = ownersAttackTarget(owner);
-            return ownerTgt == tgt || owner.getDistance(tgt) < 24.0F;
-        }
-
-        @Override
-        public void startExecuting() {
-            EntityLivingBase owner = dog.getOwner();
-            if (owner == null) return;
-
-            EntityLivingBase ownerTgt = ownersAttackTarget(owner);
-            if (ownerTgt != null && EntityTravellerDog.canAttackSameAsOwner(dog, ownerTgt)) {
-                dog.setAttackTarget(ownerTgt);
-                dog.setSitting(false);
-                dog.getNavigator().clearPath();
-            }
-            super.startExecuting();
-        }
-    }
 }

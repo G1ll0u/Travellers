@@ -2,11 +2,12 @@ package com.jubitus.travellers.entity.travellers;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.follow.AIDogCompanionFollow;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerCamp;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIFollowOwner;
+import net.minecraft.entity.ai.EntityAITarget;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
@@ -22,14 +23,12 @@ import java.util.UUID;
 
 public class EntityTravellerDog extends EntityWolf {
     // === Orphan flow ===
-    private static final int ORPHAN_SIT_TIME_TICKS = 20 * 20; // ~20s, tune to taste
-    private static final int ORPHAN_RECHECK_EVERY = 40;     // recheck owner every ~2s
+    private static final int ORPHAN_SIT_TIME_TICKS = 10 * 20; // ~20s, tune to taste
     // --- Config knobs ---
-    private static final int ORPHAN_SIT_TICKS = 20 * 20;      // ~20s mourn
+    private static final int ORPHAN_SIT_TICKS = 10 * 20;      // ~20s mourn
     private static final int ORPHAN_SCAN_COOLDOWN = 40;       // scan every 2s
     private static final double ADOPT_SCAN_RADIUS = 16.0D;    // search radius
-    private static final UUID SPEED_BOOST_UUID =
-            UUID.fromString("8a5f1c42-1c7f-4a63-9f3d-7f4b6d2a0a11");
+
     private final int orphanSinceTick = -1; // -1 = not orphaned / unknown yet
     // --- Orphan state ---
     private boolean orphaned = false;
@@ -127,11 +126,11 @@ public class EntityTravellerDog extends EntityWolf {
                 this.tasks.removeTask(e.action);
             }
         }
-
+        this.targetTasks.addTask(1, new AIDogDefendOwner(this));
         // New companion follow (priority a bit higher than travel)
-        this.tasks.addTask(4, new AIDogCompanionFollow(this, 1.1D)); // match travellers speed
+        this.tasks.addTask(6, new AIDogCompanionFollow(this, 1.1D)); // match travellers speed
 
-        this.targetTasks.addTask(3, new TravellerCamp.AIMirrorOwnerAttackTarget(this));
+        this.targetTasks.addTask(3, new AIMirrorOwnerAttackTarget(this));
     }
 
     @Override
@@ -427,5 +426,105 @@ public class EntityTravellerDog extends EntityWolf {
             }
         }
     }
+
+    public static class AIMirrorOwnerAttackTarget extends EntityAITarget {
+        private final EntityTravellerDog dog;
+
+        public AIMirrorOwnerAttackTarget(EntityTravellerDog dog) {
+            super(dog, false);
+            this.dog = dog;
+            this.setMutexBits(1);
+        }
+
+        @Override
+        public boolean shouldExecute() {
+            EntityLivingBase owner = dog.getOwner();
+            if (owner == null) return false;
+
+            EntityLivingBase ownerTgt = ownersAttackTarget(owner);
+            if (ownerTgt == null) return false;
+            if (!EntityTravellerDog.canAttackSameAsOwner(dog, ownerTgt)) return false;
+
+            return dog.getAttackTarget() != ownerTgt;
+        }
+
+        @Nullable
+        private EntityLivingBase ownersAttackTarget(EntityLivingBase owner) {
+            // Only EntityLiving (not plain EntityLivingBase) has getAttackTarget() in 1.12
+            return (owner instanceof EntityLiving)
+                    ? ((EntityLiving) owner).getAttackTarget()
+                    : null;
+        }
+
+        @Override
+        public boolean shouldContinueExecuting() {
+            EntityLivingBase owner = dog.getOwner();
+            EntityLivingBase tgt = dog.getAttackTarget();
+            if (owner == null || tgt == null || !tgt.isEntityAlive()) return false;
+
+            EntityLivingBase ownerTgt = ownersAttackTarget(owner);
+            return ownerTgt == tgt || owner.getDistance(tgt) < 24.0F;
+        }
+
+        @Override
+        public void startExecuting() {
+            EntityLivingBase owner = dog.getOwner();
+            if (owner == null) return;
+
+            EntityLivingBase ownerTgt = ownersAttackTarget(owner);
+            if (ownerTgt != null && EntityTravellerDog.canAttackSameAsOwner(dog, ownerTgt)) {
+                dog.setAttackTarget(ownerTgt);
+                dog.setSitting(false);
+                dog.getNavigator().clearPath();
+            }
+            super.startExecuting();
+        }
+    }
+
+    public static class AIDogDefendOwner extends EntityAITarget {
+        private final EntityTravellerDog dog;
+        private EntityLivingBase attacker;
+        private int lastRevengeTimer;
+
+        public AIDogDefendOwner(EntityTravellerDog dog) {
+            super(dog, false);
+            this.dog = dog;
+            this.setMutexBits(1);
+        }
+
+        @Override
+        public boolean shouldExecute() {
+            EntityLivingBase owner = dog.getOwner();
+            if (owner == null) return false;
+
+            // Sitting wolves/tameables don't defend/attack in vanilla
+            if (dog.isSitting()) return false;
+
+            EntityLivingBase revenge = owner.getRevengeTarget(); // <-- "who hurt me"
+            if (revenge == null || !revenge.isEntityAlive()) return false;
+
+            int rt = owner.getRevengeTimer();
+            if (rt == lastRevengeTimer) return false; // same attacker event as last time
+
+            if (!EntityTravellerDog.canAttackSameAsOwner(dog, revenge)) return false;
+            if (!this.isSuitableTarget(revenge, false)) return false;
+
+            attacker = revenge;
+            return true;
+        }
+
+        @Override
+        public void startExecuting() {
+            dog.setAttackTarget(attacker);
+            dog.setSitting(false);
+            dog.getNavigator().clearPath();
+
+            EntityLivingBase owner = dog.getOwner();
+            if (owner != null) lastRevengeTimer = owner.getRevengeTimer();
+
+            super.startExecuting();
+        }
+    }
+
 }
 

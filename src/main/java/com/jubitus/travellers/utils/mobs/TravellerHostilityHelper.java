@@ -7,7 +7,8 @@ public final class TravellerHostilityHelper {
     private static boolean lavaCowChecked = false;
     private static Class<?> lavaCowAggressiveClass = null;
 
-    private TravellerHostilityHelper() {}
+    private TravellerHostilityHelper() {
+    }
 
     public static boolean isLavaCowAggressive(Entity e) {
         if (e == null) return false;

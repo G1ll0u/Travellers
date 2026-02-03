@@ -4,6 +4,7 @@ import com.jubitus.travellers.client.gui.*;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -49,6 +50,16 @@ public class ClientGuiHandler extends CommonGuiHandler {
                     ? new GuiWorkerBehavior(player, (EntityTravellerWorker) e)
                     : null;
         }
+        if (id == TravellersGuiIds.HOME_NAME_PROMPT) {
+            return new GuiHomeNamePrompt(player, new BlockPos(x, y, z));
+        }
+        if (id == TravellersGuiIds.WORKER_HOME_LIST) {
+            Entity e = world.getEntityByID(x);
+            return (e instanceof EntityTravellerWorker)
+                    ? new GuiWorkerHomeList(player, (EntityTravellerWorker) e)
+                    : null;
+        }
+
         return null;
     }
 }

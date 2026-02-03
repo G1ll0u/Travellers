@@ -1,7 +1,7 @@
 package com.jubitus.travellers.utils.debug;
 
-import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.WorldServer;
@@ -51,7 +51,7 @@ public class TravellerChunkSnapshot {
         Set<ChunkPos> merchant = new HashSet<>();
 
         net.minecraft.world.gen.ChunkProviderServer cps =
-                (net.minecraft.world.gen.ChunkProviderServer) world.getChunkProvider();
+                world.getChunkProvider();
 
         // 1.12.2: getLoadedChunks() exists; if not in your mappings, adapt/reflection
         for (net.minecraft.world.chunk.Chunk chunk : cps.getLoadedChunks()) {

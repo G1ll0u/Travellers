@@ -6,7 +6,8 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
 public final class ClientGuiOpener {
-    private ClientGuiOpener() {}
+    private ClientGuiOpener() {
+    }
 
     public static void openTravellerChunks(TravellerChunkSnapshot snapshot) {
         net.minecraft.client.Minecraft.getMinecraft()

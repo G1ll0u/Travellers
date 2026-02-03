@@ -47,7 +47,8 @@ public class AIDogCompanionFollow extends EntityAIBase {
     @Override
     public boolean shouldExecute() {
         owner = dog.getOwner();
-
+        if (dog.getAttackTarget() != null) return false;
+        if (dog.getRevengeTarget() != null) return false;
         if (owner == null) return false;
         if (!dog.isTamed()) return false;
         if (owner instanceof EntityPlayer && ((EntityPlayer) owner).isSpectator()) return false;
@@ -59,8 +60,17 @@ public class AIDogCompanionFollow extends EntityAIBase {
     @Override
     public boolean shouldContinueExecuting() {
         if (owner == null || !owner.isEntityAlive()) return false;
+
+        // ✅ STOP following if combat starts, so melee AI can run
+        if (dog.getAttackTarget() != null) return false;
+        if (dog.getRevengeTarget() != null) return false;
+
+        // Optional but recommended: sitting dogs shouldn't keep pathing
+        if (dog.isSitting()) return false;
+
         return !dog.shouldRunOrphanTravel();
     }
+
 
     @Override
     public void startExecuting() {
@@ -82,7 +92,11 @@ public class AIDogCompanionFollow extends EntityAIBase {
     @Override
     public void updateTask() {
         if (owner == null) return;
-
+// ✅ If combat started, don't fight the combat AI over navigation
+        if (dog.getAttackTarget() != null || dog.getRevengeTarget() != null) {
+            dog.getNavigator().clearPath();
+            return;
+        }
         dog.getLookHelper().setLookPositionWithEntity(owner, 30.0F, 30.0F);
 
         // === Owner movement tracking (horizontal only) ===

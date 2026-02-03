@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui;
 
+import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.net.message.MsgRecruitStartSelectedVillages;
@@ -9,29 +10,28 @@ import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.millenaire.common.utilities.MillCommonUtilities;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public class GuiWorkerRecruit extends GuiContainer {
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
-
-    private GuiButton startButton;
-    private GuiButton clearButton;
-
-    private int listX, listY, listW, listH;
-    private int rowH = 12;
-
-    private int lastFee = 0;
-
     private final List<VillageRow> villages = new ArrayList<>();
     private final java.util.Set<Integer> selected = new java.util.HashSet<>();
+    private GuiButton startButton;
+    private GuiButton clearButton;
+    private int listX, listY, listW, listH;
+    private final int rowH = 12;
+    private int lastFee = 0;
 
     public GuiWorkerRecruit(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorkerRecruit(player.inventory, worker));
@@ -47,7 +47,7 @@ public class GuiWorkerRecruit extends GuiContainer {
 
         int shiftLeft = 40;
         this.guiLeft = Math.max(4, this.guiLeft - shiftLeft);
-        this.guiTop  = (this.height - this.ySize) / 2;
+        this.guiTop = (this.height - this.ySize) / 2;
 
         this.listW = 140;
         this.listH = 120;
@@ -70,6 +70,163 @@ public class GuiWorkerRecruit extends GuiContainer {
 
         // reuse existing request
         TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
+    }
+
+    private void recomputeFee() {
+        if (selected.isEmpty()) {
+            lastFee = 0;
+            startButton.enabled = false;
+            return;
+        }
+
+        java.util.List<Integer> sel = new java.util.ArrayList<>(selected);
+        java.util.Collections.sort(sel);
+
+        java.util.List<BlockPos> route = new java.util.ArrayList<>();
+        for (int idx : sel) route.add(villages.get(idx).center);
+
+        // start/end at player pos (simple + feels right)
+        BlockPos start = player.getPosition();
+        BlockPos end = player.getPosition();
+
+        int dist = EntityTravellerWorker.computeRouteDistance2D(start, route, end);
+        lastFee = EntityTravellerWorker.computeRecruitFee(dist, route.size());
+
+        int money = MillCommonUtilities.countMoney(player.inventory);
+        startButton.enabled = (money >= lastFee);
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+
+        drawVillageList(mouseX, mouseY);
+        this.renderHoveredToolTip(mouseX, mouseY);
+    }
+
+    @Override
+    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+
+        if (mouseButton == 0 && !villages.isEmpty()) {
+            if (mouseX >= listX && mouseX < listX + listW &&
+                    mouseY >= listY && mouseY < listY + listH) {
+
+                int idx = (mouseY - listY) / rowH;
+                if (idx >= 0 && idx < villages.size()) {
+                    int minD = TravellersModConfig.recruitMinVillageDistance;
+                    int dist = villages.get(idx).distance;
+
+                    if (dist < minD) {
+                        // too close, ignore click
+                        player.sendMessage(new TextComponentString(
+                                TextFormatting.RED + "Too close to recruit. Minimum distance: " + minD + "m"
+                        ));
+                        return;
+                    }
+
+                    if (selected.contains(idx)) selected.remove(idx);
+                    else selected.add(idx);
+
+                    recomputeFee();
+
+                }
+            }
+        }
+    }
+
+    private void drawVillageList(int mouseX, int mouseY) {
+        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
+
+        int money = MillCommonUtilities.countMoney(player.inventory);
+        String feeStr = MillCommonUtilities.getShortPrice(lastFee);
+        int col = (money >= lastFee) ? 0x00FF00 : 0xFF5555;
+        this.fontRenderer.drawString("Fee: " + feeStr, listX, listY - 10, col);
+
+        int rows = Math.min(listH / rowH, villages.size());
+        for (int i = 0; i < rows; i++) {
+            int rowTop = listY + i * rowH;
+            int rowBottom = rowTop + rowH;
+
+            boolean hovered = mouseX >= listX && mouseX < listX + listW
+                    && mouseY >= rowTop && mouseY < rowBottom;
+
+            boolean isSel = selected.contains(i);
+
+            int bg = isSel ? 0x4033FF33 : (hovered ? 0x20FFFFFF : 0x20000000);
+            drawRect(listX, rowTop, listX + listW, rowBottom, bg);
+
+            VillageRow row = villages.get(i);
+            String prefix = isSel ? "[X] " : "[ ] ";
+            final float scale = 0.85F; // same idea as GuiWorker
+
+            String label = makeRowLabel(row, scale); // <-- reuse your code
+
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
+            GlStateManager.scale(scale, scale, 1.0F);
+            this.fontRenderer.drawString((isSel ? "[X] " : "[ ] ") + label, 0, 0, 0xE0E0E0);
+            GlStateManager.popMatrix();
+        }
+    }
+
+    private String makeRowLabel(VillageRow row, float scale) {
+        String full = row.display;
+        String distSuffix = " (" + row.distance + "m)";
+
+        String baseName = full;
+        int idx = full.lastIndexOf(" (");
+        if (idx > 0 && full.endsWith("m)")) {
+            baseName = full.substring(0, idx);
+        }
+
+        int maxUnscaledWidth = (int) ((this.listW - 6) / scale);
+        return shortenNameWithSuffix(baseName, distSuffix, maxUnscaledWidth);
+    }
+
+    private String shortenNameWithSuffix(String name, String suffix, int maxWidth) {
+        int fullWidth = this.fontRenderer.getStringWidth(name + suffix);
+        if (fullWidth <= maxWidth) return name + suffix;
+
+        int suffixWidth = this.fontRenderer.getStringWidth(suffix);
+        if (suffixWidth >= maxWidth) return this.fontRenderer.trimStringToWidth(suffix, maxWidth);
+
+        int remaining = maxWidth - suffixWidth;
+
+        int nameWidth = this.fontRenderer.getStringWidth(name);
+        if (nameWidth <= remaining) return name + suffix;
+
+        String ellipsis = "...";
+        int ellWidth = this.fontRenderer.getStringWidth(ellipsis);
+        if (ellWidth >= remaining) return suffix;
+
+        int half = (remaining - ellWidth) / 2;
+
+        StringBuilder prefix = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            String candidate = prefix.toString() + name.charAt(i);
+            if (this.fontRenderer.getStringWidth(candidate) > half) break;
+            prefix.append(name.charAt(i));
+        }
+
+        StringBuilder tail = new StringBuilder();
+        for (int i = name.length() - 1; i >= 0; i--) {
+            String candidate = name.charAt(i) + tail.toString();
+            int w = this.fontRenderer.getStringWidth(prefix + ellipsis + candidate);
+            if (w > remaining) break;
+            tail.insert(0, name.charAt(i));
+        }
+
+        return prefix + ellipsis + tail + suffix;
     }
 
     // called by MsgWorkerVillageList
@@ -116,154 +273,16 @@ public class GuiWorkerRecruit extends GuiContainer {
         super.actionPerformed(button);
     }
 
-    @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        super.mouseClicked(mouseX, mouseY, mouseButton);
-
-        if (mouseButton == 0 && !villages.isEmpty()) {
-            if (mouseX >= listX && mouseX < listX + listW &&
-                    mouseY >= listY && mouseY < listY + listH) {
-
-                int idx = (mouseY - listY) / rowH;
-                if (idx >= 0 && idx < villages.size()) {
-                    if (selected.contains(idx)) selected.remove(idx);
-                    else selected.add(idx);
-                    recomputeFee();
-                }
-            }
-        }
-    }
-
-    private void recomputeFee() {
-        if (selected.isEmpty()) {
-            lastFee = 0;
-            startButton.enabled = false;
-            return;
-        }
-
-        java.util.List<Integer> sel = new java.util.ArrayList<>(selected);
-        java.util.Collections.sort(sel);
-
-        java.util.List<BlockPos> route = new java.util.ArrayList<>();
-        for (int idx : sel) route.add(villages.get(idx).center);
-
-        // start/end at player pos (simple + feels right)
-        BlockPos start = player.getPosition();
-        BlockPos end = player.getPosition();
-
-        int dist = EntityTravellerWorker.computeRouteDistance2D(start, route, end);
-        lastFee = EntityTravellerWorker.computeRecruitFee(dist, route.size());
-
-        int money = MillCommonUtilities.countMoney(player.inventory);
-        startButton.enabled = (money >= lastFee);
-    }
-
-    @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
-        super.drawScreen(mouseX, mouseY, partialTicks);
-
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-
-        drawVillageList(mouseX, mouseY);
-        this.renderHoveredToolTip(mouseX, mouseY);
-    }
-
-    @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-
-    }
-
-    private void drawVillageList(int mouseX, int mouseY) {
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
-
-        int money = MillCommonUtilities.countMoney(player.inventory);
-        String feeStr = MillCommonUtilities.getShortPrice(lastFee);
-        int col = (money >= lastFee) ? 0x00FF00 : 0xFF5555;
-        this.fontRenderer.drawString("Fee: " + feeStr, listX, listY - 10, col);
-
-        int rows = Math.min(listH / rowH, villages.size());
-        for (int i = 0; i < rows; i++) {
-            int rowTop = listY + i * rowH;
-            int rowBottom = rowTop + rowH;
-
-            boolean hovered = mouseX >= listX && mouseX < listX + listW
-                    && mouseY >= rowTop && mouseY < rowBottom;
-
-            boolean isSel = selected.contains(i);
-
-            int bg = isSel ? 0x4033FF33 : (hovered ? 0x20FFFFFF : 0x20000000);
-            drawRect(listX, rowTop, listX + listW, rowBottom, bg);
-
-            VillageRow row = villages.get(i);
-            String prefix = isSel ? "[X] " : "[ ] ";
-            final float scale = 0.85F; // same idea as GuiWorker
-
-            String label = makeRowLabel(row, scale); // <-- reuse your code
-
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
-            GlStateManager.scale(scale, scale, 1.0F);
-            this.fontRenderer.drawString((isSel ? "[X] " : "[ ] ") + label, 0, 0, 0xE0E0E0);
-            GlStateManager.popMatrix();
-        }
-    }
-
     private static class VillageRow {
         final BlockPos center;
         final String display;
         final int distance;
-        VillageRow(BlockPos c, String d, int dist) { center = c; display = d; distance = dist; }
-    }
-    private String makeRowLabel(VillageRow row, float scale) {
-        String full = row.display;
-        String distSuffix = " (" + row.distance + "m)";
 
-        String baseName = full;
-        int idx = full.lastIndexOf(" (");
-        if (idx > 0 && full.endsWith("m)")) {
-            baseName = full.substring(0, idx);
+        VillageRow(BlockPos c, String d, int dist) {
+            center = c;
+            display = d;
+            distance = dist;
         }
-
-        int maxUnscaledWidth = (int) ((this.listW - 6) / scale);
-        return shortenNameWithSuffix(baseName, distSuffix, maxUnscaledWidth);
-    }
-
-    private String shortenNameWithSuffix(String name, String suffix, int maxWidth) {
-        int fullWidth = this.fontRenderer.getStringWidth(name + suffix);
-        if (fullWidth <= maxWidth) return name + suffix;
-
-        int suffixWidth = this.fontRenderer.getStringWidth(suffix);
-        if (suffixWidth >= maxWidth) return this.fontRenderer.trimStringToWidth(suffix, maxWidth);
-
-        int remaining = maxWidth - suffixWidth;
-
-        int nameWidth = this.fontRenderer.getStringWidth(name);
-        if (nameWidth <= remaining) return name + suffix;
-
-        String ellipsis = "...";
-        int ellWidth = this.fontRenderer.getStringWidth(ellipsis);
-        if (ellWidth >= remaining) return suffix;
-
-        int half = (remaining - ellWidth) / 2;
-
-        StringBuilder prefix = new StringBuilder();
-        for (int i = 0; i < name.length(); i++) {
-            String candidate = prefix.toString() + name.charAt(i);
-            if (this.fontRenderer.getStringWidth(candidate) > half) break;
-            prefix.append(name.charAt(i));
-        }
-
-        StringBuilder tail = new StringBuilder();
-        for (int i = name.length() - 1; i >= 0; i--) {
-            String candidate = name.charAt(i) + tail.toString();
-            int w = this.fontRenderer.getStringWidth(prefix.toString() + ellipsis + candidate);
-            if (w > remaining) break;
-            tail.insert(0, name.charAt(i));
-        }
-
-        return prefix.toString() + ellipsis + tail.toString() + suffix;
     }
 
 }

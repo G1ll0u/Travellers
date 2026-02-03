@@ -2,8 +2,8 @@ package com.jubitus.travellers.utils.net.message;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -23,7 +23,8 @@ public class MsgWorkerRequestVillages implements IMessage {
 
     private int workerId;
 
-    public MsgWorkerRequestVillages() {}
+    public MsgWorkerRequestVillages() {
+    }
 
     public MsgWorkerRequestVillages(int workerId) {
         this.workerId = workerId;

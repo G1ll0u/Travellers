@@ -1,4 +1,3 @@
-
 package com.jubitus.travellers.client.render;
 
 import net.minecraft.client.model.ModelBase;
@@ -44,6 +43,12 @@ public class ModelBackpack extends ModelBase {
         root.addChild(pack);
     }
 
+    public void setRotationAngle(ModelRenderer modelRenderer, float x, float y, float z) {
+        modelRenderer.rotateAngleX = x;
+        modelRenderer.rotateAngleY = y;
+        modelRenderer.rotateAngleZ = z;
+    }
+
     @Override
     public void render(Entity entity,
                        float limbSwing,
@@ -53,11 +58,5 @@ public class ModelBackpack extends ModelBase {
                        float headPitch,
                        float scale) {
         root.render(scale);
-    }
-
-    public void setRotationAngle(ModelRenderer modelRenderer, float x, float y, float z) {
-        modelRenderer.rotateAngleX = x;
-        modelRenderer.rotateAngleY = y;
-        modelRenderer.rotateAngleZ = z;
     }
 }

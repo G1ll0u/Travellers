@@ -1,24 +1,24 @@
 package com.jubitus.travellers.entity.travellers;
 
 import com.jubitus.travellers.TravellersModConfig;
-import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
-import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
-import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
-import com.jubitus.travellers.entity.entityAI.ambient.EntityAIFishWhileTravel;
-import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
-import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
-import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
-import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
-import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.entity.entityAI.ambient.EntityAIFishWhileTravel;
+import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
+import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
+import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
+import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
+import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
+import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
+import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
+import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
+import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
+import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.net.message.MsgStopTravellerVoice;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
@@ -42,9 +42,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 
 public class EntityTravellerRaider extends EntityTraveller {
 
@@ -103,17 +100,6 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
 
         return super.getCanSpawnHere();
-    }
-
-    @Override
-    public boolean isAggressiveToTravellers() {
-        return true;
-    }
-
-    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
-        // Never include same-faction travellers (already handled by XOR rule elsewhere)
-        if (other instanceof EntityTraveller) return false;
-        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
     }
 
     @Override
@@ -254,6 +240,12 @@ public class EntityTravellerRaider extends EntityTraveller {
         autoEatTask = null;
     }
 
+    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
+        // Never include same-faction travellers (already handled by XOR rule elsewhere)
+        if (other instanceof EntityTraveller) return false;
+        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
+    }
+
     // Don’t mute combat for creative players; still avoid aggro if you prefer:
     @Override
     public void setAttackTarget(@Nullable EntityLivingBase target) {
@@ -277,7 +269,6 @@ public class EntityTravellerRaider extends EntityTraveller {
             setInCombat(true);
         }
     }
-
 
     @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, @Nullable IEntityLivingData livingdata) {
@@ -415,6 +406,11 @@ public class EntityTravellerRaider extends EntityTraveller {
         return livingdata;
     }
 
+    @Override
+    public boolean processInteract(EntityPlayer player, EnumHand hand) {
+        return false; // ignore right-clicks
+    }
+
 
 //    @Override
 //    public IEntityLivingData onInitialSpawn(DifficultyInstance diff, @Nullable IEntityLivingData data) {
@@ -444,11 +440,6 @@ public class EntityTravellerRaider extends EntityTraveller {
 //
 //        return data;
 //    }
-
-    @Override
-    public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        return false; // ignore right-clicks
-    }
 
     // Disable friendly voice/ambient entirely
     @Override
@@ -513,6 +504,11 @@ public class EntityTravellerRaider extends EntityTraveller {
     protected SoundEvent getHurtSound(DamageSource source) {
         VoiceSet v = CultureRegistry.RAIDER_VOICES.get(getCultureId());
         return (v != null && v.hurt != null) ? v.hurt : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
+    }
+
+    @Override
+    public boolean isAggressiveToTravellers() {
+        return true;
     }
 
     @Override

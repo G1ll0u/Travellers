@@ -3,12 +3,12 @@ package com.jubitus.travellers.entity.travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIMerchantDeliverGoods;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
-import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
-import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.utils.world.spawn.TravellerVillageRegistry;
 import net.minecraft.entity.IEntityLivingData;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -26,18 +26,16 @@ import javax.annotation.Nullable;
 
 public class EntityTravellerMerchant extends EntityTraveller {
 
+    private final boolean hasDepositedHere = false;
+    private final int thRepathCooldown = 0;
     private double baseFollowRange;
     private double boostedFollowRange;
     private boolean usingBoostedNav = false;
     private int stuckAtVillageTicks = 0;
-
     @Nullable
     private MillVillageIndex.BuildingInfo currentTH;
-
     @Nullable
     private BlockPos currentTHVillageCenter;
-    private final boolean hasDepositedHere = false;
-    private final int thRepathCooldown = 0;
     @Nullable
     private BlockPos homeVillageCenter;
 
@@ -49,17 +47,24 @@ public class EntityTravellerMerchant extends EntityTraveller {
     }
     // --- home village API ---
 
-    public void setHomeVillage(@Nullable BlockPos pos) {
-        this.homeVillageCenter = pos;
-    }
-
     @Nullable
     public BlockPos getHomeVillage() {
         return this.homeVillageCenter;
     }
+
+    public void setHomeVillage(@Nullable BlockPos pos) {
+        this.homeVillageCenter = pos;
+    }
+
     protected boolean canDespawn() {
         // Never allow vanilla despawn logic to remove workers
         return false;
+    }
+
+    @Override
+    protected void despawnEntity() {
+        // NO-OP: workers never despawn due to distance / idle checks
+        // (they can still die from damage via setDead/onDeath)
     }
 
     @Override
@@ -69,21 +74,79 @@ public class EntityTravellerMerchant extends EntityTraveller {
     }
 
     @Override
-    protected void despawnEntity() {
-        // NO-OP: workers never despawn due to distance / idle checks
-        // (they can still die from damage via setDead/onDeath)
-    }
-@Override
-public void onUpdate() {
-    super.onUpdate();
+    protected void initEntityAI() {
+        super.initEntityAI();
 
-    if (!this.world.isRemote) {
-        TravellerChunkManager.INSTANCE.onChunkloaderTick(
-                this,
-                TravellersModConfig.merchantChunkRadius
+        // Remove the default travellers AITravel (stepBlocks)
+        removeTaskOfType(EntityAITravel.class);
+
+        // Add our merchant version using merchantStepBlocks
+        this.tasks.addTask(16,
+                new EntityAITravel(
+                        this,
+                        TravellersModConfig.movementSpeedWhileTravel,
+                        TravellersModConfig.merchantStepBlocks
+                )
         );
     }
-}
+
+    @Override
+    protected void applyEntityAttributes() {
+        super.applyEntityAttributes();
+
+        baseFollowRange = TravellersModConfig.merchantFollowRange;
+        boostedFollowRange = baseFollowRange * 4.0D;
+
+        // Override with merchant-specific stats
+        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
+                .setBaseValue(TravellersModConfig.merchantMaxHealth);
+
+        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
+                .setBaseValue(TravellersModConfig.merchantFollowRange);
+
+        // Clamp current health to new max
+        if (this.getHealth() > this.getMaxHealth()) {
+            this.setHealth(this.getMaxHealth());
+        }
+    }
+
+    @Override
+    public void onUpdate() {
+        super.onUpdate();
+
+        if (!this.world.isRemote) {
+            TravellerChunkManager.INSTANCE.onChunkloaderTick(
+                    this,
+                    TravellersModConfig.merchantChunkRadius
+            );
+        }
+    }
+
+    @Override
+    public void writeEntityToNBT(NBTTagCompound nbt) {
+        super.writeEntityToNBT(nbt);
+
+        if (homeVillageCenter != null) {
+            nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
+            nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
+            nbt.setInteger("HomeVillageZ", homeVillageCenter.getZ());
+        }
+    }
+
+    @Override
+    public void readEntityFromNBT(NBTTagCompound nbt) {
+        super.readEntityFromNBT(nbt);
+
+        if (nbt.hasKey("HomeVillageX")) {
+            int x = nbt.getInteger("HomeVillageX");
+            int y = nbt.getInteger("HomeVillageY");
+            int z = nbt.getInteger("HomeVillageZ");
+            this.homeVillageCenter = new BlockPos(x, y, z);
+        } else {
+            this.homeVillageCenter = null;
+        }
+    }
+
     @Override
     public void onLivingUpdate() {
         super.onLivingUpdate();
@@ -113,22 +176,6 @@ public void onUpdate() {
     }
 
     @Override
-    protected void initEntityAI() {
-        super.initEntityAI();
-
-        // Remove the default travellers AITravel (stepBlocks)
-        removeTaskOfType(EntityAITravel.class);
-
-        // Add our merchant version using merchantStepBlocks
-        this.tasks.addTask(16,
-                new EntityAITravel(
-                        this,
-                        TravellersModConfig.movementSpeedWhileTravel,
-                        TravellersModConfig.merchantStepBlocks
-                )
-        );
-    }
-    @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, @Nullable IEntityLivingData livingdata) {
         livingdata = super.onInitialSpawn(difficulty, livingdata);
 
@@ -142,12 +189,8 @@ public void onUpdate() {
 
         return livingdata;
     }
+    // --- NBT ---
 
-    @Override
-    public void setDead() {
-        // Don't untrack here – this is called during world unload too.
-        super.setDead();
-    }
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
@@ -161,58 +204,11 @@ public void onUpdate() {
 
         super.onDeath(cause);
     }
-    @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-
-        baseFollowRange = TravellersModConfig.merchantFollowRange;
-        boostedFollowRange = baseFollowRange * 4.0D;
-
-        // Override with merchant-specific stats
-        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersModConfig.merchantMaxHealth);
-
-        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(TravellersModConfig.merchantFollowRange);
-
-        // Clamp current health to new max
-        if (this.getHealth() > this.getMaxHealth()) {
-            this.setHealth(this.getMaxHealth());
-        }
-    }
-    // --- NBT ---
 
     @Override
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-
-        if (homeVillageCenter != null) {
-            nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
-            nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
-            nbt.setInteger("HomeVillageZ", homeVillageCenter.getZ());
-        }
-    }
-
-    @Override
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-
-        if (nbt.hasKey("HomeVillageX")) {
-            int x = nbt.getInteger("HomeVillageX");
-            int y = nbt.getInteger("HomeVillageY");
-            int z = nbt.getInteger("HomeVillageZ");
-            this.homeVillageCenter = new BlockPos(x, y, z);
-        } else {
-            this.homeVillageCenter = null;
-        }
-    }
-
-
-
-    @Nullable
-    private Building getTownHallBuildingFromInfo(MillVillageIndex.BuildingInfo bi) {
-        if (bi == null || bi.location == null) return null;
-        return bi.location.getBuilding(this.world);
+    public void setDead() {
+        // Don't untrack here – this is called during world unload too.
+        super.setDead();
     }
 
     private void updateDynamicNavigation() {
@@ -239,6 +235,12 @@ public void onUpdate() {
 //            // if you want more precise pathing near the player.
 //            aiTravel.setStepBlocks(shouldBoost ? boostedStep : baseStep);
 //        }
+    }
+
+    @Nullable
+    private Building getTownHallBuildingFromInfo(MillVillageIndex.BuildingInfo bi) {
+        if (bi == null || bi.location == null) return null;
+        return bi.location.getBuilding(this.world);
     }
 
 }

@@ -1,5 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
+import com.jubitus.travellers.Travellers;
+import com.jubitus.travellers.client.gui.TravellersGuiIds;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
@@ -53,22 +55,28 @@ public class TravellerHomeChestHandler {
 
         // --- Our custom behaviour: register home chest ---
 
-        TravellerHomeManager.get(world).addHomeChest(player, pos);
+        TravellerHomeManager mgr = TravellerHomeManager.get(world);
 
-        player.sendMessage(new TextComponentString(
-                TextFormatting.GREEN + "This chest is now one of your homes for workers."
-        ));
+// If already registered -> remove immediately
+        if (mgr.isHomeChestOfPlayer(player, pos)) {
+            boolean ok = mgr.removeHomeChest(player, pos);
+            if (ok) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.YELLOW + "Home removed."
+                ));
+                world.playSound(null, pos, SoundEvents.ENTITY_ITEM_BREAK, SoundCategory.PLAYERS, 0.6F, 1.0F);
+            }
+        } else {
+            // Not registered -> open naming prompt GUI
+            player.openGui(
+                    Travellers.INSTANCE,
+                    TravellersGuiIds.HOME_NAME_PROMPT,
+                    world,
+                    pos.getX(), pos.getY(), pos.getZ()
+            );
+        }
 
-        world.playSound(
-                null,
-                pos,
-                SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
-                SoundCategory.PLAYERS,
-                0.5F,
-                1.2F
-        );
-
-        // IMPORTANT: prevent the original ItemSummoningWand.onItemUseFirst logic
+// prevent wand onItemUseFirst
         event.setCanceled(true);
         event.setUseItem(Event.Result.DENY);
         event.setUseBlock(Event.Result.DENY);

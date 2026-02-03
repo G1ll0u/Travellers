@@ -71,7 +71,6 @@ public class LayerTravellerBackpack implements net.minecraft.client.renderer.ent
     }
 
 
-
     @Override
     public boolean shouldCombineTextures() {
         return false;

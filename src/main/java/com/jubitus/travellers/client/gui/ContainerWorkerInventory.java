@@ -50,12 +50,6 @@ public class ContainerWorkerInventory extends Container {
     }
 
     @Override
-    public boolean canInteractWith(EntityPlayer playerIn) {
-        return worker.isEntityAlive()
-                && worker.getDistanceSq(playerIn) <= 64.0D;
-    }
-
-    @Override
     public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
         ItemStack itemstack = ItemStack.EMPTY;
         Slot slot = this.inventorySlots.get(index);
@@ -103,5 +97,11 @@ public class ContainerWorkerInventory extends Container {
     public void onContainerClosed(EntityPlayer playerIn) {
         super.onContainerClosed(playerIn);
         // No rollback: this is the worker’s own storage
+    }
+
+    @Override
+    public boolean canInteractWith(EntityPlayer playerIn) {
+        return worker.isEntityAlive()
+                && worker.getDistanceSq(playerIn) <= 64.0D;
     }
 }

@@ -14,7 +14,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 public class MsgToggleWorkerFollow implements IMessage {
     private int entityId;
 
-    public MsgToggleWorkerFollow() {}
+    public MsgToggleWorkerFollow() {
+    }
+
     public MsgToggleWorkerFollow(int entityId) {
         this.entityId = entityId;
     }

@@ -1,18 +1,17 @@
 package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
 import com.jubitus.travellers.TravellersModConfig;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
+import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.mill.MillenaireVillageDirectory;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -29,10 +28,10 @@ import javax.annotation.Nullable;
 import java.util.*;
 
 public class TravelCommon {
-    private final int lastTravelTick = 0;
-
     public final List<BlockPos> route = new ArrayList<BlockPos>();
+    private final int lastTravelTick = 0;
     private final EntityTraveller owner;
+    private final Set<BlockPos> badVillages = new HashSet<>();
     public List<BlockPos> cachedVillages = Collections.emptyList();
     public int villageCacheTicker = 0;
     // --- AI State Fields (saved to disk)---
@@ -58,8 +57,6 @@ public class TravelCommon {
     // Personality: probability to insert an intermediate stop before the far destination
     public float hopPreference; // 0..1, e.g., 0.0 = never stop at B first, 1.0 = always
     public float lastDesiredTravelYaw;
-
-    private final Set<BlockPos> badVillages = new HashSet<>();
 
     public TravelCommon(EntityTraveller owner) {
         this.owner = owner;
@@ -166,98 +163,6 @@ public class TravelCommon {
         return this.nearestVillage; // may be null if none found yet
     }// was: updateTargetVillage()
 
-    public void updateNearestVillage() {
-        List<BlockPos> villages = getVillagesCached();
-        if (villages.isEmpty()) {
-            this.nearestVillage = null;
-            return;
-        }
-
-        BlockPos me = owner.getPosition();
-        BlockPos best = null;
-        double bestD2 = Double.MAX_VALUE;
-        for (BlockPos v : villages) {
-            double d2 = me.distanceSq(v);
-            if (d2 < bestD2) {
-                bestD2 = d2;
-                best = v;
-            }
-        }
-
-        if (this.nearestVillage == null) {
-            this.nearestVillage = best;
-        } else {
-            double curD2 = me.distanceSq(this.nearestVillage);
-            if (bestD2 + EntityTraveller.NEAR_HYS_DELTA_SQ < curD2) {
-                this.nearestVillage = best;
-            }
-        }
-
-        if (!owner.getEntityWorld().isRemote) syncBodyYawWhileTravelling();
-    }
-
-    public List<BlockPos> getVillagesCached() {
-        if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
-            List<BlockPos> raw = MillVillageIndex.getAllVillageCenters(owner.getEntityWorld());
-
-            if (badVillages.isEmpty()) {
-                cachedVillages = raw;
-            } else {
-                List<BlockPos> filtered = new ArrayList<>(raw.size());
-                for (BlockPos v : raw) {
-                    if (!badVillages.contains(v)) {
-                        filtered.add(v);
-                    }
-                }
-                cachedVillages = filtered;
-            }
-        }
-        return cachedVillages;
-    }
-
-
-    /**
-     * Align torso (renderYawOffset) to travel direction while pathing.
-     */
-    public void syncBodyYawWhileTravelling() {
-        if (owner.isInCombat() || owner.getAttackTarget() != null) return;
-        if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
-
-        double dx = owner.motionX, dz = owner.motionZ;
-
-        // In water, trust the waypoint over noisy motion
-        boolean water = owner.isInWater();
-        if (water || (dx * dx + dz * dz) < 0.0016D) { // speed < 0.04
-            BlockPos wp = owner.getCurrentWaypoint();
-            if (wp == null) return;
-            dx = (wp.getX() + 0.5D) - owner.posX;
-            dz = (wp.getZ() + 0.5D) - owner.posZ;
-            if (dx * dx + dz * dz < 1e-6) return;
-        }
-
-        float desired = (float) (Math.atan2(dz, dx) * 180D / Math.PI) - 90.0F;
-
-        // Low-pass desired yaw to avoid oscillation
-        if (Float.isNaN(lastDesiredTravelYaw)) lastDesiredTravelYaw = desired;
-        lastDesiredTravelYaw = EntityTraveller.rotlerp(
-                lastDesiredTravelYaw,
-                desired,
-                (water ? 6.0F : 10.0F)
-        );
-
-        float bodyTurn = water ? 24.0F : 45.0F;
-        float headTurn = water ? 30.0F : 60.0F;
-        float headLimit = 75.0F;
-
-        owner.rotationYaw = EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn);
-        owner.renderYawOffset = EntityTraveller.rotlerp(owner.renderYawOffset, owner.rotationYaw, bodyTurn);
-        owner.rotationYawHead = EntityTraveller.rotlerp(owner.rotationYawHead, owner.renderYawOffset, headTurn);
-
-        float diff = MathHelper.wrapDegrees(owner.rotationYawHead - owner.renderYawOffset);
-        if (diff < -headLimit) owner.rotationYawHead = owner.renderYawOffset - headLimit;
-        if (diff > headLimit) owner.rotationYawHead = owner.renderYawOffset + headLimit;
-    }
-
     public BlockPos getRoamTarget() {
         return roamTarget;
     }
@@ -280,21 +185,6 @@ public class TravelCommon {
 
     public void setVillageIdleTicks(int villageIdleTicks) {
         this.villageIdleTicks = villageIdleTicks;
-    }
-
-    public void breakNearbyLeaves() {
-        BlockPos base = owner.getPosition();
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                for (int dy = -2; dy <= 2; dy++) {
-                    BlockPos p = base.add(dx, dy, dz);
-                    IBlockState st = owner.world.getBlockState(p);
-                    if (st.getBlock() instanceof BlockLeaves) {
-                        owner.world.destroyBlock(p, true); // drop leaves
-                    }
-                }
-            }
-        }
     }
 
     public float getPathAngleBiasDeg() {
@@ -363,7 +253,6 @@ public class TravelCommon {
         }
 
 
-
         // --- 3) Collect intermediate village stops along the corridor ---
 
         List<BlockPos> mids = collectMidsOnCorridor(
@@ -429,6 +318,41 @@ public class TravelCommon {
 
     }
 
+    private boolean isMerchant() {
+        // Merchants AND workers use strict village-to-village routes
+        return owner instanceof EntityTravellerMerchant
+                || owner instanceof EntityTravellerWorker;
+    }
+
+    public void updateNearestVillage() {
+        List<BlockPos> villages = getVillagesCached();
+        if (villages.isEmpty()) {
+            this.nearestVillage = null;
+            return;
+        }
+
+        BlockPos me = owner.getPosition();
+        BlockPos best = null;
+        double bestD2 = Double.MAX_VALUE;
+        for (BlockPos v : villages) {
+            double d2 = me.distanceSq(v);
+            if (d2 < bestD2) {
+                bestD2 = d2;
+                best = v;
+            }
+        }
+
+        if (this.nearestVillage == null) {
+            this.nearestVillage = best;
+        } else {
+            double curD2 = me.distanceSq(this.nearestVillage);
+            if (bestD2 + EntityTraveller.NEAR_HYS_DELTA_SQ < curD2) {
+                this.nearestVillage = best;
+            }
+        }
+
+        if (!owner.getEntityWorld().isRemote) syncBodyYawWhileTravelling();
+    }
 
     @Nullable
     public BlockPos pickDiverseDestination(BlockPos origin, int maxRadius) {
@@ -504,6 +428,27 @@ public class TravelCommon {
         return pick != null ? pick : candidates.get(owner.getRNG().nextInt(n));
     }
 
+    private List<BlockPos> getWorkerHomeStopsNear(BlockPos origin, int maxRadius) {
+        if (!(owner instanceof EntityTravellerWorker)) return Collections.emptyList();
+
+        World world = owner.getEntityWorld();
+        if (world == null || world.isRemote) return Collections.emptyList();
+
+        List<BlockPos> all = TravellerHomeManager.get(world).getAllHomesInDimension(world);
+        if (all.isEmpty()) return Collections.emptyList();
+
+        long r2 = (long) maxRadius * (long) maxRadius;
+        List<BlockPos> result = new ArrayList<>();
+
+        for (BlockPos p : all) {
+            if (origin.distanceSq(p) <= r2) {
+                result.add(p);
+            }
+        }
+
+        return result;
+    }
+
     /**
      * Returns [v1, v2, ..., dest], where each v is a village near the straight line
      */
@@ -548,6 +493,67 @@ public class TravelCommon {
         Collections.sort(tmp);
         for (Mid m : tmp) mids.add(m.p);
         return mids;
+    }
+
+    public List<BlockPos> getVillagesCached() {
+        if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
+            List<BlockPos> raw = MillVillageIndex.getAllVillageCenters(owner.getEntityWorld());
+
+            if (badVillages.isEmpty()) {
+                cachedVillages = raw;
+            } else {
+                List<BlockPos> filtered = new ArrayList<>(raw.size());
+                for (BlockPos v : raw) {
+                    if (!badVillages.contains(v)) {
+                        filtered.add(v);
+                    }
+                }
+                cachedVillages = filtered;
+            }
+        }
+        return cachedVillages;
+    }
+
+    /**
+     * Align torso (renderYawOffset) to travel direction while pathing.
+     */
+    public void syncBodyYawWhileTravelling() {
+        if (owner.isInCombat() || owner.getAttackTarget() != null) return;
+        if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
+
+        double dx = owner.motionX, dz = owner.motionZ;
+
+        // In water, trust the waypoint over noisy motion
+        boolean water = owner.isInWater();
+        if (water || (dx * dx + dz * dz) < 0.0016D) { // speed < 0.04
+            BlockPos wp = owner.getCurrentWaypoint();
+            if (wp == null) return;
+            dx = (wp.getX() + 0.5D) - owner.posX;
+            dz = (wp.getZ() + 0.5D) - owner.posZ;
+            if (dx * dx + dz * dz < 1e-6) return;
+        }
+
+        float desired = (float) (Math.atan2(dz, dx) * 180D / Math.PI) - 90.0F;
+
+        // Low-pass desired yaw to avoid oscillation
+        if (Float.isNaN(lastDesiredTravelYaw)) lastDesiredTravelYaw = desired;
+        lastDesiredTravelYaw = EntityTraveller.rotlerp(
+                lastDesiredTravelYaw,
+                desired,
+                (water ? 6.0F : 10.0F)
+        );
+
+        float bodyTurn = water ? 24.0F : 45.0F;
+        float headTurn = water ? 30.0F : 60.0F;
+        float headLimit = 75.0F;
+
+        owner.rotationYaw = EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn);
+        owner.renderYawOffset = EntityTraveller.rotlerp(owner.renderYawOffset, owner.rotationYaw, bodyTurn);
+        owner.rotationYawHead = EntityTraveller.rotlerp(owner.rotationYawHead, owner.renderYawOffset, headTurn);
+
+        float diff = MathHelper.wrapDegrees(owner.rotationYawHead - owner.renderYawOffset);
+        if (diff < -headLimit) owner.rotationYawHead = owner.renderYawOffset - headLimit;
+        if (diff > headLimit) owner.rotationYawHead = owner.renderYawOffset + headLimit;
     }
 
     public boolean isAtTargetStop() {
@@ -602,10 +608,6 @@ public class TravelCommon {
         if (r <= 0) r = TravellersModConfig.VILLAGE_NEAR;
         return r;
     }
-
-
-
-
 
     public void maybePlayTravelAmbient() {
         // these three are simple getters on EntityTraveller (see section 2)
@@ -663,7 +665,6 @@ public class TravelCommon {
         }
     }
 
-
     public BlockPos getCurrentWaypoint() {
         return currentWaypoint;
     }
@@ -679,31 +680,7 @@ public class TravelCommon {
     public void setVillageIdling(boolean villageIdling) {
         this.villageIdling = villageIdling;
     }
-    private boolean isMerchant() {
-        // Merchants AND workers use strict village-to-village routes
-        return owner instanceof EntityTravellerMerchant
-                || owner instanceof EntityTravellerWorker;
-    }
-    private List<BlockPos> getWorkerHomeStopsNear(BlockPos origin, int maxRadius) {
-        if (!(owner instanceof EntityTravellerWorker)) return Collections.emptyList();
 
-        World world = owner.getEntityWorld();
-        if (world == null || world.isRemote) return Collections.emptyList();
-
-        List<BlockPos> all = TravellerHomeManager.get(world).getAllHomesInDimension(world);
-        if (all.isEmpty()) return Collections.emptyList();
-
-        long r2 = (long) maxRadius * (long) maxRadius;
-        List<BlockPos> result = new ArrayList<>();
-
-        for (BlockPos p : all) {
-            if (origin.distanceSq(p) <= r2) {
-                result.add(p);
-            }
-        }
-
-        return result;
-    }
     public void markVillageBad(BlockPos center) {
         if (center != null) {
             badVillages.add(center);

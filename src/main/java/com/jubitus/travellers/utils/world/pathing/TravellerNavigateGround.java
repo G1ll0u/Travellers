@@ -1,27 +1,20 @@
 package com.jubitus.travellers.utils.world.pathing;
 
-import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
-import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
-import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
-import net.minecraft.init.Blocks;
-import net.minecraft.pathfinding.Path;
 import net.minecraft.pathfinding.PathFinder;
 import net.minecraft.pathfinding.PathNavigateGround;
 import net.minecraft.pathfinding.PathPoint;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
-import javax.annotation.Nullable;
-
 public class TravellerNavigateGround extends PathNavigateGround {
+    private TravellerNodeProcessor travellerProc;
+    private PathFinder travellerFinder;
     // --- Gap jump state ---
     private int gapJumpTicks = 0;
     private Vec3d gapJumpDir = Vec3d.ZERO;
@@ -36,19 +29,88 @@ public class TravellerNavigateGround extends PathNavigateGround {
     private double landCenterX = 0.0;
     private double landCenterZ = 0.0;
     private int gapEtaTicks = 0; // how many ticks we EXPECT until we reach landing plane
+    private boolean followerMode = false;
 
     public TravellerNavigateGround(EntityLiving entity, World worldIn) {
         super(entity, worldIn);
     }
 
+    private static double horizontalDistanceFromInitialSpeed(double v0, int ticks) {
+        double drag = 0.91;
+        double sum = 0.0;
+        double v = v0;
+        for (int i = 0; i < ticks; i++) {
+            sum += v;
+            v *= drag;
+        }
+        return sum;
+    }
+
+    // Find the minimum initial horizontal speed needed to travel 'dist' blocks in 'ticks' airtime.
+    private static double solveRequiredHorizontalSpeed(double dist, int ticks) {
+        double lo = 0.0;
+        double hi = 2.0;
+        for (int it = 0; it < 30; it++) {
+            double mid = (lo + hi) * 0.5;
+            if (horizontalDistanceFromInitialSpeed(mid, ticks) >= dist) hi = mid;
+            else lo = mid;
+        }
+        return hi;
+    }
+
+    // Simulate vanilla-ish jump airtime for vY=0.42 in 1.12.2
+    private static int computeJumpFlightTicks(double deltaY) {
+        double y = 0.0;
+        double vy = 0.42;
+        int t = 0;
+
+        double maxY = 0.0;
+
+        while (t < 200) { // was 60
+            y += vy;
+            if (y > maxY) maxY = y;
+
+            vy = (vy - 0.08) * 0.98;
+            t++;
+
+            // If landing is ABOVE what we can ever reach, fail early
+            if (deltaY > 0.0 && t > 5 && maxY + 1e-3 < deltaY) return -1;
+
+            // “land” when we’re descending and have dropped to the landing plane
+            if (t > 1 && vy < 0.0 && y <= deltaY) break;
+        }
+
+        return t;
+    }
+
+    public void setFollowerMode(boolean followerMode) {
+        this.followerMode = followerMode;
+
+        // make sure processor exists
+        if (travellerProc != null) {
+            travellerProc.setFollowerMode(followerMode);
+        }
+    }
+
     @Override
     protected PathFinder getPathFinder() {
-        TravellerNodeProcessor proc = new TravellerNodeProcessor();
-        proc.setCanEnterDoors(true);
-        proc.setCanOpenDoors(true);
-        proc.setCanSwim(true);
-        this.nodeProcessor = proc;
-        return new PathFinder(proc);
+        // IMPORTANT: lazy init because PathNavigate constructors may call this early
+        if (travellerProc == null) {
+            travellerProc = new TravellerNodeProcessor();
+            travellerProc.setCanEnterDoors(true);
+            travellerProc.setCanOpenDoors(true);
+            travellerProc.setCanSwim(true);
+
+            this.nodeProcessor = travellerProc;
+            travellerFinder = new PathFinder(travellerProc);
+        }
+        return travellerFinder;
+    }
+
+    @Override
+    protected Vec3d getEntityPosition() {
+        // Important: use real feet Y, not rounded
+        return new Vec3d(this.entity.posX, this.entity.getEntityBoundingBox().minY, this.entity.posZ);
     }
 
     // --- NEW: compute the true surface Y for a path node (handles snow layers) ---
@@ -74,6 +136,10 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return best;
     }
 
+
+    // Sum of horizontal displacement with air drag factor per tick.
+// In air, horizontal motion is damped each tick. 0.91 is a decent approximation.
+
     private Vec3d vecForPathPoint(PathPoint p) {
         BlockPos pos = new BlockPos(p.x, p.y, p.z);
 
@@ -85,7 +151,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
         double y = surfaceYForNode(p.x, p.y, p.z);
         return new Vec3d(p.x + 0.5D, y, p.z + 0.5D);
     }
-
 
     // --- NEW: override pathFollow so MoveHelper aims at correct Y (not integer p.y) ---
     @Override
@@ -109,7 +174,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
             }
             int ticksLeft = Math.max(1, gapEtaTicks > 0 ? gapEtaTicks : 1);
 
-            antiStuckTick();
+
             this.entity.getMoveHelper().setMoveTo(this.entity.posX, this.entity.posY, this.entity.posZ, 0.0);
             // Keep pushing forward (drag compensation so post-damping ~= gapJumpSpeed)
             // Recompute direction every tick -> correct drift and hit narrow landings
@@ -118,7 +183,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
             this.entity.setAIMoveSpeed(0.0F);
             double rx = gapLandX - this.entity.posX;
             double rz = gapLandZ - this.entity.posZ;
-            double remaining = Math.sqrt(rx*rx + rz*rz);
+            double remaining = Math.sqrt(rx * rx + rz * rz);
             if (remaining < 0.35 && this.entity.motionY < 0.0) {
                 // final approach: don't keep strong horizontal thrust
                 // (prevents clipping lip / skipping across 1-block water)
@@ -128,7 +193,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
 // recompute gapJumpDir like you already do...
 
 
-            double len = Math.sqrt(rx*rx + rz*rz);
+            double len = Math.sqrt(rx * rx + rz * rz);
             if (len > 1e-6) {
                 gapJumpDir = new Vec3d(rx / len, 0, rz / len);
             }
@@ -159,7 +224,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
             this.entity.motionZ = gapJumpDir.z * (desiredSpeed / dragComp);
 
 
-
             gapJumpTicks--;
             if (gapEtaTicks > 0) gapEtaTicks--;
             // If we landed, brake hard so we don't slide off a 1-block platform
@@ -173,7 +237,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
 
 
         }
-
+        antiStuckTick();
         if (this.currentPath == null || this.currentPath.isFinished()) return;
 
         int idx = this.currentPath.getCurrentPathIndex();
@@ -254,17 +318,24 @@ public class TravellerNavigateGround extends PathNavigateGround {
 
             }
         }
+// --- NEW: Water steering fix ---
+// When in water, DO NOT aim at the land top Y. Aim at current Y so we push horizontally.
+// If we hit the shore wall, trigger "jump" so we climb out.
+        if (this.entity.isInWater()) {
+            this.entity.getMoveHelper().setMoveTo(target.x, this.entity.posY, target.z, this.speed);
+
+            // If we're pressed against a wall, make the mob try to rise/climb out.
+            if (this.entity.collidedHorizontally) {
+                this.entity.getJumpHelper().setJumping(); // works in water as "swim up"
+            }
+            return;
+        }
 
         this.entity.getMoveHelper().setMoveTo(target.x, target.y, target.z, this.speed);
 
+
     }
 
-
-    @Override
-    protected Vec3d getEntityPosition() {
-        // Important: use real feet Y, not rounded
-        return new Vec3d(this.entity.posX, this.entity.getEntityBoundingBox().minY, this.entity.posZ);
-    }
     private void forceGapJumpIfNeeded() {
         if (this.currentPath == null) return;
         if (this.currentPath.isFinished()) return;
@@ -292,9 +363,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
 // (Using block centers causes consistent undershoot/overshoot on 1-block landings.)
         double takeX = this.entity.posX;
         double takeZ = this.entity.posZ;
-
-
-
 
 
         // Also require that the block *in front of takeoff* is actually a gap/hazard below
@@ -346,7 +414,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
 // landing must be dry, passable at feet/head, and have solid support below
 
 
-
         if (landingWater) {
             // must not be lava
             if (this.world.getBlockState(landFeet).getMaterial() != Material.WATER) return;
@@ -360,7 +427,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
             if (isLiquid(landFeet) || isLiquid(landFeet.up())) return;
             if (!isSolidSupport(landFeet.down())) return;
         }
-
 
 
 // the “air corridor” between takeoff and landing must be clear (no water, no blocks)
@@ -417,7 +483,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
         }
 
 
-
         // Fire the jump
         this.entity.motionY = 0.42D;
         this.entity.isAirBorne = true;
@@ -444,7 +509,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
         double corr = 0.04; // small, safe
         double cx = landX - this.entity.posX;
         double cz = landZ - this.entity.posZ;
-        double clen = Math.sqrt(cx*cx + cz*cz);
+        double clen = Math.sqrt(cx * cx + cz * cz);
         if (clen > 1e-6) {
             this.entity.motionX += (cx / clen) * corr;
             this.entity.motionZ += (cz / clen) * corr;
@@ -457,59 +522,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
             landCenterTicks = 0;
         }
 
-    }
-
-
-
-
-    // Sum of horizontal displacement with air drag factor per tick.
-// In air, horizontal motion is damped each tick. 0.91 is a decent approximation.
-
-    private static double horizontalDistanceFromInitialSpeed(double v0, int ticks) {
-        double drag = 0.91;
-        double sum = 0.0;
-        double v = v0;
-        for (int i = 0; i < ticks; i++) {
-            sum += v;
-            v *= drag;
-        }
-        return sum;
-    }
-
-    // Find the minimum initial horizontal speed needed to travel 'dist' blocks in 'ticks' airtime.
-    private static double solveRequiredHorizontalSpeed(double dist, int ticks) {
-        double lo = 0.0;
-        double hi = 2.0;
-        for (int it = 0; it < 30; it++) {
-            double mid = (lo + hi) * 0.5;
-            if (horizontalDistanceFromInitialSpeed(mid, ticks) >= dist) hi = mid;
-            else lo = mid;
-        }
-        return hi;
-    }
-    // Simulate vanilla-ish jump airtime for vY=0.42 in 1.12.2
-    private static int computeJumpFlightTicks(double deltaY) {
-        double y = 0.0;
-        double vy = 0.42;
-        int t = 0;
-
-        double maxY = 0.0;
-
-        while (t < 200) { // was 60
-            y += vy;
-            if (y > maxY) maxY = y;
-
-            vy = (vy - 0.08) * 0.98;
-            t++;
-
-            // If landing is ABOVE what we can ever reach, fail early
-            if (deltaY > 0.0 && t > 5 && maxY + 1e-3 < deltaY) return -1;
-
-            // “land” when we’re descending and have dropped to the landing plane
-            if (t > 1 && vy < 0.0 && y <= deltaY) break;
-        }
-
-        return t;
     }
 
     private boolean isGapOrHazardBelowWorld(BlockPos below) {
@@ -551,6 +563,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
         // no gap detected in-between
         return new BlockPos(prev.x, prev.y, prev.z);
     }
+
     private boolean isLiquid(BlockPos p) {
         return this.world.getBlockState(p).getMaterial().isLiquid();
     }
@@ -566,13 +579,14 @@ public class TravellerNavigateGround extends PathNavigateGround {
         if (s.getMaterial().isLiquid()) return false;
         return s.getCollisionBoundingBox(this.world, p) != null;
     }
+
     private boolean atTakeoffEdge(BlockPos takeoff, int sx, int sz) {
         AxisAlignedBB bb = this.entity.getEntityBoundingBox();
         double eps = 0.12; // how close to the edge we require
 
-        if (sx == 1)  return bb.maxX >= (takeoff.getX() + 1.0 - eps);
+        if (sx == 1) return bb.maxX >= (takeoff.getX() + 1.0 - eps);
         if (sx == -1) return bb.minX <= (takeoff.getX() + eps);
-        if (sz == 1)  return bb.maxZ >= (takeoff.getZ() + 1.0 - eps);
+        if (sz == 1) return bb.maxZ >= (takeoff.getZ() + 1.0 - eps);
         if (sz == -1) return bb.minZ <= (takeoff.getZ() + eps);
 
         return false;
@@ -592,24 +606,27 @@ public class TravellerNavigateGround extends PathNavigateGround {
         if (sz != 0) return Math.abs(cx - tx) <= tol;
         return true;
     }
+
     private boolean nearTakeoffEdgePoint(BlockPos takeoff, int sx, int sz) {
         double edgeX = takeoff.getX() + 0.5 + sx * 0.45;
         double edgeZ = takeoff.getZ() + 0.5 + sz * 0.45;
 
         double dx = this.entity.posX - edgeX;
         double dz = this.entity.posZ - edgeZ;
-        return (dx*dx + dz*dz) <= 0.20 * 0.20; // adjust if needed (0.18..0.25)
+        return (dx * dx + dz * dz) <= 0.20 * 0.20; // adjust if needed (0.18..0.25)
     }
+
     private boolean willCrossTakeoffEdgeNextTick(BlockPos takeoff, int sx, int sz) {
         AxisAlignedBB bb = this.entity.getEntityBoundingBox();
         double eps = 0.08; // a bit looser than 0.06
 
-        if (sx == 1)  return (bb.maxX + this.entity.motionX) >= (takeoff.getX() + 1.0 - eps);
+        if (sx == 1) return (bb.maxX + this.entity.motionX) >= (takeoff.getX() + 1.0 - eps);
         if (sx == -1) return (bb.minX + this.entity.motionX) <= (takeoff.getX() + eps);
-        if (sz == 1)  return (bb.maxZ + this.entity.motionZ) >= (takeoff.getZ() + 1.0 - eps);
+        if (sz == 1) return (bb.maxZ + this.entity.motionZ) >= (takeoff.getZ() + 1.0 - eps);
         if (sz == -1) return (bb.minZ + this.entity.motionZ) <= (takeoff.getZ() + eps);
         return false;
     }
+
     private void antiStuckTick() {
         if (gapJumpTicks > 0) { // don't evaluate while in-air forced
             stuckTicks = 0;
@@ -639,6 +656,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
             stuckZ = this.entity.posZ;
         }
     }
+
     private boolean isHazardBelow(BlockPos below) {
         IBlockState s = this.world.getBlockState(below);
         Material m = s.getMaterial();
@@ -652,13 +670,12 @@ public class TravellerNavigateGround extends PathNavigateGround {
         int px = (sx != 0) ? 0 : 1;
         int pz = (sx != 0) ? 1 : 0;
 
-        BlockPos leftBelow  = new BlockPos(x + px, y - 1, z + pz);
+        BlockPos leftBelow = new BlockPos(x + px, y - 1, z + pz);
         BlockPos rightBelow = new BlockPos(x - px, y - 1, z - pz);
 
         // either side hazardous => treat as narrow (more conservative, fewer slips)
         return isHazardBelow(leftBelow) || isHazardBelow(rightBelow);
     }
-
 
 }
 

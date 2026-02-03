@@ -13,7 +13,8 @@ public class MsgSyncWorkerHostileList implements IMessage {
     private int workerId;
     private java.util.List<String> names = new java.util.ArrayList<>();
 
-    public MsgSyncWorkerHostileList() {}
+    public MsgSyncWorkerHostileList() {
+    }
 
     public MsgSyncWorkerHostileList(int workerId, java.util.List<String> names) {
         this.workerId = workerId;
@@ -57,6 +58,9 @@ public class MsgSyncWorkerHostileList implements IMessage {
 
     // SERVER noop
     public static class NoopHandler implements IMessageHandler<MsgSyncWorkerHostileList, IMessage> {
-        @Override public IMessage onMessage(MsgSyncWorkerHostileList msg, MessageContext ctx) { return null; }
+        @Override
+        public IMessage onMessage(MsgSyncWorkerHostileList msg, MessageContext ctx) {
+            return null;
+        }
     }
 }

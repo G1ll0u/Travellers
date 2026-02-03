@@ -44,7 +44,6 @@ public class TravellerOffscreenHandler {
     }
 
 
-
     @SubscribeEvent
     public static void onLivingAttack(LivingAttackEvent event) {
         if (!(event.getEntityLiving() instanceof EntityTraveller)) return;
@@ -57,6 +56,7 @@ public class TravellerOffscreenHandler {
         // Full immunity from being damaged while off-screen (for this option)
         event.setCanceled(true);
     }
+
     @SubscribeEvent
     public static void onLivingHurt(LivingHurtEvent event) {
         if (!(event.getEntityLiving() instanceof EntityTraveller)) return;
@@ -99,7 +99,6 @@ public class TravellerOffscreenHandler {
 
         event.setAmount(amount);
     }
-
 
 
 }

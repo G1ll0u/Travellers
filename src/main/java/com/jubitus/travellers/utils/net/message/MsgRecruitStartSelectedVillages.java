@@ -1,5 +1,6 @@
 package com.jubitus.travellers.utils.net.message;
 
+import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -20,7 +21,9 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
     private int workerId;
     private List<BlockPos> route;
 
-    public MsgRecruitStartSelectedVillages() {}
+    public MsgRecruitStartSelectedVillages() {
+    }
+
     public MsgRecruitStartSelectedVillages(int workerId, List<BlockPos> route) {
         this.workerId = workerId;
         this.route = route;
@@ -75,6 +78,23 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
             }
 
             if (msg.route == null || msg.route.isEmpty()) return;
+
+            // NEW: reject villages that are too close (server-side authority)
+// NEW: reject villages that are too close (server-side authority)
+            BlockPos origin = player.getPosition();
+            int minD = TravellersModConfig.recruitMinVillageDistance;
+
+            for (BlockPos v : msg.route) {
+                int d = EntityTravellerWorker.dist2D(origin, v);
+                if (d < minD) {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.RED + "That village is too close to recruit from. Minimum distance: " + minD + "m"
+                    ));
+                    return;
+                }
+            }
+
+
 
             // SERVER recompute fee (never trust client)
             BlockPos start = player.getPosition();

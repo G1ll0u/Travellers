@@ -137,10 +137,12 @@ public class EntityAICampPause extends EntityAIBase {
             // Register with the manager so it auto-cleans even across restarts
             int nearRadius = 28;
             long now = mob.world.getTotalWorldTime();
-            long ttl = now + (90 * 20); // ~90s initial budget; we’ll refresh below
+            long ttl = now + (90 * 20);
+            long ttlMs = System.currentTimeMillis() + ((ttl - now) * 50L);
             CampfireManager.get(mob.world).addOrRefresh(
-                    campSpot, mob.dimension, mob.getUniqueID(), ttl, nearRadius
+                    campSpot, mob.dimension, mob.getUniqueID(), ttl, ttlMs, nearRadius
             );
+
 
 // EXAMPLE: fixed 60–120s with triangular-ish random
             int min = 20 * 30;   // 15s
@@ -160,8 +162,10 @@ public class EntityAICampPause extends EntityAIBase {
             // extend to "now + margin"; margin slightly > your check cadence
             long newTtl = now + (20 * 10); // keep 10s of life ahead
             int nearRadius = 28;
+            long ttl = now + (90 * 20);
+            long ttlMs = System.currentTimeMillis() + ((ttl - now) * 50L);
             CampfireManager.get(mob.world).addOrRefresh(
-                    mob.getCampfirePos(), mob.dimension, mob.getUniqueID(), newTtl, nearRadius
+                    campSpot, mob.dimension, mob.getUniqueID(), ttl, ttlMs, nearRadius
             );
         }
     }
@@ -206,9 +210,11 @@ public class EntityAICampPause extends EntityAIBase {
             int nearRadius = 28;
             BlockPos pos = mob.getCampfirePos();
             if (pos != null) {
+                long ttlMs = System.currentTimeMillis() + ((newTtl - now) * 50L);
                 CampfireManager.get(ws).addOrRefresh(
-                        pos, mob.dimension, mob.getUniqueID(), newTtl, nearRadius
+                        pos, mob.dimension, mob.getUniqueID(), newTtl, ttlMs, nearRadius
                 );
+
             }
         }
 // 1) Approach front slot once; then stand there

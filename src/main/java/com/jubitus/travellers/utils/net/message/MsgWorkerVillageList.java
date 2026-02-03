@@ -1,8 +1,8 @@
 package com.jubitus.travellers.utils.net.message;
 
+import com.jubitus.travellers.client.gui.GuiWorker;
 import com.jubitus.travellers.client.gui.GuiWorkerRecruit;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.client.gui.GuiWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -100,6 +100,7 @@ public class MsgWorkerVillageList implements IMessage {
 
             Entity e = world.getEntityByID(msg.workerId);
             if (!(e instanceof EntityTravellerWorker)) {
+
                 return;
             }
 
@@ -111,8 +112,10 @@ public class MsgWorkerVillageList implements IMessage {
             }
         }
     }
+
     public static class NoopHandler implements IMessageHandler<MsgWorkerVillageList, IMessage> {
-        @Override public IMessage onMessage(MsgWorkerVillageList msg, MessageContext ctx) {
+        @Override
+        public IMessage onMessage(MsgWorkerVillageList msg, MessageContext ctx) {
             return null;
         }
     }

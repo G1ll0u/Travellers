@@ -34,10 +34,20 @@ public class GuiWorkerBehavior extends GuiContainer {
         this.buttonList.clear();
 
         int centerX = this.guiLeft + this.xSize / 2;
-        int yBase   = this.guiTop + 40;
+        int yBase = this.guiTop + 40;
 
         enemiesButton = this.addButton(new GuiButton(0, centerX - 60, yBase, 120, 20, "Player enemies"));
-        backButton    = this.addButton(new GuiButton(1, centerX - 60, yBase + 26, 120, 20, "Back"));
+        backButton = this.addButton(new GuiButton(1, centerX - 60, yBase + 26, 120, 20, "Back"));
+    }
+
+    @Override
+    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
+        this.fontRenderer.drawString("Behavior", 8, 6, 0x404040);
+    }
+
+    @Override
+    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+        this.drawDefaultBackground();
     }
 
     @Override
@@ -54,15 +64,5 @@ public class GuiWorkerBehavior extends GuiContainer {
             return;
         }
         super.actionPerformed(button);
-    }
-
-    @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        this.drawDefaultBackground();
-    }
-
-    @Override
-    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        this.fontRenderer.drawString("Behavior", 8, 6, 0x404040);
     }
 }

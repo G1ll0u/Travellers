@@ -5,7 +5,6 @@ import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.net.message.MsgSetWorkerHostile;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.GuiSlot;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.player.EntityPlayer;
@@ -27,7 +26,7 @@ public class GuiWorkerEnemies extends GuiScreen {
 
     // list placement like Recruit
     private int listX, listY, listW, listH;
-    private int rowH = 12;
+    private final int rowH = 12;
 
     // optional: click a name to fill field
     private int hoveredRow = -1;
@@ -36,6 +35,68 @@ public class GuiWorkerEnemies extends GuiScreen {
         this.parent = parent;
         this.player = player;
         this.worker = worker;
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        // this.drawDefaultBackground(); // optional
+
+        int cx = this.width / 2;
+        int cy = this.height / 2;
+
+        this.drawCenteredString(this.fontRenderer, "Add/remove player enemies", cx, cy - 40, 0xFFFFFF);
+        this.drawCenteredString(this.fontRenderer, "(Click a name on the right to fill it)", cx, cy - 28, 0xA0A0A0);
+
+        this.nameField.drawTextBox();
+        super.drawScreen(mouseX, mouseY, partialTicks);
+
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+
+        // compute hover here (if you need it)
+        this.hoveredRow = getRowIndexAt(mouseX, mouseY);
+
+        drawEnemyList(mouseX, mouseY);
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (this.nameField.textboxKeyTyped(typedChar, keyCode)) return;
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        super.mouseClicked(mouseX, mouseY, mouseButton);
+        this.nameField.mouseClicked(mouseX, mouseY, mouseButton);
+
+        // click row to copy name into field
+        if (mouseButton == 0) {
+            java.util.List<String> names = worker.getHostileNamesClient();
+            int idx = getRowIndexAt(mouseX, mouseY);
+            if (idx >= 0 && idx < names.size()) {
+                this.nameField.setText(names.get(idx));
+            }
+        }
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) throws IOException {
+        String name = nameField.getText().trim();
+
+        if (button == addButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(worker.getEntityId(), name, true));
+            nameField.setText("");
+            return;
+        }
+        if (button == removeButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(worker.getEntityId(), name, false));
+            nameField.setText("");
+            return;
+        }
+        if (button == doneButton) {
+            mc.displayGuiScreen(parent);
+        }
     }
 
     @Override
@@ -61,47 +122,6 @@ public class GuiWorkerEnemies extends GuiScreen {
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        String name = nameField.getText().trim();
-
-        if (button == addButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(worker.getEntityId(), name, true));
-            nameField.setText("");
-            return;
-        }
-        if (button == removeButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(worker.getEntityId(), name, false));
-            nameField.setText("");
-            return;
-        }
-        if (button == doneButton) {
-            mc.displayGuiScreen(parent);
-            return;
-        }
-    }
-
-    @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (this.nameField.textboxKeyTyped(typedChar, keyCode)) return;
-        super.keyTyped(typedChar, keyCode);
-    }
-
-    @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        super.mouseClicked(mouseX, mouseY, mouseButton);
-        this.nameField.mouseClicked(mouseX, mouseY, mouseButton);
-
-        // click row to copy name into field
-        if (mouseButton == 0) {
-            java.util.List<String> names = worker.getHostileNamesClient();
-            int idx = getRowIndexAt(mouseX, mouseY);
-            if (idx >= 0 && idx < names.size()) {
-                this.nameField.setText(names.get(idx));
-            }
-        }
-    }
-
-    @Override
     public void updateScreen() {
         this.nameField.updateCursorCounter();
 
@@ -110,28 +130,11 @@ public class GuiWorkerEnemies extends GuiScreen {
         this.removeButton.enabled = hasText;
     }
 
-    @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // this.drawDefaultBackground(); // optional
-
-        int cx = this.width / 2;
-        int cy = this.height / 2;
-
-        this.drawCenteredString(this.fontRenderer, "Add/remove player enemies", cx, cy - 40, 0xFFFFFF);
-        this.drawCenteredString(this.fontRenderer, "(Click a name on the right to fill it)", cx, cy - 28, 0xA0A0A0);
-
-        this.nameField.drawTextBox();
-        super.drawScreen(mouseX, mouseY, partialTicks);
-
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-
-        // compute hover here (if you need it)
-        this.hoveredRow = getRowIndexAt(mouseX, mouseY);
-
-        drawEnemyList(mouseX, mouseY);
+    private int getRowIndexAt(int mouseX, int mouseY) {
+        if (mouseX < listX || mouseX >= listX + listW) return -1;
+        if (mouseY < listY || mouseY >= listY + listH) return -1;
+        return (mouseY - listY) / rowH;
     }
-
 
     private void drawEnemyList(int mouseX, int mouseY) {
         java.util.List<String> names = worker.getHostileNamesClient();
@@ -166,11 +169,5 @@ public class GuiWorkerEnemies extends GuiScreen {
             this.fontRenderer.drawString(label, 0, 0, 0xE0E0E0);
             GlStateManager.popMatrix();
         }
-    }
-
-    private int getRowIndexAt(int mouseX, int mouseY) {
-        if (mouseX < listX || mouseX >= listX + listW) return -1;
-        if (mouseY < listY || mouseY >= listY + listH) return -1;
-        return (mouseY - listY) / rowH;
     }
 }

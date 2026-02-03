@@ -9,28 +9,15 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 
+import javax.annotation.Nullable;
 import java.util.*;
 
 public class TravellerHomeManager extends WorldSavedData {
 
     public static final String DATA_NAME = "traveller_home_chests";
-
-    public static class HomeChest {
-        public BlockPos pos;
-        public int dimension;
-        public UUID owner;
-
-        public HomeChest() { }
-
-        public HomeChest(BlockPos pos, int dimension, UUID owner) {
-            this.pos = pos;
-            this.dimension = dimension;
-            this.owner = owner;
-        }
-    }
-
     // player UUID -> list of home chests
     private final Map<UUID, List<HomeChest>> homesByPlayer = new HashMap<>();
+
 
     public TravellerHomeManager() {
         super(DATA_NAME);
@@ -39,8 +26,6 @@ public class TravellerHomeManager extends WorldSavedData {
     public TravellerHomeManager(String name) {
         super(name);
     }
-
-    // ----- singleton accessor -----
 
     public static TravellerHomeManager get(World world) {
         if (!(world instanceof WorldServer)) {
@@ -56,27 +41,11 @@ public class TravellerHomeManager extends WorldSavedData {
         return data;
     }
 
-    // ----- public API -----
+    // ----- singleton accessor -----
 
-    /** Add or mark a chest as a home for this player. */
-    public void addHomeChest(EntityPlayer player, BlockPos pos) {
-        UUID id = player.getUniqueID();
-        int dim = player.world.provider.getDimension();
-
-        List<HomeChest> list = homesByPlayer.computeIfAbsent(id, k -> new ArrayList<>());
-
-        // Avoid duplicates
-        for (HomeChest h : list) {
-            if (h.dimension == dim && h.pos.equals(pos)) {
-                return;
-            }
-        }
-
-        list.add(new HomeChest(pos, dim, id));
-        markDirty();
-    }
-
-    /** Get all home chests in this dimension (regardless of owner). */
+    /**
+     * Get all home chests in this dimension (regardless of owner).
+     */
     public List<BlockPos> getAllHomesInDimension(World world) {
         int dim = world.provider.getDimension();
         List<BlockPos> result = new ArrayList<>();
@@ -90,7 +59,11 @@ public class TravellerHomeManager extends WorldSavedData {
         return result;
     }
 
-    /** Get homes owned by a specific player in this dimension. */
+    // ----- public API -----
+
+    /**
+     * Get homes owned by a specific player in this dimension.
+     */
     public List<BlockPos> getHomesOfPlayer(EntityPlayer player) {
         UUID id = player.getUniqueID();
         int dim = player.world.provider.getDimension();
@@ -106,7 +79,9 @@ public class TravellerHomeManager extends WorldSavedData {
         return result;
     }
 
-    /** Is this position a registered home chest in this dimension? */
+    /**
+     * Is this position a registered home chest in this dimension?
+     */
     public boolean isHomeChest(World world, BlockPos pos) {
         int dim = world.provider.getDimension();
         for (List<HomeChest> list : homesByPlayer.values()) {
@@ -119,7 +94,71 @@ public class TravellerHomeManager extends WorldSavedData {
         return false;
     }
 
-    // ----- NBT serialization -----
+    public boolean isHomeChestOfPlayer(EntityPlayer player, BlockPos pos) {
+        UUID id = player.getUniqueID();
+        int dim = player.world.provider.getDimension();
+        return findHome(id, dim, pos) != null;
+    }
+
+    @Nullable
+    public HomeChest findHome(UUID owner, int dim, BlockPos pos) {
+        List<HomeChest> list = homesByPlayer.get(owner);
+        if (list == null) return null;
+        for (HomeChest h : list) {
+            if (h.dimension == dim && h.pos.equals(pos)) return h;
+        }
+        return null;
+    }
+
+    public boolean removeHomeChest(EntityPlayer player, BlockPos pos) {
+        UUID id = player.getUniqueID();
+        int dim = player.world.provider.getDimension();
+
+        List<HomeChest> list = homesByPlayer.get(id);
+        if (list == null) return false;
+
+        boolean removed = list.removeIf(h -> h.dimension == dim && h.pos.equals(pos));
+        if (removed) markDirty();
+        return removed;
+    }
+
+    /**
+     * Add or update (same pos) a home chest with name.
+     */
+    public void addOrUpdateHomeChest(EntityPlayer player, BlockPos pos, String name) {
+        UUID id = player.getUniqueID();
+        int dim = player.world.provider.getDimension();
+
+        List<HomeChest> list = homesByPlayer.computeIfAbsent(id, k -> new ArrayList<>());
+
+        for (HomeChest h : list) {
+            if (h.dimension == dim && h.pos.equals(pos)) {
+                h.name = (name == null ? "" : name);
+                markDirty();
+                return;
+            }
+        }
+
+        list.add(new HomeChest(pos, dim, id, name));
+        markDirty();
+    }
+
+    /**
+     * For GUI: return full objects (pos + name).
+     */
+    public List<HomeChest> getHomesOfPlayerFull(EntityPlayer player) {
+        UUID id = player.getUniqueID();
+        int dim = player.world.provider.getDimension();
+
+        List<HomeChest> list = homesByPlayer.get(id);
+        if (list == null) return Collections.emptyList();
+
+        List<HomeChest> out = new ArrayList<>();
+        for (HomeChest h : list) {
+            if (h.dimension == dim) out.add(h);
+        }
+        return out;
+    }
 
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
@@ -139,12 +178,16 @@ public class TravellerHomeManager extends WorldSavedData {
                 int y = hTag.getInteger("Y");
                 int z = hTag.getInteger("Z");
                 int dim = hTag.getInteger("Dim");
-                homes.add(new HomeChest(new BlockPos(x, y, z), dim, id));
+                String name = hTag.hasKey("Name") ? hTag.getString("Name") : "";
+                homes.add(new HomeChest(new BlockPos(x, y, z), dim, id, name));
             }
 
             homesByPlayer.put(id, homes);
         }
     }
+
+
+    // ----- NBT serialization -----
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound nbt) {
@@ -164,6 +207,7 @@ public class TravellerHomeManager extends WorldSavedData {
                 hTag.setInteger("Y", h.pos.getY());
                 hTag.setInteger("Z", h.pos.getZ());
                 hTag.setInteger("Dim", h.dimension);
+                hTag.setString("Name", h.name == null ? "" : h.name);
                 homeList.appendTag(hTag);
             }
 
@@ -173,5 +217,24 @@ public class TravellerHomeManager extends WorldSavedData {
 
         nbt.setTag("Players", playerList);
         return nbt;
+    }
+
+    public static class HomeChest {
+        public BlockPos pos;
+        public int dimension;
+        public UUID owner;
+
+        // NEW
+        public String name = "";
+
+        public HomeChest() {
+        }
+
+        public HomeChest(BlockPos pos, int dimension, UUID owner, String name) {
+            this.pos = pos;
+            this.dimension = dimension;
+            this.owner = owner;
+            this.name = name == null ? "" : name;
+        }
     }
 }

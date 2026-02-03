@@ -12,11 +12,10 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class GuiWorkerInventory extends GuiContainer {
 
-    private final EntityTravellerWorker worker;
-    private final EntityPlayer player;
-
     private static final ResourceLocation TEX =
             new ResourceLocation("travellers", "textures/gui/worker.png");
+    private final EntityTravellerWorker worker;
+    private final EntityPlayer player;
 
     public GuiWorkerInventory(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorkerInventory(player.inventory, worker));
@@ -33,15 +32,6 @@ public class GuiWorkerInventory extends GuiContainer {
     }
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        this.mc.getTextureManager().bindTexture(TEX);
-        int x = this.guiLeft;
-        int y = this.guiTop;
-        this.drawTexturedModalRect(x, y, 0, 0, this.xSize, this.ySize);
-    }
-
-    @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         // Title
         this.fontRenderer.drawString(
@@ -55,5 +45,14 @@ public class GuiWorkerInventory extends GuiContainer {
                 8, this.ySize - 96 + 2,
                 0x404040
         );
+    }
+
+    @Override
+    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        this.mc.getTextureManager().bindTexture(TEX);
+        int x = this.guiLeft;
+        int y = this.guiTop;
+        this.drawTexturedModalRect(x, y, 0, 0, this.xSize, this.ySize);
     }
 }

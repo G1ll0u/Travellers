@@ -15,7 +15,8 @@ public class MsgClearEscortLeader implements IMessage {
 
     private int entityId;
 
-    public MsgClearEscortLeader() {}
+    public MsgClearEscortLeader() {
+    }
 
     public MsgClearEscortLeader(int entityId) {
         this.entityId = entityId;

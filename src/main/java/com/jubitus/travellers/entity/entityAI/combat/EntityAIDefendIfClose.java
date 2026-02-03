@@ -4,8 +4,8 @@ import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import com.jubitus.travellers.utils.mobs.TravellerHostilityHelper;
+import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -14,53 +14,27 @@ import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.EnumDifficulty;
 
-
 import java.util.List;
 
 /**
  * Traveller will defensively aggro the nearest non-blacklisted IMob that gets close.
  */
 public class EntityAIDefendIfClose extends EntityAIBase {
+    private static final double CLOSE_NO_LOS_RANGE = 8.0D;
+    private static final double CLOSE_NO_LOS_RANGE_SQ = CLOSE_NO_LOS_RANGE * CLOSE_NO_LOS_RANGE;
     private final EntityTraveller mob;
     private final boolean requireLOS;
     private final int tickRate;
     private final int tickPhase;
-
+    private boolean pendingEmergency = false;
     private double triggerRangeSq;
     private double closeStartSq;
     private double closeHoldSq;
-
     private double baseTriggerRange;
     private double baseTriggerRangeSq;
-
     private EntityLivingBase pending;
     private double bowRangeBonusFrac = 0.0;
 
-
-    private static final double CLOSE_NO_LOS_RANGE = 8.0D;
-    private static final double CLOSE_NO_LOS_RANGE_SQ = CLOSE_NO_LOS_RANGE * CLOSE_NO_LOS_RANGE;
-    // --- helpers ---
-// “Not behind walls” substitute when no LOS: require a real path.
-// This lets them react around corners but not through sealed walls.
-    private boolean hasShortPathTo(EntityLivingBase e) {
-        if (mob.getNavigator() == null) return false;
-
-        Path path = mob.getNavigator().getPathToEntityLiving(e);
-        if (path == null) return false;
-
-        // Optional: reject long detours (prevents “pathing around the mountain”)
-        // Tune this; 16–24 is usually fine for an 8-block “awareness” feel.
-        if (path.getCurrentPathLength() > 20) return false;
-
-        // Optional: ensure the path actually ends near the target
-        PathPoint end = path.getFinalPathPoint();
-        if (end == null) return false;
-
-        double dx = (end.x + 0.5D) - e.posX;
-        double dy = (end.y) - e.posY;
-        double dz = (end.z + 0.5D) - e.posZ;
-        return (dx*dx + dy*dy + dz*dz) <= 2.25D; // within ~1.5 blocks of entity
-    }
     // OLD SIGNATURE – used at call site
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS) {
         // default tickRate = 8, random phase [0,8)
@@ -123,7 +97,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         this.closeHoldSq = hold * hold;
         return this;
     }
-
 
     @Override
     public boolean shouldExecute() {
@@ -202,8 +175,12 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 )
         );
         if (list.isEmpty()) return false;
+        boolean bowUser = mob.hasBowAnywherePublic();
+        final double crowdRadius = 3.5D;
 
         EntityLivingBase pick = null;
+        double bestScore = Double.POSITIVE_INFINITY;
+        boolean bestWasEmergency = false;
         double best = Double.POSITIVE_INFINITY;
         TravellerBlacklist bl = currentBlacklist();
 
@@ -232,7 +209,37 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 }
             }
 
+            // -------------------------
+            // NEW: emergency bypass pick
+            // -------------------------
+            boolean emergency = mob.shouldBypassAttackTargetLimiter(e);
+            if (emergency) {
+                // Prefer closest emergency; also stop early if it's basically touching
+                if (!bestWasEmergency || d2 < bestScore) {
+                    pick = e;
+                    bestScore = d2;
+                    bestWasEmergency = true;
+                    if (d2 <= 1.0D) break; // ~1 block => snap react
+                }
+                continue;
+            }
+            // If we already found an emergency, ignore non-emergencies
+            if (bestWasEmergency) continue;
 
+            // -------------------------
+            // NEW: bow avoids crowded targets (if not a player target)
+            // -------------------------
+            int crowd = bowUser ? mob.rangedCrowdScoreAround(e, crowdRadius) : 0;
+
+            // Convert crowd into a distance-ish penalty (tune these if desired)
+            // Each +1 crowd ~= +4 blocks of “virtual distance” (since we add squared).
+            double penalty = crowd * 4.0D;
+            double score = d2 + (penalty * penalty);
+
+            if (score < bestScore) {
+                bestScore = score;
+                pick = e;
+            }
 //            // OPTIONAL (recommended): require a path or at least a partial path
 //            if (TravellersModConfig.requirePathForAggro) {
 //                Path path = mob.getNavigator().getPathToEntityLiving(e);
@@ -242,7 +249,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 //                }
 //            }
 
-            boolean inBand   = (d2 <= closeStartSq);
+            boolean inBand = (d2 <= closeStartSq);
             boolean inNormal = (d2 <= effRangeSq);
 
             if (inBand || inNormal) {
@@ -259,9 +266,9 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
         if (pick == null) return false;
         this.pending = pick;
+        this.pendingEmergency = mob.shouldBypassAttackTargetLimiter(pick);
         return true;
     }
-
 
     private double currentTriggerRangeSq() {
         boolean hasBow =
@@ -276,6 +283,34 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         return rangeLin * rangeLin;
     }
 
+    private TravellerBlacklist currentBlacklist() {
+        return (mob instanceof EntityTravellerRaider)
+                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+    }
+
+    // --- helpers ---
+// “Not behind walls” substitute when no LOS: require a real path.
+// This lets them react around corners but not through sealed walls.
+    private boolean hasShortPathTo(EntityLivingBase e) {
+        if (mob.getNavigator() == null) return false;
+
+        Path path = mob.getPathToEntityThrottled(e, 2); // urgent
+        if (path == null) return false;
+
+        // Optional: reject long detours (prevents “pathing around the mountain”)
+        // Tune this; 16–24 is usually fine for an 8-block “awareness” feel.
+        if (path.getCurrentPathLength() > 20) return false;
+
+        // Optional: ensure the path actually ends near the target
+        PathPoint end = path.getFinalPathPoint();
+        if (end == null) return false;
+
+        double dx = (end.x + 0.5D) - e.posX;
+        double dy = (end.y) - e.posY;
+        double dz = (end.z + 0.5D) - e.posZ;
+        return (dx * dx + dy * dy + dz * dz) <= 2.25D; // within ~1.5 blocks of entity
+    }
 
     @Override
     public boolean shouldContinueExecuting() {
@@ -287,12 +322,11 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     @Override
     public void startExecuting() {
         if (pending != null && pending.isEntityAlive()) {
-            // Hand off to normal combat — your EntityTraveller.setAttackTarget()
-            // will flip inCombat + cancel eating, etc.
-            mob.setAttackTarget(pending);
-
+            // Emergency bypass is handled inside trySetAttackTargetLimited()
+            mob.trySetAttackTargetLimited(pending, pendingEmergency ? 2 : 0);
         }
         pending = null;
+        pendingEmergency = false;
     }
 
     @Override
@@ -304,11 +338,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     public EntityAIDefendIfClose setBowRangeBonus(double frac) {
         this.bowRangeBonusFrac = Math.max(0.0, frac);
         return this;
-    }
-    private TravellerBlacklist currentBlacklist() {
-        return (mob instanceof EntityTravellerRaider)
-                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
     }
 
 }

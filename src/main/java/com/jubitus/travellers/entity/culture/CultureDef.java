@@ -11,7 +11,7 @@ public final class CultureDef {
     private final java.util.List<TravellerAppearance> raiderLooks = new java.util.ArrayList<>();
     private final java.util.List<String> maleFirstNames = new java.util.ArrayList<>();
     private final java.util.List<String> familyNames = new java.util.ArrayList<>();
-    private final java.util.List<TravellerAppearance> workerLooks   = new java.util.ArrayList<>();
+    private final java.util.List<TravellerAppearance> workerLooks = new java.util.ArrayList<>();
     private final java.util.List<TravellerAppearance> merchantLooks = new java.util.ArrayList<>();
 
     // SIMPLE: category -> list of ItemStacks
@@ -99,13 +99,13 @@ public final class CultureDef {
         // fallback: share travellers pool if raider list is empty
         return getTravellerTextureCount();
     }
-    public int getExplicitRaiderTextureCount() {
-        return (raiderLooks != null) ? raiderLooks.size() : 0;
-    }
-
 
     public int getTravellerTextureCount() {
         return travellerLooks != null ? travellerLooks.size() : 0;
+    }
+
+    public int getExplicitRaiderTextureCount() {
+        return (raiderLooks != null) ? raiderLooks.size() : 0;
     }
 
     public TravellerAppearance getRaiderAppearance(int index) {
@@ -261,6 +261,7 @@ public final class CultureDef {
         if (familyNames.isEmpty()) return "";
         return familyNames.get(r.nextInt(familyNames.size()));
     }
+
     public void addWorkerAppearance(TravellerAppearance a) {
         workerLooks.add(a);
     }
@@ -284,6 +285,7 @@ public final class CultureDef {
         // fallback to travellers pool if you want
         return getTravellerTextureCount();
     }
+
     public TravellerAppearance getWorkerAppearance(int index) {
         java.util.List<TravellerAppearance> list =
                 (workerLooks != null && !workerLooks.isEmpty()) ? workerLooks : travellerLooks;
@@ -311,7 +313,6 @@ public final class CultureDef {
         if (i >= list.size()) i = i % list.size();
         return list.get(i);
     }
-
 
 
 }

@@ -1,5 +1,7 @@
 package com.jubitus.travellers.utils.world.mill;
 
+import com.jubitus.travellers.Travellers;
+import com.jubitus.travellers.client.gui.TravellersGuiIds;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
@@ -22,10 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ItemSummoningWand.class)
 public class MixinSummon {
-    /**
-     * @author
-     * @reason
-     */
+
     @Inject(
             method = "onItemUseFirst",
             at = @At("HEAD"),
@@ -40,23 +39,44 @@ public class MixinSummon {
         if (world.isRemote) return;
         if (world.provider.getDimension() != 0) return;
 
+        // Only when sneaking
+        if (!player.isSneaking()) return;
+
+        // Only when targeting a vanilla chest
         IBlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
-
-        if (!player.isSneaking()) return;
         if (block != Blocks.CHEST && block != Blocks.TRAPPED_CHEST) return;
 
-        TravellerHomeManager.get(world).addHomeChest(player, pos);
-        player.sendMessage(new TextComponentString(
-                TextFormatting.GREEN + "This chest is now one of your homes for workers."
-        ));
+        // --- NEW BEHAVIOR ---
+        TravellerHomeManager mgr = TravellerHomeManager.get(world);
 
-        world.playSound(null, pos,
-                SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
-                SoundCategory.PLAYERS,
-                0.5F, 1.2F);
+        // If this chest is already a home -> remove it
+        if (mgr.isHomeChestOfPlayer(player, pos)) {
+            boolean ok = mgr.removeHomeChest(player, pos);
+            if (ok) {
+                player.sendMessage(new TextComponentString(
+                        TextFormatting.YELLOW + "Home removed."
+                ));
+                world.playSound(null, pos,
+                        SoundEvents.ENTITY_ITEM_BREAK,
+                        SoundCategory.PLAYERS,
+                        0.6F, 1.0F);
+            }
 
-        // Stop original method, return SUCCESS
+            cir.setReturnValue(EnumActionResult.SUCCESS);
+            cir.cancel();
+            return;
+        }
+
+        // Not a home yet -> open naming prompt GUI
+        player.openGui(
+                Travellers.INSTANCE,
+                TravellersGuiIds.HOME_NAME_PROMPT,
+                world,
+                pos.getX(), pos.getY(), pos.getZ()
+        );
+
+        // Block original wand logic
         cir.setReturnValue(EnumActionResult.SUCCESS);
         cir.cancel();
     }

@@ -106,6 +106,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
 
         traveller.getLookHelper().setLookPositionWithEntity(target, yawLimit, pitchLimit);
     }
+
     private boolean isDisabledForHiredWorker() {
         if (this.traveller instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) this.traveller;

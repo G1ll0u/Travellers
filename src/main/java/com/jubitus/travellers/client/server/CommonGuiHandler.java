@@ -4,8 +4,6 @@ import com.jubitus.travellers.client.gui.*;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 
@@ -48,13 +46,20 @@ public class CommonGuiHandler implements IGuiHandler {
             Entity e = world.getEntityByID(x);
 
 
-
             return (e instanceof EntityTravellerWorker)
                     ? new ContainerWorkerBehavior(player.inventory, (EntityTravellerWorker) e)
                     : null;
         }
 
-
+        if (id == TravellersGuiIds.HOME_NAME_PROMPT) {
+            return new ContainerNull();
+        }
+        if (id == TravellersGuiIds.WORKER_HOME_LIST) {
+            Entity e = world.getEntityByID(x);
+            return (e instanceof EntityTravellerWorker)
+                    ? new ContainerNull()
+                    : null;
+        }
 
 
         return null;
@@ -62,7 +67,6 @@ public class CommonGuiHandler implements IGuiHandler {
 
     @Override
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
-
 
 
         // IMPORTANT: keep your other GUI cases here too (WORKER, HUB, ORDERS, etc.)

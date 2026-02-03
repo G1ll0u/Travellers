@@ -28,11 +28,6 @@ public class CommandTravellerMerchantDebug extends CommandBase {
     }
 
     @Override
-    public int getRequiredPermissionLevel() {
-        return 2; // OP
-    }
-
-    @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args)
             throws CommandException {
 
@@ -135,5 +130,10 @@ public class CommandTravellerMerchantDebug extends CommandBase {
             }
         }
         return null;
+    }
+
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 2; // OP
     }
 }

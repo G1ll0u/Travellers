@@ -43,6 +43,19 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgSetWorkerHostile.Handler.class, MsgSetWorkerHostile.class, NEXT_ID++, Side.SERVER);
         CHANNEL.registerMessage(MsgOpenWorkerSubGui.Handler.class,
                 MsgOpenWorkerSubGui.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgWorkerSetHome.Handler.class, MsgWorkerSetHome.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgWorkerGoHome.Handler.class, MsgWorkerGoHome.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgRegisterHomeChest.Handler.class, MsgRegisterHomeChest.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgWorkerRequestHomeList.Handler.class,
+                MsgWorkerRequestHomeList.class, NEXT_ID++, Side.SERVER);
+
+        // server -> client (client-only handlers, use Noop on dedicated server)
+        registerClientOnly(MsgWorkerHomeList.class,
+                isClient ? new MsgWorkerHomeList.ClientHandler() : new MsgWorkerHomeList.NoopHandler());
+
+        registerClientOnly(MsgSyncWorkerHome.class,
+                isClient ? new MsgSyncWorkerHome.ClientHandler() : new MsgSyncWorkerHome.NoopHandler());
+
         registered = true;
     }
 

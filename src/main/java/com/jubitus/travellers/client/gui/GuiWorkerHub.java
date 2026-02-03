@@ -1,9 +1,9 @@
 package com.jubitus.travellers.client.gui;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.net.message.MsgHireWorker;
 import com.jubitus.travellers.utils.net.message.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -19,19 +19,15 @@ import java.util.UUID;
 @SideOnly(Side.CLIENT)
 public class GuiWorkerHub extends GuiContainer {
 
+    private static final ResourceLocation TEX =
+            new ResourceLocation("travellers", "textures/gui/worker_hub.png");
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
-
     private GuiButton transportButton;
     private GuiButton followButton;
     private GuiButton inventoryButton; // NEW
     private GuiButton behaviorButton;
     private GuiButton hireButton; // NEW
-
-
-
-    private static final ResourceLocation TEX =
-            new ResourceLocation("travellers", "textures/gui/worker_hub.png");
 
     public GuiWorkerHub(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorkerHub(player.inventory, worker));
@@ -50,8 +46,8 @@ public class GuiWorkerHub extends GuiContainer {
 
         this.buttonList.clear();
 
-        int bw  = 60;
-        int bh  = 20;
+        int bw = 60;
+        int bh = 20;
         int gap = 4;
 
         int totalW = bw * 3 + gap * 2;
@@ -95,47 +91,6 @@ public class GuiWorkerHub extends GuiContainer {
         refreshButtonStates();
     }
 
-
-
-    @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        if (button == transportButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.TRANSPORT)
-            );
-            // ❌ no mc.player.closeScreen() here
-            return;
-        }
-
-        if (button == followButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS)
-            );
-            return;
-        }
-
-        if (button == inventoryButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.INVENTORY)
-            );
-            // ❌ no mc.player.closeScreen() here
-            return;
-        }
-        if (button == behaviorButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.BEHAVIOR)
-            );
-            return;
-        }
-        if (button == hireButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgHireWorker(worker.getEntityId())
-            );
-            return;
-        }
-        super.actionPerformed(button);
-    }
-
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GlStateManager.color(1F, 1F, 1F, 1F);
@@ -144,6 +99,7 @@ public class GuiWorkerHub extends GuiContainer {
         int y = this.guiTop;
         this.drawTexturedModalRect(x, y, 0, 0, this.xSize, this.ySize);
     }
+
     @Override
     public void updateScreen() {
         super.updateScreen();
@@ -152,7 +108,7 @@ public class GuiWorkerHub extends GuiContainer {
 
     private void refreshButtonStates() {
         boolean hired = worker.isHiredFollower();
-        UUID ownerId  = worker.getFollowOwnerId();
+        UUID ownerId = worker.getFollowOwnerId();
         boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
 
         // --- Hire button label + enable ---
@@ -197,7 +153,44 @@ public class GuiWorkerHub extends GuiContainer {
         }
     }
 
+    @Override
+    protected void actionPerformed(GuiButton button) throws IOException {
+        if (button == transportButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.TRANSPORT)
+            );
+            // ❌ no mc.player.closeScreen() here
+            return;
+        }
 
+        if (button == followButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS)
+            );
+            return;
+        }
+
+        if (button == inventoryButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.INVENTORY)
+            );
+            // ❌ no mc.player.closeScreen() here
+            return;
+        }
+        if (button == behaviorButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.BEHAVIOR)
+            );
+            return;
+        }
+        if (button == hireButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgHireWorker(worker.getEntityId())
+            );
+            return;
+        }
+        super.actionPerformed(button);
+    }
 
 
 }

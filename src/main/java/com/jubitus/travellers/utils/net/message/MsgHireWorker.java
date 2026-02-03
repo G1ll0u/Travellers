@@ -18,7 +18,9 @@ import java.util.UUID;
 public class MsgHireWorker implements IMessage {
     private int entityId;
 
-    public MsgHireWorker() {}
+    public MsgHireWorker() {
+    }
+
     public MsgHireWorker(int entityId) {
         this.entityId = entityId;
     }
@@ -44,8 +46,8 @@ public class MsgHireWorker implements IMessage {
 
                 EntityTravellerWorker worker = (EntityTravellerWorker) e;
 
-                UUID ownerId    = worker.getFollowOwnerId();
-                boolean hired   = worker.isHiredFollower();
+                UUID ownerId = worker.getFollowOwnerId();
+                boolean hired = worker.isHiredFollower();
                 boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
 
                 // --- Case 1: already hired by THIS player -> dismiss ---
@@ -99,8 +101,6 @@ public class MsgHireWorker implements IMessage {
             return null;
         }
     }
-
-
 
 
 }

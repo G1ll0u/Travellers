@@ -15,15 +15,15 @@ public class ContainerWorkerBehavior extends Container {
     }
 
     @Override
+    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
+        return ItemStack.EMPTY;
+    }
+
+    @Override
     public boolean canInteractWith(EntityPlayer playerIn) {
         return worker != null
                 && worker.isEntityAlive()
                 && worker.getDistanceSq(playerIn) <= 64.0D; // same as hub
-    }
-
-    @Override
-    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
-        return ItemStack.EMPTY;
     }
 }
 

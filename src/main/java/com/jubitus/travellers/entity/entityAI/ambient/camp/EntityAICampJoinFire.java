@@ -183,9 +183,12 @@ public class EntityAICampJoinFire extends EntityAIBase {
 
             WorldServer ws = (WorldServer) mob.world;
             long now = ws.getTotalWorldTime();
+            long newTtl = now + (20 * 10);
+            long ttlMs = System.currentTimeMillis() + ((newTtl - now) * 50L);
             CampfireManager.get(ws).addOrRefresh(
-                    targetCamp, mob.dimension, /*owner*/ null, now + (20 * 10), /*nearRadius*/ 28
+                    targetCamp, mob.dimension, /*owner*/ null, newTtl, ttlMs, /*nearRadius*/ 28
             );
+
 
             // --- occasional swing / approach to the front of the fire ---
             if (mob.travellerCamp.campSwingTimer-- <= 0) {

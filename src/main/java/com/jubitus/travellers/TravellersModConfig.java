@@ -12,198 +12,28 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
+
+    public static int recruitMinVillageDistance = 300; // default, tweak
+
     // process only N villages per maintenance pass
-    public static final int MERCHANT_VILLAGES_PER_PASS = 5;
-    public static final int WORKER_VILLAGES_PER_PASS = 5;
-
-
-    // Recruit mission tuning
-    public static int recruitMaxVillageRadius = 1500;        // max distance from player
-    public static int recruitVillagesMin = 1;
-    public static int recruitVillagesMax = 3;
-
-    public static int recruitSpawnMin = 1;                  // workers spawned per visited village
-    public static int recruitSpawnMax = 3;
-
-    public static int recruitLeaderAssignRadius = 32;        // radius to assign/clear escort leader
-
-    // Fee formula tuning (deniers)
-    public static int recruitFeeFlat = 128;                 // 2 argent if 64 deniers/argent
-    public static double recruitFeePerBlock = 0.05;         // per block of route (2D)
-    public static int recruitFeePerVillage = 4*64;            // +4 argent per village
-
-
-    public static int workerGlobalAssignedCap = 16; // example: 8–20 feels good
-
-    public static boolean travellerOffscreenHopEnabled = true;
-    public static int travellerOffscreenHopIntervalTicks = 20 * 3; // 6s, every 6s, do a hop
-    public static int travellerOffscreenHopStepBlocks = 12;        // hop distance in blocks
-
-    public static double followerIdleJitterRadius = 0.25D;  // very small jitter when owner idle
-    public static int    followerIdleRecalcTicks  = 24;     // slower path recalcs when owner idle
-    public static double followerIdleStopRadius = 3.0D; // how close to owner to fully idle
-
-    public static int followerOwnerMoveDelayTicks = 8;   // 0.4s at 20 tps
-    public static int followerOwnerIdleTicks      = 10;  // how long owner must be still to count as "idle"
-
-    public static boolean followerBoatConvoyEnabled = true;
-    public static double followerBoatConvoyAccel     = 0.16D; // per tick "thrust"
-    public static double followerBoatConvoyMaxSpeed  = 4.0D; // hard cap (tweak to taste)
-    public static double followerBoatConvoyBrakeNear = 0.60D; // how much to damp when close
-    // Tweakable convoy spacing
-    public static double followerBoatBaseGap = 3.0D;   // distance behind owner’s boat
-    public static double followerBoatGapStep = 2.5D;   // extra distance per follower in the column
-    public static double followerBoatMaxSpeed = 0.9D;  // clamp boat convoy speed
-    public static double followerBoatStopRadius = 1.6D; // how close to slot before we stop
-    public static double followerBoatSeparationRadius = 2.2D; // separation from other follower boats
-
-    public static boolean followerBoatConvoy = true;
-
-    // optional tuning knobs if you like:
-    public static double followerBoatBoardRadius = 2.5D;      // how close to board
-    public static double followerBoatConvoySpeed = 4.0D;      // boats vs normal follow speed
-    public static double followerBoatSearchRadius = 8.0D;     // find other boats in this radius
-
-
-    // Global damage multiplier applied to ALL damage travellers take.
-// Does NOT apply to damage caused by players.
-// 1.0 = normal, 0.5 = half damage, 0 = immune to non-player sources.
-    public static float travellerDamageScale = 1.0F;
-
-    // 1) Off-screen aggro immunity
-    public static boolean travellerNoAggroOffscreen = true;
-
-    // 2) Off-screen damage scale (0 = immune, 0.2 = 80% reduction, 1 = normal)
-    public static float travellerOffscreenDamageScale = 0.2F;
-
-    // 3) Simple travel mode when off-screen
-    public static boolean travellerSimpleOffscreenTravel = false;
-    // Optional threshold so simple travel only kicks in when fairly far from any player
-    public static double travellerSimpleOffscreenMinPlayerDist = 64.0D;
-
-    public static double followerRingBaseRadius = 3.0D;
-    public static double followerRingSlotStep   = 0.45D;
-    public static double followerRingMaxJitter  = 0.8D; // optional
-
-
-    public static boolean workerAutoLootMobs = true;
-    public static int merchantVillageMinDistance = 1200; // blocks between merchant villages
-    public static int workerVillageMinDistance   = 1200; // blocks between worker villages
-
-    @Config.Comment("Maximum number of loaded travellers merchants in this world (0 = no limit)")
-    public static int merchantLoadedCap = 16;
-
-    @Config.Comment("Maximum number of loaded travellers workers in this world (0 = no limit)")
-    public static int workerLoadedCap = 16;
-
-// ---- worker population → workers per village ----
-
-    @Config.Comment("Minimum Millénaire villagers before this village can get any travellers workers")
-    public static int workerMinPop = 16;
-
-    @Config.Comment("Additional population required for each extra worker beyond the first")
-    public static int workerPopPerWorker = 10;
-
-    @Config.Comment("Maximum number of travellers workers per village")
-    public static int workerMaxPerVillage = 2;
-
-    @Config.Comment("How often (ticks) we re-check villages for worker counts")
-    public static int workerRecheckEveryTicks = 20*60*5;
-
-    public static boolean workerNotifyOnVillageTrade = true;
-    // Base travel cost per used cargo slot for a trip of workerTravelDistanceBase blocks
-    public static double workerTravelBaseCostPerSlot = 10.0D;
-
-    // “Reference” distance. Default Millénaire village spacing ≈ 800, as you said
-    public static double workerTravelDistanceBase = 400.0D;
-
-    // Optional: flat extra deniers per trip, regardless of distance/slots
-    public static int workerTravelFlatBaseCost = 50;
-
-    // Optional: multiplier on top (for global tuning)
-    public static double workerTravelCostMultiplier = 1.0D;
-
-    public static int workerVillageDetectRadius = 4000;
-
-    public static int workerStepBlocks = 16;
-    public static int workerChunkRadius = 0; // whatever you want
-    public static double workerMaxHealth = 60.0D;
-    public static double workerFollowRange = 24.0D;
-
-    // --- Traveller stats ---
-    public static float travellerMaxHealth = 20.0F;
-    public static float travellerFollowRange = 64.0F;
-
-    // --- Merchant stats ---
-    public static float merchantMaxHealth = 60.0F;
-    public static float merchantFollowRange = 24.0F;
-
-
-
-    // Travel AI
-    public static int merchantStepBlocks = 16;
-
-    // Merchant spawn logic
-    public static int merchantMinPop = 8;
-    public static int merchantPopPerMerchant = 10;
-    public static int merchantMaxPerVillage = 2;
-    public static int merchantRecheckEveryTicks = 200;
-
-
-    public static int merchantChunkRadius = 1;          // default radius per merchant
-    public static int merchantMaxForcedChunks = 128;    // hard cap per world
-    public static int merchantMaxChunkloadingMerchants = 32; // if many merchants, only first N get chunkloading
-    public static boolean merchantChunkloadingEnabled = true;
-    // How big a slice of the total required amount the merchant tries to supply.
-// 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
-    public static double merchantGiveFraction = 1.0D / 12.0D;
-
-    // Minimum donation for "bulk" items (big stacks, e.g. planks).
-    public static int merchantMinBulkAmount = 1;
-
-    // Minimum donation for "small stack" items (banners, tools, etc.)
-    public static int merchantMinSmallAmount = 1;
-
-    // How many *different* items a merchant is allowed to donate during one visit.
-    public static int merchantMaxDistinctItems = 1;
-
+    public static final int MERCHANT_VILLAGES_PER_PASS = 2;
+    public static final int WORKER_VILLAGES_PER_PASS = 2;
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
     // NEW: Raider include filters (whitelist-style)
     public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
-
-    // --- Workers ---
-    public static String[] includedWorkerVillagerTagsRaw = new String[] {
-            // example default tag:
-            // "worker"
-    };
-    public static String[] includedWorkerVillagerFilesRaw = new String[] {
-
-    };
-
-    // --- Merchants ---
-    public static String[] includedMerchantVillagerTagsRaw = new String[] {
-            "visitor"
-    };
-    public static String[] includedMerchantVillagerFilesRaw = new String[] {
-            // e.g. "nor_shopkeeper"
-    };
-
     // NEW: worker include filters (whitelist-style)
     public static final java.util.Set<String> INCLUDED_WORKER_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> INCLUDED_WORKER_VILLAGER_FILES = new java.util.HashSet<>();
-
     // NEW: merchant include filters (whitelist-style)
     public static final java.util.Set<String> INCLUDED_MERCHANT_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> INCLUDED_MERCHANT_VILLAGER_FILES = new java.util.HashSet<>();
-
     public static final int DOG_SCAN_COOLDOWN_TICKS = 5 * 20;
     public static final int CAMP_SWING_EVERY = 80;         // ~4s baseline between “cooking” swings
     public static final int SPAWN_AMBIENT_DELAY_TICKS = 12 * 20;   // ~12s after spawn
     public static final AttackList RAIDER_ATTACK_LIST = new AttackList();
     public static final AttackList TRAVELLER_ATTACK_LIST = new AttackList();
-
     public static final TravellerBlacklist TRAVELLER_BLACKLIST = new TravellerBlacklist();
     // NEW: two separate aggro blacklists
     public static final TravellerBlacklist TRAVELLER_AGGRO_BLACKLIST = new TravellerBlacklist();
@@ -226,7 +56,116 @@ public class TravellersModConfig {
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "4.6"; // yes I always change ver when testing, that's stupid
+    private static final String CURRENT_VERSION = "4.7"; // yes I always change ver when testing, that's stupid
+    // Recruit mission tuning
+    public static int recruitMaxVillageRadius = 4000;        // max distance from player
+    public static int recruitVillagesMin = 1;
+    public static int recruitVillagesMax = 10;
+
+// ---- worker population → workers per village ----
+    public static int recruitSpawnMin = 2;                  // workers spawned per visited village
+    public static int recruitSpawnMax = 4;
+    public static int recruitLeaderAssignRadius = 12000;        // radius to assign/clear escort leader
+    // Fee formula tuning (deniers)
+    public static int recruitFeeFlat = 128;                 // 2 argent if 64 deniers/argent
+    public static double recruitFeePerBlock = 0.05;         // per block of route (2D)
+    public static int recruitFeePerVillage = 4 * 64;            // +4 argent per village
+    public static int workerGlobalAssignedCap = 256; // example: 8–20 feels good
+    public static boolean travellerOffscreenHopEnabled = true;
+    public static int travellerOffscreenHopIntervalTicks = 20 * 3; // 6s, every 6s, do a hop
+    public static int travellerOffscreenHopStepBlocks = 12;        // hop distance in blocks
+    public static int followerOwnerMoveDelayTicks = 8;   // 0.4s at 20 tps
+    public static int followerOwnerIdleTicks = 10;  // how long owner must be still to count as "idle"
+    public static boolean followerBoatConvoyEnabled = true;
+    public static double followerBoatConvoyAccel = 0.16D; // per tick "thrust"
+    public static double followerBoatConvoyMaxSpeed = 4.0D; // hard cap (tweak to taste)
+    public static double followerBoatConvoyBrakeNear = 0.60D; // how much to damp when close
+    public static boolean followerBoatConvoy = true;
+    // optional tuning knobs if you like:
+    public static double followerBoatBoardRadius = 2.5D;      // how close to board
+    public static double followerBoatConvoySpeed = 4.0D;      // boats vs normal follow speed
+    public static double followerBoatSearchRadius = 8.0D;     // find other boats in this radius
+    // Global damage multiplier applied to ALL damage travellers take.
+// Does NOT apply to damage caused by players.
+// 1.0 = normal, 0.5 = half damage, 0 = immune to non-player sources.
+    public static float travellerDamageScale = 1.0F;
+    // 1) Off-screen aggro immunity
+    public static boolean travellerNoAggroOffscreen = true;
+    // 2) Off-screen damage scale (0 = immune, 0.2 = 80% reduction, 1 = normal)
+    public static float travellerOffscreenDamageScale = 0.2F;
+    // 3) Simple travel mode when off-screen
+    public static boolean travellerSimpleOffscreenTravel = false;
+    // Optional threshold so simple travel only kicks in when fairly far from any player
+    public static double travellerSimpleOffscreenMinPlayerDist = 64.0D;
+    public static double followerRingBaseRadius = 5.0D;
+    public static double followerRingSlotStep = 0.55D;
+    public static double followerRingMaxJitter = 0.8D; // optional
+    public static boolean workerAutoLootMobs = true;
+    public static int merchantVillageMinDistance = 1200; // blocks between merchant villages
+    public static int workerVillageMinDistance = 1200; // blocks between worker villages
+    public static int merchantLoadedCap = 16;
+    public static int workerLoadedCap = 128;
+    public static int workerMinPop = 16;
+    public static int workerPopPerWorker = 10;
+    @Config.Comment("Maximum number of travellers workers per village")
+    public static int workerMaxPerVillage = 2;
+    @Config.Comment("How often (ticks) we re-check villages for worker counts")
+    public static int workerRecheckEveryTicks = 600;
+    public static boolean workerNotifyOnVillageTrade = true;
+    // Base travel cost per used cargo slot for a trip of workerTravelDistanceBase blocks
+    public static double workerTravelBaseCostPerSlot = 10.0D;
+    // “Reference” distance. Default Millénaire village spacing ≈ 800, as you said
+    public static double workerTravelDistanceBase = 400.0D;
+    // Optional: flat extra deniers per trip, regardless of distance/slots
+    public static int workerTravelFlatBaseCost = 50;
+    // Optional: multiplier on top (for global tuning)
+    public static double workerTravelCostMultiplier = 1.0D;
+    public static int workerVillageDetectRadius = 4000;
+    public static int workerStepBlocks = 16;
+    public static int workerChunkRadius = 1; // whatever you want
+    public static double workerMaxHealth = 60.0D;
+    public static double workerFollowRange = 24.0D;
+    // --- Traveller stats ---
+    public static float travellerMaxHealth = 20.0F;
+    public static float travellerFollowRange = 64.0F;
+    // --- Merchant stats ---
+    public static float merchantMaxHealth = 60.0F;
+    public static float merchantFollowRange = 24.0F;
+    // Travel AI
+    public static int merchantStepBlocks = 16;
+    // Merchant spawn logic
+    public static int merchantMinPop = 8;
+    public static int merchantPopPerMerchant = 10;
+    public static int merchantMaxPerVillage = 2;
+    public static int merchantRecheckEveryTicks = 200;
+    public static int merchantChunkRadius = 1;          // default radius per merchant
+    public static int merchantMaxForcedChunks = 128;    // hard cap per world
+    public static int merchantMaxChunkloadingMerchants = 128; // if many merchants, only first N get chunkloading
+    public static boolean merchantChunkloadingEnabled = true;
+    // How big a slice of the total required amount the merchant tries to supply.
+// 0.0833 ≈ 1/12; 0.1 = 10%; 0.25 = 25%...
+    public static double merchantGiveFraction = 1.0D / 12.0D;
+    // Minimum donation for "bulk" items (big stacks, e.g. planks).
+    public static int merchantMinBulkAmount = 1;
+    // Minimum donation for "small stack" items (banners, tools, etc.)
+    public static int merchantMinSmallAmount = 1;
+    // How many *different* items a merchant is allowed to donate during one visit.
+    public static int merchantMaxDistinctItems = 1;
+    // --- Workers ---
+    public static String[] includedWorkerVillagerTagsRaw = new String[]{
+            // example default tag:
+            // "worker"
+    };
+    public static String[] includedWorkerVillagerFilesRaw = new String[]{
+
+    };
+    // --- Merchants ---
+    public static String[] includedMerchantVillagerTagsRaw = new String[]{
+            "visitor"
+    };
+    public static String[] includedMerchantVillagerFilesRaw = new String[]{
+            // e.g. "nor_shopkeeper"
+    };
     public static boolean debug = false;
     public static boolean enableTravellerOpenFenceGates = true;
     public static boolean enableTravellerOpenDoors = true;
@@ -358,7 +297,7 @@ public class TravellersModConfig {
     public static double travelTorchNearbyRadius = 20.0D; // “someone else has light” radius
     public static boolean spawnTravellerWithDog = true;
     public static double travellerDogSpawnChance = 0.03; // 3%
-    public static String[] excludedVillagerTagsRaw = new String[]{"child", "chief",};
+    public static String[] excludedVillagerTagsRaw = new String[]{"child", "chief", "hostile"};
     public static String[] excludedVillagerFilesRaw = new String[]{"alchemist", "alchemistapprentice", "alchemistassistant"};
     public static int fishWaterScanRadius = 6;          // blocks
     public static int fishMinTimeTicks = 15 * 20;     // 8s
@@ -368,7 +307,7 @@ public class TravellersModConfig {
     public static int fishCooldownTicks = 5 * 60 * 20; // 3 minutes
     public static float fishStartChancePerTick = 0.002f;
     public static double fishApproachSpeed = 0.45D;
-    public static int stepBlocks = 48;
+    public static int stepBlocks = 24;
     // Minimum distance (in blocks) raiders must spawn away from any village TH
     public static int raiderMinVillageDistance = 120;
     public static boolean showTravellerNames = false;
@@ -426,8 +365,10 @@ public class TravellersModConfig {
     public static double travellerViewBoostBaseRadius = 128;
     public static double travellerViewBoostCombatBonus = 128;
     public static boolean allowTravellerChunkLoading = true;
-    public static double returnFollowSwitchDist = 128;
+    public static double returnFollowSwitchDist = 32;
     public static int chunkRecomputeIntervalTicks = 20;
+    public static double followerRingMoveBaseRadius = 2.2D;
+    public static double followerRingMoveSlotStep = 0.25;
     static boolean enableTravellerEntity = true;
     private static String[] raiderAttackIdRules = new String[0];
     private static String[] raiderAttackClassRules = new String[0];
@@ -942,7 +883,7 @@ public class TravellersModConfig {
 
         travellerFollowRange = cfg.getFloat(
                 "TravellerTrackRange", "Traveller base attributes",
-                64.0f, 4.0f, 256.0f,
+                32.0f, 4.0f, 256.0f,
                 "FOLLOW_RANGE (detection radius in blocks) for generic travellers."
         );
         followRange = (int) travellerFollowRange; // keep old int in sync
@@ -1004,7 +945,6 @@ public class TravellersModConfig {
                 200, 20, 20 * 60 * 60,
                 "How often (in ticks) merchant logic rechecks mill (20 ticks = 1 second)."
         );
-
 
 
         workerChunkRadius = cfg.getInt(
@@ -1124,7 +1064,7 @@ public class TravellersModConfig {
 
         followMaxDist = cfg.getFloat(
                 "FollowMaxDist", "Traveller follow task tweaks",
-                128.0f, 1.0f, 128.0f,
+                32.0f, 1.0f, 128.0f,
                 "Maximum distance (blocks) before following is cancelled."
         );
 
@@ -1187,7 +1127,7 @@ public class TravellersModConfig {
         );
         stepBlocks = cfg.getInt(
                 "StepBlocks", "Despawn & performance",
-                48, 1, 128,
+                stepBlocks, 1, 128,
                 "Distance in blocks between generated path waypoints while travelling."
         );
 
@@ -1493,20 +1433,6 @@ public class TravellersModConfig {
                         + "from the travellers appearance pool. Example: [\"child\", \"bandit\"]"
         );
 
-        excludedVillagerFilesRaw = cfg.getStringList(
-                "ExcludedVillagerFiles",
-                "Millenaire culture filters",
-                excludedVillagerFilesRaw,
-                "Villager txt filenames (without path, with or without .txt) to exclude from the "
-                        + "travellers appearance pool. Example: [\"boy\", \"girl\", \"wife_laundry\"]"
-        );
-        excludedVillagerTagsRaw = cfg.getStringList(
-                "ExcludedVillagerTags",
-                "Traveller villager filters",
-                excludedVillagerTagsRaw,
-                "Any villager txt with tag=... matching one of these values will be excluded "
-                        + "from the travellers appearance pool. Example: [\"child\", \"bandit\"]"
-        );
 
         excludedVillagerFilesRaw = cfg.getStringList(
                 "ExcludedVillagerFiles",
@@ -1608,14 +1534,14 @@ public class TravellersModConfig {
 
         merchantLoadedCap = cfg.getInt(
                 "MerchantLoadedCap", "Travellers — Population",
-                16, 0, 1024,
+                0, 0, 1024,
                 "Maximum number of loaded travellers merchants in this world.\n" +
                         "0 = no limit."
         );
 
         workerLoadedCap = cfg.getInt(
                 "WorkerLoadedCap", "Travellers — Population",
-                16, 0, 1024,
+                128, 0, 1024,
                 "Maximum number of loaded travellers workers in this world.\n" +
                         "0 = no limit."
         );
@@ -1628,7 +1554,7 @@ public class TravellersModConfig {
         workerMinPop = cfg.getInt(
                 "WorkerMinPop", "Soft spawn — Workers",
                 16, 0, 1024,
-                "Minimum Millénaire villagers required before a village can receive any travellers workers."
+                "Minimum Millénaire villagers required before a village can receive any workers."
         );
 
         workerPopPerWorker = cfg.getInt(
@@ -1646,7 +1572,7 @@ public class TravellersModConfig {
 
         workerRecheckEveryTicks = cfg.getInt(
                 "WorkerRecheckEveryTicks", "Soft spawn — Workers",
-                20*60*5, 1, 20 * 60 * 60,
+                600, 1, 20 * 60 * 60,
                 "How often (in ticks) villages are re-scanned for worker population / assignment.\n" +
                         "Default 200 ticks ≈ 10 seconds."
         );
@@ -1707,14 +1633,14 @@ public class TravellersModConfig {
         merchantVillageMinDistance = cfg.getInt(
                 "MerchantVillageMinDistance",
                 "Worker behavior",
-                1200, 100, 10000,
+                600, 100, 10000,
                 "Minimum block distance between merchant villages."
         );
 
         workerVillageMinDistance = cfg.getInt(
                 "WorkerVillageMinDistance",
                 "Worker behavior",
-                1200, 100, 10000,
+                600, 100, 10000,
                 "Minimum block distance between worker villages."
         );
 

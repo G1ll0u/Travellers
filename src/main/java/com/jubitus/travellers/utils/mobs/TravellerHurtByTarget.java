@@ -87,7 +87,12 @@ public class TravellerHurtByTarget extends EntityAITarget {
             return;
         }
 
-        this.taskOwner.setAttackTarget(attacker);
+        if (this.taskOwner instanceof EntityTraveller) {
+            EntityTraveller t = (EntityTraveller) this.taskOwner;
+            t.trySetAttackTargetLimited(attacker, 2); // emergency priority
+        } else {
+            this.taskOwner.setAttackTarget(attacker);
+        }
         this.revengeTimerOld = this.owner.getRevengeTimer();
 
         if (this.callForHelp && attacker != null && attacker.isEntityAlive()) {
@@ -97,30 +102,40 @@ public class TravellerHurtByTarget extends EntityAITarget {
                     owner.posX + r, owner.posY + 8, owner.posZ + r);
 
             List<EntityTraveller> allies = owner.world.getEntitiesWithinAABB(EntityTraveller.class, box);
+
+// Sort so: melee travellers (no bow) first by distance, then bow users by distance
+            allies.sort(new java.util.Comparator<EntityTraveller>() {
+                @Override
+                public int compare(EntityTraveller a, EntityTraveller b) {
+                    boolean aBow = a.hasBowAnywherePublic();
+                    boolean bBow = b.hasBowAnywherePublic();
+                    if (aBow != bBow) return aBow ? 1 : -1; // bow users later
+                    double da = a.getDistanceSq(attacker);
+                    double db = b.getDistanceSq(attacker);
+                    return Double.compare(da, db);
+                }
+            });
+
             for (EntityTraveller ally : allies) {
                 if (ally == owner) continue;
                 if (!ally.isEntityAlive()) continue;
                 if (attacker instanceof EntityTraveller) continue;
                 if (ally.world.getDifficulty() == EnumDifficulty.PEACEFUL) continue;
 
-                // NEW: only assist if the attacker is within helpRange of THIS ally
+                // Only assist if attacker is within help range of THIS ally
                 if (ally.getDistanceSq(attacker) > (assistRadius * assistRadius)) continue;
 
+                // IMPORTANT: don't steal targets. Only pull in allies that currently have no target.
                 EntityLivingBase cur = ally.getAttackTarget();
-                boolean shouldRetarget = (cur == null || !cur.isEntityAlive());
+                if (cur != null && cur.isEntityAlive()) continue;
 
-                if (!shouldRetarget) {
-                    double dNew = ally.getDistanceSq(attacker);
-                    double dCur = ally.getDistanceSq(cur);
-                    if (dNew + 6.0 < dCur) shouldRetarget = true;
-                    if (ally.isOnSameTeam(cur)) shouldRetarget = true;
-                }
-
-                if (shouldRetarget) {
-                    ally.setAttackTarget(attacker);
+                // Use your limiter-aware setter (it will bypass limiter automatically if <=8 blocks & no target)
+                boolean ok = ally.trySetAttackTargetLimited(attacker, 0);
+                if (ok) {
                     ally.getNavigator().clearPath();
                 }
             }
+
 
         }
 

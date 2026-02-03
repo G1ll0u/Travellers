@@ -2,7 +2,6 @@ package com.jubitus.travellers.utils.world.spawn;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.storage.MapStorage;
@@ -14,20 +13,9 @@ import java.util.*;
 // New file: TravellerVillageRegistry.java
 public class TravellerVillageRegistry extends WorldSavedData {
 
-    public int getWorkerVillageCount() {
-        return workerByVillage.size();
-    }
-
-    public java.util.Set<BlockPos> getWorkerVillages() {
-        return new java.util.HashSet<>(workerByVillage.keySet());
-    }
-
-
     public static final String DATA_NAME = "TravellersVillageRegistry";
-
     // 1 worker per village
     private final Map<BlockPos, UUID> workerByVillage = new HashMap<>();
-
     // merchants per village (can be > 1)
     private final Map<BlockPos, List<UUID>> merchantsByVillage = new HashMap<>();
 
@@ -53,16 +41,23 @@ public class TravellerVillageRegistry extends WorldSavedData {
         return data;
     }
 
-    private static BlockPos norm(BlockPos village) {
-        // Treat villages as 2D (x,z) keys. Y is forced to 0.
-        return new BlockPos(village.getX(), 0, village.getZ()).toImmutable();
+    public int getWorkerVillageCount() {
+        return workerByVillage.size();
     }
-    // ---------- Workers ----------
 
+    public java.util.Set<BlockPos> getWorkerVillages() {
+        return new java.util.HashSet<>(workerByVillage.keySet());
+    }
 
     @Nullable
     public UUID getWorkerFor(BlockPos village) {
         return workerByVillage.get(norm(village));
+    }
+    // ---------- Workers ----------
+
+    private static BlockPos norm(BlockPos village) {
+        // Treat villages as 2D (x,z) keys. Y is forced to 0.
+        return new BlockPos(village.getX(), 0, village.getZ()).toImmutable();
     }
 
     public void setWorkerFor(BlockPos village, UUID id) {

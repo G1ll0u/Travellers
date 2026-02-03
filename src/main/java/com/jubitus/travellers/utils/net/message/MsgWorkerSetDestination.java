@@ -1,7 +1,7 @@
 package com.jubitus.travellers.utils.net.message;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.client.gui.ContainerWorker;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.Entity;
@@ -22,7 +22,8 @@ public class MsgWorkerSetDestination implements IMessage {
     private BlockPos targetCenter;
     private String label; // for chat
 
-    public MsgWorkerSetDestination() {}
+    public MsgWorkerSetDestination() {
+    }
 
 
     public MsgWorkerSetDestination(int entityId, BlockPos targetCenter, String label, boolean donate) {

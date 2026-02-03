@@ -11,6 +11,7 @@ import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+
 @Mod.EventBusSubscriber(modid = Reference.MOD_ID)
 public class MobTargetInjector {
 

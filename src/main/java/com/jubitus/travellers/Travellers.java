@@ -1,23 +1,23 @@
 package com.jubitus.travellers;
 
+import com.jubitus.travellers.client.render.ClientProxy;
 import com.jubitus.travellers.client.server.ClientGuiHandler;
 import com.jubitus.travellers.client.server.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.travellers.*;
-import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
-import com.jubitus.travellers.client.render.ClientProxy;
+import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeChestHandler;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerOffscreenHandler;
-import com.jubitus.travellers.utils.net.packet.PacketTravellerChunks;
-import com.jubitus.travellers.utils.net.packet.PacketTravellerChunksRequest;
-import com.jubitus.travellers.utils.net.TravellerWorkerLootHandler;
-import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
-import com.jubitus.travellers.utils.world.spawn.TravellerSpawnGuards;
+import com.jubitus.travellers.entity.travellers.*;
 import com.jubitus.travellers.utils.commands.*;
 import com.jubitus.travellers.utils.mobs.MobTargetInjector;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.net.TravellerWorkerLootHandler;
+import com.jubitus.travellers.utils.net.packet.PacketTravellerChunks;
+import com.jubitus.travellers.utils.net.packet.PacketTravellerChunksRequest;
+import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
+import com.jubitus.travellers.utils.world.spawn.TravellerSpawnGuards;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
@@ -25,6 +25,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.config.Config;
+import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -44,12 +46,13 @@ import static com.jubitus.travellers.utils.world.mill.VillageDataLoader.loadVill
 
 @Mod(modid = Reference.MOD_ID, name = Reference.MOD_NAME, version = Reference.VERSION, dependencies = "required-after:millenaire")
 public class Travellers {
+    public static final SimpleNetworkWrapper NETWORK =
+            NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
     @Mod.Instance(Reference.MOD_ID)
     public static Travellers INSTANCE;
-    public static final SimpleNetworkWrapper NETWORK =
-            NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
     private static int nextId = 0;
+
     @Mod.EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandSpawnTraveller());
@@ -80,6 +83,7 @@ public class Travellers {
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
         File configFile = new File(configDir, "travellers.cfg");
         TravellersModConfig.init(configFile);
+        ConfigManager.sync(Reference.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
         MinecraftForge.EVENT_BUS.register(new TravellerHomeChestHandler());
@@ -117,7 +121,6 @@ public class Travellers {
         );
 
 
-
         // --- Register travellers entities if enabled in config ---
         if (TravellersModConfig.enableTravellerEntity) {
 
@@ -139,7 +142,7 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller_merchant",   // old name, no colon
                     5,                                          // <-- NEW unique numeric ID
                     this,
-                    2048,                                        // tracking range (match normal travellers)
+                    128,                                        // tracking range (match normal travellers)
                     1,                                          // update frequency
                     true,                                       // send velocity updates
                     0xC0A060,                                   // egg primary colour (optional)
@@ -151,7 +154,7 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller_worker",   // old name, no colon
                     6,                                          // <-- NEW unique numeric ID
                     this,
-                    2048,                                        // tracking range (match normal travellers)
+                    128,                                        // tracking range (match normal travellers)
                     1,                                          // update frequency
                     true,                                       // send velocity updates
                     0xEAE8B4,                                   // egg primary colour (optional)

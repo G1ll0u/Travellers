@@ -22,6 +22,10 @@ import javax.annotation.Nullable;
 
 public class EntityAIFishWhileTravel extends EntityAIBase {
 
+    // Path / validation throttles
+    private static final int REPATH_INTERVAL = 20;      // 1s
+    private static final int VALIDATE_INTERVAL = 10;    // 0.5s
+    private static final int LOOK_INTERVAL = 5;         // 0.25s
     // Tunables
     private final int waterScanRadius;
     private final int minFishTime;
@@ -30,16 +34,21 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     private final int castWindupTicks;
     private final int cooldownTicks;
     private final float startChancePerTick;
-
     private final EntityTraveller mob;
     private final double approachSpeed;
-
     private BlockPos shoreSpot;     // where we stand to fish
     private int castTimer;
     private int fishTimer;
     private int reelTimer;
     private int cooldown;
     private Phase phase = Phase.IDLE;
+    private int repathDelay;
+    private int validateDelay;
+    private int lookDelay;
+
+    private BlockPos lastPathTarget;      // prevent pointless re-paths
+    private BlockPos cachedAimWater;      // don't rescan water every tick
+
 
     public EntityAIFishWhileTravel(EntityTraveller mob) {
         this(
@@ -87,14 +96,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
     }
 
-    // reuse your rotlerp (static) from EntityTraveller
-    private static float rotlerp(float current, float target, float maxStep) {
-        float delta = MathHelper.wrapDegrees(target - current);
-        if (delta > maxStep) delta = maxStep;
-        if (delta < -maxStep) delta = -maxStep;
-        return current + delta;
-    }
-
     // Dry standable = feet cell is standable AND not liquid.
     private boolean isDryStandable(BlockPos feet) {
         if (!isStandable(feet)) return false;
@@ -107,6 +108,11 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
             cooldown--;
             return false;
         }
+        float p = startChancePerTick;
+        float pPerSecond = 1.0f - (float) Math.pow(1.0f - p, 20.0);
+        if (mob.getRNG().nextFloat() > pPerSecond) return false;
+
+
         if (mob.world.isRemote) return false;
 
         // NEW: never start fishing logic while in water
@@ -152,15 +158,18 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
 
     @Override
     public void startExecuting() {
-        // small travel ambient desync so music doesn’t collide
         mob.scheduleNextTravelAmbient();
-
-        // Clear path/waypoint while we control movement
         mob.getNavigator().clearPath();
         mob.setCurrentWaypoint(null);
-        castTimer = 0;
-        fishTimer = 0;
-        reelTimer = 0;
+
+        castTimer = fishTimer = reelTimer = 0;
+
+        repathDelay = 0;
+        validateDelay = 0;
+        lookDelay = 0;
+
+        lastPathTarget = null;
+        cachedAimWater = null;
     }
 
     @Override
@@ -176,8 +185,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         // Cooldown before next fishing session
         cooldown = cooldownTicks;
     }
-
-    // --- phases ---
 
     @Override
     public void updateTask() {
@@ -203,35 +210,100 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
     }
 
+    // --- phases ---
+
     private void approachShore() {
         if (shoreSpot == null) {
             phase = Phase.DONE;
             return;
         }
 
-        // Ensure the spot still looks valid; bail if chunks gone or water disappeared
-        if (!isAreaLoaded(shoreSpot, 1) || !isNavigable(shoreSpot) || !isWaterAheadOf(shoreSpot)) {
-            phase = Phase.DONE;
-            return;
+        // Only re-validate expensive environment checks occasionally
+        if (validateDelay-- <= 0) {
+            validateDelay = VALIDATE_INTERVAL;
+
+            // Bail if chunks gone or water disappeared (same logic, just not per-tick)
+            if (!mob.world.isAreaLoaded(shoreSpot, 1) || !isNavigable(shoreSpot) || !isWaterAheadOf(shoreSpot)) {
+                phase = Phase.DONE;
+                return;
+            }
         }
 
         double d2 = mob.getDistanceSqToCenter(shoreSpot);
+
         if (d2 > 2.0) {
-            mob.getNavigator().tryMoveToXYZ(
+            // Let the navigator keep following its current path.
+            // Only compute a new path if we have none OR on a timer OR target changed.
+            boolean needsPath = mob.getNavigator().noPath();
+
+            if (!needsPath && repathDelay > 0) {
+                repathDelay--;
+                return;
+            }
+
+            // throttle repath
+            repathDelay = REPATH_INTERVAL;
+
+            // avoid repathing to the same block unless path is gone
+            if (!needsPath && shoreSpot.equals(lastPathTarget)) {
+                return;
+            }
+
+            lastPathTarget = shoreSpot;
+
+            boolean ok = mob.getNavigator().tryMoveToXYZ(
                     shoreSpot.getX() + 0.5,
                     shoreSpot.getY(),
                     shoreSpot.getZ() + 0.5,
                     approachSpeed
             );
-        } else {
-            mob.getNavigator().clearPath();
-            // Face the water
-            faceNearestWater();
-            // Equip the ghost rod (visual only)
-            ensureGhostRodInHand();
-            castTimer = castWindupTicks;
-            phase = Phase.CAST_WINDUP;
+
+            // If no path found, don't keep hammering pathfinder
+            if (!ok) {
+                phase = Phase.DONE;
+            }
+
+            return;
         }
+
+        // We arrived
+        mob.getNavigator().clearPath();
+
+        // Cache the aim target once on arrival
+        cachedAimWater = findNearestWaterColumn(shoreSpot, 4);
+
+        faceNearestWaterCached();
+        ensureGhostRodInHand();
+        castTimer = castWindupTicks;
+        phase = Phase.CAST_WINDUP;
+    }
+
+    private void faceNearestWaterCached() {
+        // Only rotate often; only rescan water sometimes
+        if (lookDelay-- > 0) {
+            if (cachedAimWater != null) {
+                facePos(cachedAimWater);
+            }
+            return;
+        }
+        lookDelay = LOOK_INTERVAL;
+
+        // rescan only occasionally (or if we lost the cache)
+        if (cachedAimWater == null || !mob.world.isBlockLoaded(cachedAimWater)) {
+            cachedAimWater = findNearestWaterColumn(mob.getPosition(), 4);
+        }
+        if (cachedAimWater != null) {
+            facePos(cachedAimWater);
+        }
+    }
+
+    private void facePos(BlockPos best) {
+        double dx = best.getX() + 0.5 - mob.posX;
+        double dz = best.getZ() + 0.5 - mob.posZ;
+        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
+        mob.rotationYaw = rotlerp(mob.rotationYaw, yaw, 8.0F);
+        mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, 8.0F);
+        mob.rotationYawHead = rotlerp(mob.rotationYawHead, mob.renderYawOffset, 12.0F);
     }
 
     private void doCastWindup() {
@@ -266,7 +338,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
 
         // hold still and keep looking toward water
         mob.getNavigator().clearPath();
-        faceNearestWater();
+        faceNearestWaterCached();
         if (mob.isInWater()) {
             phase = Phase.REEL_OUT; // bail and stow rod if we somehow ended up in water
             return;
@@ -283,8 +355,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
     }
 
-    // --- helpers ---
-
     private void doReelOut() {
         // final reel/swing
         mob.world.setEntityState(mob, (byte) 4);
@@ -298,6 +368,8 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
         phase = Phase.DONE;
     }
+
+    // --- helpers ---
 
     private void ensureGhostRodInHand() {
         ItemStack hand = mob.getHeldItemMainhand();
@@ -324,20 +396,45 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
     }
 
-    private void playCastSound() {
-        mob.playSound(SoundEvents.ENTITY_BOBBER_THROW, 0.6F, 0.95F + mob.getRNG().nextFloat() * 0.1F);
-    }
+    /**
+     * Aim at the best nearby water (including up to 3 blocks below the stand).
+     */
+    @Nullable
+    private BlockPos findNearestWaterColumn(BlockPos around, int r) {
+        World w = mob.world;
+        BlockPos best = null;
+        double bestD2 = Double.MAX_VALUE;
 
-    private void playReelSound() {
-        mob.playSound(SoundEvents.ENTITY_BOBBER_RETRIEVE, 0.6F, 0.95F + mob.getRNG().nextFloat() * 0.1F);
-    }
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                BlockPos col = new BlockPos(around.getX() + dx, around.getY(), around.getZ() + dz);
+                if (!isAreaLoaded(col, 1)) continue;
 
-    // --- environment checks (vanilla water only; no chunk loads) ---
-
-    private void maybePlayWaterPlop() {
-        if (mob.getRNG().nextFloat() < 0.25f) {
-            mob.playSound(SoundEvents.ENTITY_BOBBER_SPLASH, 0.5F, 0.9F + mob.getRNG().nextFloat() * 0.2F);
+                // check down up to 3 for a water surface
+                for (int dy = 0; dy <= 3; dy++) {
+                    BlockPos probe = col.down(dy);
+                    IBlockState s = w.getBlockState(probe);
+                    IBlockState above = w.getBlockState(probe.up());
+                    if (isVanillaWater(s) && (isVanillaWater(above) || above.getMaterial().isReplaceable())) {
+                        double d2 = around.distanceSq(probe);
+                        if (d2 < bestD2) {
+                            bestD2 = d2;
+                            best = probe;
+                        }
+                        break; // take the highest water in this column
+                    }
+                }
+            }
         }
+        return best;
+    }
+
+    // reuse your rotlerp (static) from EntityTraveller
+    private static float rotlerp(float current, float target, float maxStep) {
+        float delta = MathHelper.wrapDegrees(target - current);
+        if (delta > maxStep) delta = maxStep;
+        if (delta < -maxStep) delta = -maxStep;
+        return current + delta;
     }
 
     private boolean isAreaLoaded(BlockPos pos, int r) {
@@ -351,6 +448,27 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
             }
         }
         return true;
+    }
+
+    // --- environment checks (vanilla water only; no chunk loads) ---
+
+    private boolean isVanillaWater(IBlockState s) {
+        Block b = s.getBlock();
+        return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
+    }
+
+    private void playCastSound() {
+        mob.playSound(SoundEvents.ENTITY_BOBBER_THROW, 0.6F, 0.95F + mob.getRNG().nextFloat() * 0.1F);
+    }
+
+    private void playReelSound() {
+        mob.playSound(SoundEvents.ENTITY_BOBBER_RETRIEVE, 0.6F, 0.95F + mob.getRNG().nextFloat() * 0.1F);
+    }
+
+    private void maybePlayWaterPlop() {
+        if (mob.getRNG().nextFloat() < 0.25f) {
+            mob.playSound(SoundEvents.ENTITY_BOBBER_SPLASH, 0.5F, 0.9F + mob.getRNG().nextFloat() * 0.2F);
+        }
     }
 
     private boolean isNavigable(BlockPos feet) {
@@ -382,11 +500,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         IBlockState b = w.getBlockState(feet.down());
         return isVanillaWater(f) && (isVanillaWater(h) || h.getMaterial().isReplaceable())
                 && !isForbiddenLiquid(f) && !isForbiddenLiquid(h) && !isForbiddenLiquid(b);
-    }
-
-    private boolean isVanillaWater(IBlockState s) {
-        Block b = s.getBlock();
-        return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
     }
 
     private boolean isForbiddenLiquid(IBlockState s) {
@@ -443,7 +556,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
             // Only allow water exactly 1 block away
             for (int step = 1; step <= 1; step++) {
                 BlockPos col = stand.offset(f, step);
-                if (!isAreaLoaded(col, 1)) continue;
+                if (!mob.world.isBlockLoaded(col)) continue;
 
                 for (int dy = 0; dy <= 3; dy++) {
                     BlockPos probe = col.down(dy);
@@ -477,39 +590,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
             if (!isAreaLoaded(p, 1)) return null;
         }
         return (isStandable(p) || isSwimmable(p)) ? p : null;
-    }
-
-    /**
-     * Aim at the best nearby water (including up to 3 blocks below the stand).
-     */
-    @Nullable
-    private BlockPos findNearestWaterColumn(BlockPos around, int r) {
-        World w = mob.world;
-        BlockPos best = null;
-        double bestD2 = Double.MAX_VALUE;
-
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                BlockPos col = new BlockPos(around.getX() + dx, around.getY(), around.getZ() + dz);
-                if (!isAreaLoaded(col, 1)) continue;
-
-                // check down up to 3 for a water surface
-                for (int dy = 0; dy <= 3; dy++) {
-                    BlockPos probe = col.down(dy);
-                    IBlockState s = w.getBlockState(probe);
-                    IBlockState above = w.getBlockState(probe.up());
-                    if (isVanillaWater(s) && (isVanillaWater(above) || above.getMaterial().isReplaceable())) {
-                        double d2 = around.distanceSq(probe);
-                        if (d2 < bestD2) {
-                            bestD2 = d2;
-                            best = probe;
-                        }
-                        break; // take the highest water in this column
-                    }
-                }
-            }
-        }
-        return best;
     }
 
     private enum Phase {IDLE, APPROACH, CAST_WINDUP, FISHING, REEL_OUT, DONE}

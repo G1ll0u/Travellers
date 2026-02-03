@@ -18,7 +18,8 @@ public class MsgSyncWorkerHireState implements IMessage {
     private UUID ownerId;
     private boolean followOrderActive;
 
-    public MsgSyncWorkerHireState() {}
+    public MsgSyncWorkerHireState() {
+    }
 
     public MsgSyncWorkerHireState(EntityTravellerWorker worker) {
         this.entityId = worker.getEntityId();
@@ -86,8 +87,12 @@ public class MsgSyncWorkerHireState implements IMessage {
             return null;
         }
     }
+
     public static class NoopHandler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
-        @Override public IMessage onMessage(MsgSyncWorkerHireState msg, MessageContext ctx) { return null; }
+        @Override
+        public IMessage onMessage(MsgSyncWorkerHireState msg, MessageContext ctx) {
+            return null;
+        }
     }
 
 }

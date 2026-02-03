@@ -6,6 +6,7 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -647,7 +648,33 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
     }
 
     private void pushFollowPathTo(Vec3d p) {
+        // "owner" for scheduling = leader (everyone in this follow group shares same leader)
+        EntityLivingBase owner = leader;
+
+        // group size = how many followers are around this leader (you already track this)
+        int groupSize = 1;
+        try {
+            groupSize = Math.max(1, leader.getCurrentFollowerCount() + 1);
+        } catch (Throwable ignored) {
+        }
+
+        // priority rules:
+        // 2 = urgent if we have no path OR we’re far
+        // 0 = normal otherwise
+        int priority = 0;
+        double d2 = mob.getDistanceSq(leader);
+        if (mob.getNavigator().noPath() || d2 > (MAX_DIST * 0.75) * (MAX_DIST * 0.75)) {
+            priority = 2;
+        }
+
+        // Ask scheduler if we’re allowed to compute a new path THIS tick
+        if (!PathScheduler.tryAcquire(mob.world, owner, mob.getEntityId(), priority, groupSize)) {
+            // Not allowed: keep current path (mob still walks normally on existing path)
+            return;
+        }
+
         mob.getNavigator().tryMoveToXYZ(p.x, p.y, p.z, speed);
     }
+
 }
 

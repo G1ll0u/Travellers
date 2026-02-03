@@ -311,7 +311,7 @@ public final class CultureRegistry {
         }
 // === 2b) Decide worker inclusion ===
         boolean hasWorkerFileIncludes = !TravellersModConfig.INCLUDED_WORKER_VILLAGER_FILES.isEmpty();
-        boolean hasWorkerTagIncludes  = !TravellersModConfig.INCLUDED_WORKER_VILLAGER_TAGS.isEmpty();
+        boolean hasWorkerTagIncludes = !TravellersModConfig.INCLUDED_WORKER_VILLAGER_TAGS.isEmpty();
 
         boolean workerFileMatch = hasWorkerFileIncludes &&
                 TravellersModConfig.INCLUDED_WORKER_VILLAGER_FILES.contains(villagerBaseName);
@@ -332,7 +332,7 @@ public final class CultureRegistry {
 
 // === 2c) Decide merchant inclusion ===
         boolean hasMerchantFileIncludes = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_FILES.isEmpty();
-        boolean hasMerchantTagIncludes  = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.isEmpty();
+        boolean hasMerchantTagIncludes = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.isEmpty();
 
         boolean merchantFileMatch = hasMerchantFileIncludes &&
                 TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_FILES.contains(villagerBaseName);
@@ -900,6 +900,7 @@ public final class CultureRegistry {
         bootstrapAllMillenaireCultures(); // will parse traded_goods and attach items
         ModSounds.assignVoicesToCultures();
     }
+
     public static String pickRandomCultureIdWithRaiders(Random r) {
         List<String> ids = new ArrayList<>();
         for (CultureDef d : CULT.values()) {

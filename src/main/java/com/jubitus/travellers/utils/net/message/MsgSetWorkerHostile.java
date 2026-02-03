@@ -21,7 +21,8 @@ public class MsgSetWorkerHostile implements IMessage {
     private String name;
     private boolean hostile;
 
-    public MsgSetWorkerHostile() {}
+    public MsgSetWorkerHostile() {
+    }
 
     public MsgSetWorkerHostile(int workerId, String name, boolean hostile) {
         this.workerId = workerId;
@@ -93,7 +94,7 @@ public class MsgSetWorkerHostile implements IMessage {
                     leader.hostilePlayers.remove(targetId);
                     sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "Removed enemy: " + gp.getName()));
                 }
-
+                leader.syncHostileListToAllOwnedWorkers();
                 // ✅ PATCH HERE: after mutating the set, sync the updated list to the client
                 TravellerFollowNet.CHANNEL.sendTo(
                         MsgOpenWorkerSubGui.buildHostileListPacket(worker),

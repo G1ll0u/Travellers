@@ -1,8 +1,8 @@
 package com.jubitus.travellers.client.gui;
 
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.utils.net.packet.PacketTravellerChunksRequest;
 import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
+import com.jubitus.travellers.utils.net.packet.PacketTravellerChunksRequest;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraftforge.fml.relauncher.Side;
@@ -28,34 +28,6 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         this.snapshot = snapshot;
         this.merchantSet = new HashSet<>(snapshot.merchantChunks);
         this.normalSet = new HashSet<>(snapshot.normalChunks);
-    }
-    @Override
-    public void updateScreen() {
-        super.updateScreen();
-
-        tickCounter++;
-        if (tickCounter >= 40) { // ~1 second at 20 TPS
-            tickCounter = 0;
-
-            // Ask server for an updated snapshot, centered on the player
-            Travellers.NETWORK.sendToServer(
-                    new PacketTravellerChunksRequest(snapshot.radiusBlocks)
-            );
-        }
-    }
-    @Override
-    public boolean doesGuiPauseGame() {
-        return false;
-    }
-
-    @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        // Close on ESC / inventory
-        if (keyCode == org.lwjgl.input.Keyboard.KEY_ESCAPE || this.mc.gameSettings.keyBindInventory.isActiveAndMatches(keyCode)) {
-            this.mc.displayGuiScreen(null);
-            return;
-        }
-        super.keyTyped(typedChar, keyCode);
     }
 
     @Override
@@ -164,5 +136,35 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         this.fontRenderer.drawString("White square = your current chunk", legendLeft, legendTop + 1, 0xFFFFFFFF);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Close on ESC / inventory
+        if (keyCode == org.lwjgl.input.Keyboard.KEY_ESCAPE || this.mc.gameSettings.keyBindInventory.isActiveAndMatches(keyCode)) {
+            this.mc.displayGuiScreen(null);
+            return;
+        }
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    @Override
+    public void updateScreen() {
+        super.updateScreen();
+
+        tickCounter++;
+        if (tickCounter >= 40) { // ~1 second at 20 TPS
+            tickCounter = 0;
+
+            // Ask server for an updated snapshot, centered on the player
+            Travellers.NETWORK.sendToServer(
+                    new PacketTravellerChunksRequest(snapshot.radiusBlocks)
+            );
+        }
+    }
+
+    @Override
+    public boolean doesGuiPauseGame() {
+        return false;
     }
 }

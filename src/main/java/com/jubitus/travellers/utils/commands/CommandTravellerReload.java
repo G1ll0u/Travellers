@@ -19,6 +19,7 @@ public class CommandTravellerReload extends net.minecraft.command.CommandBase {
                         String[] args) throws net.minecraft.command.CommandException {
         TravellersModConfig.reload();
         notifyCommandListener(sender, this, "Reloaded TravellersMod config.");
+
     }
 
     @Override

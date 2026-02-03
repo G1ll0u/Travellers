@@ -1,7 +1,7 @@
 package com.jubitus.travellers.utils.net.message;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.client.sound.TravellerVoiceClientBus;
+import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
@@ -11,8 +11,6 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
 public class MsgPlayTravellerVoice implements IMessage {
     public int entityId;
@@ -68,8 +66,12 @@ public class MsgPlayTravellerVoice implements IMessage {
             return null;
         }
     }
+
     public static class NoopHandler implements IMessageHandler<MsgPlayTravellerVoice, IMessage> {
-        @Override public IMessage onMessage(MsgPlayTravellerVoice msg, MessageContext ctx) { return null; }
+        @Override
+        public IMessage onMessage(MsgPlayTravellerVoice msg, MessageContext ctx) {
+            return null;
+        }
     }
 
 }

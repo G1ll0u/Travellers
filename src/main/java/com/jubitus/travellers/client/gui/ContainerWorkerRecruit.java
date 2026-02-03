@@ -14,12 +14,12 @@ public class ContainerWorkerRecruit extends Container {
     }
 
     @Override
-    public boolean canInteractWith(EntityPlayer playerIn) {
-        return worker != null && worker.isEntityAlive() && worker.getDistanceSq(playerIn) <= 64.0D;
+    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
+        return ItemStack.EMPTY;
     }
 
     @Override
-    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
-        return ItemStack.EMPTY;
+    public boolean canInteractWith(EntityPlayer playerIn) {
+        return worker != null && worker.isEntityAlive() && worker.getDistanceSq(playerIn) <= 64.0D;
     }
 }

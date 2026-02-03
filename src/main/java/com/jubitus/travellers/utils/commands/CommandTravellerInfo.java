@@ -1,10 +1,10 @@
 package com.jubitus.travellers.utils.commands;
 
 import com.jubitus.travellers.TravellersModConfig;
-import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
+import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;

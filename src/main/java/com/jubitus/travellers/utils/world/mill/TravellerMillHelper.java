@@ -20,102 +20,13 @@ public final class TravellerMillHelper {
     private TravellerMillHelper() {
     }
 
-
-
-    /**
-     * Returns TOTAL required items for active *building* constructions
-     * (current goal + ConstructionIP plans). This matches the logic in
-     * your /villageneeds "Combined construction requirements (CIPs)" view,
-     * but also includes the current goal plan.
-     *
-     * The map values are "total required", not "missing" – the caller is
-     * expected to subtract chest contents.
-     */
-    public static Map<InvItem, Integer> computeActiveConstructionRequirements(Building townHall) {
-        Map<InvItem, Integer> needs = new LinkedHashMap<>();
-        if (townHall == null) return needs;
-
-        Map<InvItem, Integer> allocated = new HashMap<>();
-
-        // 1) Current building goal plan (even if there is no CIP yet)
-        BuildingPlan goal = townHall.getCurrentGoalBuildingPlan();
-        if (goal != null && goal.resCost != null && !goal.resCost.isEmpty()) {
-            accumulatePlanConstructionNeeds(townHall, goal, needs, allocated);
-        }
-
-        // 2) Constructions in progress (CIPs) – both build and wall CIPs might show up here,
-        // but we treat them as normal construction for "building" requirements.
-        List<ConstructionIP> cips = townHall.getConstructionsInProgress();
-        if (cips != null) {
-            for (ConstructionIP cip : cips) {
-                if (cip == null) continue;
-                BuildingLocation bl = cip.getBuildingLocation();
-                BuildingPlan plan = (bl != null) ? bl.getPlan() : null;
-                if (plan == null || plan.resCost == null || plan.resCost.isEmpty()) {
-                    continue;
-                }
-                accumulatePlanConstructionNeeds(townHall, plan, needs, allocated);
-            }
-        }
-
-        return needs;
-    }
-
-    /**
-     * Returns TOTAL required items for wall projects (based on BuildingProject list),
-     * like your /villageneeds "Combined wall requirements (projects)" section.
-     *
-     * Again, values are "total required"; caller subtracts what’s already in chests.
-     */
-    public static Map<InvItem, Integer> computeWallRequirements(Building townHall) {
-        Map<InvItem, Integer> needs = new LinkedHashMap<>();
-        if (townHall == null) return needs;
-
-        List<BuildingProject> projects = townHall.getFlatProjectList();
-        if (projects == null || projects.isEmpty()) {
-            return needs;
-        }
-
-        Map<InvItem, Integer> allocated = new HashMap<>();
-
-        for (BuildingProject project : projects) {
-            if (project == null) continue;
-
-            BuildingPlan initial = project.getPlan(0, 0);
-            BuildingPlan next = project.getNextBuildingPlan(false);
-
-            boolean initialWall = initial != null && initial.isWallSegment;
-            boolean nextWall = next != null && next.isWallSegment;
-
-            // same heuristic as your /villageneeds: consider wall projects only
-            if (!initialWall && !nextWall) {
-                continue;
-            }
-
-            BuildingPlan planForNeeds;
-            if (nextWall) {
-                planForNeeds = next;
-            } else {
-                planForNeeds = initial;
-            }
-
-            if (planForNeeds == null || planForNeeds.resCost == null || planForNeeds.resCost.isEmpty()) {
-                continue;
-            }
-
-            accumulatePlanConstructionNeeds(townHall, planForNeeds, needs, allocated);
-        }
-
-        return needs;
-    }
-
-
     public static String formatDonationLine(InvItem ii, int totalReq, int inVillage, int missing, int donate) {
         return String.format(
                 "%s (meta %d): totalReq=%d, chest=%d, missing=%d, donate=%d",
                 ii.getName(), ii.meta, totalReq, inVillage, missing, donate
         );
     }
+
     public static void debugVillageNeeds(EntityPlayerMP player, Building townHall) {
         if (townHall == null) {
             player.sendMessage(new TextComponentString("[travellers] No Town Hall found here."));
@@ -142,10 +53,10 @@ public final class TravellerMillHelper {
         BuildingLocation goalLoc = townHall.buildingGoalLocation;
         BuildingPlan goalPlan = townHall.getCurrentGoalBuildingPlan(); // Millénaire API
 
-        player.sendMessage(new TextComponentString("  buildingGoal: " + String.valueOf(goalKey)));
+        player.sendMessage(new TextComponentString("  buildingGoal: " + goalKey));
         player.sendMessage(new TextComponentString("  buildingGoalLevel: " + townHall.buildingGoalLevel));
         player.sendMessage(new TextComponentString("  buildingGoalVariation: " + townHall.buildingGoalVariation));
-        player.sendMessage(new TextComponentString("  buildingGoalLocation: " + String.valueOf(goalLoc)));
+        player.sendMessage(new TextComponentString("  buildingGoalLocation: " + goalLoc));
 
         if (goalPlan != null) {
             player.sendMessage(new TextComponentString("  goalPlan: " + goalPlan.planName
@@ -324,11 +235,99 @@ public final class TravellerMillHelper {
             }
         }
     }
+
+    /**
+     * Returns TOTAL required items for active *building* constructions
+     * (current goal + ConstructionIP plans). This matches the logic in
+     * your /villageneeds "Combined construction requirements (CIPs)" view,
+     * but also includes the current goal plan.
+     * <p>
+     * The map values are "total required", not "missing" – the caller is
+     * expected to subtract chest contents.
+     */
+    public static Map<InvItem, Integer> computeActiveConstructionRequirements(Building townHall) {
+        Map<InvItem, Integer> needs = new LinkedHashMap<>();
+        if (townHall == null) return needs;
+
+        Map<InvItem, Integer> allocated = new HashMap<>();
+
+        // 1) Current building goal plan (even if there is no CIP yet)
+        BuildingPlan goal = townHall.getCurrentGoalBuildingPlan();
+        if (goal != null && goal.resCost != null && !goal.resCost.isEmpty()) {
+            accumulatePlanConstructionNeeds(townHall, goal, needs, allocated);
+        }
+
+        // 2) Constructions in progress (CIPs) – both build and wall CIPs might show up here,
+        // but we treat them as normal construction for "building" requirements.
+        List<ConstructionIP> cips = townHall.getConstructionsInProgress();
+        if (cips != null) {
+            for (ConstructionIP cip : cips) {
+                if (cip == null) continue;
+                BuildingLocation bl = cip.getBuildingLocation();
+                BuildingPlan plan = (bl != null) ? bl.getPlan() : null;
+                if (plan == null || plan.resCost == null || plan.resCost.isEmpty()) {
+                    continue;
+                }
+                accumulatePlanConstructionNeeds(townHall, plan, needs, allocated);
+            }
+        }
+
+        return needs;
+    }
+
+    /**
+     * Returns TOTAL required items for wall projects (based on BuildingProject list),
+     * like your /villageneeds "Combined wall requirements (projects)" section.
+     * <p>
+     * Again, values are "total required"; caller subtracts what’s already in chests.
+     */
+    public static Map<InvItem, Integer> computeWallRequirements(Building townHall) {
+        Map<InvItem, Integer> needs = new LinkedHashMap<>();
+        if (townHall == null) return needs;
+
+        List<BuildingProject> projects = townHall.getFlatProjectList();
+        if (projects == null || projects.isEmpty()) {
+            return needs;
+        }
+
+        Map<InvItem, Integer> allocated = new HashMap<>();
+
+        for (BuildingProject project : projects) {
+            if (project == null) continue;
+
+            BuildingPlan initial = project.getPlan(0, 0);
+            BuildingPlan next = project.getNextBuildingPlan(false);
+
+            boolean initialWall = initial != null && initial.isWallSegment;
+            boolean nextWall = next != null && next.isWallSegment;
+
+            // same heuristic as your /villageneeds: consider wall projects only
+            if (!initialWall && !nextWall) {
+                continue;
+            }
+
+            BuildingPlan planForNeeds;
+            if (nextWall) {
+                planForNeeds = next;
+            } else {
+                planForNeeds = initial;
+            }
+
+            if (planForNeeds == null || planForNeeds.resCost == null || planForNeeds.resCost.isEmpty()) {
+                continue;
+            }
+
+            accumulatePlanConstructionNeeds(townHall, planForNeeds, needs, allocated);
+        }
+
+        return needs;
+    }
+
     /**
      * For a given plan, compute what is still missing in storage
      * based purely on resCost and what we’ve already allocated
      * for previous plans.
-     *
+     * <p>
      * `needs` gets TOTAL required per InvItem (like your /villageneeds dump),
      * `allocated` is used to not double-count goods already “claimed” by earlier plans.
      */
