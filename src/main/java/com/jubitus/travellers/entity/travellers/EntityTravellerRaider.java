@@ -16,7 +16,7 @@ import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.MsgStopTravellerVoice;
+import com.jubitus.travellers.utils.net.message.sounds.MsgStopTravellerVoice;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.entity.Entity;
@@ -235,7 +235,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // === OPTIONAL / DISABLED FEATURES ====================================================
 
-        // Raiders don't auto-eat by default; add this back if you want survival-focused foes.
+        // Raiders don't auto-eat by gilles; add this back if you want survival-focused foes.
         aiTravel = null;
         autoEatTask = null;
     }
@@ -428,7 +428,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 //        CultureDef def = CultureRegistry.get(cid);
 //        int rCount = (def != null ? def.getRaiderTextureCount() : 0);
 //
-//        // Fallback to travellers count if no specific raider looks
+//        // Fallback to travellers count if no specific raiders looks
 //        if (rCount <= 0 && def != null) {
 //            rCount = def.getTravellerTextureCount();
 //        }
@@ -468,7 +468,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (src instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) src;
 
-            // Only ignore same-faction (raider-raider, travellers-travellers)
+            // Only ignore same-faction (raiders-raiders, travellers-travellers)
             if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) {
                 this.setRevengeTarget(null);
                 return true;
@@ -502,7 +502,7 @@ public class EntityTravellerRaider extends EntityTraveller {
     @Override
     @Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
-        VoiceSet v = CultureRegistry.RAIDER_VOICES.get(getCultureId());
+        VoiceSet v = CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
         return (v != null && v.hurt != null) ? v.hurt : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
     }
 

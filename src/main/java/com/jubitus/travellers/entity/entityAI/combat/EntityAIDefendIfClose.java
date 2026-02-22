@@ -37,7 +37,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
     // OLD SIGNATURE – used at call site
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS) {
-        // default tickRate = 8, random phase [0,8)
+        // gilles tickRate = 8, random phase [0,8)
         this(mob,
                 triggerRange,
                 requireLOS,

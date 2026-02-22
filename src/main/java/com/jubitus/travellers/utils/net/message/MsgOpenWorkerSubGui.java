@@ -5,6 +5,10 @@ import com.jubitus.travellers.client.gui.TravellersGuiIds;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.net.message.home.MsgSyncWorkerHome;
+import com.jubitus.travellers.utils.net.message.home.MsgWorkerHomeList;
+import com.jubitus.travellers.utils.net.message.workerplayer.MsgSyncWorkerHireState;
+import com.jubitus.travellers.utils.net.message.workerplayer.MsgSyncWorkerHostileList;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -32,13 +36,13 @@ public class MsgOpenWorkerSubGui implements IMessage {
         this.type = type;
     }
 
-    static MsgSyncWorkerHostileList buildHostileListPacket(EntityTravellerWorker worker) {
+    public static MsgSyncWorkerHostileList buildHostileListPacket(EntityTravellerWorker worker) {
         EntityTravellerWorker leader = worker.getGroupLeaderOrSelf();
 
         java.util.List<String> out = new java.util.ArrayList<>();
         MinecraftServer srv = worker.world.getMinecraftServer();
         if (srv != null) {
-            for (UUID id : leader.getEffectiveHostilePlayers()) {
+            for (UUID id : worker.getHostility().getHostilesForGui()) {
                 GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(id);
                 out.add(gp != null && gp.getName() != null ? gp.getName() : id.toString());
             }
@@ -74,6 +78,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
         INVENTORY,
         BEHAVIOR, // NEW
         HUB,
+        GO,
         HOME
     }
 
@@ -187,9 +192,23 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         guiId = TravellersGuiIds.WORKER_HUB;
                         break;
 
+                    case GO:
+                        if (!isHiredByPlayer(worker, player)) {
+                            player.sendMessage(new TextComponentString(
+                                    TextFormatting.RED + "You can only order a worker you've hired."
+                            ));
+                            return;
+                        }
 
+                        guiId = TravellersGuiIds.WORKER_GO;
+
+                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        break;
                     default:
                         return;
+
+
+
                 }
 
 

@@ -52,11 +52,23 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
         if (target == worker.getFollowOwner()) return false;
 
         TravellerBlacklist blacklist = TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
-        if (blacklist.isBlacklisted(target)) return false;
+        if (blacklist != null && blacklist.isBlacklisted(target)) return false;
 
-        // (rest of your logic)
+        // Assist owner if:
+        // - target is a hostile mob, OR
+        // - target is an enemy by declared/engaged rules
+        if (target instanceof net.minecraft.entity.monster.IMob) return true;
+
+        if (target instanceof EntityPlayer) {
+            return worker.isEnemyPlayer((EntityPlayer) target);
+        }
+        if (target instanceof EntityTravellerWorker) {
+            return worker.isEnemyHiredWorker((EntityTravellerWorker) target);
+        }
+
         return super.isSuitableTarget(target, includeInvincibles);
     }
+
 
 
 }

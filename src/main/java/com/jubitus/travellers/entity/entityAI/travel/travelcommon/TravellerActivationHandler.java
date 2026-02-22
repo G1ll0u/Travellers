@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
 import com.jubitus.travellers.Reference;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;

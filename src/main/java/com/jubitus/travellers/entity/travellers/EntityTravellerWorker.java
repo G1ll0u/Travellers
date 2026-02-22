@@ -13,12 +13,14 @@ import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendOwnerProactively;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIOwnerHurtByTargetTraveller;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIOwnerHurtTargetTraveller;
+import com.jubitus.travellers.entity.entityAI.combat.EntityAIWorkerHurtByTargetTraveller;
 import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowOwnerTraveller;
 import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIMerchantDeliverGoods;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.utils.mobs.PlayerHostility;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
@@ -37,6 +39,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.datasync.DataParameter;
 import net.minecraft.network.datasync.DataSerializers;
 import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -63,6 +66,18 @@ import java.util.*;
 
 public class EntityTravellerWorker extends EntityTraveller {
 
+    public static final int PVP_ENGAGE_TICKS = 20 * 120; // 2 minutes
+    public static final double PVP_DECLARE_CHECK_RADIUS = 64.0D;
+
+
+    // --- "Go..." order state ---
+    private boolean goOrderActive = false;
+    @Nullable private BlockPos goOrderTargetPos = null;
+    private int goOrderTargetDim = 0; // for persistence (same dim usually)
+
+    // --- escort leader watchdog ---
+    private int escortLeaderCheckCooldown = 0;
+
     private static final int MIN_REP_TO_TRADE = -1024;
     // --- anchor guard tuning ---
     private static final double ANCHOR_GUARD_RADIUS = 192.0D;     // can fight within this radius of anchor
@@ -76,20 +91,20 @@ public class EntityTravellerWorker extends EntityTraveller {
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
     private static final DataParameter<Integer> LEADER_FOLLOWER_COUNT_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.VARINT);
-    private static final DataParameter<Boolean> HIRED_FOLLOWER_DM =
+    static final DataParameter<Boolean> HIRED_FOLLOWER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
-    private static final DataParameter<Optional<UUID>> FOLLOW_OWNER_DM =
+    static final DataParameter<Optional<UUID>> FOLLOW_OWNER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
     // --- assigned home sync (server -> client) ---
     private static final long NO_HOME = Long.MIN_VALUE;
     // --- assigned home sync ---
-    private static final DataParameter<com.google.common.base.Optional<BlockPos>> HOME_POS_DM =
+    static final DataParameter<com.google.common.base.Optional<BlockPos>> HOME_POS_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_BLOCK_POS);
-    private static final DataParameter<Integer> HOME_DIM_DM =
+    static final DataParameter<Integer> HOME_DIM_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.VARINT);
-    private static final DataParameter<String> HOME_NAME_DM =
+    static final DataParameter<String> HOME_NAME_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.STRING);
-    private static final DataParameter<Optional<UUID>> ESCORT_LEADER_DM =
+    public static final DataParameter<Optional<UUID>> ESCORT_LEADER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
     private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersModConfig.returnFollowSwitchDist; // tweak (24–40 works well)
     // How often to refresh the catchup target (ticks)
@@ -101,8 +116,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     // How often (in ticks) to refresh target when returning
     private static final int RETURN_REPATH_INTERVAL_TICKS = 200; // ~10 seconds
     private static final int WORKER_SLOTS = 18; // cargo slots
-    // Players explicitly marked as hostile by the owner
-    public final Set<UUID> hostilePlayers = new java.util.HashSet<>();
+    public final PlayerHostility playerHostility = new PlayerHostility(this);
     private final Set<ChunkPos> forced = new java.util.HashSet<>();
     // NEW: 18-slot personal inventory (like a small chest on the worker)
     private final ItemStackHandler personalInventory = new ItemStackHandler(18);
@@ -110,19 +124,18 @@ public class EntityTravellerWorker extends EntityTraveller {
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
     // --- recruit mission state ---
-    private final List<BlockPos> recruitVillages = new ArrayList<>();
+    final List<BlockPos> recruitVillages = new ArrayList<>();
     // track which villages already spawned recruits (avoid double spawn)
-    private final Set<BlockPos> recruitSpawnedAt = new HashSet<>();
-    private final java.util.List<String> hostileNamesClient = new java.util.ArrayList<>();
+    final Set<BlockPos> recruitSpawnedAt = new HashSet<>();
     // --- follower / hire state (existing) ---
     @Nullable
     public UUID followOwnerId = null;
     public boolean hiredFollower = false;
     @Nullable
-    private BlockPos assignedHomePos = null;
-    private int assignedHomeDim = 0;
-    private String assignedHomeName = ""; // optional but handy
-    private boolean goingHome = false; // travel-in-progress
+    BlockPos assignedHomePos = null;
+    int assignedHomeDim = 0;
+    String assignedHomeName = ""; // optional but handy
+    boolean goingHome = false; // travel-in-progress
     private int anchorScanCooldown = 0;
     // --- dynamic owner catchup goal ---
     private BlockPos cachedCatchupGoal = null;
@@ -132,12 +145,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     private boolean returnUsingFollow = false;
     private int catchupRepathCooldown = 0;
     // recruit mission return phase: follow owner home
-    private boolean recruitReturningToOwner = false;
+    boolean recruitReturningToOwner = false;
     // NEW: whether follow AI is currently active (player’s "Follow" order)
     private boolean followOrderActive = false;
     // NEW: where the worker was told to stay when follow was toggled OFF
     @Nullable
-    private BlockPos idleAnchorPos = null;
+    BlockPos idleAnchorPos = null;
     // NEW: leader logic – if non-null, this worker follows another worker instead of the player
     @Nullable
     private UUID escortLeaderUUID = null;
@@ -153,38 +166,38 @@ public class EntityTravellerWorker extends EntityTraveller {
     private int followerLookTicks = 0;
     private boolean atHomeChest = false;
     private int homeChestWaitTicks = 0;
-    private int postJobFarewellTicks = 0;
-    private boolean postJobFarewellActive = false;
+    int postJobFarewellTicks = 0;
+    boolean postJobFarewellActive = false;
     private double baseFollowRange;
     private double boostedFollowRange;
     private boolean usingBoostedNav = false;
     // --- home village (like merchants) ---
     @Nullable
-    private BlockPos homeVillageCenter;
+    BlockPos homeVillageCenter;
     private boolean catchupTravel;
     @Nullable
     private UUID catchupTargetUUID = null;
-    private boolean awaitingPickup = false;
+    boolean awaitingPickup = false;
     // Cooldown counter for re-pathing
     private int returnRepathCooldown = 0;
     // If true, cargo is treated as a donation (extra rep, no money)
-    private boolean donationJob = false;
-    private int recruitIndex = 0;
+    boolean donationJob = false;
+    int recruitIndex = 0;
     @Nullable
     private BlockPos recruitReturnPos = null;
-    private boolean recruitActive = false;
+    boolean recruitActive = false;
     @Nullable
-    private BlockPos jobVillageCenter = null;
-    private WorkerMode mode = WorkerMode.IDLE;
-    private boolean jobDelivered = false;
+    BlockPos jobVillageCenter = null;
+    WorkerMode mode = WorkerMode.IDLE;
+    boolean jobDelivered = false;
     // "Employer" = player who hired this worker for the current/last job
     @Nullable
-    private UUID employerId;
+    UUID employerId;
     @Nullable
-    private BlockPos employerReturnPos;   // where to go back (captured when job starts)
+    BlockPos employerReturnPos;   // where to go back (captured when job starts)
     // When true, base EntityTraveller will NOT auto-plan routes
-    private boolean routeLocked = false;
-    private boolean hasUnsoldGoods = false;
+    boolean routeLocked = false;
+    boolean hasUnsoldGoods = false;
 
     public EntityTravellerWorker(World worldIn) {
         super(worldIn);
@@ -218,41 +231,20 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.targetTasks.addTask(0, new EntityAIDefendOwnerProactively(this, 5)); // every 5 ticks
 
 // React if WE get hit
-        this.targetTasks.addTask(3, new EntityAIHurtByTarget(this, true));
+// React if WE get hit (but only when retaliation is allowed)
+        this.targetTasks.addTask(3, new EntityAIWorkerHurtByTargetTraveller(this));
 
 // Target hostile-marked players (owner-defined enemy list)
         // 4) Target ENEMY hired workers (followers) as well
         this.targetTasks.addTask(4, new EntityAINearestAttackableTarget<>(
                 this,
                 EntityTravellerWorker.class,
-                10,     // targetChance
-                true,   // checkSight
-                false,  // onlyNearby
-                other -> {
-                    if (other == null || other.isDead) return false;
-                    if (other == this) return false;
-
-                    // only fight hired followers
-                    if (!other.isHiredFollower()) return false;
-                    if (!this.isHiredFollower()) return false;
-
-                    UUID myOwner = this.getFollowOwnerId();
-                    UUID otherOwner = other.getFollowOwnerId();
-                    if (myOwner == null || otherOwner == null) return false;
-
-                    // never attack same-owner followers
-                    if (myOwner.equals(otherOwner)) return false;
-
-                    // Enemy if either side considers the other hostile (reciprocal)
-                    EntityTravellerWorker myLeader = this.getGroupLeaderOrSelf();
-                    EntityTravellerWorker otherLeader = other.getGroupLeaderOrSelf();
-
-                    boolean iHateOtherOwner = myLeader != null && myLeader.hostilePlayers.contains(otherOwner);
-                    boolean otherOwnerHatesMe = otherLeader != null && otherLeader.hostilePlayers.contains(myOwner);
-
-                    return iHateOtherOwner || otherOwnerHatesMe;
-                }
+                10,
+                true,
+                false,
+                other -> this.isEnemyHiredWorker(other)
         ));
+
 
 // 5) Target hostile-marked players (owner-defined enemy list)
         this.targetTasks.addTask(5, new EntityAINearestAttackableTarget<>(
@@ -261,12 +253,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 10,
                 true,
                 false,
-                p -> {
-                    if (p == null || p.isDead) return false;
-                    if (p.isCreative() || p.isSpectator()) return false;
-                    if (isOwner(p)) return false;
-                    return isPlayerMarkedHostile(p);
-                }
+                p -> this.isEnemyPlayer(p)
         ));
 
 // 6) Fallback: pick nearby IMob if nothing else is happening
@@ -320,11 +307,10 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean isPlayerMarkedHostile(EntityPlayer p) {
-        if (p == null) return false;
-
-        EntityTravellerWorker leader = getGroupLeaderOrSelf();
-        return leader.hostilePlayers.contains(p.getUniqueID());
+        return playerHostility.isPlayerMarkedHostile(p);
     }
+
+
 
     /**
      * Compute travel cost in deniers based on village distance and how many cargo
@@ -527,68 +513,33 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public void addHostilePlayer(UUID id) {
-        if (id == null) return;
-        EntityTravellerWorker owner = getHostileListOwner();
-        if (owner != null) owner.hostilePlayers.add(id);
+        playerHostility.addHostilePlayer(id);
     }
 
     @Nullable
     private EntityTravellerWorker getHostileListOwner() {
-        UUID leaderId = getEscortLeaderUUID();
-        if (leaderId != null) {
-            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
-            if (leader != null && !leader.isDead) {
-                return leader; // leader owns the list
-            }
-        }
-        return this; // no leader -> self owns list
+        return playerHostility.getHostileListOwner();
     }
 
     @Nullable
     public UUID getEscortLeaderUUID() {
-        Optional<UUID> o = this.dataManager.get(ESCORT_LEADER_DM);
-        return o.isPresent() ? o.get() : null;
+        return playerHostility.getEscortLeaderUUID();
     }
 
     @Nullable
     private EntityTravellerWorker resolveEscortLeader(UUID id) {
-        if (id == null) return null;
-        if (!(world instanceof WorldServer)) return null;
 
-        Entity e = ((WorldServer) world).getEntityFromUuid(id);
-        return (e instanceof EntityTravellerWorker) ? (EntityTravellerWorker) e : null;
+        return playerHostility.resolveEscortLeader(id);
     }
 
     public void removeHostilePlayer(UUID id) {
-        if (id == null) return;
-        EntityTravellerWorker owner = getHostileListOwner();
-        if (owner != null) owner.hostilePlayers.remove(id);
+        playerHostility.removeHostilePlayer(id);
     }
 
     // =====================================================
 // Enemy hired-worker logic (shared helper)
 // =====================================================
-    private boolean isEnemyHiredWorker(@Nullable EntityTravellerWorker other) {
-        if (other == null || other == this) return false;
-        if (!other.isEntityAlive()) return false;
 
-        // Only fight other HIRED followers
-        if (!this.isHiredFollower() || !other.isHiredFollower()) return false;
-
-        UUID myOwner = this.getFollowOwnerId();
-        UUID otherOwner = other.getFollowOwnerId();
-        if (myOwner == null || otherOwner == null) return false;
-
-        // Never attack same-owner followers
-        if (myOwner.equals(otherOwner)) return false;
-
-        // Use "effective hostile list" (leader if loaded, else local mirrored list)
-        boolean iHateOtherOwner = this.getEffectiveHostilePlayers().contains(otherOwner);
-        boolean otherOwnerHatesMe = other.getEffectiveHostilePlayers().contains(myOwner);
-
-        // Reciprocal: if either owner considers the other hostile
-        return iHateOtherOwner || otherOwnerHatesMe;
-    }
 
     public boolean isHiredFollower() {
         return this.dataManager.get(HIRED_FOLLOWER_DM) && getFollowOwnerUUID() != null;
@@ -602,7 +553,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public Set<UUID> getEffectiveHostilePlayers() {
-        return getGroupLeaderOrSelf().hostilePlayers;
+        return playerHostility.getEffectiveHostilePlayers();
     }
 
     @Nullable
@@ -613,44 +564,17 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Nullable
     public EntityTravellerWorker getGroupLeaderOrSelf() {
-        UUID leaderId = getEscortLeaderUUID();
-        if (leaderId != null) {
-            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
-            if (leader != null && !leader.isDead) return leader;
-        }
-        return this;
+        return playerHostility.getGroupLeaderOrSelf();
     }
 
     /**
      * Copy THIS worker's hostile list to all loaded hired workers of the same owner.
      * Call this on the leader right after editing hostilePlayers.
      */
-    public void syncHostileListToAllOwnedWorkers() {
-        if (world.isRemote) return;
-        if (!(world instanceof WorldServer)) return;
-
-        UUID ownerId = this.getFollowOwnerId();
-        if (ownerId == null) return;
-
-        // The leader's list is the "source of truth"
-        EntityTravellerWorker leader = this.getGroupLeaderOrSelf();
-        if (leader == null) leader = this;
-
-        final Set<UUID> src = new java.util.HashSet<>(leader.hostilePlayers);
-
-        // Push to all loaded hired workers of this owner
-        List<EntityTravellerWorker> all = world.getEntities(EntityTravellerWorker.class, w ->
-                w != null
-                        && w.isEntityAlive()
-                        && w.isHiredFollower()
-                        && java.util.Objects.equals(w.getFollowOwnerId(), ownerId)
-        );
-
-        for (EntityTravellerWorker w : all) {
-            w.hostilePlayers.clear();
-            w.hostilePlayers.addAll(src);
-        }
+    public void syncHostileListToEscorts() {
+        playerHostility.syncHostileListToEscorts();
     }
+
 
     @Nullable
     private EntityLivingBase resolveCatchupTarget() {
@@ -693,9 +617,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public void setHostile(UUID target, boolean hostile) {
-        EntityTravellerWorker leader = getGroupLeaderOrSelf();
-        if (hostile) leader.hostilePlayers.add(target);
-        else leader.hostilePlayers.remove(target);
+        playerHostility.setHostile(target, hostile);
     }
 
     @Nullable
@@ -800,276 +722,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     // NBT: persist employer + job so restart doesn’t lose the mission
-    @Override
-    public void writeEntityToNBT(NBTTagCompound nbt) {
-        super.writeEntityToNBT(nbt);
-
-        if (employerId != null) nbt.setUniqueId("EmployerId", employerId);
-        if (employerReturnPos != null) {
-            nbt.setInteger("EmpX", employerReturnPos.getX());
-            nbt.setInteger("EmpY", employerReturnPos.getY());
-            nbt.setInteger("EmpZ", employerReturnPos.getZ());
-        }
-        if (jobVillageCenter != null) {
-            nbt.setInteger("JobVX", jobVillageCenter.getX());
-            nbt.setInteger("JobVY", jobVillageCenter.getY());
-            nbt.setInteger("JobVZ", jobVillageCenter.getZ());
-        }
-        nbt.setInteger("WorkerMode", mode.ordinal());
-        nbt.setBoolean("JobDelivered", jobDelivered);
-        nbt.setBoolean("RouteLocked", routeLocked);
-        nbt.setBoolean("DonationJob", donationJob);
-        nbt.setTag("TravelInventory", this.travelInventory.serializeNBT());
-
-        nbt.setBoolean("AwaitingPickup", awaitingPickup);
-        nbt.setBoolean("HasUnsoldGoods", hasUnsoldGoods);
-        nbt.setBoolean("PostJobFarewellActive", postJobFarewellActive);
-        nbt.setInteger("PostJobFarewellTicks", postJobFarewellTicks);
-
-        // NEW: personal inventory
-        nbt.setTag("PersonalInventory", this.personalInventory.serializeNBT());
-        // NEW: home village
-        if (homeVillageCenter != null) {
-            nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
-            nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
-            nbt.setInteger("HomeVillageZ", homeVillageCenter.getZ());
-        }
-        if (followOwnerId != null) {
-            nbt.setUniqueId("FollowOwnerId", followOwnerId);
-        }
-
-        if (!hostilePlayers.isEmpty()) {
-            NBTTagList list = new NBTTagList();
-            for (UUID id : hostilePlayers) {
-                NBTTagCompound c = new NBTTagCompound();
-                c.setUniqueId("Player", id);
-                list.appendTag(c);
-            }
-            nbt.setTag("HostilePlayers", list);
-        }
-        nbt.setBoolean("FollowOrderActive", followOrderActive);
-        if (idleAnchorPos != null) {
-            nbt.setInteger("IdleAx", idleAnchorPos.getX());
-            nbt.setInteger("IdleAy", idleAnchorPos.getY());
-            nbt.setInteger("IdleAz", idleAnchorPos.getZ());
-        }
-        UUID leaderId = this.getEscortLeaderUUID(); // from DataManager
-        if (leaderId != null) {
-            nbt.setUniqueId("EscortLeaderUUID", leaderId);
-        }
-        nbt.setBoolean("HiredFollower", this.dataManager.get(HIRED_FOLLOWER_DM));
-        Optional<UUID> o = this.dataManager.get(FOLLOW_OWNER_DM);
-        if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
-        nbt.setBoolean("RecruitActive", recruitActive);
-        nbt.setBoolean("RecruitReturning", recruitReturningToOwner);
-        nbt.setInteger("RecruitIndex", recruitIndex);
-
-        NBTTagList vlist = new NBTTagList();
-        for (BlockPos p : recruitVillages) {
-            NBTTagCompound c = new NBTTagCompound();
-            c.setInteger("x", p.getX());
-            c.setInteger("y", p.getY());
-            c.setInteger("z", p.getZ());
-            vlist.appendTag(c);
-        }
-        nbt.setTag("RecruitVillages", vlist);
-
-        if (assignedHomePos != null) {
-            nbt.setInteger("HomeX", assignedHomePos.getX());
-            nbt.setInteger("HomeY", assignedHomePos.getY());
-            nbt.setInteger("HomeZ", assignedHomePos.getZ());
-            nbt.setInteger("HomeDim", assignedHomeDim);
-            nbt.setString("HomeName", assignedHomeName);
-        }
-        nbt.setBoolean("GoingHome", goingHome);
-
-
-        NBTTagList spawned = new NBTTagList();
-        for (BlockPos p : recruitSpawnedAt) {
-            NBTTagCompound c = new NBTTagCompound();
-            c.setInteger("x", p.getX());
-            c.setInteger("y", p.getY());
-            c.setInteger("z", p.getZ());
-            spawned.appendTag(c);
-        }
-        nbt.setTag("RecruitSpawnedAt", spawned);
-
-    }
-
-    @Override
-    public void readEntityFromNBT(NBTTagCompound nbt) {
-        super.readEntityFromNBT(nbt);
-        this.forceSpawn = true;
-        employerId = nbt.hasUniqueId("EmployerId") ? nbt.getUniqueId("EmployerId") : null;
-        if (nbt.hasKey("EmpX")) {
-            employerReturnPos = new BlockPos(
-                    nbt.getInteger("EmpX"),
-                    nbt.getInteger("EmpY"),
-                    nbt.getInteger("EmpZ"));
-        } else {
-            employerReturnPos = null;
-        }
-        if (nbt.hasKey("JobVX")) {
-            jobVillageCenter = new BlockPos(
-                    nbt.getInteger("JobVX"),
-                    nbt.getInteger("JobVY"),
-                    nbt.getInteger("JobVZ"));
-        } else {
-            jobVillageCenter = null;
-        }
-        int m = nbt.getInteger("WorkerMode");
-        mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
-        jobDelivered = nbt.getBoolean("JobDelivered");
-        routeLocked = nbt.getBoolean("RouteLocked");
-        donationJob = nbt.getBoolean("DonationJob"); // NEW
-        if (nbt.hasKey("TravelInventory")) {
-            this.travelInventory.deserializeNBT(nbt.getCompoundTag("TravelInventory"));
-        }
-
-        this.awaitingPickup = nbt.getBoolean("AwaitingPickup");
-        this.hasUnsoldGoods = nbt.getBoolean("HasUnsoldGoods");
-        this.postJobFarewellActive = nbt.getBoolean("PostJobFarewellActive");
-        this.postJobFarewellTicks = nbt.getInteger("PostJobFarewellTicks");
-
-
-        // NEW: personal inventory
-        if (nbt.hasKey("PersonalInventory")) {
-            this.personalInventory.deserializeNBT(nbt.getCompoundTag("PersonalInventory"));
-        }
-
-        // NEW: home village
-        if (nbt.hasKey("HomeVillageX")) {
-            int x = nbt.getInteger("HomeVillageX");
-            int y = nbt.getInteger("HomeVillageY");
-            int z = nbt.getInteger("HomeVillageZ");
-            this.homeVillageCenter = new BlockPos(x, y, z);
-        } else {
-            this.homeVillageCenter = null;
-        }
-        if (nbt.hasUniqueId("FollowOwnerId")) {
-            this.followOwnerId = nbt.getUniqueId("FollowOwnerId");
-        } else {
-            this.followOwnerId = null;
-        }
-        this.hiredFollower = nbt.getBoolean("HiredFollower");
-
-        hostilePlayers.clear();
-        if (nbt.hasKey("HostilePlayers", Constants.NBT.TAG_LIST)) {
-            NBTTagList list = nbt.getTagList("HostilePlayers", Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < list.tagCount(); i++) {
-                NBTTagCompound c = list.getCompoundTagAt(i);
-                if (c.hasUniqueId("Player")) {
-                    hostilePlayers.add(c.getUniqueId("Player"));
-                }
-            }
-        }
-        this.followOrderActive = nbt.getBoolean("FollowOrderActive");
-        if (nbt.hasKey("IdleAx")) {
-            this.idleAnchorPos = new BlockPos(
-                    nbt.getInteger("IdleAx"),
-                    nbt.getInteger("IdleAy"),
-                    nbt.getInteger("IdleAz")
-            );
-        } else {
-            this.idleAnchorPos = null;
-        }
-
-        UUID leaderId = nbt.hasUniqueId("EscortLeaderUUID")
-                ? nbt.getUniqueId("EscortLeaderUUID")
-                : null;
-
-// Keep local field in sync (optional, but fine)
-        this.escortLeaderUUID = leaderId;
-
-// IMPORTANT: set the synced DataParameter on the server
-        if (!this.world.isRemote) {
-            this.setEscortLeaderUUID(leaderId); // this updates ESCORT_LEADER_DM
-        }
-
-        if (this.mode != WorkerMode.RETURNING || !this.jobDelivered) {
-            this.awaitingPickup = false;
-        }
-        recruitActive = nbt.getBoolean("RecruitActive");
-        recruitReturningToOwner = nbt.getBoolean("RecruitReturning");
-        recruitIndex = nbt.getInteger("RecruitIndex");
-
-        recruitVillages.clear();
-        if (nbt.hasKey("RecruitVillages", Constants.NBT.TAG_LIST)) {
-            NBTTagList vlist = nbt.getTagList("RecruitVillages", Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < vlist.tagCount(); i++) {
-                NBTTagCompound c = vlist.getCompoundTagAt(i);
-                recruitVillages.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
-            }
-        }
-
-        recruitSpawnedAt.clear();
-        if (nbt.hasKey("RecruitSpawnedAt", Constants.NBT.TAG_LIST)) {
-            NBTTagList slist = nbt.getTagList("RecruitSpawnedAt", Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < slist.tagCount(); i++) {
-                NBTTagCompound c = slist.getCompoundTagAt(i);
-                recruitSpawnedAt.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
-            }
-        }
-
-        if (nbt.hasKey("HomeX")) {
-            assignedHomePos = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
-            assignedHomeDim = nbt.getInteger("HomeDim");
-            assignedHomeName = nbt.getString("HomeName");
-        } else {
-            assignedHomePos = null;
-            assignedHomeDim = 0;
-            assignedHomeName = "";
-        }
-
-        if (!world.isRemote) {
-            this.dataManager.set(HOME_POS_DM, assignedHomePos == null
-                    ? com.google.common.base.Optional.absent()
-                    : com.google.common.base.Optional.of(assignedHomePos));
-            this.dataManager.set(HOME_DIM_DM, assignedHomeDim);
-            this.dataManager.set(HOME_NAME_DM, assignedHomeName == null ? "" : assignedHomeName);
-        }
-
-
-        goingHome = nbt.getBoolean("GoingHome");
-        if (!world.isRemote && goingHome && assignedHomePos != null && assignedHomeDim == this.dimension) {
-            TravelCommon tc = this.getTravelCommon();
-
-            boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
-            if (routeMissing) {
-                tc.route.clear();
-                tc.routeIndex = 0;
-                tc.route.add(assignedHomePos);
-
-                tc.setTargetVillage(assignedHomePos);
-                this.setTargetVillage(assignedHomePos);
-
-                tc.setCurrentWaypoint(null);
-                tc.setReadyToDepart(true);
-                tc.setDepartCooldownTicks(0);
-
-                this.getNavigator().clearPath();
-            }
-        }
-
-// If farewell isn't active, no need to keep a non-zero counter
-        if (!this.postJobFarewellActive) {
-            this.postJobFarewellTicks = 0;
-        }
-        boolean hired = nbt.getBoolean("HiredFollower");
-        Optional<UUID> owner = nbt.hasUniqueId("FollowOwnerId")
-                ? Optional.of(nbt.getUniqueId("FollowOwnerId"))
-                : Optional.absent();
-
-        this.hiredFollower = hired;
-        this.followOwnerId = owner.isPresent() ? owner.get() : null;
-
-        this.dataManager.set(HIRED_FOLLOWER_DM, hired);
-        this.dataManager.set(FOLLOW_OWNER_DM, owner);
-        if (recruitReturningToOwner && this.isHiredFollower()) {
-            this.setFollowOrderActive(true);
-        }
-
-    }
 
 
     /**
@@ -1184,6 +836,27 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Server-side: register/update this worker as a chunkloader
         if (!world.isRemote) {
+            if ((this.ticksExisted % 20) == 0) { // once per second
+                EntityLivingBase tgt = this.getAttackTarget();
+                if (tgt instanceof EntityPlayer) {
+                    if (!this.isEnemyPlayer((EntityPlayer) tgt)) {
+                        this.setAttackTarget(null);
+                        this.setRevengeTarget(null);
+                        this.setInCombat(false);
+                    }
+                } else if (tgt instanceof EntityTravellerWorker) {
+                    if (!this.isEnemyHiredWorker((EntityTravellerWorker) tgt)) {
+                        this.setAttackTarget(null);
+                        this.setRevengeTarget(null);
+                        this.setInCombat(false);
+                    }
+                }
+            }
+
+            if (--escortLeaderCheckCooldown <= 0) {
+                escortLeaderCheckCooldown = 20;
+                tickEscortLeaderValidity();
+            }
 // Update leader follower count every 1s (cheap, helps GUI)
             if (--leaderCountCooldown <= 0) {
                 leaderCountCooldown = 20;
@@ -1198,13 +871,15 @@ public class EntityTravellerWorker extends EntityTraveller {
             updateDynamicNavigation();
             tickFollowerIdleBehaviour();
             tickStayAtIdleAnchor(); // NEW
+            playerHostility.tickServer();
 
             // --- NEW: guard leash when Follow is OFF ---
             if (!world.isRemote && isGuardingAnchor()) {
                 EntityLivingBase tgt = this.getAttackTarget();
-                if (tgt instanceof EntityPlayer && isPlayerMarkedHostile((EntityPlayer) tgt)) {
-                    return; // keep aggro
+                if (tgt instanceof EntityPlayer && this.isEnemyPlayer((EntityPlayer) tgt)) {
+                    return; // keep aggro (declared OR engaged)
                 }
+
                 double hardLeashSq = ANCHOR_HARD_LEASH * ANCHOR_HARD_LEASH;
 
                 // If WE got pulled too far from the anchor, stop fighting and go back.
@@ -1229,12 +904,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
 
             clearAggroIfOffscreen();
-            boolean travel =
-                    ((this.isJobActive() && !(this.mode == WorkerMode.RETURNING && returnUsingFollow))
-                            || this.catchupTravel
-                            || this.goingHome);   // <-- ADD THIS
+            this.setUsingTravelAI(shouldBeUsingTravelAI());
 
-            this.setUsingTravelAI(travel);
 
         }
 
@@ -1266,6 +937,26 @@ public class EntityTravellerWorker extends EntityTraveller {
                 if (owner != null) {
                     owner.sendMessage(new TextComponentString(TextFormatting.GREEN + "Worker is now at home."));
                 }
+            }
+        }
+// --- "Go..." order arrival ---
+        if (!world.isRemote && goOrderActive && goOrderTargetPos != null && goOrderTargetDim == this.dimension) {
+            int r = TravellersModConfig.workerGoArrivalRadius;
+            if (this.getDistanceSqToCenter(goOrderTargetPos) <= (double) (r * r)) {
+
+                // Stop travel completely
+                goOrderActive = false;
+
+                stopAllTravelNow();
+
+                // Stay here: follow OFF + anchor at destination
+                this.followOrderActive = false;
+                this.idleAnchorPos = goOrderTargetPos;
+                this.getNavigator().clearPath();
+
+                // Clear target info (optional)
+                // goOrderTargetPos = goOrderTargetPos; // keep it if you want display, or clear:
+                // goOrderTargetPos = null;
             }
         }
 
@@ -1554,6 +1245,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
+            clearLeaderFromLoadedEscortsOnDeath();
             TravellerChunkManager.INSTANCE.untrackChunkloader(this);
 
             if (homeVillageCenter != null && world instanceof WorldServer) {
@@ -1589,27 +1281,14 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public boolean shouldAttackExtraEntity(Entity e) {
         if (e instanceof EntityTravellerWorker) {
-            EntityTravellerWorker other = (EntityTravellerWorker) e;
-
-            if (!this.isHiredFollower() || !other.isHiredFollower()) return false;
-
-            UUID myOwner = this.getFollowOwnerId();
-            UUID otherOwner = other.getFollowOwnerId();
-            if (myOwner == null || otherOwner == null) return false;
-            if (myOwner.equals(otherOwner)) return false;
-
-            EntityTravellerWorker myLeader = this.getGroupLeaderOrSelf();
-            EntityTravellerWorker otherLeader = other.getGroupLeaderOrSelf();
-
-            boolean iHateOtherOwner = myLeader != null && myLeader.hostilePlayers.contains(otherOwner);
-            boolean otherOwnerHatesMe = otherLeader != null && otherLeader.hostilePlayers.contains(myOwner);
-
-            return iHateOtherOwner || otherOwnerHatesMe;
+            return this.isEnemyHiredWorker((EntityTravellerWorker) e);
         }
-
-        // fallback to normal extra-hostile rules (config lists etc)
+        if (e instanceof EntityPlayer) {
+            return this.isEnemyPlayer((EntityPlayer) e);
+        }
         return super.shouldAttackExtraEntity(e);
     }
+
 
     @Override
     public void onConfigReload() {
@@ -1665,7 +1344,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // safety cap (prevents infinite loops if data is corrupted)
         for (int i = 0; i < 32 && cur != null; i++) {
-            EntityTravellerWorker curLeader = resolveEscortLeader(cur);
+            EntityTravellerWorker curLeader = playerHostility.resolveEscortLeader(cur);
             if (curLeader == null || curLeader.isDead) return false;
 
             UUID next = curLeader.getEscortLeaderUUID();
@@ -1681,7 +1360,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     // called by server when player confirms job in GUI
-    // Old signature, default to non-donation job
+    // Old signature, gilles to non-donation job
     public void startVillageDeliveryJob(EntityPlayer employer, BlockPos villageCenter) {
         startVillageDeliveryJob(employer, villageCenter, false);
     }
@@ -2296,6 +1975,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         this.followOrderActive = active;
         if (active) {
+            this.goOrderActive = false;
+            this.goOrderTargetPos = null;
+            this.goOrderTargetDim = 0;
             // ✅ PLACE IT HERE: player re-engages follow -> cancel any "going home" travel
             if (this.goingHome) {
                 this.goingHome = false;
@@ -2434,7 +2116,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     /**
-     * Hire/dismiss already exist – just update to default follow state.
+     * Hire/dismiss already exist – just update to gilles follow state.
      */
     public void hireAsFollower(EntityPlayer owner) {
         UUID id = owner.getUniqueID();
@@ -2461,7 +2143,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void dismissFollower() {
         this.hiredFollower = false;
         this.followOwnerId = null;
-        this.hostilePlayers.clear();
+        this.playerHostility.hostilePlayers.clear();
         this.routeLocked = false;
         if (!world.isRemote) {
             this.dataManager.set(HIRED_FOLLOWER_DM, false);
@@ -2479,14 +2161,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     // Mark/unmark specific players as hostile
-    public void setPlayerHostile(EntityPlayer p, boolean hostile) {
-        if (p == null) return;
-        if (hostile) {
-            hostilePlayers.add(p.getUniqueID());
-        } else {
-            hostilePlayers.remove(p.getUniqueID());
-        }
-    }
+
 
     private void tickFollowerIdleBehaviour() {
 
@@ -2811,9 +2486,9 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
     @Nullable
     public EntityLivingBase getEffectiveFollowTarget() {
-        UUID leaderId = getEscortLeaderUUID();
+        UUID leaderId = playerHostility.getEscortLeaderUUID();
         if (leaderId != null) {
-            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
+            EntityTravellerWorker leader = playerHostility.resolveEscortLeader(leaderId);
 
             if (leader != null
                     && !leader.isDead
@@ -2840,7 +2515,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         if (this.getAttackTarget() != null) return;
 
-        double maxRadius = 7.0D;
+        double maxRadius = TravellersModConfig.workerIdleAnchorRadius;
         double distSq = this.getDistanceSqToCenter(idleAnchorPos);
 
         if (distSq > maxRadius * maxRadius) {
@@ -2858,12 +2533,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean isEscortingLeader(EntityTravellerWorker leader) {
-        UUID id = getEscortLeaderUUID();
+        UUID id = playerHostility.getEscortLeaderUUID();
         return id != null && leader != null && id.equals(leader.getUniqueID());
     }
 
     public boolean hasEscortLeader() {
-        return getEscortLeaderUUID() != null;
+        return playerHostility.getEscortLeaderUUID() != null;
     }
 
     public void clearEscortLeader() {
@@ -3143,12 +2818,28 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public java.util.List<String> getHostileNamesClient() {
-        return hostileNamesClient;
+        return playerHostility.getHostileNamesClient();
     }
 
     public void setHostileNamesClient(java.util.List<String> names) {
-        hostileNamesClient.clear();
-        hostileNamesClient.addAll(names);
+        playerHostility.setHostileNamesClient(names);
+    }
+    private boolean shouldBeUsingTravelAI() {
+        TravelCommon tc = this.getTravelCommon();
+        if (tc == null) return false;
+
+        boolean hasRoute = tc.route != null && !tc.route.isEmpty() && tc.routeIndex >= 0;
+        boolean hasTarget = tc.getTargetVillage() != null;
+        boolean wantsDepart = tc.isReadyToDepart();  // ou ton flag équivalent
+
+        // Le travel "normal" existe dès qu'on a une cible + une route ou qu'on est en mode départ.
+        boolean normalTravel = hasTarget && (hasRoute || wantsDepart);
+
+        return normalTravel
+                || this.isJobActive()
+                || this.catchupTravel
+                || this.goingHome
+                || this.goOrderActive;
     }
 
     @Nullable
@@ -3232,7 +2923,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                         && !p.isCreative()
                         && !p.isSpectator()
                         && !isOwner(p)
-                        && isPlayerMarkedHostile(p));
+                        && playerHostility.isPlayerMarkedHostile(p));
 
         if (!hostilePs.isEmpty()) {
             this.setAttackTarget(hostilePs.get(0));
@@ -3458,6 +3149,565 @@ public class EntityTravellerWorker extends EntityTraveller {
         TO_VILLAGE,
         RETURNING,
         RECRUITING
+    }
+    private final WorkerNbtComponent nbtComponent = new WorkerNbtComponent();
+
+
+    public PlayerHostility getHostility() {
+        return playerHostility;
+    }
+
+    private void tickEscortLeaderValidity() {
+        if (world.isRemote) return;
+
+        // Si pas hired follower, on ne doit jamais avoir de leader
+        if (!this.isHiredFollower()) {
+            if (this.hasEscortLeader()) this.clearEscortLeader();
+            return;
+        }
+
+        UUID leaderId = this.getEscortLeaderUUID(); // via PlayerHostility / datamanager
+        if (leaderId == null) return;
+
+        EntityTravellerWorker leader = this.playerHostility.resolveEscortLeader(leaderId);
+
+        // Leader mort, absent (chunk unload), ou invalide -> clear
+        boolean invalid =
+                (leader != null) // IMPORTANT: don't clear just because leader is unloaded
+                        && (leader.isDead
+                        || !leader.isHiredFollower()
+                        || !java.util.Objects.equals(leader.getFollowOwnerId(), this.getFollowOwnerId()));
+
+        if (invalid) {
+            // ensure we have leader hostile list persisted locally before detaching
+            this.playerHostility.hostilePlayers.clear();
+            this.playerHostility.hostilePlayers.addAll(leader.getHostility().hostilePlayers);
+
+            this.clearEscortLeader();
+        }
+
+    }
+
+    public void startGoToDestination(BlockPos pos, int dim) {
+        if (world.isRemote) return;
+        if (pos == null) return;
+        if (dim != this.dimension) return;
+
+        // Cancel anything that could fight with this travel order
+        this.goingHome = false;
+        this.catchupTravel = false;
+        this.returnUsingFollow = false;
+        this.awaitingPickup = false;
+
+        // Stop job if you want to force the order (optional)
+        // If you prefer to block when job active, do that in the packet handler.
+        if (this.isJobActive()) {
+            // Keep it simple: cancel job travel state but keep inventory
+            this.mode = WorkerMode.IDLE;
+            this.jobDelivered = false;
+        }
+
+        // Follow OFF, no anchor yet (anchor will be set once arrived)
+        this.followOrderActive = false;
+        this.idleAnchorPos = null;
+
+        // Mark "go order" active for NBT persistence
+        this.goOrderActive = true;
+        this.goOrderTargetPos = pos;
+        this.goOrderTargetDim = dim;
+
+        // Use TravelAI exactly like GoHome: build a 1-point route
+        this.routeLocked = true;
+
+        TravelCommon tc = this.getTravelCommon();
+        tc.route.clear();
+        tc.routeIndex = 0;
+        tc.route.add(pos);
+
+        tc.setTargetVillage(pos);
+        this.setTargetVillage(pos);
+
+        tc.setCurrentWaypoint(null);
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+
+        this.getNavigator().clearPath();
+    }
+
+
+
+
+
+
+    // NBT SAVE/LOAD
+    private class WorkerNbtComponent {
+        public void write(NBTTagCompound nbt) {
+            if (employerId != null) nbt.setUniqueId("EmployerId", employerId);
+            if (employerReturnPos != null) {
+                nbt.setInteger("EmpX", employerReturnPos.getX());
+                nbt.setInteger("EmpY", employerReturnPos.getY());
+                nbt.setInteger("EmpZ", employerReturnPos.getZ());
+            }
+            if (jobVillageCenter != null) {
+                nbt.setInteger("JobVX", jobVillageCenter.getX());
+                nbt.setInteger("JobVY", jobVillageCenter.getY());
+                nbt.setInteger("JobVZ", jobVillageCenter.getZ());
+            }
+            nbt.setInteger("WorkerMode", mode.ordinal());
+            nbt.setBoolean("JobDelivered", jobDelivered);
+            nbt.setBoolean("RouteLocked", routeLocked);
+            nbt.setBoolean("DonationJob", donationJob);
+            nbt.setTag("TravelInventory", travelInventory.serializeNBT());
+
+            nbt.setBoolean("AwaitingPickup", awaitingPickup);
+            nbt.setBoolean("HasUnsoldGoods", hasUnsoldGoods);
+            nbt.setBoolean("PostJobFarewellActive", postJobFarewellActive);
+            nbt.setInteger("PostJobFarewellTicks", postJobFarewellTicks);
+
+            // NEW: personal inventory
+            nbt.setTag("PersonalInventory", personalInventory.serializeNBT());
+            // NEW: home village
+            if (homeVillageCenter != null) {
+                nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
+                nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
+                nbt.setInteger("HomeVillageZ", homeVillageCenter.getZ());
+            }
+            if (followOwnerId != null) {
+                nbt.setUniqueId("FollowOwnerId", followOwnerId);
+            }
+
+            if (!playerHostility.hostilePlayers.isEmpty()) {
+                NBTTagList list = new NBTTagList();
+                for (UUID id : playerHostility.hostilePlayers) {
+                    NBTTagCompound c = new NBTTagCompound();
+                    c.setUniqueId("Player", id);
+                    list.appendTag(c);
+                }
+                nbt.setTag("HostilePlayers", list);
+            }
+            nbt.setBoolean("FollowOrderActive", followOrderActive);
+            if (idleAnchorPos != null) {
+                nbt.setInteger("IdleAx", idleAnchorPos.getX());
+                nbt.setInteger("IdleAy", idleAnchorPos.getY());
+                nbt.setInteger("IdleAz", idleAnchorPos.getZ());
+            }
+            UUID leaderId = playerHostility.getEscortLeaderUUID(); // from DataManager
+            if (leaderId != null) {
+                nbt.setUniqueId("EscortLeaderUUID", leaderId);
+            }
+            nbt.setBoolean("HiredFollower", dataManager.get(HIRED_FOLLOWER_DM));
+            Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
+            if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
+            nbt.setBoolean("RecruitActive", recruitActive);
+            nbt.setBoolean("RecruitReturning", recruitReturningToOwner);
+            nbt.setInteger("RecruitIndex", recruitIndex);
+
+            NBTTagList vlist = new NBTTagList();
+            for (BlockPos p : recruitVillages) {
+                NBTTagCompound c = new NBTTagCompound();
+                c.setInteger("x", p.getX());
+                c.setInteger("y", p.getY());
+                c.setInteger("z", p.getZ());
+                vlist.appendTag(c);
+            }
+            nbt.setTag("RecruitVillages", vlist);
+
+            if (assignedHomePos != null) {
+                nbt.setInteger("HomeX", assignedHomePos.getX());
+                nbt.setInteger("HomeY", assignedHomePos.getY());
+                nbt.setInteger("HomeZ", assignedHomePos.getZ());
+                nbt.setInteger("HomeDim", assignedHomeDim);
+                nbt.setString("HomeName", assignedHomeName);
+            }
+            nbt.setBoolean("GoingHome", goingHome);
+
+
+            NBTTagList spawned = new NBTTagList();
+            for (BlockPos p : recruitSpawnedAt) {
+                NBTTagCompound c = new NBTTagCompound();
+                c.setInteger("x", p.getX());
+                c.setInteger("y", p.getY());
+                c.setInteger("z", p.getZ());
+                spawned.appendTag(c);
+            }
+            nbt.setTag("RecruitSpawnedAt", spawned);
+            // --- "Go..." order persistence ---
+            nbt.setBoolean("GoOrderActive", goOrderActive);
+            if (goOrderTargetPos != null) {
+                nbt.setInteger("GoX", goOrderTargetPos.getX());
+                nbt.setInteger("GoY", goOrderTargetPos.getY());
+                nbt.setInteger("GoZ", goOrderTargetPos.getZ());
+                nbt.setInteger("GoDim", goOrderTargetDim);
+            }
+// NEW: local hostile players (auto retaliation)
+            if (!playerHostility.localHostilePlayers.isEmpty()) {
+                NBTTagList list = new NBTTagList();
+                for (UUID id : playerHostility.localHostilePlayers) {
+                    NBTTagCompound c = new NBTTagCompound();
+                    c.setUniqueId("Player", id);
+                    list.appendTag(c);
+                }
+                nbt.setTag("LocalHostilePlayers", list);
+            }
+
+        }
+
+        public void read(NBTTagCompound nbt) {
+            forceSpawn = true;
+            employerId = nbt.hasUniqueId("EmployerId") ? nbt.getUniqueId("EmployerId") : null;
+            if (nbt.hasKey("EmpX")) {
+                employerReturnPos = new BlockPos(
+                        nbt.getInteger("EmpX"),
+                        nbt.getInteger("EmpY"),
+                        nbt.getInteger("EmpZ"));
+            } else {
+                employerReturnPos = null;
+            }
+            if (nbt.hasKey("JobVX")) {
+                jobVillageCenter = new BlockPos(
+                        nbt.getInteger("JobVX"),
+                        nbt.getInteger("JobVY"),
+                        nbt.getInteger("JobVZ"));
+            } else {
+                jobVillageCenter = null;
+            }
+            int m = nbt.getInteger("WorkerMode");
+            mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
+            jobDelivered = nbt.getBoolean("JobDelivered");
+            routeLocked = nbt.getBoolean("RouteLocked");
+            donationJob = nbt.getBoolean("DonationJob"); // NEW
+            if (nbt.hasKey("TravelInventory")) {
+                travelInventory.deserializeNBT(nbt.getCompoundTag("TravelInventory"));
+            }
+
+            awaitingPickup = nbt.getBoolean("AwaitingPickup");
+            hasUnsoldGoods = nbt.getBoolean("HasUnsoldGoods");
+            postJobFarewellActive = nbt.getBoolean("PostJobFarewellActive");
+            postJobFarewellTicks = nbt.getInteger("PostJobFarewellTicks");
+
+
+            // NEW: personal inventory
+            if (nbt.hasKey("PersonalInventory")) {
+                personalInventory.deserializeNBT(nbt.getCompoundTag("PersonalInventory"));
+            }
+
+            // NEW: home village
+            if (nbt.hasKey("HomeVillageX")) {
+                int x = nbt.getInteger("HomeVillageX");
+                int y = nbt.getInteger("HomeVillageY");
+                int z = nbt.getInteger("HomeVillageZ");
+                homeVillageCenter = new BlockPos(x, y, z);
+            } else {
+                homeVillageCenter = null;
+            }
+            if (nbt.hasUniqueId("FollowOwnerId")) {
+                followOwnerId = nbt.getUniqueId("FollowOwnerId");
+            } else {
+                followOwnerId = null;
+            }
+            hiredFollower = nbt.getBoolean("HiredFollower");
+
+            playerHostility.hostilePlayers.clear();
+            if (nbt.hasKey("HostilePlayers", Constants.NBT.TAG_LIST)) {
+                NBTTagList list = nbt.getTagList("HostilePlayers", Constants.NBT.TAG_COMPOUND);
+                for (int i = 0; i < list.tagCount(); i++) {
+                    NBTTagCompound c = list.getCompoundTagAt(i);
+                    if (c.hasUniqueId("Player")) {
+                        playerHostility.hostilePlayers.add(c.getUniqueId("Player"));
+                    }
+                }
+            }
+            followOrderActive = nbt.getBoolean("FollowOrderActive");
+            if (nbt.hasKey("IdleAx")) {
+                idleAnchorPos = new BlockPos(
+                        nbt.getInteger("IdleAx"),
+                        nbt.getInteger("IdleAy"),
+                        nbt.getInteger("IdleAz")
+                );
+            } else {
+                idleAnchorPos = null;
+            }
+
+            UUID leaderId = nbt.hasUniqueId("EscortLeaderUUID")
+                    ? nbt.getUniqueId("EscortLeaderUUID")
+                    : null;
+
+// Keep local field in sync (optional, but fine)
+            escortLeaderUUID = leaderId;
+
+// IMPORTANT: set the synced DataParameter on the server
+            if (!world.isRemote) {
+                setEscortLeaderUUID(leaderId); // this updates ESCORT_LEADER_DM
+            }
+
+            if (mode != WorkerMode.RETURNING || !jobDelivered) {
+                awaitingPickup = false;
+            }
+            recruitActive = nbt.getBoolean("RecruitActive");
+            recruitReturningToOwner = nbt.getBoolean("RecruitReturning");
+            recruitIndex = nbt.getInteger("RecruitIndex");
+
+            recruitVillages.clear();
+            if (nbt.hasKey("RecruitVillages", Constants.NBT.TAG_LIST)) {
+                NBTTagList vlist = nbt.getTagList("RecruitVillages", Constants.NBT.TAG_COMPOUND);
+                for (int i = 0; i < vlist.tagCount(); i++) {
+                    NBTTagCompound c = vlist.getCompoundTagAt(i);
+                    recruitVillages.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
+                }
+            }
+
+            recruitSpawnedAt.clear();
+            if (nbt.hasKey("RecruitSpawnedAt", Constants.NBT.TAG_LIST)) {
+                NBTTagList slist = nbt.getTagList("RecruitSpawnedAt", Constants.NBT.TAG_COMPOUND);
+                for (int i = 0; i < slist.tagCount(); i++) {
+                    NBTTagCompound c = slist.getCompoundTagAt(i);
+                    recruitSpawnedAt.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
+                }
+            }
+
+            if (nbt.hasKey("HomeX")) {
+                assignedHomePos = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
+                assignedHomeDim = nbt.getInteger("HomeDim");
+                assignedHomeName = nbt.getString("HomeName");
+            } else {
+                assignedHomePos = null;
+                assignedHomeDim = 0;
+                assignedHomeName = "";
+            }
+
+            if (!world.isRemote) {
+                dataManager.set(HOME_POS_DM, assignedHomePos == null
+                        ? com.google.common.base.Optional.absent()
+                        : com.google.common.base.Optional.of(assignedHomePos));
+                dataManager.set(HOME_DIM_DM, assignedHomeDim);
+                dataManager.set(HOME_NAME_DM, assignedHomeName == null ? "" : assignedHomeName);
+            }
+
+
+            goingHome = nbt.getBoolean("GoingHome");
+            if (!world.isRemote && goingHome && assignedHomePos != null && assignedHomeDim == dimension) {
+                TravelCommon tc = getTravelCommon();
+
+                boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
+                if (routeMissing) {
+                    tc.route.clear();
+                    tc.routeIndex = 0;
+                    tc.route.add(assignedHomePos);
+
+                    tc.setTargetVillage(assignedHomePos);
+                    setTargetVillage(assignedHomePos);
+
+                    tc.setCurrentWaypoint(null);
+                    tc.setReadyToDepart(true);
+                    tc.setDepartCooldownTicks(0);
+
+                    getNavigator().clearPath();
+                }
+            }
+
+// If farewell isn't active, no need to keep a non-zero counter
+            if (!postJobFarewellActive) {
+                postJobFarewellTicks = 0;
+            }
+            boolean hired = nbt.getBoolean("HiredFollower");
+            Optional<UUID> owner = nbt.hasUniqueId("FollowOwnerId")
+                    ? Optional.of(nbt.getUniqueId("FollowOwnerId"))
+                    : Optional.absent();
+
+            hiredFollower = hired;
+            followOwnerId = owner.isPresent() ? owner.get() : null;
+
+            dataManager.set(HIRED_FOLLOWER_DM, hired);
+            dataManager.set(FOLLOW_OWNER_DM, owner);
+            if (recruitReturningToOwner && isHiredFollower()) {
+                setFollowOrderActive(true);
+            }
+// --- "Go..." order restore ---
+            goOrderActive = nbt.getBoolean("GoOrderActive");
+            if (nbt.hasKey("GoX")) {
+                goOrderTargetPos = new BlockPos(
+                        nbt.getInteger("GoX"),
+                        nbt.getInteger("GoY"),
+                        nbt.getInteger("GoZ")
+                );
+                goOrderTargetDim = nbt.getInteger("GoDim");
+            } else {
+                goOrderTargetPos = null;
+                goOrderTargetDim = 0;
+            }
+
+// If active, rebuild TravelCommon route so TravelAI continues after reload
+            if (!world.isRemote && goOrderActive && goOrderTargetPos != null) {
+                TravelCommon tc = getTravelCommon();
+
+                boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
+                if (routeMissing) {
+                    tc.route.clear();
+                    tc.routeIndex = 0;
+                    tc.route.add(goOrderTargetPos);
+
+                    tc.setTargetVillage(goOrderTargetPos);
+                    setTargetVillage(goOrderTargetPos);
+
+                    tc.setCurrentWaypoint(null);
+                    tc.setReadyToDepart(true);
+                    tc.setDepartCooldownTicks(0);
+
+                    getNavigator().clearPath();
+                }
+            }
+            playerHostility.localHostilePlayers.clear();
+            if (nbt.hasKey("LocalHostilePlayers", Constants.NBT.TAG_LIST)) {
+                NBTTagList list = nbt.getTagList("LocalHostilePlayers", Constants.NBT.TAG_COMPOUND);
+                for (int i = 0; i < list.tagCount(); i++) {
+                    NBTTagCompound c = list.getCompoundTagAt(i);
+                    if (c.hasUniqueId("Player")) {
+                        playerHostility.localHostilePlayers.add(c.getUniqueId("Player"));
+                    }
+                }
+            }
+
+        }
+
+    }
+
+    @Override
+    public void writeEntityToNBT(NBTTagCompound nbt) {
+        super.writeEntityToNBT(nbt);
+        nbtComponent.write(nbt);
+    }
+    @Override
+    public void readEntityFromNBT(NBTTagCompound nbt) {
+        super.readEntityFromNBT(nbt);
+        nbtComponent.read(nbt);
+    }
+    @Nullable
+    public static UUID getOwnerIdOf(@Nullable EntityLivingBase e) {
+        if (e == null) return null;
+        if (e instanceof EntityPlayer) return e.getUniqueID();
+        if (e instanceof EntityTravellerWorker) return ((EntityTravellerWorker) e).getFollowOwnerId();
+        return null;
+    }
+
+    public boolean isEnemyOwner(@Nullable UUID otherOwner) {
+        UUID myOwner = this.getFollowOwnerId();
+        if (myOwner == null || otherOwner == null) return false;
+        if (myOwner.equals(otherOwner)) return false;
+
+        // declared hostility OR currently engaged (retaliation window)
+        return this.playerHostility.isOwnerEffectivelyHostile(otherOwner)
+                || this.playerHostility.isEngagedOwner(otherOwner);
+
+    }
+
+    public boolean isEnemyPlayer(@Nullable EntityPlayer p) {
+        if (p == null || p.isDead) return false;
+        if (p.isCreative() || p.isSpectator()) return false;
+        if (isOwner(p)) return false;
+        return isEnemyOwner(p.getUniqueID());
+    }
+
+    public boolean isEnemyHiredWorker(@Nullable EntityTravellerWorker other) {
+        if (other == null || other == this) return false;
+        if (!other.isEntityAlive()) return false;
+
+        if (!this.isHiredFollower() || !other.isHiredFollower()) return false;
+
+        UUID otherOwner = other.getFollowOwnerId();
+        if (otherOwner == null) return false;
+
+        return isEnemyOwner(otherOwner);
+    }
+
+    /**
+     * Retaliation permission (your critical constraint):
+     * We only retaliate if the ATTACKER has declared the victim owner hostile.
+     */
+    public boolean canRetaliateAgainst(@Nullable EntityLivingBase attacker) {
+        if (attacker == null || !attacker.isEntityAlive()) return false;
+
+        UUID myOwner = this.getFollowOwnerId();
+        if (myOwner == null) return false;
+
+        // Always retaliate vs mobs
+        if (attacker instanceof net.minecraft.entity.monster.IMob) return true;
+
+        // Never retaliate vs owner
+        if (attacker == this.getFollowOwner()) return false;
+
+        // If attacker is an enemy worker: easy check (their declared list includes my owner)
+        if (attacker instanceof EntityTravellerWorker) {
+            EntityTravellerWorker aw = (EntityTravellerWorker) attacker;
+            UUID ao = aw.getFollowOwnerId();
+            if (ao == null || ao.equals(myOwner)) return false;
+            return aw.getHostility().isOwnerDeclaredHostile(myOwner);
+        }
+
+        // If attacker is a player: only retaliate if that player's nearby workers have declared war on my owner
+        if (attacker instanceof EntityPlayer) {
+            EntityPlayer ap = (EntityPlayer) attacker;
+            if (ap.isCreative() || ap.isSpectator()) return false;
+
+            UUID attackerOwner = ap.getUniqueID();
+            if (attackerOwner.equals(myOwner)) return false;
+
+            AxisAlignedBB box = ap.getEntityBoundingBox().grow(PVP_DECLARE_CHECK_RADIUS, 16.0D, PVP_DECLARE_CHECK_RADIUS);
+            java.util.List<EntityTravellerWorker> list = ap.world.getEntitiesWithinAABB(
+                    EntityTravellerWorker.class,
+                    box,
+                    w -> w != null
+                            && w.isEntityAlive()
+                            && w.isHiredFollower()
+                            && attackerOwner.equals(w.getFollowOwnerId())
+                            && w.getHostility().isOwnerDeclaredHostile(myOwner)
+
+            );
+            return !list.isEmpty();
+        }
+
+        return false;
+    }
+
+    public void engageEnemyOwner(@Nullable UUID enemyOwner) {
+        if (enemyOwner == null) return;
+        this.playerHostility.engageOwner(enemyOwner, PVP_ENGAGE_TICKS);
+    }
+    private void clearLeaderFromLoadedEscortsOnDeath() {
+        if (world.isRemote) return;
+        if (!(world instanceof WorldServer)) return;
+
+        MinecraftServer server = ((WorldServer) world).getMinecraftServer();
+        if (server == null) return;
+
+        UUID ownerId = this.getFollowOwnerId();
+        if (ownerId == null) return;
+
+        UUID leaderId = this.getUniqueID();
+
+        // Snapshot the leader's hostile list so followers keep fighting consistently after leader dies
+        Set<UUID> snapshot = new HashSet<>(this.getHostility().hostilePlayers);
+
+        for (WorldServer ws : server.worlds) {
+            List<EntityTravellerWorker> escorts = ws.getEntities(EntityTravellerWorker.class, other ->
+                    other != null
+                            && other.isEntityAlive()
+                            && other.isHiredFollower()
+                            && Objects.equals(other.getFollowOwnerId(), ownerId)
+                            && leaderId.equals(other.getEscortLeaderUUID())
+            );
+
+            for (EntityTravellerWorker other : escorts) {
+                // Persist the leader list locally on the follower (NBT already saves hostilePlayers)
+                other.getHostility().hostilePlayers.clear();
+                other.getHostility().hostilePlayers.addAll(snapshot);
+
+                // CLEAR the leader UUID so they can be assigned a new leader
+                other.clearEscortLeader();
+
+                // Optional but usually desired: make them follow the owner again
+                other.setFollowOrderActive(true);
+            }
+        }
     }
 
 }

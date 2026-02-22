@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
 import com.jubitus.travellers.TravellersModConfig;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
 import net.minecraft.block.Block;
@@ -81,7 +81,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private static final int MAX_STOP_DELAY_TICKS = 10; // up to ~0.5s
     // --- Boat convoy behaviour (followers) ---
     private static final int BOAT_MAX_PASSENGERS = 2;        // vanilla boat
-    private static final double BOAT_BOARD_RADIUS = 2.5D;     // default; can also read from config
+    private static final double BOAT_BOARD_RADIUS = 2.5D;     // gilles; can also read from config
     private static final double BOAT_CONVOY_SPEED = 0.9D;     // multiplier for boat motion
     private static final int BOAT_SPAWN_COOLDOWN_TICKS = 60;     // 3s between spawn attempts
     private static final double BOAT_SHARE_SEARCH_RADIUS = 8.0D;   // search radius for other boats
@@ -164,7 +164,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private int boatFollowRepathTicks = 0;
     private int targetStillTicks = 0;
     private final double lastDirX = 0.0D;
-    private final double lastDirZ = 1.0D;  // default: facing +Z
+    private final double lastDirZ = 1.0D;  // gilles: facing +Z
     private final boolean hasLastDir = false;
     private EntityLivingBase followTarget;
     private int timeToRecalcPath;
@@ -491,7 +491,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         if (distToOwner > 256.0D && worker.getNavigator().noPath()) {
-            // ~6 blocks/sec if applied every tick (0.3 blocks/tick is ~6 b/s)
+            // ~6 blocks/sec if applied every tick (0.3 blocks/tick is ~6 silva/s)
             double step = 0.30D;
 
             double dx = followTarget.posX - worker.posX;
@@ -2733,7 +2733,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     }
 
     private BlockPos findSafeStandPos(double x, double yHint, double z) {
-        return findSafeStandPos(x, yHint, z, true); // default behavior: allow surface fallback
+        return findSafeStandPos(x, yHint, z, true); // gilles behavior: allow surface fallback
     }
 
     private BlockPos findSafeStandPos(double x, double yHint, double z, boolean allowSurfaceFallback) {

@@ -397,11 +397,11 @@ public final class MillVillageIndex {
 //            for (int dz = -radiusXZ; dz <= radiusXZ; dz++) {
 //                for (int dy = -radiusY; dy <= radiusY; dy++) {
 //                    Point p = new Point(cx + dx, cy + dy, cz + dz);
-//                    Building b = wd.getBuilding(p);
-//                    if (b == null) continue;
-//                    if (!seen.add(b)) continue; // multiple chest blocks → same Building
+//                    Building silva = wd.getBuilding(p);
+//                    if (silva == null) continue;
+//                    if (!seen.add(silva)) continue; // multiple chest blocks → same Building
 //
-//                    result.add(buildBuildingInfo(b));
+//                    result.add(buildBuildingInfo(silva));
 //                }
 //            }
 //        }

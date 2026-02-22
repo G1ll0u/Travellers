@@ -3,7 +3,7 @@ package com.jubitus.travellers.utils.world.pathing.chunkmanager;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
@@ -472,7 +472,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         Set<ChunkPos> desired = new HashSet<>();
         int maxForced = TravellersModConfig.merchantMaxForcedChunks;
 
-// ✅ BASELINE: ALWAYS keep each tracked traveller's CURRENT chunk forced.
+// ✅ BASELINE: ALWAYS keep each tracked travellers's CURRENT chunk forced.
 // This guarantees the entity stays loaded so offscreen hops can run,
 // even if they are not currently "allowed" to chunkload extras this tick.
         for (MerchantData md : state.merchants.values()) {

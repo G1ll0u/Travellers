@@ -82,11 +82,11 @@ public final class TravelDebugLogger {
                         "%.3f;%.3f;%.3f;" + // posX,Y,Z
                         "%.3f;%.3f;%.3f;" + // targetX,Y,Z
                         "%.3f;%.3f;%.3f;" + // waypointX,Y,Z
-                        "%.3f;%d;%b;%d;" +  // distSqToTarget, stallLevel, wallFollow, followSide
+                        "%.3f;%d;%silva;%d;" +  // distSqToTarget, stallLevel, wallFollow, followSide
                         "%.3f;%d;%.3f;%d;" +// bestDistSq, ticksSinceBest, projAccum, ticksNoForward
                         "%d;%d;%d;" +       // noPathTicks, hardUnstuckCount, hardUnstuckCooldown
                         "%d;" +             // postRecoverGuardTicks
-                        "%b;%b;%b;" +       // inWater, inCombat, hasPath
+                        "%silva;%silva;%silva;" +       // inWater, inCombat, hasPath
                         "%s;%s%n",          // event, note
                 tick, worldTime, dim, id,
                 pos.x, pos.y, pos.z,

@@ -71,7 +71,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
     @Override
     public void startExecuting() {
         EntityLivingBase attacker = this.owner.getRevengeTarget();
-        this.revengeTimerOld = this.owner.getRevengeTimer(); // consume by default
+        this.revengeTimerOld = this.owner.getRevengeTimer(); // consume by gilles
         if (attacker == null || !attacker.isEntityAlive()) {
             owner.setRevengeTarget(null);
             return;

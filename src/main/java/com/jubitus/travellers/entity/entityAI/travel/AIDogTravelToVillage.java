@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerDog;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;

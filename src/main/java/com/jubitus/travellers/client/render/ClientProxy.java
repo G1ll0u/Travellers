@@ -1,6 +1,8 @@
 package com.jubitus.travellers.client.render;
 
+import com.jubitus.travellers.client.render.backpack.BackpackStyles;
 import com.jubitus.travellers.entity.travellers.*;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import net.minecraftforge.fml.client.registry.RenderingRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;

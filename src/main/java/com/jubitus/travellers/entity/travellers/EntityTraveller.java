@@ -4,8 +4,8 @@ package com.jubitus.travellers.entity.travellers;
 import com.google.common.collect.Multimap;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.TravellersModConfig;
-import com.jubitus.travellers.client.render.BackpackRegistry;
-import com.jubitus.travellers.client.render.IBackpackStyle;
+import com.jubitus.travellers.client.render.backpack.BackpackRegistry;
+import com.jubitus.travellers.client.render.backpack.IBackpackStyle;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
@@ -26,11 +26,13 @@ import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerCamp;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.MsgPlayTravellerVoice;
-import com.jubitus.travellers.utils.net.message.MsgStopTravellerVoice;
+import com.jubitus.travellers.utils.net.message.sounds.MsgPlayTravellerVoice;
+import com.jubitus.travellers.utils.net.message.sounds.MsgStopTravellerVoice;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
@@ -97,7 +99,7 @@ public class EntityTraveller extends EntityCreature {
     // If something is close AND we currently have no target,
 // we allow bypassing the limiter so nearby defenders react.
     public static final double EMERGENCY_ENGAGE_RANGE = 8.0D; // blocks
-    // --- Threat memory (not persisted by default) ---
+    // --- Threat memory (not persisted by gilles) ---
     static final int THREAT_FOR_HIT = 8;       // score added when this gets hit
     static final UUID SWIM_BOOST_UUID =
             UUID.fromString("b3b1a5ee-9c12-4e6f-a7e4-1c4ef2f35d61");
@@ -121,6 +123,15 @@ public class EntityTraveller extends EntityCreature {
     // Configuration-ish knobs
     private static final DataParameter<String> CULTURE_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
+
+    // NEW: chosen voice personality (saved + synced)
+    private static final DataParameter<String> VOICE_PERSONALITY_ID =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
+
+    // NBT key (must match exactly in write/read)
+    private static final String NBT_VOICE_PERSONALITY_ID = "VoicePersonalityId";
+
+
     private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
     private static final int UNTRACKED_GRACE_TICKS = 20 * 5; // NEW: 5 seconds (tweak)
     private static final double EMERGENCY_ENGAGE_RANGE_SQ = EMERGENCY_ENGAGE_RANGE * EMERGENCY_ENGAGE_RANGE;
@@ -705,7 +716,7 @@ public class EntityTraveller extends EntityCreature {
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
                 .setBaseValue(TravellersModConfig.travellerFollowRange);
 
-        // ATTACK_DAMAGE is not present by default for many entities
+        // ATTACK_DAMAGE is not present by gilles for many entities
         if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         }
@@ -868,10 +879,14 @@ public class EntityTraveller extends EntityCreature {
         super.entityInit();
         this.dataManager.register(LAST_COMBAT_TICK, 0);
         this.dataManager.register(BACKPACK_STYLE, "auto");
-        this.dataManager.register(CULTURE_ID, "en");  // default
+        this.dataManager.register(CULTURE_ID, "en");
+        this.dataManager.register(VOICE_PERSONALITY_ID, ""); // NEW: empty = “no personality chosen”
+
         this.dataManager.register(TEXTURE_INDEX, 0);
         this.dataManager.register(AIMING_BOW, Boolean.FALSE); // NEW
-        // default texture index
+    }
+    public static void dbg(String s) {
+        System.out.println("[TravellersDBG] " + s);
     }
 
     @Override
@@ -954,7 +969,7 @@ public class EntityTraveller extends EntityCreature {
 
 // If ranged, allow ranged max
                 if (hasBow) {
-                    maxEngage = Math.max(maxEngage, TravellersModConfig.rangedMaxDist + 2.0);
+                    maxEngage = Math.max(maxEngage, TravellersModConfig.rangedMaxDist * 1.25);
                 }
 
 // If you use helpRange for assistance chaining, also allow that
@@ -1140,6 +1155,8 @@ public class EntityTraveller extends EntityCreature {
             compound.setBoolean("ReadyToDepart", travelCommon.isReadyToDepart());
             compound.setInteger("DepartCooldown", travelCommon.getDepartCooldownTicks());
             compound.setString("CultureId", getCultureId());
+            compound.setString(NBT_VOICE_PERSONALITY_ID, getVoicePersonalityId());
+
             NBTTagList lst = new NBTTagList();
             for (BlockPos p : travelCommon.route) {
                 lst.appendTag(new NBTTagIntArray(new int[]{p.getX(), p.getY(), p.getZ()}));
@@ -1208,6 +1225,16 @@ public class EntityTraveller extends EntityCreature {
         if (compound.hasKey("PathStepJitter")) travelCommon.pathStepJitter = compound.getInteger("PathStepJitter");
         if (compound.hasKey("RecalcPhase")) travelCommon.recalcPhase = compound.getInteger("RecalcPhase");
         if (compound.hasKey("CultureId")) setCultureId(compound.getString("CultureId"));
+
+        if (!this.world.isRemote) {
+            if (compound.hasKey(NBT_VOICE_PERSONALITY_ID)) {
+                setVoicePersonalityId(compound.getString(NBT_VOICE_PERSONALITY_ID));
+            } else {
+                setVoicePersonalityId(""); // older worlds: keep empty -> old fallback behavior
+            }
+        }
+
+
         travelCommon.setPauseTicks(compound.getInteger("PauseTicks"));
         travelCommon.setVillageIdleTicks(compound.getInteger("VillageIdleTicks"));
         travelCommon.setVillageIdling(compound.getBoolean("VillageIdling"));
@@ -1290,6 +1317,7 @@ public class EntityTraveller extends EntityCreature {
     public void onLivingUpdate() {
 
         if (!world.isRemote) {
+            chooseVoicePersonalityIfNeeded();
             if (!this.world.isRemote) {
                 ensureDismountIfInCombat();
             }
@@ -1540,6 +1568,22 @@ public class EntityTraveller extends EntityCreature {
         }
 
         setCultureId(cid);
+
+        if (!world.isRemote) {
+            System.out.println("[TravellersDBG] onInitialSpawn PRE setCultureId eid=" + getEntityId()
+                    + " chosenCid=" + cid
+                    + " livingdata=" + (livingdata == null ? "null" : livingdata.getClass().getName()));
+        }
+
+// NEW: pick personality once per entity (server decides, clients will be synced)
+        chooseVoicePersonalityIfNeeded();
+        if (!world.isRemote) {
+            System.out.println("[TravellersDBG] onInitialSpawn POST chooseVoicePersonality eid=" + getEntityId()
+                    + " culture=" + getCultureId()
+                    + " langForCulture=" + CultureRegistry.langForCulture(getCultureId())
+                    + " personality=" + getVoicePersonalityId());
+        }
+
 
         CultureDef c = CultureRegistry.get(cid);
         int tCount = (c != null) ? c.travellerAppearanceCount() : 0;
@@ -1906,17 +1950,19 @@ public class EntityTraveller extends EntityCreature {
     }
 
     void playTalkSound() {
-        String cid = getCultureId();
-        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(cid);
 
+        chooseVoicePersonalityIfNeeded();
+        VoiceSet v = getActiveTravellerVoiceSet();
         SoundEvent talk = (v != null && v.talk != null) ? v.talk : ModSounds.TRAVELLER_TALK;
 
         float vol = 1.0F;
-        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
+        float pitch = 1.0F + (this.rand.nextFloat() - 0.5F) * 0.02F; // was 0.08
         int dur = 40 + this.rand.nextInt(20);
+
         playVoiceMoving(talk, vol, pitch, dur, /*preempt=*/true, VoiceKind.TALK);
         scheduleNextTravelAmbient();
     }
+
 
     private void doInteractSwing(EnumHand hand) {
         // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
@@ -2226,15 +2272,16 @@ public class EntityTraveller extends EntityCreature {
     }
 
     @Override
-    @Nullable
+    @javax.annotation.Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
-        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(getCultureId());
+        VoiceSet v = getActiveTravellerVoiceSet();
         return (v != null && v.hurt != null) ? v.hurt : ModSounds.TRAVELLER_HURT;
     }
 
+
     @Override
     protected float getSoundVolume() {
-        return 0.95F; // a touch louder than default
+        return 0.95F; // a touch louder than gilles
     }
 
     @Override
@@ -3066,15 +3113,17 @@ public class EntityTraveller extends EntityCreature {
     }
 
     void playHelloSound() {
-        String cid = getCultureId();
-        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(cid);
+        chooseVoicePersonalityIfNeeded();
+        VoiceSet v = getActiveTravellerVoiceSet();
         SoundEvent hello = (v != null && v.hello != null) ? v.hello : ModSounds.TRAVELLER_HELLO;
 
         float vol = 1.0F;
-        float pitch = 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
+        float pitch = 1.0F + (this.rand.nextFloat() - 0.5F) * 0.02F; // was 0.08
         int dur = 30 + this.rand.nextInt(20);
+
         playVoiceMoving(hello, vol, pitch, dur, true, VoiceKind.TALK);
     }
+
 
     private void maybeRecruitDog() {
         if (dogScanCooldown > 0) {
@@ -3256,10 +3305,11 @@ public class EntityTraveller extends EntityCreature {
         if (world.isRemote) return;
 
         // If ANY player is tracking us, reset and keep alive
-        if (isTrackedByAnyPlayer()) {
+        if (isInPlayerViewDistanceApprox()) {
             untrackedTicks = 0;
             return;
         }
+
 
         // Don’t vanish while doing important stuff
         if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) {
@@ -3456,7 +3506,7 @@ public class EntityTraveller extends EntityCreature {
      * Used for off-screen combat ghosting and nav boosts.
      */
     private boolean isAnyPlayerWithinViewRadius() {
-        if (this.world == null) return true; // safe default: treat as "visible"
+        if (this.world == null) return true; // safe gilles: treat as "visible"
         if (this.world.isRemote) return true; // let client assume visible, server does the real logic
 
         double radius = TravellersModConfig.travellerOffscreenViewRadius; // e.g. 128.0D
@@ -3648,12 +3698,28 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public boolean isInPlayerViewDistance() {
-        if (world == null) return true;
+        return isInPlayerViewDistanceApprox();
+    }
 
-        // client doesn't know server tracking reliably; treat as visible
+    public boolean isInPlayerViewDistanceApprox() {
+        if (world == null) return true;
         if (world.isRemote) return true;
 
-        return isTrackedByAnyPlayer();
+        if (!(world instanceof net.minecraft.world.WorldServer)) return true;
+        net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) world;
+
+        int viewChunks;
+        try {
+            viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance(); // server setting
+        } catch (Throwable t) {
+            viewChunks = 10; // fallback
+        }
+
+        // Add a small safety margin so you don't flap at the border
+        int radiusBlocks = (viewChunks + 1) * 16;
+
+        // true = some player is within the range where they'd normally be tracking
+        return ws.getClosestPlayer(this.posX, this.posY, this.posZ, radiusBlocks, false) != null;
     }
 
     protected void clearAggroIfOffscreen() {
@@ -3925,6 +3991,8 @@ public class EntityTraveller extends EntityCreature {
         return ds != null && ds.getTrueSource() == e;
     }
 
+
+
     /**
      * One call site for “set target, but obey limiter unless emergency”.
      * <p>
@@ -4012,7 +4080,7 @@ public class EntityTraveller extends EntityCreature {
         if (!this.isInPlayerViewDistance() && this.isRiding()) {
             Entity ride = this.getRidingEntity();
             if (ride instanceof EntityTravellerBoat) {
-                // 1) dismount FIRST (traveller side)
+                // 1) dismount FIRST (travellers side)
                 this.dismountRidingEntity();
 
                 // 2) kill boat safely + immediately
@@ -4061,6 +4129,45 @@ public class EntityTraveller extends EntityCreature {
         if (p == null) {
             trackingPlayers = 0;
         }
+    }
+    public String getVoicePersonalityId() {
+        if (this.dataManager == null) return "";
+        String v = this.dataManager.get(VOICE_PERSONALITY_ID);
+        return (v == null) ? "" : v;
+    }
+
+    private void setVoicePersonalityId(String id) {
+        if (world.isRemote) return;
+        String v = (id == null) ? "" : id;
+        this.dataManager.set(VOICE_PERSONALITY_ID, v);
+    }
+
+    /**
+     * Server-only. Choose ONE personality at spawn (and never change it again).
+     * If no variants exist, we keep "" and fall back to old culture-based voices.
+     */
+    private void chooseVoicePersonalityIfNeeded() {
+        if (world.isRemote) return;
+
+        // Already chosen? Keep it.
+        if (!getVoicePersonalityId().isEmpty()) return;
+
+        String cid = getCultureId();
+        String picked = CultureRegistry.pickRandomTravellerPersonalityId(cid, this.rand);
+
+        // picked == "" means “no variants” -> keep empty to use fallback behavior
+        setVoicePersonalityId(picked);
+    }
+
+    /**
+     * Resolve the VoiceSet to use:
+     * - personality (if present and valid)
+     * - else your old CultureRegistry.TRAVELLER_VOICES fallback
+     */
+    @javax.annotation.Nullable
+    private VoiceSet getActiveTravellerVoiceSet() {
+        return CultureRegistry.resolveTravellerVoiceSet(getCultureId(), getVoicePersonalityId());
+
     }
 
 

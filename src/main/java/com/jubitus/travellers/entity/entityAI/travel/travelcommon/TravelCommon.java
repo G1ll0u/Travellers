@@ -276,7 +276,7 @@ public class TravelCommon {
                 }
             }
 
-            // (b) Add final destination (if it’s not already last)
+            // (silva) Add final destination (if it’s not already last)
             if (!dest.equals(origin)
                     && (route.isEmpty() || !route.get(route.size() - 1).equals(dest))) {
                 route.add(dest);
@@ -603,7 +603,7 @@ public class TravelCommon {
             }
         }
 
-        // Fallback: default behaviour
+        // Fallback: gilles behaviour
         int r = MillenaireVillageDirectory.nearRadiusFor(target);
         if (r <= 0) r = TravellersModConfig.VILLAGE_NEAR;
         return r;
@@ -644,25 +644,22 @@ public class TravelCommon {
 
         if (owner.ticksExisted < owner.getVoiceLockUntilTick()) return;
 
-        VoiceSet v = CultureRegistry.TRAVELLER_VOICES.get(owner.getCultureId());
-        SoundEvent[] pool = (v != null && v.ambient != null && v.ambient.length > 0)
-                ? v.ambient
-                : new SoundEvent[]{ModSounds.AMBIENT};
+        VoiceSet v = CultureRegistry.resolveTravellerVoiceSet(owner.getCultureId(), owner.getVoicePersonalityId());
+
+        SoundEvent evt = ModSounds.AMBIENT;
+        if (v != null && v.ambient != null && v.ambient.length > 0) {
+            evt = v.ambient[owner.getRNG().nextInt(v.ambient.length)];
+        }
+
 
         float vol = TravellersModConfig.travellerAmbientVolume;
         float pitch = 0.95F + (owner.getRNG().nextFloat() - 0.5F) * 0.06F;
         int durTicks = 25 * 20 + owner.getRNG().nextInt(6 * 20);
 
-        if (owner.playVoiceMoving(
-                pool[owner.getRNG().nextInt(pool.length)],
-                vol,
-                pitch,
-                durTicks,
-                false,
-                EntityTraveller.VoiceKind.AMBIENT
-        )) {
+        if (owner.playVoiceMoving(evt, vol, pitch, durTicks, false, EntityTraveller.VoiceKind.AMBIENT)) {
             owner.scheduleNextTravelAmbient();
         }
+
     }
 
     public BlockPos getCurrentWaypoint() {

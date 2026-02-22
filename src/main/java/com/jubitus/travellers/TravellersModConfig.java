@@ -4,6 +4,8 @@ import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.utils.mobs.lists.AttackList;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
+import com.jubitus.travellers.utils.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.net.message.workerplayer.MsgSyncServerCosts;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.Configuration;
 
@@ -12,8 +14,22 @@ import java.io.IOException;
 
 
 public class TravellersModConfig {
+    // --- Worker hire cost (deniers) ---
+// Default: 2 argent = 2*64 deniers
+    public static int workerHireCostDeniers = 2 * 64;
 
-    public static int recruitMinVillageDistance = 300; // default, tweak
+    // CLIENT ONLY: last value received from server for GUI display.
+// -1 = unknown (not received yet)
+    public static int workerHireCostDeniers_serverCache = -1;
+
+
+    // Worker "Go..." order: how close is considered "arrived"
+    public static int workerGoArrivalRadius = 10; // blocks (tweak)
+
+    // Worker idle anchor radius when follow is OFF (used after Go...)
+    public static double workerIdleAnchorRadius = 7.0D; // blocks (tweak)
+
+    public static int recruitMinVillageDistance = 300; // gilles, tweak
 
     // process only N villages per maintenance pass
     public static final int MERCHANT_VILLAGES_PER_PASS = 2;
@@ -56,13 +72,23 @@ public class TravellersModConfig {
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "4.7"; // yes I always change ver when testing, that's stupid
+    private static final String CURRENT_VERSION = "4.8"; // yes I always change ver when testing, that's stupid
     // Recruit mission tuning
     public static int recruitMaxVillageRadius = 4000;        // max distance from player
     public static int recruitVillagesMin = 1;
     public static int recruitVillagesMax = 10;
 
-// ---- worker population → workers per village ----
+    public static int recruitFeeFlat_serverCache = -1;
+
+
+    public static double recruitFeePerBlock_serverCache = Double.NaN;
+
+
+    public static int recruitFeePerVillage_serverCache = -1;
+
+
+
+    // ---- worker population → workers per village ----
     public static int recruitSpawnMin = 2;                  // workers spawned per visited village
     public static int recruitSpawnMax = 4;
     public static int recruitLeaderAssignRadius = 12000;        // radius to assign/clear escort leader
@@ -74,8 +100,8 @@ public class TravellersModConfig {
     public static boolean travellerOffscreenHopEnabled = true;
     public static int travellerOffscreenHopIntervalTicks = 20 * 3; // 6s, every 6s, do a hop
     public static int travellerOffscreenHopStepBlocks = 12;        // hop distance in blocks
-    public static int followerOwnerMoveDelayTicks = 8;   // 0.4s at 20 tps
-    public static int followerOwnerIdleTicks = 10;  // how long owner must be still to count as "idle"
+    public static int followerOwnerMoveDelayTicks = 12;   // 0.4s at 20 tps
+    public static int followerOwnerIdleTicks = 40;  // how long owner must be still to count as "idle"
     public static boolean followerBoatConvoyEnabled = true;
     public static double followerBoatConvoyAccel = 0.16D; // per tick "thrust"
     public static double followerBoatConvoyMaxSpeed = 4.0D; // hard cap (tweak to taste)
@@ -138,7 +164,7 @@ public class TravellersModConfig {
     public static int merchantPopPerMerchant = 10;
     public static int merchantMaxPerVillage = 2;
     public static int merchantRecheckEveryTicks = 200;
-    public static int merchantChunkRadius = 1;          // default radius per merchant
+    public static int merchantChunkRadius = 1;          // gilles radius per merchant
     public static int merchantMaxForcedChunks = 128;    // hard cap per world
     public static int merchantMaxChunkloadingMerchants = 128; // if many merchants, only first N get chunkloading
     public static boolean merchantChunkloadingEnabled = true;
@@ -153,7 +179,7 @@ public class TravellersModConfig {
     public static int merchantMaxDistinctItems = 1;
     // --- Workers ---
     public static String[] includedWorkerVillagerTagsRaw = new String[]{
-            // example default tag:
+            // example gilles tag:
             // "worker"
     };
     public static String[] includedWorkerVillagerFilesRaw = new String[]{
@@ -175,7 +201,7 @@ public class TravellersModConfig {
     public static int mobFarmFenceRadius = 4;
     public static int mobFarmFenceThreshold = 12;
     public static int followMaxFollowersPerLeader = 4; // 0 or negative = unlimited
-    // Raw config arrays for raider includes (default: empty = "no restriction")
+    // Raw config arrays for raiders includes (gilles: empty = "no restriction")
     public static String[] includedRaiderVillagerTagsRaw = new String[]{
             "hostile"
     };
@@ -292,7 +318,7 @@ public class TravellersModConfig {
     public static boolean enableTravellerSoftSpawns;
     public static boolean enableRaiderSoftSpawns;
     public static boolean campsEnabled = true;
-    public static boolean travelTorchEnabled = false; // default on
+    public static boolean travelTorchEnabled = false; // gilles on
     public static int travelTorchCooldownTicks = 20 * 10; // e.g. 10s after unequip
     public static double travelTorchNearbyRadius = 20.0D; // “someone else has light” radius
     public static boolean spawnTravellerWithDog = true;
@@ -350,8 +376,8 @@ public class TravellersModConfig {
     public static int travellerCapGlobalMin;
     public static int travellerCapGlobalMax;
     public static int travellerRegionalRadius = 600;
-    // ---- Dynamic raider caps (regional) ----
-    public static float raiderCapPerVillager;           // 1/5 = 1 raider per ~5 villagers
+    // ---- Dynamic raiders caps (regional) ----
+    public static float raiderCapPerVillager;           // 1/5 = 1 raiders per ~5 villagers
     public static int raiderCapMinPerVillage;
     public static int raiderCapMaxPerVillage;
     public static int raiderCapPerLoneBuilding;
@@ -613,17 +639,17 @@ public class TravellersModConfig {
         RaiderWeight = cfg.getInt(
                 "RaiderWeight", "Traveller & Raider Gen",
                 0, 0, 256,
-                "Don't set over than 0 if you use my soft-spawner, it is the vanilla raider spawn weight"
+                "Don't set over than 0 if you use my soft-spawner, it is the vanilla raiders spawn weight"
         );
         RaiderMinGroup = cfg.getInt(
                 "RaiderMinGroup", "Traveller & Raider Gen",
                 2, 1, 32,
-                "Minimum group size for raider spawns. Impacts soft spawner."
+                "Minimum group size for raiders spawns. Impacts soft spawner."
         );
         RaiderMaxGroup = cfg.getInt(
                 "RaiderMaxGroup", "Traveller & Raider Gen",
                 8, 1, 32,
-                "Maximum group size for raider spawns (must be >= min). Impacts soft spawner."
+                "Maximum group size for raiders spawns (must be >= min). Impacts soft spawner."
         );
 
         // === TRAVELLER PET / DOG COMPANION ===
@@ -644,7 +670,7 @@ public class TravellersModConfig {
         travellerPopulationWeightPerVillager = cfg.getFloat(
                 "PopulationWeightPerVillager",
                 "Soft spawn — General",
-                0.05F,     // default
+                0.05F,     // gilles
                 0.0F,      // min
                 10.0F,     // max
                 "Extra spawn weight added per villager (0.02 ⇒ +2% per villager)"
@@ -653,7 +679,7 @@ public class TravellersModConfig {
         travellerPopulationWeightMaxMultiplier = cfg.getFloat(
                 "PopulationWeightMaxMultiplier",
                 "Soft spawn — General",
-                1.2F,      // default
+                1.2F,      // gilles
                 0.1F,      // min
                 10.0F,     // max
                 "Maximum overall multiplier applied from population influence"
@@ -662,7 +688,7 @@ public class TravellersModConfig {
         travellerOutsideVillageBaseDensity = cfg.getFloat(
                 "OutsideVillageBaseDensity",
                 "Soft spawn — General",
-                0.2F,      // default
+                0.2F,      // gilles
                 0.0F,      // min
                 10.0F,     // max
                 "Baseline spawn density outside of mill and lone buildings (0 = none)"
@@ -749,9 +775,9 @@ public class TravellersModConfig {
         travellerAmbient = cfg.getBoolean("travellerAmbient", "sound", true,
                 "If true, travellers occasionally mutter/whistle while travelling.");
         travellerAmbientMinDelay = cfg.getInt("travellerAmbientMinDelay", "sound", 2500, 40, 20_000,
-                "Minimum ticks between ambient travel lines (default 200 = 10s).");
+                "Minimum ticks between ambient travel lines (gilles 200 = 10s).");
         travellerAmbientMaxDelay = cfg.getInt("travellerAmbientMaxDelay", "sound", 10000, 80, 60_000,
-                "Maximum ticks between ambient travel lines (default 600 = 30s).");
+                "Maximum ticks between ambient travel lines (gilles 600 = 30s).");
         travellerAmbientVolume = cfg.getFloat("travellerAmbientVolume", "sound", 0.8F, 0.0F, 1.0F,
                 "Volume for ambient travel lines (0.0–1.0).");
         if (travellerAmbientMaxDelay < travellerAmbientMinDelay) {
@@ -787,16 +813,16 @@ public class TravellersModConfig {
 
         raiderAggroBlacklistIds = cfg.getStringList(
                 "RaiderAggroBlacklistIDs",
-                "raider attack tweaks",
+                "raiders attack tweaks",
                 new String[]{
                         "minecraft:creeper"
-                }, // default: empty (raiders fight most things)
+                }, // gilles: empty (raiders fight most things)
                 "Blacklist by entity registry ID for RAIDERS. Supports wildcards like 'modid:*'."
         );
 
         raiderAggroBlacklistClasses = cfg.getStringList(
                 "RaiderAggroBlacklistClasses",
-                "raider attack tweaks",
+                "raiders attack tweaks",
                 new String[]{},
                 "Blacklist by fully-qualified class name for RAIDERS. Any subclass will match."
         );
@@ -805,20 +831,20 @@ public class TravellersModConfig {
 // === RAIDERS ===
         raiderAttackIdRules = cfg.getStringList(
                 "raiderAttackEntityIds",
-                "raider attack tweaks",
+                "raiders attack tweaks",
                 new String[]{
                         "millenaire:genericvillager",
                         "millenaire:genericasimmfemale",
                         "millenaire:genericsimmfemale"
                 },
-                "Entity IDs raider travellers will attack (exact or 'modid:*')."
+                "Entity IDs raiders travellers will attack (exact or 'modid:*')."
         );
 
         raiderAttackClassRules = cfg.getStringList(
                 "raiderAttackEntityClasses",
-                "raider attack tweaks",
+                "raiders attack tweaks",
                 new String[]{},
-                "Java classes raider travellers will attack (exact or subclasses)."
+                "Java classes raiders travellers will attack (exact or subclasses)."
         );
 
 // Push into list
@@ -853,7 +879,7 @@ public class TravellersModConfig {
         travellerMaxHealth = cfg.getFloat(
                 "TravellerMaxHealth", "Traveller base attributes",
                 40.0f, 1.0f, 1000.0f,
-                "Max health of generic travellers (20 = player default)."
+                "Max health of generic travellers (20 = player gilles)."
         );
         maxHealth = travellerMaxHealth; // keep old field in sync
 
@@ -908,7 +934,7 @@ public class TravellersModConfig {
         merchantMaxHealth = cfg.getFloat(
                 "MerchantMaxHealth", "Merchant base attributes",
                 60.0f, 1.0f, 1000.0f,
-                "Max health of merchant travellers (20 = player default)."
+                "Max health of merchant travellers (20 = player gilles)."
         );
 
         merchantFollowRange = cfg.getFloat(
@@ -1239,31 +1265,31 @@ public class TravellersModConfig {
         raiderCapPerVillager = cfg.getFloat(
                 "RaiderCapPerVillager", "Soft spawn — Raiders",
                 1.0f / 5.0f, 0.01f, 10.0f,
-                "Dynamic raider cap: raiders per villager. 1/5 = ~1 raider per 5 villagers."
+                "Dynamic raiders cap: raiders per villager. 1/5 = ~1 raiders per 5 villagers."
         );
 
         raiderCapMinPerVillage = cfg.getInt(
                 "RaiderCapMinPerVillage", "Soft spawn — Raiders",
                 1, 0, 32,
-                "Minimum raiders contributed by each village to the regional raider caps."
+                "Minimum raiders contributed by each village to the regional raiders caps."
         );
 
         raiderCapMaxPerVillage = cfg.getInt(
                 "RaiderCapMaxPerVillage", "Soft spawn — Raiders",
                 4, 0, 32,
-                "Maximum raiders contributed by each village to the regional raider caps."
+                "Maximum raiders contributed by each village to the regional raiders caps."
         );
 
         raiderCapPerLoneBuilding = cfg.getInt(
                 "RaiderCapPerLoneBuilding", "Soft spawn — Raiders",
                 0, 0, 4,
-                "How many raiders each lone building contributes to the regional raider caps."
+                "How many raiders each lone building contributes to the regional raiders caps."
         );
 
         raiderRegionalRadius = cfg.getInt(
                 "RaiderRegionalRadius", "Soft spawn — Raiders",
                 600, 128, 8000,
-                "Horizontal radius (in blocks) used when computing regional raider caps around a player."
+                "Horizontal radius (in blocks) used when computing regional raiders caps around a player."
         );
 
         // Distance from Town Hall / village center inside which raiders never soft-spawn
@@ -1276,7 +1302,7 @@ public class TravellersModConfig {
         raiderBaseSpawnChance = cfg.getFloat(
                 "RaiderBaseSpawnChance", "Soft spawn — Raiders",
                 0.15f, 0.0f, 1.0f,
-                "Base chance per raider soft-spawn attempt before multiplying by Millénaire density."
+                "Base chance per raiders soft-spawn attempt before multiplying by Millénaire density."
         );
 // Guard: ensure max >= min for travellers ring
         if (travellerSpawnMaxDist < travellerSpawnMinDist) {
@@ -1323,14 +1349,14 @@ public class TravellersModConfig {
 
         enableTravellerSoftSpawns = cfg.getBoolean(
                 "EnableTravellerSoftSpawns", "Despawn & performance",
-                true,   // default: current behavior
+                true,   // gilles: current behavior
                 "If true, the Soft Spawner periodically tops up travellers near players. "
                         + "Set false to disable soft spawning and rely entirely on vanilla chunk spawning."
         );
 
         enableRaiderSoftSpawns = cfg.getBoolean(
                 "EnableRaiderSoftSpawns", "Despawn & performance",
-                true,   // default: current behavior
+                true,   // gilles: current behavior
                 "If true, the Soft Spawner periodically tops up raiders near players. "
                         + "Set false to disable soft spawning and rely entirely on vanilla chunk spawning."
         );
@@ -1338,7 +1364,7 @@ public class TravellersModConfig {
         campsEnabled = cfg.getBoolean(
                 "campsEnabled",
                 "Camp feature",
-                campsEnabled,   // default true
+                campsEnabled,   // gilles true
                 "If true, travellers will sometimes take a break and make camps with firepit block"
         );
 
@@ -1407,7 +1433,7 @@ public class TravellersModConfig {
         travelTorchEnabled = cfg.getBoolean(
                 "travelTorchEnabled",
                 "Travel behavior",
-                travelTorchEnabled,   // default false
+                travelTorchEnabled,   // gilles false
                 "If true, travellers can use the travel torch behavior (carrying light while travelling)."
         );
 
@@ -1447,7 +1473,7 @@ public class TravellersModConfig {
                 "Raider villager filters",
                 includedRaiderVillagerTagsRaw,
                 "If non-empty, only villager txts with tag=... matching one of these values can be used " +
-                        "for the *raider* appearance pool. Example: [\"bandit\", \"guard\"]. " +
+                        "for the *raiders* appearance pool. Example: [\"bandit\", \"guard\"]. " +
                         "Empty list = no tag restriction."
         );
 
@@ -1456,7 +1482,7 @@ public class TravellersModConfig {
                 "Raider villager filters",
                 includedRaiderVillagerFilesRaw,
                 "If non-empty, only villager txt filenames (without path, with or without .txt) matching " +
-                        "one of these values can be used for the raider appearance pool. Example: [\"bandit\", \"guard\"] " +
+                        "one of these values can be used for the raiders appearance pool. Example: [\"bandit\", \"guard\"] " +
                         "Empty list = no filename restriction."
         );
 
@@ -1527,7 +1553,8 @@ public class TravellersModConfig {
                         "0 = allow simple travel as soon as the travellers is outside view distance."
         );
 
-
+        workerHireCostDeniers = cfg.getInt("workerHireCostDeniers", "Workers - Recruitment", 2 * 64, 0, 10000000,
+                "Cost to hire a worker (in deniers). Default: 2 argent = 2*64 deniers.");
 // -----------------------------
 // Travellers – Loaded caps
 // -----------------------------
@@ -1642,6 +1669,53 @@ public class TravellersModConfig {
                 "Worker behavior",
                 600, 100, 10000,
                 "Minimum block distance between worker villages."
+        );
+// =====================================================
+// Workers - Recruitment
+// =====================================================
+
+        recruitMaxVillageRadius = cfg.getInt(
+                "RecruitMaxVillageRadius", "Workers - Recruitment",
+                4000, 0, 30000,
+                "Maximum 2D distance (in blocks) from the hiring player used when searching\n" +
+                        "for villages eligible for a recruitment mission.\n" +
+                        "Higher values allow farther villages but can increase search/route costs."
+        );
+
+        recruitSpawnMin = cfg.getInt(
+                "RecruitSpawnMin", "Workers - Recruitment",
+                2, 0, 64,
+                "Minimum number of workers spawned at each visited village during recruitment.\n" +
+                        "If this is greater than RecruitSpawnMax, the code should clamp/swaps values."
+        );
+
+        recruitSpawnMax = cfg.getInt(
+                "RecruitSpawnMax", "Workers - Recruitment",
+                4, 0, 64,
+                "Maximum number of workers spawned at each visited village during recruitment.\n" +
+                        "Actual spawn count is random between RecruitSpawnMin and RecruitSpawnMax (inclusive)."
+        );
+
+        recruitFeeFlat = cfg.getInt(
+                "RecruitFeeFlat", "Workers - Recruitment",
+                128, 0, 1000000,
+                "Flat recruitment fee in deniers, added once per mission.\n" +
+                        "Example: 128 deniers = 2 argent (if 64 deniers = 1 argent)."
+        );
+
+        recruitFeePerBlock = cfg.getFloat(
+                "RecruitFeePerBlock", "Workers - Recruitment",
+                0.05f, 0.0f, 100.0f,
+                "Additional recruitment fee per block of total 2D route distance.\n" +
+                        "Formula uses: ceil(routeDistance * RecruitFeePerBlock).\n" +
+                        "Tip: 0.05 means ~50 deniers per 1000 blocks."
+        );
+
+        recruitFeePerVillage = cfg.getInt(
+                "RecruitFeePerVillage", "Workers - Recruitment",
+                4 * 64, 0, 1000000,
+                "Additional recruitment fee per visited village, in deniers.\n" +
+                        "Example: 4 * 64 = 256 deniers = 4 argent per village."
         );
 
         // Rebuild sets (normalize to lower-case)
@@ -1788,7 +1862,7 @@ public class TravellersModConfig {
         );
         merchantGiveFraction = cfg.getFloat(
                 "MerchantGiveFraction", "Merchant behavior",
-                0.03f,       // default
+                0.03f,       // gilles
                 0.0f,               // minimum
                 1.0f,               // maximum
                 "Fraction of total required construction resources the merchant donates.\n" +
@@ -1797,7 +1871,7 @@ public class TravellersModConfig {
 
         merchantMinBulkAmount = cfg.getInt(
                 "MerchantMinBulkAmount", "Merchant behavior",
-                8,                 // default
+                8,                 // gilles
                 0,                  // min
                 64000,              // max
                 "Minimum amount donated for bulk items (maxStack > 16). Example: planks, stone."
@@ -1805,7 +1879,7 @@ public class TravellersModConfig {
 
         merchantMinSmallAmount = cfg.getInt(
                 "MerchantMinSmallAmount", "Merchant behavior",
-                1,                  // default
+                1,                  // gilles
                 0,                  // min
                 64000,              // max
                 "Minimum amount donated for small-stack items (maxStack <= 16). Example: banners, tools."
@@ -1813,14 +1887,14 @@ public class TravellersModConfig {
 
         merchantMaxDistinctItems = cfg.getInt(
                 "MerchantMaxDistinctItems", "Merchant behavior",
-                1,                  // default
+                1,                  // gilles
                 0,                  // min
                 64,                 // max
                 "How many DIFFERENT item types a merchant can donate per village visit."
         );
 
 
-// Guard: ensure max >= min for raider ring
+// Guard: ensure max >= min for raiders ring
         if (raiderSpawnMaxDist < raiderSpawnMinDist) {
             raiderSpawnMaxDist = raiderSpawnMinDist;
         }
@@ -1844,16 +1918,21 @@ public class TravellersModConfig {
             CONFIG = new Configuration(CONFIG_FILE);
         }
         try {
-            CONFIG.load();           // re-read file on disk
-            readValues(CONFIG);      // populate static fields + blacklist
+            CONFIG.load();
+            readValues(CONFIG);
             if (CONFIG.hasChanged()) CONFIG.save();
-            applyRuntimeEffects();   // << important: push values into live entities/AI
+
+            applyRuntimeEffects();
+
+            // ✅ NEW: refresh client caches immediately
+            broadcastServerCostsToAllPlayers();
+
             System.out.println("[ModConfig] Reloaded config from disk.");
         } catch (Exception e) {
             System.err.println("[ModConfig] Reload failed: " + e.getMessage());
         }
-
     }
+
 
     public static boolean isVillagerFileExcludedForTravellers(File file) {
         if (file == null) return false;
@@ -1871,6 +1950,22 @@ public class TravellersModConfig {
             name = name.substring(0, name.length() - 4);
         }
         return EXCLUDED_RAIDER_VILLAGER_FILES.contains(name);
+    }
+    public static void broadcastServerCostsToAllPlayers() {
+        net.minecraftforge.fml.common.FMLCommonHandler fml = net.minecraftforge.fml.common.FMLCommonHandler.instance();
+        net.minecraft.server.MinecraftServer srv = fml.getMinecraftServerInstance();
+        if (srv == null) return;
+
+        MsgSyncServerCosts packet = new MsgSyncServerCosts(
+                TravellersModConfig.workerHireCostDeniers,
+                TravellersModConfig.recruitFeeFlat,
+                TravellersModConfig.recruitFeePerBlock,
+                TravellersModConfig.recruitFeePerVillage
+        );
+
+        for (net.minecraft.entity.player.EntityPlayerMP p : srv.getPlayerList().getPlayers()) {
+            TravellerFollowNet.CHANNEL.sendTo(packet, p);
+        }
     }
 
 }

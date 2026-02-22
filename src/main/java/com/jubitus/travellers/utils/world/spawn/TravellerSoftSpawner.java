@@ -119,7 +119,7 @@ public final class TravellerSoftSpawner {
 
                 for (int attempt = 0; attempt < TravellersModConfig.travellerMaxPositionChecksPerAttempt; attempt++) {
 
-                    // ✅ use travellers distances, not raider ones
+                    // ✅ use travellers distances, not raiders ones
                     BlockPos pos = pickSpawnPosAround(ws, playerPos, r,
                             TravellersModConfig.travellerSpawnMinDist,
                             TravellersModConfig.travellerSpawnMaxDist);
@@ -273,7 +273,7 @@ public final class TravellerSoftSpawner {
 
                     BlockPos playerPos = p.getPosition();
 
-                    // --- NEW: regional raider cap (same inputs as travellers) ---
+                    // --- NEW: regional raiders cap (same inputs as travellers) ---
                     int regionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, playerPos,
                             TravellersModConfig.raiderRegionalRadius);
                     if (regionalCap <= 0) {
@@ -284,7 +284,7 @@ public final class TravellerSoftSpawner {
                     int regionalCount = countRaidersInRegion(ws, playerPos,
                             TravellersModConfig.raiderRegionalRadius);
                     if (regionalCount >= regionalCap) {
-                        // this area is already at or above its raider budget
+                        // this area is already at or above its raiders budget
                         continue;
                     }
 

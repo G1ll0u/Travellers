@@ -1,9 +1,11 @@
 package com.jubitus.travellers.client.gui;
 
+import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.MsgHireWorker;
+import com.jubitus.travellers.utils.net.message.workerplayer.MsgHireWorker;
 import com.jubitus.travellers.utils.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.utils.net.message.workerplayer.MsgRequestServerCosts;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -12,6 +14,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import org.millenaire.common.utilities.MillCommonUtilities;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -89,6 +92,9 @@ public class GuiWorkerHub extends GuiContainer {
         ));
 
         refreshButtonStates();
+        // Ask server for the current hire cost (server-authoritative)
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestServerCosts());
+
     }
 
     @Override
@@ -116,7 +122,12 @@ public class GuiWorkerHub extends GuiContainer {
         boolean hireEnabled = true;
 
         if (!hired) {
-            hireLabel = I18n.format("travellers.worker.orders.hire", "Hire (2a)");
+            int cost = TravellersModConfig.workerHireCostDeniers_serverCache;
+            String costStr = (cost >= 0)
+                    ? MillCommonUtilities.getShortPrice(cost)
+                    : "?";
+
+            hireLabel = I18n.format("travellers.worker.orders.hire", "Hire (" + costStr + ")");
         } else if (hiredByMe) {
             hireLabel = I18n.format("travellers.worker.orders.unhire", "Dismiss");
         } else {

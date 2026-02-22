@@ -357,3 +357,137 @@ idea.project.settings {
 
 apply from: 'gradle/scripts/publishing.gradle'
 apply from: 'gradle/scripts/extra.gradle'
+
+
+import groovy.json.JsonOutput
+
+def MODID = "travellers"
+def SOUND_ROOT_TRAV = "travellers"              // sounds/travellers/<lang>/<personality>/<kind>/*.ogg
+def SOUND_ROOT_RAID = "travellers/raiders"      // sounds/travellers/raiders/<lang>/<personality>/<kind>/*.ogg
+
+tasks.register('generateDynamicSounds') {
+    group = "build setup"
+    description = "Generates sounds.json + voices/index.json + voices/raiders_index.json from assets sounds folder structure"
+
+    doLast {
+        def soundsBase = file("$projectDir/src/main/resources/assets/${MODID}/sounds")
+        if (!soundsBase.exists()) {
+            println "[generateDynamicSounds] No sounds folder: ${soundsBase}"
+            return
+        }
+
+        def travBase = new File(soundsBase, SOUND_ROOT_TRAV)
+        def raidBase = new File(soundsBase, SOUND_ROOT_RAID)
+
+        def soundsJsonOut = file("$projectDir/src/main/resources/assets/${MODID}/sounds.json")
+
+        def voicesDir = file("$projectDir/src/main/resources/assets/${MODID}/voices")
+        voicesDir.mkdirs()
+
+        def travIndexOut = file("$voicesDir/index.json")
+        def raidIndexOut = file("$voicesDir/raiders_index.json")
+
+        def kinds = ["talk", "hurt", "hello", "ambient"]
+
+        def soundsMap = [:]
+
+        def mkIndex = { String defLang, String defPers ->
+            return [
+                    defaultLang       : defLang,
+                    defaultPersonality: defPers,
+                    langs             : [:]
+            ]
+        }
+
+        // Set defaults you want
+        def travIndex = mkIndex("en", "default")
+        def raidIndex = mkIndex("en", "default")
+
+        def dirChildren = { File f ->
+            def kids = f.listFiles()
+            if (kids == null) return []
+            return kids.findAll { it.isDirectory() }
+        }
+
+        def oggsIn = { File f ->
+            def kids = f.listFiles()
+            if (kids == null) return []
+            return kids.findAll { it.isFile() && it.name.toLowerCase().endsWith(".ogg") }
+        }
+
+        def emitCategory = { File baseDir, String eventPrefix, String soundNamePrefix, def indexObj ->
+            if (!baseDir.exists() || !baseDir.isDirectory()) {
+                println "[generateDynamicSounds] Missing folder: ${baseDir}"
+                return
+            }
+
+            dirChildren(baseDir).each { File langDir ->
+                def lang = langDir.name.toLowerCase()
+                if (baseDir.name == "travellers" && lang == "raiders") {
+                    return // skip the raiders folder when generating traveller voices
+                }
+
+                def personalities = dirChildren(langDir).collect { it.name.toLowerCase() }.sort()
+                indexObj.langs[lang] = personalities
+
+                dirChildren(langDir).each { File persDir ->
+                    def personality = persDir.name.toLowerCase()
+
+                    kinds.each { String kind ->
+                        def kindDir = new File(persDir, kind)
+                        if (!kindDir.exists() || !kindDir.isDirectory()) return
+
+                        def files = oggsIn(kindDir)
+                        if (files.isEmpty()) return
+
+                        // SoundEvent registry key
+                        def eventKey = "${eventPrefix}.${lang}.${personality}.${kind}"
+
+                        def soundEntries = files.collect { File ogg ->
+                            def baseName = ogg.name.substring(0, ogg.name.length() - 4)
+                            return [name: "${MODID}:${soundNamePrefix}/${lang}/${personality}/${kind}/${baseName}"]
+                        }
+
+                        def entry = [
+                                category: "voice",
+                                sounds  : soundEntries,
+                                stream  : true
+                        ]
+
+                        if (kind == "talk" || kind == "hello") entry.subtitle = "subtitles.entity.travellers.talk"
+                        if (kind == "hurt") entry.subtitle = "subtitles.entity.travellers.hurt"
+
+                        soundsMap[eventKey] = entry
+                    }
+                }
+            }
+        }
+
+        // Travellers
+        emitCategory(
+                travBase,
+                "entity.travellers",
+                SOUND_ROOT_TRAV,
+                travIndex
+        )
+
+        // Raiders
+        emitCategory(
+                raidBase,
+                "entity.travellers.raiders",
+                SOUND_ROOT_RAID,
+                raidIndex
+        )
+
+        soundsJsonOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(soundsMap)) + "\n"
+        println "[generateDynamicSounds] Wrote ${soundsJsonOut} with ${soundsMap.size()} events"
+
+        travIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(travIndex)) + "\n"
+        println "[generateDynamicSounds] Wrote ${travIndexOut}"
+
+        raidIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(raidIndex)) + "\n"
+        println "[generateDynamicSounds] Wrote ${raidIndexOut}"
+    }
+}
+
+processResources.dependsOn(generateDynamicSounds)

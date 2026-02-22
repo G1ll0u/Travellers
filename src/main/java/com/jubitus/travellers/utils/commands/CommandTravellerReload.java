@@ -10,7 +10,7 @@ public class CommandTravellerReload extends net.minecraft.command.CommandBase {
 
     @Override
     public String getUsage(net.minecraft.command.ICommandSender sender) {
-        return "/travellerconfigreload";
+        return "/travellersconfigreload";
     }
 
     @Override

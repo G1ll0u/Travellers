@@ -1,5 +1,8 @@
 package com.jubitus.travellers.client.render;
 
+import com.jubitus.travellers.client.render.models.ModelSimpleHumanoid;
+import com.jubitus.travellers.client.render.textures.LayerTravellerBackpack;
+import com.jubitus.travellers.client.render.textures.LayerTravellerClothes;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;

@@ -356,8 +356,8 @@ public class EntityAICampPause extends EntityAIBase {
                         return true;
                     }
                     // if you prefer explicit:
-                    // Block b = st.getBlock();
-                    // if (b == Blocks.WATER || b == Blocks.FLOWING_WATER) return true;
+                    // Block silva = st.getBlock();
+                    // if (silva == Blocks.WATER || silva == Blocks.FLOWING_WATER) return true;
                 }
             }
         }

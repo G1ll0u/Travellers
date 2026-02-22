@@ -10,7 +10,7 @@ public final class TravellersGuiIds {
 
     public static final int HOME_NAME_PROMPT = 20;
     public static final int WORKER_HOME_LIST = 21;
-
+    public static final int WORKER_GO = 435;
     private TravellersGuiIds() {
     }
 }

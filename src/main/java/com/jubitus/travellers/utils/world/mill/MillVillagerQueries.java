@@ -56,7 +56,7 @@ public final class MillVillagerQueries {
 
     /**
      * List all LOADED villagers that belong to the village at approxTownHallPos.
-     * Raiders are excluded by default.
+     * Raiders are excluded by gilles.
      */
     public static List<MillVillager> getLoadedVillageVillagers(World world, BlockPos approxTownHallPos, int maxRadius) {
         return getLoadedVillageVillagers(world, approxTownHallPos, maxRadius, false);
@@ -142,7 +142,7 @@ public final class MillVillagerQueries {
 
     private static boolean isRaider(MillVillager v) {
         // In your decompiled class, v.isRaider is copied into VillagerRecord.raidingVillage
-        // So this should be the correct flag for "is a raider".
+        // So this should be the correct flag for "is a raiders".
         try {
             return v.isRaider;
         } catch (Throwable ignored) {

@@ -1,6 +1,17 @@
 package com.jubitus.travellers.utils.net;
 
 import com.jubitus.travellers.utils.net.message.*;
+import com.jubitus.travellers.utils.net.message.home.*;
+import com.jubitus.travellers.utils.net.message.leadfollow.*;
+import com.jubitus.travellers.utils.net.message.map.*;
+import com.jubitus.travellers.utils.net.message.recruit.MsgRecruitStartSelectedVillages;
+import com.jubitus.travellers.utils.net.message.recruit.MsgRecruitWorkers;
+import com.jubitus.travellers.utils.net.message.sounds.MsgPlayTravellerVoice;
+import com.jubitus.travellers.utils.net.message.sounds.MsgStopTravellerVoice;
+import com.jubitus.travellers.utils.net.message.villageshomes.MsgWorkerRequestVillages;
+import com.jubitus.travellers.utils.net.message.villageshomes.MsgWorkerVillageList;
+import com.jubitus.travellers.utils.net.message.workergo.*;
+import com.jubitus.travellers.utils.net.message.workerplayer.*;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -48,6 +59,29 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgRegisterHomeChest.Handler.class, MsgRegisterHomeChest.class, NEXT_ID++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerRequestHomeList.Handler.class,
                 MsgWorkerRequestHomeList.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgWorkerRequestGoList.Handler.class, MsgWorkerRequestGoList.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(MsgWorkerGoTo.Handler.class, MsgWorkerGoTo.class, NEXT_ID++, Side.SERVER);
+        CHANNEL.registerMessage(
+                MsgWorkerGoToPos.Handler.class,
+                MsgWorkerGoToPos.class,
+                NEXT_ID++,
+                Side.SERVER
+        );
+
+        // ---- Map discovery: server -> client ----
+        registerClientOnly(MsgMapDiscoverTile.class,
+                isClient ? new MsgMapDiscoverTile.ClientHandler() : new MsgMapDiscoverTile.NoopHandler());
+
+        registerClientOnly(MsgMapDiscoverySync.class,
+                isClient ? new MsgMapDiscoverySync.ClientHandler() : new MsgMapDiscoverySync.NoopHandler());
+
+        CHANNEL.registerMessage(MsgRequestMapDiscovery.Handler.class,
+                MsgRequestMapDiscovery.class, NEXT_ID++, Side.SERVER);
+    CHANNEL.registerMessage(MsgRequestServerCosts.Handler.class, MsgRequestServerCosts.class, NEXT_ID++, Side.SERVER);
+    CHANNEL.registerMessage(MsgSyncServerCosts.Handler.class, MsgSyncServerCosts.class, NEXT_ID++, Side.CLIENT);
+// server -> client
+        registerClientOnly(MsgWorkerGoList.class,
+                isClient ? new MsgWorkerGoList.ClientHandler() : new MsgWorkerGoList.NoopHandler());
 
         // server -> client (client-only handlers, use Noop on dedicated server)
         registerClientOnly(MsgWorkerHomeList.class,
@@ -55,7 +89,10 @@ public final class TravellerFollowNet {
 
         registerClientOnly(MsgSyncWorkerHome.class,
                 isClient ? new MsgSyncWorkerHome.ClientHandler() : new MsgSyncWorkerHome.NoopHandler());
-
+        CHANNEL.registerMessage(MsgRequestMapTiles.Handler.class,
+                MsgRequestMapTiles.class, NEXT_ID++, Side.SERVER);
+        registerClientOnly(MsgMapTileData.class,
+                isClient ? new MsgMapTileData.ClientHandler() : new MsgMapTileData.NoopHandler());
         registered = true;
     }
 

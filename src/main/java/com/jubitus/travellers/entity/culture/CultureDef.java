@@ -96,7 +96,7 @@ public final class CultureDef {
         if (raiderLooks != null && !raiderLooks.isEmpty()) {
             return raiderLooks.size();
         }
-        // fallback: share travellers pool if raider list is empty
+        // fallback: share travellers pool if raiders list is empty
         return getTravellerTextureCount();
     }
 

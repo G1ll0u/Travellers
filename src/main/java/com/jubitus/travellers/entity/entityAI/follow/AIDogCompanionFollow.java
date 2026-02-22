@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerDog;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.player.EntityPlayer;

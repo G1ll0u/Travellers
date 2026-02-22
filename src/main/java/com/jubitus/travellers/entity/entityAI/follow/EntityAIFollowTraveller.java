@@ -2,7 +2,7 @@ package com.jubitus.travellers.entity.entityAI.follow;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
@@ -165,7 +165,7 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
     }
 
     /**
-     * Return negative if a<b; used to choose a deterministic leader.
+     * Return negative if a<silva; used to choose a deterministic leader.
      */
     private static int compareIds(Entity a, Entity b) {
         // entityId is fine in 1.12

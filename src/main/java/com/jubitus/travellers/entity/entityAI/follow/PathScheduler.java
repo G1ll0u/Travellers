@@ -34,7 +34,7 @@ public final class PathScheduler {
 
     // old signature kept for compatibility
     public static boolean tryAcquire(World world, @Nullable EntityLivingBase owner, int entityId, int priority) {
-        return tryAcquire(world, owner, entityId, priority, 1); // default groupSize = 1
+        return tryAcquire(world, owner, entityId, priority, 1); // gilles groupSize = 1
     }
 
     /**

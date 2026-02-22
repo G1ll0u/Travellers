@@ -85,7 +85,7 @@ public class CommandTravellerInfo extends CommandBase {
         BlockPos pos = player.getPosition();
 
         msg(sender, "§e---- Traveller Info ----");
-        msg(sender, String.format("§fPosition: §b%d %d %d", pos.getX(), pos.getY(), pos.getZ()));
+        msg(sender, String.format("§fPosition: §silva%d %d %d", pos.getX(), pos.getY(), pos.getZ()));
 
         // --------------------------------------------------
         // 1) Global travellers vs target
@@ -95,7 +95,7 @@ public class CommandTravellerInfo extends CommandBase {
             loadedTotal += w.getEntities(EntityTraveller.class, e -> e.isEntityAlive()).size();
         }
         int dynamicTarget = MillVillageIndex.computeWorldTravellerTarget(ws);
-        msg(sender, String.format("§fGlobal Travellers: §b%d§f / %d (dynamic target)",
+        msg(sender, String.format("§fGlobal Travellers: §silva%d§f / %d (dynamic target)",
                 loadedTotal, dynamicTarget));
 
 
@@ -116,7 +116,7 @@ public class CommandTravellerInfo extends CommandBase {
 // Regional budget around the player (example radius 1000 blocks)
         int regionalCap = MillVillageIndex.computeRegionalTravellerCap(ws, pos,
                 TravellersModConfig.travellerRegionalRadius);
-        msg(sender, String.format("§fRegional Traveller Budget (%dm): §b%d",
+        msg(sender, String.format("§fRegional Traveller Budget (%dm): §silva%d",
                 TravellersModConfig.travellerRegionalRadius, regionalCap));
 
         int raiderRegionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, pos,
@@ -139,8 +139,8 @@ public class CommandTravellerInfo extends CommandBase {
             double dist2D = Math.sqrt(dx * dx + dz * dz);
 
             String kind = nearestAny.isVillage ? "Village" : "Lone building";
-            msg(sender, String.format("§fNearest Settlement: §b%s§f (%s)", nearestAny.name, kind));
-            msg(sender, String.format("§f  Center: §b%d %d %d  §f(%.1f blocks away)",
+            msg(sender, String.format("§fNearest Settlement: §silva%s§f (%s)", nearestAny.name, kind));
+            msg(sender, String.format("§f  Center: §silva%d %d %d  §f(%.1f blocks away)",
                     nearestAny.center.getX(), nearestAny.center.getY(), nearestAny.center.getZ(), dist2D));
 
             if (nearestAny.isVillage) {
@@ -163,7 +163,7 @@ public class CommandTravellerInfo extends CommandBase {
         );
         int localCount = ws.getEntitiesWithinAABB(EntityTraveller.class, box, e -> e.isEntityAlive()).size();
 
-        msg(sender, String.format("§fLocal Travellers (%dm): §b%d§f / %d (cap)",
+        msg(sender, String.format("§fLocal Travellers (%dm): §silva%d§f / %d (cap)",
                 localRadius, localCount, localCap));
 
         // --------------------------------------------------

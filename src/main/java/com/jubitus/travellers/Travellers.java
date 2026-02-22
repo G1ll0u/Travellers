@@ -1,8 +1,10 @@
 package com.jubitus.travellers;
 
 import com.jubitus.travellers.client.render.ClientProxy;
-import com.jubitus.travellers.client.server.ClientGuiHandler;
-import com.jubitus.travellers.client.server.CommonGuiHandler;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
+import com.jubitus.travellers.client.gui.ClientGuiHandler;
+import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
@@ -13,8 +15,9 @@ import com.jubitus.travellers.utils.commands.*;
 import com.jubitus.travellers.utils.mobs.MobTargetInjector;
 import com.jubitus.travellers.utils.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.net.TravellerWorkerLootHandler;
-import com.jubitus.travellers.utils.net.packet.PacketTravellerChunks;
-import com.jubitus.travellers.utils.net.packet.PacketTravellerChunksRequest;
+import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunksClientHandler;
+import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunks;
+import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunksRequest;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
 import com.jubitus.travellers.utils.world.spawn.TravellerSpawnGuards;
@@ -106,7 +109,7 @@ public class Travellers {
             ClientProxy.registerRenderers();
         }
         NETWORK.registerMessage(
-                isClient ? com.jubitus.travellers.client.PacketTravellerChunksClientHandler.class
+                isClient ? PacketTravellerChunksClientHandler.class
                         : PacketTravellerChunks.NoopHandler.class,
                 PacketTravellerChunks.class,
                 nextId++,
@@ -126,7 +129,7 @@ public class Travellers {
 
             // Normal travellers
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller"),
+                    new ResourceLocation(Reference.MOD_ID, "travellers"),
                     EntityTraveller.class,
                     Reference.MOD_ID + ".traveller",
                     1,              // ID already used by you
@@ -236,10 +239,10 @@ public class Travellers {
 
     @Mod.EventHandler
     public void onServerStarting(FMLServerStartingEvent event) {
-
         CultureRegistry.initMillenaireData();
-
+        ModSounds.assignVoicesToCultures(); // ✅ add this
     }
+
 
     @Mod.EventHandler
     public void onServerStopping(FMLServerStoppingEvent event) {
@@ -254,9 +257,14 @@ public class Travellers {
         }
     }
 
+
+
+
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         CultureRegistry.initMillenaireData();
+        ModSounds.assignVoicesToCultures(); // ✅ add this
     }
+
 
 }

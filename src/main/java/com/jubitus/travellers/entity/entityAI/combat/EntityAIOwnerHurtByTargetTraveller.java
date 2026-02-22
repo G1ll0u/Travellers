@@ -47,22 +47,12 @@ public class EntityAIOwnerHurtByTargetTraveller extends EntityAITarget {
     @Override
     protected boolean isSuitableTarget(@Nullable EntityLivingBase target, boolean includeInvincibles) {
         if (target == null || !target.isEntityAlive()) return false;
-
-        // Don't attack owner, obviously
         if (target == worker.getFollowOwner()) return false;
 
-        // If it's a player, allow only if either:
-        //  - they actually attacked the owner (this AI) OR
-        //  - owner explicitly marked them as hostile
-        if (target instanceof EntityPlayer) {
-            EntityPlayer p = (EntityPlayer) target;
-            if (!worker.isPlayerMarkedHostile(p)) {
-                // but still allow if they hurt the owner (RevengeTarget)
-                // we’re already here because they did
-                return true;
-            }
-        }
+        // Critical constraint: only retaliate if allowed
+        if (!worker.canRetaliateAgainst(target)) return false;
 
         return super.isSuitableTarget(target, includeInvincibles);
     }
+
 }

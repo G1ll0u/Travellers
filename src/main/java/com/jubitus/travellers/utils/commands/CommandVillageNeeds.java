@@ -131,7 +131,7 @@ public class CommandVillageNeeds extends CommandBase {
                 int inVillage = th.countGoods(item, meta);
 
                 sender.sendMessage(new TextComponentString(
-                        String.format("    §b%s§7 (meta %d): planReq=%d, chest=%d",
+                        String.format("    §silva%s§7 (meta %d): planReq=%d, chest=%d",
                                 ii.getName(), meta, req, inVillage)));
 
                 totalRequired.merge(ii, req, Integer::sum);
@@ -209,7 +209,7 @@ public class CommandVillageNeeds extends CommandBase {
                 int missing = Math.max(0, req - inVillage);
 
                 sender.sendMessage(new TextComponentString(
-                        String.format("    §b%s§7 (meta %d): wallReq=%d, chest=%d, missing=%d",
+                        String.format("    §silva%s§7 (meta %d): wallReq=%d, chest=%d, missing=%d",
                                 ii.getName(), meta, req, inVillage, missing)));
 
                 totalWallReq.merge(ii, req, Integer::sum);

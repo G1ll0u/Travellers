@@ -53,14 +53,12 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
                     // hostile marked players
                     if (e instanceof EntityPlayer) {
                         EntityPlayer p = (EntityPlayer) e;
-                        return !p.isCreative() && !p.isSpectator()
-                                && p != worker.getFollowOwner()
-                                && worker.isPlayerMarkedHostile(p);
+                        return worker.isEnemyPlayer(p);
                     }
 
                     // enemy hired workers
                     if (e instanceof EntityTravellerWorker) {
-                        return worker.shouldAttackExtraEntity(e);
+                        return worker.isEnemyHiredWorker((EntityTravellerWorker) e);
                     }
 
                     return false;
@@ -75,7 +73,10 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
         for (EntityLivingBase e : list) {
             // Hard skip if blacklisted etc.
-            if (!worker.shouldAttackExtraEntity(e) && !(e instanceof net.minecraft.entity.monster.IMob)) continue;
+            if (!(e instanceof net.minecraft.entity.monster.IMob)) {
+                if (e instanceof EntityPlayer && !worker.isEnemyPlayer((EntityPlayer) e)) continue;
+                if (e instanceof EntityTravellerWorker && !worker.isEnemyHiredWorker((EntityTravellerWorker) e)) continue;
+            }
 
             boolean targetsOwner = false;
             if (e instanceof EntityLiving) {

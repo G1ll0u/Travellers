@@ -3,7 +3,7 @@ package com.jubitus.travellers.entity.entityAI.travel;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import net.minecraft.block.Block;
