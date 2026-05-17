@@ -2,6 +2,7 @@ entity.travellers.traveller.name=Traveller
 entity.travellers.traveller_merchant.name=Merchant
 entity.travellers.traveller_worker.name=Henchman
 entity.travellers.traveller_raider.name=Raider
+
 travellers.worker.title=Transaction
 travellers.worker.send=Sell
 travellers.worker.not_enough_money=You need %s for this trip.
@@ -10,12 +11,11 @@ travellers.worker.cost_unknown=Travel cost: (validate)
 travellers.worker.validate=Validate
 travellers.worker.donate=Donate
 
-
 travellers.worker.hub.title=Traveller Options
 travellers.worker.hub.transport=Transport
 travellers.worker.hub.follow=Orders
 travellers.worker.follow.title=Follower Options
-travellers.worker.orders.hire=Hire (2a)
+travellers.worker.orders.hire=Hire (%s)
 travellers.worker.orders.unhire=Unhire
 travellers.worker.orders.hired_other=Hired by somebody
 travellers.worker.follow.hired_success=The traveller is now following you.
@@ -32,3 +32,109 @@ travellers.worker.orders.follow_player=Follow me
 travellers.worker.orders.following_player=Follow me
 travellers.worker.orders.title=Orders
 travellers.worker.hub.behavior=Behavior
+travellers.worker.hub.map=Map
+
+travellers.gui.back=Back
+travellers.gui.add=Add
+travellers.gui.remove=Remove
+travellers.gui.done=Done
+travellers.gui.save=Save
+travellers.gui.cancel=Cancel
+travellers.gui.clear=Clear
+travellers.gui.go=Go
+travellers.gui.unnamed=(unnamed)
+
+travellers.map.center=Center
+travellers.map.chunks.legend.loaded_normal=Loaded chunks (normal)
+travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers merchants
+travellers.map.chunks.legend.villages=Village Town Halls
+travellers.map.chunks.legend.center_chunk=White square = current center chunk
+travellers.map.chunks.legend.player_pos=Green dot = your pos
+
+travellers.worker.behavior.title=Behavior
+travellers.worker.behavior.player_enemies=Player enemies
+travellers.worker.behavior.village_relations=Village relations
+
+travellers.worker.enemies.title=Add/remove player enemies
+travellers.worker.enemies.hint=(that workers will attack at sight)
+travellers.worker.enemies.count=Enemies: %s
+
+travellers.worker.village_relations.title=Village relations
+travellers.worker.village_relations.hint=Select a village, then toggle enemy.
+travellers.worker.village_relations.toggle_enemy=Toggle enemy
+
+travellers.home_name_prompt.title=Name of your home
+travellers.home_name_prompt.subtitle=You can assign it to hired workers.
+
+travellers.worker.home_list.title=Homes
+travellers.worker.home_list.set_home=Set home
+
+travellers.worker.orders.go=Go...
+travellers.worker.orders.home=Home
+travellers.worker.orders.go_home=Go home
+travellers.worker.orders.go_home_no_home=Go home (no home)
+travellers.worker.orders.leader_count=Leader (%s)
+travellers.worker.orders.choir_start=Sing a Song
+travellers.worker.orders.choir_stop=Stop Singing
+
+travellers.worker.recruit.start=Recruit
+travellers.worker.recruit.fee=Fee: %s
+travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
+
+travellers.worker.home_list.empty=You have no homes looser
+
+travellers.worker.hub.formation=Formation
+
+travellers.worker.formation.title=Formation
+travellers.worker.formation.preview=Radar Preview
+travellers.worker.formation.preview_adaptive_cave=Cave adaptive: ON
+travellers.worker.formation.preview_surface_bias=Cave adaptive: OFF
+
+travellers.worker.formation.scope=Scope
+travellers.worker.formation.scope_type=Type
+travellers.worker.formation.scope.player=Player
+travellers.worker.formation.scope.worker=Worker leader
+travellers.worker.formation.followers=Followers
+
+travellers.worker.formation.style=Style
+travellers.worker.formation.follow_distance=Follow dist
+travellers.worker.formation.spacing=Spacing
+travellers.worker.formation.width=Width
+travellers.worker.formation.turn=Turn smooth
+travellers.worker.formation.cave=Cave mode
+
+travellers.worker.formation.cave.on=Adaptive cave: ON
+travellers.worker.formation.cave.off=Adaptive cave: OFF
+travellers.worker.formation.escorts=Escorts
+
+travellers.worker.formation.style.compact=Compact
+travellers.worker.formation.style.line=Line
+travellers.worker.formation.style.column=Column
+travellers.worker.formation.style.wedge=Wedge
+travellers.worker.formation.style.adaptive=Adaptive
+
+travellers.worker.formation.controls=Controls
+travellers.worker.formation.preview.forward=Forward
+travellers.worker.formation.preview.zoom=Zoom: %s
+travellers.worker.formation.preview.count=Shown: %s
+travellers.worker.formation.preview.reset=Reset
+travellers.worker.formation.hover.leader=Leader
+travellers.worker.formation.hover.slot=Follower slot %s
+travellers.worker.formation.hover.escort=Close escort #%s
+travellers.worker.formation.hover.offset=Offset: x=%s z=%s
+
+travellers.worker.hub.mark_button=Worker mark
+travellers.worker.hub.mark_button.desc=Edit your hired workers visual mark
+
+travellers.worker.mark.title=Worker Mark
+travellers.worker.mark.style=Style
+travellers.worker.mark.color=Color: %s
+travellers.worker.mark.preview=Preview
+travellers.worker.mark.preview.follower=Worker
+travellers.worker.mark.preview.leader=Leader
+travellers.worker.mark.preview.leader_hint=Leaders use a dedicated overlay
+travellers.worker.mark.saved=Worker mark saved
+
+travellers.worker.mark.style.plain=Plain
+travellers.worker.mark.style.double=Double
+travellers.worker.mark.style.chevron=Chevron

@@ -2,7 +2,7 @@ package com.jubitus.travellers.utils.commands;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
-import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunks;
+import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
@@ -32,7 +32,7 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
         EntityPlayerMP player = (EntityPlayerMP) sender;
         WorldServer world = (WorldServer) player.world;
 
-        int radiusBlocks = 256; // gilles
+        int radiusBlocks = 256; // default
         if (args.length >= 1) {
             radiusBlocks = parseInt(args[0], 16, 8192); // clamp a bit
         }

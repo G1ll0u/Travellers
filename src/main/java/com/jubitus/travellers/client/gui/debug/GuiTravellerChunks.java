@@ -2,7 +2,7 @@ package com.jubitus.travellers.client.gui.debug;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
-import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunksRequest;
+import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraftforge.fml.relauncher.Side;
@@ -15,10 +15,11 @@ import java.util.Set;
 @SideOnly(Side.CLIENT)
 public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
 
-    private TravellerChunkSnapshot snapshot; // <-- was final, remove final
+    private TravellerChunkSnapshot snapshot;
     private int tickCounter = 0;
     private Set<ChunkPos> merchantSet;
     private Set<ChunkPos> normalSet;
+    private Set<ChunkPos> virtualWorkerChunks;
 
     public GuiTravellerChunks(TravellerChunkSnapshot snapshot) {
         updateSnapshot(snapshot);
@@ -28,6 +29,10 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         this.snapshot = snapshot;
         this.merchantSet = new HashSet<>(snapshot.merchantChunks);
         this.normalSet = new HashSet<>(snapshot.normalChunks);
+        this.virtualWorkerChunks = new HashSet<>();
+        for (BlockPos pos : snapshot.virtualWorkers) {
+            virtualWorkerChunks.add(new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4));
+        }
     }
 
     @Override
@@ -35,7 +40,9 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         this.drawDefaultBackground();
 
         int gridPadding = 40;
-        int gridSize = Math.min(this.width - gridPadding * 2, this.height - gridPadding * 3);
+        // La légende prend 5 lignes de 12px + un décalage de 8px = 68px, plus une marge basse
+        int legendReserve = 80;
+        int gridSize = Math.min(this.width - gridPadding * 2, this.height - gridPadding * 2 - legendReserve);
 
         int gridLeft = (this.width - gridSize) / 2;
         int gridTop = (this.height - gridSize) / 2;
@@ -66,6 +73,9 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
                 }
                 if (merchantSet.contains(cp)) {
                     color = 0xFF0066CC; // merchant forced
+                }
+                if (virtualWorkerChunks.contains(cp)) {
+                    color = 0xFF884400; // virtual worker present in this chunk
                 }
 
                 drawRect(cellX, cellY, cellX2, cellY2, color);
@@ -130,6 +140,12 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         legendTop += spacingY;
         drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFFFFCC00);
         this.fontRenderer.drawString("Village Town Halls", legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
+
+        // Virtual workers
+        legendTop += spacingY;
+        drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFF884400);
+        this.fontRenderer.drawString("Virtual workers (" + snapshot.virtualWorkers.size() + ")",
+                legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
 
         // Center
         legendTop += spacingY;

@@ -1,1 +1,80 @@
 entity.travellers.traveller.name=Reisender
+entity.travellers.traveller_merchant.name=Händler
+entity.travellers.traveller_worker.name=Handlanger
+entity.travellers.traveller_raider.name=Räuber
+
+travellers.worker.title=Handel
+travellers.worker.send=Verkauf
+travellers.worker.not_enough_money=Du brauchst %s für diese Reise.
+travellers.worker.cost=Reisekosten: %s
+travellers.worker.cost_unknown=Reisekosten: (prüfen)
+travellers.worker.validate=Prüfen
+travellers.worker.donate=Spenden
+
+travellers.worker.hub.title=Reisender-Optionen
+travellers.worker.hub.transport=Transport
+travellers.worker.hub.follow=Befehle
+travellers.worker.follow.title=Begleiter-Optionen
+travellers.worker.orders.hire=Anheuern (%s)
+travellers.worker.orders.unhire=Entlassen
+travellers.worker.orders.hired_other=Schon vergeben
+travellers.worker.follow.hired_success=Der Reisende folgt dir jetzt.
+travellers.worker.follow.unhired_success=Der Reisende folgt dir nicht mehr.
+travellers.worker.follow.not_enough_money=Du hast nicht genug Geld.
+travellers.worker.follow.hired_by_other=Dieser Reisende ist schon angeheuert.
+travellers.worker.hub.inventory=Inventar
+travellers.worker.orders.make_leader=Führen
+travellers.worker.orders.follow_on=Folgen: AN
+travellers.worker.orders.follow_off=Folgen: AUS
+travellers.worker.inventory.title=Persönliches Inventar
+travellers.worker.orders.recruit=Anwerben
+travellers.worker.orders.follow_player=Mir folgen
+travellers.worker.orders.following_player=Mir folgen
+travellers.worker.orders.title=Befehle
+travellers.worker.hub.behavior=Verhalten
+travellers.worker.hub.map=Karte
+
+travellers.gui.back=Zurück
+travellers.gui.add=Hinzuf.
+travellers.gui.remove=Entf.
+travellers.gui.done=Fertig
+travellers.gui.save=Speichern
+travellers.gui.cancel=Abbruch
+travellers.gui.clear=Leeren
+travellers.gui.go=Los
+travellers.gui.unnamed=(namenlos)
+
+travellers.map.center=Zentrieren
+travellers.map.chunks.legend.loaded_normal=Geladene Chunks
+travellers.map.chunks.legend.loaded_merchants=Chunks der Händler
+travellers.map.chunks.legend.villages=Rathäuser
+travellers.map.chunks.legend.center_chunk=Weiß = Mittel-Chunk
+travellers.map.chunks.legend.player_pos=Grün = du
+
+travellers.worker.behavior.title=Verhalten
+travellers.worker.behavior.player_enemies=Spielerfeinde
+travellers.worker.behavior.village_relations=Dorfbeziehungen
+
+travellers.worker.enemies.title=Spielerfeinde ändern
+travellers.worker.enemies.hint=(Rechts auf Namen klicken)
+travellers.worker.enemies.count=Feinde: %s
+
+travellers.worker.village_relations.title=Dorfbeziehungen
+travellers.worker.village_relations.hint=Dorf wählen und Feindstatus ändern.
+travellers.worker.village_relations.toggle_enemy=Feind umschalten
+
+travellers.home_name_prompt.title=Name deines Hauses
+travellers.home_name_prompt.subtitle=Kann angeheuerten Helfern zugewiesen werden.
+
+travellers.worker.home_list.title=Häuser
+travellers.worker.home_list.set_home=Haus setzen
+
+travellers.worker.orders.go=Gehe...
+travellers.worker.orders.home=Haus
+travellers.worker.orders.go_home=Nach Hause
+travellers.worker.orders.go_home_no_home=Kein Haus
+travellers.worker.orders.leader_count=Chef (%s)
+
+travellers.worker.recruit.start=Anwerben
+travellers.worker.recruit.fee=Gebühr: %s
+travellers.worker.recruit.too_close=Zu nah. Min.: %sm

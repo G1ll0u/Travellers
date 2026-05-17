@@ -66,12 +66,9 @@ public final class CultureDef {
         travellerLooks.add(a);
     }
 
-    // NEW
     public void addRaiderAppearance(TravellerAppearance a) {
         raiderLooks.add(a);
     }
-
-    // existing stuff...
 
     public int travellerAppearanceCount() {
         return travellerLooks.size();

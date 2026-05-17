@@ -1,8 +1,8 @@
 package com.jubitus.travellers.utils.commands;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.leadfollow.MsgToggleFollow;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.leadfollow.MsgToggleFollow;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;

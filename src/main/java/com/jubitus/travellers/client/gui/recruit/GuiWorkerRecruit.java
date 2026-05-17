@@ -2,40 +2,127 @@ package com.jubitus.travellers.client.gui.recruit;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.recruit.MsgRecruitStartSelectedVillages;
-import com.jubitus.travellers.utils.net.message.villageshomes.MsgWorkerRequestVillages;
-import com.jubitus.travellers.utils.net.message.workerplayer.MsgRequestServerCosts;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.server.net.message.recruit.MsgRecruitStartSelectedVillages;
+import com.jubitus.travellers.server.net.message.villageshomes.MsgWorkerRequestVillages;
+import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestServerCosts;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import org.lwjgl.input.Mouse;
 import org.millenaire.common.utilities.MillCommonUtilities;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerRecruit extends GuiContainer {
+public class GuiWorkerRecruit extends GuiScreen {
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
     private final List<VillageRow> villages = new ArrayList<>();
     private final java.util.Set<Integer> selected = new java.util.HashSet<>();
+
     private GuiButton startButton;
     private GuiButton clearButton;
-    private int listX, listY, listW, listH;
+    private GuiButton backButton;
+
+    private int listX;
+    private int listY;
+    private int listW;
+    private int listH;
+
     private final int rowH = 12;
     private int lastFee = 0;
-
-    // --- SCROLLING ---
     private int scrollOffset = 0;
+
+    private int xSize = 176;
+    private int ySize = 150;
+    private int guiLeft;
+    private int guiTop;
+
+    public GuiWorkerRecruit(EntityPlayer player, EntityTravellerWorker worker) {
+        this.player = player;
+        this.worker = worker;
+    }
+
+    @Override
+    public void initGui() {
+        super.initGui();
+
+        this.guiLeft = (this.width - this.xSize) / 2;
+        this.guiTop = (this.height - this.ySize) / 2;
+
+        int shiftLeft = 40;
+        this.guiLeft = Math.max(4, this.guiLeft - shiftLeft);
+
+        this.listW = 140;
+        this.listH = 120;
+        this.listX = this.guiLeft + this.xSize + 8;
+        this.listY = this.guiTop + 4;
+
+        this.buttonList.clear();
+
+        int bw = 70;
+        int bh = 16;
+        int gap = 4;
+        int buttonsTop = listY + listH + gap;
+
+        this.startButton = this.addButton(new GuiButton(
+                0,
+                listX,
+                buttonsTop,
+                bw,
+                bh,
+                I18n.format("travellers.worker.recruit.start", "Recruit")
+        ));
+
+        this.clearButton = this.addButton(new GuiButton(
+                1,
+                listX + bw + gap,
+                buttonsTop,
+                bw,
+                bh,
+                I18n.format("travellers.gui.clear", "Clear")
+        ));
+
+        this.backButton = this.addButton(new GuiButton(
+                2,
+                listX + bw + gap,
+                buttonsTop + bh + gap,
+                bw,
+                bh,
+                I18n.format("travellers.gui.back", "Back")
+        ));
+
+        this.startButton.enabled = false;
+
+        villages.clear();
+        selected.clear();
+        scrollOffset = 0;
+
+        recomputeFee();
+
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestServerCosts());
+    }
+
+    @Override
+    public void updateScreen() {
+        super.updateScreen();
+        recomputeFee();
+    }
 
     private boolean isMouseOverList(int mouseX, int mouseY) {
         return mouseX >= listX && mouseX < listX + listW
@@ -56,51 +143,9 @@ public class GuiWorkerRecruit extends GuiContainer {
         if (scrollOffset > max) scrollOffset = max;
     }
 
-
-    public GuiWorkerRecruit(EntityPlayer player, EntityTravellerWorker worker) {
-        super(new ContainerWorkerRecruit(player.inventory, worker));
-        this.player = player;
-        this.worker = worker;
-        this.xSize = 176;
-        this.ySize = 150;
-    }
-
-    @Override
-    public void initGui() {
-        super.initGui();
-
-        int shiftLeft = 40;
-        this.guiLeft = Math.max(4, this.guiLeft - shiftLeft);
-        this.guiTop = (this.height - this.ySize) / 2;
-
-        this.listW = 140;
-        this.listH = 120;
-        this.listX = this.guiLeft + this.xSize + 8;
-        this.listY = this.guiTop + 4;
-
-        this.buttonList.clear();
-
-        int bw = 70, bh = 16, gap = 4;
-        int buttonsTop = listY + listH + gap;
-
-        this.startButton = this.addButton(new GuiButton(0, listX, buttonsTop, bw, bh, "Recruit"));
-        this.clearButton = this.addButton(new GuiButton(1, listX + bw + gap, buttonsTop, bw, bh, "Clear"));
-
-        this.startButton.enabled = false;
-
-        villages.clear();
-        selected.clear();
-        scrollOffset = 0;
-
-        recomputeFee();
-
-        // reuse existing request
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestServerCosts());
-
-    }
-
     private void recomputeFee() {
+        if (startButton == null) return;
+
         if (selected.isEmpty()) {
             lastFee = 0;
             startButton.enabled = false;
@@ -111,9 +156,12 @@ public class GuiWorkerRecruit extends GuiContainer {
         java.util.Collections.sort(sel);
 
         java.util.List<BlockPos> route = new java.util.ArrayList<>();
-        for (int idx : sel) route.add(villages.get(idx).center);
+        for (int idx : sel) {
+            if (idx >= 0 && idx < villages.size()) {
+                route.add(villages.get(idx).center);
+            }
+        }
 
-        // start/end at player pos (simple + feels right)
         BlockPos start = player.getPosition();
         BlockPos end = player.getPosition();
 
@@ -121,96 +169,114 @@ public class GuiWorkerRecruit extends GuiContainer {
         int flat = TravellersModConfig.recruitFeeFlat_serverCache;
         int perVillage = TravellersModConfig.recruitFeePerVillage_serverCache;
 
-// si pas encore reçu -> fallback visuel (ou utilise tes locals, mais ça peut être faux en dédié)
         boolean hasServer = flat >= 0 && perVillage >= 0 && !Double.isNaN(perBlock);
 
         int dist = EntityTravellerWorker.computeRouteDistance2D(start, route, end);
 
         if (hasServer) {
-            int fee = Math.max(0, flat + (perVillage * route.size()) + (int) Math.ceil(dist * perBlock));
-            lastFee = fee;
+            lastFee = Math.max(0, flat + (perVillage * route.size()) + (int) Math.ceil(dist * perBlock));
         } else {
-            // fallback (peut être faux sur dédié, mais évite 0)
             lastFee = EntityTravellerWorker.computeRecruitFee(dist, route.size());
         }
 
-
         int money = MillCommonUtilities.countMoney(player.inventory);
-        startButton.enabled = (money >= lastFee);
+        startButton.enabled = money >= lastFee;
     }
 
-    private void handleListWheelScroll(int mouseX, int mouseY, int listSize) {
-        if (listSize <= 0) return;
-
-        // Only scroll if the mouse is over the list panel
-        if (mouseX < listX || mouseX >= listX + listW || mouseY < listY || mouseY >= listY + listH) {
-            return;
-        }
+    private void handleListWheelScroll(int mouseX, int mouseY) {
+        if (!isMouseOverList(mouseX, mouseY)) return;
 
         int wheel = org.lwjgl.input.Mouse.getDWheel();
         if (wheel == 0) return;
 
-        int dir = (wheel > 0) ? -1 : 1; // up = -1, down = +1
-
+        int dir = wheel > 0 ? -1 : 1;
         scrollOffset += dir;
-        if (scrollOffset < 0) scrollOffset = 0;
-
-        int visible = Math.max(1, listH / rowH);
-        int maxScroll = Math.max(0, listSize - visible);
-        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
-    }
-
-
-
-    @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
-        super.drawScreen(mouseX, mouseY, partialTicks);
-        handleListWheelScroll(mouseX, mouseY, villages.size());
-
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-
-        drawVillageList(mouseX, mouseY);
-        this.renderHoveredToolTip(mouseX, mouseY);
-
+        clampScroll();
     }
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
 
+        int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
+        int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
+        handleListWheelScroll(mouseX, mouseY);
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        if (mouseButton == 0 && !villages.isEmpty()) {
-            if (mouseX >= listX && mouseX < listX + listW &&
-                    mouseY >= listY && mouseY < listY + listH) {
+        if (mouseButton != 0 || villages.isEmpty()) return;
+        if (!isMouseOverList(mouseX, mouseY)) return;
 
-                int idx = scrollOffset + (mouseY - listY) / rowH;
+        int idx = scrollOffset + (mouseY - listY) / rowH;
+        if (idx < 0 || idx >= villages.size()) return;
 
+        int minD = TravellersModConfig.recruitMinVillageDistance;
+        int dist = villages.get(idx).distance;
+
+        if (dist < minD) {
+            player.sendMessage(new TextComponentString(
+                    TextFormatting.RED + I18n.format("travellers.worker.recruit.too_close", minD)
+            ));
+            return;
+        }
+
+        if (selected.contains(idx)) {
+            selected.remove(idx);
+        } else {
+            selected.add(idx);
+        }
+
+        recomputeFee();
+    }
+
+    @Override
+    protected void actionPerformed(GuiButton button) throws IOException {
+        if (button == clearButton) {
+            selected.clear();
+            recomputeFee();
+            return;
+        }
+
+        if (button == backButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS)
+            );
+            return;
+        }
+
+        if (button == startButton) {
+            if (selected.isEmpty()) return;
+
+            java.util.List<Integer> sel = new java.util.ArrayList<>(selected);
+            java.util.Collections.sort(sel);
+
+            java.util.List<BlockPos> route = new java.util.ArrayList<>();
+            for (int idx : sel) {
                 if (idx >= 0 && idx < villages.size()) {
-                    int minD = TravellersModConfig.recruitMinVillageDistance;
-                    int dist = villages.get(idx).distance;
-
-                    if (dist < minD) {
-                        // too close, ignore click
-                        player.sendMessage(new TextComponentString(
-                                TextFormatting.RED + "Too close to recruit. Minimum distance: " + minD + "m"
-                        ));
-                        return;
-                    }
-
-                    if (selected.contains(idx)) selected.remove(idx);
-                    else selected.add(idx);
-
-                    recomputeFee();
-
+                    route.add(villages.get(idx).center);
                 }
             }
+
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgRecruitStartSelectedVillages(worker.getEntityId(), route)
+            );
+            mc.player.closeScreen();
+            return;
         }
+
+        super.actionPerformed(button);
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+
+        super.drawScreen(mouseX, mouseY, partialTicks);
+
+        drawVillageList(mouseX, mouseY);
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
@@ -218,8 +284,14 @@ public class GuiWorkerRecruit extends GuiContainer {
 
         int money = MillCommonUtilities.countMoney(player.inventory);
         String feeStr = MillCommonUtilities.getShortPrice(lastFee);
-        int col = (money >= lastFee) ? 0x00FF00 : 0xFF5555;
-        this.fontRenderer.drawString("Fee: " + feeStr, listX, listY - 10, col);
+        int col = money >= lastFee ? 0x00FF00 : 0xFF5555;
+
+        this.fontRenderer.drawString(
+                I18n.format("travellers.worker.recruit.fee", feeStr),
+                listX,
+                listY - 10,
+                col
+        );
 
         clampScroll();
 
@@ -232,15 +304,13 @@ public class GuiWorkerRecruit extends GuiContainer {
                     && mouseY >= rowTop && mouseY < rowBottom;
 
             int globalIdx = scrollOffset + i;
-
             boolean isSel = selected.contains(globalIdx);
 
             int bg = isSel ? 0x4033FF33 : (hovered ? 0x20FFFFFF : 0x20000000);
             drawRect(listX, rowTop, listX + listW, rowBottom, bg);
 
             VillageRow row = villages.get(globalIdx);
-            final float scale = 0.85F;
-
+            float scale = 0.85F;
             String label = makeRowLabel(row, scale);
 
             GlStateManager.pushMatrix();
@@ -249,7 +319,6 @@ public class GuiWorkerRecruit extends GuiContainer {
             this.fontRenderer.drawString((isSel ? "[X] " : "[ ] ") + label, 0, 0, 0xE0E0E0);
             GlStateManager.popMatrix();
         }
-
     }
 
     private String makeRowLabel(VillageRow row, float scale) {
@@ -302,48 +371,33 @@ public class GuiWorkerRecruit extends GuiContainer {
         return prefix + ellipsis + tail + suffix;
     }
 
-    // called by MsgWorkerVillageList
     public void receiveVillageList(List<BlockPos> centers, List<String> labels, List<Integer> distances) {
         villages.clear();
+
         int n = Math.min(centers.size(), Math.min(labels.size(), distances.size()));
         for (int i = 0; i < n; i++) {
             villages.add(new VillageRow(centers.get(i), labels.get(i), distances.get(i)));
         }
-        // already sorted server-side; if not, keep safe:
+
         villages.sort(java.util.Comparator.comparingInt(v -> v.distance));
 
         selected.clear();
+        scrollOffset = 0;
         recomputeFee();
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        if (button == clearButton) {
-            selected.clear();
-            recomputeFee();
-            return;
-        }
+    public boolean doesGuiPauseGame() {
+        return false;
+    }
 
-        if (button == startButton) {
-            if (selected.isEmpty()) return;
-
-            // AUTO-SORTED: pick selected indices in ascending order
-            java.util.List<Integer> sel = new java.util.ArrayList<>(selected);
-            java.util.Collections.sort(sel);
-
-            java.util.List<BlockPos> route = new java.util.ArrayList<>();
-            for (int idx : sel) {
-                if (idx >= 0 && idx < villages.size()) route.add(villages.get(idx).center);
-            }
-
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgRecruitStartSelectedVillages(worker.getEntityId(), route)
-            );
-            mc.player.closeScreen();
-            return;
-        }
-
-        super.actionPerformed(button);
+    public Rectangle getJeiListArea() {
+        return new Rectangle(
+                this.listX - 2,
+                this.listY - 12,
+                this.listW + 4,
+                this.listH + 38
+        );
     }
 
     private static class VillageRow {
@@ -351,11 +405,10 @@ public class GuiWorkerRecruit extends GuiContainer {
         final String display;
         final int distance;
 
-        VillageRow(BlockPos c, String d, int dist) {
-            center = c;
-            display = d;
-            distance = dist;
+        VillageRow(BlockPos center, String display, int distance) {
+            this.center = center;
+            this.display = display;
+            this.distance = distance;
         }
     }
-
 }

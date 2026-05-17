@@ -1,6 +1,7 @@
 package com.jubitus.travellers;
 
 import com.jubitus.travellers.client.render.ClientProxy;
+import com.jubitus.travellers.client.sound.ChoirSoundWarmer;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
@@ -13,11 +14,11 @@ import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerOffsc
 import com.jubitus.travellers.entity.travellers.*;
 import com.jubitus.travellers.utils.commands.*;
 import com.jubitus.travellers.utils.mobs.MobTargetInjector;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.TravellerWorkerLootHandler;
-import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunksClientHandler;
-import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunks;
-import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunksRequest;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.TravellerWorkerLootHandler;
+import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksClientHandler;
+import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
+import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
 import com.jubitus.travellers.utils.world.spawn.TravellerSpawnGuards;
@@ -73,6 +74,7 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerMerchantDebug());
         event.registerServerCommand(new CommandVillageNeeds());
         event.registerServerCommand(new TravellerCommandChunks());
+        event.registerServerCommand(new CommandSummonWorkers());
     }
 
     @Mod.EventHandler
@@ -134,7 +136,7 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller",
                     1,              // ID already used by you
                     this,
-                    128, 1, true,
+                    256, 1, true,
                     0xaca288, 0x7D4D33
             );
 
@@ -157,7 +159,7 @@ public class Travellers {
                     Reference.MOD_ID + ".traveller_worker",   // old name, no colon
                     6,                                          // <-- NEW unique numeric ID
                     this,
-                    128,                                        // tracking range (match normal travellers)
+                    256,                                        // tracking range (match normal travellers)
                     1,                                          // update frequency
                     true,                                       // send velocity updates
                     0xEAE8B4,                                   // egg primary colour (optional)
@@ -183,7 +185,7 @@ public class Travellers {
                     "traveller_boat",
                     4,
                     this,
-                    128,
+                    256,
                     3,
                     true
             );
@@ -257,7 +259,13 @@ public class Travellers {
         }
     }
 
-
+    @Mod.EventHandler
+    public void onLoadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
+        // On s'assure d'exécuter cela uniquement du côté Client (pour éviter les crashs sur un serveur dédié)
+        if (event.getSide().isClient()) {
+            ChoirSoundWarmer.warmUpAtLaunch();
+        }
+    }
 
 
     @Mod.EventHandler

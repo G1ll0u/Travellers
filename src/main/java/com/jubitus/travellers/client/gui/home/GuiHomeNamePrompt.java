@@ -1,11 +1,11 @@
 package com.jubitus.travellers.client.gui.home;
 
-import com.jubitus.travellers.client.gui.debug.ContainerNull;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.home.MsgRegisterHomeChest;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.home.MsgRegisterHomeChest;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
@@ -13,8 +13,11 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.io.IOException;
 
+import static net.minecraft.client.gui.Gui.drawRect;
+
 @SideOnly(Side.CLIENT)
-public class GuiHomeNamePrompt extends GuiContainer {
+public class GuiHomeNamePrompt extends GuiScreen {
+
     private final EntityPlayer player;
     private final BlockPos pos;
 
@@ -22,45 +25,70 @@ public class GuiHomeNamePrompt extends GuiContainer {
     private GuiButton okBtn;
     private GuiButton cancelBtn;
 
+    private final int xSize = 176;
+    private final int ySize = 90;
+    private int guiLeft;
+    private int guiTop;
+
     public GuiHomeNamePrompt(EntityPlayer player, BlockPos pos) {
-        super(new ContainerNull());
         this.player = player;
         this.pos = pos;
-        this.xSize = 176;
-        this.ySize = 90;
     }
 
     @Override
     public void initGui() {
         super.initGui();
+        org.lwjgl.input.Keyboard.enableRepeatEvents(true);
+
+        this.guiLeft = (this.width - this.xSize) / 2;
+        this.guiTop = (this.height - this.ySize) / 2;
+
         this.buttonList.clear();
 
         int cx = this.guiLeft + this.xSize / 2;
 
-        this.nameField = new GuiTextField(0, this.fontRenderer, this.guiLeft + 12, this.guiTop + 28, 152, 16);
+        this.nameField = new GuiTextField(
+                0,
+                this.fontRenderer,
+                this.guiLeft + 12,
+                this.guiTop + 28,
+                152,
+                16
+        );
         this.nameField.setMaxStringLength(32);
         this.nameField.setFocused(true);
 
-        this.okBtn = this.addButton(new GuiButton(1, cx - 80, this.guiTop + 55, 75, 18, "Save"));
-        this.cancelBtn = this.addButton(new GuiButton(2, cx + 5, this.guiTop + 55, 75, 18, "Cancel"));
+        this.okBtn = this.addButton(new GuiButton(
+                1,
+                cx - 80,
+                this.guiTop + 55,
+                75,
+                18,
+                I18n.format("travellers.gui.save", "Save")
+        ));
+        this.cancelBtn = this.addButton(new GuiButton(
+                2,
+                cx + 5,
+                this.guiTop + 55,
+                75,
+                18,
+                I18n.format("travellers.gui.cancel", "Cancel")
+        ));
+
         this.okBtn.enabled = false;
     }
 
     @Override
-    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        fontRenderer.drawString("Name of your home", 8, 6, 0xFFFFFF);
-        fontRenderer.drawString(
-                "You can assign it to hired workers.",
-                8, 16, 0xC0C0C0
-        );
+    public void onGuiClosed() {
+        super.onGuiClosed();
+        org.lwjgl.input.Keyboard.enableRepeatEvents(false);
     }
 
     @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        // simple dark background
-        drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, 0xCC000000);
-        drawRect(guiLeft + 2, guiTop + 2, guiLeft + xSize - 2, guiTop + ySize - 2, 0xFF202020);
-        this.nameField.drawTextBox();
+    public void updateScreen() {
+        super.updateScreen();
+        this.nameField.updateCursorCounter();
+        this.okBtn.enabled = !this.nameField.getText().trim().isEmpty();
     }
 
     @Override
@@ -71,30 +99,72 @@ public class GuiHomeNamePrompt extends GuiContainer {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (this.nameField.textboxKeyTyped(typedChar, keyCode)) return;
+        if (keyCode == org.lwjgl.input.Keyboard.KEY_ESCAPE) {
+            this.mc.player.closeScreen();
+            return;
+        }
+
+        if (keyCode == org.lwjgl.input.Keyboard.KEY_RETURN
+                || keyCode == org.lwjgl.input.Keyboard.KEY_NUMPADENTER) {
+            if (this.okBtn.enabled) {
+                actionPerformed(this.okBtn);
+            }
+            return;
+        }
+
+        if (this.nameField.textboxKeyTyped(typedChar, keyCode)) {
+            return;
+        }
+
         super.keyTyped(typedChar, keyCode);
     }
 
     @Override
-    public void updateScreen() {
-        super.updateScreen();
-        this.nameField.updateCursorCounter();
-        String s = nameField.getText().trim();
-        okBtn.enabled = !s.isEmpty();
+    protected void actionPerformed(GuiButton button) throws IOException {
+        if (button == this.cancelBtn) {
+            this.mc.player.closeScreen();
+            return;
+        }
+
+        if (button == this.okBtn) {
+            String name = this.nameField.getText().trim();
+            if (!name.isEmpty()) {
+                TravellerFollowNet.CHANNEL.sendToServer(new MsgRegisterHomeChest(this.pos, name));
+            }
+            this.mc.player.closeScreen();
+            return;
+        }
+
+        super.actionPerformed(button);
     }
 
     @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
-        if (button.id == 2) {
-            mc.player.closeScreen();
-            return;
-        }
-        if (button.id == 1) {
-            String name = nameField.getText().trim();
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgRegisterHomeChest(pos, name));
-            mc.player.closeScreen();
-            return;
-        }
-        super.actionPerformed(button);
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        this.drawDefaultBackground();
+
+        drawRect(this.guiLeft, this.guiTop, this.guiLeft + this.xSize, this.guiTop + this.ySize, 0xCC000000);
+        drawRect(this.guiLeft + 2, this.guiTop + 2, this.guiLeft + this.xSize - 2, this.guiTop + this.ySize - 2, 0xFF202020);
+
+        this.fontRenderer.drawString(
+                I18n.format("travellers.home_name_prompt.title", "Name of your home"),
+                this.guiLeft + 8,
+                this.guiTop + 6,
+                0xFFFFFF
+        );
+        this.fontRenderer.drawString(
+                I18n.format("travellers.home_name_prompt.subtitle", "You can assign it to hired workers."),
+                this.guiLeft + 8,
+                this.guiTop + 16,
+                0xC0C0C0
+        );
+
+        this.nameField.drawTextBox();
+
+        super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    @Override
+    public boolean doesGuiPauseGame() {
+        return false;
     }
 }

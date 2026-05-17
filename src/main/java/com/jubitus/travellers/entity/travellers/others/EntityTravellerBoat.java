@@ -12,25 +12,24 @@ import net.minecraft.world.World;
 
 public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
 
-    // Movement threshold: if boat moves less than this squared distance per tick → “not moving”
-    private static final double MIN_MOVE_SQ = 0.05 * 0.05; // ≈ 0.005 blocks/tick
-    // --- smarter despawn ---
-    private static final int EMPTY_KILL_TICKS = 40;          // 2s empty grace (optional)
-    private static final int BEACH_KILL_TICKS = 20 * 5;     // 10s beached
-    private static final int IDLE_OCCUPIED_KILL_TICKS = 20 * 10; // 60s idle but occupied (safety)
-    private static final int STUCK_KILL_TICKS = 20 * 15;     // 15s stuck while uncontrolled
-    private static final double MIN_HORIZ_SPEED_SQ = 0.01 * 0.01; // tune (blocks/tick)^2
-    private static final int SHORE_STUCK_EJECT_TICKS = 20 * 2;    // 2s
+    private static final double MIN_MOVE_SQ = 0.05D * 0.05D;
+    private static final double MIN_HORIZ_SPEED_SQ = 0.01D * 0.01D;
+
+    private static final int EMPTY_KILL_TICKS = 40;
+    private static final int EMPTY_BEACHED_KILL_TICKS = 20 * 5;
+    private static final int OCCUPIED_UNCONTROLLED_KILL_TICKS = 20 * 15;
+    private static final int OCCUPIED_HARD_STUCK_KILL_TICKS = 20 * 20;
+
     private int trackingPlayers = 0;
-    // Time to stall before killing boat (~1 second)
+
     private Vec3d lastPos = null;
     private int emptyTicks = 0;
     private int beachedTicks = 0;
-    private int idleOccupiedTicks = 0;
     private int stuckUncontrolledTicks = 0;
+    private int hardStuckControlledTicks = 0;
+
     private boolean pendingKill = false;
     private boolean killing = false;
-    private int shoreStuckTicks = 0;
 
     public EntityTravellerBoat(World worldIn) {
         super(worldIn);
@@ -53,11 +52,22 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
     }
 
     @Override
+    public boolean isInRangeToRenderDist(double distance) {
+        return true;
+    }
+
+    @Override
+    public boolean writeToNBTOptional(NBTTagCompound compound) {
+        return false;
+    }
+
+    @Override
     public void setDead() {
         if (killing) {
             super.setDead();
             return;
         }
+
         killing = true;
 
         if (!world.isRemote && !this.getPassengers().isEmpty()) {
@@ -67,31 +77,32 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         super.setDead();
     }
 
-    // Not strictly required, but sometimes helps keep activation behavior sane.
-    @Override
-    public boolean isInRangeToRenderDist(double distance) {
-        return true; // only affects render checks; server tick is still activation-range controlled
-    }
-
-    @Override
-    public boolean writeToNBTOptional(NBTTagCompound compound) {
-        // Never save travellers boats; prevents cross-chunk Passenger/Riding NBT recursion
-        return false;
-    }
-
     public void killNow() {
         if (this.isDead || killing) return;
 
         killing = true;
 
         if (!world.isRemote) {
-            // Explicitly dismount passengers (stronger than just removePassengers())
             for (Entity p : new java.util.ArrayList<>(this.getPassengers())) {
                 p.dismountRidingEntity();
             }
-            this.removePassengers(); // belt + suspenders
+            this.removePassengers();
         }
 
+        super.setDead();
+    }
+
+    public void requestKill() {
+        if (this.isDead || killing) return;
+
+        if (!this.getPassengers().isEmpty()) {
+            for (Entity p : new java.util.ArrayList<>(this.getPassengers())) {
+                p.dismountRidingEntity();
+            }
+            this.removePassengers();
+        }
+
+        killing = true;
         super.setDead();
     }
 
@@ -105,41 +116,17 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         super.onUpdate();
 
         if (world.isRemote) return;
-// Safer than chunkCoord checks: only kill if passenger is truly desynced
-        if (!this.getPassengers().isEmpty()) {
-            for (Entity p : this.getPassengers()) {
 
-                // If passenger somehow isn't riding this boat anymore -> clean up
-                if (p.getRidingEntity() != this) {
-                    ejectAndKill();
-                    return;
-                }
-
-                // If passenger is wildly far away (real desync), then kill
-                if (p.getDistanceSq(this) > 16.0) { // 4 blocks radius; tune if you want
-                    ejectAndKill();
-                    return;
-                }
-
-                // Optional extra safety: if passenger chunk isn't loaded, bail
-                BlockPos pp = new BlockPos(p.posX, p.posY, p.posZ);
-                if (!world.isBlockLoaded(pp)) {
-                    return; // just skip; don't kill due to unknown
-                }
-            }
+        if (!validatePassengers()) {
+            return;
         }
 
-
-        // If we ejected last tick, finish the kill once empty
         if (pendingKill && this.getPassengers().isEmpty()) {
             pendingKill = false;
             requestKill();
             return;
         }
 
-        // ---------------------------
-        // 0) movement sample
-        // ---------------------------
         Vec3d now = new Vec3d(this.posX, this.posY, this.posZ);
         boolean moved = true;
 
@@ -148,110 +135,112 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         } else {
             double movedSq = now.squareDistanceTo(lastPos);
             moved = movedSq >= MIN_MOVE_SQ;
-            lastPos = now; // <-- always update
+            lastPos = now;
         }
-
 
         boolean empty = this.getPassengers().isEmpty();
         boolean onWater = isOnWaterSurface();
         boolean driverPresent = hasDriver();
-
-        // --- shore-stuck handling (boat still "on water" but pinned on shoreline) ---
-
-
         boolean movingHoriz = hasMeaningfulHorizontalSpeed();
-        boolean pinned = this.collidedHorizontally
-                || (!movingHoriz && isTouchingSolidLand());
+        boolean pinned = this.collidedHorizontally || (!movingHoriz && isTouchingSolidLand());
 
-// If occupied and pinned and not moving: eject + kill after short delay
-        if (!empty && pinned && !movingHoriz) {
-            shoreStuckTicks++;
-            if (shoreStuckTicks >= SHORE_STUCK_EJECT_TICKS) {
-                ejectAndKill();
-                return;
-            }
-        } else {
-            shoreStuckTicks = 0;
-        }
-
-        // ---------------------------
-        // 1) Empty boats: kill (but give tiny grace so mount/dismount ticks don't instantly delete)
-        // ---------------------------
         if (empty) {
+            hardStuckControlledTicks = 0;
+            stuckUncontrolledTicks = 0;
+
             emptyTicks++;
-            if (emptyTicks >= EMPTY_KILL_TICKS) {
+            if (!onWater) {
+                beachedTicks++;
+            } else {
+                beachedTicks = 0;
+            }
+
+            if (emptyTicks >= EMPTY_KILL_TICKS || beachedTicks >= EMPTY_BEACHED_KILL_TICKS) {
                 requestKill();
             }
             return;
-        } else {
-            emptyTicks = 0;
         }
 
-        // ---------------------------
-        // 2) Beached boats: if occupied but not on water for long -> kill
-        // (this cleans up shore boats even if they get abandoned)
-        // ---------------------------
-        if (!onWater) {
-            beachedTicks++;
-            if (beachedTicks >= BEACH_KILL_TICKS) {
-                requestKill();
+        emptyTicks = 0;
+
+        if (!driverPresent) {
+            hardStuckControlledTicks = 0;
+
+            if (!movingHoriz && (pinned || !onWater)) {
+                stuckUncontrolledTicks++;
+            } else {
+                stuckUncontrolledTicks = 0;
             }
-            // while beached, no need to count other timers aggressively
+
+            if (!onWater) {
+                beachedTicks++;
+            } else {
+                beachedTicks = 0;
+            }
+
+            if (stuckUncontrolledTicks >= OCCUPIED_UNCONTROLLED_KILL_TICKS
+                    || beachedTicks >= OCCUPIED_UNCONTROLLED_KILL_TICKS) {
+                ejectAndKill();
+            }
             return;
+        }
+
+        stuckUncontrolledTicks = 0;
+
+        if (!onWater) {
+            if (!moved || pinned) {
+                beachedTicks++;
+            } else if (beachedTicks > 0) {
+                beachedTicks--;
+            }
         } else {
             beachedTicks = 0;
         }
 
-        // ---------------------------
-        // 3) If occupied but nobody is steering it:
-        // - if it's not moving for a while, it's probably abandoned -> kill eventually
-        // ---------------------------
-        if (!driverPresent) {
-            boolean progressing = hasMeaningfulHorizontalSpeed() && !pinned;
+        if (pinned && !movingHoriz) {
+            hardStuckControlledTicks++;
+        } else if (hardStuckControlledTicks > 0) {
+            hardStuckControlledTicks--;
+        }
 
-            if (!progressing) stuckUncontrolledTicks++;
-            else stuckUncontrolledTicks = 0;
+        if (hardStuckControlledTicks >= OCCUPIED_HARD_STUCK_KILL_TICKS) {
+            ejectAndKill();
+        }
+    }
 
-            if (stuckUncontrolledTicks >= STUCK_KILL_TICKS) {
+    private boolean validatePassengers() {
+        if (this.getPassengers().isEmpty()) {
+            return true;
+        }
+
+        for (Entity p : new java.util.ArrayList<>(this.getPassengers())) {
+            if (p == null || p.isDead) {
                 ejectAndKill();
+                return false;
             }
-            return;
-        } else {
-            stuckUncontrolledTicks = 0;
+
+            if (p.getRidingEntity() != this) {
+                ejectAndKill();
+                return false;
+            }
+
+            if (p.getDistanceSq(this) > 36.0D) {
+                ejectAndKill();
+                return false;
+            }
+
+            BlockPos pp = new BlockPos(p.posX, p.posY, p.posZ);
+            if (!world.isBlockLoaded(pp)) {
+                return true;
+            }
         }
 
-        // ---------------------------
-        // 4) Safety: occupied + driver present but idle forever -> kill much later
-        // (prevents permanent boats if something breaks)
-        // ---------------------------
-        if (!moved) {
-            idleOccupiedTicks++;
-            if (idleOccupiedTicks >= IDLE_OCCUPIED_KILL_TICKS) {
-                requestKill();
-            }
-        } else {
-            idleOccupiedTicks = 0;
-        }
+        return true;
     }
 
     private void ejectAndKill() {
         this.removePassengers();
-        pendingKill = true;
-    }
-
-    public void requestKill() {
-        if (this.isDead || killing) return;
-
-        // Always clear passengers immediately
-        if (!this.getPassengers().isEmpty()) {
-            for (Entity p : new java.util.ArrayList<>(this.getPassengers())) {
-                p.dismountRidingEntity();
-            }
-            this.removePassengers();
-        }
-
-        killing = true;
-        super.setDead();
+        this.pendingKill = true;
     }
 
     private boolean isOnWaterSurface() {
@@ -261,7 +250,7 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
                 net.minecraft.util.math.MathHelper.floor(this.posZ)
         );
 
-        if (!world.isBlockLoaded(pos)) return true; // don't despawn on unloaded chunks logic here
+        if (!world.isBlockLoaded(pos)) return true;
 
         IBlockState feet = world.getBlockState(pos);
         IBlockState below = world.getBlockState(pos.down());
@@ -269,13 +258,13 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         Block b1 = feet.getBlock();
         Block b2 = below.getBlock();
 
-        return (b1 == Blocks.WATER || b1 == Blocks.FLOWING_WATER ||
-                b2 == Blocks.WATER || b2 == Blocks.FLOWING_WATER);
+        return b1 == Blocks.WATER || b1 == Blocks.FLOWING_WATER
+                || b2 == Blocks.WATER || b2 == Blocks.FLOWING_WATER;
     }
 
     private boolean hasDriver() {
-        // vanilla boat: controlling passenger is "driver"
-        return this.getControllingPassenger() != null;
+        Entity controller = this.getControllingPassenger();
+        return controller != null && !controller.isDead;
     }
 
     private boolean hasMeaningfulHorizontalSpeed() {
@@ -308,6 +297,4 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         }
         return false;
     }
-
-
 }

@@ -13,83 +13,134 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 public class EntityAIOpenFenceGate extends EntityAIBase {
-    private static final int SCAN_RADIUS = 1;   // 1 = 3x3 around XZ; bump to 2 if you want more reach
-    private static final int OPEN_TIME = 20;  // keep open at least 1s
-    private static final double KEEP_OPEN_RADIUS = 1.0; // if any living is within this, keep open
+    private static final int SCAN_RADIUS = 1;
+    private static final int OPEN_TIME = 20;
+    private static final double KEEP_OPEN_RADIUS = 1.0;
+    private static final int SCAN_INTERVAL = 10; // 2x par seconde
+    private static final double MIN_MOVE_SQ = 0.01 * 0.01;
+
     private final EntityTraveller entity;
-    // gates we’ve opened recently -> ticks remaining before auto-close
     private final java.util.Map<BlockPos, Integer> openTimers = new java.util.HashMap<>();
+
+    private double lastScanX;
+    private double lastScanY;
+    private double lastScanZ;
 
     public EntityAIOpenFenceGate(EntityTraveller entity) {
         this.entity = entity;
-        this.setMutexBits(0); // do not block movement/looking
+        this.setMutexBits(0);
+        this.lastScanX = entity.posX;
+        this.lastScanY = entity.posY;
+        this.lastScanZ = entity.posZ;
     }
 
     @Override
     public boolean shouldExecute() {
-        // Always allowed while alive & moving around; cheap scan happens in updateTask.
-        return true;
+        if (entity.world == null || entity.world.isRemote) return false;
+        if (!entity.isEntityAlive()) return false;
+
+        // Ne rien faire offscreen
+        if (!entity.isInPlayerViewDistanceApprox()) return false;
+
+        // Pas utile si immobile / sans navigation
+        if (entity.getNavigator() == null || entity.getNavigator().noPath()) {
+            return !openTimers.isEmpty(); // continuer seulement pour fermer proprement
+        }
+
+        // Throttle
+        return (entity.ticksExisted % SCAN_INTERVAL) == (entity.getEntityId() & (SCAN_INTERVAL - 1));
     }
 
     @Override
     public boolean shouldContinueExecuting() {
-        return true; // run every tick; we’re stateless
+        return !openTimers.isEmpty() || shouldExecute();
     }
 
     @Override
     public void updateTask() {
-        // 1) Open any closed gates near y, y+1, y-1 (handles “gate on top of stairs”)
+        // Toujours gérer les timers, même si on ne scanne pas
+        tickOpenTimers();
+
+        if (!entity.isInPlayerViewDistanceApprox()) return;
+        if (entity.getNavigator() == null || entity.getNavigator().noPath()) return;
+
+        double dxm = entity.posX - lastScanX;
+        double dym = entity.posY - lastScanY;
+        double dzm = entity.posZ - lastScanZ;
+        double movedSq = dxm * dxm + dym * dym + dzm * dzm;
+
+        // Pas de scan si quasi immobile
+        if (movedSq < MIN_MOVE_SQ) return;
+
+        lastScanX = entity.posX;
+        lastScanY = entity.posY;
+        lastScanZ = entity.posZ;
+
         BlockPos base = new BlockPos(MathHelper.floor(entity.posX), MathHelper.floor(entity.posY), MathHelper.floor(entity.posZ));
         EnumFacing[] order = EnumFacing.HORIZONTALS.clone();
 
-        // bias scan order toward where we’re going
         Vec3d look = entity.getLookVec();
         EnumFacing primary = EnumFacing.getFacingFromVector((float) look.x, 0, (float) look.z);
-        for (int i = 0; i < order.length; i++)
+        for (int i = 0; i < order.length; i++) {
             if (order[i] == primary) {
                 EnumFacing t = order[0];
                 order[0] = order[i];
                 order[i] = t;
                 break;
             }
+        }
 
         for (int dy : new int[]{0, 1, -1}) {
             int y = base.getY() + dy;
+
             for (int dx = -SCAN_RADIUS; dx <= SCAN_RADIUS; dx++) {
                 for (int dz = -SCAN_RADIUS; dz <= SCAN_RADIUS; dz++) {
                     BlockPos p = new BlockPos(base.getX() + dx, y, base.getZ() + dz);
+
+                    if (!isBlockLoadedNoForce(p)) continue;
+
                     IBlockState st = entity.world.getBlockState(p);
                     if (st.getBlock() instanceof BlockFenceGate && !st.getValue(BlockFenceGate.OPEN)) {
-                        // optional: only open if roughly forward (helps with diagonals)
                         if (!isRoughlyForward(p)) continue;
                         openGate(p, st);
                     }
                 }
             }
-            // also check the 4 immediate neighbors in facing order (nice for 1-block diagonals)
+
             BlockPos layer = new BlockPos(base.getX(), y, base.getZ());
             for (EnumFacing f : order) {
                 BlockPos p = layer.offset(f);
+
+                if (!isBlockLoadedNoForce(p)) continue;
+
                 IBlockState st = entity.world.getBlockState(p);
                 if (st.getBlock() instanceof BlockFenceGate && !st.getValue(BlockFenceGate.OPEN)) {
                     openGate(p, st);
                 }
             }
         }
+    }
 
-        // 2) Maintain/close gates we opened
+    private void tickOpenTimers() {
         java.util.Iterator<java.util.Map.Entry<BlockPos, Integer>> it = openTimers.entrySet().iterator();
+
         while (it.hasNext()) {
             java.util.Map.Entry<BlockPos, Integer> e = it.next();
             BlockPos pos = e.getKey();
+
+            if (!isBlockLoadedNoForce(pos)) {
+                // Ne pas charger un chunk juste pour fermer un portillon
+                it.remove();
+                continue;
+            }
+
             IBlockState st = entity.world.getBlockState(pos);
             if (!(st.getBlock() instanceof BlockFenceGate)) {
                 it.remove();
                 continue;
             }
 
-            // keep open while someone is nearby; refresh timer
-            if (isAnyLivingNear(pos, KEEP_OPEN_RADIUS)) {
+            if (isAnyLivingNearLoadedOnly(pos, KEEP_OPEN_RADIUS)) {
                 e.setValue(OPEN_TIME);
                 continue;
             }
@@ -98,7 +149,8 @@ public class EntityAIOpenFenceGate extends EntityAIBase {
             if (t <= 0) {
                 if (st.getValue(BlockFenceGate.OPEN)) {
                     entity.world.setBlockState(pos, st.withProperty(BlockFenceGate.OPEN, false), 3);
-                    entity.world.playSound(null, pos, net.minecraft.init.SoundEvents.BLOCK_FENCE_GATE_CLOSE,
+                    entity.world.playSound(null, pos,
+                            net.minecraft.init.SoundEvents.BLOCK_FENCE_GATE_CLOSE,
                             net.minecraft.util.SoundCategory.BLOCKS, 1.0F, 1.0F);
                 }
                 it.remove();
@@ -108,7 +160,9 @@ public class EntityAIOpenFenceGate extends EntityAIBase {
         }
     }
 
-    // --- helpers ---
+    private boolean isBlockLoadedNoForce(BlockPos pos) {
+        return entity.world.isBlockLoaded(pos, false);
+    }
 
     private boolean isRoughlyForward(BlockPos p) {
         double dx = (p.getX() + 0.5) - entity.posX;
@@ -117,17 +171,19 @@ public class EntityAIOpenFenceGate extends EntityAIBase {
         double len = Math.sqrt(dx * dx + dz * dz);
         if (len < 1e-3) return true;
         double dot = (dx / len) * look.x + (dz / len) * look.z;
-        return dot > 0.1; // > ~84° cone in front; tweak as desired
+        return dot > 0.1;
     }
 
     private void openGate(BlockPos pos, IBlockState st) {
         entity.world.setBlockState(pos, st.withProperty(BlockFenceGate.OPEN, true), 3);
-        entity.world.playSound(null, pos, net.minecraft.init.SoundEvents.BLOCK_FENCE_GATE_OPEN,
+        entity.world.playSound(null, pos,
+                net.minecraft.init.SoundEvents.BLOCK_FENCE_GATE_OPEN,
                 net.minecraft.util.SoundCategory.BLOCKS, 1.0F, 1.0F);
         openTimers.put(pos.toImmutable(), OPEN_TIME);
     }
 
-    private boolean isAnyLivingNear(BlockPos pos, double r) {
+    private boolean isAnyLivingNearLoadedOnly(BlockPos pos, double r) {
+        if (!isBlockLoadedNoForce(pos)) return false;
         AxisAlignedBB aabb = new AxisAlignedBB(pos).grow(r, 0.5, r);
         return !entity.world.getEntitiesWithinAABB(EntityLivingBase.class, aabb, Entity::isEntityAlive).isEmpty();
     }

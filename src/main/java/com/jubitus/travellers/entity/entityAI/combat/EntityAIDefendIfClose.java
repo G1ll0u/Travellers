@@ -20,7 +20,7 @@ import java.util.List;
  * Traveller will defensively aggro the nearest non-blacklisted IMob that gets close.
  */
 public class EntityAIDefendIfClose extends EntityAIBase {
-    private static final double CLOSE_NO_LOS_RANGE = 8.0D;
+    private static final double CLOSE_NO_LOS_RANGE = 4.0D;
     private static final double CLOSE_NO_LOS_RANGE_SQ = CLOSE_NO_LOS_RANGE * CLOSE_NO_LOS_RANGE;
     private final EntityTraveller mob;
     private final boolean requireLOS;
@@ -37,7 +37,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
     // OLD SIGNATURE – used at call site
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS) {
-        // gilles tickRate = 8, random phase [0,8)
+        // default tickRate = 8, random phase [0,8)
         this(mob,
                 triggerRange,
                 requireLOS,

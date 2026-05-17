@@ -367,7 +367,7 @@ def SOUND_ROOT_RAID = "travellers/raiders"      // sounds/travellers/raiders/<la
 
 tasks.register('generateDynamicSounds') {
     group = "build setup"
-    description = "Generates sounds.json + voices/index.json + voices/raiders_index.json from assets sounds folder structure"
+    description = "Generates sounds.json + voices/index.json + voices/raiders_index.json from assets sounds folder structure with per-clip events"
 
     doLast {
         def soundsBase = file("$projectDir/src/main/resources/assets/${MODID}/sounds")
@@ -388,18 +388,17 @@ tasks.register('generateDynamicSounds') {
         def raidIndexOut = file("$voicesDir/raiders_index.json")
 
         def kinds = ["talk", "hurt", "hello", "ambient"]
-
         def soundsMap = [:]
 
         def mkIndex = { String defLang, String defPers ->
             return [
                     defaultLang       : defLang,
                     defaultPersonality: defPers,
-                    langs             : [:]
+                    langs             : [:],   // lang -> [personality1, personality2...]
+                    clips             : [:]    // lang -> personality -> kind -> [eventKey1, eventKey2...]
             ]
         }
 
-        // Set defaults you want
         def travIndex = mkIndex("en", "default")
         def raidIndex = mkIndex("en", "default")
 
@@ -412,7 +411,7 @@ tasks.register('generateDynamicSounds') {
         def oggsIn = { File f ->
             def kids = f.listFiles()
             if (kids == null) return []
-            return kids.findAll { it.isFile() && it.name.toLowerCase().endsWith(".ogg") }
+            return kids.findAll { it.isFile() && it.name.toLowerCase().endsWith(".ogg") }.sort { a, b -> a.name <=> b.name }
         }
 
         def emitCategory = { File baseDir, String eventPrefix, String soundNamePrefix, def indexObj ->
@@ -424,46 +423,66 @@ tasks.register('generateDynamicSounds') {
             dirChildren(baseDir).each { File langDir ->
                 def lang = langDir.name.toLowerCase()
                 if (baseDir.name == "travellers" && lang == "raiders") {
-                    return // skip the raiders folder when generating traveller voices
+                    return
                 }
 
                 def personalities = dirChildren(langDir).collect { it.name.toLowerCase() }.sort()
                 indexObj.langs[lang] = personalities
+                indexObj.clips[lang] = indexObj.clips[lang] ?: [:]
 
                 dirChildren(langDir).each { File persDir ->
                     def personality = persDir.name.toLowerCase()
+                    indexObj.clips[lang][personality] = indexObj.clips[lang][personality] ?: [:]
 
                     kinds.each { String kind ->
                         def kindDir = new File(persDir, kind)
-                        if (!kindDir.exists() || !kindDir.isDirectory()) return
-
-                        def files = oggsIn(kindDir)
-                        if (files.isEmpty()) return
-
-                        // SoundEvent registry key
-                        def eventKey = "${eventPrefix}.${lang}.${personality}.${kind}"
-
-                        def soundEntries = files.collect { File ogg ->
-                            def baseName = ogg.name.substring(0, ogg.name.length() - 4)
-                            return [name: "${MODID}:${soundNamePrefix}/${lang}/${personality}/${kind}/${baseName}"]
+                        if (!kindDir.exists() || !kindDir.isDirectory()) {
+                            indexObj.clips[lang][personality][kind] = []
+                            return
                         }
 
-                        def entry = [
+                        def files = oggsIn(kindDir)
+                        if (files.isEmpty()) {
+                            indexObj.clips[lang][personality][kind] = []
+                            return
+                        }
+
+                        def aggregateEventKey = "${eventPrefix}.${lang}.${personality}.${kind}"
+                        def aggregateEntries = []
+                        def exactEventKeys = []
+
+                        files.eachWithIndex { File ogg, int i ->
+                            def baseName = ogg.name.substring(0, ogg.name.length() - 4)
+
+                            def soundPath = "${MODID}:${soundNamePrefix}/${lang}/${personality}/${kind}/${baseName}"
+                            aggregateEntries << [name: soundPath]
+
+                            def exactEventKey = "${eventPrefix}.${lang}.${personality}.${kind}.__${i}"
+                            exactEventKeys << exactEventKey
+
+                            soundsMap[exactEventKey] = [
+                                    category: "voice",
+                                    sounds  : [[name: soundPath]],
+                                    stream  : true
+                            ]
+                            if (kind == "talk" || kind == "hello") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.talk"
+                            if (kind == "hurt") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.hurt"
+                        }
+
+                        soundsMap[aggregateEventKey] = [
                                 category: "voice",
-                                sounds  : soundEntries,
+                                sounds  : aggregateEntries,
                                 stream  : true
                         ]
+                        if (kind == "talk" || kind == "hello") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.talk"
+                        if (kind == "hurt") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.hurt"
 
-                        if (kind == "talk" || kind == "hello") entry.subtitle = "subtitles.entity.travellers.talk"
-                        if (kind == "hurt") entry.subtitle = "subtitles.entity.travellers.hurt"
-
-                        soundsMap[eventKey] = entry
+                        indexObj.clips[lang][personality][kind] = exactEventKeys
                     }
                 }
             }
         }
 
-        // Travellers
         emitCategory(
                 travBase,
                 "entity.travellers",
@@ -471,13 +490,122 @@ tasks.register('generateDynamicSounds') {
                 travIndex
         )
 
-        // Raiders
         emitCategory(
                 raidBase,
                 "entity.travellers.raiders",
                 SOUND_ROOT_RAID,
                 raidIndex
         )
+
+        // ---- Choir songs ----
+        // Structure: sounds/travellers/<lang>/<personality>/choir/<songName>/<stem_N>.ogg
+        // Generates event keys: entity.travellers.<lang>.<personality>.choir.<songName>.__<i>
+        // choir_index.json: { songs: {...}, aliases: {...}, durationTicks per song }
+        def choirIndex = [:]   // lang -> personality -> [{ name, stems, durationTicks }]
+
+        // Parse OGG Vorbis file and return duration in ticks (20 ticks/s). Returns 0 on error.
+        def readOggDurationTicks = { File oggFile ->
+            try {
+                RandomAccessFile raf = new RandomAccessFile(oggFile, "r")
+                long fileLen = raf.length()
+                if (fileLen < 27) { raf.close(); return 0 }
+
+                // Read sample rate from Vorbis identification header (in first ~200 bytes)
+                int sampleRate = 44100
+                int headerSize = (int) Math.min(256L, fileLen)
+                byte[] header = new byte[headerSize]
+                raf.read(header)
+                for (int i = 0; i < headerSize - 15; i++) {
+                    // Vorbis ID packet: 0x01 + "vorbis"
+                    if (header[i] == (byte)1 && header[i+1] == (byte)'v' && header[i+2] == (byte)'o' &&
+                        header[i+3] == (byte)'r' && header[i+4] == (byte)'b' &&
+                        header[i+5] == (byte)'i' && header[i+6] == (byte)'s') {
+                        // sample rate at offset 12 from packet start (little-endian 32-bit)
+                        sampleRate = ((header[i+12] & 0xFF)) | ((header[i+13] & 0xFF) << 8) |
+                                     ((header[i+14] & 0xFF) << 16) | ((header[i+15] & 0xFF) << 24)
+                        break
+                    }
+                }
+
+                // Scan last 64 KB for the final OGG page to get total granule position
+                int scanSize = (int) Math.min(65536L, fileLen)
+                byte[] tail = new byte[scanSize]
+                raf.seek(fileLen - scanSize)
+                raf.read(tail)
+                raf.close()
+
+                long granule = 0L
+                for (int i = tail.length - 27; i >= 0; i--) {
+                    if (tail[i] == (byte)'O' && tail[i+1] == (byte)'g' &&
+                        tail[i+2] == (byte)'g' && tail[i+3] == (byte)'S') {
+                        long g = 0L
+                        for (int b = 0; b < 8; b++) {
+                            g |= ((long)(tail[i + 6 + b] & 0xFF)) << (b * 8)
+                        }
+                        if (g > 0L && g != -1L) { granule = g; break }
+                    }
+                }
+
+                if (sampleRate <= 0 || granule <= 0L) return 0
+                return (int) Math.ceil((double) granule / sampleRate * 20.0)
+            } catch (Exception ignored) { return 0 }
+        }
+
+        def emitChoir = { File baseDir, String eventPrefix, String soundNamePrefix ->
+            if (!baseDir.exists() || !baseDir.isDirectory()) return
+            dirChildren(baseDir).each { File langDir ->
+                def lang = langDir.name.toLowerCase()
+                if (baseDir.name == "travellers" && lang == "raiders") return
+
+                dirChildren(langDir).each { File persDir ->
+                    def personality = persDir.name.toLowerCase()
+                    def choirDir = new File(persDir, "choir")
+                    if (!choirDir.exists() || !choirDir.isDirectory()) return
+
+                    choirIndex[lang] = choirIndex[lang] ?: [:]
+                    choirIndex[lang][personality] = choirIndex[lang][personality] ?: []
+
+                    dirChildren(choirDir).sort { a, b -> a.name <=> b.name }.each { File songDir ->
+                        def songName = songDir.name.toLowerCase()
+                        def stemFiles = oggsIn(songDir)
+                        if (stemFiles.isEmpty()) return
+
+                        def stemKeys = []
+                        int maxDurationTicks = 0
+                        stemFiles.eachWithIndex { File ogg, int i ->
+                            def baseName = ogg.name.substring(0, ogg.name.length() - 4)
+                            def soundPath = "${MODID}:${soundNamePrefix}/${lang}/${personality}/choir/${songName}/${baseName}"
+                            def eventKey = "${eventPrefix}.${lang}.${personality}.choir.${songName}.__${i}"
+                            stemKeys << eventKey
+                            soundsMap[eventKey] = [
+                                    category: "voice",
+                                    sounds  : [[name: soundPath]],
+                                    stream  : true
+                            ]
+                            int dur = readOggDurationTicks(ogg)
+                            if (dur > maxDurationTicks) maxDurationTicks = dur
+                        }
+                        choirIndex[lang][personality] << [name: songName, stems: stemKeys, durationTicks: maxDurationTicks]
+                    }
+                }
+            }
+        }
+
+        emitChoir(travBase, "entity.travellers", SOUND_ROOT_TRAV)
+
+        def choirIndexOut = file("$voicesDir/choir_index.json")
+        // Preserve manually-edited aliases from the existing choir_index.json
+        def existingAliases = [:]
+        if (choirIndexOut.exists()) {
+            try {
+                def parsed = new groovy.json.JsonSlurper().parse(choirIndexOut)
+                if (parsed?.aliases) existingAliases = parsed.aliases
+            } catch (Exception ignored) {}
+        }
+        def choirIndexData = [songs: choirIndex]
+        if (!existingAliases.isEmpty()) choirIndexData.aliases = existingAliases
+        choirIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(choirIndexData)) + "\n"
+        println "[generateDynamicSounds] Wrote ${choirIndexOut} (${choirIndex.size()} langs)"
 
         soundsJsonOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(soundsMap)) + "\n"
         println "[generateDynamicSounds] Wrote ${soundsJsonOut} with ${soundsMap.size()} events"

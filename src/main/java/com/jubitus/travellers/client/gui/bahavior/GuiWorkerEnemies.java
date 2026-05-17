@@ -1,12 +1,13 @@
 package com.jubitus.travellers.client.gui.bahavior;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.workerplayer.MsgSetWorkerHostile;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.workerplayer.MsgSetWorkerHostile;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -39,13 +40,25 @@ public class GuiWorkerEnemies extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // this.drawDefaultBackground(); // optional
+        this.drawDefaultBackground();
 
         int cx = this.width / 2;
         int cy = this.height / 2;
 
-        this.drawCenteredString(this.fontRenderer, "Add/remove player enemies", cx, cy - 40, 0xFFFFFF);
-        this.drawCenteredString(this.fontRenderer, "(Click a name on the right to fill it)", cx, cy - 28, 0xA0A0A0);
+        this.drawCenteredString(
+                this.fontRenderer,
+                I18n.format("travellers.worker.enemies.title", "Add/remove player enemies"),
+                cx,
+                cy - 40,
+                0xf9cbae
+        );
+        this.drawCenteredString(
+                this.fontRenderer,
+                I18n.format("travellers.worker.enemies.hint", "(Click a name on the right to fill it)"),
+                cx,
+                cy - 28,
+                0xA0A0A0
+        );
 
         this.nameField.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -110,9 +123,30 @@ public class GuiWorkerEnemies extends GuiScreen {
         this.nameField.setFocused(true);
         this.nameField.setMaxStringLength(16);
 
-        this.addButton = this.addButton(new GuiButton(1, cx - 100, cy + 20, 98, 20, "Add"));
-        this.removeButton = this.addButton(new GuiButton(2, cx + 2, cy + 20, 98, 20, "Remove"));
-        this.doneButton = this.addButton(new GuiButton(3, cx - 50, cy + 50, 100, 20, "Done"));
+        this.addButton = this.addButton(new GuiButton(
+                1,
+                cx - 100,
+                cy + 20,
+                98,
+                20,
+                I18n.format("travellers.gui.add", "Add")
+        ));
+        this.removeButton = this.addButton(new GuiButton(
+                2,
+                cx + 2,
+                cy + 20,
+                98,
+                20,
+                I18n.format("travellers.gui.remove", "Remove")
+        ));
+        this.doneButton = this.addButton(new GuiButton(
+                3,
+                cx - 50,
+                cy + 50,
+                100,
+                20,
+                I18n.format("travellers.gui.done", "Done")
+        ));
 
         // Right-side list (same idea as GuiWorkerRecruit)
         this.listW = 140;
@@ -143,7 +177,12 @@ public class GuiWorkerEnemies extends GuiScreen {
         // border like recruit
         drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
 
-        this.fontRenderer.drawString("Enemies: " + names.size(), listX, listY - 10, 0xE0E0E0);
+        this.fontRenderer.drawString(
+                I18n.format("travellers.worker.enemies.count", names.size()),
+                listX,
+                listY - 10,
+                0xE0E0E0
+        );
 
         int maxRows = Math.min(listH / rowH, names.size());
         for (int i = 0; i < maxRows; i++) {

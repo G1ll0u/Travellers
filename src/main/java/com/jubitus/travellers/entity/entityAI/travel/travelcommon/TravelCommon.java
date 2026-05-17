@@ -500,7 +500,7 @@ public class TravelCommon {
             List<BlockPos> raw = MillVillageIndex.getAllVillageCenters(owner.getEntityWorld());
 
             if (badVillages.isEmpty()) {
-                cachedVillages = raw;
+                 cachedVillages = raw;
             } else {
                 List<BlockPos> filtered = new ArrayList<>(raw.size());
                 for (BlockPos v : raw) {
@@ -603,7 +603,7 @@ public class TravelCommon {
             }
         }
 
-        // Fallback: gilles behaviour
+        // Fallback: default behaviour
         int r = MillenaireVillageDirectory.nearRadiusFor(target);
         if (r <= 0) r = TravellersModConfig.VILLAGE_NEAR;
         return r;
@@ -614,6 +614,7 @@ public class TravelCommon {
         if (owner.getSpawnAmbientCooldownTicks() > 0) return;
         if (owner.getTravelRecoverTicks() > 0) return;
         if (!TravellersModConfig.travellerAmbient) return;
+        if (owner.isChoirSinging()) return;
         if (owner instanceof EntityTravellerWorker) {
             EntityTravellerWorker worker = (EntityTravellerWorker) owner;
             if (worker.isHiredFollower()) {
@@ -627,16 +628,17 @@ public class TravelCommon {
         if (owner.motionX * owner.motionX + owner.motionZ * owner.motionZ < 0.005) return;
 
         if (!owner.world.isRemote) {
-            final double radius = TravellersModConfig.CHORUS_RADIUS;
+            // Only block within a small radius to avoid everyone suppressing each other
+            final double radius = 24.0;
             boolean someoneSinging = !owner.world.getEntitiesWithinAABB(
                     EntityTraveller.class,
-                    owner.getEntityBoundingBox().grow(radius, 8.0, radius),
+                    owner.getEntityBoundingBox().grow(radius, 4.0, radius),
                     e -> e != null && e != owner && e.isEntityAlive() && e.isAmbientPlayingNow()
             ).isEmpty();
 
             if (someoneSinging) {
                 owner.setNextTravelAmbientTick(
-                        owner.ticksExisted + 60 + owner.getRNG().nextInt(40)
+                        owner.ticksExisted + 40 + owner.getRNG().nextInt(20)
                 );
                 return;
             }

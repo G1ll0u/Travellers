@@ -1,6 +1,8 @@
 package com.jubitus.travellers.client.gui;
 
 import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
+import com.jubitus.travellers.client.gui.bahavior.relations.ContainerWorkerVillageRelations;
+import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiHomeNamePrompt;
 import com.jubitus.travellers.client.gui.home.GuiWorkerHomeList;
@@ -74,6 +76,14 @@ public class ClientGuiHandler extends CommonGuiHandler {
                     : null;
         }
 
+
+// client gui
+        if (id == TravellersGuiIds.WORKER_VILLAGE_RELATIONS) {
+            Entity e = world.getEntityByID(x);
+            if (e instanceof EntityTravellerWorker) {
+                return new GuiWorkerVillageRelations(player, (EntityTravellerWorker) e);
+            }
+        }
         return null;
     }
 }

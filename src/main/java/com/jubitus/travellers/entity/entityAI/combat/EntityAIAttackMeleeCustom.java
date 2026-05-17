@@ -13,20 +13,24 @@ import net.minecraft.util.math.AxisAlignedBB;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
+    private static final float CHASE_BOOST = 1.28f;
+    private static final float FIGHT_FACTOR = 1.08f;
+    private static final float LERP = 0.55f;
 
-    // Tuning knobs
-    private static final float CHASE_BOOST = 1.22f;  // while closing
-    private static final float FIGHT_FACTOR = 1.00f; // while trading
-    private static final float LERP = 0.55f;         // smoothing factor
+    // Nouveau : on repousse activement le nav au lieu d'attendre le vanilla
+    private static final int REPATH_INTERVAL_FAR = 4;
+    private static final int REPATH_INTERVAL_NEAR = 2;
 
-    private final double extraReach; // in blocks
+    // Nouveau : cadence d'attaque plus nerveuse
+    private static final int ATTACK_COOLDOWN_TICKS = 24;
 
-    // Melee gating thresholds (squared), computed once
+    private final double extraReach;
+
     private final double meleeCommitSq;
     private final double meleeHoldSq;
 
-    // Smooth chase speed control
     private float aiSpeedNow = -1f;
+    private int repathCooldown = 0;
 
     public EntityAIAttackMeleeCustom(EntityCreature creature, double speedIn, boolean useLongMemory, double extraReach) {
         super(creature, speedIn, useLongMemory);
@@ -34,19 +38,17 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         this.extraReach = Math.max(0.0, extraReach);
 
         double min = Math.max(0.0, TravellersModConfig.rangedMinDist);
-        double commit = Math.max(0.0, min - 0.75); // start melee
-        double hold = Math.max(0.0, min - 0.25); // keep melee
+        double commit = Math.max(0.0, min - 0.75);
+        double hold = Math.max(0.0, min - 0.25);
         this.meleeCommitSq = commit * commit;
         this.meleeHoldSq = hold * hold;
     }
-
 
     @Override
     public boolean shouldExecute() {
         EntityLivingBase tgt = attacker.getAttackTarget();
         if (tgt == null || !tgt.isEntityAlive()) return false;
 
-        // Player: require LOS or nearby to even start melee
         if (tgt instanceof EntityPlayer) {
             EntityPlayer p = (EntityPlayer) tgt;
             boolean canSee = attacker.getEntitySenses().canSee(p);
@@ -55,7 +57,6 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             if (!canSee && !near) return false;
         }
 
-        // --- compute "inReach" (same as you had) ---
         AxisAlignedBB bb = tgt.getEntityBoundingBox();
         double gapXZSq = gapToAABB_XZ_Sq(this.attacker, bb);
 
@@ -68,41 +69,24 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         double reachSq = this.getAttackReachSqr(tgt);
         boolean inReach = (gapXZSq <= (reachSq * 1.35D)) && (vGap <= 2.0D);
 
-        // --- Bow handoff logic (must happen BEFORE final returns) ---
         if (attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
             if (t.hasBowInBackpackPublic()) {
                 double d2 = attacker.getDistanceSq(tgt);
-                // If we're close enough to commit to melee, allow melee AI to start.
-                // Otherwise, do NOT start melee (let ranged AI take over).
                 return d2 <= meleeCommitSq;
             }
         }
 
-        // If we are already basically in melee range, start even without a path.
         if (inReach) return true;
 
-        // Don't compute a path here. Also avoid chunk loads by refusing to path
-        // unless the area is already loaded.
         return isPathAreaLoaded(tgt, 24);
-
-        // Let the task start; updateTask() will request paths on a cooldown.
     }
-
 
     @Override
     public boolean shouldContinueExecuting() {
         EntityLivingBase tgt = attacker.getAttackTarget();
         if (tgt == null || !tgt.isEntityAlive()) return false;
 
-        // Only stop for "no path" if we're NOT in melee range
-        if (attacker.getNavigator().noPath() && !isTouchingForMelee(tgt)) {
-            // If we're not touching and also have no path, give up.
-            // (updateTask will try to regain a path when appropriate)
-            return false;
-        }
-
-        // ... keep your existing player rules + bow handoff rules ...
         if (tgt instanceof EntityPlayer) {
             EntityPlayer p = (EntityPlayer) tgt;
             boolean canSee = attacker.getEntitySenses().canSee(p);
@@ -123,20 +107,21 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             }
         }
 
-        return super.shouldContinueExecuting();
+        // Ne plus couper l'AI juste parce que le nav a perdu son path un instant
+        return true;
     }
 
     @Override
     public void startExecuting() {
         super.startExecuting();
 
-        // Initialize internal speed towards base (no instant sprint)
         double base = this.attacker
                 .getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
                 .getAttributeValue();
 
         aiSpeedNow = (float) base;
-        this.attacker.setSprinting(false);
+        repathCooldown = 0;
+        this.attacker.setSprinting(true);
         this.attacker.setAIMoveSpeed(aiSpeedNow);
     }
 
@@ -145,84 +130,86 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         super.resetTask();
         this.attacker.setSprinting(false);
         aiSpeedNow = -1f;
+        repathCooldown = 0;
     }
 
     @Override
     public void updateTask() {
-        super.updateTask();
-
         EntityLivingBase tgt = attacker.getAttackTarget();
-        if (tgt == null) {
+        if (tgt == null || !tgt.isEntityAlive()) {
             attacker.setSprinting(false);
             return;
         }
-        double gapSq = gapToAABBSq(this.attacker, tgt.getEntityBoundingBox());
-        double reachSq = this.getAttackReachSqr(tgt);
 
-        if (isTouchingForMelee(tgt)) {
-            attacker.getNavigator().clearPath();
-        }
+        // Toujours regarder la cible proprement
+        attacker.getLookHelper().setLookPositionWithEntity(tgt, 30.0F, 30.0F);
 
         double d2 = attacker.getDistanceSq(tgt);
         double base = this.attacker
                 .getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
                 .getAttributeValue();
 
-        // If we have no path, don't sprint and gently drop back to base speed
-        if (attacker.getNavigator().noPath()) {
-            if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
-            aiSpeedNow = lerp(aiSpeedNow, (float) base, LERP);
-            this.attacker.setAIMoveSpeed(aiSpeedNow);
-            this.attacker.setSprinting(false);
-            return;
+        boolean veryClose = isTouchingForMelee(tgt);
+        boolean closing = d2 > meleeHoldSq;
+
+        // Repath agressif et régulier
+        if (--repathCooldown <= 0) {
+            repathCooldown = closing ? REPATH_INTERVAL_FAR : REPATH_INTERVAL_NEAR;
+            attacker.getNavigator().tryMoveToEntityLiving(tgt, 1.0D);
         }
 
-        // Desired speed:
-        // - If outside hold band: run a bit faster to close
-        // - Inside hold band: drop near base so trading looks natural
         float desired;
-        if (d2 > meleeHoldSq) {
-            desired = (float) (base * CHASE_BOOST);  // run while closing
+        if (closing) {
+            desired = (float) (base * CHASE_BOOST);
         } else {
-            desired = (float) (base * FIGHT_FACTOR); // calm while in melee
+            // Même en “fight range”, on garde un peu de pression
+            desired = (float) (base * FIGHT_FACTOR);
+        }
+
+        if (veryClose) {
+            // Évite le stop complet au corps-à-corps
+            desired = Math.max(desired, (float) (base * 0.96D));
         }
 
         if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
         aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
 
-        // absolute ceiling
-        if (aiSpeedNow > 0.35f) aiSpeedNow = 0.35f;
+        if (aiSpeedNow > 0.38f) aiSpeedNow = 0.38f;
 
         this.attacker.setAIMoveSpeed(aiSpeedNow);
-
-        // Sprint visual only when actually closing AND we have a path
-        boolean closing = d2 > meleeHoldSq;
         this.attacker.setSprinting(closing);
+
+        // On n'appelle plus super.updateTask() pour éviter le comportement vanilla trop haché
+        this.checkAndPerformAttack(tgt, d2);
     }
 
     @Override
     protected void checkAndPerformAttack(EntityLivingBase target, double ignoredDistToCenterSq) {
         AxisAlignedBB bb = target.getEntityBoundingBox();
 
-        // Horizontal gap only (XZ) — much closer to vanilla feel
         double gapXZSq = gapToAABB_XZ_Sq(this.attacker, bb);
 
-        // Vertical tolerance so we can hit things slightly above/below
-        // (tune 1.5–2.5; 2.0 feels good for “melee on uneven ground”)
-        double y = this.attacker.posY;                 // feet Y
+        double y = this.attacker.posY;
         double yTop = this.attacker.posY + this.attacker.height;
         double vGap = 0.0D;
-        if (yTop < bb.minY) vGap = bb.minY - yTop;     // target above us
-        else if (y > bb.maxY) vGap = y - bb.maxY;      // target below us
+        if (yTop < bb.minY) vGap = bb.minY - yTop;
+        else if (y > bb.maxY) vGap = y - bb.maxY;
 
-        if (vGap > 2.0D) return; // too far vertically to reasonably melee
+        if (vGap > 2.0D) return;
 
         double reachSq = this.getAttackReachSqr(target);
 
+        if (this.attackTick > 0) {
+            this.attackTick--;
+        }
+
         if (gapXZSq <= reachSq && this.attackTick <= 0) {
-            this.attackTick = 20;
+            this.attackTick = ATTACK_COOLDOWN_TICKS;
             this.attacker.swingArm(EnumHand.MAIN_HAND);
             this.attacker.attackEntityAsMob(target);
+
+            // On ne clear jamais le path ici
+            attacker.getNavigator().tryMoveToEntityLiving(target, 1.0D);
         }
     }
 
@@ -252,24 +239,21 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private boolean isTouchingForMelee(EntityLivingBase tgt) {
         AxisAlignedBB bb = tgt.getEntityBoundingBox();
 
-        // Horizontal gap between attacker position and target AABB
         double px = attacker.posX;
         double pz = attacker.posZ;
         double dx = (px < bb.minX) ? (bb.minX - px) : (px > bb.maxX ? px - bb.maxX : 0.0D);
         double dz = (pz < bb.minZ) ? (bb.minZ - pz) : (pz > bb.maxZ ? pz - bb.maxZ : 0.0D);
         double gapXZSq = dx * dx + dz * dz;
 
-        // "Touching" threshold: ~0.6 blocks horizontal (very tight)
         if (gapXZSq > (0.6D * 0.6D)) return false;
 
-        // Vertical sanity: same pit / ledge only
         double myFeet = attacker.posY;
         double myHead = attacker.posY + attacker.height;
         double vGap = 0.0D;
         if (myHead < bb.minY) vGap = bb.minY - myHead;
         else if (myFeet > bb.maxY) vGap = myFeet - bb.maxY;
 
-        return vGap <= 1.5D; // tweak 1.0–2.0
+        return vGap <= 1.5D;
     }
 
     private boolean shouldForgivePlayerChaseForAI(EntityCreature attacker, EntityPlayer p) {
@@ -288,9 +272,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     }
 
     private boolean isPathAreaLoaded(EntityLivingBase tgt, int radiusBlocks) {
-        // If either area isn't loaded, don't pathfind (prevents chunk loads from AI)
         return attacker.world.isAreaLoaded(attacker.getPosition(), radiusBlocks)
                 && attacker.world.isAreaLoaded(tgt.getPosition(), radiusBlocks);
     }
-
 }

@@ -1,21 +1,104 @@
-## TemplateDevEnv
-_For Kotlin see [TemplateDevEnvKt](https://github.com/CleanroomMC/TemplateDevEnvKt)_
+## Travellers
 
-Template workspace for modding Minecraft 1.12.2. Licensed under MIT, it is made for public use.
+**Travellers** is a Millénaire-focused immersion mod that brings the world outside village borders to life. Instead of keeping Millénaire NPCs confined to their settlements, Travellers introduces roaming people who **move between villages and react to what happens along the way**. You’ll naturally encounter them while exploring the world.
 
-This template runs on **Java 25**, **Gradle 9.2.1** + **[RetroFuturaGradle](https://github.com/GTNewHorizons/RetroFuturaGradle) 2.0.2** + **Forge 14.23.5.2847**.
+**REQUIRES MILLENAIRE 8.1.2 + MIXINBOOTER TO WORK**
 
-With **coremod and mixin support** that is easy to configure.
+### A world that feels connected
 
-### Instructions:
+Travellers are not generic wanderers. They are designed to **blend into Millénaire’s cultures and addons**:
 
-1. Click `use this template` at the top.
-2. Clone the repository that you have created with this template to your local machine.
-3. Make sure IDEA is using Java 25 for Gradle before you sync the project. Verify this by going to IDEA's `Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JVM`.
-4. Open the project folder in IDEA. When prompted, click "Load Gradle Project" as it detects the `build.gradle`, if you weren't prompted, right-click the project's `build.gradle` in IDEA, select `Link Gradle Project`, after completion, hit `Refresh All` in the gradle tab on the right.
-5. Run gradle tasks such as `runClient` and `runServer` in the IDEA gradle tab, or use the auto-imported run configurations like `1. Run Client`.
+* Their **culture is determined by where they spawn** and the surrounding Millénaire villages.
+* They use **Millénaire (and addons) textures**.
 
-### Notes:
-- Dependencies script in [gradle/scripts/dependencies.gradle](gradle/scripts/dependencies.gradle), explanations are commented in the file.
-- Publishing script in [gradle/scripts/publishing.gradle](gradle/scripts/publishing.gradle).
-- When writing Mixins on IntelliJ, it is advisable to use latest [MinecraftDev Fork for RetroFuturaGradle](https://github.com/eigenraven/MinecraftDev/releases).
+### Smarter roaming and survival
+
+Travellers are built to handle real travel rather than scripted wandering:
+
+* They **really** travel between villages even when really far *
+* They can **fight hostile mobs**, use melee or ranged combat (bows when available), and **upgrade their equipment** by picking up better items found on the ground.
+
+"*" Applies to henchmen only (1.1.3b), normal travellers despawn after a moment
+
+### Dynamic, Millénaire-aware spawning
+
+Travellers uses a “soft spawner” approach that adapts to the world:
+
+* Spawn rates and local caps scale with **nearby village count**, **village population**, and **lone buildings**.
+* Many values are configurable in `/config/travellers/travellers.cfg`.
+
+### Raiders
+
+Not everyone is friendly. The mod also adds a hostile variant:
+
+* **Raider** (`travellers:traveller_raider`) travels like a Traveller, but **attacks players and Millénaire villagers**.
+
+Be aware! Raiders may look like normal travellers.
+
+---
+
+## Workers (Henchmen)
+
+Travellers also adds **Workers (Henchmen)**: recruitable NPCs that turn travel into gameplay. They can spawn in established villages (population threshold configurable) and behave like autonomous couriers when not hired, travelling to villages bringing them a small portion of needed goods (configurable) for building / wall constructions to support them over time.
+
+Once hired with deniers, Workers become **your long-distance team**, built to operate even when you are far away:
+
+### What Workers can do
+
+* **Follow you reliably** even when you go far from them
+* **Be organized into multiple groups** by assigning **leaders**, making large crews manageable.
+* **Run recruitment missions** to visit villages and bring back additional Workers (with configurable costs, distance limits, and spawn ranges).
+* **Sell or donate items to Millénaire villages** as if you did it yourself.
+* **Travel extremely far**, including to destinations in **unloaded areas**—they do not require the target village to be actively loaded to sell or donate.
+* **Be enemy with villages or players** you can set lists of enemy villages or players they will attack
+  * Hired workers will **inherit** leader enemy player list
+  * Enemy villages list applies to **all workers**
+* **Provide you a map of workers** (will be an item too)
+* **Set homes** It's just a place where you can send them and that shows on map. Useful as a map marker.
+
+### What you can do with them
+* **Send them anywhere**
+  * Right click a hired henchman
+  * Go to "orders > go... and select a position"
+  * Henchman will go to this position (with his followers if leader)
+
+They will go where you told them to go
+
+
+* **Attack villages**
+  * Right click on him
+  * Go to "Behavior>Village relations"
+  * Toggle the target village enemy
+  * use "go" menu to send them attack the village
+
+WIP, VILLAGE HAS TO BE LOADED (1.1.3b)
+
+* **Transport**
+  * Right click on him
+  * Go to "Transport"
+  * Give him items > select a village > click validate > click sell or donate
+
+Henchman will go to the village, sell or donate and come back to you.
+
+
+GUI HAS TO BE REDONE
+
+
+Don't worry they don't really pathfind when out of view. Performance impact tries to be the smallest.
+
+### Potential incompatibilities
+* **Optifine's `Smooth World` option** may make them stuck at loaded chunks border (may work now, not tested since 1.1.x)
+
+### Big thanks
+**@Aidan** from Millénaire discord for his beta tester skills, he found lots of bugs !
+
+**@Joshy Boy** from Millénaire discord for reporting bugs !
+
+**@Shwartz** for the actual (1.1.3b) huari, japanese and norman(default) backpacks !
+
+
+
+Backpacks models made by @Shwartz :
+[images of backpacks]
+
+

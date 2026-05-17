@@ -2,9 +2,12 @@ package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.home.MsgOpenHomeNamePrompt;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.ItemStack;
@@ -67,13 +70,12 @@ public class TravellerHomeChestHandler {
                 world.playSound(null, pos, SoundEvents.ENTITY_ITEM_BREAK, SoundCategory.PLAYERS, 0.6F, 1.0F);
             }
         } else {
-            // Not registered -> open naming prompt GUI
-            player.openGui(
-                    Travellers.INSTANCE,
-                    TravellersGuiIds.HOME_NAME_PROMPT,
-                    world,
-                    pos.getX(), pos.getY(), pos.getZ()
-            );
+            if (player instanceof EntityPlayerMP) {
+                TravellerFollowNet.CHANNEL.sendTo(
+                        new MsgOpenHomeNamePrompt(pos),
+                        (EntityPlayerMP) player
+                );
+            }
         }
 
 // prevent wand onItemUseFirst

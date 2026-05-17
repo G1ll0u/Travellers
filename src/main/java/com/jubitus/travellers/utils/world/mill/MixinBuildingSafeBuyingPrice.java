@@ -3,6 +3,7 @@ package com.jubitus.travellers.utils.world.mill;
 import net.minecraft.entity.player.EntityPlayer;
 import org.millenaire.common.item.TradeGood;
 import org.millenaire.common.village.Building;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,6 +17,7 @@ import java.util.LinkedHashMap;
 public abstract class MixinBuildingSafeBuyingPrice {
 
 
+    @Final
     @Shadow(remap = false)
     private HashMap<String, LinkedHashMap<TradeGood, Integer>> shopBuys;
 

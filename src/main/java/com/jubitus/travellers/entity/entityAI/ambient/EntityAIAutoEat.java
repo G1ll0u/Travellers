@@ -163,7 +163,7 @@ public class EntityAIAutoEat extends EntityAIBase {
 
         if (ticksLeftThisBite > 0) {
             // chew tick
-            if (ticksLeftThisBite % 7 == 0) {
+            if (ticksLeftThisBite % 24 == 0) {
                 mob.playSound(SoundEvents.ENTITY_GENERIC_EAT, 0.3F, 0.8F + mob.getRNG().nextFloat() * 0.2F);
                 spawnItemCrackAtMouth(currentFood.item);
             }

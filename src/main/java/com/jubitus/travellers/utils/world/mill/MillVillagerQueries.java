@@ -56,7 +56,7 @@ public final class MillVillagerQueries {
 
     /**
      * List all LOADED villagers that belong to the village at approxTownHallPos.
-     * Raiders are excluded by gilles.
+     * Raiders are excluded by default.
      */
     public static List<MillVillager> getLoadedVillageVillagers(World world, BlockPos approxTownHallPos, int maxRadius) {
         return getLoadedVillageVillagers(world, approxTownHallPos, maxRadius, false);

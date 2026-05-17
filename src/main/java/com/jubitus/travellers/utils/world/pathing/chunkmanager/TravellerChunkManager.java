@@ -3,16 +3,24 @@ package com.jubitus.travellers.utils.world.pathing.chunkmanager;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import net.minecraft.block.Block;
+import net.minecraft.block.state.BlockFaceShape;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -26,14 +34,17 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import javax.annotation.Nullable;
 import java.util.*;
 
-// TravellerChunkManager.java
-// TravellerChunkManager.java
+
 public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback {
     public static final TravellerChunkManager INSTANCE = new TravellerChunkManager();
     private static final int HARD_STUCK_TICKS = 20 * 60 * 5; // 5 minutes
     private static final String NBT_FORCED_CHUNKS = "ForcedChunks";
     // Dimension -> state
     private final Map<Integer, WorldState> worldStates = new HashMap<>();
+    private static final int OFFSCREEN_HOP_FORCE_TTL_TICKS = 20 * 8; // 8 seconds
+
+    // Non-hired workers hop 10x less frequently (every ~60s instead of ~6s)
+    private static final int NONHIRED_HOP_INTERVAL_MULT = 10;
 
     private TravellerChunkManager() {
     }
@@ -50,12 +61,18 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
         WorldServer ws = (WorldServer) event.world;
         WorldState state = getOrCreateState(ws);
+        long now = ws.getTotalWorldTime();
 
-        // ✅ cheap: hops can stay frequent
+        // Virtual workers: simulate movement and handle materialization/virtualization
+        VirtualWorkerManager.get(ws).tick(ws, now);
+
+        // cheap/transient maintenance
+        tickTransientHopForcedChunks(state);
         tickOffscreenHops(state);
         batchLoadRestoredChunks(state);
-        // ✅ expensive: recompute less often
-        int interval = Math.max(1, TravellersModConfig.chunkRecomputeIntervalTicks); // add config
+
+        // expensive: recompute less often
+        int interval = Math.max(1, TravellersModConfig.chunkRecomputeIntervalTicks);
         if ((ws.getTotalWorldTime() % interval) == 0) {
             recomputeForWorld(state);
         }
@@ -67,7 +84,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             }
         }
 
-        if (dirty) recomputeForWorld(state);
+        if (dirty && (ws.getTotalWorldTime() % 10L) == 0L) {
+            recomputeForWorld(state);
+        }
 
     }
 
@@ -93,6 +112,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         NBTTagCompound tag = state.ticket.getModData();
         NBTTagList list = new NBTTagList();
 
+        // IMPORTANT:
+        // Persist ONLY durable forced chunks, never transient hop-preload chunks.
         for (ChunkPos cp : state.forced) {
             NBTTagCompound c = new NBTTagCompound();
             c.setInteger("x", cp.x);
@@ -168,6 +189,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // 4) Apply restored chunk forcing using the NORMAL ticket (safe)
         state.forced.clear();
         state.forced.addAll(restored);
+        state.hopForced.clear();
+        state.hopForcedUntil.clear();
+
 
         System.out.println("[Travellers] Restoring " + restored.size() + " forced chunks");
 
@@ -225,81 +249,322 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         return (t instanceof EntityTravellerWorker) || (t instanceof EntityTravellerMerchant);
     }
 
+    private static boolean isCatchupWorker(EntityTraveller t) {
+        return t instanceof EntityTravellerWorker && ((EntityTravellerWorker) t).isCatchupTravel();
+    }
+
     private void tickOffscreenHops(WorldState state) {
         if (!TravellersModConfig.travellerOffscreenHopEnabled) return;
 
-        int interval = TravellersModConfig.travellerOffscreenHopIntervalTicks;
-        if (interval <= 0) return;
+        int hiredInterval = TravellersModConfig.travellerOffscreenHopIntervalTicks;
+        if (hiredInterval <= 0) return;
+        int nonHiredInterval = hiredInterval * NONHIRED_HOP_INTERVAL_MULT;
 
         long now = state.world.getTotalWorldTime();
-        boolean anyHop = false;
+        boolean anyHiredHop = false;
+        ChunkProviderServer cps = state.world.getChunkProvider();
 
         for (MerchantData md : state.merchants.values()) {
+            // 1) Check timing FIRST — cheapest gate, avoids loading chunks every tick
+            int effectiveInterval = md.hiredFollower ? hiredInterval : nonHiredInterval;
+            if (now - md.lastOffscreenHopTick < effectiveInterval) continue;
+
+            // 2) Try to resolve entity (may need chunk load)
             Entity ent = state.world.getEntityFromUuid(md.id);
             if (!(ent instanceof EntityTraveller)) {
-
-                ChunkProviderServer cps = state.world.getChunkProvider();
+                if (md.hiredFollower) {
+                    // Hired: load their chunk (it should be forced)
+                    ChunkPos cp = new ChunkPos(md.lastChunkX, md.lastChunkZ);
+                    if (!state.forced.contains(cp) && !state.hopForced.contains(cp)) continue;
+                }
+                // Load chunk to recover entity (hired: forced chunk; non-hired: temporary load)
                 cps.provideChunk(md.lastChunkX, md.lastChunkZ);
-
                 ent = state.world.getEntityFromUuid(md.id);
                 if (!(ent instanceof EntityTraveller)) continue;
             }
 
-
             EntityTraveller t = (EntityTraveller) ent;
 
-// don't touch boats for onscreen entities
-            if (t.isInPlayerViewDistance()) continue;
+            // Workers are managed by VirtualWorkerManager — skip offscreen hops for them
+            if (t instanceof EntityTravellerWorker) continue;
 
-// NOW it's offscreen, it's safe/desired to drop boat
+            // 3) Skip if player is ACTUALLY watching (normal AI handles movement).
+            //    For hired workers in catchup, use a tighter check: only skip when
+            //    truly tracked by a player. The approximate view-distance check has a
+            //    1-chunk margin that creates a dead zone where the pathfinder can't work
+            //    (chunks not loaded) but offscreen hops are blocked.
+            boolean actuallyTracked = t.getTrackingPlayerCount() > 0;
+            if (md.hiredFollower && isCatchupWorker(t)) {
+                // Only skip if a player is truly sending tracking data
+                if (actuallyTracked) continue;
+            } else {
+                if (actuallyTracked || t.isInPlayerViewDistanceApprox()) continue;
+            }
+
+            // 4) Dismount boat (offscreen hopping doesn't use boats)
             if (t.isRiding()) {
                 Entity r = t.getRidingEntity();
                 t.dismountRidingEntity();
-
                 if (r instanceof EntityTravellerBoat) {
-                    ((EntityTravellerBoat) r).killNow();   // use your immediate kill
+                    ((EntityTravellerBoat) r).killNow();
                 } else if (r instanceof EntityBoat) {
                     r.setDead();
                 }
             }
 
+            // 5) Skip if busy
             if (t.isInCombat() || t.isAutoEating() || t.isHandActive()) continue;
+
+            // 6) Get goal
             BlockPos goal = getChunkloadGoal(t);
             if (goal == null) continue;
-            if (now - md.lastOffscreenHopTick < interval) continue;
 
-            boolean ok = t.offscreenHopTowardPos(goal, TravellersModConfig.travellerOffscreenHopStepBlocks);
+            // 7) Perform hop (different strategies for hired vs non-hired)
+            boolean ok;
+            int step = TravellersModConfig.travellerOffscreenHopStepBlocks;
+
+            if (md.hiredFollower) {
+                // Hired workers: force transient chunks, always use normal step size.
+                // Workers must travel naturally — no instant teleports or oversized hops.
+                ok = tryOffscreenHopToward(state, t, goal, step);
+                if (!ok) {
+                    int fallback = Math.min(16, Math.max(1, step / 2));
+                    if (fallback != step) ok = tryOffscreenHopToward(state, t, goal, fallback);
+                }
+            } else {
+                // Non-hired workers: blind hop WITHOUT chunk forcing
+                ok = tryBlindOffscreenHop(state, t, goal, step);
+            }
+
             if (ok) {
                 md.lastOffscreenHopTick = now;
-
-                // ✅ very important
                 md.updateFromEntity(t);
-
-                anyHop = true;
+                if (md.hiredFollower) anyHiredHop = true;
             }
         }
 
-        // ✅ Make forced chunks follow immediately
-        if (anyHop) {
+        if (anyHiredHop) {
             recomputeForWorld(state);
         }
     }
 
+    private boolean tryOffscreenHopToward(WorldState state, EntityTraveller t, BlockPos goal, int stepBlocks) {
+        if (goal == null || stepBlocks <= 0) return false;
 
-    public void onChunkloaderRemoved(EntityTraveller traveller) {
-        if (traveller.world.isRemote) return;
-        if (!(traveller.world instanceof WorldServer)) return;
-        WorldServer ws = (WorldServer) traveller.world;
-        WorldState state = getOrCreateState(ws);
+        BlockPos from = t.getPosition();
 
-        state.merchants.remove(traveller.getUniqueID());
-        // We’ll drop any now-unused chunks on next recompute
+        int dx = goal.getX() - from.getX();
+        int dz = goal.getZ() - from.getZ();
+
+        double dist = Math.sqrt((double) dx * (double) dx + (double) dz * (double) dz);
+        if (dist < 1.0D) return false;
+
+        int hop = Math.min(stepBlocks, Math.max(1, (int) Math.floor(dist)));
+
+        double nx = dx / dist;
+        double nz = dz / dist;
+
+        int tx = from.getX() + (int) Math.round(nx * hop);
+        int tz = from.getZ() + (int) Math.round(nz * hop);
+
+        ChunkPos landingChunk = new ChunkPos(tx >> 4, tz >> 4);
+
+        forceTransientHopChunk(state, landingChunk);
+        ensureLandingAreaLoaded(state.world, landingChunk);
+
+        Vec3d landing = findPermissiveOffscreenLanding(state.world, tx, tz, from.getY());
+        if (landing == null) return false;
+
+        t.setPositionAndUpdate(landing.x, landing.y, landing.z);
+        t.motionX = 0.0D;
+        t.motionY = 0.0D;
+        t.motionZ = 0.0D;
+        t.velocityChanged = true;
+
+        return true;
     }
 
 
-    // ----------------------------------------------------------------
-    // Chunk recompute logic
-    // ----------------------------------------------------------------
+    /**
+     * Hop a non-hired worker without forcing any chunks.
+     * The landing chunk is loaded temporarily via provideChunk and will unload
+     * naturally when no player is nearby, keeping memory usage bounded.
+     */
+    private boolean tryBlindOffscreenHop(WorldState state, EntityTraveller t, BlockPos goal, int stepBlocks) {
+        if (goal == null || stepBlocks <= 0) return false;
+
+        BlockPos from = t.getPosition();
+        int dx = goal.getX() - from.getX();
+        int dz = goal.getZ() - from.getZ();
+        double dist = Math.sqrt((double) dx * dx + (double) dz * dz);
+        if (dist < 1.0D) return false;
+
+        int hop = Math.min(stepBlocks, Math.max(1, (int) Math.floor(dist)));
+        double nx = dx / dist;
+        double nz = dz / dist;
+        int tx = from.getX() + (int) Math.round(nx * hop);
+        int tz = from.getZ() + (int) Math.round(nz * hop);
+
+        // Temporarily load landing chunk (NOT forced — will unload naturally)
+        ChunkPos landingChunk = new ChunkPos(tx >> 4, tz >> 4);
+        state.world.getChunkProvider().provideChunk(landingChunk.x, landingChunk.z);
+
+        Vec3d landing = findPermissiveOffscreenLanding(state.world, tx, tz, from.getY());
+        if (landing == null) {
+            // Fallback: use terrain top at landing position
+            BlockPos top = state.world.getTopSolidOrLiquidBlock(new BlockPos(tx, 0, tz));
+            landing = new Vec3d(tx + 0.5D, top.getY(), tz + 0.5D);
+        }
+
+        t.setPositionAndUpdate(landing.x, landing.y, landing.z);
+        t.motionX = 0.0D;
+        t.motionY = 0.0D;
+        t.motionZ = 0.0D;
+        t.velocityChanged = true;
+        return true;
+    }
+
+    private void ensureLandingAreaLoaded(WorldServer ws, ChunkPos center) {
+        ws.getChunkProvider().provideChunk(center.x, center.z);
+    }
+
+    private boolean forceOffscreenHopToward(WorldServer ws, EntityTraveller t, BlockPos goal, int stepBlocks) {
+        if (goal == null || stepBlocks <= 0) return false;
+
+        BlockPos from = t.getPosition();
+
+        int dx = goal.getX() - from.getX();
+        int dz = goal.getZ() - from.getZ();
+
+        double dist = Math.sqrt((double) dx * (double) dx + (double) dz * (double) dz);
+        if (dist < 1.0D) return false;
+
+        int hop = Math.min(stepBlocks, Math.max(1, (int) Math.floor(dist)));
+
+        double nx = dx / dist;
+        double nz = dz / dist;
+
+        int tx = from.getX() + (int) Math.round(nx * hop);
+        int tz = from.getZ() + (int) Math.round(nz * hop);
+
+        ChunkPos landingChunk = new ChunkPos(tx >> 4, tz >> 4);
+        ensureLandingAreaLoaded(ws, landingChunk);
+
+        Vec3d landing = findPermissiveOffscreenLanding(ws, tx, tz, from.getY());
+        if (landing == null) return false;
+
+        t.setPositionAndUpdate(landing.x, landing.y, landing.z);
+        t.motionX = 0.0D;
+        t.motionY = 0.0D;
+        t.motionZ = 0.0D;
+        t.velocityChanged = true;
+
+        return true;
+    }
+
+    @Nullable
+    private Vec3d findPermissiveOffscreenLanding(WorldServer ws, int x, int z, int fallbackY) {
+        BlockPos top = ws.getTopSolidOrLiquidBlock(new BlockPos(x, 0, z));
+        BlockPos water = findTopWaterAt(ws, x, z, top.getY());
+
+        if (water != null) {
+            return new Vec3d(x + 0.5D, water.getY() + 0.02D, z + 0.5D);
+        }
+
+        BlockPos stand = findStandableFeetAt(ws, x, z, top.getY());
+        if (stand != null) {
+            return new Vec3d(x + 0.5D, stand.getY(), z + 0.5D);
+        }
+
+        int y = Math.max(2, Math.max(top.getY(), fallbackY));
+        return new Vec3d(x + 0.5D, y, z + 0.5D);
+    }
+
+    @Nullable
+    private BlockPos findTopWaterAt(WorldServer ws, int x, int z, int startY) {
+        int maxY = ws.getActualHeight() - 1;
+        int y = Math.max(1, Math.min(maxY, startY + 4));
+
+        while (y > 1) {
+            BlockPos p = new BlockPos(x, y, z);
+            IBlockState s = ws.getBlockState(p);
+
+            if (isVanillaWater(s)) {
+                while (y < maxY && isVanillaWater(ws.getBlockState(new BlockPos(x, y + 1, z)))) {
+                    y++;
+                }
+                return new BlockPos(x, y, z);
+            }
+
+            y--;
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private BlockPos findStandableFeetAt(WorldServer ws, int x, int z, int startY) {
+        int maxY = ws.getActualHeight() - 2;
+        int minY = 2;
+        int y0 = Math.max(minY, Math.min(maxY, startY));
+
+        for (int dy = 0; dy <= 8; dy++) {
+            int up = y0 + dy;
+            if (up <= maxY) {
+                BlockPos feet = new BlockPos(x, up, z);
+                if (isStandableFeet(ws, feet)) return feet;
+            }
+
+            if (dy > 0) {
+                int down = y0 - dy;
+                if (down >= minY) {
+                    BlockPos feet = new BlockPos(x, down, z);
+                    if (isStandableFeet(ws, feet)) return feet;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isStandableFeet(WorldServer ws, BlockPos feet) {
+        if (!ws.isBlockLoaded(feet) || !ws.isBlockLoaded(feet.up()) || !ws.isBlockLoaded(feet.down())) {
+            return false;
+        }
+
+        IBlockState atFeet = ws.getBlockState(feet);
+        IBlockState atHead = ws.getBlockState(feet.up());
+        IBlockState below = ws.getBlockState(feet.down());
+
+        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) {
+            return false;
+        }
+
+        boolean feetFree = atFeet.getMaterial().isReplaceable()
+                || atFeet.getCollisionBoundingBox(ws, feet) == null
+                || atFeet.getBlock() == Blocks.SNOW_LAYER;
+
+        boolean headFree = atHead.getMaterial().isReplaceable()
+                || atHead.getCollisionBoundingBox(ws, feet.up()) == null
+                || atHead.getBlock() == Blocks.SNOW_LAYER;
+
+        if (!feetFree || !headFree) {
+            return false;
+        }
+
+        BlockFaceShape shape = below.getBlockFaceShape(ws, feet.down(), EnumFacing.UP);
+        if (shape == BlockFaceShape.SOLID) {
+            return true;
+        }
+
+        AxisAlignedBB bb = below.getBoundingBox(ws, feet.down());
+        return bb != Block.NULL_AABB && (bb.maxY - bb.minY) > 0.001D;
+    }
+
+    private boolean isVanillaWater(IBlockState state) {
+        Block b = state.getBlock();
+        return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
+    }
 
     @Nullable
     public MerchantData getMerchantData(World world, UUID id) {
@@ -352,15 +617,23 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     private void clearForcedChunks(WorldState state) {
         if (state.ticket == null) {
             state.forced.clear();
+            state.hopForced.clear();
+            state.hopForcedUntil.clear();
             return;
         }
 
-        for (ChunkPos cp : state.forced) {
+        Set<ChunkPos> all = new HashSet<>();
+        all.addAll(state.forced);
+        all.addAll(state.hopForced);
+
+        for (ChunkPos cp : all) {
             ForgeChunkManager.unforceChunk(state.ticket, cp);
         }
-        state.forced.clear();
 
-        // Clear stored NBT too
+        state.forced.clear();
+        state.hopForced.clear();
+        state.hopForcedUntil.clear();
+
         NBTTagCompound tag = state.ticket.getModData();
         tag.removeTag(NBT_FORCED_CHUNKS);
 
@@ -369,16 +642,14 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     }
 
     private void recomputeForWorld(WorldState state) {
-        // prune dead merchants
         Iterator<Map.Entry<UUID, MerchantData>> it = state.merchants.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, MerchantData> e = it.next();
             Entity ent = state.world.getEntityFromUuid(e.getKey());
 
             if (ent == null) {
-                // keep for a while (unloaded), but don't keep forever (dead/despawned)
                 long now = state.world.getTotalWorldTime();
-                long ttl = 20L * 60L * 5L; // 5 minutes
+                long ttl = 20L * 60L * 5L;
                 if (now - e.getValue().lastSeenTick > ttl) {
                     it.remove();
                 }
@@ -393,148 +664,82 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             EntityTraveller t = (EntityTraveller) ent;
             if (!isChunkloader(t)) {
                 it.remove();
-                continue;
             }
         }
 
-
         if (state.merchants.isEmpty()) {
             long now = state.world.getTotalWorldTime();
-
             boolean inGrace = state.restoredForcedFromDisk && now < state.restoreGraceUntilTick;
             boolean stillLoading = !state.pendingRestoreLoad.isEmpty();
 
-            // During startup restoration: KEEP forced chunks so entities can tick and re-register.
             if (inGrace || stillLoading) {
-                saveForcedToTicket(state); // keep persisted list as-is
+                saveForcedToTicket(state);
                 return;
             }
 
-            // Optional: only after grace, you may decide to clear.
             if (state.ticket != null) {
-                for (ChunkPos cp : state.forced) ForgeChunkManager.unforceChunk(state.ticket, cp);
+                for (ChunkPos cp : state.forced) {
+                    ForgeChunkManager.unforceChunk(state.ticket, cp);
+                }
             }
+
             state.forced.clear();
             saveForcedToTicket(state);
             return;
         }
 
-
         ensureTicket(state);
+        if (state.ticket == null) {
+            return;
+        }
 
-        // 1) Decide which merchants are allowed to chunkload this tick
-        // 1) Decide which merchants are allowed to chunkload this tick
+        // Only HIRED workers get durable chunk forcing.
+        // Non-hired workers move via blind offscreen hops without forcing chunks,
+        // preventing the chunk explosion that causes OOM with 100+ workers.
         List<MerchantData> hired = new ArrayList<>();
-        List<MerchantData> nonHired = new ArrayList<>();
 
         for (MerchantData md : state.merchants.values()) {
-            // If entity is currently loaded, refresh hired status right now (extra safety)
             Entity ent = state.world.getEntityFromUuid(md.id);
             if (ent instanceof EntityTravellerWorker) {
                 md.hiredFollower = ((EntityTravellerWorker) ent).isHiredFollower();
+            } else {
+                md.hiredFollower = false;
             }
-
-            if (md.hiredFollower) hired.add(md);
-            else nonHired.add(md);
+            md.chunkloading = md.hiredFollower;
+            if (md.hiredFollower) {
+                hired.add(md);
+            }
         }
 
-// Sort non-hired by priority (these are the ones we cap)
-        nonHired.sort((a, b) -> Integer.compare(
-                b.chunkloadingPriority(state.world),
-                a.chunkloadingPriority(state.world)
-        ));
+        if (hired.isEmpty()) {
+            // No hired workers: unforce all durable chunks (non-hired don't need them)
+            long now2 = state.world.getTotalWorldTime();
+            boolean inGrace2 = state.restoredForcedFromDisk && now2 < state.restoreGraceUntilTick;
+            boolean stillLoading2 = !state.pendingRestoreLoad.isEmpty();
 
-        int allowedNonHired = Math.min(
-                TravellersModConfig.merchantMaxChunkloadingMerchants,
-                nonHired.size()
-        );
-
-// Reset flags
-        for (MerchantData md : state.merchants.values()) md.chunkloading = false;
-
-// Hired workers ALWAYS chunkload (do not count toward cap)
-        for (MerchantData md : hired) md.chunkloading = true;
-
-// Only top N non-hired chunkload
-        for (int i = 0; i < allowedNonHired; i++) {
-            nonHired.get(i).chunkloading = true;
-        }
-
-// This is the final list we use to build desired chunks.
-// Put hired first so they get chunk budget first.
-        List<MerchantData> active = new ArrayList<>();
-        active.addAll(hired);
-        active.addAll(nonHired.subList(0, allowedNonHired));
-
-// still keep this guard
-        if (active.isEmpty()) return;
-
-        Set<ChunkPos> desired = new HashSet<>();
-        int maxForced = TravellersModConfig.merchantMaxForcedChunks;
-
-// ✅ BASELINE: ALWAYS keep each tracked travellers's CURRENT chunk forced.
-// This guarantees the entity stays loaded so offscreen hops can run,
-// even if they are not currently "allowed" to chunkload extras this tick.
-        for (MerchantData md : state.merchants.values()) {
-            int cx = md.pos.getX() >> 4;
-            int cz = md.pos.getZ() >> 4;
-            desired.add(new ChunkPos(cx, cz));
-            if (desired.size() >= maxForced) break; // obey global budget
-        }
-
-// ✅ EXTRAS: only give goal/neighbor chunks to the "active" chunkloaders.
-        for (MerchantData md : active) {
-            if (!md.chunkloading) continue;
-            if (desired.size() >= maxForced) break;
-
-            int cx = md.pos.getX() >> 4;
-            int cz = md.pos.getZ() >> 4;
-
-            // (cx,cz) is already included by baseline, but harmless to re-add.
-            desired.add(new ChunkPos(cx, cz));
-
-            Entity ent = state.world.getEntityFromUuid(md.id);
-            if (ent instanceof EntityTraveller) {
-                EntityTraveller t = (EntityTraveller) ent;
-
-                BlockPos tv = getChunkloadGoal(t);
-                if (tv != null) {
-                    int tx = tv.getX() >> 4;
-                    int tz = tv.getZ() >> 4;
-
-                    int dx = Integer.compare(tx, cx);
-                    int dz = Integer.compare(tz, cz);
-
-                    int ncx = cx + dx;
-                    int ncz = cz + dz;
-
-                    for (int ox = -1; ox <= 1; ox++) {
-                        for (int oz = -1; oz <= 1; oz++) {
-                            desired.add(new ChunkPos(ncx + ox, ncz + oz));
-                            if (desired.size() >= maxForced) break;
-                        }
-                        if (desired.size() >= maxForced) break;
-                    }
+            if (!inGrace2 && !stillLoading2 && state.ticket != null && !state.forced.isEmpty()) {
+                for (ChunkPos cp : state.forced) {
+                    ForgeChunkManager.unforceChunk(state.ticket, cp);
                 }
+                state.forced.clear();
+                saveForcedToTicket(state);
             }
-
-            // optional safety neighbors (your existing code)
-            for (int ox = -1; ox <= 1; ox++) {
-                for (int oz = -1; oz <= 1; oz++) {
-                    desired.add(new ChunkPos(cx + ox, cz + oz));
-                    if (desired.size() >= maxForced) break;
-                }
-                if (desired.size() >= maxForced) break;
-            }
-        }
-
-
-        if (desired.isEmpty()) {
-            // If we have merchants but no desired chunks (config limits, etc.),
-            // DO NOT wipe existing forced chunks. This keeps at least some area
-            // around a merchant loaded so the ticket always has chunks to persist.
             return;
         }
+
+        int maxForced = Math.max(1, TravellersModConfig.merchantMaxForcedChunks);
+        Set<ChunkPos> desired = new HashSet<>();
+
+        for (MerchantData md : hired) {
+            if (desired.size() >= maxForced) break;
+
+            Entity ent = state.world.getEntityFromUuid(md.id);
+            if (!(ent instanceof EntityTraveller) || !ent.isEntityAlive()) continue;
+
+            EntityTraveller t = (EntityTraveller) ent;
+            desired.add(new ChunkPos(t.chunkCoordX, t.chunkCoordZ));
+        }
+
         long now = state.world.getTotalWorldTime();
         boolean inGrace = state.restoredForcedFromDisk && now < state.restoreGraceUntilTick;
         boolean restoring = inGrace || !state.pendingRestoreLoad.isEmpty();
@@ -545,38 +750,53 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         Set<ChunkPos> toForce = new HashSet<>(desired);
         toForce.removeAll(state.forced);
 
-// ✅ while restoring, keep everything that was restored forced
+
         if (restoring) {
             desired.addAll(state.forced);
             toUnforce.clear();
         }
 
-
         for (ChunkPos cp : toUnforce) {
-            // Always remove from OUR ticket
             ForgeChunkManager.unforceChunk(state.ticket, cp);
 
-            // But only try to actively unload if nothing else should keep it loaded
             if (!shouldAvoidQueueUnload(state, cp)) {
-                state.unloading.put(cp, state.world.getTotalWorldTime());
+                boolean stillForcedSomewhere = false;
+                try {
+                    com.google.common.collect.ImmutableSetMultimap<ChunkPos, ForgeChunkManager.Ticket> forced =
+                            ForgeChunkManager.getPersistentChunksFor(state.world);
+                    stillForcedSomewhere = forced.containsKey(cp);
+                } catch (Throwable ignored) {
+                    stillForcedSomewhere = true;
+                }
 
-                ChunkProviderServer cps = state.world.getChunkProvider();
-                Chunk ch = cps.getLoadedChunk(cp.x, cp.z);
-                if (ch != null) cps.queueUnload(ch);
+                if (!stillForcedSomewhere) {
+                    state.unloading.put(cp, state.world.getTotalWorldTime());
+                    ChunkProviderServer cps = state.world.getChunkProvider();
+                    Chunk ch = cps.getLoadedChunk(cp.x, cp.z);
+                    if (ch != null) {
+                        cps.queueUnload(ch);
+                    }
+                } else {
+                    state.unloading.remove(cp);
+                }
             } else {
-                // If it’s in render distance / forced elsewhere, don’t track it as "unloading"
                 state.unloading.remove(cp);
             }
         }
 
-
         for (ChunkPos cp : toForce) {
-            ForgeChunkManager.forceChunk(state.ticket, cp);
+            // If this chunk is already transiently forced for a hop,
+            // just promote it to durable instead of forcing again.
+            if (state.hopForced.remove(cp)) {
+                state.hopForcedUntil.remove(cp);
+            } else {
+                ForgeChunkManager.forceChunk(state.ticket, cp);
+            }
         }
 
         state.forced.clear();
         state.forced.addAll(desired);
-// Persist this to the ticket so Forge can save it
+
         saveForcedToTicket(state);
         vacuumUnneededChunks(state);
     }
@@ -745,6 +965,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         public long restoreGraceUntilTick = 0;
         public boolean restoredForcedFromDisk = false;
         ForgeChunkManager.Ticket ticket;
+        public final Map<ChunkPos, Long> hopForcedUntil = new HashMap<>();
+        public final Set<ChunkPos> hopForced = new HashSet<>();
 
         public WorldState(WorldServer w) {
             this.world = w;
@@ -878,7 +1100,110 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         }
 
     }
+    private ChunkPos chunkPosFromBlock(BlockPos p) {
+        return new ChunkPos(p.getX() >> 4, p.getZ() >> 4);
+    }
 
+    private ChunkPos computeHopLandingChunk(EntityTraveller t, BlockPos goal, int stepBlocks) {
+        BlockPos from = t.getPosition();
+        int fx = from.getX();
+        int fz = from.getZ();
 
+        int gx = goal.getX();
+        int gz = goal.getZ();
+
+        int dx = gx - fx;
+        int dz = gz - fz;
+
+        // If we're already basically there, just keep current chunk.
+        if ((dx * dx + dz * dz) < 4) {
+            return new ChunkPos(fx >> 4, fz >> 4);
+        }
+
+        double dist = Math.sqrt((double) dx * (double) dx + (double) dz * (double) dz);
+        if (dist < 1e-6) {
+            return new ChunkPos(fx >> 4, fz >> 4);
+        }
+
+        double nx = dx / dist;
+        double nz = dz / dist;
+
+        // hop in blocks (no need to clamp to 16; chunk forcing will follow the landing)
+        int hop = Math.max(1, stepBlocks);
+
+        int lx = fx + (int) Math.round(nx * hop);
+        int lz = fz + (int) Math.round(nz * hop);
+
+        return new ChunkPos(lx >> 4, lz >> 4);
+    }
+
+    private void forceChunkIfPossible(WorldState state, ChunkPos cp) {
+        forceTransientHopChunk(state, cp);
+    }
+
+    private void forceTransientHopChunk(WorldState state, ChunkPos cp) {
+        if (state.ticket == null) return;
+
+        long now = state.world.getTotalWorldTime();
+        long expireAt = now + OFFSCREEN_HOP_FORCE_TTL_TICKS;
+
+        // Already durable: no need to track as transient.
+        if (state.forced.contains(cp)) {
+            return;
+        }
+
+        // Already transient: just extend TTL.
+        if (state.hopForced.contains(cp)) {
+            state.hopForcedUntil.put(cp, expireAt);
+            return;
+        }
+
+        // Respect ticket depth. Count durable + transient.
+        int totalForcedByUs = state.forced.size() + state.hopForced.size();
+        if (totalForcedByUs >= TravellersModConfig.merchantMaxForcedChunks) {
+            return;
+        }
+
+        ForgeChunkManager.forceChunk(state.ticket, cp);
+        state.hopForced.add(cp);
+        state.hopForcedUntil.put(cp, expireAt);
+
+        // IMPORTANT:
+        // Do NOT save transient hop chunks into ticket NBT.
+    }
+    private void tickTransientHopForcedChunks(WorldState state) {
+        if (state.ticket == null) return;
+
+        long now = state.world.getTotalWorldTime();
+
+        Iterator<Map.Entry<ChunkPos, Long>> it = state.hopForcedUntil.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<ChunkPos, Long> e = it.next();
+            ChunkPos cp = e.getKey();
+            long expireAt = e.getValue();
+
+            if (expireAt > now) {
+                continue;
+            }
+
+            it.remove();
+            state.hopForced.remove(cp);
+
+            // Do not unforce durable chunks here.
+            if (state.forced.contains(cp)) {
+                continue;
+            }
+
+            ForgeChunkManager.unforceChunk(state.ticket, cp);
+
+            if (!shouldAvoidQueueUnload(state, cp)) {
+                ChunkProviderServer cps = state.world.getChunkProvider();
+                Chunk ch = cps.getLoadedChunk(cp.x, cp.z);
+                if (ch != null) {
+                    cps.queueUnload(ch);
+                }
+            }
+        }
+    }
 }
 

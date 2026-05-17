@@ -121,7 +121,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
      * - choose an allowed building (by planKey / isTownhall),
      * - walk inside,
      * - wander a bit and look at people,
-     * - run for a fixed duration (gilles 2400 ticks ~= 2 minutes),
+     * - run for a fixed duration (default 2400 ticks ~= 2 minutes),
      * - then mark the travellers ready to depart.
      */
     public static class EntityAIVisitVillageBuildings extends EntityAIBase {
@@ -157,7 +157,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
         private @Nullable String currentVisitKey;     // e.g., "inn", "tavern", "townhall", "farm", or planKey
 
         /**
-         * Convenience ctor: 2 minutes and a gilles wordlist.
+         * Convenience ctor: 2 minutes and a default wordlist.
          */
         public EntityAIVisitVillageBuildings(EntityTraveller mob) {
             this(mob, DEFAULT_VISIT_TICKS, new HashSet<>(Arrays.asList(
@@ -402,7 +402,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
             if (containsAny(plan, "warehouse", "depot", "storehouse")) return "warehouse";
             if (containsAny(plan, "guard", "barrack")) return "guard";
 
-            // gilles: let caller decide using the planKey itself (you can add it to the wordlist)
+            // default: let caller decide using the planKey itself (you can add it to the wordlist)
             return plan;
         }
 

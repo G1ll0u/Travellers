@@ -5,9 +5,9 @@ import com.jubitus.travellers.server.map.MapDiscoverySavedData;
 import com.jubitus.travellers.server.map.MapTileGenerator;
 import com.jubitus.travellers.server.map.MapTileImageSavedData;
 import com.jubitus.travellers.server.map.WorldMapDiscovery;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.map.MsgMapDiscoverTile;
-import com.jubitus.travellers.utils.net.message.map.MsgMapTileData;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.map.MsgMapDiscoverTile;
+import com.jubitus.travellers.server.net.message.map.MsgMapTileData;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Mod;
@@ -17,19 +17,23 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 @Mod.EventBusSubscriber(modid = Reference.MOD_ID)
 public class MapDiscoveryEvents {
 
-    // Separate cooldowns (ticks)
     private static final java.util.Map<java.util.UUID, Integer> DISCOVER_CD = new java.util.HashMap<>();
     private static final java.util.Map<java.util.UUID, Integer> GEN_CD = new java.util.HashMap<>();
+    private static final java.util.Map<java.util.UUID, Integer> REFRESH_CD = new java.util.HashMap<>();
 
-    // Tune these safely
-    private static final int DISCOVER_EVERY_TICKS = 5; // 0.25s
-    private static final int GEN_EVERY_TICKS = 20;     // 1.0s
+    // Per-tile pixel cursor so refresh cycles through all 4096 pixels over time.
+    private static final java.util.Map<Long, Integer> PIXEL_CURSOR = new java.util.HashMap<>();
 
-    // "Fog of war" radius in TILES around the player (1 => 3x3 tiles)
-    private static final int DISCOVER_RADIUS_TILES = 1;
+    private static final int DISCOVER_EVERY_TICKS = 5;   // 0.25s
+    private static final int GEN_EVERY_TICKS      = 20;  // 1.0s
+    // Refresh: every 0.5s, 512 px/tile, 3x3 tiles → full tile cycle ≈ 4s.
+    // Most pixels are skipped (chunk not loaded) so actual cost is minimal.
+    private static final int REFRESH_EVERY_TICKS  = 10;
+    private static final int REFRESH_PIXELS_PER_TILE = 512;
+    // Only refresh tiles that are mostly generated (avoids wasting budget on sparse tiles)
+    private static final int REFRESH_MIN_FILLED   = 512;
 
-    // Generation radius (keep small for performance)
-    private static final int GEN_RADIUS_TILES = 0; // only the tile the player is in
+    // Radii are derived from server view distance at runtime — see viewRadiusTiles().
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent e) {
@@ -40,10 +44,13 @@ public class MapDiscoveryEvents {
         EntityPlayerMP p = (EntityPlayerMP) e.player;
         World world = p.world;
 
+        int tileRadius = viewRadiusTiles(p);
+
         java.util.UUID id = p.getUniqueID();
 
         tickDown(DISCOVER_CD, id);
         tickDown(GEN_CD, id);
+        tickDown(REFRESH_CD, id);
 
         int cx = ((int) Math.floor(p.posX)) >> 4;
         int cz = ((int) Math.floor(p.posZ)) >> 4;
@@ -59,8 +66,8 @@ public class MapDiscoveryEvents {
         if (DISCOVER_CD.getOrDefault(id, 0) <= 0) {
             boolean anyNew = false;
 
-            for (int dz = -DISCOVER_RADIUS_TILES; dz <= DISCOVER_RADIUS_TILES; dz++) {
-                for (int dx = -DISCOVER_RADIUS_TILES; dx <= DISCOVER_RADIUS_TILES; dx++) {
+            for (int dz = -tileRadius; dz <= tileRadius; dz++) {
+                for (int dx = -tileRadius; dx <= tileRadius; dx++) {
                     int tx = playerTileX + dx;
                     int tz = playerTileZ + dz;
                     long key = pack(tx, tz);
@@ -81,8 +88,8 @@ public class MapDiscoveryEvents {
             int tilesUpdated = 0;
             int maxTilesPerRun = 1; // keep it safe
 
-            for (int dz = -GEN_RADIUS_TILES; dz <= GEN_RADIUS_TILES && tilesUpdated < maxTilesPerRun; dz++) {
-                for (int dx = -GEN_RADIUS_TILES; dx <= GEN_RADIUS_TILES && tilesUpdated < maxTilesPerRun; dx++) {
+            for (int dz = -tileRadius; dz <= tileRadius && tilesUpdated < maxTilesPerRun; dz++) {
+                for (int dx = -tileRadius; dx <= tileRadius && tilesUpdated < maxTilesPerRun; dx++) {
                     int tx = playerTileX + dx;
                     int tz = playerTileZ + dz;
                     long key = pack(tx, tz);
@@ -117,6 +124,34 @@ public class MapDiscoveryEvents {
 
             GEN_CD.put(id, GEN_EVERY_TICKS);
         }
+
+        // 3) Progressive tile refresh — re-samples already-generated pixels so new
+        //    buildings / terrain changes eventually appear on the map.
+        //    Client picks up changes through its normal 300 ms tile-request polling.
+        if (REFRESH_CD.getOrDefault(id, 0) <= 0) {
+            for (int dz = -tileRadius; dz <= tileRadius; dz++) {
+                for (int dx = -tileRadius; dx <= tileRadius; dx++) {
+                    int tx = playerTileX + dx;
+                    int tz = playerTileZ + dz;
+                    long key = pack(tx, tz);
+
+                    if (!discovered.contains(key)) continue;
+
+                    byte[] data = img.get(key);
+                    if (data == null || data.length != MapTileImageSavedData.TILE_BYTES) continue;
+                    if (countNonZero(data) < REFRESH_MIN_FILLED) continue;
+
+                    int cursor = PIXEL_CURSOR.getOrDefault(key, 0);
+                    int changed = MapTileGenerator.refreshPixels(world, tx, tz, data, cursor, REFRESH_PIXELS_PER_TILE);
+                    PIXEL_CURSOR.put(key, (cursor + REFRESH_PIXELS_PER_TILE) % MapTileImageSavedData.TILE_BYTES);
+
+                    if (changed > 0) {
+                        img.put(key, data);
+                    }
+                }
+            }
+            REFRESH_CD.put(id, REFRESH_EVERY_TICKS);
+        }
     }
 
     private static void tickDown(java.util.Map<java.util.UUID, Integer> map, java.util.UUID id) {
@@ -133,6 +168,13 @@ public class MapDiscoveryEvents {
         if ((a ^ b) < 0 && (r * b != a)) r--;
         return r;
     }
+    // View distance in chunks → radius in tiles (1 tile = CHUNKS_PER_TILE chunks).
+    private static int viewRadiusTiles(EntityPlayerMP p) {
+        net.minecraft.server.MinecraftServer srv = p.getServer();
+        int viewChunks = (srv != null) ? srv.getPlayerList().getViewDistance() : 8;
+        return Math.max(1, viewChunks / WorldMapDiscovery.CHUNKS_PER_TILE);
+    }
+
     private static int countNonZero(byte[] data) {
         int c = 0;
         for (byte b : data) if ((b & 0xFF) != 0) c++;

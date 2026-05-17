@@ -2,9 +2,10 @@ package com.jubitus.travellers.client.gui.transport;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.villageshomes.MsgWorkerRequestVillages;
-import com.jubitus.travellers.utils.net.message.workergo.MsgWorkerSetDestination;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.server.net.message.villageshomes.MsgWorkerRequestVillages;
+import com.jubitus.travellers.server.net.message.workergo.MsgWorkerSetDestination;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -19,49 +20,33 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.millenaire.common.utilities.MillCommonUtilities;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public class GuiWorker extends GuiContainer {
     private static final ResourceLocation TEX =
             new ResourceLocation("travellers", "textures/gui/worker.png");
+
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
     private final List<VillageRow> villages = new ArrayList<>();
+
     private GuiButton sendButton;
     private GuiButton validateButton;
-    private GuiButton donateButton; // NEW
+    private GuiButton donateButton;
+    private GuiButton backButton;
+
     private int lastCost = 0;
     private boolean costValid = false;
     private int validatedVillageIdx = -1;
-    // list box area (outside GUI, to the right)
+
     private int listX, listY, listW, listH;
     private final int rowH = 12;
     private int selectedIndex = -1;
-
-    // --- SCROLLING ---
     private int scrollOffset = 0;
-
-    private boolean isMouseOverList(int mouseX, int mouseY) {
-        return mouseX >= listX && mouseX < listX + listW
-                && mouseY >= listY && mouseY < listY + listH;
-    }
-
-    private int getVisibleRows() {
-        return Math.max(1, listH / rowH);
-    }
-
-    private int getMaxScroll() {
-        return Math.max(0, villages.size() - getVisibleRows());
-    }
-
-    private void clampScroll() {
-        if (scrollOffset < 0) scrollOffset = 0;
-        int max = getMaxScroll();
-        if (scrollOffset > max) scrollOffset = max;
-    }
-
 
     public GuiWorker(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorker(player.inventory, worker));
@@ -71,27 +56,9 @@ public class GuiWorker extends GuiContainer {
         this.ySize = 150;
     }
 
-
     @Override
     public void initGui() {
         super.initGui();
-        boolean hired = worker.isHiredFollower();
-        UUID ownerId = worker.getFollowOwnerId();
-        boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
-
-        if (!hiredByMe) {
-            // Disable all transport actions
-            this.sendButton.enabled = false;
-            this.donateButton.enabled = false;
-            this.validateButton.enabled = false;
-
-            // Optional: don't even request villages
-            // return;
-        } else {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgWorkerRequestVillages(worker.getEntityId())
-            );
-        }
 
         this.xSize = 176;
         this.ySize = 150;
@@ -103,7 +70,7 @@ public class GuiWorker extends GuiContainer {
         this.listW = 120;
         this.listH = 120;
         this.listX = this.guiLeft + this.xSize + 8;
-        this.listY = this.guiTop + 4; // (we'll tweak this more below)
+        this.listY = this.guiTop + 4;
 
         int maxRight = this.width - 8;
         if (this.listX + this.listW > maxRight) {
@@ -112,15 +79,12 @@ public class GuiWorker extends GuiContainer {
 
         this.buttonList.clear();
 
-        // >>> smaller buttons <<<
         int buttonWidth = 60;
         int buttonHeight = 16;
         int buttonGapX = 4;
         int buttonGapY = 4;
-
         int buttonsTop = listY + listH + buttonGapY;
 
-        // Validate button
         this.validateButton = this.addButton(new GuiButton(
                 0,
                 listX,
@@ -130,7 +94,6 @@ public class GuiWorker extends GuiContainer {
                 I18n.format("travellers.worker.validate", "Validate")
         ));
 
-        // Send (sell) button – right next to validate
         this.sendButton = this.addButton(new GuiButton(
                 1,
                 listX + buttonWidth + buttonGapX,
@@ -140,7 +103,6 @@ public class GuiWorker extends GuiContainer {
                 I18n.format("travellers.worker.send", "Send")
         ));
 
-        // Donate button – next row
         this.donateButton = this.addButton(new GuiButton(
                 2,
                 listX,
@@ -150,20 +112,39 @@ public class GuiWorker extends GuiContainer {
                 I18n.format("travellers.worker.donate", "Donate")
         ));
 
-        this.sendButton.enabled = false;
-        this.donateButton.enabled = false;
-        this.validateButton.enabled = true;
+        this.backButton = this.addButton(new GuiButton(
+                3,
+                listX + buttonWidth + buttonGapX,
+                buttonsTop + buttonHeight + buttonGapY,
+                buttonWidth,
+                buttonHeight,
+                I18n.format("travellers.gui.back", "Back")
+        ));
+
         villages.clear();
         scrollOffset = 0;
-
         selectedIndex = -1;
         costValid = false;
         validatedVillageIdx = -1;
         lastCost = 0;
 
-        TravellerFollowNet.CHANNEL.sendToServer(
-                new MsgWorkerRequestVillages(worker.getEntityId())
-        );
+        this.sendButton.enabled = false;
+        this.donateButton.enabled = false;
+        this.validateButton.enabled = true;
+
+        boolean hired = worker.isHiredFollower();
+        UUID ownerId = worker.getFollowOwnerId();
+        boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
+
+        if (hiredByMe) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgWorkerRequestVillages(worker.getEntityId())
+            );
+        } else {
+            this.sendButton.enabled = false;
+            this.donateButton.enabled = false;
+            this.validateButton.enabled = false;
+        }
     }
 
     @Override
@@ -171,7 +152,6 @@ public class GuiWorker extends GuiContainer {
         this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        // ✅ NEW: wheel scroll when hovering list
         handleListWheelScroll(mouseX, mouseY, villages.size());
 
         GlStateManager.disableLighting();
@@ -182,24 +162,18 @@ public class GuiWorker extends GuiContainer {
         this.renderHoveredToolTip(mouseX, mouseY);
     }
 
-
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        // Title
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.title", "Worker"),
-                8, 6, 0x404040);
+                8, 6, 0x404040
+        );
 
-        // Player inventory title
         this.fontRenderer.drawString(
                 this.player.inventory.getDisplayName().getUnformattedText(),
                 8, this.ySize - 96 + 2,
                 0x404040
         );
-
-        // NOTE:
-        // Do NOT draw village list here anymore!
-        // That is now handled entirely by drawVillageList() in drawScreen().
     }
 
     @Override
@@ -222,30 +196,25 @@ public class GuiWorker extends GuiContainer {
                 int idx = scrollOffset + (mouseY - listY) / rowH;
                 if (idx >= 0 && idx < villages.size()) {
                     selectedIndex = idx;
-                    // Changing selection invalidates previous validation
                     costValid = false;
                     validatedVillageIdx = -1;
                     lastCost = 0;
                     if (sendButton != null) sendButton.enabled = false;
                     if (donateButton != null) donateButton.enabled = false;
                 }
-
             }
         }
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
         if (villages.isEmpty()) {
-            this.fontRenderer.drawString(
-                    "No mill in range.",
-                    listX, listY,
-                    0xFFFFFF);
+            this.fontRenderer.drawString("No millage in range...", listX, listY, 0xFFFFFF);
+
             String costLabel;
             int color;
 
             if (!costValid || selectedIndex < 0 || selectedIndex >= villages.size()
                     || validatedVillageIdx != selectedIndex) {
-                // Not validated yet or selection changed since validation
                 costLabel = I18n.format("travellers.worker.cost_unknown");
                 color = 0xAAAAAA;
             } else {
@@ -253,28 +222,15 @@ public class GuiWorker extends GuiContainer {
                 costLabel = I18n.format("travellers.worker.cost", costStr);
 
                 int playerMoney = MillCommonUtilities.countMoney(this.player.inventory);
-                if (playerMoney >= lastCost) {
-                    color = 0x00FF00; // green if affordable
-                } else {
-                    color = 0xFF5555; // red if not enough money
-                }
+                color = playerMoney >= lastCost ? 0x00FF00 : 0xFF5555;
             }
 
-            this.fontRenderer.drawString(
-                    costLabel,
-                    listX,
-                    listY - 10,
-                    color
-            );
+            this.fontRenderer.drawString(costLabel, listX, listY - 10, color);
             return;
         }
 
-        // Background panel
-        drawRect(listX - 2, listY - 2,
-                listX + listW + 2, listY + listH + 2,
-                0x80000000);
+        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
 
-        // Font scale for smaller text
         final float scale = 0.85F;
 
         clampScroll();
@@ -291,16 +247,13 @@ public class GuiWorker extends GuiContainer {
 
             int globalIdx = scrollOffset + i;
 
-            int bg =
-                    (globalIdx == selectedIndex) ? 0x40FFFFFF :
-                            hovered ? 0x20FFFFFF : 0x20000000;
+            int bg = (globalIdx == selectedIndex) ? 0x40FFFFFF
+                    : hovered ? 0x20FFFFFF : 0x20000000;
 
             drawRect(listX, rowTop, listX + listW, rowBottom, bg);
 
             VillageRow row = villages.get(globalIdx);
-
             String label = makeRowLabel(row, scale);
-
             int color = hovered ? 0xFFFFA0 : 0xE0E0E0;
 
             GlStateManager.pushMatrix();
@@ -310,7 +263,6 @@ public class GuiWorker extends GuiContainer {
             GlStateManager.popMatrix();
         }
 
-        // --- NEW: draw travel cost for current selection ---
         int usedSlots = getUsedCargoSlotsClient();
         int cost = 0;
         if (selectedIndex >= 0 && selectedIndex < villages.size()) {
@@ -320,46 +272,23 @@ public class GuiWorker extends GuiContainer {
 
         String costStr = MillCommonUtilities.getShortPrice(cost);
         String costLabel = I18n.format("travellers.worker.cost", costStr);
-
-        // Draw just above the list panel
-        this.fontRenderer.drawString(
-                costLabel,
-                listX,
-                listY - 10,
-                0xFFFFFF
-        );
+        this.fontRenderer.drawString(costLabel, listX, listY - 10, 0xFFFFFF);
     }
 
-    /**
-     * Builds a visually-safe label that:
-     * - keeps the distance suffix, e.g. " (192m)"
-     * - shortens the name with a middle "..." if needed
-     * - respects the available list width and the font scale
-     */
     private String makeRowLabel(VillageRow row, float scale) {
-        // Original label currently is something like "Name (192m)"
         String full = row.display;
-
-        // Distance suffix we *must* keep
         String distSuffix = " (" + row.distance + "m)";
 
-        // Try to split: base name vs " (xyzm)"
         String baseName = full;
         int idx = full.lastIndexOf(" (");
         if (idx > 0 && full.endsWith("m)")) {
             baseName = full.substring(0, idx);
         }
 
-        // Our width budget in *unscaled* font units
         int maxUnscaledWidth = (int) ((this.listW - 6) / scale);
-
         return shortenNameWithSuffix(baseName, distSuffix, maxUnscaledWidth);
     }
 
-    /**
-     * Shortens "name" so that name+suffix fits within maxWidth in *font* units.
-     * Uses a middle ellipsis, e.g. "Campig...Mines".
-     */
     private String shortenNameWithSuffix(String name, String suffix, int maxWidth) {
         int fullWidth = this.fontRenderer.getStringWidth(name + suffix);
         if (fullWidth <= maxWidth) {
@@ -368,31 +297,23 @@ public class GuiWorker extends GuiContainer {
 
         int suffixWidth = this.fontRenderer.getStringWidth(suffix);
         if (suffixWidth >= maxWidth) {
-            // No room for the full suffix; last resort: trim only the suffix
             return this.fontRenderer.trimStringToWidth(suffix, maxWidth);
         }
 
         int remaining = maxWidth - suffixWidth;
-
         int nameWidth = this.fontRenderer.getStringWidth(name);
         if (nameWidth <= remaining) {
-            // Name fits but total didn't earlier; just to be safe
             return name + suffix;
         }
 
-        // Now we genuinely need a middle ellipsis
         String ellipsis = "...";
         int ellWidth = this.fontRenderer.getStringWidth(ellipsis);
-
         if (ellWidth >= remaining) {
-            // No room for name at all; show only suffix
             return suffix;
         }
 
-        // We'll give roughly half width to prefix and half to suffix-part of name
         int half = (remaining - ellWidth) / 2;
 
-        // Build prefix from the left
         StringBuilder prefix = new StringBuilder();
         for (int i = 0; i < name.length(); i++) {
             String candidate = prefix.toString() + name.charAt(i);
@@ -402,7 +323,6 @@ public class GuiWorker extends GuiContainer {
             prefix.append(name.charAt(i));
         }
 
-        // Build tail from the right
         StringBuilder tail = new StringBuilder();
         for (int i = name.length() - 1; i >= 0; i--) {
             String candidate = name.charAt(i) + tail.toString();
@@ -413,14 +333,18 @@ public class GuiWorker extends GuiContainer {
             tail.insert(0, name.charAt(i));
         }
 
-        String shortenedName = prefix + ellipsis + tail;
-        return shortenedName + suffix;
+        return prefix + ellipsis + tail + suffix;
     }
-
-// inside GuiWorker
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
+        if (button == backButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB)
+            );
+            return;
+        }
+
         if (button == sendButton) {
             if (sendButton.enabled && selectedIndex >= 0 && selectedIndex < villages.size()) {
                 VillageRow row = villages.get(selectedIndex);
@@ -428,7 +352,7 @@ public class GuiWorker extends GuiContainer {
                         worker.getEntityId(),
                         row.center,
                         row.display,
-                        false // SELL mode
+                        false
                 ));
                 mc.player.closeScreen();
             }
@@ -442,7 +366,7 @@ public class GuiWorker extends GuiContainer {
                         worker.getEntityId(),
                         row.center,
                         row.display,
-                        true // DONATE mode
+                        true
                 ));
                 mc.player.closeScreen();
             }
@@ -460,8 +384,7 @@ public class GuiWorker extends GuiContainer {
                 this.costValid = true;
 
                 int playerMoney = MillCommonUtilities.countMoney(this.player.inventory);
-
-                boolean canAfford = (cost == 0 || playerMoney >= cost);
+                boolean canAfford = cost == 0 || playerMoney >= cost;
                 this.sendButton.enabled = canAfford;
                 this.donateButton.enabled = canAfford;
             } else {
@@ -477,13 +400,9 @@ public class GuiWorker extends GuiContainer {
         super.actionPerformed(button);
     }
 
-    /**
-     * Count how many of the worker cargo slots (first 18 in ContainerWorker)
-     * are non-empty, purely on the client side.
-     */
     private int getUsedCargoSlotsClient() {
         int used = 0;
-        int workerSlots = 18; // must match ContainerWorker.WORKER_SLOTS
+        int workerSlots = 18;
 
         for (int i = 0; i < workerSlots && i < this.inventorySlots.inventorySlots.size(); i++) {
             Slot s = this.inventorySlots.getSlot(i);
@@ -494,90 +413,7 @@ public class GuiWorker extends GuiContainer {
         return used;
     }
 
-    private void refreshVillageList() {
-        villages.clear();
-
-        World world = worker.world;
-        if (world == null) {
-            selectedIndex = -1;
-            if (sendButton != null) sendButton.enabled = false;
-            return;
-        }
-
-        BlockPos workerPos = worker.getPosition();
-        int maxRadius = TravellersModConfig.workerVillageDetectRadius * 2;
-        if (maxRadius <= 0) {
-            maxRadius = 2000; // sane fallback
-        }
-
-        // 1) Prefer proper village info with names (MillVillageIndex)
-        Map<MillVillageIndex.VillageInfo, Integer> pops = MillVillageIndex.countVillagersPerVillage(world);
-
-        if (!pops.isEmpty()) {
-            for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
-                MillVillageIndex.VillageInfo vi = e.getKey();
-                BlockPos center = vi.center;
-
-                // 2D distance is usually what you want for “how far is that village”
-                double dx = center.getX() + 0.5D - workerPos.getX();
-                double dz = center.getZ() + 0.5D - workerPos.getZ();
-                int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
-
-                if (dist > maxRadius) {
-                    continue;
-                }
-
-                String name = vi.name;
-                if (name == null || name.isEmpty()) {
-                    // Fallback: approximate name from world data
-                    name = MillVillageIndex.nameForApprox(world, center);
-                }
-
-                // Final display string: e.g. "Norman Village (742m)"
-                String display = String.format("%s (%dm)", name, dist);
-
-                villages.add(new VillageRow(center, display, dist));
-            }
-        }
-
-        // 2) Fallback: if for some reason pops is empty, use raw centers
-        if (villages.isEmpty()) {
-            List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(world);
-            for (BlockPos center : centers) {
-                double dx = center.getX() + 0.5D - workerPos.getX();
-                double dz = center.getZ() + 0.5D - workerPos.getZ();
-                int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
-
-                if (dist > maxRadius) {
-                    continue;
-                }
-
-                String name = MillVillageIndex.nameForApprox(world, center);
-                String display = String.format("%s (%dm)", name, dist);
-
-                villages.add(new VillageRow(center, display, dist));
-            }
-        }
-
-        // 3) Sort by distance and update selection + button
-        villages.sort(Comparator.comparingInt(v -> v.distance));
-
-        if (villages.isEmpty()) {
-            selectedIndex = -1;
-            if (sendButton != null) sendButton.enabled = false;
-            // Optional debug:
-            // System.out.println("[Travellers] Worker GUI: no mill within " + maxRadius + " blocks");
-        } else {
-            selectedIndex = 0;
-            if (sendButton != null) sendButton.enabled = true;
-        }
-    }
-
-    // Called from the network handler on the CLIENT thread
-    public void receiveVillageList(List<BlockPos> centers,
-                                   List<String> labels,
-                                   List<Integer> distances) {
-
+    public void receiveVillageList(List<BlockPos> centers, List<String> labels, List<Integer> distances) {
         this.villages.clear();
 
         int n = Math.min(centers.size(), Math.min(labels.size(), distances.size()));
@@ -602,7 +438,6 @@ public class GuiWorker extends GuiContainer {
         lastCost = 0;
         scrollOffset = 0;
         clampScroll();
-
     }
 
     private static class VillageRow {
@@ -616,19 +451,34 @@ public class GuiWorker extends GuiContainer {
             this.distance = distance;
         }
     }
+
+    private boolean isMouseOverList(int mouseX, int mouseY) {
+        return mouseX >= listX && mouseX < listX + listW
+                && mouseY >= listY && mouseY < listY + listH;
+    }
+
+    private int getVisibleRows() {
+        return Math.max(1, listH / rowH);
+    }
+
+    private int getMaxScroll() {
+        return Math.max(0, villages.size() - getVisibleRows());
+    }
+
+    private void clampScroll() {
+        if (scrollOffset < 0) scrollOffset = 0;
+        int max = getMaxScroll();
+        if (scrollOffset > max) scrollOffset = max;
+    }
+
     private void handleListWheelScroll(int mouseX, int mouseY, int listSize) {
         if (listSize <= 0) return;
-
-        // Only scroll if the mouse is over the list panel
-        if (mouseX < listX || mouseX >= listX + listW || mouseY < listY || mouseY >= listY + listH) {
-            return;
-        }
+        if (!isMouseOverList(mouseX, mouseY)) return;
 
         int wheel = org.lwjgl.input.Mouse.getDWheel();
         if (wheel == 0) return;
 
-        int dir = (wheel > 0) ? -1 : 1; // up = -1, down = +1
-
+        int dir = (wheel > 0) ? -1 : 1;
         scrollOffset += dir;
         if (scrollOffset < 0) scrollOffset = 0;
 
@@ -636,6 +486,12 @@ public class GuiWorker extends GuiContainer {
         int maxScroll = Math.max(0, listSize - visible);
         if (scrollOffset > maxScroll) scrollOffset = maxScroll;
     }
-
-
+    public Rectangle getJeiListArea() {
+        return new Rectangle(
+                this.listX - 2,
+                this.listY - 12,
+                this.listW + 4,
+                this.listH + 38
+        );
+    }
 }

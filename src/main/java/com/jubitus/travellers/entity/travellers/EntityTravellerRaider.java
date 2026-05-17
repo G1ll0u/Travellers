@@ -15,8 +15,8 @@ import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.sounds.MsgStopTravellerVoice;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.entity.Entity;
@@ -111,7 +111,8 @@ public class EntityTravellerRaider extends EntityTraveller {
         // === TARGETING / COMBAT BEHAVIOR ======================================================
 
         // 1) Retaliate when hurt
-        this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true));
+// 1) Retaliate when hurt (safe custom version)
+        this.targetTasks.addTask(1, new TravellerHurtByTarget(this, true, TravellersModConfig.helpRange));
 
         // 2) Defend allies / villagers if something is close enough
         this.targetTasks.addTask(
@@ -120,9 +121,6 @@ public class EntityTravellerRaider extends EntityTraveller {
                         .setAssistRadius(TravellersModConfig.helpRange)
                         .setBowRangeBonus(0.0) // keep attackTriggerRange strict
         );
-
-        // 3) Help allies that are hurt within helpRange
-        this.targetTasks.addTask(3, new TravellerHurtByTarget(this, true, TravellersModConfig.helpRange));
 
         // 4) Attack anything in RAIDER_ATTACK_LIST (villagers, golems, modded guards, etc.)
         //    No IMob requirement here.
@@ -235,7 +233,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // === OPTIONAL / DISABLED FEATURES ====================================================
 
-        // Raiders don't auto-eat by gilles; add this back if you want survival-focused foes.
+        // Raiders don't auto-eat by default; add this back if you want survival-focused foes.
         aiTravel = null;
         autoEatTask = null;
     }
@@ -503,7 +501,9 @@ public class EntityTravellerRaider extends EntityTraveller {
     @Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
         VoiceSet v = CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
-        return (v != null && v.hurt != null) ? v.hurt : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
+        return (v != null)
+                ? v.pickHurt(this.rand, SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT)
+                : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
     }
 
     @Override

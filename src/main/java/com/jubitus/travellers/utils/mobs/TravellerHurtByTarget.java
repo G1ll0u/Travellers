@@ -71,7 +71,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
     @Override
     public void startExecuting() {
         EntityLivingBase attacker = this.owner.getRevengeTarget();
-        this.revengeTimerOld = this.owner.getRevengeTimer(); // consume by gilles
+        this.revengeTimerOld = this.owner.getRevengeTimer(); // consume by default
         if (attacker == null || !attacker.isEntityAlive()) {
             owner.setRevengeTarget(null);
             return;
@@ -80,11 +80,16 @@ public class TravellerHurtByTarget extends EntityAITarget {
             owner.setRevengeTarget(null); // optional but helps prevent re-triggers
             return;
         }
-        // Safety: if attacker is a travellers, do nothing
-        if (attacker instanceof EntityTraveller && !((EntityTraveller) attacker).isAggressiveToTravellers()) {
-            this.revengeTimerOld = this.owner.getRevengeTimer();
-            owner.setRevengeTarget(null);
-            return;
+        if (attacker instanceof EntityTraveller && owner instanceof EntityTraveller) {
+            EntityTraveller me = (EntityTraveller) owner;
+            EntityTraveller other = (EntityTraveller) attacker;
+
+            boolean crossFaction = me.isAggressiveToTravellers() ^ other.isAggressiveToTravellers();
+            if (!crossFaction) {
+                this.revengeTimerOld = this.owner.getRevengeTimer();
+                owner.setRevengeTarget(null);
+                return;
+            }
         }
 
         if (this.taskOwner instanceof EntityTraveller) {

@@ -11,19 +11,25 @@ public final class MapTileGenerator {
     private MapTileGenerator() {}
 
     public static byte[] buildTile64(World world, int tileX, int tileZ) {
-        byte[] out = new byte[64 * 64]; // gilles 0 = unknown
+        byte[] out = new byte[64 * 64]; // 0 = unknown
         fillMissingPixels(world, tileX, tileZ, out);
         return out;
     }
 
-    /**
-     * Progressive generation:
-     * - Only fills pixels that are currently 0 (unknown)
-     * - Only fills if the sample position is loaded
-     * Returns true if any pixel changed.
-     */
+    // Keep old signature for existing code
     public static boolean fillMissingPixels(World world, int tileX, int tileZ, byte[] inout) {
+        return fillMissingPixels(world, tileX, tileZ, inout, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Progressive generation with a budget.
+     * - Only fills pixels that are 0 (unknown)
+     * - Only fills if the sample position is loaded
+     * - Stops after maxPixelsToFill pixels were written this call
+     */
+    public static boolean fillMissingPixels(World world, int tileX, int tileZ, byte[] inout, int maxPixelsToFill) {
         if (inout == null || inout.length != 64 * 64) return false;
+        if (maxPixelsToFill <= 0) return false;
 
         final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16; // 256
         final int step = tileBlocks / 64; // 4 blocks per pixel
@@ -32,12 +38,12 @@ public final class MapTileGenerator {
         final int baseZ = tileZ * tileBlocks;
 
         boolean changed = false;
+        int filledNow = 0;
 
         for (int pz = 0; pz < 64; pz++) {
             for (int px = 0; px < 64; px++) {
                 int idx = pz * 64 + px;
 
-                // already generated
                 if ((inout[idx] & 0xFF) != 0) continue;
 
                 int wx = baseX + px * step + step / 2;
@@ -50,10 +56,52 @@ public final class MapTileGenerator {
 
                 int tone = sampleTone(world, wx, wz, step);
                 inout[idx] = (byte) (tone & 0xFF);
+
                 changed = true;
+                filledNow++;
+
+                if (filledNow >= maxPixelsToFill) {
+                    return true;
+                }
             }
         }
 
+        return changed;
+    }
+
+    /**
+     * Re-samples up to {@code maxCount} pixels starting at {@code startPixel} (wraps mod 4096).
+     * Unlike {@link #fillMissingPixels}, this overwrites existing non-zero values.
+     * Pixels in unloaded chunks are skipped silently.
+     *
+     * @return number of pixels whose value actually changed
+     */
+    public static int refreshPixels(World world, int tileX, int tileZ, byte[] inout, int startPixel, int maxCount) {
+        if (inout == null || inout.length != 64 * 64) return 0;
+
+        final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
+        final int step = tileBlocks / 64;
+        final int baseX = tileX * tileBlocks;
+        final int baseZ = tileZ * tileBlocks;
+        final int total = 64 * 64;
+
+        int changed = 0;
+        for (int i = 0; i < maxCount; i++) {
+            int idx = (startPixel + i) % total;
+            int pz = idx / 64;
+            int px = idx % 64;
+
+            int wx = baseX + px * step + step / 2;
+            int wz = baseZ + pz * step + step / 2;
+
+            if (!world.isBlockLoaded(new BlockPos(wx, 0, wz), false)) continue;
+
+            int newTone = sampleTone(world, wx, wz, step);
+            if ((inout[idx] & 0xFF) != newTone) {
+                inout[idx] = (byte) (newTone & 0xFF);
+                changed++;
+            }
+        }
         return changed;
     }
 
@@ -80,17 +128,20 @@ public final class MapTileGenerator {
         boolean isLava  = (mat == Material.LAVA)  || (topBlock == Blocks.LAVA  || topBlock == Blocks.FLOWING_LAVA);
 
         int base = clamp(70 + (heightHere * 120 / 256), 60, 200);
-        if (heightHere > 110) base = clamp(base + 15, 60, 220);
-        if (heightHere > 140) base = clamp(base + 20, 60, 235);
+        if (heightHere > 110) base = clamp(base + 18, 60, 218);
+        if (heightHere > 140) base = clamp(base + 25, 60, 238);
+        if (heightHere > 180) base = clamp(base + 15, 60, 248); // sommets très hauts → quasi blanc
 
         int dx = heightHere - heightX;
         int dz = heightHere - heightZ;
-        int shade = clamp(128 + dx * 4 + dz * 4, 70, 200);
+        // Multiplier 7 au lieu de 4 : relief plus visible
+        int shade = clamp(128 + dx * 7 + dz * 7, 50, 210);
 
-        int tone = (base * 2 + shade) / 3;
+        // Blend 50/50 base+shade pour mieux conserver le relief dans le tone final
+        int tone = (base + shade) / 2;
 
-        if (isWater) tone = clamp(55 + shade / 6, 40, 120);
-        if (isLava)  tone = clamp(170 + shade / 8, 160, 230);
+        if (isWater) tone = clamp(48 + shade / 5, 36, 105);
+        if (isLava)  tone = clamp(175 + shade / 8, 165, 235);
 
         // IMPORTANT: tone must never be 0 for real terrain (0 is our "unknown" sentinel)
         return clamp(tone, 1, 255);

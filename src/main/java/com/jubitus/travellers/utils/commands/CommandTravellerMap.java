@@ -26,8 +26,8 @@ public class CommandTravellerMap extends CommandBase {
     @Override
     public String getUsage(ICommandSender sender) {
         return "/travellersmap [radius] [step]\n" +
-                "  radius: sampling radius in blocks (gilles 256)\n" +
-                "  step: sample spacing in blocks (gilles 8)";
+                "  radius: sampling radius in blocks (default 256)\n" +
+                "  step: sample spacing in blocks (default 8)";
     }
 
     @Override
@@ -155,6 +155,6 @@ public class CommandTravellerMap extends CommandBase {
 
     @Override
     public int getRequiredPermissionLevel() {
-        return 2; // OP only by gilles, tweak if you want
+        return 2; // OP only by default, tweak if you want
     }
 }

@@ -4,6 +4,8 @@ import com.jubitus.travellers.Reference;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.entity.culture.choir.ChoirIndex;
+import com.jubitus.travellers.entity.culture.choir.ChoirRegistry;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -36,64 +38,117 @@ public final class ModSounds {
         java.util.List<SoundEvent> toReg = new java.util.ArrayList<>();
 
         VoiceIndex idx = VoiceIndex.loadOrDefault();
-
-        // Register EVERYTHING the generator created:
-        // entity.travellers.<lang>.<personality>.<kind>
-        for (java.util.Map.Entry<String, java.util.List<String>> en : idx.langs.entrySet()) {
-            String lang = en.getKey().toLowerCase(java.util.Locale.ROOT);
-            for (String personality : en.getValue()) {
-                personality = personality.toLowerCase(java.util.Locale.ROOT);
-
-                // 4 kinds
-                reg(toReg, "entity.travellers." + lang + "." + personality + ".talk");
-                reg(toReg, "entity.travellers." + lang + "." + personality + ".hurt");
-                reg(toReg, "entity.travellers." + lang + "." + personality + ".hello");
-                reg(toReg, "entity.travellers." + lang + "." + personality + ".ambient");
-
-            }
-
-
-        }
         RaiderVoiceIndex ridx = RaiderVoiceIndex.loadOrDefault();
+        ChoirIndex cidx = ChoirIndex.loadOrDefault();
 
-// Register raiders events:
-// entity.travellers.raiders.<lang>.<personality>.<kind>
-        for (java.util.Map.Entry<String, java.util.List<String>> en : ridx.langs.entrySet()) {
-            String lang = en.getKey().toLowerCase(java.util.Locale.ROOT);
-            for (String personality : en.getValue()) {
-                personality = personality.toLowerCase(java.util.Locale.ROOT);
+        // 1) Register all aggregate classic events
+        registerAggregateEvents(toReg, idx, "entity.travellers");
+        registerAggregateEvents(toReg, ridx, "entity.travellers.raiders");
 
-                reg(toReg, "entity.travellers.raiders." + lang + "." + personality + ".talk");
-                reg(toReg, "entity.travellers.raiders." + lang + "." + personality + ".hurt");
-                reg(toReg, "entity.travellers.raiders." + lang + "." + personality + ".hello");
-                reg(toReg, "entity.travellers.raiders." + lang + "." + personality + ".ambient");
-            }
-        }
-        // Also register raiders if you want the same system (optional).
-        // If you keep raiders fixed, keep your old raiders reg code here.
+        // 2) Register all exact clip events
+        registerExactClipEvents(toReg, idx);
+        registerExactClipEvents(toReg, ridx);
 
-        // Define global fallbacks using defaultLang/defaultPersonality
-        String dl = idx.defaultLang.toLowerCase(java.util.Locale.ROOT);
-        String dp = idx.defaultPersonality.toLowerCase(java.util.Locale.ROOT);
-
-        TRAVELLER_TALK  = new SoundEvent(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".talk"))
-                .setRegistryName(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".talk"));
-        TRAVELLER_HURT  = new SoundEvent(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".hurt"))
-                .setRegistryName(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".hurt"));
-        TRAVELLER_HELLO = new SoundEvent(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".hello"))
-                .setRegistryName(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".hello"));
-        AMBIENT         = new SoundEvent(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".ambient"))
-                .setRegistryName(new ResourceLocation(Reference.MOD_ID, "entity.travellers." + dl + "." + dp + ".ambient"));
-
-        // NOTE:
-        // The above 4 objects are NOT the ones registered in toReg (different instances).
-        // So instead of creating new instances, we should resolve from registry later.
-        // We'll do that in assignVoicesToCultures() after registration.
+        // 3) Register choir stem events
+        registerChoirEvents(toReg, cidx);
 
         e.getRegistry().registerAll(toReg.toArray(new SoundEvent[0]));
         assignVoicesToCulturesDynamic(idx, ridx);
-
+        ChoirRegistry.load(cidx);
     }
+
+    private static void registerChoirEvents(java.util.List<SoundEvent> out, ChoirIndex idx) {
+        if (idx == null || idx.songs == null) return;
+        for (java.util.Map.Entry<String, java.util.Map<String, java.util.List<ChoirIndex.SongEntry>>> langEntry : idx.songs.entrySet()) {
+            if (langEntry.getValue() == null) continue;
+            for (java.util.Map.Entry<String, java.util.List<ChoirIndex.SongEntry>> persEntry : langEntry.getValue().entrySet()) {
+                if (persEntry.getValue() == null) continue;
+                for (ChoirIndex.SongEntry entry : persEntry.getValue()) {
+                    if (entry.stems == null) continue;
+                    for (String stemKey : entry.stems) {
+                        if (stemKey != null && !stemKey.isEmpty()) reg(out, stemKey);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void registerAggregateEvents(java.util.List<SoundEvent> out, RaiderVoiceIndex idx, String eventPrefix) {
+        if (idx == null || idx.langs == null) return;
+
+        for (java.util.Map.Entry<String, java.util.List<String>> en : idx.langs.entrySet()) {
+            String lang = en.getKey().toLowerCase(java.util.Locale.ROOT);
+            for (String personality : en.getValue()) {
+                if (personality == null) continue;
+                personality = personality.toLowerCase(java.util.Locale.ROOT);
+
+                reg(out, eventPrefix + "." + lang + "." + personality + ".talk");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".hurt");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".hello");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".ambient");
+            }
+        }
+    }
+
+    private static void registerExactClipEvents(java.util.List<SoundEvent> out, RaiderVoiceIndex idx) {
+        if (idx == null || idx.clips == null) return;
+
+        for (java.util.Map<String, java.util.Map<String, java.util.List<String>>> byLang : idx.clips.values()) {
+            if (byLang == null) continue;
+
+            for (java.util.Map<String, java.util.List<String>> byPersonality : byLang.values()) {
+                if (byPersonality == null) continue;
+
+                for (java.util.List<String> eventKeys : byPersonality.values()) {
+                    if (eventKeys == null) continue;
+
+                    for (String key : eventKeys) {
+                        if (key == null || key.trim().isEmpty()) continue;
+                        reg(out, key);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void registerAggregateEvents(java.util.List<SoundEvent> out, VoiceIndex idx, String eventPrefix) {
+        if (idx == null || idx.langs == null) return;
+
+        for (java.util.Map.Entry<String, java.util.List<String>> en : idx.langs.entrySet()) {
+            String lang = en.getKey().toLowerCase(java.util.Locale.ROOT);
+            for (String personality : en.getValue()) {
+                if (personality == null) continue;
+                personality = personality.toLowerCase(java.util.Locale.ROOT);
+
+                reg(out, eventPrefix + "." + lang + "." + personality + ".talk");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".hurt");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".hello");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".ambient");
+            }
+        }
+    }
+
+    private static void registerExactClipEvents(java.util.List<SoundEvent> out, VoiceIndex idx) {
+        if (idx == null || idx.clips == null) return;
+
+        for (java.util.Map<String, java.util.Map<String, java.util.List<String>>> byLang : idx.clips.values()) {
+            if (byLang == null) continue;
+
+            for (java.util.Map<String, java.util.List<String>> byPersonality : byLang.values()) {
+                if (byPersonality == null) continue;
+
+                for (java.util.List<String> eventKeys : byPersonality.values()) {
+                    if (eventKeys == null) continue;
+
+                    for (String key : eventKeys) {
+                        if (key == null || key.trim().isEmpty()) continue;
+                        reg(out, key);
+                    }
+                }
+            }
+        }
+    }
+
     public static void assignVoicesToCulturesDynamic(VoiceIndex idx, RaiderVoiceIndex ridx) {
         // Clear old mappings
         CultureRegistry.TRAVELLER_VOICES.clear();
@@ -107,13 +162,13 @@ public final class ModSounds {
         String tDefaultPers = (idx.defaultPersonality == null ? "default" : idx.defaultPersonality).toLowerCase(java.util.Locale.ROOT);
 
         TRAVELLER_TALK  = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
-                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".talk"));
+                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".talk.__0"));
         TRAVELLER_HURT  = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
-                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".hurt"));
+                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".hurt.__0"));
         TRAVELLER_HELLO = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
-                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".hello"));
+                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".hello.__0"));
         AMBIENT         = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
-                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".ambient"));
+                "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".ambient.__0"));
 
         // ---------------- RAIDERS ----------------
         String rDefaultLang = (ridx.defaultLang == null ? "en" : ridx.defaultLang).toLowerCase(java.util.Locale.ROOT);
@@ -190,20 +245,7 @@ public final class ModSounds {
 
 
 
-    private static VoicePersonality regTravellerPersonality(java.util.List<SoundEvent> out,
-                                                            String personalityId,
-                                                            String baseKey) {
-        // baseKey examples:
-        // "entity.travellers.en"
-        // "entity.travellers.en.actorb"
-        SoundEvent talk = reg(out, baseKey + ".talk");
-        SoundEvent hurt = reg(out, baseKey + ".hurt");
-        SoundEvent hello = reg(out, baseKey + ".hello");
-        SoundEvent amb = reg(out, baseKey + ".ambient");
 
-        VoiceSet set = new VoiceSet(talk, hurt, hello, amb);
-        return new VoicePersonality(personalityId, set);
-    }
     private static String pickFallbackPersonalityForLang(String lang, String globalDefault, java.util.List<String> langPersonalities) {
         String dp = (globalDefault == null ? "default" : globalDefault).toLowerCase(java.util.Locale.ROOT);
 
@@ -212,7 +254,7 @@ public final class ModSounds {
                 if (p != null && p.equalsIgnoreCase(dp)) return dp;
             }
             // If the global default doesn't exist for this language (FR has no "default"),
-            // use the first available personality for that language (e.g. "gilles").
+            // use the first available personality for that language (e.g. "default").
             if (!langPersonalities.isEmpty() && langPersonalities.get(0) != null) {
                 return langPersonalities.get(0).toLowerCase(java.util.Locale.ROOT);
             }

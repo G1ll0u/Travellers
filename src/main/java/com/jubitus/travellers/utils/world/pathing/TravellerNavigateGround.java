@@ -30,6 +30,13 @@ public class TravellerNavigateGround extends PathNavigateGround {
     private double landCenterZ = 0.0;
     private int gapEtaTicks = 0; // how many ticks we EXPECT until we reach landing plane
     private boolean followerMode = false;
+    private int losSkipCooldown = 0;
+    private int losSkipInterval = 4;
+
+    private Vec3d smoothedSteerDir = Vec3d.ZERO;
+    private double lastSafeMoveX = Double.NaN;
+    private double lastSafeMoveY = Double.NaN;
+    private double lastSafeMoveZ = Double.NaN;
 
     public TravellerNavigateGround(EntityLiving entity, World worldIn) {
         super(entity, worldIn);
@@ -152,188 +159,219 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return new Vec3d(p.x + 0.5D, y, p.z + 0.5D);
     }
 
-    // --- NEW: override pathFollow so MoveHelper aims at correct Y (not integer p.y) ---
     @Override
     protected void pathFollow() {
-        // 0) If we are currently executing a gap jump, we own motion completely.
         if (landCenterTicks > 0 && this.entity.onGround && gapJumpTicks == 0) {
-            // micro-correct to center for a couple ticks so we don't drift off
             this.entity.getMoveHelper().setMoveTo(landCenterX, this.entity.posY, landCenterZ, this.speed);
             landCenterTicks--;
             return;
         }
 
         if (gapJumpTicks > 0) {
-
             if (this.entity.isInWater()) {
-                // We achieved the goal (entered water). Stop pushing or we’ll overshoot to the far bank.
                 gapJumpTicks = 0;
                 this.entity.motionX *= 0.2;
                 this.entity.motionZ *= 0.2;
                 return;
             }
+
             int ticksLeft = Math.max(1, gapEtaTicks > 0 ? gapEtaTicks : 1);
 
-
             this.entity.getMoveHelper().setMoveTo(this.entity.posX, this.entity.posY, this.entity.posZ, 0.0);
-            // Keep pushing forward (drag compensation so post-damping ~= gapJumpSpeed)
-            // Recompute direction every tick -> correct drift and hit narrow landings
             this.entity.moveForward = 0.0F;
             this.entity.moveStrafing = 0.0F;
             this.entity.setAIMoveSpeed(0.0F);
+
             double rx = gapLandX - this.entity.posX;
             double rz = gapLandZ - this.entity.posZ;
             double remaining = Math.sqrt(rx * rx + rz * rz);
-            if (remaining < 0.35 && this.entity.motionY < 0.0) {
-                // final approach: don't keep strong horizontal thrust
-                // (prevents clipping lip / skipping across 1-block water)
-                // Keep at least tiny speed to not stall.
-                // desiredSpeed gets computed later; just remember this clamp:
-            }
-// recompute gapJumpDir like you already do...
 
+            if (remaining < 0.35 && this.entity.motionY < 0.0) {
+                // final approach clamp handled below
+            }
 
             double len = Math.sqrt(rx * rx + rz * rz);
             if (len > 1e-6) {
                 gapJumpDir = new Vec3d(rx / len, 0, rz / len);
             }
-// --- NEW: compute the exact speed needed to cover 'remaining' in 'ticksLeft' with drag ---
+
             double drag = 0.91;
             double denom = 1.0 - Math.pow(drag, ticksLeft);
-            double neededV0;
-            if (denom < 1e-6) {
-                neededV0 = remaining; // fallback
-            } else {
-                // sum(v0 * drag^k, k=0..ticksLeft-1) = remaining
-                neededV0 = remaining * (1.0 - drag) / denom;
-            }
+            double neededV0 = denom < 1e-6 ? remaining : remaining * (1.0 - drag) / denom;
 
             double desiredSpeed = Math.min(neededV0, 1.55);
             desiredSpeed = Math.max(desiredSpeed, 0.08);
 
-// If narrow, and we’re descending, and we’re within ~0.75 blocks of the aim point,
-// cap the speed so we don’t “skate” off the far edge.
             if (gapLandingIsNarrow && this.entity.motionY < 0.0 && remaining < 0.85) {
                 desiredSpeed = Math.min(desiredSpeed, remaining * 0.45);
                 desiredSpeed = Math.max(desiredSpeed, 0.06);
             }
 
             double dragComp = 0.91;
-
             this.entity.motionX = gapJumpDir.x * (desiredSpeed / dragComp);
             this.entity.motionZ = gapJumpDir.z * (desiredSpeed / dragComp);
 
-
             gapJumpTicks--;
             if (gapEtaTicks > 0) gapEtaTicks--;
-            // If we landed, brake hard so we don't slide off a 1-block platform
+
             if (this.entity.onGround) {
                 this.entity.motionX = 0.0;
                 this.entity.motionZ = 0.0;
                 gapJumpTicks = 0;
-                forceGapJumpIfNeeded(); // allow immediate chain jump
+                forceGapJumpIfNeeded();
             }
             return;
-
-
         }
+
         antiStuckTick();
-        if (this.currentPath == null || this.currentPath.isFinished()) return;
+        if (this.currentPath == null || this.currentPath.isFinished()) {
+            return;
+        }
 
         int idx = this.currentPath.getCurrentPathIndex();
+        int pathLen = this.currentPath.getCurrentPathLength();
 
-        // 1) Advance nodes we already reached (vanilla-ish)
-        for (int i = idx; i < this.currentPath.getCurrentPathLength(); i++) {
+        double reach = this.entity.width > 0.75F
+                ? this.entity.width / 2.0F
+                : 0.75D - this.entity.width / 2.0D;
+
+        for (int i = idx; i < pathLen; i++) {
             PathPoint pp = this.currentPath.getPathPointFromIndex(i);
             Vec3d v = vecForPathPoint(pp);
 
             double dx = Math.abs(this.entity.posX - v.x);
             double dz = Math.abs(this.entity.posZ - v.z);
 
-            double reach = this.entity.width > 0.75F ? this.entity.width / 2.0F
-                    : 0.75D - this.entity.width / 2.0D;
-
             if (dx < reach && dz < reach) {
                 this.currentPath.setCurrentPathIndex(i + 1);
-            } else break;
-        }
-// After you advanced nodes already reached and confirmed !isFinished()
-        Vec3d entityPos = this.getEntityPosition(); // you override this (good)
-
-// Try to skip ahead like vanilla (corner cutting)
-        int curIdx = this.currentPath.getCurrentPathIndex();
-        int maxIdx = Math.min(curIdx + 6, this.currentPath.getCurrentPathLength() - 1);
-
-        for (int j = maxIdx; j > curIdx; j--) {
-            PathPoint pp = this.currentPath.getPathPointFromIndex(j);
-            Vec3d v = vecForPathPoint(pp); // your surfaceY-aware point
-
-            // Use vanilla LOS check (in PathNavigate)
-            if (this.isDirectPathBetweenPoints(entityPos, v,
-                    MathHelper.ceil(this.entity.width),
-                    MathHelper.ceil(this.entity.height),
-                    MathHelper.ceil(this.entity.width))) {
-
-                this.currentPath.setCurrentPathIndex(j);
+            } else {
                 break;
             }
         }
 
         if (this.currentPath.isFinished()) return;
 
-        // 2) Try starting a gap jump before steering
-        forceGapJumpIfNeeded();
-        if (gapJumpTicks > 0) return; // jump started; don't steer
+        Vec3d entityPos = this.getEntityPosition();
 
-        // 3) Normal steering
-        PathPoint cur = this.currentPath.getPathPointFromIndex(this.currentPath.getCurrentPathIndex());
+        if (followerMode && !shouldDoHeavyPathUpdatesThisTick()) {
+            if (this.currentPath.isFinished()) return;
+
+            int curIndex = this.currentPath.getCurrentPathIndex();
+            PathPoint cur = this.currentPath.getPathPointFromIndex(curIndex);
+            Vec3d target = vecForPathPoint(cur);
+
+            Vec3d desired = new Vec3d(target.x - this.entity.posX, 0.0, target.z - this.entity.posZ);
+            double len = desired.length();
+
+            if (len > 1.0e-6) {
+                desired = new Vec3d(desired.x / len, 0.0, desired.z / len);
+
+                if (smoothedSteerDir.length() < 1.0e-6) {
+                    smoothedSteerDir = desired;
+                } else {
+                    smoothedSteerDir = blendDir(smoothedSteerDir, desired, 0.35);
+                }
+
+                double dist = Math.sqrt(
+                        (target.x - this.entity.posX) * (target.x - this.entity.posX) +
+                                (target.z - this.entity.posZ) * (target.z - this.entity.posZ)
+                );
+
+                double step = Math.min(dist, 1.25);
+                double mx = this.entity.posX + smoothedSteerDir.x * step;
+                double mz = this.entity.posZ + smoothedSteerDir.z * step;
+
+                if (this.entity.isInWater()) {
+                    setSafeMoveTo(mx, this.entity.posY, mz, this.speed);
+                    if (this.entity.collidedHorizontally) {
+                        this.entity.getJumpHelper().setJumping();
+                    }
+                } else {
+                    setSafeMoveTo(mx, target.y, mz, this.speed);
+                }
+            } else {
+                setSafeMoveTo(target.x, target.y, target.z, this.speed);
+            }
+            return;
+        }
+
+        if (losSkipCooldown > 0) {
+            losSkipCooldown--;
+        } else {
+            int curIdx = this.currentPath.getCurrentPathIndex();
+            int remaining = this.currentPath.getCurrentPathLength() - curIdx;
+
+            int lookahead;
+            if (remaining >= 10) lookahead = 5;
+            else if (remaining >= 6) lookahead = 4;
+            else lookahead = 2;
+
+            int maxIdx = Math.min(curIdx + lookahead, this.currentPath.getCurrentPathLength() - 1);
+
+            int w = MathHelper.ceil(this.entity.width);
+            int h = MathHelper.ceil(this.entity.height);
+
+            for (int j = maxIdx; j > curIdx + 1; j--) {
+                PathPoint pp = this.currentPath.getPathPointFromIndex(j);
+                Vec3d v = vecForPathPoint(pp);
+
+                if (this.isDirectPathBetweenPoints(entityPos, v, w, h, w)) {
+                    this.currentPath.setCurrentPathIndex(j);
+                    break;
+                }
+            }
+
+            losSkipCooldown = followerMode ? 6 : 3;
+        }
+
+        if (this.currentPath.isFinished()) return;
+
+        forceGapJumpIfNeeded();
+        if (gapJumpTicks > 0) return;
+
+        int curIndex = this.currentPath.getCurrentPathIndex();
+        PathPoint cur = this.currentPath.getPathPointFromIndex(curIndex);
         Vec3d target = vecForPathPoint(cur);
-        int i = this.currentPath.getCurrentPathIndex();
-        PathPoint next = this.currentPath.getPathPointFromIndex(i);
-        PathPoint prev = (i > 0) ? this.currentPath.getPathPointFromIndex(i - 1) : null;
+
+        PathPoint prev = (curIndex > 0) ? this.currentPath.getPathPointFromIndex(curIndex - 1) : null;
 
         if (prev != null) {
-            int dx = next.x - prev.x;
-            int dz = next.z - prev.z;
+            int dx = cur.x - prev.x;
+            int dz = cur.z - prev.z;
             int manhattan = Math.abs(dx) + Math.abs(dz);
 
             if (manhattan >= 2 && (dx == 0 || dz == 0)) {
-                BlockPos takeoff = findTakeoffBeforeGap(prev, next);
-                int sx = Integer.signum(next.x - prev.x);
-                int sz = Integer.signum(next.z - prev.z);
+                BlockPos takeoff = findTakeoffBeforeGap(prev, cur);
+                int sx = Integer.signum(cur.x - prev.x);
+                int sz = Integer.signum(cur.z - prev.z);
 
-// aim near the edge in the jump direction
                 double edgeX = takeoff.getX() + 0.5 + sx * 0.45;
                 double edgeZ = takeoff.getZ() + 0.5 + sz * 0.45;
 
-                Vec3d to = new Vec3d(edgeX,
+                Vec3d to = new Vec3d(
+                        edgeX,
                         surfaceYForNode(takeoff.getX(), takeoff.getY(), takeoff.getZ()),
-                        edgeZ);
+                        edgeZ
+                );
 
                 forceGapJumpIfNeeded();
                 if (gapJumpTicks > 0) return;
 
                 this.entity.getMoveHelper().setMoveTo(to.x, to.y, to.z, this.speed);
                 return;
-
             }
         }
-// --- NEW: Water steering fix ---
-// When in water, DO NOT aim at the land top Y. Aim at current Y so we push horizontally.
-// If we hit the shore wall, trigger "jump" so we climb out.
+
         if (this.entity.isInWater()) {
             this.entity.getMoveHelper().setMoveTo(target.x, this.entity.posY, target.z, this.speed);
 
-            // If we're pressed against a wall, make the mob try to rise/climb out.
             if (this.entity.collidedHorizontally) {
-                this.entity.getJumpHelper().setJumping(); // works in water as "swim up"
+                this.entity.getJumpHelper().setJumping();
             }
             return;
         }
 
         this.entity.getMoveHelper().setMoveTo(target.x, target.y, target.z, this.speed);
-
-
     }
 
     private void forceGapJumpIfNeeded() {
@@ -434,8 +472,6 @@ public class TravellerNavigateGround extends PathNavigateGround {
         for (int step = 1; step < distBlocks; step++) {
             BlockPos midFeet = takeoff.add(sx * step, 0, sz * step);
             if (!isPassThrough(midFeet) || !isPassThrough(midFeet.up())) {
-                // Path is stale or something placed in the jump corridor: force repath
-                this.entity.getNavigator().clearPath(); // force repath around the new obstacle
                 return;
             }
         }
@@ -628,12 +664,13 @@ public class TravellerNavigateGround extends PathNavigateGround {
     }
 
     private void antiStuckTick() {
-        if (gapJumpTicks > 0) { // don't evaluate while in-air forced
+        if (gapJumpTicks > 0) {
             stuckTicks = 0;
             stuckX = this.entity.posX;
             stuckZ = this.entity.posZ;
             return;
         }
+
         if (this.currentPath == null || this.currentPath.isFinished()) {
             stuckTicks = 0;
             stuckX = this.entity.posX;
@@ -644,10 +681,12 @@ public class TravellerNavigateGround extends PathNavigateGround {
         double dx = this.entity.posX - stuckX;
         double dz = this.entity.posZ - stuckZ;
 
-        // moved less than 0.03 blocks
         if (dx * dx + dz * dz < 0.03 * 0.03) {
-            if (++stuckTicks >= 20) { // ~1 second at 20 tps
-                this.clearPath();     // force goal AI to request a new one
+            stuckTicks++;
+
+            if (stuckTicks >= 40) {
+                // Ne supprime pas le path ici.
+                // Marque juste un besoin de repath si tu as ce mécanisme.
                 stuckTicks = 0;
             }
         } else {
@@ -676,7 +715,77 @@ public class TravellerNavigateGround extends PathNavigateGround {
         // either side hazardous => treat as narrow (more conservative, fewer slips)
         return isHazardBelow(leftBelow) || isHazardBelow(rightBelow);
     }
+    private static final int FOLLOWER_HEAVY_UPDATE_BUCKETS = 8;
 
+    private boolean shouldDoHeavyPathUpdatesThisTick() {
+        if (!followerMode) return true;
+
+        int phase = Math.floorMod(this.entity.getEntityId(), FOLLOWER_HEAVY_UPDATE_BUCKETS);
+        return (this.entity.ticksExisted % FOLLOWER_HEAVY_UPDATE_BUCKETS) == phase;
+    }
+
+    private Vec3d blendDir(Vec3d current, Vec3d target, double alpha) {
+        Vec3d mixed = new Vec3d(
+                current.x * (1.0 - alpha) + target.x * alpha,
+                0.0,
+                current.z * (1.0 - alpha) + target.z * alpha
+        );
+
+        double len = mixed.length();
+        if (len < 1.0e-6) return target;
+        return new Vec3d(mixed.x / len, 0.0, mixed.z / len);
+    }
+
+    private boolean isHazardousFeet(BlockPos feet) {
+        IBlockState s = this.world.getBlockState(feet);
+        Material m = s.getMaterial();
+
+        if (m == Material.LAVA) return true;
+        if (m == Material.FIRE) return true;
+        if (m == Material.CACTUS) return true;
+
+        AxisAlignedBB bb = s.getCollisionBoundingBox(this.world, feet);
+        if (bb == null) {
+            BlockPos below = feet.down();
+            IBlockState sb = this.world.getBlockState(below);
+            Material mb = sb.getMaterial();
+            if (mb == Material.LAVA || mb == Material.FIRE) return true;
+        }
+
+        return false;
+    }
+
+    private boolean isSafeDirectMoveTarget(double x, double y, double z) {
+        BlockPos feet = new BlockPos(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
+        BlockPos head = feet.up();
+
+        IBlockState fs = this.world.getBlockState(feet);
+        IBlockState hs = this.world.getBlockState(head);
+
+        if (fs.getMaterial().isLiquid() && fs.getMaterial() != Material.WATER) return false;
+        if (hs.getMaterial().isLiquid() && hs.getMaterial() != Material.WATER) return false;
+
+        if (isHazardousFeet(feet) || isHazardousFeet(feet.down())) return false;
+
+        return true;
+    }
+
+    private void setSafeMoveTo(double x, double y, double z, double speed) {
+        if (isSafeDirectMoveTarget(x, y, z)) {
+            lastSafeMoveX = x;
+            lastSafeMoveY = y;
+            lastSafeMoveZ = z;
+            this.entity.getMoveHelper().setMoveTo(x, y, z, speed);
+            return;
+        }
+
+        if (!Double.isNaN(lastSafeMoveX)) {
+            this.entity.getMoveHelper().setMoveTo(lastSafeMoveX, lastSafeMoveY, lastSafeMoveZ, Math.min(speed, 0.85));
+            return;
+        }
+
+        this.entity.getMoveHelper().setMoveTo(this.entity.posX, this.entity.posY, this.entity.posZ, 0.0);
+    }
 }
 
 

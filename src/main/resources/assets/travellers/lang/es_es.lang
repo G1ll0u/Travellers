@@ -1,1 +1,80 @@
 entity.travellers.traveller.name=Viajero
+entity.travellers.traveller_merchant.name=Mercader
+entity.travellers.traveller_worker.name=Secuaz
+entity.travellers.traveller_raider.name=Saqueador
+
+travellers.worker.title=Trato
+travellers.worker.send=Vender
+travellers.worker.not_enough_money=Necesitas %s para este viaje.
+travellers.worker.cost=Coste del viaje: %s
+travellers.worker.cost_unknown=Coste del viaje: (validar)
+travellers.worker.validate=Validar
+travellers.worker.donate=Donar
+
+travellers.worker.hub.title=Opciones del viajero
+travellers.worker.hub.transport=Transporte
+travellers.worker.hub.follow=Órdenes
+travellers.worker.follow.title=Opciones del seguidor
+travellers.worker.orders.hire=Contratar (%s)
+travellers.worker.orders.unhire=Despedir
+travellers.worker.orders.hired_other=Ya contratado
+travellers.worker.follow.hired_success=El viajero ahora te sigue.
+travellers.worker.follow.unhired_success=El viajero ya no te seguirá.
+travellers.worker.follow.not_enough_money=No tienes suficiente dinero.
+travellers.worker.follow.hired_by_other=Este viajero ya está contratado.
+travellers.worker.hub.inventory=Inventario
+travellers.worker.orders.make_leader=Liderar
+travellers.worker.orders.follow_on=Seguir: ON
+travellers.worker.orders.follow_off=Seguir: OFF
+travellers.worker.inventory.title=Inventario personal
+travellers.worker.orders.recruit=Reclutar
+travellers.worker.orders.follow_player=Seguirme
+travellers.worker.orders.following_player=Seguirme
+travellers.worker.orders.title=Órdenes
+travellers.worker.hub.behavior=Conducta
+travellers.worker.hub.map=Mapa
+
+travellers.gui.back=Atrás
+travellers.gui.add=Añadir
+travellers.gui.remove=Quitar
+travellers.gui.done=Listo
+travellers.gui.save=Guardar
+travellers.gui.cancel=Cancelar
+travellers.gui.clear=Limpiar
+travellers.gui.go=Ir
+travellers.gui.unnamed=(sin nombre)
+
+travellers.map.center=Centrar
+travellers.map.chunks.legend.loaded_normal=Chunks cargados
+travellers.map.chunks.legend.loaded_merchants=Chunks de mercaderes
+travellers.map.chunks.legend.villages=Ayuntamientos
+travellers.map.chunks.legend.center_chunk=Cuadro blanco = chunk centro
+travellers.map.chunks.legend.player_pos=Punto verde = tú
+
+travellers.worker.behavior.title=Conducta
+travellers.worker.behavior.player_enemies=Jugadores enemigos
+travellers.worker.behavior.village_relations=Relaciones villas
+
+travellers.worker.enemies.title=Añadir/quitar enemigos
+travellers.worker.enemies.hint=(Pulsa un nombre a la derecha)
+travellers.worker.enemies.count=Enemigos: %s
+
+travellers.worker.village_relations.title=Relaciones villas
+travellers.worker.village_relations.hint=Elige una villa y cambia enemigo.
+travellers.worker.village_relations.toggle_enemy=Cambiar enemigo
+
+travellers.home_name_prompt.title=Nombre de tu casa
+travellers.home_name_prompt.subtitle=Puedes asignarla a secuaces contratados.
+
+travellers.worker.home_list.title=Casas
+travellers.worker.home_list.set_home=Asignar casa
+
+travellers.worker.orders.go=Ir...
+travellers.worker.orders.home=Casa
+travellers.worker.orders.go_home=Ir a casa
+travellers.worker.orders.go_home_no_home=Sin casa
+travellers.worker.orders.leader_count=Líder (%s)
+
+travellers.worker.recruit.start=Reclutar
+travellers.worker.recruit.fee=Coste: %s
+travellers.worker.recruit.too_close=Muy cerca. Mín.: %sm

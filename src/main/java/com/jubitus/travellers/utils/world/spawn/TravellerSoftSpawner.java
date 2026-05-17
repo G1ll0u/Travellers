@@ -8,6 +8,7 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -453,7 +454,16 @@ public final class TravellerSoftSpawner {
                     }
                 }
             }
-            if (isStandable(ws, p)) return p;
+            if (isStandable(ws, p)) {
+                if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT) {
+                    BlockPos roadPos = com.jubitus.travellers.utils.world.MPBIntegration
+                            .findRoadSpawnPos(ws, p.getX(), p.getZ(), 24);
+                    if (roadPos != null && isStandable(ws, roadPos)) {
+                        return roadPos;
+                    }
+                }
+                return p;
+            }
         }
         return null;
     }
@@ -600,7 +610,7 @@ public final class TravellerSoftSpawner {
             if (th == null) continue;
 
             // --- NEW: do NOT load chunks during maintenance ---
-            if (!areVillageChunksLoaded(ws, v, 2)) {
+            if (!isVillageActiveForWorkerSpawn(ws, v)) {
                 continue;
             }
 
@@ -646,7 +656,7 @@ public final class TravellerSoftSpawner {
 
 // Load a slightly larger area because we might spawn OUTSIDE the village center chunk
 // NEW:
-        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+        if (!isVillageActiveForWorkerSpawn(ws, villageCenter)) {
             return; // will be handled later when a player loads the area
         }
 
@@ -707,28 +717,39 @@ public final class TravellerSoftSpawner {
 
         TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
 
-        // If you want a global cap, use LOADED count not “assigned” count.
-        // Otherwise registry can permanently block new workers.
-        int globalCap = TravellersModConfig.workerLoadedCap > 0
+        final int globalCap = TravellersModConfig.workerLoadedCap > 0
                 ? TravellersModConfig.workerLoadedCap
                 : TravellersModConfig.workerGlobalAssignedCap;
 
-        // Count loaded workers right now
         List<EntityTravellerWorker> loadedWorkers =
                 ws.getEntities(EntityTravellerWorker.class, net.minecraft.entity.Entity::isEntityAlive);
 
-        if (globalCap > 0 && loadedWorkers.size() >= globalCap) return;
+        VirtualWorkerManager vwm = VirtualWorkerManager.get(ws);
+        int virtualCount = vwm.getTotalCount();
+
+        if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;
+
+        // 1) Précompte des workers loaded par village
+        Map<BlockPos, Integer> loadedByVillage = new java.util.HashMap<>();
+        for (EntityTravellerWorker w : loadedWorkers) {
+            BlockPos home = w.getHomeVillage();
+            if (home == null) continue;
+            loadedByVillage.merge(villageKey(home), 1, Integer::sum);
+        }
+
+        // 2) Prépare les ancres existantes (villages ayant déjà au moins un worker loaded)
+        java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>(loadedByVillage.keySet());
 
         final int total = centers.size();
         final int n = Math.min(TravellersModConfig.WORKER_VILLAGES_PER_PASS, total);
 
         for (int it = 0; it < n; it++) {
-            if (globalCap > 0 && loadedWorkers.size() >= globalCap) return;
+            if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;
 
             BlockPos approx = centers.get((workerVillageCursor++ % total + total) % total).toImmutable();
 
-            // only act when the village area is already loaded
-            if (!areVillageChunksLoaded(ws, approx, 2)) continue;
+            // IMPORTANT : village "actif" = loaded de façon souple, pas besoin d'un joueur proche
+            if (!isVillageActiveForWorkerSpawn(ws, approx)) continue;
 
             Building th = resolveTownHall(wd, ws, approx);
             if (th == null) continue;
@@ -737,28 +758,20 @@ public final class TravellerSoftSpawner {
             BlockPos thPos = new BlockPos(thp.getiX(), thp.getiY(), thp.getiZ());
             BlockPos key = villageKey(thPos);
 
-            // OPTIONAL: distance gating (works fine with XZ-only keys)
             int minDist = Math.max(0, TravellersModConfig.workerVillageMinDistance);
-            if (minDist > 0 && withinXZOfAny(key, reg.getWorkerVillages(), minDist)) {
+            if (minDist > 0 && withinXZOfAny(key, workerAnchors, minDist)) {
                 continue;
             }
 
             int villagers = MillVillageIndex.countVillagersInVillage(ws, thPos);
-            int desired = Math.max(1, MillVillageIndex.desiredWorkersForPopulation(villagers));
+            int desired = MillVillageIndex.desiredWorkersForPopulation(villagers);
             if (desired <= 0) continue;
 
-            // Count LOADED workers for this village
-            int haveLoaded = 0;
-            for (EntityTravellerWorker w : loadedWorkers) {
-                BlockPos home = w.getHomeVillage();
-                if (home == null) continue;
-                if (villageKey(home).equals(key)) haveLoaded++;
-            }
-
-            if (haveLoaded >= desired) {
-                // If registry missing, you can optionally repair it:
+            int haveLoaded = loadedByVillage.getOrDefault(key, 0);
+            int haveVirtual = vwm.getCountForVillage(key);
+            int haveTotal = haveLoaded + haveVirtual;
+            if (haveTotal >= desired) {
                 if (reg.getWorkerFor(key) == null) {
-                    // pick any loaded worker and register it
                     for (EntityTravellerWorker w : loadedWorkers) {
                         BlockPos home = w.getHomeVillage();
                         if (home != null && villageKey(home).equals(key)) {
@@ -767,18 +780,22 @@ public final class TravellerSoftSpawner {
                         }
                     }
                 }
+                if (haveLoaded > 0 || haveVirtual > 0) {
+                    workerAnchors.add(key);
+                }
                 continue;
             }
 
-            // Spawn missing workers (usually 1)
-            int missing = desired - haveLoaded;
+            int missing = desired - haveTotal;
             for (int i = 0; i < missing; i++) {
-                if (globalCap > 0 && loadedWorkers.size() >= globalCap) return;
+                if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;
 
-                EntityTravellerWorker w = spawnWorkerAtVillageReturn(ws, thPos); // make a returning variant
-                if (w != null) {
-                    loadedWorkers.add(w);
-                    reg.setWorkerFor(thPos, w.getUniqueID());
+                EntityTravellerWorker spawned = spawnWorkerAtVillageReturn(ws, thPos);
+                if (spawned != null) {
+                    loadedWorkers.add(spawned);
+                    loadedByVillage.merge(key, 1, Integer::sum);
+                    reg.setWorkerFor(thPos, spawned.getUniqueID());
+                    workerAnchors.add(key);
                 }
             }
         }
@@ -786,7 +803,7 @@ public final class TravellerSoftSpawner {
 
     @Nullable
     private static EntityTravellerWorker spawnWorkerAtVillageReturn(WorldServer ws, BlockPos villageCenter) {
-        if (!areVillageChunksLoaded(ws, villageCenter, 2)) return null;
+        if (!isVillageActiveForWorkerSpawn(ws, villageCenter)) return null;
 
         BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 10, 28, 80, 2);
         if (spawnPos == null) spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 6, 40, 120, 1);
@@ -818,80 +835,33 @@ public final class TravellerSoftSpawner {
         return w;
     }
 
-    /**
-     * Spawns a traveller_worker at (or near) the given village center,
-     * links it to that village, and gives it an initial travel route.
-     */
-    public static void spawnWorkerAtVillage(WorldServer ws, BlockPos villageCenter) {
+    private static boolean isVillageActiveForWorkerSpawn(WorldServer ws, BlockPos center) {
+        ChunkProviderServer cps = ws.getChunkProvider();
 
-        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
-            return; // will be handled later when a player loads the area
-        }
-
-        final int minR = 10;
-        final int maxR = 28;
-
-        BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, minR, maxR, 80, 2);
-        if (spawnPos == null) {
-            spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 6, 40, 120, 1);
-        }
-        if (spawnPos == null) {
-            spawnPos = ws.getTopSolidOrLiquidBlock(villageCenter);
-        }
-
-
-        EntityTravellerWorker w = new EntityTravellerWorker(ws);
-        w.setHomeVillage(villageCenter);
-        w.setLocationAndAngles(
-                spawnPos.getX() + 0.5,
-                spawnPos.getY(),
-                spawnPos.getZ() + 0.5,
-                ws.rand.nextFloat() * 360f,
-                0
-        );
-
-        if (!ws.checkNoEntityCollision(w.getEntityBoundingBox())) return;
-        if (!ws.getCollisionBoxes(w, w.getEntityBoundingBox()).isEmpty()) return;
-
-        // Pre-seed travel route BEFORE spawning, like merchant
-        TravelCommon tc = w.getTravelCommon();
-        tc.updateNearestVillage();
-        tc.ensureRoutePlanned();
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
-
-        IEntityLivingData spawnData =
-                createCultureSpawnDataForPos(ws, spawnPos, ws.rand);
-        w.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
-
-// Optional: last gate (Forge/vanilla spawn checks) to avoid weird spawns
-        Event.Result res = net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(w, ws,
-                (float) w.posX, (float) w.posY, (float) w.posZ);
-        if (res == Event.Result.DENY) return;
-
-// Spawn and only then register
-        boolean ok = ws.spawnEntity(w);
-        if (!ok) return;
-
-        TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
-        reg.setWorkerFor(villageCenter, w.getUniqueID());
-
-    }
-
-    private static boolean areVillageChunksLoaded(WorldServer ws, BlockPos center, int radiusChunks) {
         int cx = center.getX() >> 4;
         int cz = center.getZ() >> 4;
 
-        ChunkProviderServer cps = ws.getChunkProvider();
+        // Cas le plus simple et le moins cher :
+        // si le chunk du Town Hall est chargé, on considère le village actif.
+        if (cps.getLoadedChunk(cx, cz) != null) {
+            return true;
+        }
 
-        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
-            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                if (cps.getLoadedChunk(cx + dx, cz + dz) == null) {
-                    return false;
+        // Petit fallback souple : on accepte si au moins 2 chunks dans le voisinage immédiat
+        // sont chargés. Ça évite de rater certains villages partiellement loadés.
+        int loaded = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (cps.getLoadedChunk(cx + dx, cz + dz) != null) {
+                    loaded++;
+                    if (loaded >= 2) {
+                        return true;
+                    }
                 }
             }
         }
-        return true;
+
+        return false;
     }
 
     @Nullable
@@ -926,6 +896,14 @@ public final class TravellerSoftSpawner {
                 // must be natural terrain + not “built” neighborhood
                 if (!isNaturalStandable(ws, feet)) continue;
                 if (manMadeScanRadius > 0 && looksManMadeAround(ws, feet, manMadeScanRadius)) continue;
+
+                if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT) {
+                    BlockPos roadPos = com.jubitus.travellers.utils.world.MPBIntegration
+                            .findRoadSpawnPos(ws, feet.getX(), feet.getZ(), 24);
+                    if (roadPos != null && isNaturalStandable(ws, roadPos)) {
+                        return roadPos;
+                    }
+                }
 
                 return feet;
             }
@@ -1063,7 +1041,7 @@ public final class TravellerSoftSpawner {
         if (villageCenter == null) return;
 
 // NEW:
-        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+        if (!isVillageActiveForWorkerSpawn(ws, villageCenter)) {
             return; // will be handled later when a player loads the area
         }
 
@@ -1111,7 +1089,7 @@ public final class TravellerSoftSpawner {
         if (villageCenter == null) return;
 
         // 1) force-load chunks around the village
-        if (!areVillageChunksLoaded(ws, villageCenter, 2)) {
+        if (!isVillageActiveForWorkerSpawn(ws, villageCenter)) {
             return; // will be handled later when a player loads the area
         }
 

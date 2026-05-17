@@ -1,1 +1,80 @@
 entity.travellers.traveller.name=Viaggiatore
+entity.travellers.traveller_merchant.name=Mercante
+entity.travellers.traveller_worker.name=Sgherro
+entity.travellers.traveller_raider.name=Predone
+
+travellers.worker.title=Scambio
+travellers.worker.send=Vendi
+travellers.worker.not_enough_money=Ti servono %s per questo viaggio.
+travellers.worker.cost=Costo viaggio: %s
+travellers.worker.cost_unknown=Costo viaggio: (valida)
+travellers.worker.validate=Valida
+travellers.worker.donate=Dona
+
+travellers.worker.hub.title=Opzioni viaggiatore
+travellers.worker.hub.transport=Trasporto
+travellers.worker.hub.follow=Ordini
+travellers.worker.follow.title=Opzioni seguace
+travellers.worker.orders.hire=Assumi (%s)
+travellers.worker.orders.unhire=Congeda
+travellers.worker.orders.hired_other=Già assunto
+travellers.worker.follow.hired_success=Il viaggiatore ora ti segue.
+travellers.worker.follow.unhired_success=Il viaggiatore non ti seguirà più.
+travellers.worker.follow.not_enough_money=Non hai abbastanza denaro.
+travellers.worker.follow.hired_by_other=Questo viaggiatore è già assunto.
+travellers.worker.hub.inventory=Inventario
+travellers.worker.orders.make_leader=Guida
+travellers.worker.orders.follow_on=Segui: ON
+travellers.worker.orders.follow_off=Segui: OFF
+travellers.worker.inventory.title=Inventario personale
+travellers.worker.orders.recruit=Recluta
+travellers.worker.orders.follow_player=Seguimi
+travellers.worker.orders.following_player=Seguimi
+travellers.worker.orders.title=Ordini
+travellers.worker.hub.behavior=Condotta
+travellers.worker.hub.map=Mappa
+
+travellers.gui.back=Indietro
+travellers.gui.add=Aggiungi
+travellers.gui.remove=Rimuovi
+travellers.gui.done=Fatto
+travellers.gui.save=Salva
+travellers.gui.cancel=Annulla
+travellers.gui.clear=Pulisci
+travellers.gui.go=Vai
+travellers.gui.unnamed=(senza nome)
+
+travellers.map.center=Centra
+travellers.map.chunks.legend.loaded_normal=Chunk caricati
+travellers.map.chunks.legend.loaded_merchants=Chunk dei mercanti
+travellers.map.chunks.legend.villages=Municipi
+travellers.map.chunks.legend.center_chunk=Bianco = chunk centrale
+travellers.map.chunks.legend.player_pos=Punto verde = tu
+
+travellers.worker.behavior.title=Condotta
+travellers.worker.behavior.player_enemies=Giocatori nemici
+travellers.worker.behavior.village_relations=Rapporti villaggi
+
+travellers.worker.enemies.title=Aggiungi/togli nemici
+travellers.worker.enemies.hint=(Clicca un nome a destra)
+travellers.worker.enemies.count=Nemici: %s
+
+travellers.worker.village_relations.title=Rapporti villaggi
+travellers.worker.village_relations.hint=Scegli un villaggio e cambia nemico.
+travellers.worker.village_relations.toggle_enemy=Cambia nemico
+
+travellers.home_name_prompt.title=Nome della tua casa
+travellers.home_name_prompt.subtitle=Puoi assegnarla agli sgherri assunti.
+
+travellers.worker.home_list.title=Case
+travellers.worker.home_list.set_home=Imposta casa
+
+travellers.worker.orders.go=Vai...
+travellers.worker.orders.home=Casa
+travellers.worker.orders.go_home=Vai a casa
+travellers.worker.orders.go_home_no_home=Nessuna casa
+travellers.worker.orders.leader_count=Capo (%s)
+
+travellers.worker.recruit.start=Recluta
+travellers.worker.recruit.fee=Costo: %s
+travellers.worker.recruit.too_close=Troppo vicino. Min.: %sm

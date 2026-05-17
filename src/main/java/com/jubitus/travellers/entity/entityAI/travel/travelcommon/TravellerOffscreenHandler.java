@@ -2,6 +2,7 @@ package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
@@ -67,30 +68,11 @@ public class TravellerOffscreenHandler {
         DamageSource src = event.getSource();
         Entity trueSrc = src.getTrueSource();
         boolean isPlayerAttack = trueSrc instanceof EntityPlayer;
-
-        // 1) Full off-screen immunity for non-player damage
-        if (TravellersModConfig.travellerNoAggroOffscreen
-                && !traveller.isInPlayerViewDistance()
-                && !isPlayerAttack) {
-
-            event.setCanceled(true);
-            return;
-        }
-
+        boolean isTravellerAttack = trueSrc instanceof EntityTraveller;
         float amount = event.getAmount();
 
-        // 2) Off-screen reduction (non-player only)
-        if (!isPlayerAttack
-                && !traveller.isInPlayerViewDistance()) {
-
-            float offscreenScale = TravellersModConfig.travellerOffscreenDamageScale;
-            if (offscreenScale < 1F) {
-                amount *= offscreenScale;
-            }
-        }
-
         // 3) Global travellerDamageScale (non-player only)
-        if (!isPlayerAttack) {
+        if (!isPlayerAttack && !isTravellerAttack) {
             float globalScale = TravellersModConfig.travellerDamageScale;
             if (globalScale != 1.0F) {
                 amount *= globalScale;

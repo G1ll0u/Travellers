@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.render;
 
+import com.jubitus.travellers.client.render.marker.LayerTravellerArmband;
 import com.jubitus.travellers.client.render.models.ModelSimpleHumanoid;
 import com.jubitus.travellers.client.render.textures.LayerTravellerBackpack;
 import com.jubitus.travellers.client.render.textures.LayerTravellerClothes;
@@ -18,10 +19,6 @@ import net.minecraft.util.ResourceLocation;
 
 public class RenderTraveller extends RenderBiped<EntityTraveller> {
 
-    // Track which travellers we've already logged, so we don't spam
-    private static final java.util.Set<java.util.UUID> LOGGED_TEXTURES =
-            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
-
     public RenderTraveller(RenderManager renderManagerIn) {
         super(renderManagerIn, new ModelSimpleHumanoid(), 0.5F);
 
@@ -30,20 +27,16 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
         this.addLayer(new LayerBipedArmor(this) {
             @Override
             protected void initArmor() {
-                this.modelLeggings = new ModelSimpleHumanoid(0.35F, 64, 32);
-                this.modelArmor = new ModelSimpleHumanoid(0.80F, 64, 32);
+                this.modelLeggings = new ModelSimpleHumanoid(0.15F, 64, 32);
+                this.modelArmor = new ModelSimpleHumanoid(0.55F, 64, 32);
             }
         });
 
-
         this.addLayer(new LayerCustomHead(((ModelBiped) this.getMainModel()).bipedHead));
-
-        // NEW: clothes/hair overlay coming from Millénaire
         this.addLayer(new LayerTravellerClothes(this));
-
         this.addLayer(new LayerTravellerBackpack(this));
+        this.addLayer(new LayerTravellerArmband(this)); // toujours en dernier
     }
-
 
     @Override
     protected ResourceLocation getEntityTexture(EntityTraveller e) {

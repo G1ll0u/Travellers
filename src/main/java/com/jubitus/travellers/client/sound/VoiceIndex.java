@@ -8,11 +8,15 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-
 public final class VoiceIndex {
     public String defaultLang = "en";
     public String defaultPersonality = "default";
+
+    // lang -> [personality ids]
     public Map<String, List<String>> langs = new HashMap<>();
+
+    // lang -> personality -> kind -> [eventKey1, eventKey2, ...]
+    public Map<String, Map<String, Map<String, List<String>>>> clips = new HashMap<>();
 
     public static VoiceIndex loadOrDefault() {
         try {
@@ -21,12 +25,15 @@ public final class VoiceIndex {
             if (in == null) return new VoiceIndex();
 
             InputStreamReader r = new InputStreamReader(in, StandardCharsets.UTF_8);
-            Type t = new TypeToken<VoiceIndex>(){}.getType();
+            Type t = new TypeToken<VoiceIndex>() {}.getType();
             VoiceIndex idx = new Gson().fromJson(r, t);
             if (idx == null) return new VoiceIndex();
+
             if (idx.langs == null) idx.langs = new HashMap<>();
+            if (idx.clips == null) idx.clips = new HashMap<>();
             if (idx.defaultLang == null) idx.defaultLang = "en";
             if (idx.defaultPersonality == null) idx.defaultPersonality = "default";
+
             return idx;
         } catch (Throwable ignored) {
             return new VoiceIndex();

@@ -1,11 +1,12 @@
 package com.jubitus.travellers.entity.entityAI.travel;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.entity.entityAI.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
@@ -30,6 +31,7 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.ChunkProviderServer;
 import org.millenaire.common.block.IBlockPath;
+import org.millenaire.common.utilities.MillLog;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -220,25 +222,6 @@ public class EntityAITravel extends EntityAIBase {
 
     // ---- helpers ----
 
-    @Nullable
-    public static BlockPos findNearestGate(World world, BlockPos villageCenter, BlockPos from) {
-        List<BlockPos> gates = MillVillageIndex.getVillageGates(world, villageCenter, 80, 40);
-        if (gates == null || gates.isEmpty()) return null;
-
-        BlockPos best = null;
-        double bestD2 = Double.MAX_VALUE;
-
-        for (BlockPos g : gates) {
-            double d2 = g.distanceSq(from);
-            // Gates in Millénaire can be ~2 blocks thick; we want the middle of the opening
-            if (d2 < bestD2) {
-                best = g;
-                bestD2 = d2;
-            }
-        }
-        return best;
-    }
-
     private static boolean isChunkSafeLoaded(World world, int cx, int cz) {
         if (!(world instanceof WorldServer)) return false;
         ChunkProviderServer cps = ((WorldServer) world).getChunkProvider();
@@ -356,10 +339,14 @@ public class EntityAITravel extends EntityAIBase {
         return catchup || !arriveInside;
     }
 
+
+
     @Override
     public void startExecuting() {
         wasInWater = mob.isInWater();
         boatRetryCooldown = 0;
+
+
 
         if (mob instanceof EntityTravellerWorker) {
             ((EntityTravellerWorker) mob).setUsingTravelAI(true);
@@ -416,24 +403,38 @@ public class EntityAITravel extends EntityAIBase {
     public void updateTask() {
 
 // -----------------------------------------
-// OFFSCREEN: do not pathfind (Forge 1.12.2 pathfinder can load chunks)
+// OFFSCREEN (NOT TRACKED): NEVER PATHFIND, NEVER LOAD CHUNKS.
+// Only chunkloader + offscreenHop should move them.
+// For hired catchup workers, only pause if truly untracked AND outside
+// the server view distance. The approximate view-distance check has a
+// margin that creates a dead zone where neither offscreen hops nor
+// pathfinding work.
 // -----------------------------------------
-        if (!mob.world.isRemote && !mob.isInPlayerViewDistance()) {
-
-            // ✅ If we go offscreen while boating, kill the boat so offscreen hopping can work.
-            if (isInBoat()) {
-                dismountAndDeleteBoat();   // kills EntityTravellerBoat via requestKill()
-                triedBoatThisLeg = false;  // allow re-boat later when back onscreen + water
-                boatRetryCooldown = 0;
-                wasInWater = false;
-                // optional: you can also null waypoint to force reseed on return
-                // currentWaypoint = null; mob.setCurrentWaypoint(null);
+        if (!mob.world.isRemote) {
+            boolean offscreen;
+            if (mob instanceof EntityTravellerWorker) {
+                EntityTravellerWorker w = (EntityTravellerWorker) mob;
+                if (w.isHiredFollower() && w.isCatchupTravel()) {
+                    offscreen = w.getTrackingPlayerCount() <= 0
+                            && !w.isInPlayerViewDistance();
+                } else {
+                    offscreen = !mob.isTrackedByAnyPlayer();
+                }
+            } else {
+                offscreen = !mob.isTrackedByAnyPlayer();
             }
-
-            clearNav();
-            wasInWater = false;
-            // TravellerChunkManager offscreenHopTowardTarget will move them without pathfinding.
-            return;
+            if (offscreen) {
+                if (isInBoat()) {
+                    dismountAndDeleteBoat();
+                    triedBoatThisLeg = false;
+                    boatRetryCooldown = 0;
+                    wasInWater = false;
+                }
+                clearNav();
+                wasInWater = false;
+                lastSchedulerDenyTick = mob.ticksExisted;
+                return;
+            }
         }
 
         // -----------------------------------------
@@ -917,6 +918,28 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private void pushPathToWaypoint(boolean force) {
+        // Never pathfind when nobody is tracking us.
+        // For hired catchup workers, use the actual tracking count — the approximate
+        // view-distance check has a margin that falsely blocks pathfinding in the
+        // "dead zone" where chunks aren't actually loaded.
+        if (!mob.world.isRemote) {
+            boolean skipPathfinding;
+            if (mob instanceof EntityTravellerWorker) {
+                EntityTravellerWorker w = (EntityTravellerWorker) mob;
+                if (w.isHiredFollower() && w.isCatchupTravel()) {
+                    skipPathfinding = w.getTrackingPlayerCount() <= 0
+                            && !w.isInPlayerViewDistance();
+                } else {
+                    skipPathfinding = !mob.isTrackedByAnyPlayer();
+                }
+            } else {
+                skipPathfinding = !mob.isTrackedByAnyPlayer();
+            }
+            if (skipPathfinding) {
+                lastSchedulerDenyTick = mob.ticksExisted;
+                return;
+            }
+        }
         if (this.currentWaypoint == null) return;
         // --- NEW: throttle travel path computations (avoid stop-go by NOT clearing path if denied) ---
         if (!canComputeTravelPath(force)) return;
@@ -941,7 +964,7 @@ public class EntityAITravel extends EntityAIBase {
             return;
         }
 
-// we got a slot; clear any "denied" marker
+// we got a slot; clear any "denied" mark
         lastSchedulerDenyTick = -999999;
 
 
@@ -1048,14 +1071,18 @@ public class EntityAITravel extends EntityAIBase {
     private BlockPos computeNextWaypointToward(BlockPos dest, int baseStepIgnored) {
         if (dest == null) return null;
 
+        if (shouldUseHeightAwareCatchup(dest)) {
+            BlockPos wp = computeHeightAwareWaypointToward(dest);
+            if (wp != null) {
+                return wp;
+            }
+        }
+
         BlockPos from = mob.getPosition();
         Vec3d destVec = new Vec3d(dest.getX() - from.getX(), 0, dest.getZ() - from.getZ());
         if (destVec.lengthSquared() < 1.0) return null;
 
-        Vec3d dir = gateBiasedDirection(from, dest, destVec);
-        if (dir.lengthSquared() < 1e-6) {
-            dir = destVec.normalize();
-        }
+        Vec3d dir = destVec.normalize();
 
         int baseStep = dynamicStep(from, dest);
         int step = Math.min(
@@ -1132,6 +1159,23 @@ public class EntityAITravel extends EntityAIBase {
             // give up for now
             return null;
         }
+
+        // --- MPB road-following ---
+        if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT && mob.world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) mob.world;
+            int roadStep = Math.max(16, Math.min(step, (int) Math.sqrt(mob.getDistanceSqToCenter(dest)) - 4));
+            int searchR = (mob.getDistanceSqToCenter(dest) > 64 * 64) ? 22 : 14;
+            // API returns the road block pos (solid); feet = one block above
+            BlockPos roadBlock = com.jubitus.travellers.utils.world.MPBIntegration.findNextRoadWaypoint(
+                    ws, from.getX(), from.getZ(), dest.getX(), dest.getZ(), roadStep, searchR);
+            if (roadBlock != null) {
+                BlockPos roadFeet = roadBlock.up();
+                if (isAreaLoaded(roadFeet, 1) && isNavigable(roadFeet)) {
+                    return roadFeet;
+                }
+            }
+        }
+
         BlockPos bestPath = null;
         // --- 1) straight candidates, no lane offset ---
         for (int s = step; s >= 16; s -= 16) {
@@ -1634,114 +1678,6 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     /**
-     * Compute a direction toward 'dest' that is softly biased toward the nearest gate.
-     * <p>
-     * - If we are inside / near a village that is NOT 'dest' (leaving a walled village),
-     * we strongly bias toward that village's gate (pure gate heading).
-     * <p>
-     * - Otherwise, when approaching the destination village, we only bias toward its gate
-     * if the gate lies roughly between travellers and village center (to avoid weird
-     * in-village orbiting).
-     */
-    private Vec3d gateBiasedDirection(BlockPos from, BlockPos dest, Vec3d destVec) {
-
-        World w = mob.world;
-
-        if (destVec.lengthSquared() < 1.0) {
-            return destVec; // too close, don't bother
-        }
-        if (mob instanceof EntityTravellerWorker && ((EntityTravellerWorker) mob).isCatchupTravel()) {
-            return destVec.normalize(); // no gates when chasing player
-        }
-
-        double distToDest = Math.sqrt(destVec.lengthSquared());
-        Vec3d dirDest = destVec.normalize();
-
-        BlockPos gateBias = null;
-        double gateWeight = 0.0;     // 0 = pure dest, 1 = pure gate
-        boolean gateIsLeaving = false;
-
-        // --- 1) Gate of the village we are currently inside / near (for LEAVING) ---
-        MillVillageIndex.VillageInfo hereVi =
-                MillVillageIndex.findNearest2D(w, from, 80); // ~80-block search radius
-
-        if (hereVi != null
-                && !hereVi.center.equals(dest)                     // only if this isn't the dest village
-                && MillVillageIndex.isNearVillage(w, from, 50)) {  // "inside-ish" radius
-
-            BlockPos g = findNearestGate(w, hereVi.center, from);
-            if (g != null) {
-
-                // NEW: only bias toward this gate if it lies between us and the destination
-                // (prevents going back to a gate that is now *behind* us)
-                final double LEAVE_GATE_LATERAL_TOL = 8.0; // tweak if needed
-                if (isGateBetween(from, dest, g, LEAVE_GATE_LATERAL_TOL)) {
-                    gateBias = g;
-                    gateIsLeaving = true;
-                    double distToHere = Math.sqrt(from.distanceSq(hereVi.center));
-                    double leaveRadius = 50.0; // same as isNearVillage radius
-                    double tLeave = Math.max(0.0, Math.min(1.0, distToHere / leaveRadius));
-                    gateWeight = 0.5 + 0.5 * (1.0 - tLeave); // ~1.0 near center, ~0.5 near edge
-                }
-            }
-        }
-
-        // --- 2) Otherwise, gate of the destination village (for APPROACHING) ---
-        if (gateBias == null) {
-            final double GATE_BIAS_RADIUS = 120.0; // start caring about gates when within this range
-
-            if (distToDest < GATE_BIAS_RADIUS) {
-                BlockPos g = findNearestGate(w, dest, from);
-                if (g != null) {
-                    // only bias toward this gate if it is between us and the village center
-                    final double GATE_LATERAL_TOL = 8.0; // allowed sideways offset
-                    if (isGateBetween(from, dest, g, GATE_LATERAL_TOL)) {
-                        gateBias = g;
-
-                        // Weight ramps up as we get closer to the village
-                        double t = Math.max(0.0, Math.min(1.0,
-                                (GATE_BIAS_RADIUS - distToDest) / GATE_BIAS_RADIUS));
-                        gateWeight = 0.25 + 0.55 * t; // ≈ [0.25 .. 0.80]
-                    }
-                }
-            }
-        }
-
-        if (gateBias == null) {
-            // no valid gate to bias toward
-            return dirDest;
-        }
-
-        // --- Compute gate direction ---
-        Vec3d toGate = new Vec3d(
-                gateBias.getX() - from.getX(),
-                0,
-                gateBias.getZ() - from.getZ()
-        );
-        if (toGate.lengthSquared() < 1e-6) {
-            return dirDest; // gate is essentially at our feet
-        }
-        Vec3d dirGate = toGate.normalize();
-
-        // --- Leaving a village: just go to the gate directly ---
-        if (gateIsLeaving) {
-            return dirGate;
-        }
-
-        // --- Approaching dest: mix gate + dest directions ---
-        double wGate = gateWeight;
-        double wDest = 1.0 - wGate;
-
-        Vec3d mixed = dirGate.scale(wGate).add(dirDest.scale(wDest));
-        if (mixed.lengthSquared() < 1e-6) {
-            return dirDest;
-        }
-
-        return mixed.normalize();
-
-    }
-
-    /**
      * True if this block is likely part of a natural tree (log or leaf).
      * We still allow standing on wood floors for buildings – this is just a heuristic,
      * used only when we ask for "ground-ish" surface for waypoints.
@@ -1824,13 +1760,25 @@ public class EntityAITravel extends EntityAIBase {
     private int dynamicStep(BlockPos from, BlockPos dest) {
         double dist = Math.sqrt(from.distanceSq(dest));
 
-        // How close is "arrival-ish"?
+        // How close is “arrival-ish”?
         // We already have targetNearSq from retarget(), so use that to define a “near” radius.
         double nearRadius = Math.max(24.0, Math.sqrt(this.targetNearSq) * 2.0); // start shrinking inside ~2× arrival radius
-        double farRadius = 160.0;  // fully "far" beyond this (tweak as needed)
+        double farRadius = 160.0;  // fully “far” beyond this (tweak as needed)
 
         int minStep = 12;              // smallest waypoint step near village
         int maxStep = this.stepBlocks; // e.g. 64
+
+        // When a hired follower in catchup is within view distance, the MC 1.12
+        // pathfinder must handle the navigation (no more offscreen hops).
+        // Cap step to what the A* search can realistically solve.
+        boolean inViewCatchup = false;
+        if (mob instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) mob;
+            if (w.isCatchupTravel() && w.isInPlayerViewDistance()) {
+                inViewCatchup = true;
+                maxStep = Math.min(maxStep, 24);
+            }
+        }
 
         // Compute interpolation factor t in [0,1]
         double t;
@@ -2219,32 +2167,6 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         return null;
-    }
-
-    /**
-     * True if 'gate' lies roughly between 'from' and 'dest' along the A->B line,
-     * within some lateral tolerance.
-     */
-    private boolean isGateBetween(BlockPos from, BlockPos dest, BlockPos gate, double maxLateral) {
-        Vec3d A = new Vec3d(from.getX() + 0.5, 0, from.getZ() + 0.5);
-        Vec3d B = new Vec3d(dest.getX() + 0.5, 0, dest.getZ() + 0.5);
-        Vec3d G = new Vec3d(gate.getX() + 0.5, 0, gate.getZ() + 0.5);
-
-        Vec3d AB = B.subtract(A);
-        double ab2 = AB.lengthSquared();
-        if (ab2 < 1e-6) return false;
-
-        // Projection of AG onto AB, as fraction along AB
-        double t = G.subtract(A).dotProduct(AB) / ab2;
-
-        // Gate must be between A and B (0 <= t <= 1)
-        if (t < 0.0 || t > 1.0) return false;
-
-        // Lateral distance from gate to the A->B line
-        Vec3d H = A.add(AB.scale(t)); // closest point on AB to G
-        double lateral = G.subtract(H).length();
-
-        return lateral <= maxLateral;
     }
 
     @Nullable
@@ -2844,5 +2766,136 @@ public class EntityAITravel extends EntityAIBase {
         // If we’re going to clear, we must be able to reacquire.
         return TravelPathScheduler.tryAcquire(mob.world, mob.getEntityId(), priority);
     }
+    private boolean shouldUseHeightAwareCatchup(BlockPos dest) {
+        if (!(mob instanceof EntityTravellerWorker)) return false;
 
+        EntityTravellerWorker w = (EntityTravellerWorker) mob;
+        if (!w.isCatchupTravel()) return false;
+
+        FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
+        double vert = Math.abs(mob.getEntityBoundingBox().minY - dest.getY());
+        boolean covered = isCoveredGoal(dest, cfg.cave.minCoverBlocks);
+
+        if (covered) return true;
+        return vert >= cfg.catchup.heightAwareVerticalGap;
+    }
+
+    private boolean isCoveredGoal(BlockPos pos, int minCover) {
+        if (pos == null || !mob.world.isBlockLoaded(pos)) return false;
+        if (mob.world.canSeeSky(pos)) return false;
+
+        BlockPos top = mob.world.getTopSolidOrLiquidBlock(new BlockPos(pos.getX(), 0, pos.getZ()));
+        return top != null && (top.getY() - pos.getY()) >= minCover;
+    }
+
+    @Nullable
+    private BlockPos computeHeightAwareWaypointToward(BlockPos dest) {
+        BlockPos from = mob.getPosition();
+        FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
+
+        Vec3d dir = new Vec3d(
+                (dest.getX() + 0.5D) - (from.getX() + 0.5D),
+                0.0D,
+                (dest.getZ() + 0.5D) - (from.getZ() + 0.5D)
+        );
+
+        if (dir.lengthSquared() < 1.0D) {
+            return pickBestHeightAwareCandidate(dest.getX(), dest.getZ(), dest.getY(), dest, from, isCoveredGoal(dest, cfg.cave.minCoverBlocks));
+        }
+
+        dir = dir.normalize();
+
+        double dist = Math.sqrt(from.distanceSq(dest));
+        int step = MathHelper.clamp(dynamicStep(from, dest), 8, 20);
+        boolean preferCovered = isCoveredGoal(dest, cfg.cave.minCoverBlocks);
+
+        for (int s = step; s >= 6; s -= 2) {
+            double t = Math.min(1.0D, s / Math.max(1.0D, dist));
+            int xBase = from.getX() + MathHelper.floor(dir.x * s);
+            int zBase = from.getZ() + MathHelper.floor(dir.z * s);
+            int yCenter = (int) Math.round(lerp(from.getY(), dest.getY(), Math.min(0.95D, t + 0.10D)));
+
+            BlockPos candidate = pickBestHeightAwareCandidate(xBase, zBase, yCenter, dest, from, preferCovered);
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+
+        return pickBestHeightAwareCandidate(dest.getX(), dest.getZ(), dest.getY(), dest, from, preferCovered);
+    }
+
+    @Nullable
+    private BlockPos pickBestHeightAwareCandidate(int xBase,
+                                                  int zBase,
+                                                  int yCenter,
+                                                  BlockPos dest,
+                                                  BlockPos from,
+                                                  boolean preferCovered) {
+        BlockPos best = null;
+        double bestScore = Double.MAX_VALUE;
+
+        for (int ox = -1; ox <= 1; ox++) {
+            for (int oz = -1; oz <= 1; oz++) {
+                for (int dy = -6; dy <= 6; dy++) {
+                    BlockPos feet = new BlockPos(xBase + ox, yCenter + dy, zBase + oz);
+                    if (!isAreaLoaded(feet, 1)) continue;
+
+                    if (isSwimmable(feet)) {
+                        BlockPos snapped = snapToWaterSurface(feet);
+                        if (snapped == null) continue;
+                        feet = snapped;
+                    } else {
+                        if (!isStandable(feet)) continue;
+                        feet = adjustTreeTopToGround(feet);
+                        if (!isStandable(feet)) continue;
+
+                        IBlockState below = mob.world.getBlockState(feet.down());
+                        if (!isNaturalGroundSupport(feet.down()) && !supportsStandingSurface(mob.world, feet.down(), below)) {
+                            continue;
+                        }
+                    }
+
+                    if (!isNavigable(feet)) continue;
+
+                    double landY = candidateLandingY(feet);
+                    AxisAlignedBB aabb = mob.getEntityBoundingBox().offset(
+                            (feet.getX() + 0.5D) - mob.posX,
+                            landY - mob.posY,
+                            (feet.getZ() + 0.5D) - mob.posZ
+                    );
+
+                    if (!isAabbAreaLoaded(aabb)) continue;
+                    if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
+                    if (intersectsForbiddenLiquid(mob.world, aabb)) continue;
+
+                    double score = 0.0D;
+                    score += horizDistSq(feet, dest) * 0.06D;
+                    score += Math.abs(feet.getY() - dest.getY()) * 2.25D;
+                    score += Math.abs(feet.getY() - yCenter) * 0.65D;
+                    score -= horizDistSq(from, feet) * 0.008D;
+
+                    if (preferCovered && mob.world.canSeeSky(feet)) {
+                        score += 30.0D;
+                    }
+
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = feet;
+                    }
+                }
+            }
+        }
+
+        return best;
+    }
+
+    private double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
+    }
+
+    private void debug(String tag, String message) {
+        if (!TravellersModConfig.debugFollowTeleport) return;
+        if (mob == null || mob.world == null || mob.world.isRemote) return;
+        MillLog.major(mob, "[TravelDebug][" + tag + "][id=" + mob.getEntityId() + "] " + message);
+    }
 }

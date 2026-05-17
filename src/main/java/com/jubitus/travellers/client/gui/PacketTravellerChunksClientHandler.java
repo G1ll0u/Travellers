@@ -2,7 +2,7 @@ package com.jubitus.travellers.client.gui;
 
 import com.jubitus.travellers.client.gui.debug.GuiTravellerChunks;
 import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
-import com.jubitus.travellers.utils.net.message.chunks.PacketTravellerChunks;
+import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

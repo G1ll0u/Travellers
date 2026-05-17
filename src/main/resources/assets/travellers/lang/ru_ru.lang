@@ -1,1 +1,80 @@
-entity.travellers.traveller.name=Путешественник
+entity.travellers.traveller.name=Путник
+entity.travellers.traveller_merchant.name=Торговец
+entity.travellers.traveller_worker.name=Подручный
+entity.travellers.traveller_raider.name=Налётчик
+
+travellers.worker.title=Сделка
+travellers.worker.send=Продать
+travellers.worker.not_enough_money=Нужно %s для этой поездки.
+travellers.worker.cost=Цена пути: %s
+travellers.worker.cost_unknown=Цена пути: (проверить)
+travellers.worker.validate=Проверить
+travellers.worker.donate=Отдать
+
+travellers.worker.hub.title=Опции путника
+travellers.worker.hub.transport=Груз
+travellers.worker.hub.follow=Приказы
+travellers.worker.follow.title=Опции спутника
+travellers.worker.orders.hire=Нанять (%s)
+travellers.worker.orders.unhire=Уволить
+travellers.worker.orders.hired_other=Уже нанят
+travellers.worker.follow.hired_success=Путник теперь следует за вами.
+travellers.worker.follow.unhired_success=Путник больше не будет следовать.
+travellers.worker.follow.not_enough_money=У вас мало денег.
+travellers.worker.follow.hired_by_other=Этот путник уже нанят.
+travellers.worker.hub.inventory=Инвентарь
+travellers.worker.orders.make_leader=Вести
+travellers.worker.orders.follow_on=След.: ON
+travellers.worker.orders.follow_off=След.: OFF
+travellers.worker.inventory.title=Личный инвентарь
+travellers.worker.orders.recruit=Вербовка
+travellers.worker.orders.follow_player=За мной
+travellers.worker.orders.following_player=За мной
+travellers.worker.orders.title=Приказы
+travellers.worker.hub.behavior=Поведение
+travellers.worker.hub.map=Карта
+
+travellers.gui.back=Назад
+travellers.gui.add=Добав.
+travellers.gui.remove=Убрать
+travellers.gui.done=Готово
+travellers.gui.save=Сохран.
+travellers.gui.cancel=Отмена
+travellers.gui.clear=Очист.
+travellers.gui.go=Идти
+travellers.gui.unnamed=(без имени)
+
+travellers.map.center=Центр
+travellers.map.chunks.legend.loaded_normal=Обычные чанки
+travellers.map.chunks.legend.loaded_merchants=Чанки торговцев
+travellers.map.chunks.legend.villages=Ратуши
+travellers.map.chunks.legend.center_chunk=Белый = центр чанк
+travellers.map.chunks.legend.player_pos=Зелёный = вы
+
+travellers.worker.behavior.title=Поведение
+travellers.worker.behavior.player_enemies=Враги-игроки
+travellers.worker.behavior.village_relations=Отношения с сёлами
+
+travellers.worker.enemies.title=Добавить/убрать врагов
+travellers.worker.enemies.hint=(Нажмите имя справа)
+travellers.worker.enemies.count=Враги: %s
+
+travellers.worker.village_relations.title=Отношения с сёлами
+travellers.worker.village_relations.hint=Выберите село и смените врага.
+travellers.worker.village_relations.toggle_enemy=Сменить врага
+
+travellers.home_name_prompt.title=Имя вашего дома
+travellers.home_name_prompt.subtitle=Можно назначить нанятым подручным.
+
+travellers.worker.home_list.title=Дома
+travellers.worker.home_list.set_home=Назначить дом
+
+travellers.worker.orders.go=Идти...
+travellers.worker.orders.home=Дом
+travellers.worker.orders.go_home=Домой
+travellers.worker.orders.go_home_no_home=Нет дома
+travellers.worker.orders.leader_count=Лидер (%s)
+
+travellers.worker.recruit.start=Вербовка
+travellers.worker.recruit.fee=Цена: %s
+travellers.worker.recruit.too_close=Слишком близко. Мин.: %sm

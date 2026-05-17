@@ -1,5 +1,6 @@
 package com.jubitus.travellers.utils.world.pathing;
 
+import com.jubitus.travellers.utils.world.MPBIntegration;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLilyPad;
 import net.minecraft.block.material.Material;
@@ -13,6 +14,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
+import org.millenaire.common.block.IBlockPath;
 
 import javax.annotation.Nullable;
 
@@ -31,6 +33,10 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     private static final int MAX_DROP_WATER = 16;  // keep big for water shafts
     @Nullable
     private Block pathDirt;
+    @Nullable
+    private Block mpbPathBlock;
+    @Nullable
+    private Block mpbPathSlab;
     private boolean followerMode = false;
 
     @Override
@@ -38,6 +44,12 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         super.init(worldIn, entityIn);
         if (pathDirt == null) {
             pathDirt = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS.getValue(PATH_DIRT_ID);
+        }
+        if (mpbPathBlock == null && MPBIntegration.PRESENT) {
+            mpbPathBlock = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS
+                    .getValue(new net.minecraft.util.ResourceLocation("millpathbuilder", "path_block"));
+            mpbPathSlab = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS
+                    .getValue(new net.minecraft.util.ResourceLocation("millpathbuilder", "path_slab"));
         }
     }
 
@@ -49,8 +61,8 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 // Followers: keep pathfinding cheap.
 // Travel AI: allow fancy jumps/drops.
         if (!followerMode) {
-            count = addGapJumpNeighbors(options, count, current, target, maxDistance);
-            count = addDropDownNeighbors(options, count, current, target, maxDistance);
+//            count = addGapJumpNeighbors(options, count, current, target, maxDistance);
+//            count = addDropDownNeighbors(options, count, current, target, maxDistance);
         } else {
             // Optional: allow a *small* version for followers (cheap)
             count = addGapJumpNeighborsFollowerCheap(options, count, current, target, maxDistance);
@@ -72,27 +84,30 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             if (p == null) continue;
 
             BlockPos feet = new BlockPos(p.x, p.y, p.z);
+            if (isImmediateHazard(feet) || isImmediateHazard(feet.down())) {
+                options[i] = null;
+                continue;
+            }
             Block under = this.blockaccess.getBlockState(feet.down()).getBlock();
             if (under == Blocks.WATERLILY || under instanceof BlockLilyPad) {
                 options[i] = null;
             }
+
         }
-// NEW: avoid stepping into water unless we are already swimming
         if (this.entity != null && !this.entity.isInWater()) {
+            float waterMalus = followerMode ? 1.5F : 8.0F;
             for (int i = 0; i < count; i++) {
                 PathPoint p = options[i];
                 if (p == null) continue;
 
                 PathNodeType t = this.getPathNodeType(this.blockaccess, p.x, p.y, p.z);
-                if (t == PathNodeType.WATER && this.entity != null && !this.entity.isInWater()) {
+                if (t == PathNodeType.WATER) {
                     int man = Math.abs(p.x - current.x) + Math.abs(p.z - current.z);
                     boolean isTarget = (p.x == target.x && p.y == target.y && p.z == target.z);
-
                     if (man <= 1 && !isTarget) {
-                        p.costMalus += 8.0F; // "avoid water", but allow if needed
+                        p.costMalus += waterMalus;
                     }
                 }
-
             }
         }
 
@@ -171,16 +186,16 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         w = w2;
 
-        // 5) path-dirt preference, using compacted count
+        // 5) path preference, using compacted count
         for (int i = 0; i < w; i++) {
             PathPoint p = options[i];
             if (p == null) continue;
 
             BlockPos feet = new BlockPos(p.x, p.y, p.z);
             if (isPathPreferred(feet)) {
-                p.costMalus = Math.min(p.costMalus, p.costMalus - 0.75f);
+                p.costMalus -= isMPBPath(feet) ? 1.2f : 0.75f;
             } else if (isPathNearby(feet)) {
-                p.costMalus = Math.min(p.costMalus, p.costMalus - 0.35f);
+                p.costMalus -= 0.5f;
             }
         }
 
@@ -306,9 +321,9 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             if (!clear) break; // blocked shaft: stop scanning lower
 
             PathPoint p = this.openPoint(x, ly, z);
-            if (p == null || p.visited) return count;
+            if (p == null || p.visited) continue;
 
-            if (p.distanceTo(target) >= maxDistance) return count;
+            if (p.distanceTo(target) >= maxDistance) continue;
 
             // small preference to take the drop when it helps reach the target
             p.costMalus += landingWater ? -0.15f : 0.10f;
@@ -324,55 +339,14 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
     private int addGapJumpNeighborsFollowerCheap(PathPoint[] options, int count,
                                                  PathPoint current, PathPoint target, float maxDistance) {
-        // ONLY allow 2-block landings (small gap jump)
-        final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-
-        for (int[] d : DIRS) {
-            int dx = d[0], dz = d[1];
-            int dist = 2;
-
-            int lx = current.x + dx * dist;
-            int lz = current.z + dz * dist;
-            int ly = current.y; // no vertical search for followers
-
-            if (!canGapJump(current.x, current.y, current.z, lx, ly, lz, dx, dz, dist)) continue;
-
-            PathPoint p = this.openPoint(lx, ly, lz);
-            if (p == null || p.visited) continue;
-            if (p.distanceTo(target) >= maxDistance) continue;
-
-            if (count < options.length) options[count++] = p;
-        }
+        // Followers: disable long jump expansion entirely.
+        // Let local follow recovery / teleport deal with hard cases.
         return count;
     }
 
     private int addDropDownNeighborsFollowerCheap(PathPoint[] options, int count,
                                                   PathPoint current, PathPoint target, float maxDistance) {
-        // Followers: tiny drop scan only (prevents huge shaft exploration)
-        int x = current.x, y = current.y, z = current.z;
-
-        // only if immediate below is open-ish
-        if (!isAirLike(new BlockPos(x, y - 1, z))) return count;
-
-        int maxDrop = 6; // <= this is the KEY (keep small)
-        for (int dy = 2; dy <= maxDrop; dy++) {
-            int ly = y - dy;
-            BlockPos feet = new BlockPos(x, ly, z);
-
-            if (!isAirLike(feet) || !isAirLike(feet.up())) continue;
-
-            BlockPos below = feet.down();
-            if (this.blockaccess.getBlockState(below).getCollisionBoundingBox(this.blockaccess, below) == null)
-                continue;
-
-            PathPoint p = this.openPoint(x, ly, z);
-            if (p == null || p.visited) return count;
-            if (p.distanceTo(target) >= maxDistance) return count;
-
-            if (count < options.length) options[count++] = p;
-            return count;
-        }
-
+        // Followers: disable drop-search expansion entirely.
         return count;
     }
 
@@ -412,20 +386,30 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         return !isGapOrHazardBelow(feet.down());
     }
 
+    private boolean isAnyPathBlock(Block b) {
+        if (b instanceof IBlockPath) return true;
+        if (mpbPathBlock != null && b == mpbPathBlock) return true;
+        if (mpbPathSlab != null && b == mpbPathSlab) return true;
+        return false;
+    }
+
     private boolean isPathPreferred(BlockPos feet) {
-        if (pathDirt == null) return false;
-        IBlockState below = this.blockaccess.getBlockState(feet.down());
-        return below.getBlock() == pathDirt;
+        return isAnyPathBlock(this.blockaccess.getBlockState(feet.down()).getBlock());
+    }
+
+    private boolean isMPBPath(BlockPos feet) {
+        Block b = this.blockaccess.getBlockState(feet.down()).getBlock();
+        return (mpbPathBlock != null && b == mpbPathBlock) || (mpbPathSlab != null && b == mpbPathSlab);
     }
 
     // check a 1-block ring for path (helps the path “lock on” to gates/roads)
     private boolean isPathNearby(BlockPos feet) {
-        if (pathDirt == null) return false;
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 if (dx == 0 && dz == 0) continue;
-                IBlockState s = this.blockaccess.getBlockState(new BlockPos(feet.getX() + dx, feet.getY() - 1, feet.getZ() + dz));
-                if (s.getBlock() == pathDirt) return true;
+                Block b = this.blockaccess.getBlockState(
+                        new BlockPos(feet.getX() + dx, feet.getY() - 1, feet.getZ() + dz)).getBlock();
+                if (isAnyPathBlock(b)) return true;
             }
         }
         return false;
@@ -707,5 +691,15 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     public void setFollowerMode(boolean followerMode) {
         this.followerMode = followerMode;
     }
+    private boolean isImmediateHazard(BlockPos pos) {
+        IBlockState s = this.blockaccess.getBlockState(pos);
+        Block b = s.getBlock();
+        Material m = s.getMaterial();
 
+        if (m == Material.LAVA) return true;
+        if (b == Blocks.FIRE) return true;
+        if (b == Blocks.MAGMA) return true; // si ta version le possède
+
+        return false;
+    }
 }

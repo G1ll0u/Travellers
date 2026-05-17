@@ -1,8 +1,12 @@
 package com.jubitus.travellers.utils.world.mill;
 
+import com.jubitus.travellers.TravellersModConfig;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
+import org.millenaire.common.utilities.MillLog;
 import org.millenaire.common.buildingplan.BuildingPlan;
 import org.millenaire.common.item.InvItem;
 import org.millenaire.common.village.Building;
@@ -321,6 +325,62 @@ public final class TravellerMillHelper {
         }
 
         return needs;
+    }
+
+    /**
+     * Virtual donation: donates goods to a village's construction needs without
+     * requiring the village's chunks to be loaded. Uses only MillWorldData
+     * Building in-memory state (no block access needed).
+     */
+    public static void performVirtualDonation(Building townHall) {
+        if (townHall == null) return;
+
+        Map<InvItem, Integer> reqMap = computeActiveConstructionRequirements(townHall);
+        Map<InvItem, Integer> wallReq = computeWallRequirements(townHall);
+        for (Map.Entry<InvItem, Integer> e : wallReq.entrySet()) {
+            reqMap.merge(e.getKey(), e.getValue(), Integer::sum);
+        }
+        if (reqMap.isEmpty()) return;
+
+        int maxDistinctItems = Math.max(1, TravellersModConfig.merchantMaxDistinctItems);
+        double giveFraction = TravellersModConfig.merchantGiveFraction > 0
+                ? TravellersModConfig.merchantGiveFraction : 1.0 / 12.0;
+        int minBulkAmount = Math.max(1, TravellersModConfig.merchantMinBulkAmount);
+        int minSmallAmount = Math.max(1, TravellersModConfig.merchantMinSmallAmount);
+
+        int donationsDone = 0;
+        for (Map.Entry<InvItem, Integer> e : reqMap.entrySet()) {
+            if (donationsDone >= maxDistinctItems) break;
+            InvItem ii = e.getKey();
+            int totalReq = e.getValue();
+            if (ii == null || ii.getItem() == null || totalReq <= 0) continue;
+
+            Item item = ii.getItem();
+            int meta = ii.meta;
+            int inVillage = townHall.countGoods(item, meta);
+            int missing = totalReq - inVillage;
+            if (missing <= 0) continue;
+
+            int maxStack = new ItemStack(item, 1, meta).getMaxStackSize();
+            boolean smallStack = maxStack <= 16;
+            int slice = Math.max(1, (int) Math.floor(totalReq * giveFraction));
+            int minAmount = smallStack ? minSmallAmount : minBulkAmount;
+            int toGive = Math.min(missing, Math.max(slice, minAmount));
+            if (toGive <= 0) continue;
+
+            int stored = townHall.storeGoods(item, meta, toGive);
+            if (stored > 0) {
+                donationsDone++;
+                MillLog.major(townHall, "[Travellers|VirtualDonation] donated " + stored + "x "
+                        + ii.getName() + " (meta " + meta + ") to " + townHall.getGameBuildingName()
+                        + " at " + townHall.getPos() + " (missing=" + missing + ")");
+            }
+        }
+
+        if (donationsDone == 0) {
+            MillLog.major(townHall, "[Travellers|VirtualDonation] nothing to donate at "
+                    + townHall.getGameBuildingName() + " " + townHall.getPos());
+        }
     }
 
     /**

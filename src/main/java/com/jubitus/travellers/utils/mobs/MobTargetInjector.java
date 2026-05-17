@@ -56,8 +56,8 @@ public class MobTargetInjector {
                 net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry entry =
                         (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) o;
                 if (entry.action instanceof EntityAINearestAttackableTarget) {
-                    // Rough check: read the generic target class from toString() or keep a marker
-                    // Simpler: keep a capability/nbt marker; or just allow duplicates (harmless but messy).
+                    // Rough check: read the generic target class from toString() or keep a mark
+                    // Simpler: keep a capability/nbt mark; or just allow duplicates (harmless but messy).
                     // Here we do a conservative check by class name:
                     if (entry.action.toString().contains("EntityTraveller")) return true;
                 }

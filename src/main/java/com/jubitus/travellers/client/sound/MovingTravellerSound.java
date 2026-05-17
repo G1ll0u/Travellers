@@ -10,14 +10,20 @@ public final class MovingTravellerSound extends net.minecraft.client.audio.Movin
         implements net.minecraft.client.audio.ITickableSound {
 
     private final EntityTraveller traveller;
-    private boolean stoppedExternally = false;
+    private final int travellerEntityId;
+    boolean stoppedExternally = false;
+    boolean isChoir = false;
+    private float originalVolume;
+    long muteUntilMs = 0; // system-time millis; 0 = not muted
 
     public MovingTravellerSound(EntityTraveller e, SoundEvent evt, float vol, float pitch) {
         super(evt, e.getSoundCategory());
         this.traveller = e;
+        this.travellerEntityId = e.getEntityId();
         this.volume = vol;
+        this.originalVolume = vol;
         this.pitch = pitch;
-        this.repeat = false; // not looping; audio file length controls playback
+        this.repeat = false;
         this.attenuationType = AttenuationType.LINEAR;
 
         this.xPosF = (float) e.posX;
@@ -25,9 +31,10 @@ public final class MovingTravellerSound extends net.minecraft.client.audio.Movin
         this.zPosF = (float) e.posZ;
     }
 
-    /**
-     * Called by our client bus to stop due to preemption.
-     */
+    public int getTravellerEntityId() {
+        return travellerEntityId;
+    }
+
     public void stopNow() {
         this.stoppedExternally = true;
         this.donePlaying = true;
@@ -37,11 +44,22 @@ public final class MovingTravellerSound extends net.minecraft.client.audio.Movin
     public void update() {
         if (stoppedExternally || traveller == null || !traveller.isEntityAlive()) {
             this.donePlaying = true;
+            TravellerVoiceClientBus.onSoundFinished(this);
             return;
         }
+
+        if (net.minecraft.client.Minecraft.getMinecraft().isGamePaused()) return;
+
         this.xPosF = (float) traveller.posX;
         this.yPosF = (float) (traveller.posY + traveller.height * 0.6);
         this.zPosF = (float) traveller.posZ;
-        // No manual timeout here — let the audio end on its own.
+
+        // Apply mute: volume=0 during interruption, restored at correct song position.
+        this.volume = (muteUntilMs > 0 && System.currentTimeMillis() < muteUntilMs)
+                ? 0.0f : originalVolume;
+
+        if (this.donePlaying) {
+            TravellerVoiceClientBus.onSoundFinished(this);
+        }
     }
 }

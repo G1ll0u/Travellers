@@ -77,7 +77,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
     protected void initEntityAI() {
         super.initEntityAI();
 
-        // Remove the gilles travellers AITravel (stepBlocks)
+        // Remove the default travellers AITravel (stepBlocks)
         removeTaskOfType(EntityAITravel.class);
 
         // Add our merchant version using merchantStepBlocks

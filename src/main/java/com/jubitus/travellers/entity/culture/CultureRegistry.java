@@ -3,6 +3,7 @@ package com.jubitus.travellers.entity.culture;
 import com.jubitus.travellers.Reference;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.sound.ModSounds;
+import com.jubitus.travellers.client.sound.RaiderVoiceIndex;
 import com.jubitus.travellers.client.sound.VoiceIndex;
 import com.jubitus.travellers.client.sound.VoicePersonality;
 import net.minecraft.client.Minecraft;
@@ -338,7 +339,7 @@ public final class CultureRegistry {
             }
         }
 
-// Design choice: workers only come from *explicit* includes, so gilles=false
+// Design choice: workers only come from *explicit* includes, so default=false
         boolean workerAllowed = (hasWorkerFileIncludes && workerFileMatch)
                 || (hasWorkerTagIncludes && workerTagMatch);
 
@@ -392,7 +393,7 @@ public final class CultureRegistry {
             for (String c : clothesTextures) {
                 ResourceLocation cl = normalizeMillenaireTexture(c);
                 if (textureExists(cl)) {
-                    app.clothes.add(cl);
+                    app. clothes.add(cl);
                 } else {
                     System.out.println("[Travellers] Ignoring missing clothes texture: " + cl);
                 }
@@ -562,7 +563,7 @@ public final class CultureRegistry {
     public static String pickCultureIdForBiome(net.minecraft.world.biome.Biome biome, Random rand) {
 
         if (CULT.isEmpty()) {
-            return "gilles"; // or some hardcoded culture
+            return "default"; // or some hardcoded culture
         }
         if (biome == null) {
             // no biome at all: just use Plains fallback
@@ -631,7 +632,7 @@ public final class CultureRegistry {
 
     public static String pickRandomId(Random r) {
         List<String> ids = new ArrayList<>(CULT.keySet());
-        if (ids.isEmpty()) return "gilles";
+        if (ids.isEmpty()) return "default";
         return ids.get(r.nextInt(ids.size()));
     }
 
@@ -920,7 +921,7 @@ public final class CultureRegistry {
                 ids.add(d.id);
             }
         }
-        if (ids.isEmpty()) return pickRandomId(r); // or "gilles"
+        if (ids.isEmpty()) return pickRandomId(r); // or "default"
         return ids.get(r.nextInt(ids.size()));
     }
 
@@ -979,6 +980,26 @@ public final class CultureRegistry {
         if (cultureId == null) return "";
         return cultureId.trim().toLowerCase(java.util.Locale.ROOT);
     }
+
+
+    private static java.util.List<String> getClipKeys(
+            VoiceIndex idx,
+            String lang,
+            String personality,
+            String kind
+    ) {
+        if (idx == null || idx.clips == null) return java.util.Collections.emptyList();
+
+        java.util.Map<String, java.util.Map<String, java.util.List<String>>> byLang = idx.clips.get(lang);
+        if (byLang == null) return java.util.Collections.emptyList();
+
+        java.util.Map<String, java.util.List<String>> byPersonality = byLang.get(personality);
+        if (byPersonality == null) return java.util.Collections.emptyList();
+
+        java.util.List<String> keys = byPersonality.get(kind);
+        return keys == null ? java.util.Collections.emptyList() : keys;
+    }
+
     @javax.annotation.Nullable
     public static VoiceSet buildVoiceSet(
             String lang,
@@ -986,67 +1007,21 @@ public final class CultureRegistry {
             String defaultLang,
             String defaultPersonality
     ) {
+        VoiceIndex idx = VoiceIndex.loadOrDefault();
+
         lang = (lang == null ? "en" : lang).toLowerCase(java.util.Locale.ROOT);
-
-        // IMPORTANT: your generator uses "default", not "gilles"
         personality = (personality == null ? "default" : personality).toLowerCase(java.util.Locale.ROOT);
-
         defaultLang = (defaultLang == null ? "en" : defaultLang).toLowerCase(java.util.Locale.ROOT);
         defaultPersonality = (defaultPersonality == null ? "default" : defaultPersonality).toLowerCase(java.util.Locale.ROOT);
 
-        SoundEvent talk  = resolveSound(lang, personality, "talk",  defaultLang, defaultPersonality);
-        SoundEvent hurt  = resolveSound(lang, personality, "hurt",  defaultLang, defaultPersonality);
-        SoundEvent hello = resolveSound(lang, personality, "hello", defaultLang, defaultPersonality);
-        SoundEvent amb   = resolveSound(lang, personality, "ambient", defaultLang, defaultPersonality);
+        SoundEvent[] talk = resolveExactEvents(idx, lang, personality, "talk", defaultLang, defaultPersonality);
+        SoundEvent[] hurt = resolveExactEvents(idx, lang, personality, "hurt", defaultLang, defaultPersonality);
+        SoundEvent[] hello = resolveExactEvents(idx, lang, personality, "hello", defaultLang, defaultPersonality);
+        SoundEvent[] ambient = resolveExactEvents(idx, lang, personality, "ambient", defaultLang, defaultPersonality);
 
-        return new VoiceSet(talk, hurt, hello, amb);
+        return new VoiceSet(talk, hurt, hello, ambient);
     }
 
-
-    private static SoundEvent resolveSound(
-            String lang, String personality, String kind,
-            String defaultLang, String defaultPersonality
-    ) {
-        // 1) exact: lang/personality
-        SoundEvent s = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(
-                Reference.MOD_ID,
-                "entity.travellers." + lang + "." + personality + "." + kind
-
-        ));
-        if (s != null) return s;
-
-        // 2) fallback: lang/defaultPersonality
-        s = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(
-                Reference.MOD_ID,
-                "entity.travellers." + lang + "." + defaultPersonality + "." + kind
-        ));
-        if (s != null) return s;
-
-        // 3) fallback: defaultLang/defaultPersonality
-        return ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(
-                Reference.MOD_ID,
-                "entity.travellers." + defaultLang + "." + defaultPersonality + "." + kind
-        ));
-    }
-
-
-    @javax.annotation.Nullable
-    private static VoiceSet voiceSetFromEvents(String lang, String personality) {
-        ResourceLocation talkId  = new ResourceLocation(Reference.MOD_ID, "entity.travellers." + lang + "." + personality + ".talk");
-        ResourceLocation hurtId  = new ResourceLocation(Reference.MOD_ID, "entity.travellers." + lang + "." + personality + ".hurt");
-        ResourceLocation helloId = new ResourceLocation(Reference.MOD_ID, "entity.travellers." + lang + "." + personality + ".hello");
-        ResourceLocation ambId   = new ResourceLocation(Reference.MOD_ID, "entity.travellers." + lang + "." + personality + ".ambient");
-
-        SoundEvent talk  = ForgeRegistries.SOUND_EVENTS.getValue(talkId);
-        SoundEvent hurt  = ForgeRegistries.SOUND_EVENTS.getValue(hurtId);
-        SoundEvent hello = ForgeRegistries.SOUND_EVENTS.getValue(helloId);
-        SoundEvent amb   = ForgeRegistries.SOUND_EVENTS.getValue(ambId);
-
-        // If any category is missing, treat it as not valid so we can fall back cleanly
-        if (talk == null || hurt == null || hello == null || amb == null) return null;
-
-        return new VoiceSet(talk, hurt, hello, amb);
-    }
     public static String pickRandomRaiderPersonalityId(String cultureId, java.util.Random rand) {
         String cid = (cultureId == null ? "" : cultureId).toLowerCase(java.util.Locale.ROOT);
 
@@ -1078,44 +1053,72 @@ public final class CultureRegistry {
             String defaultLang,
             String defaultPersonality
     ) {
+        RaiderVoiceIndex idx = RaiderVoiceIndex.loadOrDefault();
+
         lang = (lang == null ? "en" : lang).toLowerCase(java.util.Locale.ROOT);
         personality = (personality == null ? "default" : personality).toLowerCase(java.util.Locale.ROOT);
-
         defaultLang = (defaultLang == null ? "en" : defaultLang).toLowerCase(java.util.Locale.ROOT);
         defaultPersonality = (defaultPersonality == null ? "default" : defaultPersonality).toLowerCase(java.util.Locale.ROOT);
 
-        SoundEvent talk  = resolveRaiderSound(lang, personality, "talk", defaultLang, defaultPersonality);
-        SoundEvent hurt  = resolveRaiderSound(lang, personality, "hurt", defaultLang, defaultPersonality);
-        SoundEvent hello = resolveRaiderSound(lang, personality, "hello", defaultLang, defaultPersonality);
-        SoundEvent amb   = resolveRaiderSound(lang, personality, "ambient", defaultLang, defaultPersonality);
+        SoundEvent[] talk = resolveExactRaiderEvents(idx, lang, personality, "talk", defaultLang, defaultPersonality);
+        SoundEvent[] hurt = resolveExactRaiderEvents(idx, lang, personality, "hurt", defaultLang, defaultPersonality);
+        SoundEvent[] hello = resolveExactRaiderEvents(idx, lang, personality, "hello", defaultLang, defaultPersonality);
+        SoundEvent[] ambient = resolveExactRaiderEvents(idx, lang, personality, "ambient", defaultLang, defaultPersonality);
 
-        return new VoiceSet(talk, hurt, hello, amb);
+        return new VoiceSet(talk, hurt, hello, ambient);
     }
 
-    private static SoundEvent resolveRaiderSound(
-            String lang, String personality, String kind,
-            String defaultLang, String defaultPersonality
+    private static SoundEvent[] resolveExactRaiderEvents(
+            RaiderVoiceIndex idx,
+            String lang,
+            String personality,
+            String kind,
+            String defaultLang,
+            String defaultPersonality
     ) {
-        // 1) exact
-        SoundEvent s = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(
-                Reference.MOD_ID,
-                "entity.travellers.raiders." + lang + "." + personality + "." + kind
-        ));
-        if (s != null) return s;
+        java.util.List<String> keys = getRaiderClipKeys(idx, lang, personality, kind);
 
-        // 2) fallback: lang/defaultPersonality
-        s = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(
-                Reference.MOD_ID,
-                "entity.travellers.raiders." + lang + "." + defaultPersonality + "." + kind
-        ));
-        if (s != null) return s;
+        if ((keys == null || keys.isEmpty()) && !personality.equalsIgnoreCase(defaultPersonality)) {
+            keys = getRaiderClipKeys(idx, lang, defaultPersonality, kind);
+        }
 
-        // 3) fallback: defaultLang/defaultPersonality
-        return ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(
-                Reference.MOD_ID,
-                "entity.travellers.raiders." + defaultLang + "." + defaultPersonality + "." + kind
-        ));
+        if ((keys == null || keys.isEmpty())
+                && (!lang.equalsIgnoreCase(defaultLang) || !personality.equalsIgnoreCase(defaultPersonality))) {
+            keys = getRaiderClipKeys(idx, defaultLang, defaultPersonality, kind);
+        }
+
+        if (keys == null || keys.isEmpty()) {
+            return new SoundEvent[0];
+        }
+
+        java.util.List<SoundEvent> out = new java.util.ArrayList<>();
+        for (String key : keys) {
+            if (key == null || key.trim().isEmpty()) continue;
+            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID, key));
+            if (ev != null) out.add(ev);
+        }
+
+        return out.toArray(new SoundEvent[0]);
     }
+
+    private static java.util.List<String> getRaiderClipKeys(
+            RaiderVoiceIndex idx,
+            String lang,
+            String personality,
+            String kind
+    ) {
+        if (idx == null || idx.clips == null) return java.util.Collections.emptyList();
+
+        java.util.Map<String, java.util.Map<String, java.util.List<String>>> byLang = idx.clips.get(lang);
+        if (byLang == null) return java.util.Collections.emptyList();
+
+        java.util.Map<String, java.util.List<String>> byPersonality = byLang.get(personality);
+        if (byPersonality == null) return java.util.Collections.emptyList();
+
+        java.util.List<String> keys = byPersonality.get(kind);
+        return keys == null ? java.util.Collections.emptyList() : keys;
+    }
+
     public static String langForCulture(String cultureId) {
         String id = (cultureId == null ? "" : cultureId).toLowerCase(java.util.Locale.ROOT);
 
@@ -1165,6 +1168,43 @@ public final class CultureRegistry {
 
         TRAVELLER_VOICES.put(cid, buildVoiceSet(lang, fallbackPid, idx.defaultLang, idx.defaultPersonality));
     }
+
+    private static SoundEvent[] resolveExactEvents(
+            VoiceIndex idx,
+            String lang,
+            String personality,
+            String kind,
+            String defaultLang,
+            String defaultPersonality
+    ) {
+        java.util.List<String> keys = getClipKeys(idx, lang, personality, kind);
+
+        if ((keys == null || keys.isEmpty()) && !personality.equalsIgnoreCase(defaultPersonality)) {
+            keys = getClipKeys(idx, lang, defaultPersonality, kind);
+        }
+
+        if ((keys == null || keys.isEmpty())
+                && (!lang.equalsIgnoreCase(defaultLang) || !personality.equalsIgnoreCase(defaultPersonality))) {
+            keys = getClipKeys(idx, defaultLang, defaultPersonality, kind);
+        }
+
+        if (keys == null || keys.isEmpty()) {
+            return new SoundEvent[0];
+        }
+
+        java.util.List<SoundEvent> out = new java.util.ArrayList<>();
+        for (String key : keys) {
+            if (key == null || key.trim().isEmpty()) continue;
+            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID, key));
+            if (ev != null) out.add(ev);
+        }
+
+        return out.toArray(new SoundEvent[0]);
+    }
+
+
+
+
 
 }
 

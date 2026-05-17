@@ -31,9 +31,9 @@ public final class BackpackStyles {
 
         // DEFAULT backpack (always exists)
         BackpackRegistry.register(new SimpleStyle(
-                "gilles",
+                "default",
                 true,
-                e -> false, // IMPORTANT: gilles must NOT match
+                e -> false, // IMPORTANT: default must NOT match
                 BACKPACK_TEXTURE,
                 new ModelBackpack(),
                 (renderer) -> {

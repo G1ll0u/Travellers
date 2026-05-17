@@ -6,13 +6,13 @@ public final class TravelPathScheduler {
 
     // ===== KNOBS =====
     // Normal path refreshes (has path already, just updating)
-    public static int NORMAL_MAX_PATHS_PER_TICK = 6;
+    public static int NORMAL_MAX_PATHS_PER_TICK = 128;
 
     // Urgent requests (noPath / hard stuck) get their own larger budget
-    public static int URGENT_MAX_PATHS_PER_TICK = 12;
+    public static int URGENT_MAX_PATHS_PER_TICK = 256;
 
     // Absolute safety ceiling (normal + urgent combined)
-    public static int HARD_MAX_PATHS_PER_TICK = 16;
+    public static int HARD_MAX_PATHS_PER_TICK = 512;
 
     // Spread normal/medium entities across this many ticks
     public static int STAGGER_TICKS = 10;

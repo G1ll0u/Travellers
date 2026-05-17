@@ -2,31 +2,56 @@ package com.jubitus.travellers.client.gui.go;
 
 import com.jubitus.travellers.client.gui.worldmap.GuiWorldMapPanel;
 import com.jubitus.travellers.client.gui.worldmap.GuiWorldMapPanelHooks;
+import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.map.WorldMapDiscovery;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.net.message.map.MsgRequestMapDiscovery;
-import com.jubitus.travellers.utils.net.message.map.MsgRequestMapTiles;
-import com.jubitus.travellers.utils.net.message.workergo.MsgWorkerGoList;
-import com.jubitus.travellers.utils.net.message.workergo.MsgWorkerGoTo;
-import com.jubitus.travellers.utils.net.message.workergo.MsgWorkerGoToPos;
-import com.jubitus.travellers.utils.net.message.workergo.MsgWorkerRequestGoList;
+
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
+import com.jubitus.travellers.server.net.message.map.MsgRequestMapTiles;
+import com.jubitus.travellers.server.net.message.map.MsgWorkerMapView;
+import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
+import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoTo;
+import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoToPos;
+import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerGo extends GuiContainer {
+public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
+
+    private GuiButton backButton;
+
+    private long lastViewSendMs = 0L;
+
+    // Live worker markers received from server stream
+    private final List<WorkerMarker> workerMarkers = new ArrayList<>();
+
+    private static class WorkerMarker {
+        int entityId;
+        int dim;
+        BlockPos pos;
+        String name;
+        int color;
+        int radius;
+    }
 
     private long lastTileRequestMs = 0L;
 
@@ -84,24 +109,25 @@ public class GuiWorkerGo extends GuiContainer {
 
 
     public GuiWorkerGo(EntityPlayer player, EntityTravellerWorker worker) {
-        super(new ContainerWorkerGo(player.inventory, worker));
         this.player = player;
         this.worker = worker;
-        this.xSize = 176;
-        this.ySize = 150;
     }
+
+    private int guiLeft, guiTop;
 
     @Override
     public void initGui() {
         super.initGui();
 
         int shiftLeft = 40;
-        this.guiLeft = Math.max(4, this.guiLeft - shiftLeft);
-        this.guiTop = (this.height - this.ySize) / 2;
+        int xSize = 176;
+        int ySize = 150;
+        this.guiLeft = Math.max(4, (this.width - xSize) / 2 - shiftLeft);
+        this.guiTop = (this.height - ySize) / 2;
 
         this.listW = 140;
         this.listH = 120;
-        this.listX = this.guiLeft + this.xSize + 8;
+        this.listX = this.guiLeft + xSize + 8;
         this.listY = this.guiTop + 4;
 
 // --- MAP: bigger and pushed left ---
@@ -144,7 +170,14 @@ public class GuiWorkerGo extends GuiContainer {
         int bw = 70, bh = 16, gap = 4;
         int buttonsTop = listY + listH + gap;
 
-        this.goButton = this.addButton(new GuiButton(1, listX + (listW - bw), buttonsTop, bw, bh, "Go"));
+        this.goButton = this.addButton(new GuiButton(
+                1,
+                listX + listW - bw,
+                buttonsTop,
+                bw,
+                bh,
+                I18n.format("travellers.gui.go", "Go")
+        ));
         this.goButton.enabled = false;
 
 // Arrow buttons around the map
@@ -168,7 +201,15 @@ public class GuiWorkerGo extends GuiContainer {
 
         this.zoomOutButton = this.addButton(new GuiButton(6, mapX, zTop, zbw, zbh, "-"));
         this.zoomInButton  = this.addButton(new GuiButton(7, mapX + zbw + 4, zTop, zbw, zbh, "+"));
-        this.recenterButton = this.addButton(new GuiButton(8, mapX + mapW - 54, zTop, 54, zbh, "Center"));
+        this.recenterButton = this.addButton(new GuiButton(
+                8,
+                mapX + mapW - 54,
+                zTop,
+                54,
+                zbh,
+                I18n.format("travellers.map.center", "Center")
+        ));
+        this.backButton = this.addButton(new GuiButton(9, listX, buttonsTop, 50, bh, I18n.format("travellers.gui.back", "Back")));
 
         this.goButton.enabled = false;
 
@@ -181,36 +222,92 @@ public class GuiWorkerGo extends GuiContainer {
         TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         requestVisibleTilesFromServer();
-
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        sendMapViewToServer();
     }
 
+    @Override
+    public void onGuiClosed() {
+        super.onGuiClosed();
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+    }
+    
+
     // Called by MsgWorkerGoList
+    @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
         rows.clear();
         for (MsgWorkerGoList.Entry e : entries) {
             rows.add(new Row(e.kind, e.pos, e.label, e.distance));
         }
         rows.sort(Comparator.comparingInt(r -> r.distance));
+
         selectedIndex = -1;
         goButton.enabled = false;
-        // Update map markers
-        mapPanel.clearMarkers();
-        for (Row r : rows) {
-            if (r.kind == MsgWorkerGoList.Kind.VILLAGE) {
-                // village marker: dark + visible
-                mapPanel.addMarker(new GuiWorldMapPanel.Marker(r.pos, 0xFF1E1A14, 2));
-            } else {
-                // home marker: lighter
-                mapPanel.addMarker(new GuiWorldMapPanel.Marker(r.pos, 0xFF6B5B3E, 2));
-            }
-        }
-        if (selectedRowPos != null && selectedRowKind == MsgWorkerGoList.Kind.VILLAGE) {
-            mapPanel.addMarker(new GuiWorldMapPanel.Marker(selectedRowPos, 0xFFFFE39A, 3));
-        }
+
         scrollOffset = 0;
         clampScroll();
 
+        // Rebuild markers (villages/homes + workers)
+        rebuildMarkers();
     }
+
+    @Override
+    public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
+        workerMarkers.clear();
+
+        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
+
+        for (MsgMapWorkersUpdate.Entry e : list) {
+            if (e.dim != myDim) continue; // safety
+
+            WorkerMarker m = new WorkerMarker();
+            m.entityId = e.entityId;
+            m.dim = e.dim;
+            m.pos = e.pos;
+            m.name = (e.name != null && !e.name.isEmpty()) ? e.name : ("Worker#" + e.entityId);
+
+            // Green workers, highlight THIS GUI worker in yellow if you want
+            if (e.entityId == worker.getEntityId()) {
+                m.color = 0xFFFFFF55; // yellow-ish
+                m.radius = 3;
+            } else {
+                m.color = 0xFFfce5cd; // green
+                m.radius = 2;
+            }
+
+            workerMarkers.add(m);
+        }
+
+        rebuildMarkers();
+    }
+
+    private void rebuildMarkers() {
+        if (mapPanel == null) return;
+
+        mapPanel.clearMarkers();
+        mapPanel.setPlayerMarker(player.getPosition(), 0xFF55FF55, 2);
+
+        for (Row r : rows) {
+            if (r.pos == null) continue;
+
+            if (r.kind == MsgWorkerGoList.Kind.VILLAGE) {
+                mapPanel.addMarker(new GuiWorldMapPanel.Marker(r.pos, 0xFF1E1A14, 2));
+            } else {
+                mapPanel.addMarker(new GuiWorldMapPanel.Marker(r.pos, 0xFF6B5B3E, 2));
+            }
+        }
+
+        if (selectedRowPos != null) {
+            mapPanel.addMarker(new GuiWorldMapPanel.Marker(selectedRowPos, 0xFFFFE39A, 3));
+        }
+
+        for (WorkerMarker m : workerMarkers) {
+            if (m.pos == null) continue;
+            mapPanel.addMarker(new GuiWorldMapPanel.Marker(m.pos, m.color, m.radius));
+        }
+    }
+
     private void handleListWheelScroll(int mouseX, int mouseY, int listSize, int wheel) {
         if (listSize <= 0) return;
         if (wheel == 0) return;
@@ -250,19 +347,14 @@ public class GuiWorkerGo extends GuiContainer {
         GlStateManager.disableDepth();
 
         drawRect(mapX - 2, mapY - 2, mapX + mapW + 2, mapY + mapH + 2, 0x80000000);
+        rebuildMarkers();
         mapPanel.draw(mapX, mapY);
         requestVisibleTilesFromServer();
 
         drawList(mouseX, mouseY);
-        this.renderHoveredToolTip(mouseX, mouseY);
     }
 
 
-
-    @Override
-    protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        // Intentionally empty (same style as your recruit screen)
-    }
 
     private void drawList(int mouseX, int mouseY) {
         drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
@@ -355,6 +447,7 @@ public class GuiWorkerGo extends GuiContainer {
 
                 // Enable go
                 goButton.enabled = true;
+                rebuildMarkers();
                 return; // don't fall through to list selection
             }
         }
@@ -401,6 +494,8 @@ public class GuiWorkerGo extends GuiContainer {
                     }
 
                     goButton.enabled = true;
+                    rebuildMarkers();
+
                 }
 
 
@@ -446,6 +541,13 @@ public class GuiWorkerGo extends GuiContainer {
         // Pan step = ~ 32 pixels worth of blocks
         int stepBlocks = mapPanel.getZoomBlocksPerPixel() * 48; // nicer with bigger map
 
+
+        if (button == backButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS)
+            );
+            return;
+        }
 
         if (button == panN) { mapPanel.pan(0, -stepBlocks); return; }
         if (button == panS) { mapPanel.pan(0,  stepBlocks); return; }
@@ -528,6 +630,26 @@ public class GuiWorkerGo extends GuiContainer {
         int maxTileZ = floorDiv(maxZ, tileBlocks) + 1;
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapTiles(minTileX, maxTileX, minTileZ, maxTileZ));
+        sendMapViewToServer();
+    }
+
+    private void sendMapViewToServer() {
+        long now = System.currentTimeMillis();
+        if (now - lastViewSendMs < 250) return; // throttle
+        lastViewSendMs = now;
+
+        int dim = Minecraft.getMinecraft().world.provider.getDimension();
+        BlockPos c = mapPanel.getCenter();
+
+        int bpp = mapPanel.getZoomBlocksPerPixel();
+        int halfWBlocks = (mapW / 2) * bpp;
+        int halfHBlocks = (mapH / 2) * bpp;
+
+        int rangeBlocks = Math.max(halfWBlocks, halfHBlocks) + 64;
+
+        TravellerFollowNet.CHANNEL.sendToServer(
+                new MsgWorkerMapView(dim, c.getX(), c.getZ(), rangeBlocks)
+        );
     }
 
     private static int floorDiv(int a, int b) {
@@ -558,5 +680,21 @@ public class GuiWorkerGo extends GuiContainer {
         if (bpp > 16) bpp = 16; // adjust if you want more/less max zoom out
         mapPanel.setZoomBlocksPerPixel(bpp);
     }
+    public Rectangle getJeiMapArea() {
+        return new Rectangle(
+                this.mapX - 2,
+                this.mapY - 2,
+                this.mapW + 4,
+                this.mapH + 26
+        );
+    }
 
+    public Rectangle getJeiListArea() {
+        return new Rectangle(
+                this.listX - 2,
+                this.listY - 2,
+                this.listW + 4,
+                this.listH + 24
+        );
+    }
 }

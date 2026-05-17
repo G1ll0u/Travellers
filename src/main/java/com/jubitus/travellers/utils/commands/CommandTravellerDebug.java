@@ -8,10 +8,12 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.SoundEvent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.common.Loader;
 
+import javax.annotation.Nullable;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -128,41 +130,41 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
 
-        // --- Voices ---
         VoiceSet tv = CultureRegistry.TRAVELLER_VOICES.get(c.id.toLowerCase(java.util.Locale.ROOT));
         VoiceSet rv = CultureRegistry.RAIDER_VOICES.get(c.id.toLowerCase(java.util.Locale.ROOT));
 
         out.println("Traveller voices present: " + (tv != null));
         if (tv != null) {
-            out.println("  talk : " + (tv.talk != null ? tv.talk.getRegistryName() : "<null>"));
-            out.println("  hurt : " + (tv.hurt != null ? tv.hurt.getRegistryName() : "<null>"));
-            out.println("  hello: " + (tv.hello != null ? tv.hello.getRegistryName() : "<null>"));
-            if (tv.ambient != null && tv.ambient.length > 0) {
-                out.println("  ambient (" + tv.ambient.length + "):");
-                for (int i = 0; i < tv.ambient.length; i++) {
-                    out.println("    - " + (tv.ambient[i] != null ? tv.ambient[i].getRegistryName() : "<null>"));
-                }
-            } else {
-                out.println("  ambient: (none)");
-            }
+            dumpVoiceArray(out, "  talk", tv.talk);
+            dumpVoiceArray(out, "  hurt", tv.hurt);
+            dumpVoiceArray(out, "  hello", tv.hello);
+            dumpVoiceArray(out, "  ambient", tv.ambient);
         }
 
         out.println("Raider voices present   : " + (rv != null));
         if (rv != null) {
-            out.println("  talk : " + (rv.talk != null ? rv.talk.getRegistryName() : "<null>"));
-            out.println("  hurt : " + (rv.hurt != null ? rv.hurt.getRegistryName() : "<null>"));
-            out.println("  hello: " + (rv.hello != null ? rv.hello.getRegistryName() : "<null>"));
-            if (rv.ambient != null && rv.ambient.length > 0) {
-                out.println("  ambient (" + rv.ambient.length + "):");
-                for (int i = 0; i < rv.ambient.length; i++) {
-                    out.println("    - " + (rv.ambient[i] != null ? rv.ambient[i].getRegistryName() : "<null>"));
-                }
-            } else {
-                out.println("  ambient: (none)");
-            }
+            dumpVoiceArray(out, "  talk", rv.talk);
+            dumpVoiceArray(out, "  hurt", rv.hurt);
+            dumpVoiceArray(out, "  hello", rv.hello);
+            dumpVoiceArray(out, "  ambient", rv.ambient);
         }
 
         out.println();
+    }
+
+    private void dumpVoiceArray(PrintWriter out, String label, @Nullable SoundEvent[] arr) {
+        if (arr == null || arr.length == 0) {
+            out.println(label + ": (none)");
+            return;
+        }
+
+        out.println(label + " (" + arr.length + "):");
+        for (int i = 0; i < arr.length; i++) {
+            SoundEvent ev = arr[i];
+            out.println("    - [" + i + "] " + (ev != null && ev.getRegistryName() != null
+                    ? ev.getRegistryName().toString()
+                    : "<null>"));
+        }
     }
 
     @Override

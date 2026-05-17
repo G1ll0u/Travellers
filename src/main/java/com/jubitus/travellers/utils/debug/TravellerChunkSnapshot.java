@@ -2,6 +2,7 @@ package com.jubitus.travellers.utils.debug;
 
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.WorldServer;
@@ -21,11 +22,13 @@ public class TravellerChunkSnapshot {
     public final List<ChunkPos> merchantChunks;
     public final List<ChunkPos> normalChunks;
     public final List<BlockPos> villages;
+    public final List<BlockPos> virtualWorkers;
 
     public TravellerChunkSnapshot(int centerX, int centerZ, int radiusBlocks, int radiusChunks,
                                   List<ChunkPos> merchantChunks,
                                   List<ChunkPos> normalChunks,
-                                  List<BlockPos> villages) {
+                                  List<BlockPos> villages,
+                                  List<BlockPos> virtualWorkers) {
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.radiusBlocks = radiusBlocks;
@@ -33,6 +36,7 @@ public class TravellerChunkSnapshot {
         this.merchantChunks = merchantChunks;
         this.normalChunks = normalChunks;
         this.villages = villages;
+        this.virtualWorkers = virtualWorkers;
     }
 
     public static TravellerChunkSnapshot create(WorldServer world, BlockPos center, int radiusBlocks) {
@@ -93,6 +97,12 @@ public class TravellerChunkSnapshot {
             }
         }
 
+        List<BlockPos> virtualWorkers = VirtualWorkerManager.get(world).getPositionsInRadius(
+                world.provider.getDimension(),
+                center.getX(), center.getZ(),
+                radiusBlocks
+        );
+
         return new TravellerChunkSnapshot(
                 centerChunkX,
                 centerChunkZ,
@@ -100,7 +110,8 @@ public class TravellerChunkSnapshot {
                 radiusChunks,
                 new ArrayList<>(merchant),
                 new ArrayList<>(normal),
-                villages
+                villages,
+                virtualWorkers
         );
     }
 }

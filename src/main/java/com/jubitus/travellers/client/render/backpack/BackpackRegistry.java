@@ -18,7 +18,7 @@ public final class BackpackRegistry {
         return STYLES.get(id);
     }
 
-    // simple resolver example: pick first that matches, else gilles
+    // simple resolver example: pick first that matches, else default
     public static IBackpackStyle resolve(EntityTraveller e) {
 
         String id = null;
@@ -38,11 +38,11 @@ public final class BackpackRegistry {
 
         // Auto mode: try matchers
         for (IBackpackStyle s : STYLES.values()) {
-            if ("gilles".equals(s.id())) continue;
+            if ("default".equals(s.id())) continue;
             if (s.matches(e)) return s;
         }
 
-        return STYLES.get("gilles");
+        return STYLES.get("default");
     }
 
 }

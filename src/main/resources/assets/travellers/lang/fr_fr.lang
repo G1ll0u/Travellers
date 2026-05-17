@@ -1,1 +1,82 @@
-entity.Traveller.name=Voyageur
+entity.travellers.traveller.name=Voyageur
+entity.travellers.traveller_merchant.name=Marchand
+entity.travellers.traveller_worker.name=Homme de main
+entity.travellers.traveller_raider.name=Pillard
+
+travellers.worker.title=Transaction
+travellers.worker.send=Vendre
+travellers.worker.not_enough_money=Il vous faut %s pour ce trajet.
+travellers.worker.cost=Coût du trajet : %s
+travellers.worker.cost_unknown=Coût du trajet : (valider)
+travellers.worker.validate=Valider
+travellers.worker.donate=Donner
+
+travellers.worker.hub.title=Options du voyageur
+travellers.worker.hub.transport=Transport
+travellers.worker.hub.follow=Ordres
+travellers.worker.follow.title=Options du suiveur
+travellers.worker.orders.hire=Engager (%s)
+travellers.worker.orders.unhire=Renvoyer
+travellers.worker.orders.hired_other=Déjà engagé
+travellers.worker.follow.hired_success=Le voyageur vous suit maintenant.
+travellers.worker.follow.unhired_success=Le voyageur ne vous suivra plus.
+travellers.worker.follow.not_enough_money=Vous n'avez pas assez d'argent.
+travellers.worker.follow.hired_by_other=Ce voyageur est déjà engagé.
+travellers.worker.hub.inventory=Inventaire
+travellers.worker.orders.make_leader=Leader
+travellers.worker.orders.follow_on=Suivre : ON
+travellers.worker.orders.follow_off=Suivre : OFF
+travellers.worker.inventory.title=Inventaire perso
+travellers.worker.orders.recruit=Recruter
+travellers.worker.orders.follow_player=Me suivre
+travellers.worker.orders.following_player=Me suivre
+travellers.worker.orders.title=Ordres
+travellers.worker.hub.behavior=Comportement
+travellers.worker.hub.map=Carte
+
+travellers.gui.back=Retour
+travellers.gui.add=Ajouter
+travellers.gui.remove=Retirer
+travellers.gui.done=OK
+travellers.gui.save=Sauver
+travellers.gui.cancel=Annuler
+travellers.gui.clear=Effacer
+travellers.gui.go=Vas-y
+travellers.gui.unnamed=(sans nom)
+
+travellers.map.center=Centrer
+travellers.map.chunks.legend.loaded_normal=Chunks chargés
+travellers.map.chunks.legend.loaded_merchants=Chunks des marchands
+travellers.map.chunks.legend.villages=Mairies des villages
+travellers.map.chunks.legend.center_chunk=Carré blanc = chunk centre
+travellers.map.chunks.legend.player_pos=Point vert = vous
+
+travellers.worker.behavior.title=Comportement
+travellers.worker.behavior.player_enemies=Joueurs ennemis
+travellers.worker.behavior.village_relations=Relations villages
+
+travellers.worker.enemies.title=Ajouter/retirer des ennemis
+travellers.worker.enemies.hint=(que vos hommes attaqueront à vue)
+travellers.worker.enemies.count=Ennemis : %s
+
+travellers.worker.village_relations.title=Relations villages
+travellers.worker.village_relations.hint=Choisissez un village puis changez l'état.
+travellers.worker.village_relations.toggle_enemy=Changer statut
+
+travellers.home_name_prompt.title=Nom de votre maison
+travellers.home_name_prompt.subtitle=Vous pouvez l'assigner à vos hommes de main.
+
+travellers.worker.home_list.title=Maisons
+travellers.worker.home_list.set_home=Définir maison
+
+travellers.worker.orders.go=Aller...
+travellers.worker.orders.home=Maison
+travellers.worker.orders.go_home=Retour maison
+travellers.worker.orders.go_home_no_home=Pas de maison
+travellers.worker.orders.leader_count=Leader (%s)
+
+travellers.worker.recruit.start=Recruter
+travellers.worker.recruit.fee=Coût : %s
+travellers.worker.recruit.too_close=Trop proche. Min. : %sm
+
+travellers.worker.home_list.empty=Tu n'as pas de maison, nullos.

@@ -223,7 +223,7 @@ public final class MillenaireVillageDirectory {
         if (e != null && !e.isVillage) {
             return TravellersModConfig.lonebuildingNear;   // lone building
         }
-        return TravellersModConfig.villageNear;            // gilles to village
+        return TravellersModConfig.villageNear;            // default to village
     }
 
     public static final class Entry {
