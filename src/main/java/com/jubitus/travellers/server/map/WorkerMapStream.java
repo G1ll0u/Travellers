@@ -3,6 +3,8 @@ package com.jubitus.travellers.server.map;
 import com.jubitus.travellers.Reference;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -52,6 +54,8 @@ public class WorkerMapStream {
         final int dim;
         final int x, y, z;
         final String name;
+        final boolean isLeader;
+        final int ownerColor;
 
         WorkerInfo(EntityTravellerWorker w, int dim) {
             this.entityId = w.getEntityId();
@@ -61,6 +65,19 @@ public class WorkerMapStream {
             this.y = p.getY();
             this.z = p.getZ();
             this.name = w.getName();
+            this.isLeader = w.isVisualLeader();
+            this.ownerColor = w.getOwnerMarkColor() & 0xFFFFFF;
+        }
+
+        WorkerInfo(VirtualWorkerRecord vr, boolean isLeader) {
+            this.entityId = -1; // no loaded entity
+            this.dim = vr.dimension;
+            this.x = (int) vr.posX;
+            this.y = (int) vr.posY;
+            this.z = (int) vr.posZ;
+            this.name = vr.name != null ? vr.name : "";
+            this.isLeader = isLeader;
+            this.ownerColor = vr.ownerColor;
         }
     }
 
@@ -155,6 +172,25 @@ public class WorkerMapStream {
             }
         }
 
+        // Add virtual workers from the overworld VirtualWorkerManager
+        WorldServer overworld = server.getWorld(0);
+        if (overworld != null) {
+            VirtualWorkerManager vmgr = VirtualWorkerManager.get(overworld);
+
+            // Collect UUIDs that have virtual followers escorting them (= virtual leaders)
+            java.util.Set<UUID> virtualLeaderUUIDs = new java.util.HashSet<>();
+            for (VirtualWorkerRecord vr : vmgr.getRecordsView()) {
+                if (vr.escortLeaderUUID != null) virtualLeaderUUIDs.add(vr.escortLeaderUUID);
+            }
+
+            for (VirtualWorkerRecord vr : vmgr.getRecordsView()) {
+                if (!vr.isHiredFollower || vr.followOwnerUUID == null) continue;
+                boolean isLeader = virtualLeaderUUIDs.contains(vr.uuid);
+                byOwner.computeIfAbsent(vr.followOwnerUUID, k -> new ArrayList<>())
+                        .add(new WorkerInfo(vr, isLeader));
+            }
+        }
+
         // Send updates per subscribed player
         for (UUID playerId : targets) {
             EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
@@ -208,6 +244,8 @@ public class WorkerMapStream {
                 en.dim = w.dim;
                 en.pos = new BlockPos(w.x, w.y, w.z);
                 en.name = (w.name != null) ? w.name : "";
+                en.isLeader = w.isLeader;
+                en.ownerColor = w.ownerColor;
                 out.add(en);
             }
 

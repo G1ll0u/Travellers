@@ -3382,16 +3382,20 @@ public class EntityTravellerWorker extends EntityTraveller {
         net.minecraft.util.math.BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
         if (leaderPos == null) return;
 
-        double dx = posX - (leaderPos.getX() + 0.5);
-        double dz = posZ - (leaderPos.getZ() + 0.5);
-        if (dx * dx + dz * dz < 3.0 * 3.0) return;
+        double dx = leaderPos.getX() + 0.5 - posX;
+        double dz = leaderPos.getZ() + 0.5 - posZ;
+        double distSq = dx * dx + dz * dz;
+        if (distSq < 3.0 * 3.0) return;
 
-        getNavigator().tryMoveToXYZ(
-                leaderPos.getX() + 0.5,
-                leaderPos.getY(),
-                leaderPos.getZ() + 0.5,
-                TravellersModConfig.movementSpeedWhileFollowing
-        );
+        // Cap to loaded-chunk navigation range to avoid silent pathfinding failures.
+        // The worker steps toward the leader incrementally; once it exits view distance
+        // it virtualizes naturally and the virtual system takes over tracking.
+        double dist = Math.sqrt(distSq);
+        double navCap = 48.0;
+        double targetX = dist <= navCap ? leaderPos.getX() + 0.5 : posX + (dx / dist) * navCap;
+        double targetZ = dist <= navCap ? leaderPos.getZ() + 0.5 : posZ + (dz / dist) * navCap;
+
+        getNavigator().tryMoveToXYZ(targetX, leaderPos.getY(), targetZ, TravellersModConfig.movementSpeedWhileFollowing);
     }
 
     public void startGoToDestination(BlockPos pos, int dim) {
@@ -4063,6 +4067,18 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
     public boolean isGoOrderActive() {
         return goOrderActive;
+    }
+
+    @Nullable
+    public BlockPos getGoOrderTargetPos() {
+        return goOrderTargetPos;
+    }
+
+    public void cancelGoOrderAndTravel() {
+        goOrderActive = false;
+        goOrderTargetPos = null;
+        goOrderTargetDim = 0;
+        stopAllTravelNow();
     }
 
     private double distSq2DTo(BlockPos pos) {

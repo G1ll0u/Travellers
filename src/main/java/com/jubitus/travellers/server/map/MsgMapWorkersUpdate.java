@@ -18,6 +18,8 @@ public class MsgMapWorkersUpdate implements IMessage {
         public int dim;
         public BlockPos pos;
         public String name;
+        public boolean isLeader;
+        public int ownerColor; // RGB (no alpha)
     }
 
     private List<Entry> entries = new ArrayList<>();
@@ -45,6 +47,8 @@ public class MsgMapWorkersUpdate implements IMessage {
             int z = buf.readInt();
             e.pos = new BlockPos(x, y, z);
             e.name = ByteBufUtils.readUTF8String(buf);
+            e.isLeader = buf.readBoolean();
+            e.ownerColor = buf.readInt();
             entries.add(e);
         }
     }
@@ -53,7 +57,6 @@ public class MsgMapWorkersUpdate implements IMessage {
     public void toBytes(ByteBuf buf) {
         buf.writeInt(entries != null ? entries.size() : 0);
         if (entries == null) return;
-
         for (Entry e : entries) {
             buf.writeInt(e.entityId);
             buf.writeInt(e.dim);
@@ -61,6 +64,8 @@ public class MsgMapWorkersUpdate implements IMessage {
             buf.writeInt(e.pos.getY());
             buf.writeInt(e.pos.getZ());
             ByteBufUtils.writeUTF8String(buf, e.name != null ? e.name : "");
+            buf.writeBoolean(e.isLeader);
+            buf.writeInt(e.ownerColor);
         }
     }
 

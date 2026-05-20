@@ -20,4 +20,5 @@ public class ContainerWorkerVillageRelations extends Container {
                 && worker.isEntityAlive()
                 && playerIn.getDistanceSq(worker) <= 64.0D;
     }
+
 }

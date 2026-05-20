@@ -38,10 +38,10 @@ public class GuiWorkerInventory extends GuiContainer {
 
         this.backButton = this.addButton(new GuiButton(
                 0,
-                this.guiLeft + this.xSize - 54,
+                this.guiLeft + this.xSize - 58,
                 this.guiTop + this.ySize,
-                50,
-                14,
+                54,
+                20,
                 I18n.format("travellers.gui.back")
         ));
     }

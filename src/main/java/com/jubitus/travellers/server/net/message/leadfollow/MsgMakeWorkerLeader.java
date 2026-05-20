@@ -13,6 +13,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -109,7 +111,8 @@ public class MsgMakeWorkerLeader implements IMessage {
                                         && Objects.equals(w.getFollowOwnerId(), ownerId)
                                         && !w.isJobActive()
                                         && !w.isWaitingForPickup()
-                                        && !w.hasEscortLeader() // only free followers
+                                        && !w.hasEscortLeader()
+                                        && w.isFollowOrderActive()
                         );
 
                         for (EntityTravellerWorker w : freeFollowers) {
@@ -117,6 +120,9 @@ public class MsgMakeWorkerLeader implements IMessage {
                             assigned++;
                         }
                     }
+
+                    VirtualWorkerManager vwm = VirtualWorkerManager.get(player.getServerWorld());
+                    assigned += vwm.cmdMakeLeader(leaderId, ownerId);
 
                     if (assigned > 0) {
                         player.sendMessage(new TextComponentString(

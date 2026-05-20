@@ -18,80 +18,38 @@ public class GuiWorldMapPanel {
 
     // ── Rendering tweaks ─────────────────────────────────────────────────────
     public static final class RenderSettings {
-        // Tone range: server encodes terrain in roughly [55, 220].
-        // Values outside this range are clamped to shadow/highlight color.
         public static int toneMin = 55;
         public static int toneMax = 200;
-
-        // Contrast multiplier applied around the midpoint (1.0 = neutral, >1 = more contrast).
         public static float contrast = 1.25f;
-
-        // How much of the S-curve (smoothstep) blends in vs pure linear (0 = off, 1 = full).
         public static float smoothBlend = 0.35f;
-
-        // Shadow color (dark areas / deep water).
         public static int shadowR = 24, shadowG = 18, shadowB = 10;
-
-        // Highlight color (high peaks / bright areas).
         public static int lightR = 248, lightG = 236, lightB = 200;
-
-        // Tones at or below this threshold receive a subtle blue-grey tint (likely water).
         public static int waterThreshold = 75;
-
-        // How strongly the blue-grey tint is applied at the darkest water tones (0–1).
         public static float waterTint = 0.12f;
-
-        // Minimum brightness for water pixels before tinting (0=pure shadow, 1=full highlight).
-        // Increase to make water lighter/more visible.
         public static float waterLift = 0.17f;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    private BlockPos playerPos = null;
-    private int playerArgb = 0xFF55FF55;
-    private int playerSize = 2;
-
-    public int getWidth() { return w; }
-    public int getHeight() { return h; }
-
-    // Découverte côté client (remplie par les messages réseau)
-
-
-    private boolean isTileDiscovered(int worldX, int worldZ) {
-        int cx = worldX >> 4;
-        int cz = worldZ >> 4;
-
-        int tileX = floorDiv(cx, WorldMapDiscovery.CHUNKS_PER_TILE);
-        int tileZ = floorDiv(cz, WorldMapDiscovery.CHUNKS_PER_TILE);
-
-        long key = (((long) tileX) << 32) ^ (tileZ & 0xFFFFFFFFL);
-        return ClientMapDiscovery.getTilesView().contains(key);
-    }
-
-    private static int floorDiv(int a, int b) {
-        int r = a / b;
-        if ((a ^ b) < 0 && (r * b != a)) r--;
-        return r;
-    }
-
-    public void setPlayerMarker(BlockPos pos, int argb, int size) {
-        this.playerPos = pos;
-        this.playerArgb = argb;
-        this.playerSize = size;
-    }
-
-    public void clearPlayerMarker() {
-        this.playerPos = null;
-    }
-
     public static class Marker {
+        public enum MarkerType { VILLAGE, HOME, LEADER, FOLLOWER, PLAYER }
+
         public final BlockPos pos;
-        public final int argb;     // couleur du mark (overlay)
-        public final int size;     // demi-taille en pixels (ex: 2)
-        public Marker(BlockPos pos, int argb, int size) {
+        public final int argb;
+        public final int size;
+        public final MarkerType type;
+        public final String label;
+
+        public Marker(BlockPos pos, int argb, int size, MarkerType type, String label) {
             this.pos = pos;
             this.argb = argb;
             this.size = size;
+            this.type = type;
+            this.label = label;
+        }
+
+        /** Backward-compatible constructor (no type or label). */
+        public Marker(BlockPos pos, int argb, int size) {
+            this(pos, argb, size, MarkerType.VILLAGE, null);
         }
     }
 
@@ -102,40 +60,34 @@ public class GuiWorldMapPanel {
     private final DynamicTexture dynTex;
     private final ResourceLocation texId;
 
-    // paramètres de navigation
     private BlockPos center = BlockPos.ORIGIN;
-    private int blocksPerPixel = 4; // zoom: 1 = très zoomé, 6 = large
+    private int blocksPerPixel = 4;
 
-    // sélection
     private BlockPos selectedPos = null;
 
-    // markers
     private final List<Marker> markers = new ArrayList<>();
 
-    // cache pixels
     private final int[] pixels;
     private boolean dirty = true;
     private long lastRebuildMs = 0L;
+
+    public int getWidth()  { return w; }
+    public int getHeight() { return h; }
 
     public GuiWorldMapPanel(Minecraft mc, World world, int width, int height, String textureKey) {
         this.mc = mc;
         this.world = world;
         this.w = width;
         this.h = height;
-
         this.pixels = new int[w * h];
         this.dynTex = new DynamicTexture(w, h);
         TextureManager tm = mc.getTextureManager();
         this.texId = tm.getDynamicTextureLocation(textureKey, dynTex);
     }
 
-    // ----------------- API Réutilisable -----------------
+    // ── Navigation API ───────────────────────────────────────────────────────
 
-    public void setCenter(BlockPos center) {
-        this.center = center;
-        this.dirty = true;
-    }
-
+    public void setCenter(BlockPos center) { this.center = center; this.dirty = true; }
     public BlockPos getCenter() { return center; }
 
     public void pan(int dxBlocks, int dzBlocks) {
@@ -150,59 +102,68 @@ public class GuiWorldMapPanel {
 
     public int getZoomBlocksPerPixel() { return blocksPerPixel; }
 
-    public void clearMarkers() {
-        this.markers.clear();
-    }
+    // ── Marker API ───────────────────────────────────────────────────────────
 
-    public void addMarker(Marker m) {
-        this.markers.add(m);
-    }
+    public void clearMarkers() { markers.clear(); }
+    public void addMarker(Marker m) { markers.add(m); }
 
-    public void setSelectedPos(BlockPos pos) {
-        this.selectedPos = pos;
-        // no need to rebuild texture, selection is overlay
-    }
+    public void setSelectedPos(BlockPos pos) { this.selectedPos = pos; }
+    public BlockPos getSelectedPos() { return selectedPos; }
 
+    public void forceDirty() { this.dirty = true; }
 
-    public BlockPos getSelectedPos() {
-        return selectedPos;
-    }
+    // ── Coordinate helpers ───────────────────────────────────────────────────
 
-    /**
-     * Convertit un clic écran -> BlockPos monde (XZ, Y fixé au top height)
-     */
+    /** Screen click → world BlockPos (Y = top-surface height). */
     public BlockPos screenToWorld(int mouseX, int mouseY, int mapX, int mapY) {
         int px = mouseX - mapX;
         int py = mouseY - mapY;
         int wx = center.getX() + (px - w / 2) * blocksPerPixel;
         int wz = center.getZ() + (py - h / 2) * blocksPerPixel;
-
         BlockPos top = world.getHeight(new BlockPos(wx, 0, wz));
         return new BlockPos(wx, top.getY(), wz);
     }
 
-    /**
-     * Dessine la carte à l'écran.
-     */
+    private int worldToScreenX(int worldX, int mapX) {
+        return mapX + (w / 2) + (worldX - center.getX()) / blocksPerPixel;
+    }
+
+    private int worldToScreenY(int worldZ, int mapY) {
+        return mapY + (h / 2) + (worldZ - center.getZ()) / blocksPerPixel;
+    }
+
+    // ── Tooltip ──────────────────────────────────────────────────────────────
+
+    /** Returns the label of the marker under the mouse, or null. */
+    public String getTooltipAt(int mouseX, int mouseY, int mapX, int mapY) {
+        for (int i = markers.size() - 1; i >= 0; i--) {
+            Marker m = markers.get(i);
+            if (m.label == null || m.label.isEmpty()) continue;
+            int sx = worldToScreenX(m.pos.getX(), mapX);
+            int sy = worldToScreenY(m.pos.getZ(), mapY);
+            int dx = mouseX - sx, dy = mouseY - sy;
+            if (dx * dx + dy * dy <= 25) return m.label; // 5 px radius
+        }
+        return null;
+    }
+
+    // ── Draw ─────────────────────────────────────────────────────────────────
+
     public void draw(int mapX, int mapY) {
         rebuildIfNeeded();
 
-        // texture
         mc.getTextureManager().bindTexture(texId);
         GlStateManager.color(1f, 1f, 1f, 1f);
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
 
-        // draw textured quad
         drawTexturedRect(mapX, mapY, w, h);
 
-        // Clipper les marqueurs au cadre de la carte via GL scissor
         net.minecraft.client.gui.ScaledResolution sr = new net.minecraft.client.gui.ScaledResolution(mc);
         int sf = sr.getScaleFactor();
         org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_SCISSOR_TEST);
         org.lwjgl.opengl.GL11.glScissor(mapX * sf, mc.displayHeight - (mapY + h) * sf, w * sf, h * sf);
 
-        // overlay markers
         drawMarkers(mapX, mapY);
 
         if (selectedPos != null) {
@@ -211,137 +172,53 @@ public class GuiWorldMapPanel {
             drawOutlineSquare(sx, sy, 4, 0xFFFFE39A);
         }
 
-        drawPlayerMarker(mapX, mapY);
-
         org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_SCISSOR_TEST);
     }
-    private void drawPlayerMarker(int mapX, int mapY) {
-        if (playerPos == null) return;
 
-        int sx = worldToScreenX(playerPos.getX(), mapX);
-        int sy = worldToScreenY(playerPos.getZ(), mapY);
-
-        drawFilledSquare(sx, sy, playerSize, playerArgb);
-        drawOutlineSquare(sx, sy, playerSize + 1, 0xFF000000);
-    }
-    // ----------------- Internals -----------------
-
-    private void rebuildIfNeeded() {
-        long now = System.currentTimeMillis();
-
-// If nothing changed, do nothing (big FPS win)
-        if (!dirty) return;
-
-// Safety throttle: don't rebuild more often than ~20 FPS even if spammed dirty
-        if ((now - lastRebuildMs) < 50) return;
-
-        dirty = false;
-        java.util.HashMap<Long, byte[]> localTileCache = new java.util.HashMap<>();
-
-        lastRebuildMs = now;
-
-
-        // Build heights first for hillshade
-        // (on calcule hauteur aux pixels et voisins)
-        for (int py = 0; py < h; py++) {
-            for (int px = 0; px < w; px++) {
-
-                int wx = center.getX() + (px - w / 2) * blocksPerPixel;
-                int wz = center.getZ() + (py - h / 2) * blocksPerPixel;
-
-// 1) Fog-of-war
-                if (!isTileDiscovered(wx, wz)) {
-                    pixels[py * w + px] = 0xFF0B0B0B; // noir = pas découvert
-                    continue;
-                }
-
-// 2) Cherche la tuile et son image
-                int cx = wx >> 4;
-                int cz = wz >> 4;
-                int tileX = floorDiv(cx, WorldMapDiscovery.CHUNKS_PER_TILE);
-                int tileZ = floorDiv(cz, WorldMapDiscovery.CHUNKS_PER_TILE);
-
-                long tkey = (((long) tileX) << 32) ^ (tileZ & 0xFFFFFFFFL);
-
-// Fetch tile bytes (use tiny local cache to reduce HashMap lookups)
-                byte[] tile = localTileCache.get(tkey);
-                if (tile == null) {
-                    tile = ClientMapTileCache.get(tkey);
-                    if (tile != null) localTileCache.put(tkey, tile);
-                }
-
-// If discovered but image not received yet (or corrupted), draw "missing" gray and continue
-                if (tile == null || tile.length != 64 * 64) {
-                    pixels[py * w + px] = 0xFF2A2A2A;
-                    continue;
-                }
-
-// 3) Convertit (wx,wz) -> pixel dans la tuile 64x64
-                final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16; // 256 blocks
-                final int step = tileBlocks / 64; // 4 blocks par pixel
-
-                int baseX = tileX * tileBlocks;
-                int baseZ = tileZ * tileBlocks;
-
-                int localX = wx - baseX;
-                int localZ = wz - baseZ;
-
-// clamp sécurité
-                if (localX < 0) localX = 0;
-                if (localZ < 0) localZ = 0;
-                if (localX > tileBlocks - 1) localX = tileBlocks - 1;
-                if (localZ > tileBlocks - 1) localZ = tileBlocks - 1;
-
-                int sx = localX / step; // 0..63
-                int sz = localZ / step; // 0..63
-
-                int tone = tile[sz * 64 + sx] & 0xFF;
-
-// 0 = "unknown/unloaded" sentinel from server generator => draw as missing/gray
-                if (tone == 0) {
-                    pixels[py * w + px] = 0xFF2A2A2A;
-                    continue;
-                }
-
-// 4) ton -> couleur
-                pixels[py * w + px] = (0xFF << 24) | toneToArgbPacked(tone);
-
-
-            }
-        }
-
-        dynTex.getTextureData(); // assure alloué
-        System.arraycopy(pixels, 0, dynTex.getTextureData(), 0, pixels.length);
-        dynTex.updateDynamicTexture();
-    }
+    // ── Marker rendering ─────────────────────────────────────────────────────
 
     private void drawMarkers(int mapX, int mapY) {
         for (Marker m : markers) {
             int sx = worldToScreenX(m.pos.getX(), mapX);
             int sy = worldToScreenY(m.pos.getZ(), mapY);
-
-            // petit carré
-            int s = m.size;
-            drawFilledSquare(sx, sy, s, m.argb);
-            drawOutlineSquare(sx, sy, s + 1, 0xFF000000);
+            switch (m.type) {
+                case PLAYER:
+                    drawFilledSquare(sx, sy, m.size, m.argb);
+                    drawOutlineSquare(sx, sy, m.size + 1, 0xFF000000);
+                    // cross
+                    net.minecraft.client.gui.Gui.drawRect(sx - m.size + 1, sy, sx + m.size, sy + 1, 0xFF000000);
+                    net.minecraft.client.gui.Gui.drawRect(sx, sy - m.size + 1, sx + 1, sy + m.size, 0xFF000000);
+                    break;
+                case HOME:
+                    drawHomeTriangle(sx, sy, m.size, m.argb);
+                    break;
+                default:
+                    drawFilledSquare(sx, sy, m.size, m.argb);
+                    drawOutlineSquare(sx, sy, m.size + 1, 0xFF000000);
+            }
         }
     }
 
-    private int worldToScreenX(int worldX, int mapX) {
-        int dx = (worldX - center.getX()) / blocksPerPixel;
-        return mapX + (w / 2) + dx;
+    /** Downward-pointing triangle (▽) with black outline for home markers. */
+    private static void drawHomeTriangle(int cx, int cy, int half, int argb) {
+        // black outline (slightly oversized triangle)
+        for (int i = 0; i <= half + 1; i++) {
+            int w = half + 1 - i + 1;
+            int y = cy - half - 1 + i;
+            net.minecraft.client.gui.Gui.drawRect(cx - w, y, cx + w + 1, y + 1, 0xFF000000);
+        }
+        // colored triangle: wide at top, narrows to single pixel at bottom
+        for (int i = 0; i <= half; i++) {
+            int w = half - i;
+            int y = cy - half + i;
+            net.minecraft.client.gui.Gui.drawRect(cx - w, y, cx + w + 1, y + 1, argb);
+        }
     }
 
-    private int worldToScreenY(int worldZ, int mapY) {
-        int dz = (worldZ - center.getZ()) / blocksPerPixel;
-        return mapY + (h / 2) + dz;
-    }
+    // ── Draw primitives ──────────────────────────────────────────────────────
 
     private static void drawTexturedRect(int x, int y, int w, int h) {
-        // Gui.drawModalRectWithCustomSizedTexture équivalent “manuel”
-        net.minecraft.client.gui.Gui.drawModalRectWithCustomSizedTexture(
-                x, y, 0, 0, w, h, w, h
-        );
+        net.minecraft.client.gui.Gui.drawModalRectWithCustomSizedTexture(x, y, 0, 0, w, h, w, h);
     }
 
     private static void drawFilledSquare(int cx, int cy, int half, int argb) {
@@ -355,16 +232,97 @@ public class GuiWorldMapPanel {
         net.minecraft.client.gui.Gui.drawRect(cx + half, cy - half, cx + half + 1, cy + half + 1, argb);
     }
 
+    // ── Terrain texture rebuild ───────────────────────────────────────────────
+
+    private void rebuildIfNeeded() {
+        long now = System.currentTimeMillis();
+        if (!dirty) return;
+        if ((now - lastRebuildMs) < 50) return;
+        dirty = false;
+        lastRebuildMs = now;
+
+        java.util.HashMap<Long, byte[]> localTileCache = new java.util.HashMap<>();
+
+        for (int py = 0; py < h; py++) {
+            for (int px = 0; px < w; px++) {
+                int wx = center.getX() + (px - w / 2) * blocksPerPixel;
+                int wz = center.getZ() + (py - h / 2) * blocksPerPixel;
+
+                if (!isTileDiscovered(wx, wz)) {
+                    pixels[py * w + px] = 0xFF0B0B0B;
+                    continue;
+                }
+
+                int cx = wx >> 4;
+                int cz = wz >> 4;
+                int tileX = floorDiv(cx, WorldMapDiscovery.CHUNKS_PER_TILE);
+                int tileZ = floorDiv(cz, WorldMapDiscovery.CHUNKS_PER_TILE);
+                long tkey = (((long) tileX) << 32) ^ (tileZ & 0xFFFFFFFFL);
+
+                byte[] tile = localTileCache.get(tkey);
+                if (tile == null) {
+                    tile = ClientMapTileCache.get(tkey);
+                    if (tile != null) localTileCache.put(tkey, tile);
+                }
+
+                if (tile == null || tile.length != 64 * 64) {
+                    pixels[py * w + px] = 0xFF2A2A2A;
+                    continue;
+                }
+
+                final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
+                final int step = tileBlocks / 64;
+
+                int baseX = tileX * tileBlocks;
+                int baseZ = tileZ * tileBlocks;
+                int localX = wx - baseX;
+                int localZ = wz - baseZ;
+                if (localX < 0) localX = 0;
+                if (localZ < 0) localZ = 0;
+                if (localX > tileBlocks - 1) localX = tileBlocks - 1;
+                if (localZ > tileBlocks - 1) localZ = tileBlocks - 1;
+
+                int sx = localX / step;
+                int sz = localZ / step;
+                int tone = tile[sz * 64 + sx] & 0xFF;
+
+                if (tone == 0) {
+                    pixels[py * w + px] = 0xFF2A2A2A;
+                    continue;
+                }
+
+                pixels[py * w + px] = (0xFF << 24) | toneToArgbPacked(tone);
+            }
+        }
+
+        dynTex.getTextureData();
+        System.arraycopy(pixels, 0, dynTex.getTextureData(), 0, pixels.length);
+        dynTex.updateDynamicTexture();
+    }
+
+    private boolean isTileDiscovered(int worldX, int worldZ) {
+        int cx = worldX >> 4;
+        int cz = worldZ >> 4;
+        int tileX = floorDiv(cx, WorldMapDiscovery.CHUNKS_PER_TILE);
+        int tileZ = floorDiv(cz, WorldMapDiscovery.CHUNKS_PER_TILE);
+        long key = (((long) tileX) << 32) ^ (tileZ & 0xFFFFFFFFL);
+        return ClientMapDiscovery.getTilesView().contains(key);
+    }
+
+    private static int floorDiv(int a, int b) {
+        int r = a / b;
+        if ((a ^ b) < 0 && (r * b != a)) r--;
+        return r;
+    }
+
     private static int toneToArgbPacked(int tone) {
         float t = (tone - RenderSettings.toneMin) / (float)(RenderSettings.toneMax - RenderSettings.toneMin);
         if (t < 0f) t = 0f;
         if (t > 1f) t = 1f;
 
-        // S-curve blend
         float s = t * t * (3f - 2f * t);
         t = RenderSettings.smoothBlend * s + (1f - RenderSettings.smoothBlend) * t;
 
-        // Linear contrast around midpoint
         float c = t - 0.5f;
         t = 0.5f + c * RenderSettings.contrast;
         if (t < 0f) t = 0f;
@@ -378,9 +336,7 @@ public class GuiWorldMapPanel {
         int g = (int)(RenderSettings.shadowG + t * dg);
         int b = (int)(RenderSettings.shadowB + t * db);
 
-        // Subtle cool tint for probable water (low tones)
         if (tone <= RenderSettings.waterThreshold) {
-            // Lift water brightness before tinting so it never collapses to near-black.
             if (t < RenderSettings.waterLift) t = RenderSettings.waterLift;
             r = (int)(RenderSettings.shadowR + t * dr);
             g = (int)(RenderSettings.shadowG + t * dg);
@@ -400,12 +356,4 @@ public class GuiWorldMapPanel {
 
         return (r << 16) | (g << 8) | b;
     }
-
-    private static int clamp(int v, int lo, int hi) {
-        return (v < lo) ? lo : (v > hi) ? hi : v;
-    }
-    public void forceDirty() {
-        this.dirty = true;
-    }
-
 }

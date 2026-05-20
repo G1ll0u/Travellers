@@ -38,10 +38,10 @@ public final class FollowFormationCoordinator {
 
     private static final Map<LeaderKey, LeaderContext> CONTEXTS = new HashMap<>();
 
-    private static final int REFRESH_INTERVAL_MOVING = 16;
-    private static final int REFRESH_INTERVAL_MOVING_LARGE = 36; // for groups > 200
-    private static final int REFRESH_INTERVAL_IDLE = 60;
-    private static final int REFRESH_INTERVAL_IDLE_LARGE = 120;  // for groups > 200
+    private static final int REFRESH_INTERVAL_MOVING = 8;
+    private static final int REFRESH_INTERVAL_MOVING_LARGE = 18; // for groups > 200
+    private static final int REFRESH_INTERVAL_IDLE = 40;
+    private static final int REFRESH_INTERVAL_IDLE_LARGE = 80;  // for groups > 200
     private static final int CLEANUP_INTERVAL = 200;
     // Self-registration: how many ticks without a call before a member is considered gone
     private static final long MEMBER_EXPIRY_TICKS = 40L;

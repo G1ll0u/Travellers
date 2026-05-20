@@ -3,8 +3,13 @@ package com.jubitus.travellers.server.net;
 import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormationGui;
+import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationByScope;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateWorkerFormationSettings;
+import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
+import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
+import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
 import com.jubitus.travellers.server.net.message.home.*;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgClearEscortLeader;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgMakeWorkerLeader;
@@ -162,6 +167,13 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgChoirSoundDone.Handler.class,
                 MsgChoirSoundDone.class, id++, Side.SERVER);
         registerClientOnly(MsgChoirSingerMute.class, isClient ? new MsgChoirSingerMute.Handler() : new MsgChoirSingerMute.NoopHandler());
+
+        CHANNEL.registerMessage(MsgGroupComeBack.Handler.class, MsgGroupComeBack.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgGroupMerge.Handler.class, MsgGroupMerge.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgLeaderGoTo.Handler.class, MsgLeaderGoTo.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgUpdateFormationByScope.Handler.class, MsgUpdateFormationByScope.class, id++, Side.SERVER);
+        registerClientOnly(MsgOpenFormationHubGui.class,
+                isClient ? new MsgOpenFormationHubGui.Handler() : new MsgOpenFormationHubGui.NoopHandler());
     }
 
 
