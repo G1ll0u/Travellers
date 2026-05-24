@@ -4,104 +4,109 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
+import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
 
 public class ContainerWorkerInventory extends Container {
 
-    private static final int WORKER_SLOTS = 18;
+    static final int ARMOR_COUNT = 4;
+    static final int BACKPACK_COUNT = 18;
+    static final int PLAYER_INV_COUNT = 27;
+    static final int HOTBAR_COUNT = 9;
+
+    static final int ARMOR_START = 0;
+    static final int ARMOR_END = ARMOR_START + ARMOR_COUNT;
+    static final int BACKPACK_START = ARMOR_END;
+    static final int BACKPACK_END = BACKPACK_START + BACKPACK_COUNT;
+    static final int PLAYER_START = BACKPACK_END;
+    static final int PLAYER_END = PLAYER_START + PLAYER_INV_COUNT;
+    static final int HOTBAR_START = PLAYER_END;
+    static final int HOTBAR_END = HOTBAR_START + HOTBAR_COUNT;
 
     private final EntityTravellerWorker worker;
-    private final InventoryPlayer playerInv;
 
     public ContainerWorkerInventory(InventoryPlayer playerInv, EntityTravellerWorker worker) {
         this.worker = worker;
-        this.playerInv = playerInv;
 
-        // Worker personal inventory (2x9)
-        ItemStackHandler inv = worker.getPersonalInventory();
+        // Slots 0-3: armor (HEAD, CHEST, LEGS, FEET)
+        EntityEquipmentSlot[] armorOrder = {
+            EntityEquipmentSlot.HEAD, EntityEquipmentSlot.CHEST,
+            EntityEquipmentSlot.LEGS, EntityEquipmentSlot.FEET
+        };
+        for (int i = 0; i < ARMOR_COUNT; i++) {
+            addSlotToContainer(new SlotEntityEquipment(worker, armorOrder[i], 8 + i * 18, 18));
+        }
+
+        // Slots 4-21: backpack (entity.inventory, 2x9)
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 9; col++) {
-                int index = col + row * 9;
-                int x = 8 + col * 18;
-                int y = 18 + row * 18;
-                this.addSlotToContainer(
-                        new SlotItemHandler(inv, index, x, y)
-                );
+                addSlotToContainer(new SlotItemHandler(worker.inventory, col + row * 9,
+                        8 + col * 18, 40 + row * 18));
             }
         }
 
-        // Player inventory (3x9)
-        int invY = 50 + 18;
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 9; ++col) {
-                this.addSlotToContainer(new Slot(playerInv, col + row * 9 + 9,
-                        8 + col * 18, invY + row * 18));
+        // Slots 22-48: player inventory (3x9)
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                addSlotToContainer(new Slot(playerInv, col + row * 9 + 9,
+                        8 + col * 18, 90 + row * 18));
             }
         }
 
-        // Hotbar
-        int hotbarY = invY + 58;
-        for (int i = 0; i < 9; ++i) {
-            this.addSlotToContainer(new Slot(playerInv, i, 8 + i * 18, hotbarY));
+        // Slots 49-57: hotbar
+        for (int i = 0; i < HOTBAR_COUNT; i++) {
+            addSlotToContainer(new Slot(playerInv, i, 8 + i * 18, 148));
         }
     }
 
     @Override
-    public ItemStack transferStackInSlot(EntityPlayer playerIn, int index) {
-        ItemStack itemstack = ItemStack.EMPTY;
-        Slot slot = this.inventorySlots.get(index);
+    public ItemStack transferStackInSlot(EntityPlayer player, int index) {
+        Slot slot = inventorySlots.get(index);
+        if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
 
-        if (slot != null && slot.getHasStack()) {
-            ItemStack stack = slot.getStack();
-            itemstack = stack.copy();
+        ItemStack stack = slot.getStack();
+        ItemStack original = stack.copy();
 
-            int workerStart = 0;
-            int workerEnd = workerStart + WORKER_SLOTS; // 18
-            int playerInvStart = workerEnd;             // 18
-            int playerInvEnd = playerInvStart + 27;     // 45
-            int hotbarStart = playerInvEnd;             // 45
-            int hotbarEnd = hotbarStart + 9;            // 54
-
-            if (index < workerEnd) {
-                // From worker -> player
-                if (!this.mergeItemStack(stack, playerInvStart, hotbarEnd, true)) {
-                    return ItemStack.EMPTY;
-                }
-            } else {
-                // From player -> worker
-                if (!this.mergeItemStack(stack, workerStart, workerEnd, false)) {
-                    return ItemStack.EMPTY;
-                }
-            }
-
-            if (stack.isEmpty()) {
-                slot.putStack(ItemStack.EMPTY);
-            } else {
-                slot.onSlotChanged();
-            }
-
-            if (stack.getCount() == itemstack.getCount()) {
+        if (index < ARMOR_END) {
+            // Armor → backpack, then player inventory
+            if (!mergeItemStack(stack, BACKPACK_START, BACKPACK_END, false)
+                    && !mergeItemStack(stack, PLAYER_START, HOTBAR_END, true)) {
                 return ItemStack.EMPTY;
             }
-
-            slot.onTake(playerIn, stack);
+        } else if (index < BACKPACK_END) {
+            // Backpack → armor slots if applicable, then player inventory
+            if (!mergeItemStack(stack, ARMOR_START, ARMOR_END, false)
+                    && !mergeItemStack(stack, PLAYER_START, HOTBAR_END, true)) {
+                return ItemStack.EMPTY;
+            }
+        } else {
+            // Player/hotbar → armor slots if applicable, then backpack
+            if (!mergeItemStack(stack, ARMOR_START, ARMOR_END, false)
+                    && !mergeItemStack(stack, BACKPACK_START, BACKPACK_END, false)) {
+                return ItemStack.EMPTY;
+            }
         }
 
-        return itemstack;
+        if (stack.isEmpty()) slot.putStack(ItemStack.EMPTY);
+        else slot.onSlotChanged();
+
+        if (stack.getCount() == original.getCount()) return ItemStack.EMPTY;
+        slot.onTake(player, stack);
+        return original;
     }
 
     @Override
-    public void onContainerClosed(EntityPlayer playerIn) {
-        super.onContainerClosed(playerIn);
-        // No rollback: this is the worker’s own storage
+    public void onContainerClosed(EntityPlayer player) {
+        super.onContainerClosed(player);
+        if (!worker.world.isRemote) {
+            worker.equipment.syncEquipmentFromInventory();
+        }
     }
 
     @Override
-    public boolean canInteractWith(EntityPlayer playerIn) {
-        return worker.isEntityAlive()
-                && worker.getDistanceSq(playerIn) <= 64.0D;
+    public boolean canInteractWith(EntityPlayer player) {
+        return worker.isEntityAlive() && worker.getDistanceSq(player) <= 64.0D;
     }
 }

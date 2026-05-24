@@ -9,6 +9,7 @@ import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
+import com.jubitus.travellers.entity.entityAI.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
 import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
@@ -333,49 +334,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         }
 
         if (!world.isRemote) {
-            if (c != null) {
-                java.util.Random r = this.rand;
-
-                // --- MAIN HAND: random melee or tool from culture ---
-                ItemStack meleeOrTool = c.randomMeleeOrTool(r);
-                if (!meleeOrTool.isEmpty()) {
-                    this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
-                }
-
-                // --- OPTIONAL BOW ---
-                if (r.nextFloat() < 0.20f) {
-                    ItemStack bow = c.randomBow(r);
-                    if (!bow.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
-                    }
-                }
-
-                // --- ARMOR: low chances per slot ---
-                if (r.nextFloat() < 0.15f) {
-                    ItemStack helm = c.randomArmorForSlot(EntityEquipmentSlot.HEAD, r);
-                    if (!helm.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.HEAD, helm);
-                    }
-                }
-                if (r.nextFloat() < 0.10f) {
-                    ItemStack chest = c.randomArmorForSlot(EntityEquipmentSlot.CHEST, r);
-                    if (!chest.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.CHEST, chest);
-                    }
-                }
-                if (r.nextFloat() < 0.08f) {
-                    ItemStack legs = c.randomArmorForSlot(EntityEquipmentSlot.LEGS, r);
-                    if (!legs.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.LEGS, legs);
-                    }
-                }
-                if (r.nextFloat() < 0.12f) {
-                    ItemStack boots = c.randomArmorForSlot(EntityEquipmentSlot.FEET, r);
-                    if (!boots.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.FEET, boots);
-                    }
-                }
-            }
+            equipment.initSpawnEquipment(c, this.rand);
 
             // 3) Seed ambient window if needed
             if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
@@ -479,7 +438,7 @@ public class EntityTravellerRaider extends EntityTraveller {
             if (autoEatTask != null) autoEatTask.cancel();
             setInCombat(true);
             if (src instanceof EntityLivingBase) {
-                rememberThreat((EntityLivingBase) src, THREAT_FOR_HIT);
+                combat.rememberThreat((EntityLivingBase) src, TravellerCombatLogic.THREAT_FOR_HIT);
                 this.setAttackTarget((EntityLivingBase) src);
             }
         }
@@ -489,7 +448,7 @@ public class EntityTravellerRaider extends EntityTraveller {
             // If not a travellers-vs-travellers case, allow raiders to retaliate
             // to any listed extra-hostile entity too:
             if (this.shouldAttackExtraEntity(livingSrc) || !(src instanceof EntityTraveller)) {
-                rememberThreat(livingSrc, THREAT_FOR_HIT);
+                combat.rememberThreat(livingSrc, TravellerCombatLogic.THREAT_FOR_HIT);
                 this.setAttackTarget(livingSrc);
                 setInCombat(true);
             }

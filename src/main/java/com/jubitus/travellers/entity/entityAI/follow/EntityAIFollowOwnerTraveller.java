@@ -604,6 +604,15 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             idealX = lerp(idealX, target.posX, pull);
             idealZ = lerp(idealZ, target.posZ, pull);
             idealY = target.getEntityBoundingBox().minY;
+        } else {
+            // Surface: use terrain height at slot XZ so the search is ground-anchored,
+            // not floating at the leader's altitude (critical for mountain terrain).
+            int sxi = MathHelper.floor(idealX);
+            int szi = MathHelper.floor(idealZ);
+            BlockPos slotCol = new BlockPos(sxi, 0, szi);
+            if (worker.world.isBlockLoaded(slotCol)) {
+                idealY = worker.world.getTopSolidOrLiquidBlock(slotCol).getY();
+            }
         }
 
         int horizontal = mode == FollowMode.CAVE ? cfg.cave.goalSearchHorizontal : cfg.surface.goalSearchHorizontal;
@@ -678,7 +687,21 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         World world = worker.world;
         int xi = MathHelper.floor(idealX);
         int zi = MathHelper.floor(idealZ);
-        int y0 = MathHelper.clamp(MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
+
+        // For surface follow, use the actual terrain height at the slot XZ instead of the
+        // leader's altitude. This prevents goals from being computed in mid-air when the
+        // leader is on a mountain and the slot XZ is at the base.
+        int y0;
+        if (mode != FollowMode.CAVE && !airborneLeader) {
+            BlockPos slotColumn = new BlockPos(xi, 0, zi);
+            if (world.isBlockLoaded(slotColumn)) {
+                y0 = MathHelper.clamp(world.getTopSolidOrLiquidBlock(slotColumn).getY(), 2, world.getActualHeight() - 3);
+            } else {
+                y0 = MathHelper.clamp(MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
+            }
+        } else {
+            y0 = MathHelper.clamp(MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
+        }
 
         BlockPos best = null;
         double bestScore = Double.MAX_VALUE;
@@ -1148,6 +1171,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         if (pathFailTicks >= 6) return 2;
         if (mode == FollowMode.CAVE && dy >= 6.0D) return 2;
+        if (mode == FollowMode.SURFACE && dy >= 10.0D) return 1;
         if (noPath && distToGoal > 4.0D && distToLeader > 10.0D) return 2;
         if (distToLeader >= 34.0D) return 2;
         if (distToLeader >= 22.0D) return 1;
@@ -2190,13 +2214,27 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         // L’eau est considérée dangereuse ici pour éviter le "demi-tour trop tard".
         if (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER) return true;
 
-        if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) return true;
+        if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) {
+            // Allow 1-block step-ups (climbable slope). If the position one block up is walkable
+            // and not a drop, this is just terrain rising — not a real navigation hazard.
+            if (!isClimbableStepUp(world, feet)) return true;
+        }
+
         if (!(up.getMaterial().isReplaceable() || up.getCollisionBoundingBox(world, feet.up()) == null)) return true;
 
-        // Sol non fiable / trou / bord de falaise
         if (isDropOrUnsafeEdge(feet, EDGE_DANGER_DEPTH)) return true;
 
         return false;
+    }
+
+    private boolean isClimbableStepUp(World world, BlockPos feet) {
+        BlockPos feetUp = feet.up();
+        if (!world.isBlockLoaded(feetUp) || !world.isBlockLoaded(feetUp.up())) return false;
+        IBlockState atUp = world.getBlockState(feetUp);
+        IBlockState headUp = world.getBlockState(feetUp.up());
+        boolean feetUpClear = atUp.getMaterial().isReplaceable() || atUp.getCollisionBoundingBox(world, feetUp) == null;
+        boolean headUpClear = headUp.getMaterial().isReplaceable() || headUp.getCollisionBoundingBox(world, feetUp.up()) == null;
+        return feetUpClear && headUpClear && !isDropOrUnsafeEdge(feetUp, EDGE_DANGER_DEPTH);
     }
 
     private boolean isDropOrUnsafeEdge(BlockPos feet, int maxDepth) {

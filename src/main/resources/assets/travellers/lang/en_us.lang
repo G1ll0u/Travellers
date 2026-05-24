@@ -26,7 +26,7 @@ travellers.worker.hub.inventory=Inventory
 travellers.worker.orders.make_leader=Lead
 travellers.worker.orders.follow_on=Follow: ON
 travellers.worker.orders.follow_off=Follow: OFF
-travellers.worker.inventory.title=Personal inventory
+travellers.worker.inventory.title=Henchman inventory
 travellers.worker.orders.recruit=Go recruit
 travellers.worker.orders.follow_player=Follow me
 travellers.worker.orders.following_player=Follow me
@@ -35,6 +35,7 @@ travellers.worker.hub.behavior=Behavior
 travellers.worker.hub.map=Map
 
 travellers.gui.back=Back
+travellers.gui.close=Close
 travellers.gui.add=Add
 travellers.gui.remove=Remove
 travellers.gui.done=Done
@@ -46,7 +47,7 @@ travellers.gui.unnamed=(unnamed)
 
 travellers.map.center=Center
 travellers.map.chunks.legend.loaded_normal=Loaded chunks (normal)
-travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers merchants
+travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers workers
 travellers.map.chunks.legend.villages=Village Town Halls
 travellers.map.chunks.legend.center_chunk=White square = current center chunk
 travellers.map.chunks.legend.player_pos=Green dot = your pos
@@ -64,7 +65,7 @@ travellers.worker.village_relations.hint=Select a village, then toggle enemy.
 travellers.worker.village_relations.toggle_enemy=Toggle enemy
 
 travellers.home_name_prompt.title=Name of your home
-travellers.home_name_prompt.subtitle=You can assign it to hired workers.
+travellers.home_name_prompt.subtitle=You can assign it to hired workers and send them here, more to come.
 
 travellers.worker.home_list.title=Homes
 travellers.worker.home_list.set_home=Set home
@@ -83,9 +84,9 @@ travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
 
 travellers.worker.home_list.empty=You have no homes looser
 
-travellers.worker.hub.formation=Formation
+travellers.worker.hub.formation=Formations
 
-travellers.worker.formation.title=Formation
+travellers.worker.formation.title=Formation & Groups
 travellers.worker.formation.preview=Radar Preview
 travellers.worker.formation.preview_adaptive_cave=Cave adaptive: ON
 travellers.worker.formation.preview_surface_bias=Cave adaptive: OFF
@@ -141,8 +142,12 @@ travellers.worker.mark.style.chevron=Chevron
 travellers.worker.formation.hub_title=Formation & Groups
 travellers.worker.formation.orders_tab=Leader Orders
 travellers.worker.formation.you=You
-travellers.worker.formation.go=Go...
+travellers.worker.formation.go=Go to...
 travellers.worker.formation.come_back=Come Back
-travellers.worker.formation.merge=Merge...
+travellers.worker.formation.merge=Merge with...
 travellers.worker.formation.merge_cancel=Cancel Merge
 travellers.worker.formation.merge_hint=Click a group to merge into
+
+key.travellers.formation_hub=Open Formation Hub
+key.travellers.world_map=Open World Map
+key.categories.travellers=Travellers

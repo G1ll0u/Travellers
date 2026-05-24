@@ -10,6 +10,7 @@ import com.jubitus.travellers.server.net.message.map.MsgRequestMapTiles;
 import com.jubitus.travellers.server.net.message.map.MsgWorkerMapView;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList;
+import com.jubitus.travellers.client.input.WorldMapKeyHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -104,7 +105,7 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
         recenterButton = this.addButton(new GuiButton(8, mapX + mapW - 58, zTop, 58, 20,
                 I18n.format("travellers.map.center", "Center")));
         backButton     = this.addButton(new GuiButton(9, mapX + mapW - 122, zTop, 58, 20,
-                I18n.format("travellers.gui.back", "Back")));
+                I18n.format(contextWorkerId < 0 ? "travellers.gui.close" : "travellers.gui.back")));
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(contextWorkerId));
@@ -150,6 +151,15 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
     }
 
     @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (keyCode == WorldMapKeyHandler.KEY.getKeyCode()) {
+            mc.displayGuiScreen(null);
+            return;
+        }
+        super.keyTyped(typedChar, keyCode);
+    }
+
+    @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
         if (mouseButton == 1 && isMouseOverMap(mouseX, mouseY)) {
@@ -182,8 +192,12 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
         int stepBlocks = mapPanel.getZoomBlocksPerPixel() * 48;
 
         if (button == backButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(contextWorkerId, MsgOpenWorkerSubGui.Type.HUB));
+            if (contextWorkerId < 0) {
+                mc.displayGuiScreen(null);
+            } else {
+                TravellerFollowNet.CHANNEL.sendToServer(
+                        new MsgOpenWorkerSubGui(contextWorkerId, MsgOpenWorkerSubGui.Type.HUB));
+            }
             return;
         }
         if (button == panN)   { mapPanel.pan(0, -stepBlocks); return; }

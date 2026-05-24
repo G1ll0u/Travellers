@@ -127,6 +127,13 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 if (attacker instanceof EntityTraveller) continue;
                 if (ally.world.getDifficulty() == EnumDifficulty.PEACEFUL) continue;
 
+                // Only same-faction allies respond to calls for help.
+                // Raiders recruit only raiders; friendly travellers recruit only friendly travellers/workers.
+                if (owner instanceof EntityTraveller) {
+                    EntityTraveller ownerT = (EntityTraveller) owner;
+                    if (ownerT.isAggressiveToTravellers() != ally.isAggressiveToTravellers()) continue;
+                }
+
                 // Only assist if attacker is within help range of THIS ally
                 if (ally.getDistanceSq(attacker) > (assistRadius * assistRadius)) continue;
 

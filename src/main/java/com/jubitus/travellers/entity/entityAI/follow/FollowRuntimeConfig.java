@@ -36,8 +36,8 @@ public final class FollowRuntimeConfig {
         surface.staggerOffset = 0.47D;
         surface.arriveRadius = 1.35D;
         surface.verticalTolerance = 12.8D;
-        surface.goalSearchHorizontal = 2;
-        surface.goalSearchVertical = 6;
+        surface.goalSearchHorizontal = 3;
+        surface.goalSearchVertical = 10;
         surface.enterModeTicks = 0;
         surface.exitModeTicks = 18;
 
@@ -86,9 +86,9 @@ public final class FollowRuntimeConfig {
         rescue.caveMaxLeaderDistance = 24.0D;
         rescue.caveMaxHorizontal = 12.0D;
         rescue.caveMinVerticalAbove = 4.0D;
-        rescue.surfaceMinStagnationTicks = 180;
-        rescue.surfaceMinFailedPathTicks = 60;
-        rescue.surfaceMaxStep = 4.5D;
+        rescue.surfaceMinStagnationTicks = 100;
+        rescue.surfaceMinFailedPathTicks = 35;
+        rescue.surfaceMaxStep = 6.0D;
         rescue.surfaceMinLeaderDistance = 4.0D;
         rescue.surfaceMaxLeaderDistance = 10.0D;
         rescue.caveModeGraceTicks = 60;

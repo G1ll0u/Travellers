@@ -18,7 +18,10 @@ import com.jubitus.travellers.entity.entityAI.ambient.EntityAIStopAndLookAtPlaye
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityAI.combat.AttackTargetLimiter;
+import com.jubitus.travellers.entity.entityAI.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
+import com.jubitus.travellers.entity.entityAI.combat.TravellerItemDamage;
+import com.jubitus.travellers.entity.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
 import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
@@ -94,15 +97,13 @@ import java.util.UUID;
 
 public class EntityTraveller extends EntityCreature {
 
-    public static final String GHOST_TORCH_TAG = "TravellerGhostTorch";
+    public static final String GHOST_TORCH_TAG = TravellerEquipmentManager.GHOST_TORCH_TAG;
     // FISHING ROD
-    public static final String GHOST_ROD_TAG = "TravellerGhostRod";
+    public static final String GHOST_ROD_TAG = TravellerEquipmentManager.GHOST_ROD_TAG;
     public static final double NEAR_HYS_DELTA_SQ = 4 * 4; // must be 4 blocks closer to switch
     // If something is close AND we currently have no target,
 // we allow bypassing the limiter so nearby defenders react.
     public static final double EMERGENCY_ENGAGE_RANGE = 8.0D; // blocks
-    // --- Threat memory (not persisted by default) ---
-    static final int THREAT_FOR_HIT = 8;       // score added when this gets hit
     static final UUID SWIM_BOOST_UUID =
             UUID.fromString("b3b1a5ee-9c12-4e6f-a7e4-1c4ef2f35d61");
     private static final DataParameter<String> BACKPACK_STYLE =
@@ -115,13 +116,11 @@ public class EntityTraveller extends EntityCreature {
             new ResourceLocation("travellers", "entities/traveller_pack");
     private static final DataParameter<Integer> TEXTURE_INDEX = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.VARINT);
     // ---- GAP / CLIFF handling ----
-    private static final String GHOST_SWORD_TAG = "MillmixGhostSword";
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
     private static final int ARRIVE_IN = Math.max(8, TravellersModConfig.VILLAGE_NEAR - 4); // e.g., 28 if near=32
     private static final int ARRIVE_OUT = TravellersModConfig.VILLAGE_NEAR + 4;              // e.g., 36
     private static final DataParameter<Boolean> AIMING_BOW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
-    private static final String GHOST_BOW_TAG = "TravellerGhostBow";
     // Configuration-ish knobs
     private static final DataParameter<String> CULTURE_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
@@ -138,14 +137,13 @@ public class EntityTraveller extends EntityCreature {
     private static final int UNTRACKED_GRACE_TICKS = 20 * 5; // NEW: 5 seconds (tweak)
     private static final double EMERGENCY_ENGAGE_RANGE_SQ = EMERGENCY_ENGAGE_RANGE * EMERGENCY_ENGAGE_RANGE;
     public final TravellerCamp travellerCamp = new TravellerCamp(this);
+    public final TravellerCombatLogic combat = new TravellerCombatLogic(this);
+    public final TravellerEquipmentManager equipment = new TravellerEquipmentManager(this);
     public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     final TravelCommon travelCommon = new TravelCommon(this);
     private final int retargetPhase = this.rand.nextInt(10); // 0..9
     // --- Camp join cooldown (prevents placing a fire right after resting) ---
     private final TravellerCamp camp = new TravellerCamp(this);
-    private final Map<UUID, Threat> threatMap = new java.util.HashMap<>();
-    private final Map<UUID, HitGrace> playerGrace = new java.util.HashMap<>();
-    private final Map<UUID, Integer> playerLastAggroTick = new java.util.HashMap<>();
     // per-player last hello tick (server-authoritative)
     private final Map<UUID, Integer> lastHelloTickByPlayer = new java.util.HashMap<>();
     // ---- GAP / CLIFF handling control ----
@@ -156,8 +154,6 @@ public class EntityTraveller extends EntityCreature {
     private final boolean aggressiveToCultures = false;
     private final Map<UUID, Integer> ignoreTargetsUntil = new java.util.HashMap<>();
     public int nextTravelAmbientTick = 0;  // you already had this
-    public int lastLOSorCloseTick = 0; // last time we either saw the player OR they were close
-    // field on EntityTraveller
     EntityAIAutoEat autoEatTask;
     EntityAIRangedBowTravellerSafe aiRanged;
     EntityAIAttackMeleeCustom aiMelee;
@@ -174,21 +170,14 @@ public class EntityTraveller extends EntityCreature {
     private final int debugNextTargetTraceTick = 0;
     private ForgeChunkManager.Ticket travelTicket;
     private int dogScanCooldown = 0;
-    // --- Combat State Fields ---
-    private boolean inCombat = false;
-    private int swordHideTicks = 0;
-    private int lastThreatDecayTick = 0;
     // --- Caravan / follow-other-travellers state ---
     @Nullable
     private UUID followLeaderId = null;
     private int followTimeoutTicks = 0;
-    // --- Equipment ---
-    private int pickupCooldown = 0;
     private int speakCooldown = 0;
     private int forcedSwingTicks = 0;
     private int hurtAnimCooldown = 0;
     private int travelRecoverTicks = 0;
-    private int pickupScanTicker = 0;
     // --- Voice channel ---
     private int voiceLockUntilTick = 0;     // no new sounds until this tick (entity-local, server authoritative)
     private VoiceKind voiceKindNow = VoiceKind.NONE;
@@ -201,13 +190,8 @@ public class EntityTraveller extends EntityCreature {
     private boolean suppressCompanionSpawn = false;  // set for eggs/commands/etc.
     private int farFromPlayersTicks = 0;
     @Nullable
-    private UUID chasingPlayerId = null;
-    @Nullable
     private UUID dogId = null;
     private int currentFollowers = 0;
-    @Nullable
-    private UUID watchFightTargetId = null;
-    private int watchFightUntilTick = 0;
     public EntityTraveller(World worldIn) {
         super(worldIn);
         this.setPathPriority(PathNodeType.BLOCKED, -1.0F);
@@ -234,10 +218,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public boolean isGhostTorch(ItemStack s) {
-        return !s.isEmpty()
-                && s.getItem() == Item.getItemFromBlock(Blocks.TORCH)
-                && s.hasTagCompound()
-                && s.getTagCompound().getBoolean(GHOST_TORCH_TAG);
+        return equipment.isGhostTorch(s);
     }
 
     public static double pointToSegment2DSq(Vec3d P, Vec3d A, Vec3d B) {
@@ -575,32 +556,16 @@ public class EntityTraveller extends EntityCreature {
 
     // Allow AI to check/do these without touching your privates:
     public boolean hasBowInBackpackPublic() {
-        return hasBowInBackpack();
-    }
-
-    private boolean hasBowInBackpack() {
-        return !findBowInBackpack().isEmpty();
+        return equipment.hasBowInBackpack();
     }
 
     public ItemStack findBowInBackpackPublic() {
-        return findBowInBackpack();
+        ItemStack bow = equipment.findBowInBackpack();
+        return bow != null ? bow : ItemStack.EMPTY;
     }
 
-    private ItemStack findBowInBackpack() {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (isBowLike(s)) return s;
-        }
-        return ItemStack.EMPTY;
-    }
-
-    private boolean isBowLike(ItemStack s) {
-        return !s.isEmpty() && s.getItem() instanceof ItemBow;
-    }
-
-    // Keep the existing visual behavior for swords while shooting:
     public void delaySwordHideVisual() {
-        this.swordHideTicks = TravellersModConfig.SWORD_HIDE_DELAY;
+        equipment.delaySwordHideVisual();
     }
 
     public int getTravelRecoverTicks() {
@@ -828,14 +793,14 @@ public class EntityTraveller extends EntityCreature {
                     // allow, do NOT reject
                 } else {
                     // fall through to normal faction rules
-                    if (!isCrossFaction(other)) {
+                    if (!combat.isCrossFaction(other)) {
                         rejectTarget();
                         return;
                     }
                 }
             } else {
                 // Normal travellers: block same-faction fights
-                if (!isCrossFaction(other)) {
+                if (!combat.isCrossFaction(other)) {
                     rejectTarget();
                     return;
                 }
@@ -878,10 +843,10 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             if (target != null) setInCombat(true);
             if (target instanceof EntityPlayer) {
-                chasingPlayerId = target.getUniqueID();
-                lastLOSorCloseTick = this.ticksExisted; // we just “saw” them
+                combat.chasingPlayerId = target.getUniqueID();
+                combat.lastLOSorCloseTick = this.ticksExisted; // we just “saw” them
             } else if (target == null) {
-                resetChaseMemory();
+                combat.resetChaseMemory();
             }
         }
     }
@@ -1035,8 +1000,8 @@ public class EntityTraveller extends EntityCreature {
             if (TravellersModConfig.travellerAmbient && this.ticksExisted >= nextTravelAmbientTick) {
                 travelCommon.maybePlayTravelAmbient();
             }
-            handleSwordVisibility();
-            decayAndPruneThreats();
+            equipment.handleWeaponVisibility();
+            combat.decayAndPruneThreats();
             pruneIgnoredTargets();
         }
         if (!isInCombat()) {
@@ -1058,7 +1023,7 @@ public class EntityTraveller extends EntityCreature {
             double keepDist = TravellersModConfig.playerFleeKeepDistance;
             boolean close = this.getDistanceSq(p) <= (keepDist * keepDist);
             if (see || close) {
-                lastLOSorCloseTick = this.ticksExisted; // still engaged; don’t forgive
+                combat.lastLOSorCloseTick = this.ticksExisted; // still engaged; don’t forgive
             }
 
             // 2) Calm player? (your earlier memory updated by the hurt event)
@@ -1066,12 +1031,12 @@ public class EntityTraveller extends EntityCreature {
                     lastPlayerAggroAgeTicks(p) > TravellersModConfig.playerCalmForgiveTicks;
 
             // Optional: don’t instantly forgive right after being damaged by them
-            Threat th = threatMap.get(p.getUniqueID());
+            TravellerCombatLogic.Threat th = combat.getThreat(p.getUniqueID());
             boolean wasRecentlyThreat = (th != null) && (this.ticksExisted - th.lastSeenTick <= 40);
 
             // 3) Fleeing window: must be away/out of LOS for long enough
             boolean fleeingLongEnough =
-                    (this.ticksExisted - lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
+                    (this.ticksExisted - combat.lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
 
             if (playerCalm && fleeingLongEnough && !wasRecentlyThreat) {
                 this.setAttackTarget(null);
@@ -1081,11 +1046,11 @@ public class EntityTraveller extends EntityCreature {
                     setAimingBow(false);
                     resetActiveHand();
                 }
-                resetChaseMemory();
+                combat.resetChaseMemory();
                 this.setRevengeTarget(null);
             }
         } else if (tgt == null) {
-            resetChaseMemory();
+            combat.resetChaseMemory();
         }
         if (!world.isRemote) {
             if (isAimingBow()) {
@@ -1095,16 +1060,16 @@ public class EntityTraveller extends EntityCreature {
                 }
             }
         }
-        if (!world.isRemote && this.getAttackTarget() == null && watchFightTargetId != null) {
-            if (this.ticksExisted >= watchFightUntilTick) {
-                watchFightTargetId = null;
+        if (!world.isRemote && this.getAttackTarget() == null && combat.hasWatchFightTarget()) {
+            if (combat.isWatchFightExpired()) {
+                combat.clearWatchFight();
             } else if (world instanceof WorldServer) {
-                Entity e = ((WorldServer) world).getEntityFromUuid(watchFightTargetId);
+                Entity e = ((WorldServer) world).getEntityFromUuid(combat.getWatchFightTargetId());
                 if (e instanceof EntityLivingBase && e.isEntityAlive()) {
-                    this.getNavigator().clearPath(); // stand & watch
+                    this.getNavigator().clearPath();
                     this.getLookHelper().setLookPositionWithEntity(e, 30.0F, (float) this.getVerticalFaceSpeed());
                 } else {
-                    watchFightTargetId = null;
+                    combat.clearWatchFight();
                 }
             }
         }
@@ -1265,65 +1230,13 @@ public class EntityTraveller extends EntityCreature {
     @Override
     protected void dropLoot(boolean wasRecentlyHit, int lootingModifier, DamageSource source) {
         super.dropLoot(wasRecentlyHit, lootingModifier, source);
-
-        if (world.isRemote || inventory == null) return;
-
-        final float DROP_CHANCE = 0.30f;     // 30% per item
-        final int MAX_DROPS = 2;         // cap at 2 items
-
-        // Build and shuffle slot order to avoid early-slot bias
-        int n = inventory.getSlots();
-        List<Integer> slots = new java.util.ArrayList<>(n);
-        for (int i = 0; i < n; i++) slots.add(i);
-        java.util.Collections.shuffle(slots, rand);
-
-        int dropped = 0;
-        for (int slot : slots) {
-            if (dropped >= MAX_DROPS) break;
-
-            ItemStack s = inventory.getStackInSlot(slot);
-            if (s.isEmpty()) continue;
-
-            if (rand.nextFloat() < DROP_CHANCE) {
-                // Spawn a copy, then extract to avoid dupes
-                EntityItem item = new EntityItem(world, posX, posY + 0.5, posZ, s.copy());
-                item.motionX = (rand.nextDouble() - 0.5) * 0.1;
-                item.motionY = 0.1;
-                item.motionZ = (rand.nextDouble() - 0.5) * 0.1;
-                world.spawnEntity(item);
-
-                inventory.extractItem(slot, s.getCount(), false);
-                dropped++;
-            }
-        }
+        equipment.dropBackpackLoot();
     }
 
     @Override
     public void setAIMoveSpeed(float speed) {
         double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-
-        float cap;
-
-        // --- NEW: special case for workers that are following a player ---
-        if (this instanceof EntityTravellerWorker) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this;
-            if (w.isHiredFollower() && !w.isJobActive()) {
-                // In follower mode, allow a much higher cap so they can genuinely outrun the player
-                cap = (float) (base * 3.0D); // effectively "no cap" in practice
-                super.setAIMoveSpeed(Math.min(speed, cap));
-                return;
-            }
-        }
-
-        if (this.isAimingBow()) {
-            cap = (float) Math.min(base * 0.98D, 0.30D); // same as before
-        } else if (this.getAttackTarget() != null) {
-            cap = (float) Math.min(base * 1.22D, 0.38D); // same combat cap
-        } else {
-            cap = (float) Math.min(base * 1.02D, 0.32D); // normal travellers idle cap
-        }
-
-        super.setAIMoveSpeed(Math.min(speed, cap));
+        super.setAIMoveSpeed(Math.min(speed, computeMoveSpeedCap(base)));
     }
 
     @Override
@@ -1378,7 +1291,7 @@ public class EntityTraveller extends EntityCreature {
             if (forcedSwingTicks > 0) forcedSwingTicks--;
         }
         if (!world.isRemote) {
-            if (pickupCooldown > 0) pickupCooldown--;
+            equipment.tickPickupCooldown();
         }
         travellerCamp.tickCampAvoid();
 
@@ -1432,8 +1345,8 @@ public class EntityTraveller extends EntityCreature {
                 }
 
             }
-            if (this.canPickUpLoot() && !isInCombat() && pickupCooldown == 0) {
-                tryScanAndPickupGroundItemsThrottled();
+            if (this.canPickUpLoot() && !isInCombat() && equipment.getPickupCooldown() == 0) {
+                equipment.tryScanAndPickupGroundItemsThrottled();
             }
             if (travellerCamp.getCampfirePos() != null && this.isEntityAlive()) {
 
@@ -1467,49 +1380,7 @@ public class EntityTraveller extends EntityCreature {
     // Equipment
     @Override
     protected void updateEquipmentIfNeeded(EntityItem itemEntity) {
-        ItemStack stack = itemEntity.getItem();
-        Item item = stack.getItem();
-
-
-        // Armor upgrades first
-        for (EntityEquipmentSlot slot : new EntityEquipmentSlot[]{
-                EntityEquipmentSlot.HEAD, EntityEquipmentSlot.CHEST,
-                EntityEquipmentSlot.LEGS, EntityEquipmentSlot.FEET}) {
-            if (isArmorItemForSlot(stack, slot) && isArmorUpgrade(stack, slot)) {
-                ItemStack one = stack.copy();
-                one.setCount(1);
-                safeReplaceInSlot(slot, one, true /* dropOld */);
-                shrinkOrRemove(itemEntity);
-                this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
-                return;
-            }
-        }
-
-        // Bow: stash one if we don’t have any
-        if (isBowLike(stack) && !hasBowInBackpack()) {
-            takeOneAndStash(itemEntity);
-            this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
-            return;
-        }
-
-        // Sword: only if upgrade
-        if (isSwordLike(stack) && isSwordUpgrade(stack)) {
-            takeOneAndStash(itemEntity);
-            this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
-
-            // NEW: prune swords (drop old ones)
-            keepOnlyBestSwordAndDropRest();
-
-            return;
-        }
-
-        // Food: always stash
-        if (item instanceof ItemFood) {
-            ItemStack remainder = ItemHandlerHelper.insertItemStacked(inventory, stack.copy(), false);
-            if (remainder.isEmpty()) itemEntity.setDead();
-            else itemEntity.setItem(remainder);
-            this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
-        }
+        equipment.handleGroundPickup(itemEntity);
     }
 
     @Override
@@ -1590,49 +1461,7 @@ public class EntityTraveller extends EntityCreature {
         }
 
         if (!world.isRemote) {
-            if (c != null) {
-                java.util.Random r = this.rand;
-
-                // --- MAIN HAND: random melee or tool from culture ---
-                ItemStack meleeOrTool = c.randomMeleeOrTool(r);
-                if (!meleeOrTool.isEmpty()) {
-                    this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
-                }
-
-                // --- OPTIONAL BOW ---
-                if (r.nextFloat() < 0.20f) {
-                    ItemStack bow = c.randomBow(r);
-                    if (!bow.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
-                    }
-                }
-
-                // --- ARMOR: low chances per slot ---
-                if (r.nextFloat() < 0.15f) {
-                    ItemStack helm = c.randomArmorForSlot(EntityEquipmentSlot.HEAD, r);
-                    if (!helm.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.HEAD, helm);
-                    }
-                }
-                if (r.nextFloat() < 0.10f) {
-                    ItemStack chest = c.randomArmorForSlot(EntityEquipmentSlot.CHEST, r);
-                    if (!chest.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.CHEST, chest);
-                    }
-                }
-                if (r.nextFloat() < 0.08f) {
-                    ItemStack legs = c.randomArmorForSlot(EntityEquipmentSlot.LEGS, r);
-                    if (!legs.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.LEGS, legs);
-                    }
-                }
-                if (r.nextFloat() < 0.12f) {
-                    ItemStack boots = c.randomArmorForSlot(EntityEquipmentSlot.FEET, r);
-                    if (!boots.isEmpty()) {
-                        this.setItemStackToSlot(EntityEquipmentSlot.FEET, boots);
-                    }
-                }
-            }
+            equipment.initSpawnEquipment(c, this.rand);
 
             // 3) Seed ambient window if needed
             if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
@@ -1726,219 +1555,12 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.set(CULTURE_ID, id);
     }
 
-    private boolean isArmorItemForSlot(ItemStack s, EntityEquipmentSlot slot) {
-        if (s.isEmpty()) return false;
-        Item it = s.getItem();
-        if (it instanceof ItemArmor) return ((ItemArmor) it).armorType == slot;
-        try {
-            return it.isValidArmor(s, slot, this);
-        } catch (Throwable ignore) {
-            return false;
-        }
-    }
-
-    private boolean isArmorUpgrade(ItemStack candidate, EntityEquipmentSlot slot) {
-        if (!isArmorItemForSlot(candidate, slot)) return false;
-
-        double cand = armorScore(candidate, slot);
-
-        // Compare vs equipped
-        ItemStack cur = getItemStackFromSlot(slot);
-        double have = cur.isEmpty() ? Double.NEGATIVE_INFINITY : armorScore(cur, slot);
-
-        // Compare vs best same-slot piece already in backpack
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (!s.isEmpty() && isArmorItemForSlot(s, slot)) {
-                have = Math.max(have, armorScore(s, slot));
-            }
-        }
-
-        return cand > have + 0.05; // small epsilon avoids thrash on ties
-    }
-
-    private void safeReplaceInSlot(EntityEquipmentSlot slot, ItemStack newStack, boolean dropOld) {
-        ItemStack old = getItemStackFromSlot(slot);
-        setItemStackToSlot(slot, newStack);
-
-        if (!old.isEmpty()) {
-            if (dropOld) {
-                dropStack(old.copy());
-            } else {
-                ItemStack rem = ItemHandlerHelper.insertItemStacked(inventory, old, false);
-                if (!rem.isEmpty()) dropStack(rem); // backpack full safety
-            }
-        }
-    }
-
-    private void shrinkOrRemove(EntityItem ei) {
-        ItemStack s = ei.getItem();
-        if (s.getCount() <= 1) {
-            ei.setDead();
-        } else {
-            s.shrink(1);
-            ei.setItem(s);
-        }
-    }
-
-    private void takeOneAndStash(EntityItem ei) {
-        ItemStack src = ei.getItem();
-        ItemStack one = src.copy();
-        one.setCount(1);
-        ItemHandlerHelper.insertItemStacked(inventory, one, false);
-        shrinkOrRemove(ei);
-    }
-
-    private boolean isSwordUpgrade(ItemStack candidate) {
-        if (!isSwordLike(candidate)) return false;
-
-        double cand = swordScore(candidate);
-
-        double have = Double.NEGATIVE_INFINITY;
-
-        // consider a REAL sword in hand (ignore ghost)
-        ItemStack hand = getHeldItemMainhand();
-        boolean holdingRealSword = !hand.isEmpty() && isSwordLike(hand) && !isGhostSword(hand);
-        if (holdingRealSword) have = Math.max(have, swordScore(hand));
-
-        // consider best in backpack
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (isSwordLike(s)) have = Math.max(have, swordScore(s));
-        }
-
-        return cand > have + 0.05;
-    }
-
-    // Equipment things
-    private double armorScore(ItemStack s, EntityEquipmentSlot slot) {
-        // Base from attributes
-        Multimap<String, AttributeModifier> a = getAttribsFor(s, slot);
-        double armor = sumAttr(a, SharedMonsterAttributes.ARMOR.getName());                 // "generic.armor"
-        double tough = sumAttr(a, SharedMonsterAttributes.ARMOR_TOUGHNESS.getName());       // "generic.armorToughness"
-
-        // Enchantments: Protection adds ~= 4%/lvl to many types; weight it modestly
-        int prot = 0;
-        if (Enchantments.PROTECTION != null) {
-            prot = EnchantmentHelper.getEnchantmentLevel(Enchantments.PROTECTION, s);
-        }
-        double ench = prot * 0.4;
-
-        // Durability bias so nearly-broken items don’t win ties
-        double dur = 0.0;
-        if (s.isItemStackDamageable()) {
-            int max = s.getMaxDamage();
-            int left = Math.max(0, max - s.getItemDamage());
-            dur = Math.min(0.9, (left / (double) max) * 0.5);
-        }
-
-        // Slot weight (chest > legs > boots/helm). Helm you don’t equip, but keep generic:
-        int slotWeight =
-                (slot == EntityEquipmentSlot.CHEST) ? 3 :
-                        (slot == EntityEquipmentSlot.LEGS) ? 2 : 1;
-
-        return (armor + 0.5 * tough) * slotWeight + ench + dur;
-    }
-
-    // ---- sword scoring (works for modded swords) ----
-    private double swordScore(ItemStack s) {
-        if (s.isEmpty()) return Double.NEGATIVE_INFINITY;
-
-        double baseDmg;
-        int materialRank = 0;
-
-        if (s.getItem() instanceof ItemSword) {
-            ItemSword sw = (ItemSword) s.getItem();
-            baseDmg = sw.getAttackDamage();
-            String mat = sw.getToolMaterialName();
-            materialRank =
-                    "DIAMOND".equals(mat) ? 5 :
-                            "IRON".equals(mat) ? 4 :
-                                    "STONE".equals(mat) ? 3 :
-                                            "GOLD".equals(mat) ? 3 :
-                                                    "WOOD".equals(mat) ? 2 : 1;
-        } else {
-            baseDmg = getAttackDamage(s, EntityEquipmentSlot.MAINHAND);
-            materialRank = 3;
-        }
-
-        int sharp = 0;
-        if (Enchantments.SHARPNESS != null) {
-            sharp = EnchantmentHelper.getEnchantmentLevel(
-                    Enchantments.SHARPNESS, s);
-        }
-        double ench = sharp > 0 ? (0.51 * sharp + 0.5) : 0.0;
-
-        double dur = 0.0;
-        if (s.isItemStackDamageable()) {
-            int max = s.getMaxDamage();
-            int left = Math.max(0, max - s.getItemDamage());
-            dur = Math.min(0.9, (left / (double) max) * 0.5);
-        }
-
-        return baseDmg + ench + dur + (materialRank * 0.1);
-    }
-
-    @SuppressWarnings("deprecation")
-    private Multimap<String, AttributeModifier> getAttribsFor(ItemStack s, EntityEquipmentSlot slot) {
-        // 1.12.2 Forge method has (slot, stack). If your mappings differ, adjust accordingly.
-        return s.getAttributeModifiers(slot);
-        // If your mappings require calling through the Item:
-        // return s.getItem().getAttributeModifiers(slot, s);
-    }
-
-    private double sumAttr(Multimap<String, AttributeModifier> map, String attrName) {
-        double sum = 0.0;
-        for (AttributeModifier mod : map.get(attrName)) {
-            switch (mod.getOperation()) {
-                case 0:
-                    sum += mod.getAmount();
-                    break;            // ADDITION
-                case 1:
-                    sum += 0;
-                    break;                           // MULTIPLY_BASE (ignore for armor)
-                case 2:
-                    sum += 0;
-                    break;                           // MULTIPLY_TOTAL (ignore)
-            }
-        }
-        return sum;
-    }
-
     public boolean isAimingBow() {
         return this.dataManager.get(AIMING_BOW);
     }
 
     public void setAimingBow(boolean v) {
         if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
-    }
-
-    private boolean isArmorForSlot(ItemStack s, EntityEquipmentSlot slot) {
-        return !s.isEmpty() && s.getItem() instanceof ItemArmor &&
-                ((ItemArmor) s.getItem()).armorType == slot;
-    }
-
-    @Nullable
-    private ItemArmor.ArmorMaterial getArmorMaterial(ItemStack s) {
-        return (s.getItem() instanceof ItemArmor) ? ((ItemArmor) s.getItem()).getArmorMaterial() : null;
-    }
-
-    private void tryEquipArmorPiece(EntityEquipmentSlot slot) {
-        if (!getItemStackFromSlot(slot).isEmpty()) return;
-
-        int idx = findFirstInInv(s -> !s.isEmpty() && s.getItem().isValidArmor(s, slot, this));
-        if (idx >= 0) {
-            ItemStack taken = inventory.extractItem(idx, 1, false);
-            if (!taken.isEmpty()) setItemStackToSlot(slot, taken);
-        }
-    }
-
-    private int findFirstInInv(java.util.function.Predicate<ItemStack> p) {
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (!s.isEmpty() && p.test(s)) return i;
-        }
-        return -1;
     }
 
     void playTalkSound() {
@@ -2091,6 +1713,8 @@ public class EntityTraveller extends EntityCreature {
         boolean tookDamage = super.attackEntityFrom(source, amount);
         if (!tookDamage || world.isRemote) return tookDamage;
 
+        TravellerItemDamage.damageArmorOnHit(this, amount);
+
         if (choirSinging) {
             // Keep the OGG stream alive; just mute the sound on clients for 8 seconds so
             // when unmuted the singer is back at the correct position in the song.
@@ -2135,9 +1759,17 @@ public class EntityTraveller extends EntityCreature {
 
         if (src instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) src;
-            if (!isCrossFaction(other)) {
+            if (!combat.isCrossFaction(other)) {
                 // same faction -> no revenge target, no aggro
                 this.setRevengeTarget(null);
+                return true;
+            }
+        }
+
+        if (src instanceof org.millenaire.common.entity.MillVillager) {
+            org.millenaire.common.entity.MillVillager mv = (org.millenaire.common.entity.MillVillager) src;
+            if (!com.jubitus.travellers.utils.world.mill.MillVillagerTravellerGuard.shouldFightMillVillager(this, mv)) {
+                // Absorb hit from a non-enemy millager without retaliating
                 return true;
             }
         }
@@ -2150,7 +1782,7 @@ public class EntityTraveller extends EntityCreature {
             EntityLivingBase le = (EntityLivingBase) src;
 
             // Always remember threats – we saw them / they hit us
-            rememberThreat(le, THREAT_FOR_HIT);
+            combat.rememberThreat(le, TravellerCombatLogic.THREAT_FOR_HIT);
 
             boolean canSee = this.getEntitySenses().canSee(le);
             double d2 = this.getDistanceSq(le);
@@ -2207,7 +1839,7 @@ public void fall(float distance, float damageMultiplier) {
             this.dismountRidingEntity();
             boat.setDead();
         }
-        if (isGhostSword(getHeldItemMainhand())) setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
+        if (equipment.isGhostWeapon(getHeldItemMainhand())) setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
         EntityTravellerDog dog = getDog();
         if (dog != null && !dog.world.isRemote) {
             dog.setAttackTarget(null);
@@ -2218,61 +1850,12 @@ public void fall(float distance, float damageMultiplier) {
         super.onDeath(cause);
     }
 
-    private boolean isGhostSword(ItemStack stack) {
-        return !stack.isEmpty()
-                && isSwordLike(stack)
-                && stack.hasTagCompound()
-                && stack.getTagCompound().getBoolean(GHOST_SWORD_TAG);
-    }
-
     @Nullable
     public EntityTravellerDog getDog() {
         if (dogId == null) return null;
         List<EntityTravellerDog> list = world.getEntities(EntityTravellerDog.class,
                 e -> e != null && e.isEntityAlive() && dogId.equals(e.getUniqueID()));
         return list.isEmpty() ? null : list.get(0);
-    }
-
-    // ---- "sword-like" detection (mod-friendly) ----
-    private boolean isSwordLike(ItemStack s) {
-        if (s.isEmpty()) return false;
-        Item it = s.getItem();
-
-        // Vanilla/mods that extend ItemSword
-        if (it instanceof ItemSword) return true;
-
-        // Forge tool class "sword"
-        try {
-            java.util.Set<String> classes = it.getToolClasses(s);
-            if (classes != null && classes.contains("sword")) return true;
-        } catch (Throwable ignored) {
-        }
-
-        // Attribute fallback: main-hand attack damage above a threshold,
-        // and not clearly an axe (most axes advertise "axe" tool class).
-        double dmg = getAttackDamage(s, EntityEquipmentSlot.MAINHAND);
-        if (dmg >= 3.0) {
-            try {
-                java.util.Set<String> classes = it.getToolClasses(s);
-                if (classes != null && classes.contains("axe")) return false;
-            } catch (Throwable ignored) {
-            }
-
-            ResourceLocation rl = Item.REGISTRY.getNameForObject(it);
-            return rl == null || !rl.getPath().toLowerCase(java.util.Locale.ROOT).contains("axe");
-        }
-        return false;
-    }
-
-    private double getAttackDamage(ItemStack s, EntityEquipmentSlot slot) {
-        Multimap<String, AttributeModifier> map =
-                s.getAttributeModifiers(slot);
-        double sum = 0.0;
-        for (AttributeModifier m :
-                map.get(SharedMonsterAttributes.ATTACK_DAMAGE.getName())) {
-            if (m.getOperation() == 0) sum += m.getAmount(); // ADDITION only
-        }
-        return sum;
     }
 
     @Override
@@ -2309,61 +1892,7 @@ public void fall(float distance, float damageMultiplier) {
     // --- Combat Handling ---
     @Override
     public boolean attackEntityAsMob(Entity target) {
-        // base mob damage
-        float damage = (float) this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();
-
-        // use whatever is "in hand" (ghost or real)
-        ItemStack weapon = this.getHeldItemMainhand();
-
-        // Extra damage from Sharpness/Smite/Bane against the target's creature attribute
-        if (!weapon.isEmpty() && target instanceof EntityLivingBase) {
-            EntityLivingBase victim = (EntityLivingBase) target;
-            // 1.12 helper that returns the total bonus vs that creature
-            damage += EnchantmentHelper.getModifierForCreature(weapon, victim.getCreatureAttribute());
-        }
-
-        // Perform the hit
-        boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(this), damage);
-        if (!hit) return false;
-
-        // NEW: remember anybody we actually land a hit on
-        if (!world.isRemote && target instanceof EntityLivingBase) {
-            rememberThreat((EntityLivingBase) target, THREAT_FOR_HIT / 2); // or some small score
-        }
-
-        // tell clients to play the swing animation
-        if (!world.isRemote) {
-            world.setEntityState(this, (byte) 4); // vanilla “swing arm” packet
-        }
-        // Knockback from enchantments
-        int kb = EnchantmentHelper.getKnockbackModifier(this);
-        if (kb > 0 && target instanceof EntityLivingBase) {
-            EntityLivingBase victim = (EntityLivingBase) target;
-
-            // ← this is the correct vector: (+sin, -cos)
-            double x = MathHelper.sin(this.rotationYaw * 0.017453292F);
-            double z = -MathHelper.cos(this.rotationYaw * 0.017453292F);
-
-            victim.knockBack(this, kb * 0.5F, x, z);
-
-            // dampen our own forward motion (same as player code)
-            this.motionX *= 0.6D;
-            this.motionZ *= 0.6D;
-        }
-
-        // Fire Aspect
-        int fire = EnchantmentHelper.getFireAspectModifier(this);
-        if (fire > 0) {
-            target.setFire(fire * 4); // same timing vanilla uses
-        }
-
-        // Play swing animation so it looks right
-        this.swingArm(EnumHand.MAIN_HAND);
-
-        // Apply remaining enchantment hooks (e.g., Thorns-like callbacks)
-        this.applyEnchantments(this, target);
-
-        return true;
+        return combat.performMeleeAttack(target);
     }
 
     @SuppressWarnings("unchecked")
@@ -2382,48 +1911,7 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     public void rememberThreat(EntityLivingBase e, int addScore) {
-        if (e == null || !e.isEntityAlive()) return;
-        TravellerBlacklist bl = getAggroBlacklist();
-        if (bl != null && bl.isBlacklisted(e)) return;
-        if (!shouldAttackExtraEntity(e)) {
-            if (!(e instanceof IMob)) return;
-        }
-
-        // Travellers: only across factions (XOR)
-// Travellers: only across factions (XOR)
-        if (e instanceof EntityTraveller) {
-            EntityTraveller t = (EntityTraveller) e;
-
-            // ✅ Exception for hired worker hostility
-            if (this instanceof EntityTravellerWorker && t instanceof EntityTravellerWorker) {
-                EntityTravellerWorker me = (EntityTravellerWorker) this;
-                if (me.shouldAttackExtraEntity(e)) {
-                    // allow as threat
-                } else {
-                    if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) return;
-                }
-            } else {
-                if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) return;
-            }
-        }
-
-
-        if (e instanceof EntityPlayer) {
-            EntityPlayer p = (EntityPlayer) e;
-            if (p.isCreative() || p.isSpectator()) return;
-        }
-
-        // ...insert/throttle into threatMap (your existing code)...
-        UUID id = e.getUniqueID();
-        Threat th = threatMap.get(id);
-        int eid = e.getEntityId();
-
-        if (th == null) threatMap.put(id, new Threat(Math.max(1, addScore), this.ticksExisted, eid));
-        else {
-            th.score = Math.min(1000, th.score + addScore);
-            th.lastSeenTick = this.ticksExisted;
-            th.entityId = eid; // keep fresh
-        }
+        combat.rememberThreat(e, addScore);
     }
 
     public TravellerBlacklist getAggroBlacklist() {
@@ -2466,39 +1954,6 @@ public void fall(float distance, float damageMultiplier) {
         travellerCamp.cleanupOwnedCampfireIfAny();
     }
 
-    private void handleSwordVisibility() {
-        if (isAimingBow()) return;
-        if (world.isRemote) return;
-
-        if (inCombat) {
-            swordHideTicks = TravellersModConfig.SWORD_HIDE_DELAY;
-
-            ItemStack best = findBestSwordInBackpack();
-            if (!best.isEmpty()) {
-                ItemStack cur = getHeldItemMainhand();
-                if (cur.isEmpty() || !isGhostSword(cur) || swordScore(best) > swordScore(cur)) {
-                    setHeldItem(EnumHand.MAIN_HAND, makeGhostCopy(best));
-                }
-            } else {
-                if (isGhostSword(getHeldItemMainhand())) {
-                    setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-                }
-            }
-        } else {
-            if (swordHideTicks > 0) {
-                swordHideTicks--;
-            } else {
-                ItemStack cur = getHeldItemMainhand();
-                if (isGhostSword(cur)) {
-                    setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-                } else if (!cur.isEmpty() && isSwordLike(cur)) {
-                    ItemStack remainder = ItemHandlerHelper.insertItemStacked(inventory, cur.copy(), false);
-                    if (remainder.isEmpty()) setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-                    // else: leave it in hand; avoids constant trying each tick
-                }
-            }
-        }
-    }
 
     @Override
     public void setDead() {
@@ -2567,21 +2022,6 @@ public void fall(float distance, float damageMultiplier) {
         return SoundCategory.VOICE;
     }
 
-    private ItemStack findBestSwordInBackpack() {
-        int bestIdx = -1;
-        double bestScore = Double.NEGATIVE_INFINITY;
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (!isSwordLike(s)) continue;
-            double sc = swordScore(s);
-            if (sc > bestScore) {
-                bestScore = sc;
-                bestIdx = i;
-            }
-        }
-        return bestIdx >= 0 ? inventory.getStackInSlot(bestIdx) : ItemStack.EMPTY;
-    }
-
     @SideOnly(Side.CLIENT)
     public float getForcedSwingProgress() {
         return (forcedSwingTicks <= 0) ? 0f : (1f - (forcedSwingTicks / 6.0f));
@@ -2609,101 +2049,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public void setVillageIdleTicks(int villageIdleTicks) {
         travelCommon.setVillageIdleTicks(villageIdleTicks);
-    }
-
-    private void scanAndPickupGroundItems() {
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(3.0, 3.0, 3.0); // close range
-        List<EntityItem> drops = this.world.getEntitiesWithinAABB(EntityItem.class, box, e ->
-                e != null && e.isEntityAlive() && !e.cannotPickup() && !e.getItem().isEmpty());
-
-        boolean picked = false;
-
-        for (EntityItem ei : drops) {
-            ItemStack stack = ei.getItem();
-            Item item = stack.getItem();
-
-            // FOOD -> always useful
-            if (item instanceof ItemFood) {
-                ItemStack remainder = ItemHandlerHelper.insertItemStacked(inventory, stack.copy(), false);
-                if (remainder.isEmpty()) {
-                    ei.setDead();
-                    picked = true;
-                    continue;
-                } else if (remainder.getCount() != stack.getCount()) {
-                    ei.setItem(remainder);
-                    picked = true;
-                    continue;
-                }
-            }
-// BOW -> if we don't own any bow yet, take ONE and stash it
-            if (isBowLike(stack) && !hasBowInBackpack()) {
-                takeOneAndStash(ei);   // inserts 1 bow into backpack and shrinks ground stack
-                picked = true;
-                continue;
-            }
-            // SWORD -> if better than what we own, take ONE
-            if (isSwordLike(stack) && isSwordUpgrade(stack)) {
-                takeOneAndStash(ei);
-
-                // Auto-equip only if not holding a *real* sword
-                ItemStack hand = getHeldItemMainhand();
-                boolean holdingRealSword = !hand.isEmpty() && isSwordLike(hand) && !isGhostSword(hand);
-                if (!holdingRealSword) {
-                    // optional: equipBestSwordFromBackpack();
-                    // in practice, the ghost-hand logic will show it during combat anyway
-                }
-
-                picked = true;
-                continue;
-            }
-
-
-            // ARMOR -> if better for its slot, equip and stash old piece
-            for (EntityEquipmentSlot slot : new EntityEquipmentSlot[]{
-                    EntityEquipmentSlot.FEET, EntityEquipmentSlot.LEGS, EntityEquipmentSlot.CHEST, EntityEquipmentSlot.HEAD}) {
-                if (isArmorItemForSlot(stack, slot) && isArmorUpgrade(stack, slot)) {
-                    // equip candidate into 'slot', stash old piece
-                    ItemStack one = stack.copy();
-                    one.setCount(1);
-                    ItemStack old = getItemStackFromSlot(slot);
-                    setItemStackToSlot(slot, one);
-                    if (!old.isEmpty()) ItemHandlerHelper.insertItemStacked(inventory, old, false);
-                    shrinkOrRemove(ei);
-                    picked = true;
-                    break;
-                }
-            }
-        }
-
-        if (picked) {
-            pickupCooldown = 20; // ~1s before next scan to avoid thrashing
-            this.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 0.9F + this.rand.nextFloat() * 0.2F);
-        }
-
-    }
-
-    private ItemStack makeGhostCopy(ItemStack src) {
-        ItemStack copy = src.copy();
-        copy.setCount(1);
-        NBTTagCompound tag = copy.getTagCompound();
-        if (tag == null) tag = new NBTTagCompound();
-
-        // Mark as ghost
-        tag.setBoolean(GHOST_SWORD_TAG, true);
-
-        // CRITICAL: strip AttributeModifiers so the ghost can't change stats/speed
-        if (tag.hasKey("AttributeModifiers")) {
-            tag.removeTag("AttributeModifiers");
-        }
-        // (Optional) also nuke any mod-specific speed tags you know about
-
-        copy.setTagCompound(tag);
-        return copy;
-    }
-
-    private void ensureBestSwordVisualNow() {
-        ItemStack best = findBestSwordInBackpack();
-        if (!best.isEmpty()) setHeldItem(EnumHand.MAIN_HAND, makeGhostCopy(best));
     }
 
     public void startFollowing(EntityTraveller leader, int durationTicks) {
@@ -2765,90 +2110,7 @@ public void fall(float distance, float damageMultiplier) {
         return list.get(to - 1);
     }
 
-    private void decayAndPruneThreats() {
-        if (threatMap.isEmpty()) return;
-        int now = this.ticksExisted;
-
-        // Only touch the map once per THREAT_DECAY_INTERVAL_TICKS
-        if (now - lastThreatDecayTick < TravellersModConfig.THREAT_DECAY_INTERVAL_TICKS) return;
-        lastThreatDecayTick = now;
-
-        Iterator<Map.Entry<UUID, Threat>> it = threatMap.entrySet().iterator();
-        while (it.hasNext()) {
-            Threat t = it.next().getValue();
-            int age = now - t.lastSeenTick;
-            if (age > TravellersModConfig.THREAT_TTL_TICKS) {
-                it.remove();
-                continue;
-            }
-
-            t.score = Math.max(0, t.score - TravellersModConfig.THREAT_DECAY_PER_SEC);
-            if (t.score == 0) it.remove();
-        }
-    }
-
-    /**
-     * Scan nearby hostiles; prefer the one with the highest threat score.
-     * If several tie, prefer LOS, then closest.
-     */
-    @Nullable
-    private EntityLivingBase pickBestTargetFromMemory(double range) {
-        if (threatMap.isEmpty()) return null;
-
-        final double r2 = range * range;
-        TravellerBlacklist bl = getAggroBlacklist();
-
-        EntityLivingBase best = null;
-        double bestScore = Double.NEGATIVE_INFINITY;
-
-        for (Threat t : threatMap.values()) {
-            Entity ent = this.world.getEntityByID(t.entityId);
-            if (!(ent instanceof EntityLivingBase)) continue;
-
-            EntityLivingBase e = (EntityLivingBase) ent;
-            if (!e.isEntityAlive()) continue;
-            if (bl != null && bl.isBlacklisted(e)) continue;
-
-            double d2 = this.getDistanceSq(e);
-            if (d2 > r2) continue;
-
-            if (Math.abs(e.posY - this.posY) > 3.0D) continue;
-
-            boolean see = this.getEntitySenses().canSee(e);
-            if (TravellersModConfig.requireLOSForMemoryTargets && !see) continue;
-
-            double s = t.score;
-            if (this.hasBowAnywherePublic() && !(e instanceof EntityPlayer)) {
-                int crowd = this.rangedCrowdScoreAround(e, 3.5D);
-                s -= crowd * 3.0; // tune: 2.0–5.0
-            }
-
-            if (see) s += 2.0;
-            // avoid sqrt: use inverse-ish by d2
-            s += 10.0 / Math.max(1.0, d2);
-
-            if (s > bestScore) {
-                bestScore = s;
-                best = e;
-            }
-        }
-
-        // Optional: ONE path check at the end
-        if (best != null && TravellersModConfig.requirePathForAggro) {
-            if (!this.hasPathToThrottled(best, 2)) return null;
-        }
-
-        return best;
-    }
-
     public boolean isAtTargetStop() { return travelCommon.isAtTargetStop(); }
-
-    private void tryScanAndPickupGroundItemsThrottled() {
-        if (pickupCooldown > 0) return;
-        if ((pickupScanTicker++ & 15) != 0) return;
-
-        scanAndPickupGroundItems();
-    }
 
     /**
      * Called by config system after a /travellerreload or GUI change.
@@ -2871,50 +2133,19 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     public ItemStack makeGhostBow(ItemStack src) {
-        ItemStack copy = src.copy();
-        copy.setCount(1);
-        NBTTagCompound tag = copy.getTagCompound();
-        if (tag == null) tag = new NBTTagCompound();
-
-        tag.setBoolean(GHOST_BOW_TAG, true);
-        if (tag.hasKey("AttributeModifiers")) tag.removeTag("AttributeModifiers");
-
-        // Make sure the item still *is* a bow – we want vanilla bow model & pull props
-        copy.setTagCompound(tag);
-        return copy;
+        return equipment.makeGhostBow(src);
     }
 
     public boolean hasBowAnywherePublic() {
-        ItemStack hand = this.getHeldItemMainhand();
-        boolean handBow = !hand.isEmpty() && hand.getItem() instanceof ItemBow;
-        return handBow || hasBowInBackpack();
+        return equipment.hasBowAnywhere();
     }
 
-    /**
-     * Increments the hit counter for this player and returns true while still under grace.
-     */
     public boolean notePlayerHitAndIsStillGrace(EntityPlayer p) {
-        final int now = this.ticksExisted;
-        final UUID id = p.getUniqueID();
-
-        HitGrace g = playerGrace.get(id);
-        if (g == null || now > g.expiresAt) {
-            g = new HitGrace();
-            g.count = 0;
-        }
-        g.count++;
-        g.expiresAt = now + TravellersModConfig.PLAYER_FORGIVE_WINDOW_TICKS;
-
-        playerGrace.put(id, g);
-        return g.count <= TravellersModConfig.PLAYER_FREE_HITS;
+        return combat.notePlayerHitAndIsStillGrace(p);
     }
 
-    /**
-     * Optional: call occasionally to prune stale entries.
-     */
     public void pruneGraceHits() {
-        final int now = this.ticksExisted;
-        playerGrace.entrySet().removeIf(e -> now > e.getValue().expiresAt);
+        combat.pruneGraceHits();
     }
 
     public void maybePlayTravelAmbient() {
@@ -2968,23 +2199,12 @@ public void fall(float distance, float damageMultiplier) {
         voiceKindNow = VoiceKind.NONE;
     }
 
-    private boolean isCrossFaction(EntityTraveller other) {
-        // fight only if one is aggressive and the other isn't
-        return this.isAggressiveToTravellers() ^ other.isAggressiveToTravellers();
-    }
-
     public void markPlayerRecentAggro(EntityPlayer p) {
-        playerLastAggroTick.put(p.getUniqueID(), this.ticksExisted);
+        combat.markPlayerRecentAggro(p);
     }
 
     public int lastPlayerAggroAgeTicks(EntityPlayer p) {
-        Integer t = playerLastAggroTick.get(p.getUniqueID());
-        return (t == null) ? Integer.MAX_VALUE : (this.ticksExisted - t);
-    }
-
-    private void resetChaseMemory() {
-        chasingPlayerId = null;
-        lastLOSorCloseTick = 0;
+        return combat.lastPlayerAggroAgeTicks(p);
     }
 
     boolean shouldHelloFor(EntityPlayer p) {
@@ -3316,36 +2536,27 @@ public void fall(float distance, float damageMultiplier) {
         }
     }
 
-    // NOTE: no @Override here – EntityCreature doesn't define isInCombat() in 1.12.2.
     public boolean isInCombat() {
-        boolean base = isInCombatRaw();
-
-        // Not in combat anyway -> nothing to do
-        if (!base) {
-            return false;
-        }
-
-        // Off-screen no-aggro system disabled -> respect raw combat
-        if (!TravellersModConfig.travellerNoAggroOffscreen) {
-            return base;
-        }
-
-        // OFF-SCREEN GHOST MODE:
-        // If no player is within the offscreen radius, pretend not in combat.
-        if (!isAnyPlayerWithinViewRadius()) {
-            return false;
-        }
-
-        return base;
+        return combat.isInCombat();
     }
 
-    public void setInCombat(boolean combat) {
-        if (world.isRemote) return; // server authority only
-        this.inCombat = combat;
-        if (combat) {
-            if (autoEatTask != null) autoEatTask.cancel();
-            ensureBestSwordVisualNow();
+    public void setInCombat(boolean inCombat) {
+        this.combat.setInCombat(inCombat);
+    }
+
+    public void onCombatEntered() {
+        if (autoEatTask != null) autoEatTask.cancel();
+        equipment.ensureBestWeaponNow();
+    }
+
+    public void markCombatTickNow() {
+        if (!world.isRemote) {
+            this.dataManager.set(LAST_COMBAT_TICK, (int) world.getTotalWorldTime());
         }
+    }
+
+    protected float computeMoveSpeedCap(double base) {
+        return combat.computeMoveSpeedCap(base);
     }
 
     public boolean isAutoEating() {
@@ -3368,48 +2579,9 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     public ItemStack makeGhostTorch() {
-        ItemStack copy = new ItemStack(Blocks.TORCH);
-        NBTTagCompound tag = copy.getTagCompound();
-        if (tag == null) tag = new NBTTagCompound();
-
-        tag.setBoolean(GHOST_TORCH_TAG, true);
-        if (tag.hasKey("AttributeModifiers")) {
-            tag.removeTag("AttributeModifiers");
-        }
-
-        copy.setTagCompound(tag);
-        return copy;
+        return equipment.makeGhostTorch();
     }
 
-    /**
-     * "Raw" combat state, independent of off-screen ghost rules.
-     * This replaces whatever your previous isInCombat() logic did.
-     * Adjust if you had more specific behavior.
-     */
-    private boolean isInCombatRaw() {
-        // Basic, robust 1.12-style combat definition:
-        return this.getAttackTarget() != null
-                || this.getRevengeTarget() != null
-                || this.hurtResistantTime > 0;
-    }
-
-    /**
-     * True if there is any non-spectator player within configured view radius.
-     * Used for off-screen combat ghosting and nav boosts.
-     */
-    private boolean isAnyPlayerWithinViewRadius() {
-        if (this.world == null) return true; // safe default: treat as "visible"
-        if (this.world.isRemote) return true; // let client assume visible, server does the real logic
-
-        double radius = TravellersModConfig.travellerOffscreenViewRadius; // e.g. 128.0D
-        if (radius <= 0.0D) {
-            // If someone disables radius in config, just always visible to avoid surprises
-            return true;
-        }
-
-        EntityPlayer nearest = this.world.getClosestPlayer(this.posX, this.posY, this.posZ, radius, false);
-        return nearest != null;
-    }
 // --- companion dog spawn helpers ---
 
     public boolean hasTravelTorchVisible() {
@@ -3658,23 +2830,21 @@ public void fall(float distance, float damageMultiplier) {
     private void rejectTarget() {
         EntityLivingBase cur = this.getAttackTarget();
         if (cur != null) {
-            AttackTargetLimiter.leave(this, cur); // NEW
+            AttackTargetLimiter.leave(this, cur);
             ignoreTarget(cur, 20 * 60);
         }
 
         super.setAttackTarget(null);
         if (!world.isRemote) {
             setInCombat(false);
-            resetChaseMemory();
+            combat.resetChaseMemory();
             setRevengeTarget(null);
             getNavigator().clearPath();
         }
     }
 
     protected void markCombatNow() {
-        if (!world.isRemote) {
-            this.dataManager.set(LAST_COMBAT_TICK, (int) world.getTotalWorldTime());
-        }
+        combat.markCombatNow();
     }
 
     public boolean shouldRenderBackpack() {
@@ -3719,66 +2889,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public EntityAITravel getTravelAI() {
         return this.aiTravel;
-    }
-
-    private void dropStack(ItemStack stack) {
-        if (stack.isEmpty() || world.isRemote) return;
-
-        EntityItem item = new EntityItem(world, posX, posY + 0.5, posZ, stack);
-        item.motionX = (rand.nextDouble() - 0.5) * 0.1;
-        item.motionY = 0.15;
-        item.motionZ = (rand.nextDouble() - 0.5) * 0.1;
-        item.setDefaultPickupDelay();
-        world.spawnEntity(item);
-    }
-
-    private void keepOnlyBestSwordAndDropRest() {
-        if (world.isRemote) return;
-
-        int bestInvIdx = -1;
-        double bestInvScore = Double.NEGATIVE_INFINITY;
-
-        // Find best sword in backpack
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            ItemStack s = inventory.getStackInSlot(i);
-            if (!isSwordLike(s)) continue;
-            double sc = swordScore(s);
-            if (sc > bestInvScore) {
-                bestInvScore = sc;
-                bestInvIdx = i;
-            }
-        }
-
-        // Compare vs a REAL sword in hand (ignore ghost)
-        ItemStack hand = getHeldItemMainhand();
-        boolean handRealSword = !hand.isEmpty() && isSwordLike(hand) && !isGhostSword(hand);
-        double bestScore = bestInvScore;
-        boolean bestIsHand = false;
-
-        if (handRealSword) {
-            double handScore = swordScore(hand);
-            if (handScore >= bestScore) {
-                bestScore = handScore;
-                bestIsHand = true;
-            }
-        }
-
-        // If best is in backpack, and we're holding a real sword that's worse, drop the hand sword
-        if (!bestIsHand && handRealSword && bestInvIdx >= 0) {
-            // Drop the worse hand sword (since we only keep best)
-            dropStack(hand.copy());
-            setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-        }
-
-        // Drop all other swords in backpack except the best one
-        for (int i = 0; i < inventory.getSlots(); i++) {
-            if (i == bestInvIdx) continue;
-            ItemStack s = inventory.getStackInSlot(i);
-            if (!isSwordLike(s)) continue;
-
-            ItemStack extracted = inventory.extractItem(i, s.getCount(), false);
-            if (!extracted.isEmpty()) dropStack(extracted);
-        }
     }
 
     public boolean offscreenHopTowardPos(@Nullable BlockPos goal, int stepBlocks) {
@@ -3897,25 +3007,7 @@ public void fall(float distance, float damageMultiplier) {
 // =======================
 
     public boolean shouldBypassAttackTargetLimiter(@javax.annotation.Nullable EntityLivingBase e) {
-        if (e == null || !e.isEntityAlive()) return false;
-
-        // Your rule: ONLY bypass limiter when we currently have NO target,
-        // and the enemy is within 8 blocks.
-        if (this.getAttackTarget() == null && this.getDistanceSq(e) <= EMERGENCY_ENGAGE_RANGE_SQ) {
-            return true;
-        }
-
-        // Still bypass if they are actively fighting/targeting us (safety)
-        if (e instanceof EntityLiving) {
-            EntityLiving el = (EntityLiving) e;
-            if (el.getAttackTarget() == this) return true;
-        }
-
-        if (e.getRevengeTarget() == this) return true;
-        if (this.getRevengeTarget() == e) return true;
-
-        DamageSource ds = this.getLastDamageSource();
-        return ds != null && ds.getTrueSource() == e;
+        return combat.shouldBypassAttackTargetLimiter(e);
     }
 
 
@@ -3960,40 +3052,11 @@ public void fall(float distance, float damageMultiplier) {
      * Only used when the target is NOT a player.
      */
     public int rangedCrowdScoreAround(@Nullable EntityLivingBase target, double radius) {
-        if (target == null || this.world == null) return 0;
-        if (target instanceof EntityPlayer) return 0; // DO NOT avoid “crowd” when shooting a player
-
-        AxisAlignedBB box = target.getEntityBoundingBox().grow(radius, 2.0D, radius);
-
-        int score = 0;
-
-        // Friendly travellers near the target
-        List<EntityTraveller> travs = this.world.getEntitiesWithinAABB(
-                EntityTraveller.class, box,
-                t -> t != null && t.isEntityAlive() && t != this
-        );
-
-        for (EntityTraveller t : travs) {
-            // same faction = friendly
-            if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) {
-                score += 1;
-            }
-        }
-
-        // Players near the target (avoid shooting into/near players)
-        List<EntityPlayer> players = this.world.getEntitiesWithinAABB(
-                EntityPlayer.class, box,
-                p -> p != null && p.isEntityAlive() && !p.isSpectator()
-        );
-        score += players.size() * 2;
-
-        return score;
+        return combat.rangedCrowdScoreAround(target, radius);
     }
 
     protected void startWatchingFight(EntityLivingBase target, int ticks) {
-        if (target == null) return;
-        this.watchFightTargetId = target.getUniqueID();
-        this.watchFightUntilTick = this.ticksExisted + ticks;
+        combat.startWatchingFight(target, ticks);
     }
 
 
@@ -4025,25 +3088,6 @@ public void fall(float distance, float damageMultiplier) {
             this.cultureId = id;
         }
     }
-
-    private static final class HitGrace {
-        int count;
-        int expiresAt; // ticksExisted when this entry expires
-    }
-
-    private static final class Threat {
-        int score;
-        int lastSeenTick;
-        int entityId; // NEW
-
-        Threat(int s, int t, int eid) {
-            score = s;
-            lastSeenTick = t;
-            entityId = eid;
-        }
-    }
-
-
 
     public String getVoicePersonalityId() {
         if (this.dataManager == null) return "";

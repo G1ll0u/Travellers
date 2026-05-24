@@ -1,5 +1,7 @@
 package com.jubitus.travellers;
 
+import com.jubitus.travellers.client.input.FormationHubKeyHandler;
+import com.jubitus.travellers.client.input.WorldMapKeyHandler;
 import com.jubitus.travellers.client.render.ClientProxy;
 import com.jubitus.travellers.client.sound.ChoirSoundWarmer;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
@@ -109,6 +111,12 @@ public class Travellers {
         // Client-only stuff
         if (event.getSide().isClient()) {
             ClientProxy.registerRenderers();
+            FormationHubKeyHandler formationKeyHandler = new FormationHubKeyHandler();
+            FormationHubKeyHandler.register();
+            MinecraftForge.EVENT_BUS.register(formationKeyHandler);
+            WorldMapKeyHandler worldMapKeyHandler = new WorldMapKeyHandler();
+            WorldMapKeyHandler.register();
+            MinecraftForge.EVENT_BUS.register(worldMapKeyHandler);
         }
         NETWORK.registerMessage(
                 isClient ? PacketTravellerChunksClientHandler.class

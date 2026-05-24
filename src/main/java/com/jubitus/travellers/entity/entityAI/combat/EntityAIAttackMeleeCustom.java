@@ -204,7 +204,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         }
 
         if (gapXZSq <= reachSq && this.attackTick <= 0) {
-            this.attackTick = ATTACK_COOLDOWN_TICKS;
+            this.attackTick = TravellerItemDamage.computeAttackCooldownTicks(attacker);
             this.attacker.swingArm(EnumHand.MAIN_HAND);
             this.attacker.attackEntityAsMob(target);
 
@@ -259,7 +259,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private boolean shouldForgivePlayerChaseForAI(EntityCreature attacker, EntityPlayer p) {
         EntityTraveller t = (EntityTraveller) attacker;
         boolean playerCalm = t.lastPlayerAggroAgeTicks(p) > TravellersModConfig.playerCalmForgiveTicks;
-        boolean fleeingLongEnough = (t.ticksExisted - t.lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
+        boolean fleeingLongEnough = (t.ticksExisted - t.combat.lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
         return playerCalm && fleeingLongEnough;
     }
 

@@ -4,6 +4,7 @@ import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
+import com.jubitus.travellers.server.net.message.formations.MsgRequestFormationHub;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormationGui;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationByScope;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateWorkerFormationSettings;
@@ -174,6 +175,7 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgUpdateFormationByScope.Handler.class, MsgUpdateFormationByScope.class, id++, Side.SERVER);
         registerClientOnly(MsgOpenFormationHubGui.class,
                 isClient ? new MsgOpenFormationHubGui.Handler() : new MsgOpenFormationHubGui.NoopHandler());
+        CHANNEL.registerMessage(MsgRequestFormationHub.Handler.class, MsgRequestFormationHub.class, id++, Side.SERVER);
     }
 
 

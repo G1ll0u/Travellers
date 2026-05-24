@@ -1,0 +1,50 @@
+package com.jubitus.travellers.entity.entityAI.combat;
+
+import com.google.common.base.Predicate;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
+
+/**
+ * Throttled version of EntityAINearestAttackableTarget for workers.
+ *
+ * When a worker is peacefully following its owner (no current attack target),
+ * the combat scan runs every IDLE_CHECK_INTERVAL ticks instead of every
+ * DEFAULT_CHECK_INTERVAL ticks. This is the main fix for the 15% tick usage
+ * caused by 500 workers each scanning a large AABB every 10 ticks.
+ *
+ * When the worker is already in combat or not in follow mode, it falls back
+ * to the normal vanilla check interval (no behaviour change).
+ */
+public class ThrottledAttackTargetAI<T extends EntityLivingBase>
+        extends EntityAINearestAttackableTarget<T> {
+
+    // How many ticks between combat scans when following peacefully (no current target).
+    // 40 ticks = 2 seconds. Fine for follow escort — still reacts quickly enough.
+    private static final int IDLE_CHECK_INTERVAL = 40;
+
+    private final EntityTravellerWorker worker;
+
+    public ThrottledAttackTargetAI(EntityTravellerWorker worker,
+                                   Class<T> targetClass,
+                                   int vanillaCheckInterval,
+                                   boolean mustSee,
+                                   boolean mustReach,
+                                   Predicate<? super T> selector) {
+        super(worker, targetClass, vanillaCheckInterval, mustSee, mustReach, selector);
+        this.worker = worker;
+    }
+
+    @Override
+    public boolean shouldExecute() {
+        // If the worker is quietly following and has no current target,
+        // only scan every IDLE_CHECK_INTERVAL ticks.
+        // We spread the checks across entity IDs so all 500 workers don't hit the same tick.
+        if (worker.isFollowOrderActive() && worker.getAttackTarget() == null) {
+            if ((worker.ticksExisted + worker.getEntityId() * 7) % IDLE_CHECK_INTERVAL != 0) {
+                return false;
+            }
+        }
+        return super.shouldExecute();
+    }
+}

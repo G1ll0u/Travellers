@@ -31,20 +31,21 @@ public class MsgWorkerRequestGoList implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().player;
 
             player.getServerWorld().addScheduledTask(() -> {
-                Entity e = player.world.getEntityByID(msg.workerId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-                EntityTravellerWorker w = (EntityTravellerWorker) e;
-
-                // Security: only the owner can use this
-                if (!w.isHiredFollower() || w.getFollowOwnerId() == null ||
-                        !w.getFollowOwnerId().equals(player.getUniqueID())) {
-                    return;
+                int responseId;
+                if (msg.workerId == -1) {
+                    responseId = -1;
+                } else {
+                    Entity e = player.world.getEntityByID(msg.workerId);
+                    if (!(e instanceof EntityTravellerWorker)) return;
+                    EntityTravellerWorker w = (EntityTravellerWorker) e;
+                    if (!w.isHiredFollower() || w.getFollowOwnerId() == null ||
+                            !w.getFollowOwnerId().equals(player.getUniqueID())) {
+                        return;
+                    }
+                    responseId = w.getEntityId();
                 }
 
-                // Build mixed list: villages + homes
                 List<MsgWorkerGoList.Entry> out = new ArrayList<>();
-
-                // Villages
                 List<BlockPos> villages = MillVillageIndex.getAllVillageCenters(player.world);
                 BlockPos origin = player.getPosition();
 
@@ -54,24 +55,17 @@ public class MsgWorkerRequestGoList implements IMessage {
                     out.add(MsgWorkerGoList.Entry.village(v, label, dist));
                 }
 
-                // Homes (full objects give you name + pos)
                 TravellerHomeManager mgr = TravellerHomeManager.get(player.world);
                 List<TravellerHomeManager.HomeChest> homes = mgr.getHomesOfPlayerFull(player);
-
                 for (TravellerHomeManager.HomeChest h : homes) {
                     BlockPos p = h.pos;
                     int dist = EntityTravellerWorker.dist2D(origin, p);
-
-                    // Use whatever field you have as display name:
-                    // If HomeChest has "name", prefer it; else fallback.
                     String label = (h.name != null && !h.name.isEmpty()) ? h.name : "Home";
                     out.add(MsgWorkerGoList.Entry.home(p, label, dist));
                 }
 
-                // Sort by distance (like recruit UI)
                 out.sort(Comparator.comparingInt(a -> a.distance));
-
-                TravellerFollowNet.CHANNEL.sendTo(new MsgWorkerGoList(w.getEntityId(), out), player);
+                TravellerFollowNet.CHANNEL.sendTo(new MsgWorkerGoList(responseId, out), player);
             });
 
             return null;

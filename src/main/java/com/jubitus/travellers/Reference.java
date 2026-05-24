@@ -7,6 +7,6 @@ public class Reference {
 
     public static final String MOD_ID = "travellers";
     public static final String MOD_NAME = "Travellers";
-    public static final String VERSION = "b0.1.6";
+    public static final String VERSION = "b0.2.1";
 
 }

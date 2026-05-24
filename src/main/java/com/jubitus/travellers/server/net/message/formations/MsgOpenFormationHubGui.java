@@ -1,0 +1,114 @@
+package com.jubitus.travellers.server.net.message.formations;
+
+import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.client.Minecraft;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fml.common.network.ByteBufUtils;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class MsgOpenFormationHubGui implements IMessage {
+
+    private int representativeEntityId;
+    private NBTTagCompound initialScopeTag;
+    // Wrapped in NBTTagCompound because ByteBufUtils only handles NBTTagCompound
+    private NBTTagCompound leadersWrapper;   // contains NBTTagList "L"
+    private NBTTagCompound settingsWrapper;  // contains NBTTagList "S"
+
+    public MsgOpenFormationHubGui() {}
+
+    public MsgOpenFormationHubGui(int representativeEntityId,
+                                   WorkerFormationScopeKey initialScope,
+                                   List<FormationLeaderInfo> leaders,
+                                   Map<String, WorkerFormationSettings> settingsByScope) {
+        this.representativeEntityId = representativeEntityId;
+        this.initialScopeTag = initialScope.toNbt();
+
+        NBTTagList lList = new NBTTagList();
+        for (FormationLeaderInfo info : leaders) lList.appendTag(info.toNbt());
+        this.leadersWrapper = new NBTTagCompound();
+        this.leadersWrapper.setTag("L", lList);
+
+        NBTTagList sList = new NBTTagList();
+        for (Map.Entry<String, WorkerFormationSettings> e : settingsByScope.entrySet()) {
+            NBTTagCompound entry = new NBTTagCompound();
+            entry.setString("ScopeKey", e.getKey());
+            entry.setTag("Settings", e.getValue().toNbt());
+            sList.appendTag(entry);
+        }
+        this.settingsWrapper = new NBTTagCompound();
+        this.settingsWrapper.setTag("S", sList);
+    }
+
+    @Override
+    public void fromBytes(ByteBuf buf) {
+        representativeEntityId = buf.readInt();
+        initialScopeTag  = ByteBufUtils.readTag(buf);
+        leadersWrapper   = ByteBufUtils.readTag(buf);
+        settingsWrapper  = ByteBufUtils.readTag(buf);
+    }
+
+    @Override
+    public void toBytes(ByteBuf buf) {
+        buf.writeInt(representativeEntityId);
+        ByteBufUtils.writeTag(buf, initialScopeTag);
+        ByteBufUtils.writeTag(buf, leadersWrapper  != null ? leadersWrapper  : new NBTTagCompound());
+        ByteBufUtils.writeTag(buf, settingsWrapper != null ? settingsWrapper : new NBTTagCompound());
+    }
+
+    @SideOnly(Side.CLIENT)
+    public static class Handler implements IMessageHandler<MsgOpenFormationHubGui, IMessage> {
+        @Override
+        public IMessage onMessage(MsgOpenFormationHubGui msg, MessageContext ctx) {
+            Minecraft.getMinecraft().addScheduledTask(() -> {
+                WorkerFormationScopeKey initialScope = WorkerFormationScopeKey.fromNbt(msg.initialScopeTag);
+
+                List<FormationLeaderInfo> leaders = new ArrayList<>();
+                if (msg.leadersWrapper != null) {
+                    NBTTagList lList = msg.leadersWrapper.getTagList("L", 10);
+                    for (int i = 0; i < lList.tagCount(); i++) {
+                        leaders.add(FormationLeaderInfo.fromNbt(lList.getCompoundTagAt(i)));
+                    }
+                }
+
+                Map<String, WorkerFormationSettings> settingsByScope = new HashMap<>();
+                if (msg.settingsWrapper != null) {
+                    NBTTagList sList = msg.settingsWrapper.getTagList("S", 10);
+                    for (int i = 0; i < sList.tagCount(); i++) {
+                        NBTTagCompound entry = sList.getCompoundTagAt(i);
+                        settingsByScope.put(entry.getString("ScopeKey"),
+                                WorkerFormationSettings.fromNbt(entry.getCompoundTag("Settings")));
+                    }
+                }
+
+                Minecraft.getMinecraft().displayGuiScreen(
+                        new com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub(
+                                Minecraft.getMinecraft().player,
+                                msg.representativeEntityId,
+                                leaders,
+                                settingsByScope,
+                                initialScope
+                        )
+                );
+            });
+            return null;
+        }
+    }
+
+    public static class NoopHandler implements IMessageHandler<MsgOpenFormationHubGui, IMessage> {
+        @Override
+        public IMessage onMessage(MsgOpenFormationHubGui msg, MessageContext ctx) { return null; }
+    }
+}

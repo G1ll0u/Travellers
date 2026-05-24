@@ -55,30 +55,14 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
     @Override
     public int findPathOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
-        // 1) Let super fill the basic neighbors
         int count = super.findPathOptions(options, current, target, maxDistance);
-// --- NEW: allow "gap jumps" up to N blocks forward (adds long neighbors) ---
-// Followers: keep pathfinding cheap.
-// Travel AI: allow fancy jumps/drops.
         if (!followerMode) {
-//            count = addGapJumpNeighbors(options, count, current, target, maxDistance);
-//            count = addDropDownNeighbors(options, count, current, target, maxDistance);
         } else {
             // Optional: allow a *small* version for followers (cheap)
             count = addGapJumpNeighborsFollowerCheap(options, count, current, target, maxDistance);
             count = addDropDownNeighborsFollowerCheap(options, count, current, target, maxDistance);
         }
-        // 2) Ladder-specific vertical neighbors (NO getSafePoint!)
-//        if (isLadderColumn(current.x, current.y, current.z)) {
-//            if (addLadderNeighbor(options, count, current.x, current.y + 1, current.z, target, maxDistance)) {
-//                count++;
-//            }
-//            if (addLadderNeighbor(options, count, current.x, current.y - 1, current.z, target, maxDistance)) {
-//                count++;
-//            }
-//        }
 
-        // 3) your existing lily-pad hard-ban
         for (int i = 0; i < count; i++) {
             PathPoint p = options[i];
             if (p == null) continue;
@@ -200,141 +184,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
 
         return w;
-    }
-
-    private int addGapJumpNeighbors(PathPoint[] options, int count,
-                                    PathPoint current, PathPoint target, float maxDistance) {
-
-        // 4 cardinal directions only
-        final int[][] DIRS = new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-
-        for (int[] d : DIRS) {
-            int dx = d[0];
-            int dz = d[1];
-
-            // Prefer longer jumps
-            for (int dist = MAX_JUMP_LAND_DIST; dist >= 2; dist--) {
-
-                int lx = current.x + dx * dist;
-                int lz = current.z + dz * dist;
-
-                // ✅ 1) Corridor check ONCE (independent of landing Y)
-                if (!corridorAllowsGapJump(current.x, current.y, current.z, dx, dz, dist)) {
-                    continue;
-                }
-
-                // ✅ 2) Try SOLID landings only in a small dy range (fast)
-                //     (you already limit solid drop-jumps to MAX_JUMP_DOWN_SOLID anyway)
-                boolean added = false;
-
-                for (int dy = MAX_JUMP_UP; dy >= -MAX_JUMP_DOWN_SOLID; dy--) {
-                    int ly = current.y + dy;
-
-                    if (!isTwoHighWalkable(lx, ly, lz)) continue;
-
-                    PathPoint p = this.openPoint(lx, ly, lz);
-                    if (p == null || p.visited) continue;
-                    if (p.distanceTo(target) >= maxDistance) continue;
-
-                    float extra = 0.05f;
-                    // small island penalty like before
-                    float islandPenalty = 0.0f;
-                    BlockPos afterBelow = new BlockPos(lx + dx, ly - 1, lz + dz);
-                    if (isGapOrHazardBelow(afterBelow)) islandPenalty = 0.8f;
-
-                    p.costMalus += extra + islandPenalty;
-
-                    if (count >= options.length) return count;
-                    options[count++] = p;
-                    added = true;
-                    break;
-                }
-
-                if (added) continue;
-
-                // ✅ 3) WATER landing scan: do ONE downward scan (not dy loop × corridor loop)
-                // Only do this if you actually want deep water drops.
-                int bestWaterY = findFirstWaterLandingY(lx, current.y, lz, current.y - MAX_JUMP_DOWN_WATER);
-                if (bestWaterY != Integer.MIN_VALUE) {
-
-                    PathPoint p = this.openPoint(lx, bestWaterY, lz);
-                    if (p != null && !p.visited && p.distanceTo(target) < maxDistance) {
-
-                        float extra = -0.30f; // your water preference
-                        float islandPenalty = 0.0f;
-                        BlockPos afterBelow = new BlockPos(lx + dx, bestWaterY - 1, lz + dz);
-                        if (isGapOrHazardBelow(afterBelow)) islandPenalty = 0.8f;
-
-                        p.costMalus += extra + islandPenalty;
-
-                        if (count >= options.length) return count;
-                        options[count++] = p;
-                    }
-                }
-            }
-        }
-
-        return count;
-    }
-
-    private int addDropDownNeighbors(PathPoint[] options, int count,
-                                     PathPoint current, PathPoint target, float maxDistance) {
-
-        int x = current.x;
-        int y = current.y;
-        int z = current.z;
-
-        // Only consider dropping if the block directly below is open-ish (a hole starts)
-        if (!isAirLike(new BlockPos(x, y - 1, z))) return count;
-
-        // Scan down looking for a valid landing
-        for (int dy = 2; dy <= MAX_DROP_WATER; dy++) {
-            int ly = y - dy;
-
-            BlockPos feet = new BlockPos(x, ly, z);
-            BlockPos head = feet.up();
-
-            // Must be pass-through where we land
-            if (!isAirLike(feet) || !isAirLike(head)) continue;
-
-            boolean landingWater = isWaterBlock(x, ly, z);
-            if (landingWater) {
-                if (!isWaterLandingOk(x, ly, z)) continue;
-            } else {
-                // solid landing: must be supported and not too deep
-                if (dy > MAX_DROP_SOLID) continue;
-
-                BlockPos below = feet.down();
-                if (this.blockaccess.getBlockState(below).getCollisionBoundingBox(this.blockaccess, below) == null)
-                    continue;
-            }
-
-            // IMPORTANT: the fall column between start and landing must be clear for feet+head
-            boolean clear = true;
-            for (int fy = y - 1; fy > ly; fy--) {
-                BlockPos midFeet = new BlockPos(x, fy, z);
-                if (!isAirLike(midFeet) || !isAirLike(midFeet.up())) {
-                    clear = false;
-                    break;
-                }
-            }
-            if (!clear) break; // blocked shaft: stop scanning lower
-
-            PathPoint p = this.openPoint(x, ly, z);
-            if (p == null || p.visited) continue;
-
-            if (p.distanceTo(target) >= maxDistance) continue;
-
-            // small preference to take the drop when it helps reach the target
-            p.costMalus += landingWater ? -0.15f : 0.10f;
-
-            if (count < options.length) {
-                options[count++] = p;
-            }
-            return count; // take first valid landing
-        }
-
-        return count;
     }
 
     private int addGapJumpNeighborsFollowerCheap(PathPoint[] options, int count,
@@ -516,51 +365,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         IBlockState sh = this.blockaccess.getBlockState(head);
         return sh.getMaterial().isReplaceable() || sh.getCollisionBoundingBox(this.blockaccess, head) == null;
 
-        // Optional: require at least 1-deep water (feet water is enough usually)
-        // Optional stricter: require 2-deep:
-        // if (this.blockaccess.getBlockState(feet.down()).getMaterial() != Material.WATER) return false;
-    }
-
-    private boolean canGapJump(int sx, int sy, int sz,
-                               int lx, int ly, int lz,
-                               int dx, int dz, int dist) {
-
-        // landing must be standable (2-high clearance)
-// landing can be solid-walkable OR water (special case)
-        boolean landingWater = isWaterBlock(lx, ly, lz);
-
-        if (landingWater) {
-            if (!isWaterLandingOk(lx, ly, lz)) return false;
-        } else {
-            // Limit how far down we allow onto solid (but allow deeper for water)
-            if ((ly - sy) < -MAX_JUMP_DOWN_SOLID) return false;
-            if (!isTwoHighWalkable(lx, ly, lz)) return false;
-        }
-
-
-        boolean sawGapOrHazard = false;
-
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BlockPos.MutableBlockPos pos2 = new BlockPos.MutableBlockPos();
-
-        for (int i = 1; i < dist; i++) {
-            int x = sx + dx * i;
-            int y = sy;
-            int z = sz + dz * i;
-
-            pos.setPos(x, y, z);
-            if (!isAirLike(pos)) return false;
-
-            pos2.setPos(x, y + 1, z);
-            if (!isAirLike(pos2)) return false;
-
-            pos2.setPos(x, y - 1, z);
-            if (isGapOrHazardBelow(pos2)) {
-                sawGapOrHazard = true;
-            }
-        }
-
-        return sawGapOrHazard;
     }
 
     @Override
@@ -614,79 +418,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         return 0;
     }
 
-    // Feet+head must be OPEN-ish so we can pass through while jumping
-    private boolean isJumpAirColumn(int x, int y, int z) {
-        PathNodeType feet = this.getPathNodeType(this.blockaccess, x, y, z);
-        PathNodeType head = this.getPathNodeType(this.blockaccess, x, y + 1, z);
-
-        // OPEN means air-like; WALKABLE means it thinks you can stand there (not what we want mid-air)
-        boolean feetOk = (feet == PathNodeType.OPEN);
-        boolean headOk = (head == PathNodeType.OPEN);
-
-        return feetOk && headOk;
-    }
-
-    private boolean isLiquidNode(PathNodeType t) {
-        return t == PathNodeType.WATER;
-    }
-
-    private boolean isCardinalSafeForDiagonal(int x, int y, int z) {
-        PathNodeType t = this.getPathNodeType(this.blockaccess, x, y, z);
-
-        // Fully blocked or obviously bad
-        if (t == PathNodeType.BLOCKED
-                || t == PathNodeType.LAVA
-                || t == PathNodeType.DAMAGE_FIRE
-                || t == PathNodeType.DANGER_FIRE
-                || t == PathNodeType.DAMAGE_CACTUS) {
-            return false;
-        }
-
-        // Treat drop-offs as unsafe for diagonal corner-cutting
-        return t != PathNodeType.DANGER_OTHER;
-
-        // OPEN / WALKABLE / WATER etc. are OK here
-    }
-
-    private boolean isDropOff(int x, int y, int z) {
-        PathNodeType below = this.getPathNodeType(this.blockaccess, x, y - 1, z);
-        return below == PathNodeType.DANGER_OTHER;
-    }
-
-    private boolean isLadderColumn(int x, int y, int z) {
-        BlockPos pos = new BlockPos(x, y, z);
-        Block bHere = this.blockaccess.getBlockState(pos).getBlock();
-        Block bBelow = this.blockaccess.getBlockState(pos.down()).getBlock();
-
-        return bHere == Blocks.LADDER || bHere == Blocks.VINE
-                || bBelow == Blocks.LADDER || bBelow == Blocks.VINE;
-    }
-
-    private boolean addLadderNeighbor(PathPoint[] options,
-                                      int index,
-                                      int x, int y, int z,
-                                      PathPoint target,
-                                      float maxDistance) {
-        // create or reuse PathPoint
-        PathPoint p = this.openPoint(x, y, z);
-        if (p == null || p.visited) return false;
-
-        if (p.distanceTo(target) >= maxDistance) return false;
-
-        PathNodeType t = this.getPathNodeType(this.blockaccess, x, y, z);
-        if (t == PathNodeType.BLOCKED
-                || t == PathNodeType.LAVA
-                || t == PathNodeType.DAMAGE_FIRE
-                || t == PathNodeType.DANGER_FIRE) {
-            return false;
-        }
-
-        // WATER is ok only if you want water ladders; otherwise also reject:
-        // if (t == PathNodeType.WATER) return false;
-
-        options[index] = p;
-        return true;
-    }
 
     public void setFollowerMode(boolean followerMode) {
         this.followerMode = followerMode;

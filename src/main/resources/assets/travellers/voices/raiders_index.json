@@ -1,0 +1,270 @@
+{
+    "defaultLang": "en",
+    "defaultPersonality": "default",
+    "langs": {
+        "en": [
+            "default"
+        ],
+        "de": [
+            
+        ],
+        "fr": [
+            "gilles",
+            "gilles_fou",
+            "silva"
+        ]
+    },
+    "clips": {
+        "en": {
+            "default": {
+                "talk": [
+                    "entity.travellers.raiders.en.default.talk.__0",
+                    "entity.travellers.raiders.en.default.talk.__1",
+                    "entity.travellers.raiders.en.default.talk.__2",
+                    "entity.travellers.raiders.en.default.talk.__3",
+                    "entity.travellers.raiders.en.default.talk.__4"
+                ],
+                "hurt": [
+                    "entity.travellers.raiders.en.default.hurt.__0",
+                    "entity.travellers.raiders.en.default.hurt.__1",
+                    "entity.travellers.raiders.en.default.hurt.__2",
+                    "entity.travellers.raiders.en.default.hurt.__3",
+                    "entity.travellers.raiders.en.default.hurt.__4",
+                    "entity.travellers.raiders.en.default.hurt.__5",
+                    "entity.travellers.raiders.en.default.hurt.__6",
+                    "entity.travellers.raiders.en.default.hurt.__7",
+                    "entity.travellers.raiders.en.default.hurt.__8",
+                    "entity.travellers.raiders.en.default.hurt.__9",
+                    "entity.travellers.raiders.en.default.hurt.__10"
+                ],
+                "hello": [
+                    "entity.travellers.raiders.en.default.hello.__0",
+                    "entity.travellers.raiders.en.default.hello.__1",
+                    "entity.travellers.raiders.en.default.hello.__2",
+                    "entity.travellers.raiders.en.default.hello.__3"
+                ],
+                "ambient": [
+                    "entity.travellers.raiders.en.default.ambient.__0",
+                    "entity.travellers.raiders.en.default.ambient.__1",
+                    "entity.travellers.raiders.en.default.ambient.__2",
+                    "entity.travellers.raiders.en.default.ambient.__3",
+                    "entity.travellers.raiders.en.default.ambient.__4",
+                    "entity.travellers.raiders.en.default.ambient.__5"
+                ]
+            }
+        },
+        "de": {
+            
+        },
+        "fr": {
+            "silva": {
+                "talk": [
+                    "entity.travellers.raiders.fr.silva.talk.__0",
+                    "entity.travellers.raiders.fr.silva.talk.__1",
+                    "entity.travellers.raiders.fr.silva.talk.__2",
+                    "entity.travellers.raiders.fr.silva.talk.__3",
+                    "entity.travellers.raiders.fr.silva.talk.__4",
+                    "entity.travellers.raiders.fr.silva.talk.__5",
+                    "entity.travellers.raiders.fr.silva.talk.__6",
+                    "entity.travellers.raiders.fr.silva.talk.__7",
+                    "entity.travellers.raiders.fr.silva.talk.__8",
+                    "entity.travellers.raiders.fr.silva.talk.__9",
+                    "entity.travellers.raiders.fr.silva.talk.__10",
+                    "entity.travellers.raiders.fr.silva.talk.__11",
+                    "entity.travellers.raiders.fr.silva.talk.__12",
+                    "entity.travellers.raiders.fr.silva.talk.__13",
+                    "entity.travellers.raiders.fr.silva.talk.__14",
+                    "entity.travellers.raiders.fr.silva.talk.__15",
+                    "entity.travellers.raiders.fr.silva.talk.__16",
+                    "entity.travellers.raiders.fr.silva.talk.__17",
+                    "entity.travellers.raiders.fr.silva.talk.__18",
+                    "entity.travellers.raiders.fr.silva.talk.__19",
+                    "entity.travellers.raiders.fr.silva.talk.__20",
+                    "entity.travellers.raiders.fr.silva.talk.__21",
+                    "entity.travellers.raiders.fr.silva.talk.__22",
+                    "entity.travellers.raiders.fr.silva.talk.__23",
+                    "entity.travellers.raiders.fr.silva.talk.__24",
+                    "entity.travellers.raiders.fr.silva.talk.__25",
+                    "entity.travellers.raiders.fr.silva.talk.__26",
+                    "entity.travellers.raiders.fr.silva.talk.__27",
+                    "entity.travellers.raiders.fr.silva.talk.__28",
+                    "entity.travellers.raiders.fr.silva.talk.__29",
+                    "entity.travellers.raiders.fr.silva.talk.__30",
+                    "entity.travellers.raiders.fr.silva.talk.__31",
+                    "entity.travellers.raiders.fr.silva.talk.__32",
+                    "entity.travellers.raiders.fr.silva.talk.__33",
+                    "entity.travellers.raiders.fr.silva.talk.__34",
+                    "entity.travellers.raiders.fr.silva.talk.__35",
+                    "entity.travellers.raiders.fr.silva.talk.__36",
+                    "entity.travellers.raiders.fr.silva.talk.__37",
+                    "entity.travellers.raiders.fr.silva.talk.__38",
+                    "entity.travellers.raiders.fr.silva.talk.__39",
+                    "entity.travellers.raiders.fr.silva.talk.__40",
+                    "entity.travellers.raiders.fr.silva.talk.__41",
+                    "entity.travellers.raiders.fr.silva.talk.__42",
+                    "entity.travellers.raiders.fr.silva.talk.__43",
+                    "entity.travellers.raiders.fr.silva.talk.__44",
+                    "entity.travellers.raiders.fr.silva.talk.__45",
+                    "entity.travellers.raiders.fr.silva.talk.__46",
+                    "entity.travellers.raiders.fr.silva.talk.__47",
+                    "entity.travellers.raiders.fr.silva.talk.__48",
+                    "entity.travellers.raiders.fr.silva.talk.__49",
+                    "entity.travellers.raiders.fr.silva.talk.__50",
+                    "entity.travellers.raiders.fr.silva.talk.__51"
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    "entity.travellers.raiders.fr.silva.hello.__0",
+                    "entity.travellers.raiders.fr.silva.hello.__1",
+                    "entity.travellers.raiders.fr.silva.hello.__2",
+                    "entity.travellers.raiders.fr.silva.hello.__3",
+                    "entity.travellers.raiders.fr.silva.hello.__4",
+                    "entity.travellers.raiders.fr.silva.hello.__5",
+                    "entity.travellers.raiders.fr.silva.hello.__6",
+                    "entity.travellers.raiders.fr.silva.hello.__7",
+                    "entity.travellers.raiders.fr.silva.hello.__8",
+                    "entity.travellers.raiders.fr.silva.hello.__9",
+                    "entity.travellers.raiders.fr.silva.hello.__10",
+                    "entity.travellers.raiders.fr.silva.hello.__11",
+                    "entity.travellers.raiders.fr.silva.hello.__12",
+                    "entity.travellers.raiders.fr.silva.hello.__13",
+                    "entity.travellers.raiders.fr.silva.hello.__14",
+                    "entity.travellers.raiders.fr.silva.hello.__15",
+                    "entity.travellers.raiders.fr.silva.hello.__16",
+                    "entity.travellers.raiders.fr.silva.hello.__17",
+                    "entity.travellers.raiders.fr.silva.hello.__18",
+                    "entity.travellers.raiders.fr.silva.hello.__19",
+                    "entity.travellers.raiders.fr.silva.hello.__20",
+                    "entity.travellers.raiders.fr.silva.hello.__21",
+                    "entity.travellers.raiders.fr.silva.hello.__22",
+                    "entity.travellers.raiders.fr.silva.hello.__23",
+                    "entity.travellers.raiders.fr.silva.hello.__24",
+                    "entity.travellers.raiders.fr.silva.hello.__25",
+                    "entity.travellers.raiders.fr.silva.hello.__26",
+                    "entity.travellers.raiders.fr.silva.hello.__27",
+                    "entity.travellers.raiders.fr.silva.hello.__28",
+                    "entity.travellers.raiders.fr.silva.hello.__29",
+                    "entity.travellers.raiders.fr.silva.hello.__30",
+                    "entity.travellers.raiders.fr.silva.hello.__31",
+                    "entity.travellers.raiders.fr.silva.hello.__32",
+                    "entity.travellers.raiders.fr.silva.hello.__33",
+                    "entity.travellers.raiders.fr.silva.hello.__34",
+                    "entity.travellers.raiders.fr.silva.hello.__35",
+                    "entity.travellers.raiders.fr.silva.hello.__36",
+                    "entity.travellers.raiders.fr.silva.hello.__37",
+                    "entity.travellers.raiders.fr.silva.hello.__38",
+                    "entity.travellers.raiders.fr.silva.hello.__39",
+                    "entity.travellers.raiders.fr.silva.hello.__40",
+                    "entity.travellers.raiders.fr.silva.hello.__41",
+                    "entity.travellers.raiders.fr.silva.hello.__42",
+                    "entity.travellers.raiders.fr.silva.hello.__43",
+                    "entity.travellers.raiders.fr.silva.hello.__44",
+                    "entity.travellers.raiders.fr.silva.hello.__45",
+                    "entity.travellers.raiders.fr.silva.hello.__46",
+                    "entity.travellers.raiders.fr.silva.hello.__47",
+                    "entity.travellers.raiders.fr.silva.hello.__48",
+                    "entity.travellers.raiders.fr.silva.hello.__49",
+                    "entity.travellers.raiders.fr.silva.hello.__50",
+                    "entity.travellers.raiders.fr.silva.hello.__51"
+                ],
+                "ambient": [
+                    
+                ]
+            },
+            "gilles": {
+                "talk": [
+                    "entity.travellers.raiders.fr.gilles.talk.__0",
+                    "entity.travellers.raiders.fr.gilles.talk.__1",
+                    "entity.travellers.raiders.fr.gilles.talk.__2",
+                    "entity.travellers.raiders.fr.gilles.talk.__3",
+                    "entity.travellers.raiders.fr.gilles.talk.__4",
+                    "entity.travellers.raiders.fr.gilles.talk.__5",
+                    "entity.travellers.raiders.fr.gilles.talk.__6",
+                    "entity.travellers.raiders.fr.gilles.talk.__7",
+                    "entity.travellers.raiders.fr.gilles.talk.__8",
+                    "entity.travellers.raiders.fr.gilles.talk.__9",
+                    "entity.travellers.raiders.fr.gilles.talk.__10",
+                    "entity.travellers.raiders.fr.gilles.talk.__11",
+                    "entity.travellers.raiders.fr.gilles.talk.__12",
+                    "entity.travellers.raiders.fr.gilles.talk.__13",
+                    "entity.travellers.raiders.fr.gilles.talk.__14",
+                    "entity.travellers.raiders.fr.gilles.talk.__15",
+                    "entity.travellers.raiders.fr.gilles.talk.__16",
+                    "entity.travellers.raiders.fr.gilles.talk.__17"
+                ],
+                "hurt": [
+                    "entity.travellers.raiders.fr.gilles.hurt.__0",
+                    "entity.travellers.raiders.fr.gilles.hurt.__1",
+                    "entity.travellers.raiders.fr.gilles.hurt.__2",
+                    "entity.travellers.raiders.fr.gilles.hurt.__3",
+                    "entity.travellers.raiders.fr.gilles.hurt.__4",
+                    "entity.travellers.raiders.fr.gilles.hurt.__5",
+                    "entity.travellers.raiders.fr.gilles.hurt.__6",
+                    "entity.travellers.raiders.fr.gilles.hurt.__7",
+                    "entity.travellers.raiders.fr.gilles.hurt.__8",
+                    "entity.travellers.raiders.fr.gilles.hurt.__9",
+                    "entity.travellers.raiders.fr.gilles.hurt.__10",
+                    "entity.travellers.raiders.fr.gilles.hurt.__11",
+                    "entity.travellers.raiders.fr.gilles.hurt.__12",
+                    "entity.travellers.raiders.fr.gilles.hurt.__13",
+                    "entity.travellers.raiders.fr.gilles.hurt.__14",
+                    "entity.travellers.raiders.fr.gilles.hurt.__15",
+                    "entity.travellers.raiders.fr.gilles.hurt.__16",
+                    "entity.travellers.raiders.fr.gilles.hurt.__17",
+                    "entity.travellers.raiders.fr.gilles.hurt.__18",
+                    "entity.travellers.raiders.fr.gilles.hurt.__19"
+                ],
+                "hello": [
+                    "entity.travellers.raiders.fr.gilles.hello.__0",
+                    "entity.travellers.raiders.fr.gilles.hello.__1",
+                    "entity.travellers.raiders.fr.gilles.hello.__2",
+                    "entity.travellers.raiders.fr.gilles.hello.__3",
+                    "entity.travellers.raiders.fr.gilles.hello.__4"
+                ],
+                "ambient": [
+                    "entity.travellers.raiders.fr.gilles.ambient.__0",
+                    "entity.travellers.raiders.fr.gilles.ambient.__1",
+                    "entity.travellers.raiders.fr.gilles.ambient.__2",
+                    "entity.travellers.raiders.fr.gilles.ambient.__3",
+                    "entity.travellers.raiders.fr.gilles.ambient.__4",
+                    "entity.travellers.raiders.fr.gilles.ambient.__5",
+                    "entity.travellers.raiders.fr.gilles.ambient.__6",
+                    "entity.travellers.raiders.fr.gilles.ambient.__7",
+                    "entity.travellers.raiders.fr.gilles.ambient.__8",
+                    "entity.travellers.raiders.fr.gilles.ambient.__9"
+                ]
+            },
+            "gilles_fou": {
+                "talk": [
+                    "entity.travellers.raiders.fr.gilles_fou.talk.__0",
+                    "entity.travellers.raiders.fr.gilles_fou.talk.__1",
+                    "entity.travellers.raiders.fr.gilles_fou.talk.__2",
+                    "entity.travellers.raiders.fr.gilles_fou.talk.__3",
+                    "entity.travellers.raiders.fr.gilles_fou.talk.__4",
+                    "entity.travellers.raiders.fr.gilles_fou.talk.__5"
+                ],
+                "hurt": [
+                    "entity.travellers.raiders.fr.gilles_fou.hurt.__0",
+                    "entity.travellers.raiders.fr.gilles_fou.hurt.__1",
+                    "entity.travellers.raiders.fr.gilles_fou.hurt.__2",
+                    "entity.travellers.raiders.fr.gilles_fou.hurt.__3",
+                    "entity.travellers.raiders.fr.gilles_fou.hurt.__4"
+                ],
+                "hello": [
+                    "entity.travellers.raiders.fr.gilles_fou.hello.__0",
+                    "entity.travellers.raiders.fr.gilles_fou.hello.__1",
+                    "entity.travellers.raiders.fr.gilles_fou.hello.__2",
+                    "entity.travellers.raiders.fr.gilles_fou.hello.__3",
+                    "entity.travellers.raiders.fr.gilles_fou.hello.__4",
+                    "entity.travellers.raiders.fr.gilles_fou.hello.__5"
+                ],
+                "ambient": [
+                    "entity.travellers.raiders.fr.gilles_fou.ambient.__0",
+                    "entity.travellers.raiders.fr.gilles_fou.ambient.__1"
+                ]
+            }
+        }
+    }
+}

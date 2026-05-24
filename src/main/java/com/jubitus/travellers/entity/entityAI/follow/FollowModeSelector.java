@@ -81,7 +81,16 @@ public final class FollowModeSelector {
         double distForCatchup = ctx.distToSlot;
         double verticalGapForCatchup = ctx.verticalGapToSlot;
 
-        if (distForCatchup <= 32.0D) return false;
+        if (distForCatchup <= 32.0D) {
+            // Mountain-climbing scenario: close horizontally but large vertical gap + stagnating
+            if (!ctx.underground
+                    && verticalGapForCatchup >= 12.0D
+                    && pathFailTicks >= cfg.catchup.verticalEmergencyPathFailTicks
+                    && stagnationTicks >= cfg.catchup.verticalEmergencyStagnationTicks) {
+                return true;
+            }
+            return false;
+        }
 
         if (ctx.underground || ctx.enclosed) {
             if (distForCatchup <= cfg.catchup.caveBlockCatchupDistance) {

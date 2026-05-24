@@ -1,0 +1,25 @@
+{
+    "songs": {
+        "fr": {
+            "gilles": [
+                {
+                    "name": "salade",
+                    "stems": [
+                        "entity.travellers.fr.gilles.choir.salade.__0",
+                        "entity.travellers.fr.gilles.choir.salade.__1",
+                        "entity.travellers.fr.gilles.choir.salade.__2",
+                        "entity.travellers.fr.gilles.choir.salade.__3",
+                        "entity.travellers.fr.gilles.choir.salade.__4"
+                    ],
+                    "durationTicks": 3458
+                }
+            ]
+        }
+    },
+    "aliases": {
+        "fr": {
+            "gilles_fou": "gilles",
+            "vener": "gilles"
+        }
+    }
+}

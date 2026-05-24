@@ -1,0 +1,6299 @@
+{
+    "entity.travellers.en.default.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/talk/talk1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/talk/talk2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/talk/talk3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/talk/talk4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/talk/talk1"
+            },
+            {
+                "name": "travellers:travellers/en/default/talk/talk2"
+            },
+            {
+                "name": "travellers:travellers/en/default/talk/talk3"
+            },
+            {
+                "name": "travellers:travellers/en/default/talk/talk4"
+            },
+            {
+                "name": "travellers:travellers/en/default/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt11"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt1"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt10"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt11"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt2"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt3"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt4"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt5"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt6"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt7"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt8"
+            },
+            {
+                "name": "travellers:travellers/en/default/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.default.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hello/hello1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hello/hello2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hello/hello3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hello/hello4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/hello/hello1"
+            },
+            {
+                "name": "travellers:travellers/en/default/hello/hello2"
+            },
+            {
+                "name": "travellers:travellers/en/default/hello/hello3"
+            },
+            {
+                "name": "travellers:travellers/en/default/hello/hello4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.default.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient1"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.en.default.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient2"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.en.default.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient3"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.en.default.ambient.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient4"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.en.default.ambient.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient5"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.en.default.ambient.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient6"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.en.default.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient1"
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient2"
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient3"
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient4"
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient5"
+            },
+            {
+                "name": "travellers:travellers/en/default/ambient/ambient6"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/adgfds"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/asxfsda"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/bdfdsf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/cghdyf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/cgsdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dbgdd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfdgg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfgdsfrg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfgf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfghbnsd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfghdgf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfghsdg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfgsx"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfhs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfsgae"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfyhfhfdh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dgfhdy"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/drgfgs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dsaydvb"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dsfetdh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__20": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dsgfs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__21": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/dygfgd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__22": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/egdfgf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__23": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/elia"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__24": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/eliia"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__25": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/eliiaa"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__26": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fdghnbs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__27": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fedhf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__28": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fghvgdfh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__29": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fgsdd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__30": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fjndy"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__31": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fxgbd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__32": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/fxgjhj"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__33": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/gdfsfdg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__34": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/gfhhg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__35": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/gfjdrs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__36": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ghjfc"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__37": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ghjghd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__38": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ghjhfj"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__39": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/hgjgc"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__40": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/hjgd d"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__41": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/hjvnjmgh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__42": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/jayfdt"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__43": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/jfddh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__44": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ph1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__45": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/redfh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__46": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/retw z"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__47": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/rewtg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__48": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/rghew"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__49": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/rstufg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__50": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/rthdytx"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__51": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/rtzhutdh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__52": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sadg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__53": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/safdgd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__54": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdfgh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__55": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdfgsa"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__56": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdgdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__57": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdgxfhdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__58": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdhfd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__59": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdhtdeu"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__60": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdydg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__61": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sfddfgn"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__62": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sfgf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__63": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/sfsad"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__64": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/srgdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__65": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/srtgds"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__66": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/strfzhjkg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__67": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/tgeydf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__68": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ud tfhcf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__69": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/uihzjfkmc"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__70": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/vbxfsd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__71": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/vgxhjbnhg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__72": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/xyddfxgh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__73": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ydfbgsd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__74": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/ydsrzghdg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk.__75": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/zjkfrtd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/talk/adgfds"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/asxfsda"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/bdfdsf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/cghdyf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/cgsdf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dbgdd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfdgg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfgdsfrg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfgf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfghbnsd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfghdgf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfghsdg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfgsx"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfhs"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfsgae"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dfyhfhfdh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dgfhdy"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/drgfgs"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dsaydvb"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dsfetdh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dsgfs"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/dygfgd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/egdfgf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/elia"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/eliia"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/eliiaa"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fdghnbs"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fedhf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fghvgdfh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fgsdd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fjndy"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fxgbd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/fxgjhj"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/gdfsfdg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/gfhhg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/gfjdrs"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ghjfc"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ghjghd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ghjhfj"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/hgjgc"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/hjgd d"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/hjvnjmgh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/jayfdt"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/jfddh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ph1"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/redfh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/retw z"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/rewtg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/rghew"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/rstufg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/rthdytx"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/rtzhutdh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sadg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/safdgd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdfgh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdfgsa"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdgdf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdgxfhdf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdhfd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdhtdeu"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sdydg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sfddfgn"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sfgf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/sfsad"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/srgdf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/srtgds"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/strfzhjkg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/tgeydf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ud tfhcf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/uihzjfkmc"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/vbxfsd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/vgxhjbnhg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/xyddfxgh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ydfbgsd"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/ydsrzghdg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/talk/zjkfrtd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/asdffdh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/cgfvbfg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/dfgbgfdg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/dftjh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/dfyhdftg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/fgh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/fghfth"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/fzgjhz"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/gfdcybfdx"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/gfdhf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/gfhrstzhz"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/ghndgc"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/jhfgmnfg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/jugnh "
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/vfhgfdh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/vghcj"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/zughdy"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hurt/asdffdh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/cgfvbfg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/dfgbgfdg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/dftjh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/dfyhdftg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/fgh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/fghfth"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/fzgjhz"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/gfdcybfdx"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/gfdhf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/gfhrstzhz"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/ghndgc"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/jhfgmnfg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/jugnh "
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/vfhgfdh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/vghcj"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hurt/zughdy"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.silva.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/dfh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/dfhdfhs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/dfhggf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/dftxyjhyt"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/dyfh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/fghsxg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/ghg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/jkbl"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/sans titre"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/tufjgcjz"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/tzdjh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr1"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr2"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/bjr5"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/dfh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/dfhdfhs"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/dfhggf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/dftxyjhyt"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/dyfh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/fghsxg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/ghg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/jkbl"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/sans titre"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/tufjgcjz"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/hello/tzdjh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.silva.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/dsfgh"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/igjhke"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/jgdfg"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/sdg"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/uijkzhgf"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/ujhzfgbds"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/utjfdcjh"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/utjzgthd"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.silva.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/silva/ambient/dsfgh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/igjhke"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/jgdfg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/sdg"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/uijkzhgf"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/ujhzfgbds"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/utjfdcjh"
+            },
+            {
+                "name": "travellers:travellers/fr/silva/ambient/utjzgthd"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/dsaf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/talk/6"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/dsaf"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk1"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk10"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk3"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk4"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk5"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk6"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk7"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk8"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/talk9"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled3"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled4"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled5"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/talk/untitled7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/aie"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/fthh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/grddh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/grs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/grtd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt11"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt12"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt14"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt15"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt16"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt17"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt18"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt19"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt20"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__20": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__21": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__22": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__23": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__24": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/ouille"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__25": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/rgeer"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__26": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/rgre"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt.__27": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/aie"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/fthh"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/grddh"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/grs"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/grtd"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt1"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt10"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt11"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt12"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt14"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt15"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt16"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt17"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt18"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt19"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt20"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt3"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt4"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt5"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt6"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt7"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt8"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/hurt9"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/ouille"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/rgeer"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/rgre"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hurt/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour1"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour3"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour4"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/hello/bonjour5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient1"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient10"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient2"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient3"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient4"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient5"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient6"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient7"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient8"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient9"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient1"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient10"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient3"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient4"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient5"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient6"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient7"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient8"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles/ambient/ambient9"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.vener.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/drhrf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/drtfh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/drth"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/gresd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/grse"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/heee"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/hgrfdes"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/hooo"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/htdft"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/ouais"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/q"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/quoie"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/quze"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/qwuze"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/sredgd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/srg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/srhg"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/tderh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/tht"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/talk/drhrf"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/drtfh"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/drth"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/gresd"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/grse"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/heee"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/hgrfdes"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/hooo"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/htdft"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/ouais"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/q"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/quoie"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/quze"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/qwuze"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/sredgd"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/srg"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/srhg"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/tderh"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/tht"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/talk/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/aie"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/fthh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/grddh"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/grs"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/grtd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/aie"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/fthh"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/grddh"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/grs"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/grtd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hello/bonjour"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hello/merde"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hello/que"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hello/wey"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hello/bonjour"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hello/merde"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hello/que"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hello/wey"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.vener.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/ambient/cheval"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.vener.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/ambient/chier"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.vener.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/ambient/guerre"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.vener.ambient.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/ambient/marre"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.vener.ambient.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/ambient/untitled"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.vener.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/ambient/cheval"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/ambient/chier"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/ambient/guerre"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/ambient/marre"
+            },
+            {
+                "name": "travellers:travellers/fr/vener/ambient/untitled"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles_fou.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/dsff"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/travail"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/travel2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/untitled10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/untitled8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/untitled9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/dsff"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/travail"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/travel2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/untitled10"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/untitled8"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/talk/untitled9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/fghjf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles_fou.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/ghtzfrnf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles_fou.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/jgserdd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles_fou.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles_fou.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/uuuu"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles_fou.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/fghjf"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/ghtzfrnf"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/jgserdd"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/untitled"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hurt/uuuu"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut2 (1)"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut3 (1)"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut4 (1)"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/sdakht"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/untitledhtgdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut1"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut10"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut2 (1)"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut2"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut3 (1)"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut3"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut4 (1)"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut4"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut6"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut7"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut8"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/salut9"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/sdakht"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/hello/untitledhtgdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.fr.gilles_fou.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/ambient/dsfg"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles_fou.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/ambient/jvncb"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles_fou.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles_fou/ambient/dsfg"
+            },
+            {
+                "name": "travellers:travellers/fr/gilles_fou/ambient/jvncb"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk1"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk2"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk3"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk4"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt11"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt1"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt10"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt11"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt2"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt3"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt4"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt5"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt6"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt7"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt8"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.en.default.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello1"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello2"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello3"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/hello/hello4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.en.default.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient1"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient2"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient3"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.ambient.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient4"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.ambient.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient5"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.ambient.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient6"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.en.default.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient1"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient2"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient3"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient4"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient5"
+            },
+            {
+                "name": "travellers:travellers/raiders/en/default/ambient/ambient6"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.silva.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk11"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk12"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk13"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk14"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk15"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk16"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk17"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk18"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk19"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk20"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk21"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk22"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk23"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk24"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk25"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk26"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk27"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__20": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk28"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__21": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk29"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__22": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__23": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk30"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__24": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk31"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__25": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk32"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__26": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk33"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__27": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk34"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__28": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk35"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__29": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk36"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__30": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk37"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__31": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk38"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__32": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk39"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__33": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__34": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk40"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__35": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk41"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__36": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk42"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__37": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk43"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__38": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk44"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__39": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk45"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__40": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk46"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__41": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk47"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__42": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk48"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__43": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk49"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__44": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__45": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk50"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__46": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk51"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__47": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk52"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__48": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__49": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__50": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk.__51": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk10"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk11"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk12"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk13"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk14"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk15"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk16"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk17"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk18"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk19"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk20"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk21"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk22"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk23"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk24"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk25"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk26"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk27"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk28"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk29"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk30"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk31"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk32"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk33"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk34"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk35"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk36"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk37"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk38"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk39"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk40"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk41"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk42"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk43"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk44"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk45"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk46"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk47"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk48"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk49"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk5"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk50"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk51"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk52"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk6"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk7"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk8"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/talk/talk9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk11"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk12"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk13"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk14"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk15"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk16"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk17"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk18"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk19"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk20"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk21"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk22"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk23"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk24"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk25"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk26"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk27"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__20": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk28"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__21": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk29"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__22": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__23": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk30"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__24": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk31"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__25": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk32"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__26": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk33"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__27": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk34"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__28": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk35"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__29": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk36"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__30": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk37"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__31": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk38"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__32": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk39"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__33": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__34": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk40"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__35": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk41"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__36": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk42"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__37": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk43"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__38": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk44"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__39": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk45"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__40": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk46"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__41": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk47"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__42": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk48"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__43": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk49"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__44": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__45": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk50"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__46": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk51"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__47": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk52"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__48": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__49": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__50": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello.__51": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.silva.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk10"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk11"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk12"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk13"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk14"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk15"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk16"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk17"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk18"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk19"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk20"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk21"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk22"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk23"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk24"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk25"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk26"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk27"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk28"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk29"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk30"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk31"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk32"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk33"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk34"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk35"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk36"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk37"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk38"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk39"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk40"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk41"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk42"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk43"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk44"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk45"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk46"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk47"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk48"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk49"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk5"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk50"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk51"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk52"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk6"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk7"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk8"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/silva/hello/talk9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/dsaf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/6"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/dsaf"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk10"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk5"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk6"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk7"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk8"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/talk9"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled5"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/talk/untitled7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt11"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt12"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt13"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt14"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt15"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt16"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt17"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt18"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt19"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt20"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt6"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt7"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt10"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt11"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt12"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt13"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt14"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt15"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt16"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt17"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt18"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt19"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt20"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt5"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt6"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt7"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt8"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hurt/hurt9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/hello/bonjour5"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient1"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient10"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient2"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient3"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient4"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient5"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient6"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient7"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient8"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient9"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient10"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient5"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient6"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient7"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient8"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles/ambient/ambient9"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/dsff"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/travail"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/travel2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/untitled10"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/untitled8"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/untitled9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/dsff"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/travail"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/travel2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/untitled10"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/untitled8"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/talk/untitled9"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/fghjf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/ghtzfrnf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/jgserdd"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/untitled"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/uuuu"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/fghjf"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/ghtzfrnf"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/jgserdd"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/untitled"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hurt/uuuu"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut1"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut2"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut3"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut4"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/sdakht"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/untitledhtgdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut1"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut2"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut3"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/salut4"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/sdakht"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/hello/untitledhtgdf"
+            }
+        ],
+        "stream": true,
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.raiders.fr.gilles_fou.ambient.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/ambient/dsfg"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles_fou.ambient.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/ambient/jvncb"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.raiders.fr.gilles_fou.ambient": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/ambient/dsfg"
+            },
+            {
+                "name": "travellers:travellers/raiders/fr/gilles_fou/ambient/jvncb"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.choir.salade.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/salade/filename1"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.choir.salade.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/salade/filename2"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.choir.salade.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/salade/filename3"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.choir.salade.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/salade/filename4"
+            }
+        ],
+        "stream": true
+    },
+    "entity.travellers.fr.gilles.choir.salade.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/salade/filename5"
+            }
+        ],
+        "stream": true
+    }
+}

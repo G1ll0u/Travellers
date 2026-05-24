@@ -153,8 +153,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private static final int WORKER_SLOTS = 18; // cargo slots
     public final PlayerHostility playerHostility = new PlayerHostility(this);
     private final Set<ChunkPos> forced = new java.util.HashSet<>();
-    // NEW: 18-slot personal inventory (like a small chest on the worker)
-    private final ItemStackHandler personalInventory = new ItemStackHandler(18);
     private final int lastTravelTick = 0;
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
@@ -533,7 +531,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public ItemStackHandler getPersonalInventory() {
-        return personalInventory;
+        return inventory; // inventory (EntityTraveller base) is the single worker inventory
     }
 
     public boolean hasAssignedHomeClient() {
@@ -818,70 +816,42 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
 
     @Override
-    protected void dropLoot(boolean wasRecentlyHit, int lootingModifier, DamageSource source) {
-        // Let base travellers drop its random backpack stuff etc.
-        super.dropLoot(wasRecentlyHit, lootingModifier, source);
-
-        if (world.isRemote) return;
-
-        // --- ALWAYS drop everything from the personal backpack ---
-        for (int i = 0; i < personalInventory.getSlots(); i++) {
-            ItemStack stack = personalInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-
-            EntityItem ei = new EntityItem(world, this.posX, this.posY + 0.5, this.posZ, stack.copy());
-            ei.setDefaultPickupDelay();
-            world.spawnEntity(ei);
-
-            personalInventory.setStackInSlot(i, ItemStack.EMPTY);
+    protected void dropEquipment(boolean wasRecentlyHit, int lootingModifier) {
+        // Consolidate real items from entity slots into inventory before drop
+        for (net.minecraft.inventory.EntityEquipmentSlot slot : net.minecraft.inventory.EntityEquipmentSlot.values()) {
+            ItemStack s = getItemStackFromSlot(slot);
+            if (s.isEmpty()) continue;
+            boolean ghost = equipment.isGhostWeapon(s) || equipment.isGhostBow(s) || equipment.isGhostTorch(s);
+            if (!ghost) {
+                net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, s.copy(), false);
+            }
+            setItemStackToSlot(slot, ItemStack.EMPTY);
         }
-
-        for (int i = 0; i < travelInventory.getSlots(); i++) {
-            ItemStack stack = travelInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-
-            EntityItem ei = new EntityItem(world, this.posX, this.posY + 0.5, this.posZ, stack.copy());
-            ei.setDefaultPickupDelay();
-            world.spawnEntity(ei);
-
-            travelInventory.setStackInSlot(i, ItemStack.EMPTY);
-        }
-
+        // Vanilla dropEquipment is suppressed; everything goes through dropLoot → dropInventoryFull
     }
 
     @Override
-    public void setAIMoveSpeed(float speed) {
-        double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
+    protected void dropLoot(boolean wasRecentlyHit, int lootingModifier, DamageSource source) {
+        super.dropLoot(wasRecentlyHit, lootingModifier, source); // random loot + dropBackpackLoot(inventory)
+        equipment.dropInventoryFull(inventory);      // remaining worker items (weapons, armor, loot)
+        equipment.dropInventoryFull(travelInventory);
+    }
 
-        float cap;
-
-        if (this.isAimingBow()) {
-            // conservateur pour le tir
-            cap = (float) Math.min(base * 0.98D, 0.30D);
-
-        } else if (this.getAttackTarget() != null) {
+    @Override
+    protected float computeMoveSpeedCap(double base) {
+        if (this.isAimingBow()) return (float) Math.min(base * 0.98D, 0.30D);
+        if (this.getAttackTarget() != null) {
             double mult = isGuardingAnchor() ? 1.18D : 1.12D;
             double max = isGuardingAnchor() ? 0.36D : 0.34D;
-            cap = (float) Math.min(base * mult, max);
-
-        } else if (this.isHiredFollower() && !this.isJobActive()) {
-            double d = 0.0D;
-            EntityLivingBase t = this.getEffectiveFollowTarget();
-            if (t != null) d = this.getDistance(t);
-
-            double mult = 1.35D;
-            if (d > 32.0D) mult = 1.40D;
-            if (d > 64.0D) mult = 1.60D;
-            if (d > 128.0D) mult = 1.80D;
-
-            // cap de catchup uniquement hors combat
-            cap = (float) Math.min(base * mult, 0.46D);
-
-        } else {
-            cap = (float) (base * 0.7D);
+            return (float) Math.min(base * mult, max);
         }
-
-        super.setAIMoveSpeed(Math.min(speed, cap));
+        if (this.isHiredFollower() && !this.isJobActive()) {
+            EntityLivingBase t = this.getEffectiveFollowTarget();
+            double d = (t != null) ? this.getDistance(t) : 0.0D;
+            double mult = d > 128.0D ? 1.80D : d > 64.0D ? 1.60D : d > 32.0D ? 1.40D : 1.35D;
+            return (float) Math.min(base * mult, 0.46D);
+        }
+        return (float) (base * 0.7D);
     }
 
     @Override
@@ -981,6 +951,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (--leaderCountCooldown <= 0) {
                 leaderCountCooldown = 100;
                 updateLeaderFollowerCount();
+                equipment.syncEquipmentFromInventory();
             }
 
             // Hired workers: register every tick for responsive chunk forcing.
@@ -1334,9 +1305,18 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (moveAttr != null) {
-            // 20–30% faster than base travellers
             moveAttr.setBaseValue(TravellersModConfig.movementSpeed);
         }
+
+        // Move spawn weapon from MAINHAND into inventory so the GUI shows it and the ghost system manages display
+        if (!world.isRemote) {
+            ItemStack mainhand = getHeldItemMainhand();
+            if (!mainhand.isEmpty() && !equipment.isGhostWeapon(mainhand) && !equipment.isGhostBow(mainhand)) {
+                net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, mainhand.copy(), false);
+                setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
+            }
+        }
+
         return livingdata;
     }
 
@@ -3481,9 +3461,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             nbt.setBoolean("PostJobFarewellActive", postJobFarewellActive);
             nbt.setInteger("PostJobFarewellTicks", postJobFarewellTicks);
 
-            // NEW: personal inventory
-            nbt.setTag("PersonalInventory", personalInventory.serializeNBT());
-            // NEW: home village
+            // home village (PersonalInventory removed — inventory is saved by EntityTraveller as "TravellerInv")
             if (homeVillageCenter != null) {
                 nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
                 nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
@@ -3616,12 +3594,19 @@ public class EntityTravellerWorker extends EntityTraveller {
             postJobFarewellTicks = nbt.getInteger("PostJobFarewellTicks");
 
 
-            // NEW: personal inventory
+            // Migrate old PersonalInventory into the unified inventory (backward compat)
             if (nbt.hasKey("PersonalInventory")) {
-                personalInventory.deserializeNBT(nbt.getCompoundTag("PersonalInventory"));
+                ItemStackHandler legacy = new ItemStackHandler(18);
+                legacy.deserializeNBT(nbt.getCompoundTag("PersonalInventory"));
+                for (int i = 0; i < legacy.getSlots(); i++) {
+                    ItemStack s = legacy.getStackInSlot(i);
+                    if (!s.isEmpty()) {
+                        net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, s.copy(), false);
+                    }
+                }
             }
 
-            // NEW: home village
+            // home village
             if (nbt.hasKey("HomeVillageX")) {
                 int x = nbt.getInteger("HomeVillageX");
                 int y = nbt.getInteger("HomeVillageY");

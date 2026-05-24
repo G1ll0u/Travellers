@@ -72,6 +72,8 @@ public class TravellersModConfig {
     public static int CHOIR_SESSION_DURATION_TICKS = 3 * 20 * 60;
     public static int CHOIR_SPREAD_GRACE_CHECKS = 3;
     public static int CHOIR_TICK_INTERVAL = 100;
+    // Volume multiplier for choir sounds. Higher = audible from farther away (1.0 ≈ 16 blocks, 3.0 ≈ 48 blocks).
+    public static float choirSoundVolumeMultiplier = 3.0f;
     public static final int TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT = 20 * 10; // fallback if config 0
     public static final double TRAVEL_TORCH_NEARBY_RADIUS_DEFAULT = 10.0D;
     public static final int THREAT_DECAY_PER_SEC = 2; // decay rate
@@ -284,6 +286,14 @@ public class TravellersModConfig {
     public static int followRange;
     public static double attackDamage;
     public static double attackTriggerRange;
+    // --- Combat item realism ---
+    public static boolean weaponDurabilityEnabled = true;
+    public static boolean armorDurabilityEnabled = true;
+    public static boolean weaponAttackSpeedEnabled = true;
+    public static int baseAttackCooldownTicks = 20;
+    public static int minAttackCooldownTicks = 6;
+    public static int maxAttackCooldownTicks = 30;
+    public static float attackCooldownMultiplier = 1.5f;
     public static boolean travellerSpeaks;
     public static boolean travellerAmbient = true;
     public static int travellerAmbientMinDelay;
@@ -372,7 +382,7 @@ public class TravellersModConfig {
     /**
      * Baseline spawn density when no village/lonebuilding influence (0 = none)
      */
-    public static double travellerOutsideVillageBaseDensity = 0.2D;
+    public static double travellerOutsideVillageBaseDensity = 0.05D;
     // --- Traveller culture-weighted spawns ---
     public static boolean travellerCultureWeightedSpawn = true;
     /**
@@ -832,6 +842,8 @@ public class TravellersModConfig {
                 "How many consecutive spread-check failures before stopping the choir.");
         CHOIR_TICK_INTERVAL = cfg.getInt("choirTickInterval", "choir", 100, 20, 400,
                 "How often (ticks) the choir coordinator checks sessions and attempts new ones.");
+        choirSoundVolumeMultiplier = cfg.getFloat("choirSoundVolumeMultiplier", "choir", 3.0f, 0.1f, 16.0f,
+                "Volume multiplier for choir sounds. Doubles as range control: 1.0 ≈ 16 blocks, 3.0 ≈ 48 blocks.");
 
         enableTravellerEntity = cfg.getBoolean(
                 "enableTravellerEntity",
@@ -1121,6 +1133,43 @@ public class TravellersModConfig {
                 40, 1, 200,
                 "Ticks between ranged attacks (20 ticks = 1 second)."
         );
+
+        weaponDurabilityEnabled = cfg.getBoolean(
+                "WeaponDurabilityEnabled", "Combat - Item realism",
+                true,
+                "If true, traveller weapons lose durability on each hit (same rate as players)."
+        );
+        armorDurabilityEnabled = cfg.getBoolean(
+                "ArmorDurabilityEnabled", "Combat - Item realism",
+                true,
+                "If true, traveller armor loses durability when they take damage (same rate as players)."
+        );
+        weaponAttackSpeedEnabled = cfg.getBoolean(
+                "WeaponAttackSpeedEnabled", "Combat - Item realism",
+                true,
+                "If true, melee attack cooldown is derived from the weapon's ATTACK_SPEED attribute."
+        );
+        baseAttackCooldownTicks = cfg.getInt(
+                "BaseAttackCooldownTicks", "Combat - Item realism",
+                20, 1, 100,
+                "Attack cooldown (ticks) used when no weapon is held or the weapon has no speed modifier. 20 = 1 attack/s."
+        );
+        minAttackCooldownTicks = cfg.getInt(
+                "MinAttackCooldownTicks", "Combat - Item realism",
+                6, 1, 40,
+                "Minimum melee attack cooldown in ticks, even with the fastest weapon."
+        );
+        maxAttackCooldownTicks = cfg.getInt(
+                "MaxAttackCooldownTicks", "Combat - Item realism",
+                30, 1, 100,
+                "Maximum melee attack cooldown in ticks, even with the slowest weapon."
+        );
+        attackCooldownMultiplier = cfg.getFloat(
+                "AttackCooldownMultiplier", "Combat - Item realism",
+                1.5f, 0.1f, 10.0f,
+                "Percentage multiplier applied to the final attack cooldown (1.0 = weapon speed as-is, 1.5 = 50% slower, 2.0 = twice slower)."
+        );
+
         attackTriggerRange = cfg.getInt(
                 "AttackTriggerRange", "Combat - General",
                 24, 1, 200,

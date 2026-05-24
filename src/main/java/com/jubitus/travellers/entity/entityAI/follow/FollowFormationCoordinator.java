@@ -83,15 +83,22 @@ public final class FollowFormationCoordinator {
         ctx.ensureFresh(world, leader, follower.getFollowOwnerId(), now, mode, cfg, baseFollowDistance, formationSettings);
 
         SlotAssignment slot = ctx.assignments.get(follower.getUniqueID());
-        // If the follower isn't in assignments (e.g., it's outside the 112-block scan radius or
-        // just joined), go straight to the fallback slot. Do NOT call rebuildAssignments here —
-        // ensureFresh already ran the periodic rebuild. Calling it per-follower caused a full
-        // AABB scan + sort for every out-of-range worker, multiplied by 500 = catastrophic.
         if (slot == null) {
-            slot = ctx.createFallbackSlot(follower, leader, mode, cfg, baseFollowDistance, formationSettings);
-            // Schedule an early rebuild so this worker gets a proper slot quickly.
-            // Cap to at most 3 ticks in the future to avoid spamming every tick.
-            ctx.nextRefreshTick = Math.min(ctx.nextRefreshTick, now + 3);
+            // If this worker is completely new to this formation (never had a persistent ordinal),
+            // do one immediate rebuild this tick so it gets the correct slot right away instead
+            // of navigating to an incorrect fallback position for 3+ ticks.
+            // Rate-limited to one forced rebuild per tick per context to avoid cascading rebuilds
+            // when many workers join simultaneously (e.g., after server restart).
+            if (!ctx.persistentOrdinals.containsKey(follower.getUniqueID())
+                    && ctx.lastForcedRebuildTick < now) {
+                ctx.lastForcedRebuildTick = now;
+                ctx.rebuildAssignments(world, leader, follower.getFollowOwnerId(), now, mode, cfg, baseFollowDistance, formationSettings, false);
+                slot = ctx.assignments.get(follower.getUniqueID());
+            }
+            if (slot == null) {
+                slot = ctx.createFallbackSlot(follower, leader, mode, cfg, baseFollowDistance, formationSettings);
+                ctx.nextRefreshTick = Math.min(ctx.nextRefreshTick, now + 3);
+            }
         }
 
         return slot;
@@ -171,6 +178,8 @@ public final class FollowFormationCoordinator {
         /** Hash of the last WorkerFormationSettings used for rebuild — detects GUI changes. */
         private int lastFormationSettingsHash = 0;
 
+        private long lastForcedRebuildTick = Long.MIN_VALUE;
+
         private int groupSize = 1;
         private SpaceProfile profile = new SpaceProfile(false, 1.0D, 1.0D, 1, 0.0D, 1.0D);
         private GroundAnchor anchor = new GroundAnchor(0.0D, 0.0D, 0.0D, false);
@@ -190,6 +199,11 @@ public final class FollowFormationCoordinator {
          * Persistent ordinal registry: workers keep their slot index even between rebuild cycles.
          */
         private final Map<UUID, Integer> persistentOrdinals = new HashMap<>();
+        /**
+         * Persistent formation-slot index (adj ordinal, independent of escort count).
+         * Workers keep this across rebuilds so that changing numEscorts doesn't shuffle the formation.
+         */
+        private final Map<UUID, Integer> persistentFormOrdinals = new HashMap<>();
         /** Total known workforce size. */
         private int lastKnownGroupSize = 1;
         /** Eligible member count at last heading-update tick. -1 = never computed. */
@@ -200,6 +214,13 @@ public final class FollowFormationCoordinator {
         }
 
         void registerMember(EntityTravellerWorker worker, long now) {
+            Long lastSeen = memberLastSeen.get(worker.getUniqueID());
+            // Worker was absent long enough to be considered gone: reset its slot so it rejoins
+            // at the correct position for the current group size instead of using a stale ordinal.
+            if (lastSeen == null || (now - lastSeen) > MEMBER_EXPIRY_TICKS) {
+                persistentOrdinals.remove(worker.getUniqueID());
+                persistentFormOrdinals.remove(worker.getUniqueID());
+            }
             registeredMembers.put(worker.getUniqueID(), worker);
             memberLastSeen.put(worker.getUniqueID(), now);
         }
@@ -210,7 +231,7 @@ public final class FollowFormationCoordinator {
                 EntityTravellerWorker w = e.getValue();
                 Long lastSeen = memberLastSeen.get(e.getKey());
                 if (lastSeen == null || (now - lastSeen) > MEMBER_EXPIRY_TICKS || w.isDead) continue;
-                if (ownerMatches(w, ownerId) && w.getEscortLeaderUUID() == null && w.getEffectiveFollowTarget() == leader)
+                if (ownerMatches(w, ownerId) && w.getEffectiveFollowTarget() == leader)
                     count++;
             }
             return count;
@@ -264,7 +285,7 @@ public final class FollowFormationCoordinator {
             if (refreshNow) {
                 lastFormationSettingsHash = settingsHash;
                 if (headingShifted) lastHeadingRebuildTick = now;
-                rebuildAssignments(world, leader, ownerId, now, mode, cfg, baseFollowDistance, formationSettings);
+                rebuildAssignments(world, leader, ownerId, now, mode, cfg, baseFollowDistance, formationSettings, settingsChanged);
             }
         }
 
@@ -487,7 +508,8 @@ public final class FollowFormationCoordinator {
                                         FollowMode mode,
                                         FollowRuntimeConfig cfg,
                                         double baseFollowDistance,
-                                        WorkerFormationSettings formationSettings) {
+                                        WorkerFormationSettings formationSettings,
+                                        boolean settingsChanged) {
             members.clear();
 
             // Build members from self-registered workers (no world AABB scan needed).
@@ -504,9 +526,7 @@ public final class FollowFormationCoordinator {
                     memberLastSeen.remove(e.getKey());
                     continue;
                 }
-                if (ownerMatches(w, ownerId)
-                        && w.getEscortLeaderUUID() == null
-                        && w.getEffectiveFollowTarget() == leader) {
+                if (ownerMatches(w, ownerId) && w.getEffectiveFollowTarget() == leader) {
                     members.add(w);
                 }
             }
@@ -521,11 +541,20 @@ public final class FollowFormationCoordinator {
             assignments.clear();
             previousOrdinals.clear();
 
-            // Prune persistent ordinals for workers that are no longer registered
-            // (dismissed, dead, or gone for more than MEMBER_EXPIRY_TICKS).
-            persistentOrdinals.keySet().removeIf(uuid -> !registeredMembers.containsKey(uuid));
+            // Purge stale ordinals: workers absent from registeredMembers, OR present but no longer
+            // following this leader (e.g. switched to another leader or back to player). Without this,
+            // a worker rejoining carries its old ordinal from a larger group and gets placed far away.
+            persistentOrdinals.keySet().removeIf(uuid -> {
+                if (!registeredMembers.containsKey(uuid)) return true;
+                EntityTravellerWorker w = registeredMembers.get(uuid);
+                return w.isDead || !ownerMatches(w, ownerId) || w.getEffectiveFollowTarget() != leader;
+            });
+            persistentFormOrdinals.keySet().removeIf(uuid -> {
+                if (!registeredMembers.containsKey(uuid)) return true;
+                EntityTravellerWorker w = registeredMembers.get(uuid);
+                return w.isDead || !ownerMatches(w, ownerId) || w.getEffectiveFollowTarget() != leader;
+            });
 
-            // Use actual scanned group size — persistent ordinals only supplement, not inflate
             int totalKnownSize = groupSize;
 
             double anchorX = anchor.useProjectedGround ? anchor.x : leader.posX;
@@ -535,54 +564,91 @@ public final class FollowFormationCoordinator {
             double anchorZ = anchor.useProjectedGround ? anchor.z : leader.posZ;
             boolean workerLeader = leader instanceof EntityTravellerWorker;
 
-            int ordinal = 0;
-            for (EntityTravellerWorker worker : ordered) {
-                SlotOffset offset = computeSlotOffset(
-                        ordinal,
-                        totalKnownSize,
-                        stableDirX,
-                        stableDirZ,
-                        profile,
-                        mode,
-                        cfg,
-                        baseFollowDistance,
-                        key.leaderId,
-                        formationSettings,
-                        workerLeader
-                );
+            int numEscorts = Math.min(formationSettings.numEscorts, ordered.size());
 
-                SlotAssignment slot = new SlotAssignment(
-                        mode,
-                        ordinal,
-                        totalKnownSize,
-                        profile.compactness,
-                        profile.openness,
-                        stableDirX,
-                        stableDirZ,
-                        leaderSpeed,
-                        leaderActuallyMoving,
-                        anchorX + offset.dx,
-                        anchorY,
-                        anchorZ + offset.dz,
-                        offset.preferredRadius,
-                        offset.arriveRadius,
-                        offset.frontPenaltyStrength,
-                        mode == FollowMode.CAVE,
-                        profile.tunnelStrength,
-                        profile.caveSpread,
-                        anchor.useProjectedGround,
-                        workerLeader,
-                        profile.suggestedTunnelLanes
-                );
-
+            // Escort slots: always the first numEscorts entries in ordered (already proximity-sorted)
+            for (int i = 0; i < numEscorts; i++) {
+                EntityTravellerWorker worker = ordered.get(i);
+                SlotOffset offset = computeSlotOffset(i, totalKnownSize, stableDirX, stableDirZ,
+                        profile, mode, cfg, baseFollowDistance, key.leaderId, formationSettings, workerLeader);
+                SlotAssignment slot = new SlotAssignment(mode, i, totalKnownSize,
+                        profile.compactness, profile.openness, stableDirX, stableDirZ,
+                        leaderSpeed, leaderActuallyMoving,
+                        anchorX + offset.dx, anchorY, anchorZ + offset.dz,
+                        offset.preferredRadius, offset.arriveRadius, offset.frontPenaltyStrength,
+                        mode == FollowMode.CAVE, profile.tunnelStrength, profile.caveSpread,
+                        anchor.useProjectedGround, workerLeader, profile.suggestedTunnelLanes);
                 assignments.put(worker.getUniqueID(), slot);
-                previousOrdinals.put(worker.getUniqueID(), ordinal);
-                // Update persistent ordinal for this worker
-                persistentOrdinals.put(worker.getUniqueID(), ordinal);
-                ordinal++;
+                previousOrdinals.put(worker.getUniqueID(), i);
+                persistentOrdinals.put(worker.getUniqueID(), i);
+                persistentFormOrdinals.remove(worker.getUniqueID());
             }
 
-            lastKnownGroupSize = Math.max(totalKnownSize, ordinal);
+            // Formation slots: greedy nearest-slot assignment to avoid cascading reshuffles.
+            // Workers keep their previous adj-ordinal (stability), unassigned workers find nearest slot.
+            // On settings change the stability pass is skipped so workers redistribute optimally.
+            List<EntityTravellerWorker> formList = ordered.subList(numEscorts, ordered.size());
+            int formSize = formList.size();
+
+            List<SlotOffset> formSlots = new ArrayList<>(formSize);
+            for (int i = 0; i < formSize; i++) {
+                formSlots.add(computeSlotOffset(i + numEscorts, totalKnownSize, stableDirX, stableDirZ,
+                        profile, mode, cfg, baseFollowDistance, key.leaderId, formationSettings, workerLeader));
+            }
+
+            int[] workerToAdj = new int[formSize];
+            Arrays.fill(workerToAdj, -1);
+            boolean[] adjClaimed = new boolean[formSize];
+
+            // Stability pass: workers reclaim their previous formation slot
+            if (!settingsChanged) {
+                for (int wi = 0; wi < formSize; wi++) {
+                    Integer prevAdj = persistentFormOrdinals.get(formList.get(wi).getUniqueID());
+                    if (prevAdj != null && prevAdj >= 0 && prevAdj < formSize && !adjClaimed[prevAdj]) {
+                        workerToAdj[wi] = prevAdj;
+                        adjClaimed[prevAdj] = true;
+                    }
+                }
+            }
+
+            // Greedy pass: unassigned workers claim the nearest unclaimed slot
+            for (int wi = 0; wi < formSize; wi++) {
+                if (workerToAdj[wi] != -1) continue;
+                EntityTravellerWorker w = formList.get(wi);
+                double bestDSq = Double.MAX_VALUE;
+                int bestSi = -1;
+                for (int si = 0; si < formSize; si++) {
+                    if (adjClaimed[si]) continue;
+                    SlotOffset off = formSlots.get(si);
+                    double dx = w.posX - (anchorX + off.dx);
+                    double dz = w.posZ - (anchorZ + off.dz);
+                    double dSq = dx * dx + dz * dz;
+                    if (dSq < bestDSq) { bestDSq = dSq; bestSi = si; }
+                }
+                if (bestSi < 0) bestSi = wi; // unreachable in valid state
+                workerToAdj[wi] = bestSi;
+                adjClaimed[bestSi] = true;
+            }
+
+            for (int wi = 0; wi < formSize; wi++) {
+                EntityTravellerWorker w = formList.get(wi);
+                int adjOrd = workerToAdj[wi];
+                int ordinal = adjOrd + numEscorts;
+                persistentFormOrdinals.put(w.getUniqueID(), adjOrd);
+                previousOrdinals.put(w.getUniqueID(), ordinal);
+                persistentOrdinals.put(w.getUniqueID(), ordinal);
+                SlotOffset off = formSlots.get(adjOrd);
+                SlotAssignment slot = new SlotAssignment(mode, ordinal, totalKnownSize,
+                        profile.compactness, profile.openness, stableDirX, stableDirZ,
+                        leaderSpeed, leaderActuallyMoving,
+                        anchorX + off.dx, anchorY, anchorZ + off.dz,
+                        off.preferredRadius, off.arriveRadius, off.frontPenaltyStrength,
+                        mode == FollowMode.CAVE, profile.tunnelStrength, profile.caveSpread,
+                        anchor.useProjectedGround, workerLeader, profile.suggestedTunnelLanes);
+                assignments.put(w.getUniqueID(), slot);
+            }
+
+            lastKnownGroupSize = Math.max(totalKnownSize, numEscorts + formSize);
             // Remember heading at rebuild time so we can detect rotation drift
             lastRebuildDirX = stableDirX;
             lastRebuildDirZ = stableDirZ;
@@ -672,7 +738,10 @@ public final class FollowFormationCoordinator {
                 fallbackOrdinal = registered;
                 fallbackGroupSize = Math.max(lastKnownGroupSize, registered + 1);
             } else {
-                fallbackOrdinal = persistentOrdinals.size();
+                // Use lastKnownGroupSize (updated each rebuild) as the ordinal, NOT
+                // persistentOrdinals.size() which can be inflated by stale entries from
+                // workers that previously followed this leader but changed their target.
+                fallbackOrdinal = lastKnownGroupSize;
                 persistentOrdinals.put(follower.getUniqueID(), fallbackOrdinal);
                 lastKnownGroupSize = Math.max(lastKnownGroupSize, fallbackOrdinal + 1);
                 fallbackGroupSize = lastKnownGroupSize;

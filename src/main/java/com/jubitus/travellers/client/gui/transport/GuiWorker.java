@@ -33,13 +33,19 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
-
 @SideOnly(Side.CLIENT)
 public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IWorkerMapReceiver {
-    private static final ResourceLocation TEX =
-            new ResourceLocation("travellers", "textures/gui/worker.png");
 
     private static final int MAP_W = 150;
+
+    // ── Palette de couleurs thématique (Beige / Hub) ──────────────────────────
+    private static final int COL_BG       = 0xFF2A2219;
+    private static final int COL_BORDER   = 0xFF685747;
+    private static final int COL_TEXT     = 0xF2D2B9;
+    private static final int COL_TEXT_DIM = 0xFFA08060;
+    private static final int COL_SEL      = 0x604A3C20;
+    private static final int COL_HOVER    = 0x3AFFFFFF;
+    private static final int COL_PANEL    = 0xFF1E1A14;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -82,7 +88,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         listW = 120;
         listH = 120;
 
-        // Center the full layout: map + gap + container + gap + list
         int totalW = MAP_W + 8 + xSize + 8 + listW;
         int startX = Math.max(4, (this.width - totalW) / 2);
 
@@ -150,16 +155,12 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
-    // ── IWorkerGoListReceiver ─────────────────────────────────────────────────
-
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
         poiEntries.clear();
         if (entries != null) poiEntries.addAll(entries);
         rebuildMapMarkers();
     }
-
-    // ── IWorkerMapReceiver ────────────────────────────────────────────────────
 
     @Override
     public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
@@ -173,8 +174,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         rebuildMapMarkers();
     }
 
-    // ── Map markers ───────────────────────────────────────────────────────────
-
     private void rebuildMapMarkers() {
         if (mapController == null) return;
         mapController.panel.clearMarkers();
@@ -187,7 +186,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                 mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label));
         }
 
-        // Highlight the selected village
         if (selectedIndex >= 0 && selectedIndex < villages.size()) {
             mapController.panel.addMarker(
                     WorldMapMarkerFactory.villageHighlighted(
@@ -208,8 +206,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                 player.getPosition(), player.getName(), playerOwnerColor));
     }
 
-    // ── Drawing ───────────────────────────────────────────────────────────────
-
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
@@ -217,8 +213,11 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         if (mapController != null) {
+            // Cadre thématisé autour de la carte
             drawRect(mapController.mapX - 2, mapController.mapY - 2,
-                     mapController.mapX + MAP_W + 2, mapController.mapY + ySize + 2, 0x80000000);
+                    mapController.mapX + MAP_W + 2, mapController.mapY + ySize + 2, COL_PANEL);
+            drawRect(mapController.mapX - 1, mapController.mapY - 1,
+                    mapController.mapX + MAP_W + 1, mapController.mapY + ySize + 1, COL_BORDER);
             rebuildMapMarkers();
             mapController.draw();
         }
@@ -242,39 +241,59 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        this.fontRenderer.drawString(I18n.format("travellers.worker.title", "Worker"), 8, 6, 0x404040);
-        this.fontRenderer.drawString(
-                this.player.inventory.getDisplayName().getUnformattedText(),
-                8, this.ySize - 96 + 2, 0x404040);
+        this.fontRenderer.drawString(I18n.format("travellers.worker.title", "Worker"), 8, 6, COL_TEXT);
     }
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        this.mc.getTextureManager().bindTexture(TEX);
-        this.drawTexturedModalRect(this.guiLeft, this.guiTop, 0, 0, this.xSize, this.ySize);
+        int x = this.guiLeft;
+        int y = this.guiTop;
+
+        // Rendu vectoriel du fond beige/marron de la boîte de dialogue centrale
+        drawRect(x, y, x + xSize, y + ySize, COL_BG);
+        drawRect(x, y, x + xSize, y + 1, COL_BORDER);
+        drawRect(x, y + ySize - 1, x + xSize, y + ySize, COL_BORDER);
+        drawRect(x, y, x + 1, y + ySize, COL_BORDER);
+        drawRect(x + xSize - 1, y, x + xSize, y + ySize, COL_BORDER);
+
+        // Rendu dynamique de l'arriere-plan des slots du Container
+        for (int i = 0; i < this.inventorySlots.inventorySlots.size(); i++) {
+            Slot s = this.inventorySlots.inventorySlots.get(i);
+            if (s != null) {
+                int slotX = x + s.xPos;
+                int slotY = y + s.yPos;
+                drawRect(slotX - 1, slotY - 1, slotX + 17, slotY + 17, COL_BORDER);
+                drawRect(slotX, slotY, slotX + 16, slotY + 16, COL_PANEL);
+            }
+        }
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
         if (villages.isEmpty()) {
-            this.fontRenderer.drawString("No village in range...", listX, listY, 0xFFFFFF);
+            this.fontRenderer.drawString("No village in range...", listX, listY, COL_TEXT_DIM);
             String costLabel;
             int color;
             if (!costValid || selectedIndex < 0 || selectedIndex >= villages.size()
                     || validatedVillageIdx != selectedIndex) {
                 costLabel = I18n.format("travellers.worker.cost_unknown");
-                color = 0xAAAAAA;
+                color = COL_TEXT_DIM;
             } else {
                 String costStr = MillCommonUtilities.getShortPrice(lastCost);
                 costLabel = I18n.format("travellers.worker.cost", costStr);
                 int playerMoney = MillCommonUtilities.countMoney(this.player.inventory);
-                color = playerMoney >= lastCost ? 0x00FF00 : 0xFF5555;
+                color = playerMoney >= lastCost ? 0x00FF00 : 0xFF5555; // Garde le indicateurs de prix vert/rouge
             }
             this.fontRenderer.drawString(costLabel, listX, listY - 10, color);
             return;
         }
 
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
+        // Panneau et bordure de la liste de villages de droite
+        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, COL_PANEL);
+        drawRect(listX - 2, listY - 2, listX + listW + 2, listY - 1, COL_BORDER);
+        drawRect(listX - 2, listY + listH + 1, listX + listW + 2, listY + listH + 2, COL_BORDER);
+        drawRect(listX - 2, listY - 2, listX - 1, listY + listH + 2, COL_BORDER);
+        drawRect(listX + listW + 1, listY - 2, listX + listW + 2, listY + listH + 2, COL_BORDER);
+
         clampScroll();
         int maxRows = getVisibleRows();
         int rowsToDraw = Math.min(maxRows, villages.size() - scrollOffset);
@@ -286,14 +305,16 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             boolean hovered = mouseX >= listX && mouseX < listX + listW
                     && mouseY >= rowTop && mouseY < rowBottom;
             int globalIdx = scrollOffset + i;
-            int bg = (globalIdx == selectedIndex) ? 0x40FFFFFF : (hovered ? 0x20FFFFFF : 0x20000000);
-            drawRect(listX, rowTop, listX + listW, rowBottom, bg);
+
+            int bg = (globalIdx == selectedIndex) ? COL_SEL : (hovered ? COL_HOVER : 0);
+            if (bg != 0) drawRect(listX, rowTop, listX + listW, rowBottom, bg);
+
             VillageRow row = villages.get(globalIdx);
             String label = makeRowLabel(row, scale);
             GlStateManager.pushMatrix();
             GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
             GlStateManager.scale(scale, scale, 1.0F);
-            this.fontRenderer.drawString(label, 0, 0, hovered ? 0xFFFFA0 : 0xE0E0E0);
+            this.fontRenderer.drawString(label, 0, 0, hovered ? 0xFFFFCC88 : COL_TEXT);
             GlStateManager.popMatrix();
         }
 
@@ -303,10 +324,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             int cost = EntityTravellerWorker.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
             costStr = MillCommonUtilities.getShortPrice(cost);
         }
-        this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10, 0xFFFFFF);
+        this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10, COL_TEXT);
     }
-
-    // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
     public void handleMouseInput() throws IOException {
@@ -411,8 +430,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         super.actionPerformed(button);
     }
 
-    // ── Village list callback ─────────────────────────────────────────────────
-
     public void receiveVillageList(List<BlockPos> centers, List<String> labels, List<Integer> distances) {
         this.villages.clear();
         int n = Math.min(centers.size(), Math.min(labels.size(), distances.size()));
@@ -437,8 +454,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         clampScroll();
         rebuildMapMarkers();
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private int getUsedCargoSlotsClient() {
         int used = 0;
