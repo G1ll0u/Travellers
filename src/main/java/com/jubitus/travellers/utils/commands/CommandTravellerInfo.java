@@ -2,9 +2,14 @@ package com.jubitus.travellers.utils.commands;
 
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
+import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
 import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
+import com.jubitus.travellers.utils.world.spawn.TravellerVillageRegistry;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -16,51 +21,10 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.WorldServer;
 import org.millenaire.common.world.MillWorldData;
 
+import java.util.List;
 import java.util.Map;
 
 public class CommandTravellerInfo extends CommandBase {
-
-    // ----------------------------------------------------------
-    // Dynamic target (same logic we discussed earlier)
-    // ----------------------------------------------------------
-    public static int computeDynamicTarget(WorldServer ws) {
-
-        Map<MillVillageIndex.VillageInfo, Integer> pops =
-                MillVillageIndex.countVillagersPerVillage(ws);
-
-        final double perVillager = 1.0 / 3.0;
-        final int minPerVillage = 2;
-        final int maxPerVillage = 8;
-
-        final int globalMin = 0;
-        final int globalMax = 64;
-
-        final int perLone = 1;
-
-        int total = 0;
-
-        // Villages
-        for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
-            int villagers = e.getValue();
-            if (villagers <= 0) continue;
-
-            int t = (int) Math.floor(villagers * perVillager);
-            if (t < minPerVillage) t = minPerVillage;
-            if (t > maxPerVillage) t = maxPerVillage;
-            total += t;
-        }
-
-        // Lone Buildings
-        MillWorldData wd = MillVillageIndex.getWD(ws);
-        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
-            total += wd.loneBuildingsList.pos.size() * perLone;
-        }
-
-        if (total < globalMin) total = globalMin;
-        if (total > globalMax) total = globalMax;
-
-        return total;
-    }
 
     @Override
     public String getName() {
@@ -84,120 +48,243 @@ public class CommandTravellerInfo extends CommandBase {
         WorldServer ws = (WorldServer) player.world;
         BlockPos pos = player.getPosition();
 
-        msg(sender, "§e---- Traveller Info ----");
-        msg(sender, String.format("§fPosition: §s%d %d %d", pos.getX(), pos.getY(), pos.getZ()));
+        msg(sender, "§e=== Traveller Info === §7(run /travellersconfigreload first to get live values)");
+        msg(sender, String.format("§7Position: %d %d %d", pos.getX(), pos.getY(), pos.getZ()));
 
         // --------------------------------------------------
-        // 1) Global travellers vs target
+        // 1) Soft spawn status
         // --------------------------------------------------
-        int loadedTotal = 0;
+        msg(sender, "§b--- Soft Spawn ---");
+        String travEnabled = TravellersModConfig.enableTravellerSoftSpawns ? "§aON" : "§cOFF";
+        String raidEnabled = TravellersModConfig.enableRaiderSoftSpawns ? "§aON" : "§cOFF";
+        msg(sender, String.format("§fTravellers: %s§f  (every §a%ds§f, §a%d§f pos checks/attempt, group §a%d§f–§a%d§f)",
+                travEnabled,
+                TravellersModConfig.travellerTopUpEveryTicks / 20,
+                TravellersModConfig.travellerMaxPositionChecksPerAttempt,
+                TravellersModConfig.MinGroupSizeAtSpawn,
+                TravellersModConfig.MaxGroupSizeAtSpawn));
+        msg(sender, String.format("§fRaiders:    %s§f  (every §a%ds§f, §a%d§f pos checks/attempt, group §a%d§f–§a%d§f)",
+                raidEnabled,
+                TravellersModConfig.raiderTopUpEveryTicks / 20,
+                TravellersModConfig.raiderMaxPositionChecksPerAttempt,
+                TravellersModConfig.RaiderMinGroup,
+                TravellersModConfig.RaiderMaxGroup));
+
+        // --------------------------------------------------
+        // 2) Global counts
+        // --------------------------------------------------
+        msg(sender, "§b--- Global Counts ---");
+
+        int loadedTravellers = 0;
+        int loadedRaiders = 0;
+        int loadedWorkers = 0;
+        int loadedMerchants = 0;
         for (WorldServer w : server.worlds) {
-            loadedTotal += w.getEntities(EntityTraveller.class, e -> e.isEntityAlive()).size();
+            loadedTravellers += w.getEntities(EntityTraveller.class, e -> e.isEntityAlive()
+                    && !(e instanceof EntityTravellerRaider)
+                    && !(e instanceof EntityTravellerWorker)
+                    && !(e instanceof EntityTravellerMerchant)).size();
+            loadedRaiders += w.getEntities(EntityTravellerRaider.class, e -> e.isEntityAlive()).size();
+            loadedWorkers += w.getEntities(EntityTravellerWorker.class, e -> e.isEntityAlive()).size();
+            loadedMerchants += w.getEntities(EntityTravellerMerchant.class, e -> e.isEntityAlive()).size();
         }
-        int dynamicTarget = MillVillageIndex.computeWorldTravellerTarget(ws);
-        msg(sender, String.format("§fGlobal Travellers: §s%d§f / %d (dynamic target)",
-                loadedTotal, dynamicTarget));
 
+        int worldTarget = MillVillageIndex.computeWorldTravellerTarget(ws);
+
+        // Break down world target composition
+        Map<MillVillageIndex.VillageInfo, Integer> pops = MillVillageIndex.countVillagersPerVillage(ws);
+        int villageCount = (int) pops.entrySet().stream().filter(e -> e.getValue() > 0).count();
+        int loneCount = 0;
+        MillWorldData wd = MillVillageIndex.getWD(ws);
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            loneCount = wd.loneBuildingsList.pos.size();
+        }
+
+        msg(sender, String.format("§fTravellers: §a%d§f loaded / §e%d§f world target / §c%d§f hard cap",
+                loadedTravellers, worldTarget, TravellersModConfig.loadedTravellerCap));
+        msg(sender, String.format("§7  (target from §a%d§f villages + §a%d§f lone buildings, formula: §a%.2f§f/villager, §a%d§f–§a%d§f per village)",
+                villageCount, loneCount,
+                TravellersModConfig.travellerCapPerVillager,
+                TravellersModConfig.travellerCapMinPerVillage,
+                TravellersModConfig.travellerCapMaxPerVillage));
+
+        msg(sender, String.format("§fRaiders: §a%d§f loaded / §e%d§f soft target / §c%d§f hard cap",
+                loadedRaiders, TravellersModConfig.raiderTargetLoaded, TravellersModConfig.loadedRaiderCap));
 
         // --------------------------------------------------
-        // 2) Density / spawn chance at this position
+        // 3) Workers & Merchants (global)
         // --------------------------------------------------
+        msg(sender, "§b--- Workers & Merchants (global) ---");
+
+        VirtualWorkerManager vwm = VirtualWorkerManager.get(ws);
+        int virtualWorkers = vwm.getTotalCount();
+        int globalWorkerCap = TravellersModConfig.workerLoadedCap > 0
+                ? TravellersModConfig.workerLoadedCap
+                : TravellersModConfig.workerGlobalAssignedCap;
+
+        msg(sender, String.format("§fWorkers: §a%d§f loaded + §a%d§f virtual = §a%d§f / §e%d§f cap  (min pop §a%d§f, §a%d§f pop/worker, max §a%d§f/village)",
+                loadedWorkers, virtualWorkers, loadedWorkers + virtualWorkers, globalWorkerCap,
+                TravellersModConfig.workerMinPop,
+                TravellersModConfig.workerPopPerWorker,
+                TravellersModConfig.workerMaxPerVillage));
+        msg(sender, String.format("§fMerchants: §a%d§f loaded / §e%d§f cap  (min pop §a%d§f, §a%d§f pop/merchant, max §a%d§f/village)",
+                loadedMerchants, TravellersModConfig.merchantLoadedCap,
+                TravellersModConfig.merchantMinPop,
+                TravellersModConfig.merchantPopPerMerchant,
+                TravellersModConfig.merchantMaxPerVillage));
+
+        // --------------------------------------------------
+        // 4) Density at player position
+        // --------------------------------------------------
+        msg(sender, "§b--- Density at Your Position ---");
+
         double baseDensity = MillVillageIndex.travellerDensityAt(ws, pos);
         double popMult = MillVillageIndex.populationWeightAt(ws, pos);
         double combined = baseDensity * popMult;
         double chanceGate = Math.min(1.0, combined);
 
-        msg(sender, String.format("§fBase Density: §a%.4f", baseDensity));
-        msg(sender, String.format("§fPopulation Multiplier: §a%.4f", popMult));
-        msg(sender, String.format("§fCombined Density: §a%.4f", combined));
-        msg(sender, String.format("§fSpawn Chance Gate: §a%.2f", chanceGate));
+        msg(sender, String.format("§fBase density: §a%.4f§7  (village r=§a%d§7 w=§a%.2f§7, lone r=§a%d§7 w=§a%.2f§7, outside=§a%.2f§7, maxDensity=§a%.2f§7)",
+                baseDensity,
+                TravellersModConfig.travellerVillageInfluenceRadius, TravellersModConfig.travellerVillageWeight,
+                TravellersModConfig.travellerLoneInfluenceRadius, TravellersModConfig.travellerLoneWeight,
+                TravellersModConfig.travellerOutsideVillageBaseDensity,
+                TravellersModConfig.travellerMaxDensity));
+        msg(sender, String.format("§fPop multiplier: §a%.4f§7  (radius=§a%d§7, §a%.3f§7/villager, max=§a%.2f§7)",
+                popMult,
+                TravellersModConfig.travellerPopulationWeightRadius,
+                TravellersModConfig.travellerPopulationWeightPerVillager,
+                TravellersModConfig.travellerPopulationWeightMaxMultiplier));
+        msg(sender, String.format("§fCombined: §a%.4f  §fChance gate: %s%.1f%%",
+                combined,
+                chanceGate >= 0.7 ? "§a" : chanceGate >= 0.3 ? "§e" : "§c",
+                chanceGate * 100.0));
 
+        // --------------------------------------------------
+        // 5) Regional caps (travellers + raiders)
+        // --------------------------------------------------
+        msg(sender, "§b--- Regional Caps ---");
 
-// Regional budget around the player (example radius 1000 blocks)
-        int regionalCap = MillVillageIndex.computeRegionalTravellerCap(ws, pos,
+        int travRegionalCap = MillVillageIndex.computeRegionalTravellerCap(ws, pos,
                 TravellersModConfig.travellerRegionalRadius);
-        msg(sender, String.format("§fRegional Traveller Budget (%dm): §s%d",
-                TravellersModConfig.travellerRegionalRadius, regionalCap));
+        int travRegionalCount = TravellerSoftSpawner.countTravellersInRegion(ws, pos,
+                TravellersModConfig.travellerRegionalRadius);
 
-        int raiderRegionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, pos,
+        int raidRegionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, pos,
                 TravellersModConfig.raiderRegionalRadius);
-        int raiderRegionalCount = TravellerSoftSpawner.countRaidersInRegion(ws, pos,
+        int raidRegionalCount = TravellerSoftSpawner.countRaidersInRegion(ws, pos,
                 TravellersModConfig.raiderRegionalRadius);
-        msg(sender, String.format("§fRaiders (%dm): §c%d§f / %d",
-                TravellersModConfig.raiderRegionalRadius, raiderRegionalCount, raiderRegionalCap));
 
+        String travRegColor = travRegionalCount >= travRegionalCap ? "§c" : "§a";
+        String raidRegColor = raidRegionalCount >= raidRegionalCap ? "§c" : "§a";
 
-        // --------------------------------------------------
-        // 3) Nearest settlement info (village OR lone)
-        // --------------------------------------------------
-        MillVillageIndex.VillageInfo nearestAny =
-                MillVillageIndex.findNearest2D(ws, pos, 2000); // big radius just for debug
-
-        if (nearestAny != null) {
-            int dx = nearestAny.center.getX() - pos.getX();
-            int dz = nearestAny.center.getZ() - pos.getZ();
-            double dist2D = Math.sqrt(dx * dx + dz * dz);
-
-            String kind = nearestAny.isVillage ? "Village" : "Lone building";
-            msg(sender, String.format("§fNearest Settlement: §s%s§f (%s)", nearestAny.name, kind));
-            msg(sender, String.format("§f  Center: §s%d %d %d  §f(%.1f blocks away)",
-                    nearestAny.center.getX(), nearestAny.center.getY(), nearestAny.center.getZ(), dist2D));
-
-            if (nearestAny.isVillage) {
-                int villagers = MillVillageIndex.countVillagersInVillage(ws, nearestAny.center);
-                msg(sender, String.format("§f  Population: §a%d", villagers));
-            }
-        } else {
-            msg(sender, "§cNo Millénaire village or lone building found within 2000 blocks.");
-        }
+        msg(sender, String.format("§fTravellers (%dm r): %s%d§f / §e%d§f cap",
+                TravellersModConfig.travellerRegionalRadius, travRegColor, travRegionalCount, travRegionalCap));
+        msg(sender, String.format("§fRaiders    (%dm r): %s%d§f / §e%d§f cap",
+                TravellersModConfig.raiderRegionalRadius, raidRegColor, raidRegionalCount, raidRegionalCap));
 
         // --------------------------------------------------
-        // 4) Local travellers & local cap
+        // 6) Local cap
         // --------------------------------------------------
         int localCap = TravellersModConfig.travellerLocalCap;
         int localRadius = TravellersModConfig.travellerLocalCapRadius;
-
         AxisAlignedBB box = new AxisAlignedBB(
                 pos.getX() - localRadius, pos.getY() - 32, pos.getZ() - localRadius,
-                pos.getX() + localRadius, pos.getY() + 32, pos.getZ() + localRadius
-        );
+                pos.getX() + localRadius, pos.getY() + 32, pos.getZ() + localRadius);
         int localCount = ws.getEntitiesWithinAABB(EntityTraveller.class, box, e -> e.isEntityAlive()).size();
-
-        msg(sender, String.format("§fLocal Travellers (%dm): §s%d§f / %d (cap)",
-                localRadius, localCount, localCap));
+        String localColor = localCount >= localCap ? "§c" : "§a";
+        msg(sender, String.format("§fLocal (%dm r): %s%d§f / §e%d§f cap",
+                localRadius, localColor, localCount, localCap));
 
         // --------------------------------------------------
-        // 5) Would this position be a valid soft-spawn anchor?
-        //     (ignoring random roll, just pure conditions)
+        // 7) Spawn eligibility at this position
         // --------------------------------------------------
+        msg(sender, "§b--- Spawn Eligibility ---");
         boolean anchorOk = true;
         StringBuilder reasons = new StringBuilder();
 
         if (combined <= 0.0) {
             anchorOk = false;
-            reasons.append("density<=0 ");
+            reasons.append("density=0 ");
         }
-
-
-        // local cap at this anchor
-        boolean localUnderCap = SpawnThrottles.underLocalCap(
-                ws, pos, EntityTraveller.class,
-                TravellersModConfig.travellerLocalCap,
-                TravellersModConfig.travellerLocalCapRadius
-        );
-        if (!localUnderCap) {
+        if (!SpawnThrottles.underLocalCap(ws, pos, EntityTraveller.class, localCap, localRadius)) {
             anchorOk = false;
             reasons.append("localCapReached ");
         }
+        if (travRegionalCount >= travRegionalCap) {
+            anchorOk = false;
+            reasons.append("regionalCapReached ");
+        }
+        if (loadedTravellers + loadedRaiders + loadedWorkers + loadedMerchants >= TravellersModConfig.loadedTravellerCap) {
+            anchorOk = false;
+            reasons.append("hardCapReached ");
+        }
 
-        // NOTE: we could also check canEntitySpawn() here with a probe, but usually
-        // if standable + light + caps are OK, the anchor is valid.
-
-        msg(sender, "§fAnchor spawnable (ignoring RNG & global cap): " +
+        msg(sender, "§fAnchor spawnable (ignoring RNG roll): " +
                 (anchorOk ? "§aYES" : "§cNO") +
-                (reasons.length() > 0 ? (" §7[" + reasons.toString().trim() + "]") : ""));
+                (reasons.length() > 0 ? " §7[" + reasons.toString().trim() + "]" : ""));
+        msg(sender, String.format("§7Spawn ring: §a%d§7–§a%d§7 blocks from player",
+                TravellersModConfig.travellerSpawnMinDist, TravellersModConfig.travellerSpawnMaxDist));
 
-        msg(sender, "§e------------------------");
+        // --------------------------------------------------
+        // 8) Nearby settlements breakdown
+        // --------------------------------------------------
+        msg(sender, "§b--- Nearby Settlements (within " + TravellersModConfig.travellerRegionalRadius + "m) ---");
+
+        int shown = 0;
+        int totalVillagersNearby = 0;
+        for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
+            MillVillageIndex.VillageInfo vi = e.getKey();
+            int dx = vi.center.getX() - pos.getX();
+            int dz = vi.center.getZ() - pos.getZ();
+            double dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist > TravellersModConfig.travellerRegionalRadius) continue;
+
+            int villagers = e.getValue();
+            totalVillagersNearby += villagers;
+
+            int budget = (int) Math.floor(villagers * TravellersModConfig.travellerCapPerVillager);
+            if (budget < TravellersModConfig.travellerCapMinPerVillage)
+                budget = TravellersModConfig.travellerCapMinPerVillage;
+            if (budget > TravellersModConfig.travellerCapMaxPerVillage)
+                budget = TravellersModConfig.travellerCapMaxPerVillage;
+
+            int desiredWorkers = MillVillageIndex.desiredWorkersForPopulation(villagers);
+            int desiredMerchants = MillVillageIndex.desiredMerchantsForPopulation(villagers);
+
+            String name = (vi.name != null && !vi.name.isEmpty()) ? vi.name : "?";
+            String culture = (vi.cultureKey != null && !vi.cultureKey.isEmpty()) ? vi.cultureKey : "?";
+            msg(sender, String.format("§f[Village] §e%s §7(%s)  pop=§a%d§7  dist=§a%.0f§7m  travBudget=§a%d§7  workers=§a%d§7  merchants=§a%d",
+                    name, culture, villagers, dist, budget, desiredWorkers, desiredMerchants));
+            shown++;
+            if (shown >= 8) {
+                msg(sender, "§7  ... (more villages outside display limit)");
+                break;
+            }
+        }
+
+        // Also show lone buildings in range
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            int loneShown = 0;
+            for (org.millenaire.common.utilities.Point p : wd.loneBuildingsList.pos) {
+                int dx = p.getiX() - pos.getX();
+                int dz = p.getiZ() - pos.getZ();
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > TravellersModConfig.travellerRegionalRadius) continue;
+                msg(sender, String.format("§f[Lone] dist=§a%.0f§7m  travBudget=§a%d",
+                        dist, TravellersModConfig.travellerCapPerLoneBuilding));
+                loneShown++;
+                if (loneShown >= 4) {
+                    msg(sender, "§7  ... (more lone buildings outside display limit)");
+                    break;
+                }
+            }
+        }
+
+        if (shown == 0) {
+            msg(sender, "§cNo villages in regional radius. Spawns blocked (density=0, regionalCap=0).");
+        }
+
+        msg(sender, "§e===========================");
     }
 
     private void msg(ICommandSender sender, String text) {
@@ -206,6 +293,6 @@ public class CommandTravellerInfo extends CommandBase {
 
     @Override
     public int getRequiredPermissionLevel() {
-        return 2; // OP
+        return 2;
     }
 }

@@ -76,11 +76,9 @@ public final class FollowRecoveryHelper {
         if (!world.isBlockLoaded(pos)) return false;
         if (isLeaderMeaningfullyUnderground(world, leader, use)) return true;
         if (world.canSeeSky(pos)) return false;
-
-        int sky = world.getLightFor(EnumSkyBlock.SKY, pos.up());
-        int sides = countSolidSides(world, pos);
-
-        return sky <= use.cave.maxSkyLight && sides >= use.cave.minSideSolids;
+        // Any solid block above = enclosed: catches buildings, dungeons, and overhangs,
+        // not just deep caves. Leaves/glass don't count (getTopSolidOrLiquidBlock skips them).
+        return getCoverBlocks(world, pos) >= 1;
     }
 
     public static int getCoverBlocks(World world, BlockPos pos) {
@@ -537,9 +535,8 @@ public final class FollowRecoveryHelper {
                                                        EntityLivingBase target) {
         if (!isWorkerRescueFeetSpot(worker, feet)) return false;
         if (worker.world.canSeeSky(feet.up())) return false;
-
-        int sky = worker.world.getLightFor(EnumSkyBlock.SKY, feet.up());
-        if (sky >= 10) return false;
+        // Removed sky light threshold: the canSeeSky check is sufficient.
+        // Buildings near the surface can have high sky light even with solid roofs.
 
         if (Math.abs(feet.getY() - MathHelper.floor(target.posY)) > CAVE_FOLLOW_RESCUE_VERTICAL + 2) {
             return false;

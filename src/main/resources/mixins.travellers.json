@@ -1,14 +1,17 @@
 {
-  "package": "com.jubitus.travellers",
+  "package": "com.jubitus.travellers.mixins",
   "required": true,
   "refmap": "mixins.travellers.refmap.json",
   "target": "@env(DEFAULT)",
-  "minVersion": "0.8.5",
+  "minVersion": "0.8",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-    "utils.world.mill.MixinBuildingSafeBuyingPrice",
-    "utils.world.mill.MixinMillVillagerFriendlyTraveller",
-    "utils.world.mill.MixinSummon"
+    "MixinBuildingSafeBuyingPrice",
+    "MixinBuildingResManagerAccessor",
+    "MixinCultureInjectBarracks",
+    "MixinVillageTypeInjectBarracks",
+    "MixinMillVillagerFriendlyTraveller",
+    "MixinSummon"
   ],
   "server": [],
   "client": []

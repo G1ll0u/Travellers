@@ -37,6 +37,12 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
 
     @Override
     public boolean shouldExecute() {
+        // Low health: stop seeking new targets, rely on direct retaliation (EntityAIWorkerHurtByTargetTraveller)
+        if (worker.isLowHealth()) return false;
+
+        // Anchor/stay mode: don't range far, EntityAIDefendIfClose handles close defense
+        if (worker.isHiredFollower() && !worker.isFollowOrderActive()) return false;
+
         // If the worker is quietly following and has no current target,
         // only scan every IDLE_CHECK_INTERVAL ticks.
         // We spread the checks across entity IDs so all 500 workers don't hit the same tick.

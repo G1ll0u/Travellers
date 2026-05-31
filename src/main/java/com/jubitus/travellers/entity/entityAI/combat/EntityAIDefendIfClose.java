@@ -175,13 +175,20 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 )
         );
         if (list.isEmpty()) return false;
+
+        // In mass combat the list can contain hundreds of entities. Sort by distance (cheap)
+        // and cap at 12 candidates before doing expensive LOS raycasts.
+        if (list.size() > 12) {
+            list.sort((a, b) -> Double.compare(mob.getDistanceSq(a), mob.getDistanceSq(b)));
+            list = list.subList(0, 12);
+        }
+
         boolean bowUser = mob.hasBowAnywherePublic();
         final double crowdRadius = 3.5D;
 
         EntityLivingBase pick = null;
         double bestScore = Double.POSITIVE_INFINITY;
         boolean bestWasEmergency = false;
-        double best = Double.POSITIVE_INFINITY;
         TravellerBlacklist bl = currentBlacklist();
 
         for (EntityLivingBase e : list) {
@@ -191,16 +198,10 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             double d2 = mob.getDistanceSq(e);
             boolean see = mob.getEntitySenses().canSee(e);
 
-            // NEW: ignore big vertical separations (e.g. caves below)
+            // Ignore large vertical separations (caves below/above)
             double dy = e.posY - mob.posY;
-            if (Math.abs(dy) > 3.0D) { // tweak as needed (3 blocks is a good start)
-                continue;
-            }
+            if (Math.abs(dy) > 5.0D) continue;
 
-            // NEW: if LOS is required but we can’t see, skip
-// If LOS is required, still allow *very close* targets if a short path exists.
-// This catches “around the corner” and “behind me but reachable” cases,
-// but won’t aggro through solid walls (no path).
             if (requireLOS && !see) {
                 if (d2 <= CLOSE_NO_LOS_RANGE_SQ) {
                     if (!hasShortPathTo(e)) continue;
@@ -209,57 +210,32 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 }
             }
 
-            // -------------------------
-            // NEW: emergency bypass pick
-            // -------------------------
             boolean emergency = mob.shouldBypassAttackTargetLimiter(e);
+
+            // Skip targets the worker already tried and was blocked on — unless it's an emergency
+            if (!emergency && mob.isIgnoring(e)) continue;
+
             if (emergency) {
-                // Prefer closest emergency; also stop early if it's basically touching
                 if (!bestWasEmergency || d2 < bestScore) {
                     pick = e;
                     bestScore = d2;
                     bestWasEmergency = true;
-                    if (d2 <= 1.0D) break; // ~1 block => snap react
+                    if (d2 <= 1.0D) break;
                 }
                 continue;
             }
-            // If we already found an emergency, ignore non-emergencies
             if (bestWasEmergency) continue;
 
-            // -------------------------
-            // NEW: bow avoids crowded targets (if not a player target)
-            // -------------------------
+            // Prefer less-contested targets: bow users avoid friendly crowding, all workers avoid full buckets
+            int attackerCount = AttackTargetLimiter.getAttackerCount(e);
             int crowd = bowUser ? mob.rangedCrowdScoreAround(e, crowdRadius) : 0;
-
-            // Convert crowd into a distance-ish penalty (tune these if desired)
-            // Each +1 crowd ~= +4 blocks of “virtual distance” (since we add squared).
-            double penalty = crowd * 4.0D;
+            double penalty = crowd * 4.0D + attackerCount * 2.5D;
             double score = d2 + (penalty * penalty);
 
             if (score < bestScore) {
                 bestScore = score;
                 pick = e;
-            }
-//            // OPTIONAL (recommended): require a path or at least a partial path
-//            if (TravellersModConfig.requirePathForAggro) {
-//                Path path = mob.getNavigator().getPathToEntityLiving(e);
-//                if (path == null) {
-//                    // no path at all -> don’t aggro; likely behind a wall/cave
-//                    continue;
-//                }
-//            }
-
-            boolean inBand = (d2 <= closeStartSq);
-            boolean inNormal = (d2 <= effRangeSq);
-
-            if (inBand || inNormal) {
-                if (d2 < best) {
-                    best = d2;
-                    pick = e;
-                    if (d2 <= (0.25 * closeStartSq)) {
-                        break;
-                    }
-                }
+                if (d2 <= (0.25 * closeStartSq)) break;
             }
         }
 
@@ -271,6 +247,21 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     }
 
     private double currentTriggerRangeSq() {
+        // Low health: emergency-only range, entity focuses on healing
+        if (mob.isLowHealth()) {
+            double r = TravellersModConfig.lowHealthEngageRadius;
+            return r * r;
+        }
+
+        // Workers in anchor/stay mode: tight defensive perimeter only
+        if (mob instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) mob;
+            if (w.isHiredFollower() && !w.isFollowOrderActive()) {
+                double r = TravellersModConfig.anchorModeEngageRadius;
+                return r * r;
+            }
+        }
+
         boolean hasBow =
                 mob.hasBowInBackpackPublic() ||
                         (!mob.getHeldItemMainhand().isEmpty() &&

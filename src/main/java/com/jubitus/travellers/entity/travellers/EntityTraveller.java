@@ -167,6 +167,7 @@ public class EntityTraveller extends EntityCreature {
     private int lastPathCheckTargetId = -1;
     private boolean lastPathCheckResult = false;
     private boolean wasInCombatPrev = false;
+    private int combatSilenceUntilTick = 0;
     private final int debugNextTargetTraceTick = 0;
     private ForgeChunkManager.Ticket travelTicket;
     private int dogScanCooldown = 0;
@@ -189,6 +190,8 @@ public class EntityTraveller extends EntityCreature {
     private boolean checkedCompanionSpawn = false;   // only run logic once
     private boolean suppressCompanionSpawn = false;  // set for eggs/commands/etc.
     private int farFromPlayersTicks = 0;
+    private int stuckTargetTicks = 0;
+    private double lastTargetDistSq = -1.0D;
     @Nullable
     private UUID dogId = null;
     private int currentFollowers = 0;
@@ -820,8 +823,11 @@ public class EntityTraveller extends EntityCreature {
 
                 if (!bypass) {
                     int prio = AttackTargetLimiter.priorityFor(this);
+                    int effectiveMax = (this instanceof EntityTravellerWorker)
+                            ? Math.max(2, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
+                            : AttackTargetLimiter.MAX_ATTACKERS_PER_TARGET;
 
-                    if (!AttackTargetLimiter.tryJoin(this, target, prio)) {
+                    if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
                         // Too many attackers already.
                         ignoreTarget(target, 40);
 
@@ -932,6 +938,7 @@ public class EntityTraveller extends EntityCreature {
 
                 double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
                 this.setAIMoveSpeed((float) base);
+                combatSilenceUntilTick = this.ticksExisted + 100; // 5 s post-combat voice silence
             }
             wasInCombatPrev = inCombatNow;
         }
@@ -966,6 +973,56 @@ public class EntityTraveller extends EntityCreature {
             }
         }
 
+        if (!world.isRemote) {
+            EntityLivingBase stuckTgt = this.getAttackTarget();
+            if (stuckTgt != null && stuckTgt.isEntityAlive()) {
+                double d2tgt = this.getDistanceSq(stuckTgt);
+                // Don't count as stuck when already in melee range: distance barely changes while trading blows
+                final double MELEE_RANGE_SQ = 3.5 * 3.5;
+                if (d2tgt > MELEE_RANGE_SQ && lastTargetDistSq >= 0 && d2tgt >= lastTargetDistSq - 2.0D) {
+                    stuckTargetTicks++;
+                } else {
+                    stuckTargetTicks = 0;
+                }
+                lastTargetDistSq = d2tgt;
+                if (stuckTargetTicks > 80) {
+                    double dyTgt = Math.abs(stuckTgt.posY - this.posY);
+                    boolean abandon = false;
+                    if (dyTgt > 4.0D) {
+                        abandon = true;
+                    } else if (((this.ticksExisted + this.getEntityId()) % 20) == 0) {
+                        abandon = !this.getEntitySenses().canSee(stuckTgt);
+                    }
+                    if (abandon) {
+                        // Shorter ignore for revenge targets (they attacked us) — re-engage sooner
+                        boolean isRevenge = (this.getRevengeTarget() == stuckTgt);
+                        ignoreTarget(stuckTgt, isRevenge ? 40 : 200);
+                        this.setAttackTarget(null);
+                        this.setInCombat(false);
+                        this.getNavigator().clearPath();
+                        stuckTargetTicks = 0;
+                        lastTargetDistSq = -1.0D;
+                    }
+                }
+            } else {
+                stuckTargetTicks = 0;
+                lastTargetDistSq = -1.0D;
+            }
+        }
+
+        if (!world.isRemote) {
+            // Re-engage revenge target promptly when attack target was cleared (distance/stuck)
+            // This avoids the 0-8 tick scan delay from EntityAIDefendIfClose
+            if (this.getAttackTarget() == null) {
+                EntityLivingBase rev = this.getRevengeTarget();
+                if (rev != null && rev.isEntityAlive() && !this.isIgnoring(rev)) {
+                    double r = TravellersModConfig.attackTriggerRange;
+                    if (this.getDistanceSq(rev) <= r * r) {
+                        this.trySetAttackTargetLimited(rev);
+                    }
+                }
+            }
+        }
 
         if (!world.isRemote) {
             if (travelCommon.getDepartCooldownTicks() > 0)
@@ -979,22 +1036,26 @@ public class EntityTraveller extends EntityCreature {
 
             EntityLivingBase tgtNow = this.getAttackTarget();
             if (tgtNow == null || !tgtNow.isEntityAlive()) {
-                if (isInCombat()) {
-                    setInCombat(false);
-                    // clear targets and path so non-combat AIs can take over cleanly
-                    this.setAttackTarget(null);
-                    this.setRevengeTarget(null);
-                    this.getNavigator().clearPath();
+                EntityLivingBase rev = this.getRevengeTarget();
+                boolean revAlive = rev != null && rev.isEntityAlive();
 
-                    travelCommon.setTravelRecoverTicks(60); // ~3s grace
-                } else {
-                    // if somehow we ended up with a dead target but not inCombat, clean it anyway
-                    if (tgtNow != null && !tgtNow.isEntityAlive()) {
+                if (!revAlive) {
+                    // Target truly gone (dead/despawned) and no active revenge — full cleanup
+                    if (isInCombat()) {
+                        setInCombat(false);
+                        this.setAttackTarget(null);
+                        this.setRevengeTarget(null);
+                        this.getNavigator().clearPath();
+                        travelCommon.setTravelRecoverTicks(60);
+                    } else if (tgtNow != null && !tgtNow.isEntityAlive()) {
                         this.setAttackTarget(null);
                         this.setRevengeTarget(null);
                         this.getNavigator().clearPath();
                     }
                 }
+                // else: attack target lost but revenge target is still alive (e.g. player moved out of range)
+                // Don't clear revenge target — vanilla revengeTimer decays it naturally (~5s)
+                // and the re-engage check above will re-lock when they return to range
             }
 
             if (TravellersModConfig.travellerAmbient && this.ticksExisted >= nextTravelAmbientTick) {
@@ -1254,6 +1315,17 @@ public class EntityTraveller extends EntityCreature {
         }
 
         super.onLivingUpdate();
+
+        // Clear revenge target immediately if the attacker is blacklisted
+        if (!world.isRemote) {
+            EntityLivingBase revenge = this.getRevengeTarget();
+            if (revenge != null) {
+                TravellerBlacklist aggroBl = getAggroBlacklist();
+                if (aggroBl != null && aggroBl.isBlacklisted(revenge)) {
+                    setRevengeTarget(null);
+                }
+            }
+        }
 
         boolean inCombat =
                 this.getAttackTarget() != null
@@ -2540,6 +2612,10 @@ public void fall(float distance, float damageMultiplier) {
         return combat.isInCombat();
     }
 
+    public boolean isInPostCombatSilence() {
+        return this.ticksExisted < combatSilenceUntilTick;
+    }
+
     public void setInCombat(boolean inCombat) {
         this.combat.setInCombat(inCombat);
     }
@@ -2561,6 +2637,11 @@ public void fall(float distance, float damageMultiplier) {
 
     public boolean isAutoEating() {
         return autoEatTask != null && autoEatTask.isEating();
+    }
+
+    public boolean isLowHealth() {
+        float max = getMaxHealth();
+        return max > 0 && getHealth() / max < TravellersModConfig.lowHealthCombatFrac;
     }
 
     public boolean hasNearbyTravellerTorch(double radius) {
@@ -3030,8 +3111,11 @@ public void fall(float distance, float damageMultiplier) {
             return true;
         }
         int prio = AttackTargetLimiter.priorityFor(this);
+        int effectiveMax = (this instanceof EntityTravellerWorker)
+                ? Math.max(2, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
+                : AttackTargetLimiter.MAX_ATTACKERS_PER_TARGET;
         // Normal: obey limiter
-        if (!AttackTargetLimiter.tryJoin(this, target, prio)) {
+        if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
             return false;
         }
 

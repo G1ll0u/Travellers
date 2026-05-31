@@ -17,7 +17,7 @@ public final class AttackTargetLimiter {
 
     private static final Map<UUID, TargetBucket> buckets = new HashMap<>();
     // ===== KNOBS =====
-    public static int MAX_ATTACKERS_PER_TARGET = 8;
+    public static int MAX_ATTACKERS_PER_TARGET = 4;
     public static int STALE_TICKS = 20; // 2s
 
     private AttackTargetLimiter() {
@@ -30,6 +30,9 @@ public final class AttackTargetLimiter {
         if (attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
 
+            // Low health entities yield their slot to healthy ones
+            if (t.isLowHealth()) return 0;
+
             // "non-bow" workers should win the 8 slots
             boolean bowUser = t.hasBowAnywherePublic() || t.isAimingBow();
             return bowUser ? 1 : 2;
@@ -38,16 +41,32 @@ public final class AttackTargetLimiter {
     }
 
     /**
-     * Call while you are actively attacking to keep the reservation alive. Returns false if you lost the slot.
+     * Returns how many attackers currently hold a slot on this target.
      */
-    public static boolean keepAlive(EntityLivingBase attacker, EntityLivingBase target, int priority) {
-        return tryJoin(attacker, target, priority);
+    public static int getAttackerCount(EntityLivingBase target) {
+        if (target == null) return 0;
+        TargetBucket b = buckets.get(target.getUniqueID());
+        return b == null ? 0 : b.attackers.size();
     }
 
     /**
-     * Try to reserve/keep a slot for attacker on this target.
+     * Call while you are actively attacking to keep the reservation alive. Returns false if you lost the slot.
+     */
+    public static boolean keepAlive(EntityLivingBase attacker, EntityLivingBase target, int priority) {
+        return tryJoin(attacker, target, priority, MAX_ATTACKERS_PER_TARGET);
+    }
+
+    /**
+     * Try to reserve/keep a slot for attacker on this target (uses default cap).
      */
     public static boolean tryJoin(EntityLivingBase attacker, EntityLivingBase target, int priority) {
+        return tryJoin(attacker, target, priority, MAX_ATTACKERS_PER_TARGET);
+    }
+
+    /**
+     * Try to reserve/keep a slot for attacker on this target with a custom per-target cap.
+     */
+    public static boolean tryJoin(EntityLivingBase attacker, EntityLivingBase target, int priority, int maxAttackers) {
         if (attacker == null || target == null) return false;
         World w = attacker.world;
         if (w == null) return false;
@@ -76,7 +95,7 @@ public final class AttackTargetLimiter {
         }
 
         // room -> take slot
-        if (b.attackers.size() < MAX_ATTACKERS_PER_TARGET) {
+        if (b.attackers.size() < maxAttackers) {
             b.attackers.put(aid, new AttackEntry(now, priority, d2));
             return true;
         }
@@ -124,6 +143,9 @@ public final class AttackTargetLimiter {
 
     private static void pruneBucket(TargetBucket b, long now) {
         if (b.attackers.isEmpty()) return;
+        // At most one prune per world tick per bucket — avoids O(attackers) on every keepAlive call
+        if (b.lastPruneTick == now) return;
+        b.lastPruneTick = now;
         Iterator<Map.Entry<UUID, AttackEntry>> it = b.attackers.entrySet().iterator();
         while (it.hasNext()) {
             AttackEntry e = it.next().getValue();
@@ -168,6 +190,7 @@ public final class AttackTargetLimiter {
     }
 
     private static final class TargetBucket {
-        final Map<UUID, AttackEntry> attackers = new HashMap<>(); // attackerUUID -> entry
+        final Map<UUID, AttackEntry> attackers = new HashMap<>();
+        long lastPruneTick = Long.MIN_VALUE; // prune at most once per world tick
     }
 }

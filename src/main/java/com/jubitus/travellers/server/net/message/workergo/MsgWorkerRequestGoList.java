@@ -1,8 +1,10 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
+import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -49,10 +51,16 @@ public class MsgWorkerRequestGoList implements IMessage {
                 List<BlockPos> villages = MillVillageIndex.getAllVillageCenters(player.world);
                 BlockPos origin = player.getPosition();
 
+                java.util.Set<BlockPos> controlledVillages = TravellersModConfig.controlledVillageFeatureEnabled
+                        ? MillControlledVillageHelper.getControlledVillageCenters(player.world, player)
+                        : java.util.Collections.emptySet();
+
                 for (BlockPos v : villages) {
                     int dist = EntityTravellerWorker.dist2D(origin, v);
                     String label = MillVillageIndex.nameForApprox(player.world, v);
-                    out.add(MsgWorkerGoList.Entry.village(v, label, dist));
+                    out.add(controlledVillages.contains(v)
+                            ? MsgWorkerGoList.Entry.controlledVillage(v, label, dist)
+                            : MsgWorkerGoList.Entry.village(v, label, dist));
                 }
 
                 TravellerHomeManager mgr = TravellerHomeManager.get(player.world);

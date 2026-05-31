@@ -34,6 +34,16 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.HOME, name);
     }
 
+    public static GuiWorldMapPanel.Marker home(BlockPos pos, String name, int ownerRgb) {
+        return new GuiWorldMapPanel.Marker(pos, 0xFF000000 | (ownerRgb & 0xFFFFFF), 3,
+                GuiWorldMapPanel.Marker.MarkerType.HOME, name);
+    }
+
+    public static GuiWorldMapPanel.Marker controlledVillage(BlockPos pos, String name, int ownerRgb) {
+        return new GuiWorldMapPanel.Marker(pos, 0xFF000000 | (ownerRgb & 0xFFFFFF), 2,
+                GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
+    }
+
     /** Village highlighted (selected / checked). */
     public static GuiWorldMapPanel.Marker villageHighlighted(BlockPos pos, String name) {
         return new GuiWorldMapPanel.Marker(pos, 0xFFFFD060, 3,

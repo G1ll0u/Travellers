@@ -117,19 +117,11 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
                 targetVillage.getZ()
         ));
 
-// No building at the registered centre
-        if (th == null) {
-            Building fallback = findAnyTownHallNear(wd, targetVillage, 64);
+        if (th == null || !th.isTownhall) {
+            // For village stops, require a town hall. For lone building stops, any building is fine.
+            Building fallback = MillVillageIndex.findBuildingForDonation(wd, targetVillage, 64);
             if (fallback == null) {
-                skipBuggedVillage(targetVillage, "no Town Hall near registered village center");
-                return false;
-            }
-            th = fallback;
-        } else if (!th.isTownhall) {
-            // Centre building exists but isn't a TH → try nearby
-            Building fallback = findAnyTownHallNear(wd, targetVillage, 64);
-            if (fallback == null) {
-                skipBuggedVillage(targetVillage, "building at center is not a Town Hall and no fallback found");
+                skipBuggedVillage(targetVillage, "no building near registered center");
                 return false;
             }
             th = fallback;
@@ -378,13 +370,6 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         return null;
     }
 
-
-    /**
-     * Merchant "magically" donates goods directly to the Town Hall,
-     * but ONLY for building construction (resCost of plans).
-     *
-     * No merchant inventory is used – we just top up the village a bit.
-     */
 
     /**
      * Merchant "magically" donates goods directly to the Town Hall,

@@ -179,7 +179,8 @@ public class TravellerHomeManager extends WorldSavedData {
                 int z = hTag.getInteger("Z");
                 int dim = hTag.getInteger("Dim");
                 String name = hTag.hasKey("Name") ? hTag.getString("Name") : "";
-                homes.add(new HomeChest(new BlockPos(x, y, z), dim, id, name));
+                HomeType type = HomeType.fromOrdinal(hTag.hasKey("Type") ? hTag.getInteger("Type") : 0);
+                homes.add(new HomeChest(new BlockPos(x, y, z), dim, id, name, type));
             }
 
             homesByPlayer.put(id, homes);
@@ -208,6 +209,7 @@ public class TravellerHomeManager extends WorldSavedData {
                 hTag.setInteger("Z", h.pos.getZ());
                 hTag.setInteger("Dim", h.dimension);
                 hTag.setString("Name", h.name == null ? "" : h.name);
+                hTag.setInteger("Type", h.type == null ? 0 : h.type.ordinal());
                 homeList.appendTag(hTag);
             }
 
@@ -219,13 +221,22 @@ public class TravellerHomeManager extends WorldSavedData {
         return nbt;
     }
 
+    public enum HomeType {
+        CHEST,    // player-registered chest (default)
+        BARRACKS; // Millenaire custom barracks building
+
+        public static HomeType fromOrdinal(int o) {
+            HomeType[] values = values();
+            return (o >= 0 && o < values.length) ? values[o] : CHEST;
+        }
+    }
+
     public static class HomeChest {
         public BlockPos pos;
         public int dimension;
         public UUID owner;
-
-        // NEW
         public String name = "";
+        public HomeType type = HomeType.CHEST;
 
         public HomeChest() {
         }
@@ -235,6 +246,15 @@ public class TravellerHomeManager extends WorldSavedData {
             this.dimension = dimension;
             this.owner = owner;
             this.name = name == null ? "" : name;
+            this.type = HomeType.CHEST;
+        }
+
+        public HomeChest(BlockPos pos, int dimension, UUID owner, String name, HomeType type) {
+            this.pos = pos;
+            this.dimension = dimension;
+            this.owner = owner;
+            this.name = name == null ? "" : name;
+            this.type = type == null ? HomeType.CHEST : type;
         }
     }
 }

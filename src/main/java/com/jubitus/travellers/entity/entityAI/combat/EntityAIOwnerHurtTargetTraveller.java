@@ -23,6 +23,8 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
     @Override
     public boolean shouldExecute() {
         if (!worker.isHiredFollower()) return false;
+        // Low health: don't assist owner's offensive targeting, focus on healing
+        if (worker.isLowHealth()) return false;
 
         EntityPlayer owner = worker.getFollowOwner();
         if (owner == null) return false;

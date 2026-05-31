@@ -33,10 +33,19 @@ public class TravellerHurtByTarget extends EntityAITarget {
         EntityLivingBase attacker = owner.getRevengeTarget();
         if (attacker == null || !attacker.isEntityAlive()) return false;
 
-        // NEW: if too far, consume the event so we don't retrigger forever
+        // Blacklisted attacker: clear revenge target immediately and ignore
+        if (owner instanceof EntityTraveller) {
+            com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist bl = ((EntityTraveller) owner).getAggroBlacklist();
+            if (bl != null && bl.isBlacklisted(attacker)) {
+                this.revengeTimerOld = revengeTimer;
+                owner.setRevengeTarget(null);
+                return false;
+            }
+        }
+
+        // Too far: consume the event so we don't retrigger forever
         if (owner.getDistanceSq(attacker) > assistRadius * assistRadius) {
             this.revengeTimerOld = revengeTimer;
-            // optional, but often helps:
             owner.setRevengeTarget(null);
             return false;
         }
@@ -108,18 +117,20 @@ public class TravellerHurtByTarget extends EntityAITarget {
 
             List<EntityTraveller> allies = owner.world.getEntitiesWithinAABB(EntityTraveller.class, box);
 
-// Sort so: melee travellers (no bow) first by distance, then bow users by distance
-            allies.sort(new java.util.Comparator<EntityTraveller>() {
-                @Override
-                public int compare(EntityTraveller a, EntityTraveller b) {
+            // Cap before sorting to avoid O(n log n) on hundreds of allies
+            final int MAX_HELP_ALLIES = 12;
+            if (allies.size() > MAX_HELP_ALLIES) {
+                allies.sort((a, b) -> Double.compare(a.getDistanceSq(attacker), b.getDistanceSq(attacker)));
+                allies = allies.subList(0, MAX_HELP_ALLIES);
+            } else {
+                // Sort melee first, then by distance within each group
+                allies.sort((a, b) -> {
                     boolean aBow = a.hasBowAnywherePublic();
                     boolean bBow = b.hasBowAnywherePublic();
-                    if (aBow != bBow) return aBow ? 1 : -1; // bow users later
-                    double da = a.getDistanceSq(attacker);
-                    double db = b.getDistanceSq(attacker);
-                    return Double.compare(da, db);
-                }
-            });
+                    if (aBow != bBow) return aBow ? 1 : -1;
+                    return Double.compare(a.getDistanceSq(attacker), b.getDistanceSq(attacker));
+                });
+            }
 
             for (EntityTraveller ally : allies) {
                 if (ally == owner) continue;

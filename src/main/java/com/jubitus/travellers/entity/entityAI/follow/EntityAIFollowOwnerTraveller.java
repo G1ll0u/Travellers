@@ -318,6 +318,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         FollowFormationCoordinator.SlotAssignment slot =
                 FollowFormationCoordinator.getSlot(worker, target, mode, cfg, desiredFollowDistance);
 
+        worker.setCachedGroupSize(slot.groupSize);
+
         if (!slot.workerLeader && idleAtSlot) {
             idleAtSlot = false;
             wakeupCooldown = 0;
@@ -348,14 +350,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             goal = resolveGoal(target, slot, mode, cfg, airborneLeader);
             currentGoal = goal;
             worker.notifyFollowerSlotGoal(goal.x, goal.y, goal.z);
-            markGoalEvaluated(target, mode, slot.groupSize);
+            markGoalEvaluated(target, mode, slot);
         } else if (currentGoal != null) {
             goal = currentGoal;
         } else {
             goal = resolveGoal(target, slot, mode, cfg, airborneLeader);
             currentGoal = goal;
             worker.notifyFollowerSlotGoal(goal.x, goal.y, goal.z);
-            markGoalEvaluated(target, mode, slot.groupSize);
+            markGoalEvaluated(target, mode, slot);
         }
 
         if (slot.workerLeader && currentGoal != null) {
@@ -596,6 +598,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         double idealX = slot.idealX;
         double idealY = slot.idealY;
         double idealZ = slot.idealZ;
+
+        // Re-anchor the slot to the leader's CURRENT position using the stored offset,
+        // eliminating the stale-anchor lag between formation rebuilds.
+        // Applies to all slots; skipped only when the anchor is a projected ground point.
+        if (!slot.projectedGroundTarget) {
+            idealX = target.posX + slot.leaderOffsetDx;
+            idealZ = target.posZ + slot.leaderOffsetDz;
+        }
 
         if (airborneLeader) {
             idealY = slot.idealY;
@@ -1210,6 +1220,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                                   int priority,
                                   boolean pathSucceeded,
                                   FollowMode mode) {
+        if (slot.isEscort) {
+            // Escorts re-path aggressively to stay glued to the leader.
+            int base = pathSucceeded ? 3 : 2;
+            return base + Math.abs((worker.getEntityId() * 13) % 2);
+        }
+
         int base = slot.groupSize >= 60 ? 24 : (slot.groupSize >= 30 ? 19 : 14);
 
         if (slot.compactness < 0.8D) base += 2;
@@ -1235,6 +1251,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         if (target.isSneaking()) speed *= 0.88D;
         if (target.isSprinting()) speed *= 1.12D;
+
+        if (slot.isEscort && slot.leaderActuallyMoving) speed *= 1.10D;
 
         if (targetMove > 0.08D) speed *= 1.08D;
         if (targetMove > 0.14D) speed *= 1.10D;
@@ -2055,7 +2073,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         return true;
     }
 
-    private void markGoalEvaluated(EntityLivingBase target, FollowMode mode, int groupSize) {
+    private void markGoalEvaluated(EntityLivingBase target, FollowMode mode,
+                                    FollowFormationCoordinator.SlotAssignment slot) {
         lastGoalEvalLeaderX = target.posX;
         lastGoalEvalLeaderY = target.posY;
         lastGoalEvalLeaderZ = target.posZ;
@@ -2064,6 +2083,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         lastGoalEvalWorkerZ = worker.posZ;
         hasGoalEvalAnchor = true;
 
+        if (slot.isEscort) {
+            goalRefreshCooldown = 1 + Math.abs(worker.getEntityId() % 2);
+            return;
+        }
+
+        int groupSize = slot.groupSize;
         boolean workerLeader = target instanceof EntityTravellerWorker;
 
         int base;

@@ -98,6 +98,8 @@ public final class TravellerSoftSpawner {
     private static void runTravellerTopUp(WorldServer ws) {
         if (TravellersModConfig.enableTravellerSoftSpawns) {
 
+            if (MillVillageIndex.getAllSettlementCenters(ws).size() < 2) return;
+
             for (EntityPlayerMP p : ws.getMinecraftServer().getPlayerList().getPlayers()) {
                 if (p.world != ws) continue;
 
@@ -258,6 +260,8 @@ public final class TravellerSoftSpawner {
 // ---------- Raider soft top-up ----------
 // ---------- Raider soft top-up ----------
         if (TravellersModConfig.enableRaiderSoftSpawns) {
+
+            if (MillVillageIndex.getAllSettlementCenters(ws).size() < 2) return;
 
             // Global safety cap from config (keep as an overall guard)
             int loadedRaiders = 0;
@@ -693,6 +697,7 @@ public final class TravellerSoftSpawner {
         TravelCommon tc = m.getTravelCommon();
         tc.updateNearestVillage();
         tc.ensureRoutePlanned();
+        if (tc.route.isEmpty()) return; // not enough destinations to travel
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);
 
@@ -820,6 +825,7 @@ public final class TravellerSoftSpawner {
         TravelCommon tc = w.getTravelCommon();
         tc.updateNearestVillage();
         tc.ensureRoutePlanned();
+        if (tc.route.isEmpty()) return null; // not enough destinations to travel
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);
 

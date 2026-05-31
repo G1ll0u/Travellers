@@ -253,10 +253,12 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
         mapPanel.clearMarkers();
 
         for (PoiEntry poi : poiEntries) {
-            if (poi.kind == MsgWorkerGoList.Kind.VILLAGE) {
+            if (poi.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) {
+                mapPanel.addMarker(WorldMapMarkerFactory.controlledVillage(poi.pos, poi.label, playerOwnerColor));
+            } else if (poi.kind == MsgWorkerGoList.Kind.VILLAGE) {
                 mapPanel.addMarker(WorldMapMarkerFactory.village(poi.pos, poi.label));
             } else {
-                mapPanel.addMarker(WorldMapMarkerFactory.home(poi.pos, poi.label));
+                mapPanel.addMarker(WorldMapMarkerFactory.home(poi.pos, poi.label, playerOwnerColor));
             }
         }
 

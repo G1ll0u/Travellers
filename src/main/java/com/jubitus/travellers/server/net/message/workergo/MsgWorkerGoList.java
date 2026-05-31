@@ -15,7 +15,7 @@ import java.util.List;
 
 public class MsgWorkerGoList implements IMessage {
 
-    public enum Kind { VILLAGE, HOME }
+    public enum Kind { VILLAGE, HOME, CONTROLLED_VILLAGE }
 
     public static class Entry {
         public Kind kind;
@@ -35,6 +35,15 @@ public class MsgWorkerGoList implements IMessage {
         public static Entry home(BlockPos pos, String label, int distance) {
             Entry e = new Entry();
             e.kind = Kind.HOME;
+            e.pos = pos;
+            e.label = label;
+            e.distance = distance;
+            return e;
+        }
+
+        public static Entry controlledVillage(BlockPos pos, String label, int distance) {
+            Entry e = new Entry();
+            e.kind = Kind.CONTROLLED_VILLAGE;
             e.pos = pos;
             e.label = label;
             e.distance = distance;
@@ -66,7 +75,7 @@ public class MsgWorkerGoList implements IMessage {
             int dist = buf.readInt();
 
             Entry e = new Entry();
-            e.kind = (kind == 0) ? Kind.VILLAGE : Kind.HOME;
+            e.kind = (kind == 0) ? Kind.VILLAGE : (kind == 2) ? Kind.CONTROLLED_VILLAGE : Kind.HOME;
             e.pos = new BlockPos(x, y, z);
             e.label = label;
             e.distance = dist;
@@ -82,7 +91,7 @@ public class MsgWorkerGoList implements IMessage {
 
         for (int i = 0; i < n; i++) {
             Entry e = entries.get(i);
-            buf.writeByte((byte) (e.kind == Kind.VILLAGE ? 0 : 1));
+            buf.writeByte((byte) (e.kind == Kind.VILLAGE ? 0 : e.kind == Kind.CONTROLLED_VILLAGE ? 2 : 1));
             buf.writeInt(e.pos.getX());
             buf.writeInt(e.pos.getY());
             buf.writeInt(e.pos.getZ());

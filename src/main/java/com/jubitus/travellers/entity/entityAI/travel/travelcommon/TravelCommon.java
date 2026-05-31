@@ -497,7 +497,7 @@ public class TravelCommon {
 
     public List<BlockPos> getVillagesCached() {
         if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
-            List<BlockPos> raw = MillVillageIndex.getAllVillageCenters(owner.getEntityWorld());
+            List<BlockPos> raw = MillVillageIndex.getAllSettlementCenters(owner.getEntityWorld());
 
             if (badVillages.isEmpty()) {
                  cachedVillages = raw;
@@ -622,7 +622,7 @@ public class TravelCommon {
             }
         }
 
-        if (owner.isInCombat() || owner.isAutoEating() || owner.isHandActive()) return;
+        if (owner.isInCombat() || owner.isInPostCombatSilence() || owner.isAutoEating() || owner.isHandActive()) return;
         if (owner.getTargetVillage() == null) return;
         if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
         if (owner.motionX * owner.motionX + owner.motionZ * owner.motionZ < 0.005) return;

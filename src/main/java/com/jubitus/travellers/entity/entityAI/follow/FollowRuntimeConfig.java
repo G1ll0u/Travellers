@@ -43,7 +43,7 @@ public final class FollowRuntimeConfig {
 
 
 
-        cave.minCoverBlocks = 6;
+        cave.minCoverBlocks = 2;
         cave.maxSkyLight = 7;
         cave.minSideSolids = 2;
         cave.enterModeTicks = 10;
@@ -51,10 +51,10 @@ public final class FollowRuntimeConfig {
         cave.baseLeaderDistance = 2.1D;
         cave.rowSpacing = 1.28D;
         cave.laneSpacing = 0.98D;
-        cave.arriveRadius = 1.60D;
-        cave.verticalTolerance = 6.5D;
-        cave.goalSearchHorizontal = 1;
-        cave.goalSearchVertical = 6;
+        cave.arriveRadius = 3.60D;
+        cave.verticalTolerance = 4.5D;
+        cave.goalSearchHorizontal = 2;
+        cave.goalSearchVertical = 12;
         cave.heightAnchorPull = 0.62D;
         cave.orbitTriggerTicks = 36;
 

@@ -66,6 +66,26 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // Virtual workers: simulate movement and handle materialization/virtualization
         VirtualWorkerManager.get(ws).tick(ws, now);
 
+        // Morning tick: process barracks respawns and reconcile deleted barracks for online players
+        if (TravellersModConfig.workerRespawnInBarracks) {
+            long currentDay = ws.getWorldTime() / 24000L;
+            long dayTime = ws.getWorldTime() % 24000L;
+            if (dayTime >= TravellersModConfig.workerRespawnMorningTime && currentDay > state.lastRespawnProcessDay) {
+                state.lastRespawnProcessDay = currentDay;
+                com.jubitus.travellers.utils.world.mill.BarracksSlotManager bsm =
+                        com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(ws);
+                bsm.processRespawns(ws);
+                // Reconcile deleted barracks for all online players
+                int dim = ws.provider.getDimension();
+                for (net.minecraft.entity.player.EntityPlayer player : ws.playerEntities) {
+                    java.util.List<org.millenaire.common.village.Building> live =
+                            com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper
+                                    .getBarracksInControlledVillages(ws, player);
+                    bsm.reconcileForPlayer(player.getUniqueID(), dim, live);
+                }
+            }
+        }
+
         // cheap/transient maintenance
         tickTransientHopForcedChunks(state);
         tickOffscreenHops(state);
@@ -967,6 +987,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         ForgeChunkManager.Ticket ticket;
         public final Map<ChunkPos, Long> hopForcedUntil = new HashMap<>();
         public final Set<ChunkPos> hopForced = new HashSet<>();
+        public long lastRespawnProcessDay = -1L;
 
         public WorldState(WorldServer w) {
             this.world = w;

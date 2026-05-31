@@ -87,6 +87,35 @@ public final class MillVillageIndex {
         return out;
     }
 
+    /**
+     * All known lone building centers for this world/dimension.
+     */
+    public static List<BlockPos> getAllLoneBuildingCenters(World world) {
+        MillWorldData wd = getWD(world);
+        if (wd == null || wd.loneBuildingsList == null || wd.loneBuildingsList.pos == null) {
+            return java.util.Collections.emptyList();
+        }
+        List<BlockPos> out = new ArrayList<>(wd.loneBuildingsList.pos.size());
+        for (Point p : wd.loneBuildingsList.pos) out.add(toBlockPos(p));
+        return out;
+    }
+
+    /**
+     * All known settlement centers (villages + lone buildings) for this world/dimension.
+     */
+    public static List<BlockPos> getAllSettlementCenters(World world) {
+        MillWorldData wd = getWD(world);
+        if (wd == null) return java.util.Collections.emptyList();
+        List<BlockPos> out = new ArrayList<>();
+        if (wd.villagesList != null && wd.villagesList.pos != null) {
+            for (Point p : wd.villagesList.pos) out.add(toBlockPos(p));
+        }
+        if (wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            for (Point p : wd.loneBuildingsList.pos) out.add(toBlockPos(p));
+        }
+        return out;
+    }
+
     @Nullable
     public static MillWorldData getWD(World world) {
         try {
@@ -1106,6 +1135,28 @@ public final class MillVillageIndex {
             if (b != null && b.isTownhall) {
                 return b;
             }
+        }
+        return null;
+    }
+
+    /**
+     * Finds the best building to donate to near the given center.
+     * Prefers a village town hall; falls back to any lone building in the area.
+     */
+    @Nullable
+    public static Building findBuildingForDonation(MillWorldData wd, BlockPos center, int radiusXZ) {
+        if (wd == null) return null;
+        Building th = findAnyTownHallNear(wd, center, radiusXZ);
+        if (th != null) return th;
+        if (wd.loneBuildingsList == null || wd.loneBuildingsList.pos == null) return null;
+        int cx = center.getX(), cz = center.getZ();
+        long r2 = (long) radiusXZ * radiusXZ;
+        for (Point p : wd.loneBuildingsList.pos) {
+            if (p == null) continue;
+            long dx = p.getiX() - cx, dz = p.getiZ() - cz;
+            if (dx * dx + dz * dz > r2) continue;
+            Building b = wd.getBuilding(p);
+            if (b != null) return b;
         }
         return null;
     }

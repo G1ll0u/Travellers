@@ -206,6 +206,7 @@ public class VirtualWorkerManager extends WorldSavedData {
         List<VirtualWorkerRecord> hiredArrivals = null;
         List<UUID> recruitArrivals = null;
         List<UUID> virtualDonations = null;
+        List<UUID> getEquipArrivals = null;
 
         int dim = world.provider.getDimension();
         for (VirtualWorkerRecord r : records.values()) {
@@ -218,6 +219,17 @@ public class VirtualWorkerManager extends WorldSavedData {
                 if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
                     if (hiredArrivals == null) hiredArrivals = new ArrayList<>();
                     hiredArrivals.add(r);
+                }
+                continue;
+            }
+
+            // GET_EQUIPMENT missions: virtual exchange when near barracks (no chunk loading for pathfinding)
+            if (r.isHiredFollower && r.goal != null && "GET_EQUIPMENT".equals(r.workerMode)) {
+                double dx = r.goal.getX() + 0.5 - r.posX;
+                double dz = r.goal.getZ() + 0.5 - r.posZ;
+                if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
+                    if (getEquipArrivals == null) getEquipArrivals = new ArrayList<>();
+                    getEquipArrivals.add(r.uuid);
                 }
                 continue;
             }
@@ -241,6 +253,14 @@ public class VirtualWorkerManager extends WorldSavedData {
                     if (virtualDonations == null) virtualDonations = new ArrayList<>();
                     virtualDonations.add(r.uuid);
                 }
+            }
+        }
+
+        // GET_EQUIPMENT arrivals: virtual exchange (force-loads only chest chunks, no entity spawn/pathfinding)
+        if (getEquipArrivals != null) {
+            for (UUID id : getEquipArrivals) {
+                VirtualWorkerRecord r = records.get(id);
+                if (r != null) tryVirtualEquipExchange(world, r);
             }
         }
 
@@ -360,21 +380,64 @@ public class VirtualWorkerManager extends WorldSavedData {
         markDirty();
     }
 
+    private void tryVirtualEquipExchange(WorldServer world, VirtualWorkerRecord r) {
+        BlockPos target = r.goal;
+        if (target == null) return;
+
+        boolean useWholeVillage = r.entityNbt.getBoolean("GetEquipWholeVillage");
+        boolean stay = r.entityNbt.getBoolean("GetEquipStay");
+
+        // Load only the specific chest chunks of the building — avoids spawning the entity
+        // and avoids pathfinding failure in unloaded terrain near the barracks.
+        com.jubitus.travellers.utils.world.mill.WorkerEquipExchanger.forceLoadChestChunks(world, target, useWholeVillage);
+
+        // Temporary entity (not spawned) carries equipment state for the swap
+        EntityTravellerWorker worker = new EntityTravellerWorker(world);
+        worker.readFromNBT(r.entityNbt);
+        worker.setUniqueId(r.uuid);
+        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+
+        com.jubitus.travellers.utils.world.mill.WorkerEquipExchanger.exchangeWithFollowers(worker, world, target, useWholeVillage);
+
+        // Finalize mission state on temp entity before persisting
+        worker.finishGetEquipVirtually(stay, target);
+        NBTTagCompound updatedNbt = new NBTTagCompound();
+        worker.writeToNBT(updatedNbt);
+        r.entityNbt = updatedNbt;
+
+        // Mirror finalized state into the virtual record
+        r.workerMode = "IDLE";
+        r.goOrderActive = false;
+        if (stay) {
+            r.followOrderActive = false;
+            r.goal = target;
+        } else {
+            r.followOrderActive = true;
+            // Seed the return goal; refreshGoal will keep it current
+            if (r.followOwnerUUID != null) {
+                net.minecraft.entity.player.EntityPlayer owner = world.getPlayerEntityByUUID(r.followOwnerUUID);
+                if (owner != null && !owner.isDead) r.goal = owner.getPosition();
+            }
+        }
+
+        markDirty();
+    }
+
     private void tryVirtualDonate(WorldServer world, VirtualWorkerRecord r) {
         BlockPos center = r.goal;
         if (center == null) return;
         org.millenaire.common.world.MillWorldData wd =
                 com.jubitus.travellers.utils.world.mill.MillVillageIndex.getWD(world);
         if (wd == null) return;
-        org.millenaire.common.village.Building th =
-                com.jubitus.travellers.utils.world.mill.MillVillageIndex.findAnyTownHallNear(wd, center, 64);
-        if (th == null) return;
-        com.jubitus.travellers.utils.world.mill.TravellerMillHelper.performVirtualDonation(th);
+        org.millenaire.common.village.Building b =
+                com.jubitus.travellers.utils.world.mill.MillVillageIndex.findBuildingForDonation(wd, center, 64);
+        if (b == null) return;
+        com.jubitus.travellers.utils.world.mill.TravellerMillHelper.performVirtualDonation(b);
     }
 
     private void rerouteToNextVillage(WorldServer world, VirtualWorkerRecord r) {
         java.util.List<BlockPos> centers =
-                com.jubitus.travellers.utils.world.mill.MillVillageIndex.getAllVillageCenters(world);
+                com.jubitus.travellers.utils.world.mill.MillVillageIndex.getAllSettlementCenters(world);
         if (centers.isEmpty()) return;
 
         BlockPos current = r.goal;
@@ -795,6 +858,15 @@ public class VirtualWorkerManager extends WorldSavedData {
     }
 
     public Iterable<VirtualWorkerRecord> getRecordsView() {
+        return records.values();
+    }
+
+    @javax.annotation.Nullable
+    public VirtualWorkerRecord getRecord(UUID uuid) {
+        return records.get(uuid);
+    }
+
+    public java.util.Collection<VirtualWorkerRecord> getAllRecords() {
         return records.values();
     }
 

@@ -22,8 +22,8 @@ import java.util.Map;
 public class MsgOpenFormationHubGui implements IMessage {
 
     private int representativeEntityId;
+    private boolean standalone;
     private NBTTagCompound initialScopeTag;
-    // Wrapped in NBTTagCompound because ByteBufUtils only handles NBTTagCompound
     private NBTTagCompound leadersWrapper;   // contains NBTTagList "L"
     private NBTTagCompound settingsWrapper;  // contains NBTTagList "S"
 
@@ -33,7 +33,16 @@ public class MsgOpenFormationHubGui implements IMessage {
                                    WorkerFormationScopeKey initialScope,
                                    List<FormationLeaderInfo> leaders,
                                    Map<String, WorkerFormationSettings> settingsByScope) {
+        this(representativeEntityId, false, initialScope, leaders, settingsByScope);
+    }
+
+    public MsgOpenFormationHubGui(int representativeEntityId,
+                                   boolean standalone,
+                                   WorkerFormationScopeKey initialScope,
+                                   List<FormationLeaderInfo> leaders,
+                                   Map<String, WorkerFormationSettings> settingsByScope) {
         this.representativeEntityId = representativeEntityId;
+        this.standalone = standalone;
         this.initialScopeTag = initialScope.toNbt();
 
         NBTTagList lList = new NBTTagList();
@@ -55,6 +64,7 @@ public class MsgOpenFormationHubGui implements IMessage {
     @Override
     public void fromBytes(ByteBuf buf) {
         representativeEntityId = buf.readInt();
+        standalone       = buf.readBoolean();
         initialScopeTag  = ByteBufUtils.readTag(buf);
         leadersWrapper   = ByteBufUtils.readTag(buf);
         settingsWrapper  = ByteBufUtils.readTag(buf);
@@ -63,6 +73,7 @@ public class MsgOpenFormationHubGui implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(representativeEntityId);
+        buf.writeBoolean(standalone);
         ByteBufUtils.writeTag(buf, initialScopeTag);
         ByteBufUtils.writeTag(buf, leadersWrapper  != null ? leadersWrapper  : new NBTTagCompound());
         ByteBufUtils.writeTag(buf, settingsWrapper != null ? settingsWrapper : new NBTTagCompound());
@@ -97,6 +108,7 @@ public class MsgOpenFormationHubGui implements IMessage {
                         new com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub(
                                 Minecraft.getMinecraft().player,
                                 msg.representativeEntityId,
+                                msg.standalone,
                                 leaders,
                                 settingsByScope,
                                 initialScope

@@ -204,10 +204,12 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
         for (Row r : rows) {
             if (r.pos == null) continue;
-            if (r.kind == MsgWorkerGoList.Kind.VILLAGE) {
+            if (r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) {
+                mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(r.pos, r.label, workerColor));
+            } else if (r.kind == MsgWorkerGoList.Kind.VILLAGE) {
                 mapController.panel.addMarker(WorldMapMarkerFactory.village(r.pos, r.label));
             } else {
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(r.pos, r.label));
+                mapController.panel.addMarker(WorldMapMarkerFactory.home(r.pos, r.label, workerColor));
             }
         }
 
@@ -282,7 +284,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
             Row r = rows.get(globalIdx);
             final float scale = 0.85F;
-            String prefix = (r.kind == MsgWorkerGoList.Kind.VILLAGE) ? "[V] " : "[H] ";
+            String prefix = r.kind == MsgWorkerGoList.Kind.VILLAGE ? "[V] "
+                    : r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE ? "[CV] "
+                    : "[H] ";
             String distSuffix = " (" + r.distance + "m)";
             String label = shortenNameWithSuffix(prefix + r.label, distSuffix, (int)((listW - 6) / scale));
 

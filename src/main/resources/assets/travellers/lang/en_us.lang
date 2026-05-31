@@ -71,7 +71,7 @@ travellers.worker.home_list.title=Homes
 travellers.worker.home_list.set_home=Set home
 
 travellers.worker.orders.go=Go...
-travellers.worker.orders.home=Home
+travellers.worker.orders.home=Homes
 travellers.worker.orders.go_home=Go home
 travellers.worker.orders.go_home_no_home=Go home (no home)
 travellers.worker.orders.leader_count=Leader (%s)
@@ -147,6 +147,15 @@ travellers.worker.formation.come_back=Come Back
 travellers.worker.formation.merge=Merge with...
 travellers.worker.formation.merge_cancel=Cancel Merge
 travellers.worker.formation.merge_hint=Click a group to merge into
+travellers.worker.formation.set_home=Homes
+
+travellers.worker.home_list.delete=Delete
+travellers.worker.home_list.get_equip=Get Equipment
+travellers.worker.home_list.equip_title=Choose mission:
+travellers.worker.home_list.equip_stay_barracks=Stay - Barracks
+travellers.worker.home_list.equip_stay_village=Stay - Whole Village
+travellers.worker.home_list.equip_return_barracks=Come Back - Barracks
+travellers.worker.home_list.equip_return_village=Come Back - Whole Village
 
 key.travellers.formation_hub=Open Formation Hub
 key.travellers.world_map=Open World Map

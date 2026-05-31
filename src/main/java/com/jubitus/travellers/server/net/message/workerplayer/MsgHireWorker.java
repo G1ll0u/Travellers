@@ -4,6 +4,7 @@ import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.flooz.TravellerMoney;
+import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -75,8 +76,16 @@ public class MsgHireWorker implements IMessage {
                     return;
                 }
 
-                // --- Case 3: not hired yet -> try to hire (cost 2a = 2*64 deniers) ---
-// --- Case 3: not hired yet -> try to hire ---
+                // --- Case 3: not hired yet -> try to hire ---
+                if (TravellersModConfig.controlledVillageFeatureEnabled
+                        && TravellersModConfig.requireControlledVillageToHire
+                        && !MillControlledVillageHelper.isPlayerVillageChief(world, player)) {
+                    player.sendMessage(new TextComponentString(
+                            TextFormatting.RED + "You must be chief of a Millenaire village to hire henchmen."
+                    ));
+                    return;
+                }
+
                 int costInDeniers = TravellersModConfig.workerHireCostDeniers_serverCache;
                 int playerMoneyBefore = TravellerMoney.countPlayerMoney(player);
 

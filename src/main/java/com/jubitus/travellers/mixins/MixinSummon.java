@@ -1,4 +1,4 @@
-package com.jubitus.travellers.utils.world.mill;
+package com.jubitus.travellers.mixins;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;

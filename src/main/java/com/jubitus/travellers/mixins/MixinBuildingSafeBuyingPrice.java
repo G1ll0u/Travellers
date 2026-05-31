@@ -1,4 +1,4 @@
-package com.jubitus.travellers.utils.world.mill;
+package com.jubitus.travellers.mixins;
 
 import net.minecraft.entity.player.EntityPlayer;
 import org.millenaire.common.item.TradeGood;

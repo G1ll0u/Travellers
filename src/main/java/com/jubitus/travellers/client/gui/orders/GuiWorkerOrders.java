@@ -34,7 +34,6 @@ public class GuiWorkerOrders extends GuiScreen {
     private GuiButton recruitButton;
     private GuiButton followPlayerButton;
     private GuiButton homeButton;
-    private GuiButton goHomeButton;
     private GuiButton followButton;
     private GuiButton leaderButton;
     private GuiButton goButton;
@@ -96,20 +95,11 @@ public class GuiWorkerOrders extends GuiScreen {
 
         this.homeButton = this.addButton(new GuiButton(
                 6,
-                centerX - bw - gap / 2,
+                centerX - bw / 2,
                 yBase + (bh + gap) * 3,
                 bw,
                 bh,
                 I18n.format("travellers.worker.orders.home")
-        ));
-
-        this.goHomeButton = this.addButton(new GuiButton(
-                7,
-                centerX + gap / 2,
-                yBase + (bh + gap) * 3,
-                bw,
-                bh,
-                I18n.format("travellers.worker.orders.go_home")
         ));
 
         this.followPlayerButton = this.addButton(new GuiButton(
@@ -183,13 +173,6 @@ public class GuiWorkerOrders extends GuiScreen {
 
         this.homeButton.visible = hiredByMe;
         this.homeButton.enabled = hiredByMe;
-
-        boolean hasHome = worker.hasAssignedHomeClient();
-        this.goHomeButton.visible = hiredByMe;
-        this.goHomeButton.enabled = hiredByMe && hasHome;
-        this.goHomeButton.displayString = hasHome
-                ? I18n.format("travellers.worker.orders.go_home")
-                : I18n.format("travellers.worker.orders.go_home_no_home");
 
         this.leaderButton.visible = hiredByMe;
         this.leaderButton.enabled = hiredByMe;
@@ -269,11 +252,6 @@ public class GuiWorkerOrders extends GuiScreen {
             TravellerFollowNet.CHANNEL.sendToServer(
                     new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HOME)
             );
-            return;
-        }
-
-        if (button == goHomeButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerGoHome(worker.getEntityId()));
             return;
         }
 

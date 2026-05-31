@@ -10,6 +10,10 @@ import net.minecraft.util.math.AxisAlignedBB;
 import javax.annotation.Nullable;
 import java.util.List;
 
+/**
+ * Proactive defense: scans around the player owner AND the escort worker-leader.
+ * Spreads workers across multiple threats via contest-aware scoring and ignore-list filtering.
+ */
 public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
     private final EntityTravellerWorker worker;
@@ -22,6 +26,7 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
     public EntityAIDefendOwnerProactively(EntityTravellerWorker worker, int intervalTicks) {
         this.worker = worker;
         this.intervalTicks = Math.max(1, intervalTicks);
+        this.cooldown = worker.getRNG().nextInt(Math.max(1, intervalTicks));
         this.setMutexBits(0);
     }
 
@@ -29,7 +34,7 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
     public boolean shouldExecute() {
         if (worker.world.isRemote) return false;
         if (!worker.isHiredFollower()) return false;
-
+        if (worker.isLowHealth()) return false;
         if (worker.getAttackTarget() != null && worker.getAttackTarget().isEntityAlive()) return false;
 
         if (--cooldown > 0) return false;
@@ -38,33 +43,24 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
         EntityPlayer owner = worker.getFollowOwner();
         if (owner == null || owner.isDead) return false;
 
-        // scan around OWNER (this is the key)
+        EntityTravellerWorker leader = worker.getEscortLeaderEntity();
+
         double r = 12.0D;
         AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, 4.0D, r);
+        if (leader != null && leader.isEntityAlive()) {
+            box = box.union(leader.getEntityBoundingBox().grow(r, 4.0D, r));
+        }
 
         List<EntityLivingBase> list = worker.world.getEntitiesWithinAABB(
                 EntityLivingBase.class, box,
                 e -> {
                     if (e == null || !e.isEntityAlive()) return false;
-
-                    // normal hostile mobs
                     if (e instanceof net.minecraft.entity.monster.IMob) return true;
-
-                    // hostile marked players
-                    if (e instanceof EntityPlayer) {
-                        EntityPlayer p = (EntityPlayer) e;
-                        return worker.isEnemyPlayer(p);
-                    }
-
-                    // enemy hired workers
-                    if (e instanceof EntityTravellerWorker) {
-                        return worker.isEnemyHiredWorker((EntityTravellerWorker) e);
-                    }
-
+                    if (e instanceof EntityPlayer) return worker.isEnemyPlayer((EntityPlayer) e);
+                    if (e instanceof EntityTravellerWorker) return worker.isEnemyHiredWorker((EntityTravellerWorker) e);
                     return false;
                 }
         );
-
 
         if (list.isEmpty()) return false;
 
@@ -72,21 +68,32 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
         double bestScore = Double.POSITIVE_INFINITY;
 
         for (EntityLivingBase e : list) {
-            // Hard skip if blacklisted etc.
             if (!(e instanceof net.minecraft.entity.monster.IMob)) {
                 if (e instanceof EntityPlayer && !worker.isEnemyPlayer((EntityPlayer) e)) continue;
                 if (e instanceof EntityTravellerWorker && !worker.isEnemyHiredWorker((EntityTravellerWorker) e)) continue;
             }
 
-            boolean targetsOwner = false;
+            // Is this entity actively threatening the owner or leader?
+            boolean threateningLeadership = false;
             if (e instanceof EntityLiving) {
-                targetsOwner = ((EntityLiving) e).getAttackTarget() == owner;
+                EntityLiving el = (EntityLiving) e;
+                threateningLeadership = el.getAttackTarget() == owner
+                        || (leader != null && el.getAttackTarget() == leader);
             }
-            if (e.getRevengeTarget() == owner) targetsOwner = true;
+            if (e.getRevengeTarget() == owner || (leader != null && e.getRevengeTarget() == leader)) {
+                threateningLeadership = true;
+            }
 
-            // Prefer mobs already targeting owner
+            // Skip targets the worker was already blocked on, unless they're actively attacking leadership
+            if (!threateningLeadership && worker.isIgnoring(e)) continue;
+
+            int attackerCount = AttackTargetLimiter.getAttackerCount(e);
             double d2 = owner.getDistanceSq(e);
-            double score = d2 + (targetsOwner ? -200.0 : 0.0);
+
+            // Prefer threats targeting leadership; penalize already-contested targets
+            double score = d2
+                    + (threateningLeadership ? -200.0 : 0.0)
+                    + attackerCount * 2.5 * attackerCount * 2.5;
 
             if (score < bestScore) {
                 bestScore = score;
@@ -99,12 +106,15 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
     }
 
     @Override
+    public boolean shouldContinueExecuting() {
+        return false;
+    }
+
+    @Override
     public void startExecuting() {
         if (pending != null && pending.isEntityAlive()) {
-            // urgent: bypass scheduler close-range, and bypass limiter if emergency applies
-            worker.trySetAttackTargetLimited(pending, 2);
+            worker.trySetAttackTargetLimited(pending, 1);
         }
         pending = null;
     }
 }
-

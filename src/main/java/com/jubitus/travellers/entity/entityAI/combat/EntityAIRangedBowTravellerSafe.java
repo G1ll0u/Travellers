@@ -5,6 +5,7 @@ import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.projectile.EntityTippedArrow;
@@ -474,9 +475,10 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // Fire
         arrow.shoot(fx, aimY, fz, ARROW_VEL, inaccuracy);
 
-// Desired FINAL damage in Minecraft health points:
-// 2.0 = 1 heart, 6.0 = 3 hearts, 8.0 = 4 hearts, etc.
-        double desiredFinal = 6.0D; // example: 3 hearts
+        double desiredFinal = TravellersModConfig.rangedBaseDamage * TravellersModConfig.rangedDamageMultiplier;
+        if (target instanceof EntityPlayer) {
+            desiredFinal *= TravellersModConfig.travellerPlayerDamageMultiplier;
+        }
 
         double speed = Math.sqrt(arrow.motionX * arrow.motionX
                 + arrow.motionY * arrow.motionY

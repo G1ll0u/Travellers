@@ -79,7 +79,9 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
         }
         if (this.entity != null && !this.entity.isInWater()) {
-            float waterMalus = followerMode ? 1.5F : 8.0F;
+            // Low enough that paths through water are chosen when the land detour is long,
+            // high enough that land routes are preferred when only a few blocks longer.
+            float waterMalus = followerMode ? 1.5F : 2.5F;
             for (int i = 0; i < count; i++) {
                 PathPoint p = options[i];
                 if (p == null) continue;

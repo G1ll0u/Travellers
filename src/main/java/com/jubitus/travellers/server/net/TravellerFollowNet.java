@@ -154,6 +154,9 @@ public final class TravellerFollowNet {
                 MsgOpenHomeNamePrompt.class,
                 isClient ? new MsgOpenHomeNamePrompt.ClientHandler() : new MsgOpenHomeNamePrompt.NoopHandler()
         );
+        CHANNEL.registerMessage(MsgWorkerDeleteHome.Handler.class, MsgWorkerDeleteHome.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgWorkerGetEquipment.Handler.class, MsgWorkerGetEquipment.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgLeaderSetHome.Handler.class, MsgLeaderSetHome.class, id++, Side.SERVER);
         registered = true;
 
         CHANNEL.registerMessage(

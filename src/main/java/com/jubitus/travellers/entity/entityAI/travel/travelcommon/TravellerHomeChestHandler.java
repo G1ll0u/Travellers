@@ -51,11 +51,6 @@ public class TravellerHomeChestHandler {
             return;
         }
 
-        // Only when targeting a vanilla chest
-        if (block != Blocks.CHEST && block != Blocks.TRAPPED_CHEST) {
-            return;
-        }
-
         // --- Our custom behaviour: register home chest ---
 
         TravellerHomeManager mgr = TravellerHomeManager.get(world);

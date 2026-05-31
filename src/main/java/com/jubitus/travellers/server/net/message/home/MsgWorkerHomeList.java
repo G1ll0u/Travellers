@@ -15,6 +15,7 @@ public class MsgWorkerHomeList implements IMessage {
     private int workerId;
     private final List<BlockPos> pos = new ArrayList<>();
     private final List<String> names = new ArrayList<>();
+    private final List<Integer> types = new ArrayList<>(); // HomeType ordinal
 
     public MsgWorkerHomeList() {
     }
@@ -24,6 +25,7 @@ public class MsgWorkerHomeList implements IMessage {
         for (TravellerHomeManager.HomeChest h : homes) {
             pos.add(h.pos);
             names.add(h.name == null ? "" : h.name);
+            types.add(h.type == null ? 0 : h.type.ordinal());
         }
     }
 
@@ -33,7 +35,9 @@ public class MsgWorkerHomeList implements IMessage {
         int n = buf.readUnsignedShort();
         pos.clear();
         names.clear();
+        types.clear();
         for (int i = 0; i < n; i++) {
+            types.add((int) buf.readByte());
             pos.add(BlockPos.fromLong(buf.readLong()));
             int len = buf.readUnsignedShort();
             String s = buf.readCharSequence(len, java.nio.charset.StandardCharsets.UTF_8).toString();
@@ -46,6 +50,7 @@ public class MsgWorkerHomeList implements IMessage {
         buf.writeInt(workerId);
         buf.writeShort(pos.size());
         for (int i = 0; i < pos.size(); i++) {
+            buf.writeByte(types.get(i));
             buf.writeLong(pos.get(i).toLong());
             byte[] b = names.get(i).getBytes(java.nio.charset.StandardCharsets.UTF_8);
             buf.writeShort(b.length);
@@ -59,7 +64,7 @@ public class MsgWorkerHomeList implements IMessage {
             net.minecraft.client.Minecraft.getMinecraft().addScheduledTask(() -> {
                 if (net.minecraft.client.Minecraft.getMinecraft().currentScreen instanceof GuiWorkerHomeList) {
                     GuiWorkerHomeList gui = (GuiWorkerHomeList) net.minecraft.client.Minecraft.getMinecraft().currentScreen;
-                    gui.receiveHomes(msg.pos, msg.names);
+                    gui.receiveHomes(msg.pos, msg.names, msg.types);
                 }
             });
             return null;
@@ -72,6 +77,4 @@ public class MsgWorkerHomeList implements IMessage {
             return null;
         }
     }
-
-
 }

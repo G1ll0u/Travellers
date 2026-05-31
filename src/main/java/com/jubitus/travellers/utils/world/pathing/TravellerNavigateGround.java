@@ -685,9 +685,12 @@ public class TravellerNavigateGround extends PathNavigateGround {
             stuckTicks++;
 
             if (stuckTicks >= 40) {
-                // Ne supprime pas le path ici.
-                // Marque juste un besoin de repath si tu as ce mécanisme.
                 stuckTicks = 0;
+                // Small jump to break through edge obstacles (water lip, snow, half-step).
+                // EntityAITravel handles replanning; we just unstick the physics.
+                if (this.entity.onGround) {
+                    this.entity.getJumpHelper().setJumping();
+                }
             }
         } else {
             stuckTicks = 0;

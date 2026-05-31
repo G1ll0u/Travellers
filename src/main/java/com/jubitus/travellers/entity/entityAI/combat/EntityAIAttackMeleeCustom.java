@@ -121,7 +121,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
         aiSpeedNow = (float) base;
         repathCooldown = 0;
-        this.attacker.setSprinting(true);
+        this.attacker.setSprinting(false);
         this.attacker.setAIMoveSpeed(aiSpeedNow);
     }
 
@@ -177,7 +177,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         if (aiSpeedNow > 0.38f) aiSpeedNow = 0.38f;
 
         this.attacker.setAIMoveSpeed(aiSpeedNow);
-        this.attacker.setSprinting(closing);
+//        this.attacker.setSprinting(closing);
 
         // On n'appelle plus super.updateTask() pour éviter le comportement vanilla trop haché
         this.checkAndPerformAttack(tgt, d2);

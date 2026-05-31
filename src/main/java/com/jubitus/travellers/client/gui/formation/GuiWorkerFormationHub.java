@@ -1,6 +1,7 @@
 package com.jubitus.travellers.client.gui.formation;
 
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
+import com.jubitus.travellers.client.gui.home.GuiWorkerHomeList;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
@@ -59,6 +60,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     // ── Data ──────────────────────────────────────────────────────────────────
     private final EntityPlayer player;
     private final int representativeEntityId;
+    private final boolean standalone;
     private final List<FormationLeaderInfo> leaders;
     private final Map<String, WorkerFormationSettings> settingsByScope;
 
@@ -104,6 +106,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     private GuiButton comeBackButton;
     private GuiButton mergeButton;
     private GuiButton mergeCancelButton;
+    private GuiButton homeButton;
 
     // ── Sync ──────────────────────────────────────────────────────────────────
     private long lastSendMs = 0L;
@@ -114,11 +117,13 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
     public GuiWorkerFormationHub(EntityPlayer player,
                                   int representativeEntityId,
+                                  boolean standalone,
                                   List<FormationLeaderInfo> leaders,
                                   Map<String, WorkerFormationSettings> settingsByScope,
                                   WorkerFormationScopeKey initialScope) {
         this.player = player;
         this.representativeEntityId = representativeEntityId;
+        this.standalone = standalone;
         this.leaders = leaders;
         this.settingsByScope = settingsByScope;
 
@@ -229,7 +234,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
                 I18n.format("travellers.worker.formation.preview.reset")));
 
         backButton = addButton(new GuiButton(99, guiLeft + effW - 70, bottomY, 60, 20,
-                I18n.format(representativeEntityId < 0 ? "travellers.gui.close" : "travellers.gui.back")));
+                I18n.format(standalone ? "travellers.gui.close" : "travellers.gui.back")));
 
         int obY = contentY;
         int obW = rightW + previewW + 8;
@@ -237,7 +242,8 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         goButton       = addButton(new GuiButton(30, obX, obY,        obW, 20, I18n.format("travellers.worker.formation.go")));
         comeBackButton = addButton(new GuiButton(31, obX, obY + 24,   obW, 20, I18n.format("travellers.worker.formation.come_back")));
         mergeButton    = addButton(new GuiButton(32, obX, obY + 48,   obW, 20, I18n.format("travellers.worker.formation.merge")));
-        mergeCancelButton = addButton(new GuiButton(33, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
+        homeButton     = addButton(new GuiButton(34, obX, obY + 72,   obW, 20, I18n.format("travellers.worker.formation.set_home", "Set Home")));
+        mergeCancelButton = addButton(new GuiButton(33, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
 
         // Map
         BlockPos initialCenter = getSelectedLeaderPos();
@@ -426,10 +432,12 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
         for (MsgWorkerGoList.Entry e : poiEntries) {
             if (e.pos == null) continue;
-            if (e.kind == MsgWorkerGoList.Kind.VILLAGE)
+            if (e.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE)
+                mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(e.pos, e.label, playerOwnerColor));
+            else if (e.kind == MsgWorkerGoList.Kind.VILLAGE)
                 mapController.panel.addMarker(WorldMapMarkerFactory.village(e.pos, e.label));
             else
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label));
+                mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label, playerOwnerColor));
         }
 
         for (MsgMapWorkersUpdate.Entry e : workerEntries) {
@@ -475,7 +483,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
         if (button == backButton) {
             flushPendingSync(true);
-            if (representativeEntityId < 0) {
+            if (standalone) {
                 mc.displayGuiScreen(null);
             } else {
                 TravellerFollowNet.CHANNEL.sendToServer(
@@ -496,10 +504,11 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         if (button == zoomOutBtn)  { previewPanel.zoomOut();   return; }
         if (button == recenterBtn) { previewPanel.resetView(); return; }
 
-        if (button == goButton)       { handleGoButton();  return; }
-        if (button == comeBackButton) { handleComeBack();  return; }
-        if (button == mergeButton)    { enterMergeMode();  return; }
-        if (button == mergeCancelButton) { exitMergeMode(); return; }
+        if (button == goButton)          { handleGoButton();   return; }
+        if (button == comeBackButton)    { handleComeBack();   return; }
+        if (button == mergeButton)       { enterMergeMode();   return; }
+        if (button == homeButton)        { handleHomeButton(); return; }
+        if (button == mergeCancelButton) { exitMergeMode();    return; }
 
         super.actionPerformed(button);
     }
@@ -701,6 +710,13 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         mc.displayGuiScreen(goGui);
     }
 
+    private void handleHomeButton() {
+        if (selectedIndex >= leaders.size()) return;
+        FormationLeaderInfo sel = leaders.get(selectedIndex);
+        if (sel.isPlayer) return;
+        mc.displayGuiScreen(new GuiWorkerHomeList(player, sel.uuid, representativeEntityId, this));
+    }
+
     private void handleComeBack() {
         if (selectedIndex >= leaders.size()) return;
         FormationLeaderInfo sel = leaders.get(selectedIndex);
@@ -769,6 +785,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         if (goButton       != null) { goButton.visible       = showOrders; goButton.enabled       = showOrders && !isPlayer; }
         if (comeBackButton != null) { comeBackButton.visible = showOrders; comeBackButton.enabled = showOrders && !isPlayer; }
         if (mergeButton    != null) { mergeButton.visible    = showOrders; mergeButton.enabled    = showOrders && !isPlayer; }
+        if (homeButton     != null) { homeButton.visible     = showOrders; homeButton.enabled     = showOrders && !isPlayer; }
         if (mergeCancelButton != null) mergeCancelButton.visible = mergeMode;
         if (backButton != null) backButton.visible = !mergeMode;
 

@@ -124,30 +124,33 @@ public class EntityTravellerRaider extends EntityTraveller {
         );
 
         // 4) Attack anything in RAIDER_ATTACK_LIST (villagers, golems, modded guards, etc.)
-        //    No IMob requirement here.
+        //    Skips scan when already engaged — attackEntityFrom handles in-combat target switching.
         this.targetTasks.addTask(
                 4,
-                new EntityAINearestAttackableTarget<>(
+                new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(
                         this,
                         EntityLivingBase.class,
-                        10,    // tick rate
+                        10,    // tick rate (spread further by RaiderAttackTargetAI)
                         true,  // mustCheckSight
                         false, // nearbyOnly
                         e -> e != null
                                 && e.isEntityAlive()
+                                && !e.isInvisible()
+                                && !this.isIgnoring(e)
                                 && !(e instanceof EntityTraveller) // travellers handled by the task below
                                 && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
-                                && this.shouldAttackExtraEntity(e) // uses RAIDER_ATTACK_LIST internally
+                                && this.shouldAttackExtraEntity(e)
+                                && Math.abs(e.posY - this.posY) <= 5.0D
                 )
         );
 
-        // 5) Explicitly target players
-        this.targetTasks.addTask(5, new EntityAINearestAttackableTarget<>(this, EntityPlayer.class, true));
+        // 5) Explicitly target players (only when idle — attackEntityFrom handles in-combat retaliation)
+        this.targetTasks.addTask(5, new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(this, EntityPlayer.class, true));
 
-        // 6) Target travellers/raiders of OTHER cultures
+        // 6) Target friendly travellers (non-raiders) — skips when already engaged
         this.targetTasks.addTask(
                 6,
-                new EntityAINearestAttackableTarget<>(
+                new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(
                         this,
                         EntityTraveller.class,
                         10,
@@ -155,9 +158,11 @@ public class EntityTravellerRaider extends EntityTraveller {
                         false,
                         t -> t != null
                                 && t.isEntityAlive()
+                                && !t.isInvisible()
+                                && !this.isIgnoring(t)
                                 && t != this
-                                // cross-faction only; culture ignored
                                 && this.isAggressiveToTravellers() != t.isAggressiveToTravellers()
+                                && Math.abs(t.posY - this.posY) <= 5.0D
                 )
         );
 
@@ -486,7 +491,27 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (theirs == null) theirs = "";
         return !my.equalsIgnoreCase(theirs);
     }
+    @Override
+    protected void applyEntityAttributes() {
+        super.applyEntityAttributes();
 
+        // Generic travellers stats
+        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
+                .setBaseValue(TravellersModConfig.raiderMaxHealth);
+
+        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
+                .setBaseValue(TravellersModConfig.movementSpeed);
+
+        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
+                .setBaseValue(TravellersModConfig.travellerFollowRange);
+
+        // ATTACK_DAMAGE is not present by default for many entities
+        if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
+            this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
+        }
+        this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
+                .setBaseValue(TravellersModConfig.attackDamage);
+    }
 
 }
 

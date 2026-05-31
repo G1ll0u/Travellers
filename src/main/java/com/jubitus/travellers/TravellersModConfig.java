@@ -27,7 +27,7 @@ public class TravellersModConfig {
     public static int workerGoArrivalRadius = 32; // blocks (tweak)
 
     // Worker idle anchor radius when follow is OFF (used after Go...)
-    public static double workerIdleAnchorRadius = 7.0D; // blocks (tweak)
+    public static double workerIdleAnchorRadius = 2.0D; // blocks (tweak)
 
     public static int recruitMinVillageDistance = 300; // default, tweak
 
@@ -63,6 +63,17 @@ public class TravellersModConfig {
     public static final int PLAYER_FREE_HITS = 3;
     public static final int PLAYER_FORGIVE_WINDOW_TICKS = 6 * 20; // reset window per attacker
     public static final double CHORUS_RADIUS = 32.0;
+    // --- Controlled Village ---
+    public static boolean controlledVillageFeatureEnabled = true;
+    public static boolean requireControlledVillageToHire = true;
+    public static int barracksSlotsPerBuilding = 5;
+    public static int workerBarracksRadius = 10;
+    public static boolean workerRespawnInBarracks = false;
+    public static int workerRespawnMorningTime = 1000; // Minecraft day-ticks (0=midnight, 1000=sunrise)
+
+    // --- Teenager → Worker ---
+    public static boolean teenagerToWorkerEnabled = false;
+
     // --- Choir ---
     public static boolean choirEnabled = true;
     public static double CHOIR_GROUP_RADIUS = 12.0;
@@ -83,7 +94,7 @@ public class TravellersModConfig {
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "5.0"; // yes I always change ver when testing, that's stupid
+    private static final String CURRENT_VERSION = "5.2"; // yes I always change ver when testing, that's stupid
     // Recruit mission tuning
     public static int recruitMaxVillageRadius = 4000;        // max distance from player
     public static int recruitVillagesMin = 1;
@@ -111,17 +122,8 @@ public class TravellersModConfig {
     public static boolean travellerOffscreenHopEnabled = true;
     public static int travellerOffscreenHopIntervalTicks = 20 * 7; // 6s, every 6s, do a hop
     public static int travellerOffscreenHopStepBlocks = 24;        // hop distance in blocks
-    public static int followerOwnerMoveDelayTicks = 24;   // 0.4s at 20 tps
-    public static int followerOwnerIdleTicks = 60;  // how long owner must be still to count as "idle"
-    public static boolean followerBoatConvoyEnabled = true;
-    public static double followerBoatConvoyAccel = 0.16D; // per tick "thrust"
-    public static double followerBoatConvoyMaxSpeed = 4.0D; // hard cap (tweak to taste)
-    public static double followerBoatConvoyBrakeNear = 0.60D; // how much to damp when close
-    public static boolean followerBoatConvoy = true;
     // optional tuning knobs if you like:
-    public static double followerBoatBoardRadius = 2.5D;      // how close to board
     public static double followerBoatConvoySpeed = 4.0D;      // boats vs normal follow speed
-    public static double followerBoatSearchRadius = 8.0D;     // find other boats in this radius
     // Global damage multiplier applied to ALL damage travellers take.
 // Does NOT apply to damage caused by players.
 // 1.0 = normal, 0.5 = half damage, 0 = immune to non-player sources.
@@ -134,9 +136,6 @@ public class TravellersModConfig {
     public static boolean travellerSimpleOffscreenTravel = false;
     // Optional threshold so simple travel only kicks in when fairly far from any player
     public static double travellerSimpleOffscreenMinPlayerDist = 64.0D;
-    public static double followerRingBaseRadius = 5.0D;
-    public static double followerRingSlotStep = 0.55D;
-    public static double followerRingMaxJitter = 0.8D; // optional
     public static boolean workerAutoLootMobs = true;
     public static int merchantVillageMinDistance = 1200; // blocks between merchant villages
     public static int workerVillageMinDistance = 1200; // blocks between worker villages
@@ -163,7 +162,7 @@ public class TravellersModConfig {
     public static double workerMaxHealth = 60.0D;
     public static double workerFollowRange = 64.0D;
     // --- Traveller stats ---
-    public static float travellerMaxHealth = 20.0F;
+    public static float travellerMaxHealth = 25.0F;
     public static float travellerFollowRange = 64.0F;
     // --- Merchant stats ---
     public static float merchantMaxHealth = 60.0F;
@@ -273,6 +272,9 @@ public class TravellersModConfig {
     public static double rangedMinDist;
     public static double rangedMaxDist;
     public static int rangedCooldown;
+    public static float rangedBaseDamage;
+    public static float rangedDamageMultiplier;
+    public static float travellerPlayerDamageMultiplier;
     // --- FOLLOWER AI TUNING ---
     public static double followDefaultRange;
     public static double followDesiredDist;
@@ -286,6 +288,12 @@ public class TravellersModConfig {
     public static int followRange;
     public static double attackDamage;
     public static double attackTriggerRange;
+    // Fraction of max HP below which entities enter defensive mode (stop seeking new targets)
+    public static float lowHealthCombatFrac = 0.20f;
+    // Engagement radius (blocks) for anchor-mode workers (followOrderActive=false)
+    public static double anchorModeEngageRadius = 12.0D;
+    // Engagement radius (blocks) for any entity in low-health defensive mode
+    public static double lowHealthEngageRadius = 5.0D;
     // --- Combat item realism ---
     public static boolean weaponDurabilityEnabled = true;
     public static boolean armorDurabilityEnabled = true;
@@ -293,7 +301,7 @@ public class TravellersModConfig {
     public static int baseAttackCooldownTicks = 20;
     public static int minAttackCooldownTicks = 6;
     public static int maxAttackCooldownTicks = 30;
-    public static float attackCooldownMultiplier = 1.5f;
+    public static float attackCooldownMultiplier = 2.0f;
     public static boolean travellerSpeaks;
     public static boolean travellerAmbient = true;
     public static int travellerAmbientMinDelay;
@@ -346,7 +354,7 @@ public class TravellersModConfig {
     public static boolean travelTorchEnabled = false; // default on
     public static int travelTorchCooldownTicks = 20 * 10; // e.g. 10s after unequip
     public static double travelTorchNearbyRadius = 20.0D; // “someone else has light” radius
-    public static boolean spawnTravellerWithDog = true;
+    public static boolean spawnTravellerWithDog = false;
     public static double travellerDogSpawnChance = 0.0085; // 3%
     public static String[] excludedVillagerTagsRaw = new String[]{"child", "chief", "hostile"};
     public static String[] excludedVillagerFilesRaw = new String[]{"alchemist", "alchemistapprentice", "alchemistassistant"};
@@ -360,7 +368,7 @@ public class TravellersModConfig {
     public static double fishApproachSpeed = 0.45D;
     public static int stepBlocks = 24;
     // Minimum distance (in blocks) raiders must spawn away from any village TH
-    public static int raiderMinVillageDistance = 120;
+    public static int raiderMinVillageDistance = 160;
     public static boolean showTravellerNames = false;
     // Base chance per anchor attempt, before density (0..1)
     public static double travellerBaseSpawnChance = 0.6;
@@ -420,6 +428,7 @@ public class TravellersModConfig {
     public static int chunkRecomputeIntervalTicks = 5;
     public static double followerRingMoveBaseRadius = 2.2D;
     public static double followerRingMoveSlotStep = 0.25;
+    public static double raiderMaxHealth = 20.0F;
     static boolean enableTravellerEntity = true;
     private static String[] raiderAttackIdRules = new String[0];
     private static String[] raiderAttackClassRules = new String[0];
@@ -682,7 +691,7 @@ public class TravellersModConfig {
                 "travellerDogSpawnChance",
                 "Soft spawn — General",
                 (float) travellerDogSpawnChance, 0.0f, 1.0f,
-                "Chance (0.0–1.0) that a travellers spawns with a dog companion. DISABLED TEMPORARILY"
+                "Chance (0.0–1.0) that a travellers spawns with a dog companion. DISABLED TEMPORARILY OR FOR EVER"
         );
 
         travellerPopulationWeightPerVillager = cfg.getFloat(
@@ -772,7 +781,7 @@ public class TravellersModConfig {
         );
         playerFleeForgiveTicks = cfg.getInt(
                 "PlayerFleeForgiveTicks", "Combat - General",
-                200, 0, 20 * 60,
+                160, 0, 20 * 60,
                 "Ticks a player must stay out of line-of-sight / far enough before raiders give up the chase."
         );
         playerFleeKeepDistance = cfg.getFloat(
@@ -844,6 +853,26 @@ public class TravellersModConfig {
                 "How often (ticks) the choir coordinator checks sessions and attempts new ones.");
         choirSoundVolumeMultiplier = cfg.getFloat("choirSoundVolumeMultiplier", "choir", 3.0f, 0.1f, 16.0f,
                 "Volume multiplier for choir sounds. Doubles as range control: 1.0 ≈ 16 blocks, 3.0 ≈ 48 blocks.");
+
+        // CONTROLLED VILLAGE
+        controlledVillageFeatureEnabled = cfg.getBoolean("controlledVillageFeatureEnabled",
+                "Controlled Village", true,
+                "Enable the controlled village integration (barracks custom building, hire restriction).");
+        requireControlledVillageToHire = cfg.getBoolean("requireControlledVillageToHire",
+                "Controlled Village", true,
+                "If true, a player must be chief of at least one Millenaire village to hire henchmen.");
+        barracksSlotsPerBuilding = cfg.getInt("barracksSlotsPerBuilding",
+                "Controlled Village", 5, 0, 64,
+                "Number of worker slots per barracks building. Also controls how many SPAWN blocks the building requires. Set 0 to disable hay bale requirement");
+        workerBarracksRadius = cfg.getInt("workerBarracksRadius",
+                "Controlled Village", 10, 4, 32,
+                "Radius (blocks) of a Workers Barracks building area.");
+        workerRespawnInBarracks = cfg.getBoolean("workerRespawnInBarracks",
+                "Controlled Village", false,
+                "If true, hired workers with a barracks home respawn there the next in-game day after dying.");
+        workerRespawnMorningTime = cfg.getInt("workerRespawnMorningTime",
+                "Controlled Village", 1000, 0, 23999,
+                "In-game day time (0-23999) when dead workers respawn at their barracks (1000 = sunrise).");
 
         enableTravellerEntity = cfg.getBoolean(
                 "enableTravellerEntity",
@@ -941,7 +970,7 @@ public class TravellersModConfig {
 
         travellerMaxHealth = cfg.getFloat(
                 "TravellerMaxHealth", "Traveller base attributes",
-                40.0f, 1.0f, 1000.0f,
+                25.0f, 1.0f, 1000.0f,
                 "Max health of generic travellers (20 = player default)."
         );
         maxHealth = travellerMaxHealth; // keep old field in sync
@@ -966,20 +995,20 @@ public class TravellersModConfig {
 
         attackMovementSpeed = cfg.getFloat(
                 "MovementSpeedWhileAttacking", "Traveller base attributes",
-                0.58f, 0.05f, 2.0f,
+                0.56f, 0.05f, 2.0f,
                 "Movement speed multiplier while attacking."
         );
 
         travellerFollowRange = cfg.getFloat(
                 "TravellerTrackRange", "Traveller base attributes",
-                32.0f, 4.0f, 256.0f,
+                64.0f, 4.0f, 256.0f,
                 "FOLLOW_RANGE (detection radius in blocks) for generic travellers."
         );
         followRange = (int) travellerFollowRange; // keep old int in sync
 
         attackDamage = cfg.getFloat(
                 "TravellerAttackDamage", "Traveller base attributes",
-                2.0f, 0.0f, 100.0f,
+                1.0f, 0.0f, 100.0f,
                 "Base damage dealt per melee hit."
         );
         travellerDamageScale = cfg.getFloat(
@@ -1112,7 +1141,7 @@ public class TravellersModConfig {
 
         eatHealthThreshold = cfg.getFloat(
                 "EatHealthThreshold", "Combat - General",
-                0.7f, 0.1f, 1.0f,
+                0.5f, 0.1f, 1.0f,
                 "Traveller starts eating at or below this fraction of max health."
         );
 
@@ -1134,6 +1163,25 @@ public class TravellersModConfig {
                 "Ticks between ranged attacks (20 ticks = 1 second)."
         );
 
+        rangedBaseDamage = cfg.getFloat(
+                "RangedBaseDamage", "Combat - General",
+                6.0f, 0.0f, 100.0f,
+                "Base arrow damage in half-hearts (6.0 = 3 hearts). Applied before multipliers."
+        );
+
+        rangedDamageMultiplier = cfg.getFloat(
+                "RangedDamageMultiplier", "Combat - General",
+                1.0f, 0.0f, 10.0f,
+                "Multiplier applied to ranged damage. 1.0 = normal, 0.5 = half."
+        );
+
+        travellerPlayerDamageMultiplier = cfg.getFloat(
+                "TravellerPlayerDamageMultiplier", "Combat - General",
+                0.75f, 0.0f, 10.0f,
+                "Multiplier applied to ALL damage (melee and ranged) dealt to players by travellers.\n" +
+                        "0.75 = 75% of normal damage. 1.0 = unchanged."
+        );
+
         weaponDurabilityEnabled = cfg.getBoolean(
                 "WeaponDurabilityEnabled", "Combat - Item realism",
                 true,
@@ -1151,22 +1199,22 @@ public class TravellersModConfig {
         );
         baseAttackCooldownTicks = cfg.getInt(
                 "BaseAttackCooldownTicks", "Combat - Item realism",
-                20, 1, 100,
+                24, 1, 100,
                 "Attack cooldown (ticks) used when no weapon is held or the weapon has no speed modifier. 20 = 1 attack/s."
         );
         minAttackCooldownTicks = cfg.getInt(
                 "MinAttackCooldownTicks", "Combat - Item realism",
-                6, 1, 40,
+                24, 1, 40,
                 "Minimum melee attack cooldown in ticks, even with the fastest weapon."
         );
         maxAttackCooldownTicks = cfg.getInt(
                 "MaxAttackCooldownTicks", "Combat - Item realism",
-                30, 1, 100,
+                76, 1, 100,
                 "Maximum melee attack cooldown in ticks, even with the slowest weapon."
         );
         attackCooldownMultiplier = cfg.getFloat(
                 "AttackCooldownMultiplier", "Combat - Item realism",
-                1.5f, 0.1f, 10.0f,
+                2.25f, 0.1f, 10.0f,
                 "Percentage multiplier applied to the final attack cooldown (1.0 = weapon speed as-is, 1.5 = 50% slower, 2.0 = twice slower)."
         );
 
@@ -1174,6 +1222,21 @@ public class TravellersModConfig {
                 "AttackTriggerRange", "Combat - General",
                 24, 1, 200,
                 "How far (in blocks) travellers will attack an hostile mob."
+        );
+        lowHealthCombatFrac = cfg.getFloat(
+                "LowHealthCombatFrac", "Combat - General",
+                0.20f, 0.05f, 0.50f,
+                "Health fraction (0.0-1.0) below which entities enter defensive mode and stop seeking new targets."
+        );
+        anchorModeEngageRadius = cfg.getInt(
+                "AnchorModeEngageRadius", "Combat - General",
+                12, 3, 64,
+                "Max engagement radius (blocks) for workers in stay/anchor mode (follow order OFF)."
+        );
+        lowHealthEngageRadius = cfg.getInt(
+                "LowHealthEngageRadius", "Combat - General",
+                5, 2, 16,
+                "Max engagement radius (blocks) for entities in low-health defensive mode."
         );
 // --- FOLLOWER AI TUNING (new) ---
         followDefaultRange = cfg.getFloat(
@@ -1360,7 +1423,7 @@ public class TravellersModConfig {
 
         raiderCapPerLoneBuilding = cfg.getInt(
                 "RaiderCapPerLoneBuilding", "Soft spawn — Raiders",
-                0, 0, 4,
+                1, 0, 4,
                 "How many raiders each lone building contributes to the regional raiders caps."
         );
 
@@ -1618,7 +1681,7 @@ public class TravellersModConfig {
 
         travellerNoAggroOffscreen = cfg.getBoolean(
                 "TravellerNoAggroOffscreen", "despawn & performance",
-                true,
+                false,
                 "When true, travellers are ignored by mobs while outside any player's view distance.\n" +
                         "They will not acquire new hostile targets and incoming attacks from mobs will be cancelled."
         );

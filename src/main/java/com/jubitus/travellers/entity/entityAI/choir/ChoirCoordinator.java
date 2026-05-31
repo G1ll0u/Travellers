@@ -82,6 +82,14 @@ public final class ChoirCoordinator {
         for (EntityTraveller singer : s.singers) {
             if (!singer.isEntityAlive() || !singer.isChoirSinging()) continue;
 
+            // Stop and suppress singers who are fighting or in post-combat silence
+            if (singer.isInCombat() || singer.isInPostCombatSilence()) {
+                singer.stopChoir();
+                // Push the rejoin window past the silence so they don't re-enter early
+                s.rejoinAt.put(singer.getEntityId(), now + REJOIN_WAIT_TICKS);
+                continue;
+            }
+
             if (singer.isVoiceLockedNow()) {
                 // Still singing — clear any pending rejoin schedule
                 s.rejoinAt.remove(singer.getEntityId());

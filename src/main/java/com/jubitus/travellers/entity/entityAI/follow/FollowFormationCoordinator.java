@@ -104,6 +104,17 @@ public final class FollowFormationCoordinator {
         return slot;
     }
 
+    public static void notifyWorkerRejoined(UUID workerId) {
+        for (LeaderContext ctx : CONTEXTS.values()) {
+            if (ctx.persistentOrdinals.containsKey(workerId) || ctx.persistentFormOrdinals.containsKey(workerId)) {
+                ctx.persistentOrdinals.remove(workerId);
+                ctx.persistentFormOrdinals.remove(workerId);
+                ctx.assignments.remove(workerId);
+                ctx.nextRefreshTick = Long.MIN_VALUE;
+            }
+        }
+    }
+
     private static void cleanup(long now) {
         if (lastCleanupTick != Long.MIN_VALUE && now - lastCleanupTick < CLEANUP_INTERVAL) {
             return;
@@ -577,7 +588,10 @@ public final class FollowFormationCoordinator {
                         anchorX + offset.dx, anchorY, anchorZ + offset.dz,
                         offset.preferredRadius, offset.arriveRadius, offset.frontPenaltyStrength,
                         mode == FollowMode.CAVE, profile.tunnelStrength, profile.caveSpread,
-                        anchor.useProjectedGround, workerLeader, profile.suggestedTunnelLanes);
+                        anchor.useProjectedGround, workerLeader, profile.suggestedTunnelLanes,
+                        true,
+                        anchor.useProjectedGround ? 0.0D : offset.dx,
+                        anchor.useProjectedGround ? 0.0D : offset.dz);
                 assignments.put(worker.getUniqueID(), slot);
                 previousOrdinals.put(worker.getUniqueID(), i);
                 persistentOrdinals.put(worker.getUniqueID(), i);
@@ -644,7 +658,10 @@ public final class FollowFormationCoordinator {
                         anchorX + off.dx, anchorY, anchorZ + off.dz,
                         off.preferredRadius, off.arriveRadius, off.frontPenaltyStrength,
                         mode == FollowMode.CAVE, profile.tunnelStrength, profile.caveSpread,
-                        anchor.useProjectedGround, workerLeader, profile.suggestedTunnelLanes);
+                        anchor.useProjectedGround, workerLeader, profile.suggestedTunnelLanes,
+                        false,
+                        anchor.useProjectedGround ? 0.0D : off.dx,
+                        anchor.useProjectedGround ? 0.0D : off.dz);
                 assignments.put(w.getUniqueID(), slot);
             }
 
@@ -790,7 +807,10 @@ public final class FollowFormationCoordinator {
                     profile.caveSpread,
                     anchor.useProjectedGround,
                     workerLeader,
-                    profile.suggestedTunnelLanes
+                    profile.suggestedTunnelLanes,
+                    false,
+                    anchor.useProjectedGround ? 0.0D : offset.dx,
+                    anchor.useProjectedGround ? 0.0D : offset.dz
             );
         }
 
@@ -923,11 +943,12 @@ public final class FollowFormationCoordinator {
                                                 UUID leaderId,
                                                 WorkerFormationSettings formationSettings,
                                                 boolean workerLeader) {
-        // Close-escort slots: first numEscorts ordinals are always kept 2-3 blocks from the leader,
-        // flanking them on each side so they remain reachable for right-click interaction.
+        // Close-escort slots: first numEscorts ordinals are kept 2-3 blocks from the leader.
+        // When groupSize <= numEscorts all workers are escorts — use effective count for correct spread.
         int numEscorts = formationSettings.numEscorts;
-        if (numEscorts > 0 && ordinal < numEscorts && groupSize > numEscorts) {
-            return computeEscortOffset(ordinal, numEscorts, forwardX, forwardZ);
+        if (numEscorts > 0 && ordinal < numEscorts) {
+            int effectiveEscorts = Math.min(numEscorts, groupSize);
+            return computeEscortOffset(ordinal, effectiveEscorts, forwardX, forwardZ);
         }
 
         // Shift ordinal so the formation starts after the escort slots
@@ -1345,6 +1366,16 @@ public final class FollowFormationCoordinator {
         public final boolean projectedGroundTarget;
         public final boolean workerLeader;
         public final int laneCount;
+        /** True when this worker is in an escort slot (ordinal < numEscorts). */
+        public final boolean isEscort;
+        /**
+         * Horizontal offset from the leader's position to this slot, in world coordinates.
+         * Used to compute the slot's ideal position from the leader's CURRENT position each tick,
+         * avoiding the stale-anchor lag that occurs between formation rebuilds.
+         * Valid for non-projected-ground anchors only; zero when projectedGroundTarget is true.
+         */
+        public final double leaderOffsetDx;
+        public final double leaderOffsetDz;
 
         private SlotAssignment(FollowMode mode,
                                int ordinal,
@@ -1366,7 +1397,10 @@ public final class FollowFormationCoordinator {
                                double caveSpread,
                                boolean projectedGroundTarget,
                                boolean workerLeader,
-                               int laneCount) {
+                               int laneCount,
+                               boolean isEscort,
+                               double leaderOffsetDx,
+                               double leaderOffsetDz) {
             this.mode = mode;
             this.ordinal = ordinal;
             this.groupSize = groupSize;
@@ -1388,6 +1422,9 @@ public final class FollowFormationCoordinator {
             this.projectedGroundTarget = projectedGroundTarget;
             this.workerLeader = workerLeader;
             this.laneCount = laneCount;
+            this.isEscort = isEscort;
+            this.leaderOffsetDx = leaderOffsetDx;
+            this.leaderOffsetDz = leaderOffsetDz;
         }
     }
 }
