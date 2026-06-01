@@ -26,6 +26,8 @@ import com.jubitus.travellers.server.net.message.choir.MsgWorkerChoirToggle;
 import com.jubitus.travellers.server.net.message.relations.MsgSetVillageEnemy;
 import com.jubitus.travellers.server.net.message.relations.MsgWorkerRequestVillageRelations;
 import com.jubitus.travellers.server.net.message.relations.MsgWorkerVillageRelationsList;
+import com.jubitus.travellers.server.net.message.config.MsgOpenTravellersConfigGui;
+import com.jubitus.travellers.server.net.message.config.MsgSaveTravellersConfig;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSoundDone;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
 import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
@@ -179,6 +181,11 @@ public final class TravellerFollowNet {
         registerClientOnly(MsgOpenFormationHubGui.class,
                 isClient ? new MsgOpenFormationHubGui.Handler() : new MsgOpenFormationHubGui.NoopHandler());
         CHANNEL.registerMessage(MsgRequestFormationHub.Handler.class, MsgRequestFormationHub.class, id++, Side.SERVER);
+
+        // Config GUI messages
+        registerClientOnly(MsgOpenTravellersConfigGui.class,
+                isClient ? new MsgOpenTravellersConfigGui.Handler() : new MsgOpenTravellersConfigGui.NoopHandler());
+        CHANNEL.registerMessage(MsgSaveTravellersConfig.Handler.class, MsgSaveTravellersConfig.class, id++, Side.SERVER);
     }
 
 

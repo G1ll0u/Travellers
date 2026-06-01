@@ -14,6 +14,8 @@ import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireMa
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeChestHandler;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerOffscreenHandler;
 import com.jubitus.travellers.entity.travellers.*;
+import com.jubitus.travellers.config.TravellersConfigHistory;
+import com.jubitus.travellers.config.TravellersConfigPersistence;
 import com.jubitus.travellers.utils.commands.*;
 import com.jubitus.travellers.utils.mobs.MobTargetInjector;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -50,7 +52,9 @@ import java.util.List;
 
 import static com.jubitus.travellers.utils.world.mill.VillageDataLoader.loadVillageCenters;
 
-@Mod(modid = Reference.MOD_ID, name = Reference.MOD_NAME, version = Reference.VERSION, dependencies = "required-after:millenaire")
+@Mod(modid = Reference.MOD_ID, name = Reference.MOD_NAME, version = Reference.VERSION,
+        dependencies = "required-after:millenaire",
+        guiFactory = "com.jubitus.travellers.client.TravellersGuiFactory")
 public class Travellers {
     public static final SimpleNetworkWrapper NETWORK =
             NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
@@ -77,6 +81,7 @@ public class Travellers {
         event.registerServerCommand(new CommandVillageNeeds());
         event.registerServerCommand(new TravellerCommandChunks());
         event.registerServerCommand(new CommandSummonWorkers());
+        event.registerServerCommand(new CommandTravellersConfig());
     }
 
     @Mod.EventHandler
@@ -90,6 +95,11 @@ public class Travellers {
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
         File configFile = new File(configDir, "travellers.cfg");
         TravellersModConfig.init(configFile);
+        TravellersConfigPersistence.applyOnStartup();
+        TravellersConfigHistory.loadFromFile();
+        TravellersModConfig.syncFromTravellersConfig();
+        TravellersModConfig.applyDerivedValues();
+        TravellersModConfig.syncServerCachesFromConfig();
         ConfigManager.sync(Reference.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
@@ -139,7 +149,7 @@ public class Travellers {
 
             // Normal travellers
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "travellers"),
+                    new ResourceLocation(Reference.MOD_ID, "traveller"),
                     EntityTraveller.class,
                     Reference.MOD_ID + ".traveller",
                     1,              // ID already used by you

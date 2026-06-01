@@ -482,6 +482,7 @@ public class TravellersModConfig {
 
             // Version matches → read values
             readValues(CONFIG);
+            syncToTravellersConfig();
             applyRuntimeEffects(); // <-- apply immediately on game start, too
 
         } catch (Exception e) {
@@ -530,7 +531,290 @@ public class TravellersModConfig {
     // fresh file
     private static void writeDefaults(Configuration cfg) {
         loadValues(cfg);
+        syncToTravellersConfig();
         cfg.save();
+    }
+
+    // Copy TravellersModConfig fields → TravellersConfig so GUI always shows current values.
+    private static void syncToTravellersConfig() {
+        com.jubitus.travellers.config.TravellersConfig.GENERAL.enableTravellerEntity = enableTravellerEntity;
+        com.jubitus.travellers.config.TravellersConfig.GENERAL.enableTravellerRaider = enableTravellerRaider;
+        com.jubitus.travellers.config.TravellersConfig.GENERAL.debug = debug;
+        com.jubitus.travellers.config.TravellersConfig.GENERAL.enableTravellerOpenFenceGates = enableTravellerOpenFenceGates;
+        com.jubitus.travellers.config.TravellersConfig.GENERAL.enableTravellerOpenDoors = enableTravellerOpenDoors;
+
+        com.jubitus.travellers.config.TravellersConfig.RENDERING.showTravellerNames = showTravellerNames;
+
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerVillageInfluenceRadius = travellerVillageInfluenceRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerLoneInfluenceRadius = travellerLoneInfluenceRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerVillageWeight = (float) travellerVillageWeight;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerLoneWeight = (float) travellerLoneWeight;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerFalloffPower = (float) travellerFalloffPower;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerMaxDensity = (float) travellerMaxDensity;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerOutsideVillageBaseDensity = (float) travellerOutsideVillageBaseDensity;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.spawnTravellerWithDog = spawnTravellerWithDog;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerDogSpawnChance = (float) travellerDogSpawnChance;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerPopulationWeightEnabled = travellerPopulationWeightEnabled;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerPopulationWeightRadius = travellerPopulationWeightRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerPopulationWeightPerVillager = (float) travellerPopulationWeightPerVillager;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerPopulationWeightMaxMultiplier = (float) travellerPopulationWeightMaxMultiplier;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerCultureWeightedSpawn = travellerCultureWeightedSpawn;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerCultureScanRadius = travellerCultureScanRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerCultureWeightUseVillagePopulation = travellerCultureWeightUseVillagePopulation;
+
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.loadedTravellerCap = loadedTravellerCap;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.minGroupSizeAtSpawn = MinGroupSizeAtSpawn;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.maxGroupSizeAtSpawn = MaxGroupSizeAtSpawn;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.enableTravellerSoftSpawns = enableTravellerSoftSpawns;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerTargetLoaded = travellerTargetLoaded;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerTopUpEveryTicks = travellerTopUpEveryTicks;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerAttemptsPerPlayer = travellerAttemptsPerPlayer;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnMinDist = travellerSpawnMinDist;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnMaxDist = travellerSpawnMaxDist;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnLightMin = travellerSpawnLightMin;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerMaxPositionChecksPerAttempt = travellerMaxPositionChecksPerAttempt;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerBaseSpawnChance = (float) travellerBaseSpawnChance;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerVillager = travellerCapPerVillager;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage = travellerCapMinPerVillage;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage = travellerCapMaxPerVillage;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerLoneBuilding = travellerCapPerLoneBuilding;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapGlobalMin = travellerCapGlobalMin;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapGlobalMax = travellerCapGlobalMax;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius = travellerRegionalRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCap = travellerLocalCap;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCapRadius = travellerLocalCapRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnPermille = travellerSpawnPermille;
+
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap = loadedRaiderCap;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMinGroup = RaiderMinGroup;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMaxGroup = RaiderMaxGroup;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.enableRaiderSoftSpawns = enableRaiderSoftSpawns;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderTargetLoaded = raiderTargetLoaded;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderTopUpEveryTicks = raiderTopUpEveryTicks;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderAttemptsPerPlayer = raiderAttemptsPerPlayer;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderSoftSpawnChancePerAttempt = raiderSoftSpawnChancePerAttempt;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderSpawnMinDist = raiderSpawnMinDist;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderSpawnMaxDist = raiderSpawnMaxDist;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance = raiderMinVillageDistance;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderBaseSpawnChance = raiderBaseSpawnChance;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapPerVillager = raiderCapPerVillager;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapMinPerVillage = raiderCapMinPerVillage;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapMaxPerVillage = raiderCapMaxPerVillage;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapPerLoneBuilding = raiderCapPerLoneBuilding;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderRegionalRadius = raiderRegionalRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderLocalCap = raiderLocalCap;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderLocalCapRadius = raiderLocalCapRadius;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMaxPositionChecksPerAttempt = raiderMaxPositionChecksPerAttempt;
+
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerMinPop = workerMinPop;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerPopPerWorker = workerPopPerWorker;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage = workerMaxPerVillage;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerRecheckEveryTicks = workerRecheckEveryTicks;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerLoadedCap = workerLoadedCap;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantLoadedCap = merchantLoadedCap;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantMinPop = merchantMinPop;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantPopPerMerchant = merchantPopPerMerchant;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantMaxPerVillage = merchantMaxPerVillage;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantRecheckEveryTicks = merchantRecheckEveryTicks;
+
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.despawnNearUnloadedChunks = despawnNearUnloadedChunks;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.despawnWhenFarFromPlayers = despawnWhenFarFromPlayers;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.farExtraChunks = farExtraChunks;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.farGraceTicks = farGraceTicks;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.farMinDistanceBlocks = farMinDistanceBlocks;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.serverViewDistanceFallbackChunks = serverViewDistanceFallbackChunks;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.despawnProbeRadiusChunks = despawnProbeRadiusChunks;
+        com.jubitus.travellers.config.TravellersConfig.DESPAWN.despawnEdgeGraceTicks = despawnEdgeGraceTicks;
+
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerMaxHealth = travellerMaxHealth;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeed = (float) movementSpeed;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeedWhileFollowing = (float) movementSpeedWhileFollowing;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeedWhileTravel = (float) movementSpeedWhileTravel;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeedWhileAttacking = (float) attackMovementSpeed;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerFollowRange = travellerFollowRange;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.attackDamage = (float) attackDamage;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerDamageScale = travellerDamageScale;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier = travellerPlayerDamageMultiplier;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.raiderMaxHealth = (float) raiderMaxHealth;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantMaxHealth = merchantMaxHealth;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantFollowRange = merchantFollowRange;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantStepBlocks = merchantStepBlocks;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantChunkRadius = merchantChunkRadius;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantMaxForcedChunks = merchantMaxForcedChunks;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantMaxChunkloadingMerchants = merchantMaxChunkloadingMerchants;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.merchantChunkloadingEnabled = merchantChunkloadingEnabled;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.workerMaxHealth = workerMaxHealth;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.workerFollowRange = workerFollowRange;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.workerChunkRadius = workerChunkRadius;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.workerStepBlocks = workerStepBlocks;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.stepBlocks = stepBlocks;
+        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.workerGlobalAssignedCap = workerGlobalAssignedCap;
+
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.callForHelp = callForHelp;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.helpRange = (float) helpRange;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.swordHideDelay = swordHideDelay;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.eatHealthThreshold = eatHealthThreshold;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.attackTriggerRange = (int) attackTriggerRange;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.lowHealthCombatFrac = lowHealthCombatFrac;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.anchorModeEngageRadius = (int) anchorModeEngageRadius;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.lowHealthEngageRadius = (int) lowHealthEngageRadius;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.requirePathForAggro = requirePathForAggro;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.requireLOSForMemoryTargets = requireLOSForMemoryTargets;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.requireLOSForChainTargets = requireLOSForChainTargets;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.travellerOffscreenViewRadius = travellerOffscreenViewRadius;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.travellerViewBoostBaseRadius = travellerViewBoostBaseRadius;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.travellerViewBoostCombatBonus = travellerViewBoostCombatBonus;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.rangedMinDist = (float) rangedMinDist;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.rangedMaxDist = (float) rangedMaxDist;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.rangedCooldown = rangedCooldown;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.rangedBaseDamage = rangedBaseDamage;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.rangedDamageMultiplier = rangedDamageMultiplier;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.weaponDurabilityEnabled = weaponDurabilityEnabled;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.armorDurabilityEnabled = armorDurabilityEnabled;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.weaponAttackSpeedEnabled = weaponAttackSpeedEnabled;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.baseAttackCooldownTicks = baseAttackCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.minAttackCooldownTicks = minAttackCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.maxAttackCooldownTicks = maxAttackCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.COMBAT.attackCooldownMultiplier = attackCooldownMultiplier;
+
+        com.jubitus.travellers.config.TravellersConfig.PLAYER_AGGRO.playerCalmForgiveTicks = playerCalmForgiveTicks;
+        com.jubitus.travellers.config.TravellersConfig.PLAYER_AGGRO.playerCalmNotifyRadius = (float) playerCalmNotifyRadius;
+        com.jubitus.travellers.config.TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks = playerFleeForgiveTicks;
+        com.jubitus.travellers.config.TravellersConfig.PLAYER_AGGRO.playerFleeKeepDistance = (float) playerFleeKeepDistance;
+
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followDefaultRange = (float) followDefaultRange;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followDurationMin = followDurationMin;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followDurationMax = followDurationMax;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followStartChance = followStartChance;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followMaxFollowersPerLeader = followMaxFollowersPerLeader;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followerBoatConvoySpeed = followerBoatConvoySpeed;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followerRingMoveBaseRadius = followerRingMoveBaseRadius;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followerRingMoveSlotStep = followerRingMoveSlotStep;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.returnFollowSwitchDist = returnFollowSwitchDist;
+        com.jubitus.travellers.config.TravellersConfig.FOLLOW.chunkRecomputeIntervalTicks = chunkRecomputeIntervalTicks;
+
+        com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.villageNear = villageNear;
+        com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.villageRadius = villageRadius;
+        com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.lonebuildingNear = lonebuildingNear;
+        com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.villagePickRadius = villagePickRadius;
+        com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.villageRoamMinDuration = villageRoamMinDuration;
+        com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.villageRoamMaxDuration = villageRoamMaxDuration;
+
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerOffscreenHopEnabled = travellerOffscreenHopEnabled;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerOffscreenHopIntervalTicks = travellerOffscreenHopIntervalTicks;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerOffscreenHopStepBlocks = travellerOffscreenHopStepBlocks;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen = travellerNoAggroOffscreen;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerOffscreenDamageScale = travellerOffscreenDamageScale;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerSimpleOffscreenTravel = travellerSimpleOffscreenTravel;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.travellerSimpleOffscreenMinPlayerDist = travellerSimpleOffscreenMinPlayerDist;
+        com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.allowTravellerChunkLoading = allowTravellerChunkLoading;
+
+        com.jubitus.travellers.config.TravellersConfig.TRAVEL.travelTorchEnabled = travelTorchEnabled;
+        com.jubitus.travellers.config.TravellersConfig.TRAVEL.travelTorchCooldownTicks = travelTorchCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.TRAVEL.travelTorchNearbyRadius = (float) travelTorchNearbyRadius;
+        com.jubitus.travellers.config.TravellersConfig.TRAVEL.fishWhileTravelEnabled = fishWhileTravelEnabled;
+
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerSpeaks = travellerSpeaks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerAmbient = travellerAmbient;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerAmbientMinDelay = travellerAmbientMinDelay;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerAmbientMaxDelay = travellerAmbientMaxDelay;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerAmbientVolume = travellerAmbientVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerChoirVolume = travellerChoirVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerTalkVolume = travellerTalkVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerHurtVolume = travellerHurtVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerStepLimiterStrength = (float) travellerStepLimiterStrength;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.travellerHurtLimiterStrength = (float) travellerHurtLimiterStrength;
+
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirEnabled = choirEnabled;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirGroupRadius = (float) CHOIR_GROUP_RADIUS;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirBreakRadius = (float) CHOIR_BREAK_RADIUS;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirAutoChance = CHOIR_AUTO_CHANCE;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirAutoCooldownTicks = CHOIR_AUTO_COOLDOWN_TICKS;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirSessionDurationTicks = CHOIR_SESSION_DURATION_TICKS;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirSpreadGraceChecks = CHOIR_SPREAD_GRACE_CHECKS;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirTickInterval = CHOIR_TICK_INTERVAL;
+        com.jubitus.travellers.config.TravellersConfig.CHOIR.choirSoundVolumeMultiplier = choirSoundVolumeMultiplier;
+
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campsEnabled = campsEnabled;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campRadius = CAMP_RADIUS;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campSeekRadius = SEEK_RADIUS;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campMaxJoinersPerCamp = MAX_JOINERS_PER_CAMP;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campWanderMinDelay = CAMP_WANDER_MIN_DELAY;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campWanderMaxDelay = CAMP_WANDER_MAX_DELAY;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campLookMinDelay = CAMP_LOOK_MIN_DELAY;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campLookMaxDelay = CAMP_LOOK_MAX_DELAY;
+        com.jubitus.travellers.config.TravellersConfig.CAMP.campStartChancePerTick = campStartChancePerTick;
+
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishWaterScanRadius = fishWaterScanRadius;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishMinTimeTicks = fishMinTimeTicks;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishMaxTimeTicks = fishMaxTimeTicks;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishReelEveryTicks = fishReelEveryTicks;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishCastWindupTicks = fishCastWindupTicks;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishCooldownTicks = fishCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishStartChancePerTick = fishStartChancePerTick;
+        com.jubitus.travellers.config.TravellersConfig.FISHING.fishApproachSpeed = fishApproachSpeed;
+
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled = controlledVillageFeatureEnabled;
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.requireControlledVillageToHire = requireControlledVillageToHire;
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.barracksSlotsPerBuilding = barracksSlotsPerBuilding;
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.workerBarracksRadius = workerBarracksRadius;
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks = workerRespawnInBarracks;
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.workerRespawnMorningTime = workerRespawnMorningTime;
+        com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.teenagerToWorkerEnabled = teenagerToWorkerEnabled;
+
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerHireCostDeniers = workerHireCostDeniers;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerNotifyOnVillageTrade = workerNotifyOnVillageTrade;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerAutoLootMobs = workerAutoLootMobs;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerVillageDetectRadius = workerVillageDetectRadius;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerGoArrivalRadius = workerGoArrivalRadius;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerIdleAnchorRadius = workerIdleAnchorRadius;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerTravelBaseCostPerSlot = (float) workerTravelBaseCostPerSlot;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerTravelDistanceBase = (float) workerTravelDistanceBase;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerTravelFlatBaseCost = workerTravelFlatBaseCost;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerTravelCostMultiplier = (float) workerTravelCostMultiplier;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.merchantVillageMinDistance = merchantVillageMinDistance;
+        com.jubitus.travellers.config.TravellersConfig.WORKER.workerVillageMinDistance = workerVillageMinDistance;
+
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitMaxVillageRadius = recruitMaxVillageRadius;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitVillagesMin = recruitVillagesMin;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitVillagesMax = recruitVillagesMax;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitSpawnMin = recruitSpawnMin;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitSpawnMax = recruitSpawnMax;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitFeeFlat = recruitFeeFlat;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitFeePerBlock = (float) recruitFeePerBlock;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitFeePerVillage = recruitFeePerVillage;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitLeaderAssignRadius = recruitLeaderAssignRadius;
+        com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitMinVillageDistance = recruitMinVillageDistance;
+
+        com.jubitus.travellers.config.TravellersConfig.MERCHANT.merchantGiveFraction = (float) merchantGiveFraction;
+        com.jubitus.travellers.config.TravellersConfig.MERCHANT.merchantMinBulkAmount = merchantMinBulkAmount;
+        com.jubitus.travellers.config.TravellersConfig.MERCHANT.merchantMinSmallAmount = merchantMinSmallAmount;
+        com.jubitus.travellers.config.TravellersConfig.MERCHANT.merchantMaxDistinctItems = merchantMaxDistinctItems;
+
+        com.jubitus.travellers.config.TravellersConfig.MOB_FARM.enableMobFarmAvoidance = enableMobFarmAvoidance;
+        com.jubitus.travellers.config.TravellersConfig.MOB_FARM.mobFarmCheckRadius = mobFarmCheckRadius;
+        com.jubitus.travellers.config.TravellersConfig.MOB_FARM.mobFarmEntityThreshold = mobFarmEntityThreshold;
+        com.jubitus.travellers.config.TravellersConfig.MOB_FARM.mobFarmFenceRadius = mobFarmFenceRadius;
+        com.jubitus.travellers.config.TravellersConfig.MOB_FARM.mobFarmFenceThreshold = mobFarmFenceThreshold;
+
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerTagsRaw = excludedVillagerTagsRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerFilesRaw = excludedVillagerFilesRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerTagsRaw = includedRaiderVillagerTagsRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerFilesRaw = includedRaiderVillagerFilesRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerTagsRaw = includedWorkerVillagerTagsRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerFilesRaw = includedWorkerVillagerFilesRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerTagsRaw = includedMerchantVillagerTagsRaw;
+        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerFilesRaw = includedMerchantVillagerFilesRaw;
+
+        com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.travellerAggroBlacklistIds = travellerAggroBlacklistIds;
+        com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.travellerAggroBlacklistClasses = travellerAggroBlacklistClasses;
+        com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistIds = raiderAggroBlacklistIds;
+        com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistClasses = raiderAggroBlacklistClasses;
+
+        com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.raiderAttackIdRules = raiderAttackIdRules;
+        com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.raiderAttackClassRules = raiderAttackClassRules;
+        com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.travellerAttackIdRules = travellerAttackIdRules;
+        com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.travellerAttackClassRules = travellerAttackClassRules;
     }
 
     /**
@@ -583,7 +867,7 @@ public class TravellersModConfig {
         loadValues(cfg);
     }
 
-    private static void applyRuntimeEffects() {
+    public static void applyRuntimeEffects() {
         net.minecraftforge.fml.common.FMLCommonHandler fml = net.minecraftforge.fml.common.FMLCommonHandler.instance();
         net.minecraft.server.MinecraftServer srv = fml.getMinecraftServerInstance();
         if (srv == null) return;
@@ -2050,6 +2334,397 @@ public class TravellersModConfig {
         cfg.save();
     }
 
+
+    // Called after TravellersConfig fields are updated via GUI/reflector to rebuild derived sets and apply guards.
+    public static void applyDerivedValues() {
+        // Rebuild excluded traveller sets
+        EXCLUDED_VILLAGER_TAGS.clear();
+        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerTagsRaw) {
+            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) EXCLUDED_VILLAGER_TAGS.add(s); }
+        }
+        EXCLUDED_VILLAGER_FILES.clear();
+        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerFilesRaw) {
+            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) EXCLUDED_VILLAGER_FILES.add(s); }
+        }
+        // Rebuild included raider sets
+        INCLUDED_RAIDER_VILLAGER_TAGS.clear();
+        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerTagsRaw) {
+            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) INCLUDED_RAIDER_VILLAGER_TAGS.add(s); }
+        }
+        INCLUDED_RAIDER_VILLAGER_FILES.clear();
+        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerFilesRaw) {
+            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) INCLUDED_RAIDER_VILLAGER_FILES.add(s); }
+        }
+        // Rebuild included worker sets
+        INCLUDED_WORKER_VILLAGER_TAGS.clear();
+        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerTagsRaw) {
+            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) INCLUDED_WORKER_VILLAGER_TAGS.add(s); }
+        }
+        INCLUDED_WORKER_VILLAGER_FILES.clear();
+        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerFilesRaw) {
+            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) INCLUDED_WORKER_VILLAGER_FILES.add(s); }
+        }
+        // Rebuild included merchant sets
+        INCLUDED_MERCHANT_VILLAGER_TAGS.clear();
+        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerTagsRaw) {
+            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) INCLUDED_MERCHANT_VILLAGER_TAGS.add(s); }
+        }
+        INCLUDED_MERCHANT_VILLAGER_FILES.clear();
+        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerFilesRaw) {
+            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) INCLUDED_MERCHANT_VILLAGER_FILES.add(s); }
+        }
+        // Rebuild attack/aggro lists
+        RAIDER_ATTACK_LIST.reload(
+                com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.raiderAttackIdRules,
+                com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.raiderAttackClassRules);
+        TRAVELLER_ATTACK_LIST.reload(
+                com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.travellerAttackIdRules,
+                com.jubitus.travellers.config.TravellersConfig.ATTACK_RULES.travellerAttackClassRules);
+        TRAVELLER_AGGRO_BLACKLIST.reload(
+                com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.travellerAggroBlacklistIds,
+                com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.travellerAggroBlacklistClasses);
+        RAIDER_AGGRO_BLACKLIST.reload(
+                com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistIds,
+                com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistClasses);
+    }
+
+    // Sync server-side caches from TravellersConfig fields.
+    public static void syncServerCachesFromConfig() {
+        workerHireCostDeniers_serverCache = com.jubitus.travellers.config.TravellersConfig.WORKER.workerHireCostDeniers;
+        recruitFeeFlat_serverCache = com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitFeeFlat;
+        recruitFeePerBlock_serverCache = com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitFeePerBlock;
+        recruitFeePerVillage_serverCache = com.jubitus.travellers.config.TravellersConfig.RECRUITMENT.recruitFeePerVillage;
+    }
+
+    // Copy all TravellersConfig fields into TravellersModConfig fields so existing game code keeps working.
+    public static void syncFromTravellersConfig() {
+        com.jubitus.travellers.config.TravellersConfig.General    g  = com.jubitus.travellers.config.TravellersConfig.GENERAL;
+        com.jubitus.travellers.config.TravellersConfig.Rendering  rn = com.jubitus.travellers.config.TravellersConfig.RENDERING;
+        com.jubitus.travellers.config.TravellersConfig.Spawn      sp = com.jubitus.travellers.config.TravellersConfig.SPAWN;
+        com.jubitus.travellers.config.TravellersConfig.SpawnTravellers st = com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS;
+        com.jubitus.travellers.config.TravellersConfig.SpawnRaiders sr = com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS;
+        com.jubitus.travellers.config.TravellersConfig.SpawnWorkers sw = com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS;
+        com.jubitus.travellers.config.TravellersConfig.Despawn    ds = com.jubitus.travellers.config.TravellersConfig.DESPAWN;
+        com.jubitus.travellers.config.TravellersConfig.Attributes at = com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES;
+        com.jubitus.travellers.config.TravellersConfig.Combat     cb = com.jubitus.travellers.config.TravellersConfig.COMBAT;
+        com.jubitus.travellers.config.TravellersConfig.PlayerAggro pa = com.jubitus.travellers.config.TravellersConfig.PLAYER_AGGRO;
+        com.jubitus.travellers.config.TravellersConfig.Follow     fo = com.jubitus.travellers.config.TravellersConfig.FOLLOW;
+        com.jubitus.travellers.config.TravellersConfig.Destinations de = com.jubitus.travellers.config.TravellersConfig.DESTINATIONS;
+        com.jubitus.travellers.config.TravellersConfig.Offscreen  of = com.jubitus.travellers.config.TravellersConfig.OFFSCREEN;
+        com.jubitus.travellers.config.TravellersConfig.Travel     tr = com.jubitus.travellers.config.TravellersConfig.TRAVEL;
+        com.jubitus.travellers.config.TravellersConfig.Sound      so = com.jubitus.travellers.config.TravellersConfig.SOUND;
+        com.jubitus.travellers.config.TravellersConfig.Choir      ch = com.jubitus.travellers.config.TravellersConfig.CHOIR;
+        com.jubitus.travellers.config.TravellersConfig.Camp       ca = com.jubitus.travellers.config.TravellersConfig.CAMP;
+        com.jubitus.travellers.config.TravellersConfig.Fishing    fi = com.jubitus.travellers.config.TravellersConfig.FISHING;
+        com.jubitus.travellers.config.TravellersConfig.ControlledVillage cv = com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE;
+        com.jubitus.travellers.config.TravellersConfig.Worker     wo = com.jubitus.travellers.config.TravellersConfig.WORKER;
+        com.jubitus.travellers.config.TravellersConfig.Recruitment rc = com.jubitus.travellers.config.TravellersConfig.RECRUITMENT;
+        com.jubitus.travellers.config.TravellersConfig.Merchant   me = com.jubitus.travellers.config.TravellersConfig.MERCHANT;
+        com.jubitus.travellers.config.TravellersConfig.MobFarm    mf = com.jubitus.travellers.config.TravellersConfig.MOB_FARM;
+        com.jubitus.travellers.config.TravellersConfig.Filters    fl = com.jubitus.travellers.config.TravellersConfig.FILTERS;
+        com.jubitus.travellers.config.TravellersConfig.AggroBlacklist ab = com.jubitus.travellers.config.TravellersConfig.AGGRO_BLACKLIST;
+
+        // General
+        enableTravellerEntity       = g.enableTravellerEntity;
+        enableTravellerRaider       = g.enableTravellerRaider;
+        debug                       = g.debug;
+        enableTravellerOpenFenceGates = g.enableTravellerOpenFenceGates;
+        enableTravellerOpenDoors    = g.enableTravellerOpenDoors;
+
+        // Rendering
+        showTravellerNames          = rn.showTravellerNames;
+
+        // Spawn
+        travellerVillageInfluenceRadius = sp.travellerVillageInfluenceRadius;
+        travellerLoneInfluenceRadius  = sp.travellerLoneInfluenceRadius;
+        travellerVillageWeight        = sp.travellerVillageWeight;
+        travellerLoneWeight           = sp.travellerLoneWeight;
+        travellerFalloffPower         = sp.travellerFalloffPower;
+        travellerMaxDensity           = sp.travellerMaxDensity;
+        travellerOutsideVillageBaseDensity = sp.travellerOutsideVillageBaseDensity;
+        spawnTravellerWithDog         = sp.spawnTravellerWithDog;
+        travellerDogSpawnChance       = sp.travellerDogSpawnChance;
+        travellerPopulationWeightEnabled = sp.travellerPopulationWeightEnabled;
+        travellerPopulationWeightRadius  = sp.travellerPopulationWeightRadius;
+        travellerPopulationWeightPerVillager = sp.travellerPopulationWeightPerVillager;
+        travellerPopulationWeightMaxMultiplier = sp.travellerPopulationWeightMaxMultiplier;
+        travellerCultureWeightedSpawn = sp.travellerCultureWeightedSpawn;
+        travellerCultureScanRadius    = sp.travellerCultureScanRadius;
+        travellerCultureWeightUseVillagePopulation = sp.travellerCultureWeightUseVillagePopulation;
+
+        // SpawnTravellers
+        loadedTravellerCap            = st.loadedTravellerCap;
+        MinGroupSizeAtSpawn           = st.minGroupSizeAtSpawn;
+        MaxGroupSizeAtSpawn           = st.maxGroupSizeAtSpawn;
+        enableTravellerSoftSpawns     = st.enableTravellerSoftSpawns;
+        travellerTargetLoaded         = st.travellerTargetLoaded;
+        travellerTopUpEveryTicks      = st.travellerTopUpEveryTicks;
+        travellerAttemptsPerPlayer    = st.travellerAttemptsPerPlayer;
+        travellerSpawnMinDist         = st.travellerSpawnMinDist;
+        travellerSpawnMaxDist         = st.travellerSpawnMaxDist;
+        travellerSpawnLightMin        = st.travellerSpawnLightMin;
+        travellerMaxPositionChecksPerAttempt = st.travellerMaxPositionChecksPerAttempt;
+        travellerBaseSpawnChance      = st.travellerBaseSpawnChance;
+        travellerCapPerVillager       = st.travellerCapPerVillager;
+        travellerCapMinPerVillage     = st.travellerCapMinPerVillage;
+        travellerCapMaxPerVillage     = st.travellerCapMaxPerVillage;
+        travellerCapPerLoneBuilding   = st.travellerCapPerLoneBuilding;
+        travellerCapGlobalMin         = st.travellerCapGlobalMin;
+        travellerCapGlobalMax         = st.travellerCapGlobalMax;
+        travellerRegionalRadius       = st.travellerRegionalRadius;
+        travellerLocalCap             = st.travellerLocalCap;
+        travellerLocalCapRadius       = st.travellerLocalCapRadius;
+        travellerSpawnPermille        = st.travellerSpawnPermille;
+
+        // SpawnRaiders
+        loadedRaiderCap               = sr.loadedRaiderCap;
+        RaiderMinGroup                = sr.raiderMinGroup;
+        RaiderMaxGroup                = sr.raiderMaxGroup;
+        enableRaiderSoftSpawns        = sr.enableRaiderSoftSpawns;
+        raiderTargetLoaded            = sr.raiderTargetLoaded;
+        raiderTopUpEveryTicks         = sr.raiderTopUpEveryTicks;
+        raiderAttemptsPerPlayer       = sr.raiderAttemptsPerPlayer;
+        raiderSoftSpawnChancePerAttempt = sr.raiderSoftSpawnChancePerAttempt;
+        raiderSpawnMinDist            = sr.raiderSpawnMinDist;
+        raiderSpawnMaxDist            = sr.raiderSpawnMaxDist;
+        raiderMinVillageDistance      = sr.raiderMinVillageDistance;
+        raiderBaseSpawnChance         = sr.raiderBaseSpawnChance;
+        raiderCapPerVillager          = sr.raiderCapPerVillager;
+        raiderCapMinPerVillage        = sr.raiderCapMinPerVillage;
+        raiderCapMaxPerVillage        = sr.raiderCapMaxPerVillage;
+        raiderCapPerLoneBuilding      = sr.raiderCapPerLoneBuilding;
+        raiderRegionalRadius          = sr.raiderRegionalRadius;
+        raiderLocalCap                = sr.raiderLocalCap;
+        raiderLocalCapRadius          = sr.raiderLocalCapRadius;
+        raiderMaxPositionChecksPerAttempt = sr.raiderMaxPositionChecksPerAttempt;
+
+        // SpawnWorkers
+        workerMinPop                  = sw.workerMinPop;
+        workerPopPerWorker            = sw.workerPopPerWorker;
+        workerMaxPerVillage           = sw.workerMaxPerVillage;
+        workerRecheckEveryTicks       = sw.workerRecheckEveryTicks;
+        workerLoadedCap               = sw.workerLoadedCap;
+        merchantLoadedCap             = sw.merchantLoadedCap;
+        merchantMinPop                = sw.merchantMinPop;
+        merchantPopPerMerchant        = sw.merchantPopPerMerchant;
+        merchantMaxPerVillage         = sw.merchantMaxPerVillage;
+        merchantRecheckEveryTicks     = sw.merchantRecheckEveryTicks;
+
+        // Despawn
+        despawnNearUnloadedChunks     = ds.despawnNearUnloadedChunks;
+        despawnWhenFarFromPlayers     = ds.despawnWhenFarFromPlayers;
+        farExtraChunks                = ds.farExtraChunks;
+        farGraceTicks                 = ds.farGraceTicks;
+        farMinDistanceBlocks          = ds.farMinDistanceBlocks;
+        serverViewDistanceFallbackChunks = ds.serverViewDistanceFallbackChunks;
+        despawnProbeRadiusChunks      = ds.despawnProbeRadiusChunks;
+        despawnEdgeGraceTicks         = ds.despawnEdgeGraceTicks;
+
+        // Attributes
+        travellerMaxHealth            = at.travellerMaxHealth;
+        maxHealth                     = at.travellerMaxHealth;
+        movementSpeed                 = at.movementSpeed;
+        movementSpeedWhileFollowing   = at.movementSpeedWhileFollowing;
+        movementSpeedWhileTravel      = at.movementSpeedWhileTravel;
+        attackMovementSpeed           = at.movementSpeedWhileAttacking;
+        travellerFollowRange          = at.travellerFollowRange;
+        followRange                   = (int) at.travellerFollowRange;
+        attackDamage                  = at.attackDamage;
+        travellerDamageScale          = at.travellerDamageScale;
+        travellerPlayerDamageMultiplier = at.travellerPlayerDamageMultiplier;
+        raiderMaxHealth               = at.raiderMaxHealth;
+        merchantMaxHealth             = at.merchantMaxHealth;
+        merchantFollowRange           = at.merchantFollowRange;
+        merchantStepBlocks            = at.merchantStepBlocks;
+        merchantChunkRadius           = at.merchantChunkRadius;
+        merchantMaxForcedChunks       = at.merchantMaxForcedChunks;
+        merchantMaxChunkloadingMerchants = at.merchantMaxChunkloadingMerchants;
+        merchantChunkloadingEnabled   = at.merchantChunkloadingEnabled;
+        workerMaxHealth               = at.workerMaxHealth;
+        workerFollowRange             = at.workerFollowRange;
+        workerChunkRadius             = at.workerChunkRadius;
+        workerStepBlocks              = at.workerStepBlocks;
+        stepBlocks                    = at.stepBlocks;
+        workerGlobalAssignedCap       = at.workerGlobalAssignedCap;
+
+        // Combat
+        callForHelp                   = cb.callForHelp;
+        helpRange                     = cb.helpRange;
+        swordHideDelay                = cb.swordHideDelay;
+        eatHealthThreshold            = cb.eatHealthThreshold;
+        attackTriggerRange            = cb.attackTriggerRange;
+        lowHealthCombatFrac           = cb.lowHealthCombatFrac;
+        anchorModeEngageRadius        = cb.anchorModeEngageRadius;
+        lowHealthEngageRadius         = cb.lowHealthEngageRadius;
+        requirePathForAggro           = cb.requirePathForAggro;
+        requireLOSForMemoryTargets    = cb.requireLOSForMemoryTargets;
+        requireLOSForChainTargets     = cb.requireLOSForChainTargets;
+        travellerOffscreenViewRadius  = cb.travellerOffscreenViewRadius;
+        travellerViewBoostBaseRadius  = cb.travellerViewBoostBaseRadius;
+        travellerViewBoostCombatBonus = cb.travellerViewBoostCombatBonus;
+        rangedMinDist                 = cb.rangedMinDist;
+        rangedMaxDist                 = cb.rangedMaxDist;
+        rangedCooldown                = cb.rangedCooldown;
+        rangedBaseDamage              = cb.rangedBaseDamage;
+        rangedDamageMultiplier        = cb.rangedDamageMultiplier;
+        weaponDurabilityEnabled       = cb.weaponDurabilityEnabled;
+        armorDurabilityEnabled        = cb.armorDurabilityEnabled;
+        weaponAttackSpeedEnabled      = cb.weaponAttackSpeedEnabled;
+        baseAttackCooldownTicks       = cb.baseAttackCooldownTicks;
+        minAttackCooldownTicks        = cb.minAttackCooldownTicks;
+        maxAttackCooldownTicks        = cb.maxAttackCooldownTicks;
+        attackCooldownMultiplier      = cb.attackCooldownMultiplier;
+
+        // PlayerAggro
+        playerCalmForgiveTicks        = pa.playerCalmForgiveTicks;
+        playerCalmNotifyRadius        = pa.playerCalmNotifyRadius;
+        playerFleeForgiveTicks        = pa.playerFleeForgiveTicks;
+        playerFleeKeepDistance        = pa.playerFleeKeepDistance;
+
+        // Follow
+        followDefaultRange            = fo.followDefaultRange;
+        followDurationMin             = fo.followDurationMin;
+        followDurationMax             = fo.followDurationMax;
+        followStartChance             = fo.followStartChance;
+        followMaxFollowersPerLeader   = fo.followMaxFollowersPerLeader;
+        followerBoatConvoySpeed       = fo.followerBoatConvoySpeed;
+        followerRingMoveBaseRadius    = fo.followerRingMoveBaseRadius;
+        followerRingMoveSlotStep      = fo.followerRingMoveSlotStep;
+        returnFollowSwitchDist        = fo.returnFollowSwitchDist;
+        chunkRecomputeIntervalTicks   = fo.chunkRecomputeIntervalTicks;
+
+        // Destinations
+        villageNear                   = de.villageNear;
+        villageRadius                 = de.villageRadius;
+        lonebuildingNear              = de.lonebuildingNear;
+        villagePickRadius             = de.villagePickRadius;
+        villageRoamMinDuration        = de.villageRoamMinDuration;
+        villageRoamMaxDuration        = de.villageRoamMaxDuration;
+
+        // Offscreen
+        travellerOffscreenHopEnabled  = of.travellerOffscreenHopEnabled;
+        travellerOffscreenHopIntervalTicks = of.travellerOffscreenHopIntervalTicks;
+        travellerOffscreenHopStepBlocks = of.travellerOffscreenHopStepBlocks;
+        travellerNoAggroOffscreen     = of.travellerNoAggroOffscreen;
+        travellerOffscreenDamageScale = of.travellerOffscreenDamageScale;
+        travellerSimpleOffscreenTravel = of.travellerSimpleOffscreenTravel;
+        travellerSimpleOffscreenMinPlayerDist = of.travellerSimpleOffscreenMinPlayerDist;
+        allowTravellerChunkLoading    = of.allowTravellerChunkLoading;
+
+        // Travel
+        travelTorchEnabled            = tr.travelTorchEnabled;
+        travelTorchCooldownTicks      = tr.travelTorchCooldownTicks;
+        travelTorchNearbyRadius       = tr.travelTorchNearbyRadius;
+        fishWhileTravelEnabled        = tr.fishWhileTravelEnabled;
+
+        // Sound
+        travellerSpeaks               = so.travellerSpeaks;
+        travellerAmbient              = so.travellerAmbient;
+        travellerAmbientMinDelay      = so.travellerAmbientMinDelay;
+        travellerAmbientMaxDelay      = so.travellerAmbientMaxDelay;
+        travellerAmbientVolume        = so.travellerAmbientVolume;
+        travellerChoirVolume          = so.travellerChoirVolume;
+        travellerTalkVolume           = so.travellerTalkVolume;
+        travellerHurtVolume           = so.travellerHurtVolume;
+        travellerStepLimiterStrength  = so.travellerStepLimiterStrength;
+        travellerHurtLimiterStrength  = so.travellerHurtLimiterStrength;
+
+        // Choir
+        choirEnabled                  = ch.choirEnabled;
+        CHOIR_GROUP_RADIUS            = ch.choirGroupRadius;
+        CHOIR_BREAK_RADIUS            = ch.choirBreakRadius;
+        CHOIR_AUTO_CHANCE             = ch.choirAutoChance;
+        CHOIR_AUTO_COOLDOWN_TICKS     = ch.choirAutoCooldownTicks;
+        CHOIR_SESSION_DURATION_TICKS  = ch.choirSessionDurationTicks;
+        CHOIR_SPREAD_GRACE_CHECKS     = ch.choirSpreadGraceChecks;
+        CHOIR_TICK_INTERVAL           = ch.choirTickInterval;
+        choirSoundVolumeMultiplier    = ch.choirSoundVolumeMultiplier;
+
+        // Camp
+        campsEnabled                  = ca.campsEnabled;
+        CAMP_RADIUS                   = ca.campRadius;
+        SEEK_RADIUS                   = ca.campSeekRadius;
+        MAX_JOINERS_PER_CAMP          = ca.campMaxJoinersPerCamp;
+        CAMP_WANDER_MIN_DELAY         = ca.campWanderMinDelay;
+        CAMP_WANDER_MAX_DELAY         = ca.campWanderMaxDelay;
+        CAMP_LOOK_MIN_DELAY           = ca.campLookMinDelay;
+        CAMP_LOOK_MAX_DELAY           = ca.campLookMaxDelay;
+        campStartChancePerTick        = ca.campStartChancePerTick;
+
+        // Fishing
+        fishWaterScanRadius           = fi.fishWaterScanRadius;
+        fishMinTimeTicks              = fi.fishMinTimeTicks;
+        fishMaxTimeTicks              = fi.fishMaxTimeTicks;
+        fishReelEveryTicks            = fi.fishReelEveryTicks;
+        fishCastWindupTicks           = fi.fishCastWindupTicks;
+        fishCooldownTicks             = fi.fishCooldownTicks;
+        fishStartChancePerTick        = fi.fishStartChancePerTick;
+        fishApproachSpeed             = fi.fishApproachSpeed;
+
+        // ControlledVillage
+        controlledVillageFeatureEnabled = cv.controlledVillageFeatureEnabled;
+        requireControlledVillageToHire  = cv.requireControlledVillageToHire;
+        barracksSlotsPerBuilding        = cv.barracksSlotsPerBuilding;
+        workerBarracksRadius            = cv.workerBarracksRadius;
+        workerRespawnInBarracks         = cv.workerRespawnInBarracks;
+        workerRespawnMorningTime        = cv.workerRespawnMorningTime;
+        teenagerToWorkerEnabled         = cv.teenagerToWorkerEnabled;
+
+        // Worker
+        workerHireCostDeniers         = wo.workerHireCostDeniers;
+        workerNotifyOnVillageTrade    = wo.workerNotifyOnVillageTrade;
+        workerAutoLootMobs            = wo.workerAutoLootMobs;
+        workerVillageDetectRadius     = wo.workerVillageDetectRadius;
+        workerGoArrivalRadius         = wo.workerGoArrivalRadius;
+        workerIdleAnchorRadius        = wo.workerIdleAnchorRadius;
+        workerTravelBaseCostPerSlot   = wo.workerTravelBaseCostPerSlot;
+        workerTravelDistanceBase      = wo.workerTravelDistanceBase;
+        workerTravelFlatBaseCost      = wo.workerTravelFlatBaseCost;
+        workerTravelCostMultiplier    = wo.workerTravelCostMultiplier;
+        merchantVillageMinDistance    = wo.merchantVillageMinDistance;
+        workerVillageMinDistance      = wo.workerVillageMinDistance;
+
+        // Recruitment
+        recruitMaxVillageRadius       = rc.recruitMaxVillageRadius;
+        recruitVillagesMin            = rc.recruitVillagesMin;
+        recruitVillagesMax            = rc.recruitVillagesMax;
+        recruitSpawnMin               = rc.recruitSpawnMin;
+        recruitSpawnMax               = rc.recruitSpawnMax;
+        recruitFeeFlat                = rc.recruitFeeFlat;
+        recruitFeePerBlock            = rc.recruitFeePerBlock;
+        recruitFeePerVillage          = rc.recruitFeePerVillage;
+        recruitLeaderAssignRadius     = rc.recruitLeaderAssignRadius;
+        recruitMinVillageDistance     = rc.recruitMinVillageDistance;
+
+        // Merchant
+        merchantGiveFraction          = me.merchantGiveFraction;
+        merchantMinBulkAmount         = me.merchantMinBulkAmount;
+        merchantMinSmallAmount        = me.merchantMinSmallAmount;
+        merchantMaxDistinctItems      = me.merchantMaxDistinctItems;
+
+        // MobFarm
+        enableMobFarmAvoidance        = mf.enableMobFarmAvoidance;
+        mobFarmCheckRadius            = mf.mobFarmCheckRadius;
+        mobFarmEntityThreshold        = mf.mobFarmEntityThreshold;
+        mobFarmFenceRadius            = mf.mobFarmFenceRadius;
+        mobFarmFenceThreshold         = mf.mobFarmFenceThreshold;
+
+        // Filters (raw arrays)
+        excludedVillagerTagsRaw         = fl.excludedVillagerTagsRaw;
+        excludedVillagerFilesRaw        = fl.excludedVillagerFilesRaw;
+        includedRaiderVillagerTagsRaw   = fl.includedRaiderVillagerTagsRaw;
+        includedRaiderVillagerFilesRaw  = fl.includedRaiderVillagerFilesRaw;
+        includedWorkerVillagerTagsRaw   = fl.includedWorkerVillagerTagsRaw;
+        includedWorkerVillagerFilesRaw  = fl.includedWorkerVillagerFilesRaw;
+        includedMerchantVillagerTagsRaw = fl.includedMerchantVillagerTagsRaw;
+        includedMerchantVillagerFilesRaw = fl.includedMerchantVillagerFilesRaw;
+
+        // AggroBlacklist
+        travellerAggroBlacklistIds      = ab.travellerAggroBlacklistIds;
+        travellerAggroBlacklistClasses  = ab.travellerAggroBlacklistClasses;
+        raiderAggroBlacklistIds         = ab.raiderAggroBlacklistIds;
+        raiderAggroBlacklistClasses     = ab.raiderAggroBlacklistClasses;
+    }
 
     /**
      * Public entrypoint to reload from disk (for commands or GUI).
