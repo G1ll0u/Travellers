@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.map;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagLong;
@@ -11,7 +11,7 @@ import net.minecraft.world.storage.WorldSavedData;
 import java.util.*;
 
 public class MapDiscoverySavedData extends WorldSavedData {
-    private static final String NAME = Reference.MOD_ID + "_map_discovery";
+    private static final String NAME = Tags.MOD_ID + "_map_discovery";
 
     // joueur UUID -> tiles
     private final Map<UUID, Set<Long>> data = new HashMap<>();

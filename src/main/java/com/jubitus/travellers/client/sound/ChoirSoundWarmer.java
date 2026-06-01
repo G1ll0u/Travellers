@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.sound;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.entity.culture.choir.ChoirIndex;
 import com.jubitus.travellers.entity.culture.choir.ChoirRegistry;
 import com.jubitus.travellers.entity.culture.choir.ChoirSongDef;

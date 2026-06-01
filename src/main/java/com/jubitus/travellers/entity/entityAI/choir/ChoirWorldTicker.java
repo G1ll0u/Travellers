@@ -1,13 +1,13 @@
 package com.jubitus.travellers.entity.entityAI.choir;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.TravellersModConfig;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-@Mod.EventBusSubscriber(modid = Reference.MOD_ID)
+@Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public final class ChoirWorldTicker {
 
     private ChoirWorldTicker() {}

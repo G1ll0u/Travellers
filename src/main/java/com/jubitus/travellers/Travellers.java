@@ -52,14 +52,14 @@ import java.util.List;
 
 import static com.jubitus.travellers.utils.world.mill.VillageDataLoader.loadVillageCenters;
 
-@Mod(modid = Reference.MOD_ID, name = Reference.MOD_NAME, version = Reference.VERSION,
+@Mod(modid = Tags.MOD_ID, name = Tags.MOD_NAME, version = Tags.VERSION,
         dependencies = "required-after:millenaire",
         guiFactory = "com.jubitus.travellers.client.TravellersGuiFactory")
 public class Travellers {
     public static final SimpleNetworkWrapper NETWORK =
             NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
-    @Mod.Instance(Reference.MOD_ID)
+    @Mod.Instance(Tags.MOD_ID)
     public static Travellers INSTANCE;
     private static int nextId = 0;
 
@@ -100,7 +100,7 @@ public class Travellers {
         TravellersModConfig.syncFromTravellersConfig();
         TravellersModConfig.applyDerivedValues();
         TravellersModConfig.syncServerCachesFromConfig();
-        ConfigManager.sync(Reference.MOD_ID, Config.Type.INSTANCE);
+        ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
         MinecraftForge.EVENT_BUS.register(new TravellerHomeChestHandler());
@@ -149,9 +149,9 @@ public class Travellers {
 
             // Normal travellers
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller"),
+                    new ResourceLocation(Tags.MOD_ID, "traveller"),
                     EntityTraveller.class,
-                    Reference.MOD_ID + ".traveller",
+                    Tags.MOD_ID + ".traveller",
                     1,              // ID already used by you
                     this,
                     256, 1, true,
@@ -160,9 +160,9 @@ public class Travellers {
 
             // *** NEW: merchant travellers (non-despawning + chunk-loader entity class) ***
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller_merchant"),
+                    new ResourceLocation(Tags.MOD_ID, "traveller_merchant"),
                     EntityTravellerMerchant.class,              // <-- you'll create this class
-                    Reference.MOD_ID + ".traveller_merchant",   // old name, no colon
+                    Tags.MOD_ID + ".traveller_merchant",   // old name, no colon
                     5,                                          // <-- NEW unique numeric ID
                     this,
                     128,                                        // tracking range (match normal travellers)
@@ -172,9 +172,9 @@ public class Travellers {
                     0x302010                                    // egg secondary colour (optional)
             );
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller_worker"),
+                    new ResourceLocation(Tags.MOD_ID, "traveller_worker"),
                     EntityTravellerWorker.class,              // <-- you'll create this class
-                    Reference.MOD_ID + ".traveller_worker",   // old name, no colon
+                    Tags.MOD_ID + ".traveller_worker",   // old name, no colon
                     6,                                          // <-- NEW unique numeric ID
                     this,
                     256,                                        // tracking range (match normal travellers)
@@ -185,9 +185,9 @@ public class Travellers {
             );
             // Dog
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller_dog"),
+                    new ResourceLocation(Tags.MOD_ID, "traveller_dog"),
                     EntityTravellerDog.class,
-                    Reference.MOD_ID + ".traveller_dog",
+                    Tags.MOD_ID + ".traveller_dog",
                     3,
                     this,
                     128,
@@ -198,7 +198,7 @@ public class Travellers {
 
             // Boat
             EntityRegistry.registerModEntity(
-                    new ResourceLocation(Reference.MOD_ID, "traveller_boat"),
+                    new ResourceLocation(Tags.MOD_ID, "traveller_boat"),
                     EntityTravellerBoat.class,
                     "traveller_boat",
                     4,
@@ -211,9 +211,9 @@ public class Travellers {
             // Raider
             if (TravellersModConfig.enableTravellerRaider) {
                 EntityRegistry.registerModEntity(
-                        new ResourceLocation(Reference.MOD_ID, "traveller_raider"),
+                        new ResourceLocation(Tags.MOD_ID, "traveller_raider"),
                         EntityTravellerRaider.class,
-                        Reference.MOD_ID + ".traveller_raider",
+                        Tags.MOD_ID + ".traveller_raider",
                         2,
                         this,
                         128, 1, true,

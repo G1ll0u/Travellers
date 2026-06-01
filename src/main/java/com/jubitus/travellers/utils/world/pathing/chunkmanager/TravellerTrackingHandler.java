@@ -1,13 +1,13 @@
 package com.jubitus.travellers.utils.world.pathing.chunkmanager;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import net.minecraft.entity.Entity;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-@Mod.EventBusSubscriber(modid = Reference.MOD_ID)
+@Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public class TravellerTrackingHandler {
 
     @SubscribeEvent

@@ -1,6 +1,6 @@
 package com.jubitus.travellers.utils.world.spawn;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -41,7 +41,7 @@ import java.util.Random;
 
 import static com.jubitus.travellers.entity.entityAI.travel.EntityAITravel.intersectsForbiddenLiquid;
 
-@Mod.EventBusSubscriber(modid = Reference.MOD_ID)
+@Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public final class TravellerSoftSpawner {
 
     private static int raiderTickCounter = 0;

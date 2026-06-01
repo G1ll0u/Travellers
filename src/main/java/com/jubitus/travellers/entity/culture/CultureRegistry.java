@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.culture;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.client.sound.RaiderVoiceIndex;
@@ -1094,7 +1094,7 @@ public final class CultureRegistry {
         java.util.List<SoundEvent> out = new java.util.ArrayList<>();
         for (String key : keys) {
             if (key == null || key.trim().isEmpty()) continue;
-            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID, key));
+            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID, key));
             if (ev != null) out.add(ev);
         }
 
@@ -1195,7 +1195,7 @@ public final class CultureRegistry {
         java.util.List<SoundEvent> out = new java.util.ArrayList<>();
         for (String key : keys) {
             if (key == null || key.trim().isEmpty()) continue;
-            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID, key));
+            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID, key));
             if (ev != null) out.add(ev);
         }
 

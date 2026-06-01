@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.sound;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VoiceSet;
@@ -12,7 +12,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
-@Mod.EventBusSubscriber(modid = Reference.MOD_ID)
+@Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public final class ModSounds {
 
     // Global / fallback events (optional but handy)
@@ -161,13 +161,13 @@ public final class ModSounds {
         String tDefaultLang = (idx.defaultLang == null ? "en" : idx.defaultLang).toLowerCase(java.util.Locale.ROOT);
         String tDefaultPers = (idx.defaultPersonality == null ? "default" : idx.defaultPersonality).toLowerCase(java.util.Locale.ROOT);
 
-        TRAVELLER_TALK  = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
+        TRAVELLER_TALK  = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID,
                 "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".talk.__0"));
-        TRAVELLER_HURT  = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
+        TRAVELLER_HURT  = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID,
                 "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".hurt.__0"));
-        TRAVELLER_HELLO = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
+        TRAVELLER_HELLO = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID,
                 "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".hello.__0"));
-        AMBIENT         = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID,
+        AMBIENT         = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID,
                 "entity.travellers." + tDefaultLang + "." + tDefaultPers + ".ambient.__0"));
 
         // ---------------- RAIDERS ----------------
@@ -231,7 +231,7 @@ public final class ModSounds {
 
 
     private static SoundEvent reg(java.util.List<SoundEvent> out, String keyPath) {
-        final ResourceLocation id = new ResourceLocation(Reference.MOD_ID, keyPath);
+        final ResourceLocation id = new ResourceLocation(Tags.MOD_ID, keyPath);
         final SoundEvent ev = new SoundEvent(id).setRegistryName(id);
         out.add(ev);
         return ev;

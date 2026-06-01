@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.data.TravellerVillageRelations;
 import net.minecraft.entity.EntityLivingBase;
@@ -16,7 +16,7 @@ import org.millenaire.common.village.Building;
 import java.util.List;
 import java.util.UUID;
 
-@Mod.EventBusSubscriber(modid = Reference.MOD_ID)
+@Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public class VillageRelationsCombatHooks {
 
     // called once per world tick; we stagger inside

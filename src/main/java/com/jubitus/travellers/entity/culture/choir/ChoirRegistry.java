@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.culture.choir;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
@@ -58,7 +58,7 @@ public final class ChoirRegistry {
         for (int i = 0; i < stemKeys.size(); i++) {
             String key = stemKeys.get(i);
             if (key == null || key.isEmpty()) return null;
-            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Reference.MOD_ID, key));
+            SoundEvent ev = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(Tags.MOD_ID, key));
             if (ev == null) return null;
             events[i] = ev;
         }

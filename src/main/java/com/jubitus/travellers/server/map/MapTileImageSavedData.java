@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.map;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MapTileImageSavedData extends WorldSavedData {
-    private static final String NAME = Reference.MOD_ID + "_map_tile_images";
+    private static final String NAME = Tags.MOD_ID + "_map_tile_images";
 
     // key(long packed tileX,tileZ) -> byte[4096] (64x64)
     private final Map<Long, byte[]> tiles = new HashMap<>();

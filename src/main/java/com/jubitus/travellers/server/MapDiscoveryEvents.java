@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server;
 
-import com.jubitus.travellers.Reference;
+import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.server.map.MapDiscoverySavedData;
 import com.jubitus.travellers.server.map.MapTileGenerator;
 import com.jubitus.travellers.server.map.MapTileImageSavedData;
@@ -14,7 +14,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
-@Mod.EventBusSubscriber(modid = Reference.MOD_ID)
+@Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public class MapDiscoveryEvents {
 
     private static final java.util.Map<java.util.UUID, Integer> DISCOVER_CD = new java.util.HashMap<>();
