@@ -10,34 +10,60 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Hard cap "how many attackers may hold the same target at once".
- * Works by reserving a slot per (target -> attacker) and expiring stale entries.
+ * Hard cap "how many melee attackers may hold the same target at once".
+ * Archers bypass this limit entirely — they don't compete for melee slots.
+ * The cap grows over time if the target is hard to kill (long fight, kills attackers).
  */
 public final class AttackTargetLimiter {
 
     private static final Map<UUID, TargetBucket> buckets = new HashMap<>();
     // ===== KNOBS =====
     public static int MAX_ATTACKERS_PER_TARGET = 4;
-    public static int STALE_TICKS = 20; // 2s
+    public static int STALE_TICKS = 20;
+
+    // Dynamic cap thresholds
+    private static final int AGE_BONUS_1_TICKS = 5 * 20;   // +1 after 5s
+    private static final int AGE_BONUS_2_TICKS = 15 * 20;  // +2 after 15s
+    private static final int MAX_DEATH_BONUS = 3;           // +1 per attacker killed, up to +3
 
     private AttackTargetLimiter() {
     }
 
     /**
-     * Priority helper. You can tweak this.
+     * Priority for melee slot competition. Archers never call this — they bypass.
      */
     public static int priorityFor(EntityLivingBase attacker) {
         if (attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
-
-            // Low health entities yield their slot to healthy ones
             if (t.isLowHealth()) return 0;
-
-            // "non-bow" workers should win the 8 slots
-            boolean bowUser = t.hasBowAnywherePublic() || t.isAimingBow();
-            return bowUser ? 1 : 2;
         }
-        return 0;
+        return 2;
+    }
+
+    /**
+     * Computes the effective attacker cap for a target, scaled by fight duration and danger.
+     * Returns MAX_ATTACKERS_PER_TARGET if the target has no bucket (fight just started).
+     */
+    public static int getEffectiveMax(EntityLivingBase target, long now) {
+        if (target == null) return MAX_ATTACKERS_PER_TARGET;
+        TargetBucket b = buckets.get(target.getUniqueID());
+        if (b == null) return MAX_ATTACKERS_PER_TARGET;
+        int cap = MAX_ATTACKERS_PER_TARGET;
+        long age = now - b.firstEngagedTick;
+        if (age >= AGE_BONUS_2_TICKS) cap += 4;
+        else if (age >= AGE_BONUS_1_TICKS) cap += 4;
+        cap += Math.min(MAX_DEATH_BONUS, b.attackerDeaths);
+        return cap;
+    }
+
+    /**
+     * Called when a traveller attacking this target dies.
+     * Signals that the target is dangerous and should allow more attackers.
+     */
+    public static void notifyAttackerDied(EntityLivingBase target) {
+        if (target == null) return;
+        TargetBucket b = buckets.get(target.getUniqueID());
+        if (b != null) b.attackerDeaths++;
     }
 
     /**
@@ -78,6 +104,7 @@ public final class AttackTargetLimiter {
         TargetBucket b = buckets.get(tid);
         if (b == null) {
             b = new TargetBucket();
+            b.firstEngagedTick = now;
             buckets.put(tid, b);
         }
 
@@ -191,6 +218,8 @@ public final class AttackTargetLimiter {
 
     private static final class TargetBucket {
         final Map<UUID, AttackEntry> attackers = new HashMap<>();
-        long lastPruneTick = Long.MIN_VALUE; // prune at most once per world tick
+        long lastPruneTick = Long.MIN_VALUE;
+        long firstEngagedTick = Long.MAX_VALUE;
+        int attackerDeaths = 0;
     }
 }

@@ -7,6 +7,7 @@ import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -14,6 +15,22 @@ import javax.annotation.Nullable;
 
 @Mod.EventBusSubscriber
 public class TravellerIgnoreHooks {
+
+    /**
+     * 0) Cancel damage entirely when a blacklisted mob (e.g. Creeper) is attacked by a Traveller.
+     * LivingAttackEvent fires before any processing — cancelling it prevents vanilla from setting
+     * revengeTarget, which would otherwise survive the onHurt/onUpdate clearing below.
+     */
+    @SubscribeEvent
+    public static void onAttack(LivingAttackEvent e) {
+        EntityLivingBase victim = e.getEntityLiving();
+        if (!(victim instanceof EntityLiving)) return;
+
+        Entity src = e.getSource().getTrueSource();
+        if (isTraveller(src) && isBlacklistedFor(victim, src)) {
+            e.setCanceled(true);
+        }
+    }
 
     /**
      * 1) If anything tries to set a target to a Traveller, clear it immediately.

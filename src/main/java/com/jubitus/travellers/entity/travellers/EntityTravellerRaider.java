@@ -57,11 +57,6 @@ public class EntityTravellerRaider extends EntityTraveller {
                 Math.max(0.28, TravellersModConfig.movementSpeed));
     }
 
-    @Override
-    protected SoundEvent getDeathSound() {
-        return SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
-    }
-
     private boolean isValidMonsterLight() {
         // mimic EntityMob#getCanSpawnHere light gating
         BlockPos p = new BlockPos(this.posX, this.getEntityBoundingBox().minY, this.posZ);
@@ -123,46 +118,33 @@ public class EntityTravellerRaider extends EntityTraveller {
                         .setBowRangeBonus(0.0) // keep attackTriggerRange strict
         );
 
-        // 4) Attack anything in RAIDER_ATTACK_LIST (villagers, golems, modded guards, etc.)
-        //    Skips scan when already engaged — attackEntityFrom handles in-combat target switching.
+        // 4) Attack nearest enemy — player, friendly traveller, or attack-list entity.
+        //    Single task so EntityAINearestAttackableTarget picks the closest one naturally,
+        //    with no priority bias between target types.
         this.targetTasks.addTask(
                 4,
                 new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(
                         this,
                         EntityLivingBase.class,
-                        10,    // tick rate (spread further by RaiderAttackTargetAI)
-                        true,  // mustCheckSight
-                        false, // nearbyOnly
+                        10,
+                        true,
+                        false,
                         e -> e != null
                                 && e.isEntityAlive()
                                 && !e.isInvisible()
                                 && !this.isIgnoring(e)
-                                && !(e instanceof EntityTraveller) // travellers handled by the task below
-                                && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
-                                && this.shouldAttackExtraEntity(e)
                                 && Math.abs(e.posY - this.posY) <= 5.0D
-                )
-        );
-
-        // 5) Explicitly target players (only when idle — attackEntityFrom handles in-combat retaliation)
-        this.targetTasks.addTask(5, new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(this, EntityPlayer.class, true));
-
-        // 6) Target friendly travellers (non-raiders) — skips when already engaged
-        this.targetTasks.addTask(
-                6,
-                new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(
-                        this,
-                        EntityTraveller.class,
-                        10,
-                        true,
-                        false,
-                        t -> t != null
-                                && t.isEntityAlive()
-                                && !t.isInvisible()
-                                && !this.isIgnoring(t)
-                                && t != this
-                                && this.isAggressiveToTravellers() != t.isAggressiveToTravellers()
-                                && Math.abs(t.posY - this.posY) <= 5.0D
+                                && (
+                                        (e instanceof EntityPlayer
+                                                && !((EntityPlayer) e).isCreative()
+                                                && !((EntityPlayer) e).isSpectator())
+                                        || (e instanceof EntityTraveller
+                                                && e != this
+                                                && this.isAggressiveToTravellers() != ((EntityTraveller) e).isAggressiveToTravellers())
+                                        || (!(e instanceof EntityTraveller)
+                                                && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
+                                                && this.shouldAttackExtraEntity(e))
+                                )
                 )
         );
 
@@ -468,6 +450,21 @@ public class EntityTravellerRaider extends EntityTraveller {
         return (v != null)
                 ? v.pickHurt(this.rand, SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT)
                 : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
+    }
+
+    @Override
+    protected String pickVoicePersonalityId(String cultureId) {
+        return CultureRegistry.pickRandomRaiderPersonalityId(cultureId, this.rand);
+    }
+
+    @Override
+    protected com.jubitus.travellers.entity.culture.VoiceSet resolveVoiceSetForAttack() {
+        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
+    }
+
+    @Override
+    protected com.jubitus.travellers.entity.culture.VoiceSet resolveVoiceSetForKillDeath() {
+        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
     }
 
     @Override

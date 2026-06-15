@@ -1,10 +1,11 @@
 package com.jubitus.travellers.client.gui.recruit;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
@@ -158,36 +159,14 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         if (mapController == null) return;
         mapController.panel.clearMarkers();
 
-        // POIs from GoList (villages + homes)
-        for (MsgWorkerGoList.Entry e : poiEntries) {
-            if (e.pos == null) continue;
-            if (e.kind == MsgWorkerGoList.Kind.VILLAGE)
-                mapController.panel.addMarker(WorldMapMarkerFactory.village(e.pos, e.label));
-            else
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label));
+        // Collect highlighted village positions from the recruit selection
+        java.util.Set<net.minecraft.util.math.BlockPos> highlighted = new java.util.HashSet<>();
+        for (int i : selected) {
+            if (i >= 0 && i < villages.size()) highlighted.add(villages.get(i).center);
         }
 
-        // Overlay: highlight checked villages from the recruit list
-        for (int i = 0; i < villages.size(); i++) {
-            if (selected.contains(i)) {
-                mapController.panel.addMarker(
-                        WorldMapMarkerFactory.villageHighlighted(villages.get(i).center, villages.get(i).display));
-            }
-        }
-
-        // Workers
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
-            if (e.pos == null) continue;
-            String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker";
-            if (e.isLeader)
-                mapController.panel.addMarker(WorldMapMarkerFactory.leader(e.pos, name, e.ownerColor));
-            else
-                mapController.panel.addMarker(WorldMapMarkerFactory.follower(e.pos, name, e.ownerColor));
-        }
-
-        // Player
-        mapController.panel.addMarker(WorldMapMarkerFactory.player(
-                player.getPosition(), player.getName(), playerOwnerColor));
+        WorldMapContentPopulator.populate(
+                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, highlighted);
     }
 
     // ── List helpers ──────────────────────────────────────────────────────────
@@ -329,7 +308,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
 
         // Map
         if (mapController != null) {
-            drawRect(mapX - 2, mapY - 2, mapX + mapW + 2, mapY + mapH + 2, 0x80000000);
+            TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
             rebuildMapMarkers();
             mapController.draw();
         }
@@ -348,11 +327,11 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
+        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
 
         int money = MillCommonUtilities.countMoney(player.inventory);
         String feeStr = MillCommonUtilities.getShortPrice(lastFee);
-        int col = money >= lastFee ? 0x00FF00 : 0xFF5555;
+        int col = money >= lastFee ? TravellersGuiTheme.COL_AFFORD : TravellersGuiTheme.COL_CANNOT;
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.recruit.fee", feeStr),
                 listX, listY - 10, col);
@@ -366,8 +345,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
                     && mouseY >= rowTop && mouseY < rowBottom;
             int globalIdx = scrollOffset + i;
             boolean isSel = selected.contains(globalIdx);
-            int bg = isSel ? 0x4033FF33 : (hovered ? 0x20FFFFFF : 0x20000000);
-            drawRect(listX, rowTop, listX + listW, rowBottom, bg);
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, isSel);
 
             VillageRow row = villages.get(globalIdx);
             float scale = 0.85F;
@@ -376,7 +354,8 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
             GlStateManager.pushMatrix();
             GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
             GlStateManager.scale(scale, scale, 1.0F);
-            this.fontRenderer.drawString((isSel ? "[X] " : "[ ] ") + label, 0, 0, 0xE0E0E0);
+            int textColor = hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
+            this.fontRenderer.drawString((isSel ? "[X] " : "[ ] ") + label, 0, 0, textColor);
             GlStateManager.popMatrix();
         }
     }

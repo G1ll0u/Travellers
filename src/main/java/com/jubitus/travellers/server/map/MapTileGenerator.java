@@ -10,6 +10,9 @@ import net.minecraft.world.World;
 public final class MapTileGenerator {
     private MapTileGenerator() {}
 
+    public static final int DETAIL_PX    = 256;
+    public static final int DETAIL_BYTES = DETAIL_PX * DETAIL_PX;
+
     public static byte[] buildTile64(World world, int tileX, int tileZ) {
         byte[] out = new byte[64 * 64]; // 0 = unknown
         fillMissingPixels(world, tileX, tileZ, out);
@@ -145,6 +148,64 @@ public final class MapTileGenerator {
 
         // IMPORTANT: tone must never be 0 for real terrain (0 is our "unknown" sentinel)
         return clamp(tone, 1, 255);
+    }
+
+    // ── Detail tile (256×256, 1 px = 1 block) ────────────────────────────────
+
+    public static boolean fillDetailMissingPixels(World world, int tileX, int tileZ, byte[] inout, int maxPixelsToFill) {
+        if (inout == null || inout.length != DETAIL_BYTES) return false;
+        if (maxPixelsToFill <= 0) return false;
+
+        final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
+        final int baseX = tileX * tileBlocks;
+        final int baseZ = tileZ * tileBlocks;
+
+        boolean changed = false;
+        int filledNow = 0;
+
+        for (int pz = 0; pz < DETAIL_PX; pz++) {
+            for (int px = 0; px < DETAIL_PX; px++) {
+                int idx = pz * DETAIL_PX + px;
+                if ((inout[idx] & 0xFF) != 0) continue;
+
+                int wx = baseX + px;
+                int wz = baseZ + pz;
+
+                if (!world.isBlockLoaded(new BlockPos(wx, 0, wz), false)) continue;
+
+                inout[idx] = (byte) (sampleTone(world, wx, wz, 1) & 0xFF);
+                changed = true;
+                if (++filledNow >= maxPixelsToFill) return true;
+            }
+        }
+        return changed;
+    }
+
+    public static int refreshDetailPixels(World world, int tileX, int tileZ, byte[] inout, int startPixel, int maxCount) {
+        if (inout == null || inout.length != DETAIL_BYTES) return 0;
+
+        final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
+        final int baseX = tileX * tileBlocks;
+        final int baseZ = tileZ * tileBlocks;
+
+        int changed = 0;
+        for (int i = 0; i < maxCount; i++) {
+            int idx = (startPixel + i) % DETAIL_BYTES;
+            int pz = idx / DETAIL_PX;
+            int px = idx % DETAIL_PX;
+
+            int wx = baseX + px;
+            int wz = baseZ + pz;
+
+            if (!world.isBlockLoaded(new BlockPos(wx, 0, wz), false)) continue;
+
+            int newTone = sampleTone(world, wx, wz, 1);
+            if ((inout[idx] & 0xFF) != newTone) {
+                inout[idx] = (byte) (newTone & 0xFF);
+                changed++;
+            }
+        }
+        return changed;
     }
 
     private static int clamp(int v, int lo, int hi) {

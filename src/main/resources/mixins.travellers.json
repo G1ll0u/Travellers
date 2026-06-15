@@ -8,11 +8,14 @@
   "mixins": [
     "MixinBuildingSafeBuyingPrice",
     "MixinBuildingResManagerAccessor",
+    "MixinBlockPathSlab",
     "MixinCultureInjectBarracks",
     "MixinVillageTypeInjectBarracks",
     "MixinMillVillagerFriendlyTraveller",
     "MixinSummon"
   ],
   "server": [],
-  "client": []
+  "client": [
+    "MixinMovingSourceLWJGL"
+  ]
 }

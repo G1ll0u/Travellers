@@ -62,9 +62,12 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
      */
     private int nextFollowTryTick = 0;
     /**
-     * Track whether we had a valid candidate last tick, to edge-trigger “meeting”.
+     * Track whether we had a valid candidate last search, to edge-trigger “meeting”.
      */
     private boolean hadCandidateLastTick = false;
+    // Throttle the AABB scan in shouldExecute() — running it every tick per entity is expensive.
+    private int nextSearchTick = 0;
+    private static final int SEARCH_THROTTLE_TICKS = 8;
 
     public EntityAIFollowTraveller(EntityTraveller mob, double angleAlignCos, double speed) {
         this.mob = mob;
@@ -91,6 +94,10 @@ public class EntityAIFollowTraveller extends net.minecraft.entity.ai.EntityAIBas
 
         // Cooldown: don't even look for a leader until it elapses
         if (mob.ticksExisted < nextFollowTryTick) return false;
+
+        // Throttle the AABB scan — no need to run every single tick
+        if (mob.ticksExisted < nextSearchTick) return false;
+        nextSearchTick = mob.ticksExisted + SEARCH_THROTTLE_TICKS;
 
         // Find best candidate (same as your code, minus the angle bug)
         EntityTraveller cand = null;

@@ -4,6 +4,8 @@ import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
 import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -43,40 +45,25 @@ public class MsgWorkerRequestHomeList implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().player;
 
             player.getServerWorld().addScheduledTask(() -> {
-                TravellerHomeManager mgr = TravellerHomeManager.get(player.world);
-
+                int responseId;
                 if (msg.workerId == -1) {
-                    // leader mode: skip entity validation, return player homes directly
-                    List<TravellerHomeManager.HomeChest> homes = new ArrayList<>(mgr.getHomesOfPlayerFull(player));
-                    if (TravellersModConfig.controlledVillageFeatureEnabled) {
-                        int dim = player.world.provider.getDimension();
-                        for (Building b : MillControlledVillageHelper.getBarracksInControlledVillages(player.world, player)) {
-                            BlockPos bPos = MillControlledVillageHelper.toBlockPos(b.getPos());
-                            String bName = b.location != null && b.location.getIBuildingPlan() != null
-                                    ? b.location.getIBuildingPlan().getNativeName() : "Barracks";
-                            homes.add(new TravellerHomeManager.HomeChest(bPos, dim, player.getUniqueID(), bName,
-                                    TravellerHomeManager.HomeType.BARRACKS));
-                        }
+                    responseId = -1;
+                } else {
+                    Entity e = player.world.getEntityByID(msg.workerId);
+                    if (!(e instanceof EntityTravellerWorker)) return;
+                    EntityTravellerWorker w = (EntityTravellerWorker) e;
+                    if (!w.isHiredFollower() || w.getFollowOwnerId() == null ||
+                            !w.getFollowOwnerId().equals(player.getUniqueID())) {
+                        return;
                     }
-                    TravellerFollowNet.CHANNEL.sendTo(new MsgWorkerHomeList(-1, homes), player);
-                    return;
+                    responseId = w.getEntityId();
                 }
 
-                Entity e = player.world.getEntityByID(msg.workerId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-                EntityTravellerWorker w = (EntityTravellerWorker) e;
+                List<TravellerHomeManager.HomeChest> homes = new ArrayList<>();
+                int dim = player.world.provider.getDimension();
 
-                // security: only owner can query homes for this worker
-                if (!w.isHiredFollower() || w.getFollowOwnerId() == null ||
-                        !w.getFollowOwnerId().equals(player.getUniqueID())) {
-                    return;
-                }
-
-                List<TravellerHomeManager.HomeChest> homes = new ArrayList<>(mgr.getHomesOfPlayerFull(player));
-
-                // Append barracks from controlled villages
+                // Millénaire barracks from controlled villages
                 if (TravellersModConfig.controlledVillageFeatureEnabled) {
-                    int dim = player.world.provider.getDimension();
                     for (Building b : MillControlledVillageHelper.getBarracksInControlledVillages(player.world, player)) {
                         BlockPos bPos = MillControlledVillageHelper.toBlockPos(b.getPos());
                         String bName = b.location != null && b.location.getIBuildingPlan() != null
@@ -86,7 +73,14 @@ public class MsgWorkerRequestHomeList implements IMessage {
                     }
                 }
 
-                TravellerFollowNet.CHANNEL.sendTo(new MsgWorkerHomeList(w.getEntityId(), homes), player);
+                // Lone barracks created by this player
+                LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
+                for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                    homes.add(new TravellerHomeManager.HomeChest(r.center, dim, player.getUniqueID(),
+                            r.name, TravellerHomeManager.HomeType.LONE_BARRACK));
+                }
+
+                TravellerFollowNet.CHANNEL.sendTo(new MsgWorkerHomeList(responseId, homes), player);
             });
 
             return null;

@@ -31,6 +31,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
     private float aiSpeedNow = -1f;
     private int repathCooldown = 0;
+    private boolean holdingPosition = false;
 
     public EntityAIAttackMeleeCustom(EntityCreature creature, double speedIn, boolean useLongMemory, double extraReach) {
         super(creature, speedIn, useLongMemory);
@@ -131,6 +132,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         this.attacker.setSprinting(false);
         aiSpeedNow = -1f;
         repathCooldown = 0;
+        holdingPosition = false;
     }
 
     @Override
@@ -141,45 +143,43 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             return;
         }
 
-        // Toujours regarder la cible proprement
         attacker.getLookHelper().setLookPositionWithEntity(tgt, 30.0F, 30.0F);
 
         double d2 = attacker.getDistanceSq(tgt);
-        double base = this.attacker
-                .getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                .getAttributeValue();
+        double base = attacker.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
 
-        boolean veryClose = isTouchingForMelee(tgt);
-        boolean closing = d2 > meleeHoldSq;
+        AxisAlignedBB bb = tgt.getEntityBoundingBox();
+        double gapXZSq = gapToAABB_XZ_Sq(attacker, bb);
+        double reachSq = getAttackReachSqr(tgt);
+        boolean inReach = gapXZSq <= reachSq;
+        boolean onCooldown = this.attackTick > 0;
 
-        // Repath agressif et régulier
-        if (--repathCooldown <= 0) {
-            repathCooldown = closing ? REPATH_INTERVAL_FAR : REPATH_INTERVAL_NEAR;
-            attacker.getNavigator().tryMoveToEntityLiving(tgt, 1.0D);
-        }
-
-        float desired;
-        if (closing) {
-            desired = (float) (base * CHASE_BOOST);
+        if (inReach && onCooldown) {
+            // Hold position during cooldown — mirrors player behavior between hits
+            if (!holdingPosition) {
+                attacker.getNavigator().clearPath();
+                holdingPosition = true;
+            }
+            if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
+            aiSpeedNow = lerp(aiSpeedNow, 0f, LERP);
+            attacker.setAIMoveSpeed(aiSpeedNow);
         } else {
-            // Même en “fight range”, on garde un peu de pression
-            desired = (float) (base * FIGHT_FACTOR);
+            holdingPosition = false;
+            // Closing in or ready to strike — approach target
+            if (--repathCooldown <= 0) {
+                repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
+                if (CombatPathScheduler.tryAcquire(attacker.world, attacker.getEntityId(), 1)) {
+                    attacker.getNavigator().tryMoveToEntityLiving(tgt, 1.0D);
+                }
+            }
+
+            float desired = inReach ? (float) (base * FIGHT_FACTOR) : (float) (base * CHASE_BOOST);
+            if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
+            aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
+            if (aiSpeedNow > 0.38f) aiSpeedNow = 0.38f;
+            attacker.setAIMoveSpeed(aiSpeedNow);
         }
 
-        if (veryClose) {
-            // Évite le stop complet au corps-à-corps
-            desired = Math.max(desired, (float) (base * 0.96D));
-        }
-
-        if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
-        aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
-
-        if (aiSpeedNow > 0.38f) aiSpeedNow = 0.38f;
-
-        this.attacker.setAIMoveSpeed(aiSpeedNow);
-//        this.attacker.setSprinting(closing);
-
-        // On n'appelle plus super.updateTask() pour éviter le comportement vanilla trop haché
         this.checkAndPerformAttack(tgt, d2);
     }
 
@@ -207,9 +207,6 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             this.attackTick = TravellerItemDamage.computeAttackCooldownTicks(attacker);
             this.attacker.swingArm(EnumHand.MAIN_HAND);
             this.attacker.attackEntityAsMob(target);
-
-            // On ne clear jamais le path ici
-            attacker.getNavigator().tryMoveToEntityLiving(target, 1.0D);
         }
     }
 

@@ -5,6 +5,7 @@ import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -18,6 +19,7 @@ public class MsgPlayTravellerVoice implements IMessage {
     public float vol;
     public float pitch;
     public int duration;
+    public double x, y, z; // fallback position when entity is no longer in world (e.g. death sound)
 
     public MsgPlayTravellerVoice() {
     }
@@ -28,6 +30,9 @@ public class MsgPlayTravellerVoice implements IMessage {
         this.vol = vol;
         this.pitch = pitch;
         this.duration = Math.max(1, durationTicks);
+        this.x = e.posX;
+        this.y = e.posY;
+        this.z = e.posZ;
     }
 
 
@@ -38,6 +43,9 @@ public class MsgPlayTravellerVoice implements IMessage {
         vol = buf.readFloat();
         pitch = buf.readFloat();
         duration = buf.readInt();
+        x = buf.readDouble();
+        y = buf.readDouble();
+        z = buf.readDouble();
     }
 
     @Override
@@ -47,6 +55,9 @@ public class MsgPlayTravellerVoice implements IMessage {
         buf.writeFloat(vol);
         buf.writeFloat(pitch);
         buf.writeInt(duration);
+        buf.writeDouble(x);
+        buf.writeDouble(y);
+        buf.writeDouble(z);
     }
 
     public static class Handler implements IMessageHandler<MsgPlayTravellerVoice, IMessage> {
@@ -56,12 +67,16 @@ public class MsgPlayTravellerVoice implements IMessage {
             mc.addScheduledTask(() -> {
                 World w = mc.world;
                 if (w == null) return;
-                Entity e = w.getEntityByID(msg.entityId);
-                if (!(e instanceof EntityTraveller)) return;
                 SoundEvent evt = ForgeRegistries.SOUND_EVENTS.getValue(new ResourceLocation(msg.soundKey));
                 if (evt == null) return;
-                boolean isChoir = msg.soundKey.contains(".choir.");
-                TravellerVoiceClientBus.play((EntityTraveller) e, evt, msg.vol, msg.pitch, isChoir);
+                Entity e = w.getEntityByID(msg.entityId);
+                if (e instanceof EntityTraveller) {
+                    boolean isChoir = msg.soundKey.contains(".choir.");
+                    TravellerVoiceClientBus.play((EntityTraveller) e, evt, msg.vol, msg.pitch, isChoir);
+                } else {
+                    // Entity already removed (e.g. death) — play at the last known position.
+                    w.playSound(null, msg.x, msg.y, msg.z, evt, SoundCategory.NEUTRAL, msg.vol, msg.pitch);
+                }
             });
 
             return null;

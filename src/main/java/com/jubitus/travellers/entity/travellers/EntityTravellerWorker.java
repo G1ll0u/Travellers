@@ -100,7 +100,10 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     // --- escort leader watchdog ---
     private int escortLeaderCheckCooldown = 0;
-    private int virtualLeaderRepathCooldown = 0;
+    // -1 = uninitialised; set to entity-ID-based phase offset on first tick to spread load across ticks
+    private int virtualLeaderRepathCooldown = -1;
+    private double virtualLeaderLastTargetX = Double.NaN;
+    private double virtualLeaderLastTargetZ = Double.NaN;
 
     private static final int MIN_REP_TO_TRADE = -1024;
     // --- anchor guard tuning ---
@@ -778,6 +781,51 @@ public class EntityTravellerWorker extends EntityTraveller {
         stopCatchupTravel();
     }
 
+    // Called when the entity is detected inside an opaque block, before vanilla suffocation damage.
+    // Searches nearby for the nearest safe floor (same column first, then adjacent) and teleports there.
+    private void escapeFromSolid() {
+        int bx = MathHelper.floor(posX);
+        int bz = MathHelper.floor(posZ);
+        int startY = MathHelper.floor(posY);
+        int maxY = world.getActualHeight() - 3;
+
+        int[][] cols = {{0,0},{1,0},{-1,0},{0,1},{0,-1},{1,1},{-1,1},{1,-1},{-1,-1}};
+        for (int[] col : cols) {
+            int ex = bx + col[0];
+            int ez = bz + col[1];
+            for (int offset = 0; offset <= 8; offset++) {
+                int yDown = startY - offset;
+                if (yDown >= 1) {
+                    BlockPos floor = new BlockPos(ex, yDown, ez);
+                    IBlockState st = world.getBlockState(floor);
+                    if (!st.getBlock().isAir(st, world, floor)) {
+                        IBlockState s1 = world.getBlockState(floor.up());
+                        IBlockState s2 = world.getBlockState(floor.up(2));
+                        if (s1.getBlock().isAir(s1, world, floor.up()) && s2.getBlock().isAir(s2, world, floor.up(2))) {
+                            setPosition(ex + 0.5, yDown + 1.0, ez + 0.5);
+                            return;
+                        }
+                    }
+                }
+                if (offset > 0) {
+                    int yUp = startY + offset;
+                    if (yUp <= maxY) {
+                        BlockPos floor = new BlockPos(ex, yUp, ez);
+                        IBlockState st = world.getBlockState(floor);
+                        if (!st.getBlock().isAir(st, world, floor)) {
+                            IBlockState s1 = world.getBlockState(floor.up());
+                            IBlockState s2 = world.getBlockState(floor.up(2));
+                            if (s1.getBlock().isAir(s1, world, floor.up()) && s2.getBlock().isAir(s2, world, floor.up(2))) {
+                                setPosition(ex + 0.5, yUp + 1.0, ez + 0.5);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public void setHostile(UUID target, boolean hostile) {
         playerHostility.setHostile(target, hostile);
     }
@@ -934,6 +982,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Override
     public void onLivingUpdate() {
+        if (!world.isRemote && isEntityInsideOpaqueBlock()) {
+            escapeFromSolid();
+        }
         super.onLivingUpdate();
 
         // Choir freeze: skip ALL worker navigation/movement logic.
@@ -3518,8 +3569,12 @@ public class EntityTravellerWorker extends EntityTraveller {
                         .get((net.minecraft.world.WorldServer) world);
         if (!vwm.isVirtual(leaderId)) return;
 
+        // Stagger initial cooldown by entity ID so workers don't all repath on the same tick.
+        if (virtualLeaderRepathCooldown < 0) {
+            virtualLeaderRepathCooldown = Math.floorMod(getEntityId(), 40);
+        }
         if (--virtualLeaderRepathCooldown > 0) return;
-        virtualLeaderRepathCooldown = 20;
+        virtualLeaderRepathCooldown = 40;
 
         net.minecraft.util.math.BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
         if (leaderPos == null) return;
@@ -3537,6 +3592,17 @@ public class EntityTravellerWorker extends EntityTraveller {
         double targetX = dist <= navCap ? leaderPos.getX() + 0.5 : posX + (dx / dist) * navCap;
         double targetZ = dist <= navCap ? leaderPos.getZ() + 0.5 : posZ + (dz / dist) * navCap;
 
+        // Skip pathfinding if the current path is still valid and the target hasn't shifted
+        // enough to justify a new A* search. Virtual leaders move slowly, so the existing
+        // path stays relevant for several seconds at a time.
+        if (!getNavigator().noPath() && !Double.isNaN(virtualLeaderLastTargetX)) {
+            double shiftX = targetX - virtualLeaderLastTargetX;
+            double shiftZ = targetZ - virtualLeaderLastTargetZ;
+            if (shiftX * shiftX + shiftZ * shiftZ < 5.0 * 5.0) return;
+        }
+
+        virtualLeaderLastTargetX = targetX;
+        virtualLeaderLastTargetZ = targetZ;
         getNavigator().tryMoveToXYZ(targetX, leaderPos.getY(), targetZ, TravellersModConfig.movementSpeedWhileFollowing);
     }
 

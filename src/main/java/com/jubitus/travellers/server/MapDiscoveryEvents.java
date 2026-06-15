@@ -20,18 +20,24 @@ public class MapDiscoveryEvents {
     private static final java.util.Map<java.util.UUID, Integer> DISCOVER_CD = new java.util.HashMap<>();
     private static final java.util.Map<java.util.UUID, Integer> GEN_CD = new java.util.HashMap<>();
     private static final java.util.Map<java.util.UUID, Integer> REFRESH_CD = new java.util.HashMap<>();
+    private static final java.util.Map<java.util.UUID, Integer> DETAIL_GEN_CD = new java.util.HashMap<>();
+    private static final java.util.Map<java.util.UUID, Integer> DETAIL_REFRESH_CD = new java.util.HashMap<>();
 
-    // Per-tile pixel cursor so refresh cycles through all 4096 pixels over time.
     private static final java.util.Map<Long, Integer> PIXEL_CURSOR = new java.util.HashMap<>();
+    private static final java.util.Map<Long, Integer> DETAIL_PIXEL_CURSOR = new java.util.HashMap<>();
 
-    private static final int DISCOVER_EVERY_TICKS = 5;   // 0.25s
-    private static final int GEN_EVERY_TICKS      = 20;  // 1.0s
-    // Refresh: every 0.5s, 512 px/tile, 3x3 tiles → full tile cycle ≈ 4s.
-    // Most pixels are skipped (chunk not loaded) so actual cost is minimal.
-    private static final int REFRESH_EVERY_TICKS  = 10;
+    private static final int DISCOVER_EVERY_TICKS    = 5;   // 0.25s — not exposed, always fast
     private static final int REFRESH_PIXELS_PER_TILE = 512;
-    // Only refresh tiles that are mostly generated (avoids wasting budget on sparse tiles)
-    private static final int REFRESH_MIN_FILLED   = 512;
+    private static final int REFRESH_MIN_FILLED      = 512;
+    private static final int DETAIL_MIN_NORMAL_FILLED = 32;
+
+    // Intervals and budgets read from config each cycle so changes apply immediately in-game
+    private static int genEveryTicks()           { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapTileGenIntervalTicks; }
+    private static int refreshEveryTicks()       { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapTileRefreshIntervalTicks; }
+    private static int detailGenEveryTicks()     { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailGenIntervalTicks; }
+    private static int detailGenPixels()         { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailGenPixelsPerRun; }
+    private static int detailRefreshEveryTicks() { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailRefreshIntervalTicks; }
+    private static int detailRefreshPixels()     { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailRefreshPixelsPerRun; }
 
     // Radii are derived from server view distance at runtime — see viewRadiusTiles().
 
@@ -61,6 +67,7 @@ public class MapDiscoveryEvents {
         MapDiscoverySavedData saved = MapDiscoverySavedData.get(world);
         java.util.Set<Long> discovered = saved.getTiles(id);
         MapTileImageSavedData img = MapTileImageSavedData.get(world);
+        com.jubitus.travellers.server.map.MapDetailTileImageSavedData detail = com.jubitus.travellers.server.map.MapDetailTileImageSavedData.get(world);
 
         // 1) Discovery (tile-radius)
         if (DISCOVER_CD.getOrDefault(id, 0) <= 0) {
@@ -122,7 +129,7 @@ public class MapDiscoveryEvents {
                 }
             }
 
-            GEN_CD.put(id, GEN_EVERY_TICKS);
+            GEN_CD.put(id, genEveryTicks());
         }
 
         // 3) Progressive tile refresh — re-samples already-generated pixels so new
@@ -150,7 +157,64 @@ public class MapDiscoveryEvents {
                     }
                 }
             }
-            REFRESH_CD.put(id, REFRESH_EVERY_TICKS);
+            REFRESH_CD.put(id, refreshEveryTicks());
+        }
+
+        // 4) Progressive detail tile generation (1 px = 1 bloc).
+        //    Runs only when chunks are already loaded — never forces a load.
+        tickDown(DETAIL_GEN_CD, id);
+        if (DETAIL_GEN_CD.getOrDefault(id, 0) <= 0) {
+            for (int dz = -tileRadius; dz <= tileRadius; dz++) {
+                for (int dx = -tileRadius; dx <= tileRadius; dx++) {
+                    int tx = playerTileX + dx;
+                    int tz = playerTileZ + dz;
+                    long key = pack(tx, tz);
+
+                    if (!discovered.contains(key)) continue;
+
+                    // Only generate detail once the normal tile has some content
+                    byte[] normalData = img.get(key);
+                    if (normalData == null || countNonZero(normalData) < DETAIL_MIN_NORMAL_FILLED) continue;
+
+                    byte[] data = detail.get(key);
+                    boolean had = (data != null && data.length == MapTileGenerator.DETAIL_BYTES);
+                    if (!had) data = new byte[MapTileGenerator.DETAIL_BYTES];
+
+                    boolean changed = MapTileGenerator.fillDetailMissingPixels(world, tx, tz, data, detailGenPixels());
+                    if (changed) {
+                        detail.put(key, data);
+                    }
+                }
+            }
+            DETAIL_GEN_CD.put(id, detailGenEveryTicks());
+        }
+
+        // 5) Detail tile refresh — re-samples existing detail pixels on re-visit so terrain
+        //    changes appear the next time the player is nearby with chunks loaded.
+        tickDown(DETAIL_REFRESH_CD, id);
+        if (DETAIL_REFRESH_CD.getOrDefault(id, 0) <= 0) {
+            for (int dz = -tileRadius; dz <= tileRadius; dz++) {
+                for (int dx = -tileRadius; dx <= tileRadius; dx++) {
+                    int tx = playerTileX + dx;
+                    int tz = playerTileZ + dz;
+                    long key = pack(tx, tz);
+
+                    if (!discovered.contains(key)) continue;
+
+                    byte[] data = detail.get(key);
+                    if (data == null || data.length != MapTileGenerator.DETAIL_BYTES) continue;
+
+                    int cursor = DETAIL_PIXEL_CURSOR.getOrDefault(key, 0);
+                    int px = detailRefreshPixels();
+                    int changed = MapTileGenerator.refreshDetailPixels(world, tx, tz, data, cursor, px);
+                    DETAIL_PIXEL_CURSOR.put(key, (cursor + px) % MapTileGenerator.DETAIL_BYTES);
+
+                    if (changed > 0) {
+                        detail.put(key, data);
+                    }
+                }
+            }
+            DETAIL_REFRESH_CD.put(id, detailRefreshEveryTicks());
         }
     }
 

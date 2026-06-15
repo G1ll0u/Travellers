@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.bahavior.relations;
 
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
@@ -263,13 +264,11 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
 
-        drawRect(this.guiLeft, this.guiTop, this.guiLeft + this.xSize, this.guiTop + this.ySize, 0xCC000000);
-        drawRect(this.guiLeft + 2, this.guiTop + 2, this.guiLeft + this.xSize - 2, this.guiTop + this.ySize - 2, 0xFF202020);
+        TravellersGuiTheme.drawPanel(this.guiLeft, this.guiTop, this.xSize, this.ySize);
 
         // Map
         if (mapController != null) {
-            drawRect(mapController.mapX - 2, mapController.mapY - 2,
-                     mapController.mapX + MAP_W + 2, mapController.mapY + ySize + 2, 0x80000000);
+            TravellersGuiTheme.drawMapFrame(mapController.mapX, mapController.mapY, MAP_W, ySize);
             rebuildMapMarkers();
             mapController.draw();
         }

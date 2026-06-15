@@ -11,6 +11,7 @@ public final class TravellersGuiIds {
 
     public static final int HOME_NAME_PROMPT = 20;
     public static final int WORKER_HOME_LIST = 21;
+    public static final int LONE_BARRACK_PROMPT = 30;
     public static final int WORKER_GO = 435;
     public static final int WORKER_VILLAGE_RELATIONS = 55;
 

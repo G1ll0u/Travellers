@@ -67,13 +67,13 @@ travellers.worker.village_relations.toggle_enemy=Toggle enemy
 travellers.home_name_prompt.title=Name of your home
 travellers.home_name_prompt.subtitle=You can assign it to hired workers and send them here, more to come.
 
-travellers.worker.home_list.title=Homes
-travellers.worker.home_list.set_home=Set home
+travellers.worker.home_list.title=Barracks
+travellers.worker.home_list.set_home=Set Barrack
 
 travellers.worker.orders.go=Go...
-travellers.worker.orders.home=Homes
-travellers.worker.orders.go_home=Go home
-travellers.worker.orders.go_home_no_home=Go home (no home)
+travellers.worker.orders.home=Barracks
+travellers.worker.orders.go_home=Go to barrack
+travellers.worker.orders.go_home_no_home=Go to barrack (none)
 travellers.worker.orders.leader_count=Leader (%s)
 travellers.worker.orders.choir_start=Sing a Song
 travellers.worker.orders.choir_stop=Stop Singing
@@ -82,7 +82,7 @@ travellers.worker.recruit.start=Recruit
 travellers.worker.recruit.fee=Fee: %s
 travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
 
-travellers.worker.home_list.empty=You have no homes looser
+travellers.worker.home_list.empty=No barracks assigned.
 
 travellers.worker.hub.formation=Formations
 
@@ -147,7 +147,7 @@ travellers.worker.formation.come_back=Come Back
 travellers.worker.formation.merge=Merge with...
 travellers.worker.formation.merge_cancel=Cancel Merge
 travellers.worker.formation.merge_hint=Click a group to merge into
-travellers.worker.formation.set_home=Homes
+travellers.worker.formation.set_home=Barracks
 
 travellers.worker.home_list.delete=Delete
 travellers.worker.home_list.get_equip=Get Equipment
@@ -160,3 +160,23 @@ travellers.worker.home_list.equip_return_village=Come Back - Whole Village
 key.travellers.formation_hub=Open Formation Hub
 key.travellers.world_map=Open World Map
 key.categories.travellers=Travellers
+
+# Lone Barrack
+travellers.lone_barrack.prompt.title=New Lone Barrack
+travellers.lone_barrack.prompt.name=Name:
+travellers.lone_barrack.prompt.half_width=width
+travellers.lone_barrack.prompt.half_depth=depth
+travellers.lone_barrack.prompt.half_height=height
+travellers.lone_barrack.prompt.validate=Create Barrack
+travellers.lone_barrack.error.no_coffers=No chests found in the area. Place at least one chest in the radius.
+travellers.lone_barrack.error.overlaps=This area overlaps an existing lone barrack.
+travellers.lone_barrack.error.in_village=You are trying to create a Lone Barrack inside a village. If you own this village, use the normal Millenaire building menu and select 'Workers Barracks'.
+travellers.lone_barrack.created=Lone Barrack created!
+
+# Map legend
+travellers.map.legend.village=Village
+travellers.map.legend.controlled_village=Ctrl. Village
+travellers.map.legend.home=Barrack
+travellers.map.legend.follower=Follower
+travellers.map.legend.leader=Leader
+travellers.map.legend.player=You

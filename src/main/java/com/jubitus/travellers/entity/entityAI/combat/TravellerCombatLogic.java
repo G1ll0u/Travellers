@@ -116,10 +116,14 @@ public class TravellerCombatLogic {
 
     /**
      * True when the attack-target limiter should be bypassed for this target.
-     * Handles close-range emergency, active retaliation and revenge scenarios.
+     * Archers always bypass — they don't occupy melee slots.
+     * Also handles close-range emergency, active retaliation and revenge.
      */
     public boolean shouldBypassAttackTargetLimiter(@Nullable EntityLivingBase e) {
         if (e == null || !e.isEntityAlive()) return false;
+
+        // Archers bypass entirely — ranged attacks don't clog melee slots
+        if (entity.hasBowAnywherePublic() || entity.isAimingBow()) return true;
 
         final double emergSq = EntityTraveller.EMERGENCY_ENGAGE_RANGE * EntityTraveller.EMERGENCY_ENGAGE_RANGE;
         if (entity.getAttackTarget() == null && entity.getDistanceSq(e) <= emergSq) return true;

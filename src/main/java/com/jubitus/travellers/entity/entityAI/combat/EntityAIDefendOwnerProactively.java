@@ -64,6 +64,12 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
         if (list.isEmpty()) return false;
 
+        // Sort by distance to owner and cap candidates before doing LOS raycasts
+        if (list.size() > 12) {
+            list.sort((a, b) -> Double.compare(owner.getDistanceSq(a), owner.getDistanceSq(b)));
+            list = list.subList(0, 12);
+        }
+
         EntityLivingBase best = null;
         double bestScore = Double.POSITIVE_INFINITY;
 
@@ -72,6 +78,14 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
                 if (e instanceof EntityPlayer && !worker.isEnemyPlayer((EntityPlayer) e)) continue;
                 if (e instanceof EntityTravellerWorker && !worker.isEnemyHiredWorker((EntityTravellerWorker) e)) continue;
             }
+
+            // Skip enemies in caves above/below (adjacent cave problem)
+            double dy = e.posY - owner.posY;
+            if (Math.abs(dy) > 5.0D) continue;
+
+            // Require either the worker or the owner to have line of sight
+            boolean canSee = worker.getEntitySenses().canSee(e);
+            if (!canSee) continue;
 
             // Is this entity actively threatening the owner or leader?
             boolean threateningLeadership = false;

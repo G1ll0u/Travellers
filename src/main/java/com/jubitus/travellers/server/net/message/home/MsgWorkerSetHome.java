@@ -3,6 +3,8 @@ package com.jubitus.travellers.server.net.message.home;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
 import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -61,6 +63,8 @@ public class MsgWorkerSetHome implements IMessage {
 
                 if (homeType == TravellerHomeManager.HomeType.BARRACKS) {
                     handleBarracksHome(msg, player, w);
+                } else if (homeType == TravellerHomeManager.HomeType.LONE_BARRACK) {
+                    handleLoneBarrackHome(msg, player, w);
                 } else {
                     handleChestHome(msg, player, w);
                 }
@@ -109,6 +113,28 @@ public class MsgWorkerSetHome implements IMessage {
 
             TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
             player.sendMessage(new TextComponentString(TextFormatting.GREEN + "Barracks assigned: " + name));
+        }
+
+        private void handleLoneBarrackHome(MsgWorkerSetHome msg, EntityPlayerMP player, EntityTravellerWorker w) {
+            LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
+            LoneBarrackRecord found = null;
+            for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                if (msg.pos.equals(r.center)) {
+                    found = r;
+                    break;
+                }
+            }
+            if (found == null) {
+                player.sendMessage(new TextComponentString(TextFormatting.RED + "Lone barrack not found."));
+                return;
+            }
+
+            lbMgr.refreshCoffers(player.world, player.getUniqueID(), found.center);
+            int dim = player.world.provider.getDimension();
+            w.setAssignedHome(found.center, dim, found.name, TravellerHomeManager.HomeType.LONE_BARRACK);
+
+            TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
+            player.sendMessage(new TextComponentString(TextFormatting.GREEN + "Lone Barrack assigned: " + found.name));
         }
     }
 }

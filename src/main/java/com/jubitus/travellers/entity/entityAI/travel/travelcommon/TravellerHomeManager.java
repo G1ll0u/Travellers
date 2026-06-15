@@ -222,8 +222,9 @@ public class TravellerHomeManager extends WorldSavedData {
     }
 
     public enum HomeType {
-        CHEST,    // player-registered chest (default)
-        BARRACKS; // Millenaire custom barracks building
+        CHEST,       // legacy: player-registered chest (no longer created, kept for old saves)
+        BARRACKS,    // Millenaire custom barracks building
+        LONE_BARRACK; // player-created standalone barrack
 
         public static HomeType fromOrdinal(int o) {
             HomeType[] values = values();

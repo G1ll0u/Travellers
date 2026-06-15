@@ -22,15 +22,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
 
     private static final ResourceLocation PATH_DIRT_ID = new ResourceLocation("millenaire", "pathdirt");
-    // How far the landing can be (2 = jump over 1-block gap, 3 = over 2-block gap, 4 = over 3-block gap)
-// How far the landing can be (2 = jump over 1-block gap, 3 = over 2-block gap, 4 = over 3-block gap)
-    private static final int MAX_JUMP_LAND_DIST = 4; // change to 3 if you want to be safer
-    private static final int MAX_JUMP_UP = 1;              // can jump up 1 block
-    private static final int MAX_JUMP_DOWN_SOLID = 2;      // allow drop-jumps down onto solid
-    private static final int MAX_JUMP_DOWN_WATER = 24;      // allow bigger drops if landing is water
-    private static final int MAX_WATER_JUMP_DIST = 3;
-    private static final int MAX_DROP_SOLID = 8;   // tune 4..12
-    private static final int MAX_DROP_WATER = 16;  // keep big for water shafts
+
     @Nullable
     private Block pathDirt;
     @Nullable
@@ -56,13 +48,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     @Override
     public int findPathOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
         int count = super.findPathOptions(options, current, target, maxDistance);
-        if (!followerMode) {
-        } else {
-            // Optional: allow a *small* version for followers (cheap)
-            count = addGapJumpNeighborsFollowerCheap(options, count, current, target, maxDistance);
-            count = addDropDownNeighborsFollowerCheap(options, count, current, target, maxDistance);
-        }
-
         for (int i = 0; i < count; i++) {
             PathPoint p = options[i];
             if (p == null) continue;
@@ -188,19 +173,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         return w;
     }
 
-    private int addGapJumpNeighborsFollowerCheap(PathPoint[] options, int count,
-                                                 PathPoint current, PathPoint target, float maxDistance) {
-        // Followers: disable long jump expansion entirely.
-        // Let local follow recovery / teleport deal with hard cases.
-        return count;
-    }
-
-    private int addDropDownNeighborsFollowerCheap(PathPoint[] options, int count,
-                                                  PathPoint current, PathPoint target, float maxDistance) {
-        // Followers: disable drop-search expansion entirely.
-        return count;
-    }
-
     private double surfaceYForNode(int x, int y, int z) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         double best = y;
@@ -266,44 +238,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         return false;
     }
 
-    // Corridor check (mid-air cells) for feet+head at y=current.y only.
-// This is what your canGapJump() was doing repeatedly.
-    private boolean corridorAllowsGapJump(int sx, int sy, int sz, int dx, int dz, int dist) {
-        boolean sawGapOrHazard = false;
-
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-
-        for (int i = 1; i < dist; i++) {
-            int x = sx + dx * i;
-            int z = sz + dz * i;
-
-            // feet must be air-like
-            pos.setPos(x, sy, z);
-            if (!isAirLike(pos)) return false;
-
-            // head must be air-like
-            pos.setPos(x, sy + 1, z);
-            if (!isAirLike(pos)) return false;
-
-            // below must contain a hazard/gap somewhere along the corridor
-            pos.setPos(x, sy - 1, z);
-            if (isGapOrHazardBelow(pos)) {
-                sawGapOrHazard = true;
-            }
-        }
-
-        return sawGapOrHazard;
-    }
-
-    private boolean isTwoHighWalkable(int x, int y, int z) {
-        PathNodeType feet = this.getPathNodeType(this.blockaccess, x, y, z);
-        PathNodeType head = this.getPathNodeType(this.blockaccess, x, y + 1, z);
-
-        if (!(feet == PathNodeType.WALKABLE)) return false;
-// head must be open-ish
-        return (head == PathNodeType.OPEN || head == PathNodeType.WALKABLE);
-    }
-
     private boolean isGapOrHazardBelow(BlockPos below1) {
         IBlockState s1 = this.blockaccess.getBlockState(below1);
         Material m1 = s1.getMaterial();
@@ -323,50 +257,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         if (m2 == Material.WATER) return true;
 
         return s2.getCollisionBoundingBox(this.blockaccess, below2) == null;
-    }
-
-    // Scan down for the first water block that satisfies isWaterLandingOk.
-// Returns Integer.MIN_VALUE if none found.
-    private int findFirstWaterLandingY(int x, int startY, int z, int minY) {
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-
-        for (int y = startY; y >= minY; y--) {
-            // must be water at feet
-            if (!isWaterBlock(x, y, z)) continue;
-
-            if (isWaterLandingOk(x, y, z)) {
-                return y;
-            }
-        }
-
-        return Integer.MIN_VALUE;
-    }
-
-    private boolean isAirLike(BlockPos p) {
-        IBlockState s = this.blockaccess.getBlockState(p);
-
-        // NEW: liquids are NEVER air-like (water has null collision box, so we must special-case it)
-        if (s.getMaterial().isLiquid()) return false;
-
-        // passable if replaceable OR no collision box
-        return s.getMaterial().isReplaceable() || s.getCollisionBoundingBox(this.blockaccess, p) == null;
-    }
-
-    private boolean isWaterBlock(int x, int y, int z) {
-        IBlockState s = this.blockaccess.getBlockState(new BlockPos(x, y, z));
-        return s.getMaterial() == Material.WATER;
-    }
-
-    private boolean isWaterLandingOk(int x, int y, int z) {
-        BlockPos feet = new BlockPos(x, y, z);
-        IBlockState sf = this.blockaccess.getBlockState(feet);
-        if (sf.getMaterial() != Material.WATER) return false;
-
-        // Don’t “land” in water with a solid block immediately above (bonks look bad)
-        BlockPos head = feet.up();
-        IBlockState sh = this.blockaccess.getBlockState(head);
-        return sh.getMaterial().isReplaceable() || sh.getCollisionBoundingBox(this.blockaccess, head) == null;
-
     }
 
     @Override

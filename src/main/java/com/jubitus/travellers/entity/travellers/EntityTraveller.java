@@ -182,6 +182,13 @@ public class EntityTraveller extends EntityCreature {
     // --- Voice channel ---
     private int voiceLockUntilTick = 0;     // no new sounds until this tick (entity-local, server authoritative)
     private VoiceKind voiceKindNow = VoiceKind.NONE;
+    private int attackVoiceCooldownUntilTick = 0;
+    private int killVoiceCooldownUntilTick = 0;
+    private int hurtSoundCooldownUntilTick = 0;
+    // One shout per 64-block zone per cooldown window: dim*large_prime ^ zx ^ zz -> world time of last shout
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> ATTACK_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> KILL_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> DEATH_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean choirSinging = false;   // managed by ChoirCoordinator, server-side only
     private int nearUnloadTicks = 0; // counts consecutive "at the edge" seconds
     private int travelTorchCooldown = 0;
@@ -216,7 +223,7 @@ public class EntityTraveller extends EntityCreature {
         this.setCanPickUpLoot(true);
         this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
         this.setLeftHanded(false);
-        this.stepHeight = 1.41F;
+        this.stepHeight = 1.2F;
 
     }
 
@@ -645,7 +652,7 @@ public class EntityTraveller extends EntityCreature {
         this.tasks.addTask(3, aiRanged);
 
 
-        aiMelee = new EntityAIAttackMeleeCustom(this, TravellersModConfig.attackMovementSpeed, true, 1);
+        aiMelee = new EntityAIAttackMeleeCustom(this, TravellersModConfig.attackMovementSpeed, true, 0.30);
         this.tasks.addTask(4, aiMelee);
 
         aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true);
@@ -784,6 +791,13 @@ public class EntityTraveller extends EntityCreature {
             rejectTarget();
             return;
         }
+        if (!this.isAggressiveToTravellers() && target instanceof net.minecraft.entity.IEntityOwnable) {
+            net.minecraft.entity.IEntityOwnable ownable = (net.minecraft.entity.IEntityOwnable) target;
+            if (ownable.getOwner() instanceof EntityPlayer) {
+                rejectTarget();
+                return;
+            }
+        }
         if (target instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) target;
 
@@ -821,23 +835,28 @@ public class EntityTraveller extends EntityCreature {
                 // ignore the limiter and allow engagement.
                 boolean bypass = shouldBypassAttackTargetLimiter(target);
 
+                int prio = AttackTargetLimiter.priorityFor(this);
                 if (!bypass) {
-                    int prio = AttackTargetLimiter.priorityFor(this);
+                    int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
                     int effectiveMax = (this instanceof EntityTravellerWorker)
-                            ? Math.max(2, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
-                            : AttackTargetLimiter.MAX_ATTACKERS_PER_TARGET;
+                            ? Math.max(dynamicMax, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
+                            : dynamicMax;
 
                     if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
-                        // Too many attackers already.
-                        ignoreTarget(target, 40);
-
-                        // OPTIONAL: watch instead of ignore (next section)
+                        ignoreTarget(target, 30);
                         startWatchingFight(target, 60);
-
                         if (this.getRevengeTarget() == target) this.setRevengeTarget(null);
                         setInCombat(false);
                         getNavigator().clearPath();
                         return;
+                    }
+                } else {
+                    // Bypass (revenge / emergency): register an unlimited slot so keepAlive
+                    // won't evict this entity on the next tick.
+                    // Archers skip keepAlive entirely, so no slot needed for them.
+                    boolean isArcher = this.hasBowAnywherePublic() || this.isAimingBow();
+                    if (!isArcher) {
+                        AttackTargetLimiter.tryJoin(this, target, prio, Integer.MAX_VALUE);
                     }
                 }
             }
@@ -853,6 +872,11 @@ public class EntityTraveller extends EntityCreature {
                 combat.lastLOSorCloseTick = this.ticksExisted; // we just “saw” them
             } else if (target == null) {
                 combat.resetChaseMemory();
+            }
+
+            // Play attack shout when freshly engaging a target
+            if (target != null && prev == null) {
+                tryPlayAttackSound();
             }
         }
     }
@@ -914,18 +938,21 @@ public class EntityTraveller extends EntityCreature {
             voiceKindNow = VoiceKind.NONE;
         }
         if (!world.isRemote) {
-            // --- NEW: keep our target reservation alive while fighting ---
             EntityLivingBase at = this.getAttackTarget();
             if (at != null && at.isEntityAlive()) {
-                int prio = AttackTargetLimiter.priorityFor(this);
-                boolean ok = AttackTargetLimiter.keepAlive(this, at, prio);
+                // Archers bypass the limiter — no slot to maintain
+                if (!shouldBypassAttackTargetLimiter(at)) {
+                    int prio = AttackTargetLimiter.priorityFor(this);
+                    boolean ok = AttackTargetLimiter.keepAlive(this, at, prio);
 
-                if (!ok) {
-                    // Lost our reservation -> stop dogpiling, but don't brain-dead idle
-                    this.setAttackTarget(null);
-                    this.setInCombat(false);
-                    this.getNavigator().clearPath();
-                    this.setSprinting(false);
+                    if (!ok) {
+                        // Evicted from the slot — back off briefly so we don't frantic-retry every tick
+                        ignoreTarget(at, 30);
+                        this.setAttackTarget(null);
+                        this.setInCombat(false);
+                        this.getNavigator().clearPath();
+                        this.setSprinting(false);
+                    }
                 }
             }
 
@@ -1635,6 +1662,112 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
     }
 
+    void tryPlayAttackSound() {
+        if (!TravellersModConfig.attackSoundEnabled) return;
+        if (world.isRemote) return;
+        if (ticksExisted < attackVoiceCooldownUntilTick) return;
+        if (voiceKindNow == VoiceKind.HURT && ticksExisted < voiceLockUntilTick) return;
+
+        long worldTime = world.getTotalWorldTime();
+        long zoneKey = attackZoneKey();
+        Long lastZone = ATTACK_ZONE_COOLDOWN.get(zoneKey);
+        if (lastZone != null && worldTime - lastZone < TravellersModConfig.attackSoundZoneCooldownTicks) return;
+
+        VoiceSet v = resolveVoiceSetForAttack();
+        if (v == null) return;
+        SoundEvent snd = v.pickAttack(this.rand, null);
+        if (snd == null) return;
+
+        float vol = TravellersModConfig.attackSoundVolume;
+        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
+        int dur = 60 + rand.nextInt(40);
+
+        if (playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK)) {
+            attackVoiceCooldownUntilTick = ticksExisted + TravellersModConfig.attackSoundEntityCooldownTicks;
+            ATTACK_ZONE_COOLDOWN.put(zoneKey, worldTime);
+        }
+    }
+
+    public void playCreeperWarningSound() {
+        if (!TravellersModConfig.creeperWarnEnabled) return;
+        if (world.isRemote) return;
+
+        chooseVoicePersonalityIfNeeded();
+        VoiceSet v = getActiveTravellerVoiceSet();
+        if (v == null) return;
+        SoundEvent snd = v.pickCreeper(this.rand, null);
+        if (snd == null) return;
+
+        float vol = TravellersModConfig.creeperWarnVolume;
+        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
+        int dur = 60 + rand.nextInt(40);
+        playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK);
+    }
+
+    protected VoiceSet resolveVoiceSetForAttack() {
+        chooseVoicePersonalityIfNeeded();
+        return getActiveTravellerVoiceSet();
+    }
+
+    protected VoiceSet resolveVoiceSetForKillDeath() {
+        chooseVoicePersonalityIfNeeded();
+        return getActiveTravellerVoiceSet();
+    }
+
+    public void tryPlayKillSound() {
+        if (!TravellersModConfig.killSoundEnabled) return;
+        if (world.isRemote || isDead) return;
+        if (ticksExisted < killVoiceCooldownUntilTick) return;
+
+        long worldTime = world.getTotalWorldTime();
+        long zoneKey = attackZoneKey();
+        Long lastZone = KILL_ZONE_COOLDOWN.get(zoneKey);
+        if (lastZone != null && worldTime - lastZone < TravellersModConfig.killSoundZoneCooldownTicks) return;
+
+        VoiceSet v = resolveVoiceSetForKillDeath();
+        if (v == null) return;
+        SoundEvent snd = v.pickKill(this.rand, null);
+        if (snd == null) return;
+
+        float vol = TravellersModConfig.killSoundVolume;
+        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
+        int dur = 60 + rand.nextInt(40);
+
+        if (playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK)) {
+            killVoiceCooldownUntilTick = ticksExisted + TravellersModConfig.killSoundEntityCooldownTicks;
+            KILL_ZONE_COOLDOWN.put(zoneKey, worldTime);
+        }
+    }
+
+    void tryPlayDeathSound() {
+        if (!TravellersModConfig.deathSoundEnabled) return;
+        if (world.isRemote) return;
+
+        long worldTime = world.getTotalWorldTime();
+        long zoneKey = attackZoneKey();
+        Long lastZone = DEATH_ZONE_COOLDOWN.get(zoneKey);
+        if (lastZone != null && worldTime - lastZone < TravellersModConfig.deathSoundZoneCooldownTicks) return;
+
+        chooseVoicePersonalityIfNeeded();
+        VoiceSet v = resolveVoiceSetForKillDeath();
+        if (v == null) return;
+        SoundEvent snd = v.pickDeath(this.rand, null);
+        if (snd == null) return;
+
+        float vol = TravellersModConfig.deathSoundVolume;
+        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
+        int dur = 60;
+
+        playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK);
+        DEATH_ZONE_COOLDOWN.put(zoneKey, worldTime);
+    }
+
+    private long attackZoneKey() {
+        int zx = (int) Math.floor(posX / 32.0);
+        int zz = (int) Math.floor(posZ / 32.0);
+        return ((long) dimension * 1_000_003L) ^ ((long) (zx & 0xFFFF) << 16) ^ (long) (zz & 0xFFFF);
+    }
+
     void playTalkSound() {
         chooseVoicePersonalityIfNeeded();
         VoiceSet v = getActiveTravellerVoiceSet();
@@ -1890,9 +2023,9 @@ public class EntityTraveller extends EntityCreature {
         return true;
     }
 
-//     Disabling fallDamage
 @Override
 public void fall(float distance, float damageMultiplier) {
+    // Fall damage starts at 6 blocks instead of vanilla 3 (subtract 2 on top of Minecraft's own 3-block safe distance).
     super.fall(Math.max(0.0F, distance - 2.0F), damageMultiplier);
 }
 
@@ -1900,12 +2033,16 @@ public void fall(float distance, float damageMultiplier) {
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
             EntityLivingBase at = this.getAttackTarget();
-            if (at != null) AttackTargetLimiter.leave(this, at);
+            if (at != null) {
+                AttackTargetLimiter.notifyAttackerDied(at); // signals target is dangerous → raises cap
+                AttackTargetLimiter.leave(this, at);
+            }
             TravellerFollowNet.CHANNEL.sendToAllAround(
                     new MsgStopTravellerVoice(this),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             travellerCamp.cleanupOwnedCampfireIfAny();
         }
+        tryPlayDeathSound();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
             net.minecraft.entity.item.EntityBoat boat = (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
             this.dismountRidingEntity();
@@ -1913,11 +2050,6 @@ public void fall(float distance, float damageMultiplier) {
         }
         if (equipment.isGhostWeapon(getHeldItemMainhand())) setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
         EntityTravellerDog dog = getDog();
-        if (dog != null && !dog.world.isRemote) {
-            dog.setAttackTarget(null);
-            dog.setSitting(true);
-            // optionally: dog.setOwnerId(null); dog.setTamed(false);  // if you want it to go wild again
-        }
 
         super.onDeath(cause);
     }
@@ -1933,10 +2065,11 @@ public void fall(float distance, float damageMultiplier) {
     @Override
     @javax.annotation.Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
+        if (this.ticksExisted < hurtSoundCooldownUntilTick) return null;
+        hurtSoundCooldownUntilTick = this.ticksExisted + 15; // max ~1.3 hurt sounds/sec per entity
         VoiceSet v = getActiveTravellerVoiceSet();
-        return (v != null)
-                ? v.pickHurt(this.rand, ModSounds.TRAVELLER_HURT)
-                : ModSounds.TRAVELLER_HURT;
+        SoundEvent hurt = (v != null) ? v.pickHurt(this.rand, ModSounds.TRAVELLER_HURT) : ModSounds.TRAVELLER_HURT;
+        return hurt;
     }
 
 
@@ -1964,7 +2097,13 @@ public void fall(float distance, float damageMultiplier) {
     // --- Combat Handling ---
     @Override
     public boolean attackEntityAsMob(Entity target) {
-        return combat.performMeleeAttack(target);
+        boolean hit = combat.performMeleeAttack(target);
+        if (hit && !world.isRemote) {
+            world.playSound(null, target.posX, target.posY, target.posZ,
+                    SoundEvents.ENTITY_PLAYER_ATTACK_STRONG, SoundCategory.PLAYERS,
+                    0.7f, 0.85f + rand.nextFloat() * 0.3f);
+        }
+        return hit;
     }
 
     @SuppressWarnings("unchecked")
@@ -2233,6 +2372,17 @@ public void fall(float distance, float damageMultiplier) {
         travelCommon.setCurrentWaypoint(currentWaypoint);
     }
 
+    /** Returns the immutable village-stop list for diagnostics. */
+    public java.util.List<BlockPos> getVillageRoute() {
+        return java.util.Collections.unmodifiableList(travelCommon.route);
+    }
+
+    /** Returns the current village-route cursor index, or -1 if inactive. */
+    public int getVillageRouteIndex() {
+        return travelCommon.routeIndex;
+    }
+
+
     public boolean isAmbientPlayingNow() {
         return isVoiceLockedNow() && voiceKindNow == VoiceKind.AMBIENT;
     }
@@ -2382,10 +2532,6 @@ public void fall(float distance, float damageMultiplier) {
             nearUnloadTicks = 0;
             return;
         }
-        if (travelCommon.isVillageIdling() || travelCommon.getTargetVillage() == null) {
-            nearUnloadTicks = 0;
-            return;
-        }
 
         final WorldServer ws = (WorldServer) this.world;
 
@@ -2437,10 +2583,6 @@ public void fall(float distance, float damageMultiplier) {
             farFromPlayersTicks = 0;
             return;
         }
-        if (travelCommon.isVillageIdling()) {
-            farFromPlayersTicks = 0;
-            return;
-        }
 
         WorldServer ws = (WorldServer) this.world;
 
@@ -2449,12 +2591,11 @@ public void fall(float distance, float damageMultiplier) {
         try {
             viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance(); // e.g., 8–12
         } catch (Throwable t) {
-            // configurable fallback if something weird happens (singleplayer etc.)
-            viewChunks = TravellersModConfig.serverViewDistanceFallbackChunks; // e.g., 10
+            viewChunks = TravellersModConfig.serverViewDistanceFallbackChunks;
         }
 
-        int bubbleChunks = Math.max(0, viewChunks + TravellersModConfig.farExtraChunks);
-        int bubbleBlocks = Math.max(TravellersModConfig.farMinDistanceBlocks, bubbleChunks * 16);
+        // Use exact view distance — no extra buffer so entities at the border ARE caught.
+        int bubbleBlocks = Math.max(TravellersModConfig.farMinDistanceBlocks, viewChunks * 16);
 
         boolean anyNear = ws.getClosestPlayer(this.posX, this.posY, this.posZ, bubbleBlocks, false) != null;
 
@@ -3111,11 +3252,12 @@ public void fall(float distance, float damageMultiplier) {
             return true;
         }
         int prio = AttackTargetLimiter.priorityFor(this);
+        int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
         int effectiveMax = (this instanceof EntityTravellerWorker)
-                ? Math.max(2, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
-                : AttackTargetLimiter.MAX_ATTACKERS_PER_TARGET;
-        // Normal: obey limiter
+                ? Math.max(dynamicMax, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
+                : dynamicMax;
         if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
+            ignoreTarget(target, 30); // brief backoff — prevents frantic retry every scan tick
             return false;
         }
 
@@ -3185,9 +3327,13 @@ public void fall(float distance, float damageMultiplier) {
         this.dataManager.set(VOICE_PERSONALITY_ID, v);
     }
 
+    protected String pickVoicePersonalityId(String cultureId) {
+        return CultureRegistry.pickRandomTravellerPersonalityId(cultureId, this.rand);
+    }
+
     /**
      * Server-only. Choose ONE personality at spawn (and never change it again).
-     * If no variants exist, we keep "" and fall back to old culture-based voices.
+     * If no variants exist, we keep “” and fall back to old culture-based voices.
      */
     private void chooseVoicePersonalityIfNeeded() {
         if (world.isRemote) return;
@@ -3196,9 +3342,9 @@ public void fall(float distance, float damageMultiplier) {
         if (!getVoicePersonalityId().isEmpty()) return;
 
         String cid = getCultureId();
-        String picked = CultureRegistry.pickRandomTravellerPersonalityId(cid, this.rand);
+        String picked = pickVoicePersonalityId(cid);
 
-        // picked == "" means “no variants” -> keep empty to use fallback behavior
+        // picked == “” means “no variants” -> keep empty to use fallback behavior
         setVoicePersonalityId(picked);
     }
 

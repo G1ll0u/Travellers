@@ -23,6 +23,7 @@ public final class PathScheduler {
 
     private static long globalTick = Long.MIN_VALUE;
     private static int globalUsed = 0;
+    private static long lastCleanupTick = Long.MIN_VALUE;
 
     private PathScheduler() {
     }
@@ -199,6 +200,12 @@ public final class PathScheduler {
     }
 
     private static void cleanup(long now) {
+        // Rate-limited: with 200+ workers each calling tryAcquireDetailed every tick,
+        // running the full nested-map iteration on every call costs O(workers × buckets × followers).
+        // Once per 200 ticks is plenty for expiring stale state.
+        if (lastCleanupTick != Long.MIN_VALUE && (now - lastCleanupTick) < 200) return;
+        lastCleanupTick = now;
+
         Iterator<Map.Entry<UUID, OwnerBucket>> ownerIt = buckets.entrySet().iterator();
         while (ownerIt.hasNext()) {
             Map.Entry<UUID, OwnerBucket> entry = ownerIt.next();

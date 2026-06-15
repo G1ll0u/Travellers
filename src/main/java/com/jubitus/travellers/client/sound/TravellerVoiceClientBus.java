@@ -1,9 +1,11 @@
 package com.jubitus.travellers.client.sound;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSoundDone;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -21,6 +23,12 @@ public final class TravellerVoiceClientBus {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc == null || mc.getSoundHandler() == null) return;
 
+        EntityPlayer player = mc.player;
+        if (player != null) {
+            double maxDist = TravellersConfig.SOUND.voiceMaxDistance;
+            if (t.getDistanceSq(player) > maxDist * maxDist) return;
+        }
+
         stopIfAny(t.getEntityId());
 
         EntityLinkedSound snd = new EntityLinkedSound(t, evt, vol, pitch);
@@ -29,9 +37,6 @@ public final class TravellerVoiceClientBus {
         mc.getSoundHandler().playSound(snd);
     }
 
-    public static void play(EntityTraveller t, SoundEvent evt, float vol, float pitch) {
-        play(t, evt, vol, pitch, false);
-    }
 
     public static void stopIfAny(int entityId) {
         Minecraft mc = Minecraft.getMinecraft();

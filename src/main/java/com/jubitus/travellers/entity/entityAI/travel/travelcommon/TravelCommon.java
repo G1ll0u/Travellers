@@ -377,6 +377,23 @@ public class TravelCommon {
         }
         if (candidates.isEmpty()) return null;
 
+        // If MPB is installed, prefer villages reachable via the road network
+        World world = owner.getEntityWorld();
+        if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT
+                && world instanceof WorldServer) {
+            List<BlockPos> roadVillages = com.jubitus.travellers.utils.world.MPBIntegration
+                    .getConnectedVillages((WorldServer) world);
+            if (!roadVillages.isEmpty()) {
+                List<BlockPos> roadCandidates = new ArrayList<>();
+                for (BlockPos c : candidates) {
+                    if (isNearRoadVillage(c, roadVillages, 64)) roadCandidates.add(c);
+                }
+                if (!roadCandidates.isEmpty()) {
+                    candidates = roadCandidates;
+                }
+            }
+        }
+
         // Sort by distance ascending
         candidates.sort(Comparator.comparingDouble(origin::distanceSq));
 
@@ -688,6 +705,16 @@ public class TravelCommon {
 
     public boolean isVillageBad(BlockPos center) {
         return center != null && badVillages.contains(center);
+    }
+
+    private static boolean isNearRoadVillage(BlockPos candidate, List<BlockPos> roadVillages, int radius) {
+        long r2 = (long) radius * radius;
+        for (BlockPos rv : roadVillages) {
+            int dx = rv.getX() - candidate.getX();
+            int dz = rv.getZ() - candidate.getZ();
+            if ((long) dx * dx + (long) dz * dz <= r2) return true;
+        }
+        return false;
     }
 
 }

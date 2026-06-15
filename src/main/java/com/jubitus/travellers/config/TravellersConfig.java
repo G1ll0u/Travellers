@@ -41,6 +41,9 @@ public class TravellersConfig {
         @Config.Comment("Enable debug logging.")
         public boolean debug = false;
 
+        @Config.Comment("Enable MPB road-routing debug logs (route planning and road-following events).")
+        public boolean mpbDebugLog = false;
+
         @Config.Comment("Allow travellers to open fence gates.")
         public boolean enableTravellerOpenFenceGates = true;
 
@@ -51,6 +54,30 @@ public class TravellersConfig {
     public static class Rendering {
         @Config.Comment("Show name tags above travellers heads.")
         public boolean showTravellerNames = false;
+
+        @Config.Comment("How often (in ticks) the normal map tiles (64x64) are generated. Lower = faster generation, higher CPU cost. Default: 20 (1s).")
+        @Config.RangeInt(min = 1, max = 200)
+        public int mapTileGenIntervalTicks = 20;
+
+        @Config.Comment("How often (in ticks) the normal map tiles are refreshed to reflect terrain changes. Default: 10 (0.5s).")
+        @Config.RangeInt(min = 1, max = 200)
+        public int mapTileRefreshIntervalTicks = 10;
+
+        @Config.Comment("How often (in ticks) detail map tiles (256x256, 1px=1block) are generated. Lower = faster, higher CPU cost. Default: 40 (2s).")
+        @Config.RangeInt(min = 1, max = 400)
+        public int mapDetailGenIntervalTicks = 40;
+
+        @Config.Comment("Max pixels filled per detail tile generation run. Higher = faster fill, higher CPU spike. Default: 4096.")
+        @Config.RangeInt(min = 64, max = 65536)
+        public int mapDetailGenPixelsPerRun = 4096;
+
+        @Config.Comment("How often (in ticks) detail tiles are refreshed to reflect terrain changes. Default: 20 (1s).")
+        @Config.RangeInt(min = 1, max = 400)
+        public int mapDetailRefreshIntervalTicks = 20;
+
+        @Config.Comment("Pixels re-sampled per detail tile per refresh run. Higher = faster terrain updates, higher CPU cost. Default: 2048.")
+        @Config.RangeInt(min = 16, max = 65536)
+        public int mapDetailRefreshPixelsPerRun = 2048;
     }
 
     public static class Spawn {
@@ -334,17 +361,17 @@ public class TravellersConfig {
         @Config.Comment("Despawn entities far beyond any player's view radius.")
         public boolean despawnWhenFarFromPlayers = true;
 
-        @Config.Comment("Extra chunk buffer beyond server view radius used to decide 'far'.")
+        @Config.Comment("Unused — kept for config compatibility only.")
         @Config.RangeInt(min = 0, max = 16)
-        public int farExtraChunks = 2;
+        public int farExtraChunks = 0;
 
-        @Config.Comment("How long (ticks) an entity must remain far before despawning.")
+        @Config.Comment("How long (ticks) an entity must remain outside view distance before despawning.")
         @Config.RangeInt(min = 0, max = 120000)
-        public int farGraceTicks = 300;
+        public int farGraceTicks = 100;
 
-        @Config.Comment("Hard minimum distance considered 'far', even with tiny view radius.")
+        @Config.Comment("Hard minimum distance (blocks) for the far-despawn check.")
         @Config.RangeInt(min = 16, max = 1024)
-        public int farMinDistanceBlocks = 128;
+        public int farMinDistanceBlocks = 64;
 
         @Config.Comment("Fallback server view distance (chunks) used when real value is unavailable.")
         @Config.RangeInt(min = 2, max = 32)
@@ -429,7 +456,7 @@ public class TravellersConfig {
 
         @Config.Comment("Max health of worker travellers.")
         @Config.RangeDouble(min = 1.0, max = 1000.0)
-        public double workerMaxHealth = 60.0;
+        public double workerMaxHealth = 40.0;
 
         @Config.Comment("FOLLOW_RANGE for workers.")
         @Config.RangeDouble(min = 4.0, max = 256.0)
@@ -698,21 +725,21 @@ public class TravellersConfig {
         @Config.RangeInt(min = 80, max = 60000)
         public int travellerAmbientMaxDelay = 1200;
 
-        @Config.Comment("Volume for solo ambient travel voice lines (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
+        @Config.Comment("Volume for solo ambient travel voice lines. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
         public float travellerAmbientVolume = 0.8f;
 
-        @Config.Comment("Volume for choir/group singing (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
+        @Config.Comment("Volume for choir/group singing. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
         public float travellerChoirVolume = 1.0f;
 
-        @Config.Comment("Volume for talk and hello voice lines (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float travellerTalkVolume = 1.0f;
+        @Config.Comment("Volume for talk and hello voice lines. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float travellerTalkVolume = 4.0f;
 
-        @Config.Comment("Volume for hurt sounds (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float travellerHurtVolume = 0.9f;
+        @Config.Comment("Volume for hurt sounds. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float travellerHurtVolume = 3.0f;
 
         @Config.Comment("Strength of footstep crowd limiting (0 = disabled, 1 = default, 2+ = stronger).")
         @Config.RangeDouble(min = 0.0, max = 3.0)
@@ -721,6 +748,79 @@ public class TravellersConfig {
         @Config.Comment("Strength of hurt sound crowd limiting (0 = disabled, 1 = default, 2+ = stronger).")
         @Config.RangeDouble(min = 0.0, max = 3.0)
         public float travellerHurtLimiterStrength = 1.5f;
+
+        @Config.Comment("If true, travellers and raiders shout when engaging a new combat target.")
+        public boolean attackSoundEnabled = true;
+
+        @Config.Comment("Minimum ticks before the same entity can shout again.")
+        @Config.RangeInt(min = 20, max = 6000)
+        public int attackSoundEntityCooldownTicks = 60;
+
+        @Config.Comment("Minimum ticks before another shout is allowed within the same 64-block zone (prevents group spam).")
+        @Config.RangeInt(min = 40, max = 12000)
+        public int attackSoundZoneCooldownTicks = 40;
+
+        @Config.Comment("Volume for attack shout voice lines. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float attackSoundVolume = 4.0f;
+
+        @Config.Comment("If true, nearby travellers (not raiders) warn the player when a creeper approaches from outside their field of view.")
+        public boolean creeperWarnEnabled = true;
+
+        @Config.Comment("Radius (blocks) in which travellers detect a threatening creeper near the player.")
+        @Config.RangeDouble(min = 8.0, max = 64.0)
+        public double creeperWarnCreeperRadius = 8.0;
+
+        @Config.Comment("Max distance (blocks) between the warning traveller and the player.")
+        @Config.RangeDouble(min = 4.0, max = 32.0)
+        public double creeperWarnTravellerRadius = 12.0;
+
+        @Config.Comment("Minimum ticks between two creeper warnings for the same player.")
+        @Config.RangeInt(min = 100, max = 12000)
+        public int creeperWarnCooldownTicks = 60;
+
+        @Config.Comment("Volume for creeper warning voice lines. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float creeperWarnVolume = 3.0f;
+
+        @Config.Comment("If true, travellers and raiders play a voice line when they kill an entity.")
+        public boolean killSoundEnabled = true;
+
+        @Config.Comment("Minimum ticks before the same entity can play a kill sound again.")
+        @Config.RangeInt(min = 20, max = 6000)
+        public int killSoundEntityCooldownTicks = 100;
+
+        @Config.Comment("Minimum ticks before another kill sound is allowed within the same 64-block zone.")
+        @Config.RangeInt(min = 40, max = 12000)
+        public int killSoundZoneCooldownTicks = 60;
+
+        @Config.Comment("Volume for kill voice lines. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float killSoundVolume = 4.0f;
+
+        @Config.Comment("If true, travellers and raiders play a voice line when they die.")
+        public boolean deathSoundEnabled = true;
+
+        @Config.Comment("Minimum ticks before another death sound is allowed within the same 64-block zone.")
+        @Config.RangeInt(min = 40, max = 12000)
+        public int deathSoundZoneCooldownTicks = 60;
+
+        @Config.Comment("Volume for death voice lines. Values above 1.0 extend audible range with SoundPhysics.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public float deathSoundVolume = 4.0f;
+
+        // --- Attenuation (no-SoundPhysics fallback) ---
+        @Config.Comment("Distance (blocks) at which voice sounds play at full volume. Only used when SoundPhysics is absent.")
+        @Config.RangeDouble(min = 0.5, max = 16.0)
+        public double voiceReferenceDistance = 3.0;
+
+        @Config.Comment("Distance (blocks) beyond which voice sounds become inaudible. Only used when SoundPhysics is absent.")
+        @Config.RangeDouble(min = 8.0, max = 128.0)
+        public double voiceMaxDistance = 48.0;
+
+        @Config.Comment("Distance rolloff exponent when SoundPhysics is absent. 1.0 = natural 1/r (recommended), 2.0 = inverse-square (fast fade), 0.5 = gentle.")
+        @Config.RangeDouble(min = 0.25, max = 4.0)
+        public double voiceRolloffPower = 1.0;
     }
 
     public static class Choir {
@@ -858,6 +958,18 @@ public class TravellersConfig {
     }
 
     public static class Worker {
+        @Config.Comment("Default half-width (X axis) for lone barracks detection.")
+        @Config.RangeInt(min = 4, max = 16)
+        public int workerLoneBarrackHalfWidth = 5;
+
+        @Config.Comment("Default half-depth (Z axis) for lone barracks detection.")
+        @Config.RangeInt(min = 4, max = 16)
+        public int workerLoneBarrackHalfDepth = 5;
+
+        @Config.Comment("Default half-height for lone barracks detection.")
+        @Config.RangeInt(min = 2, max = 32)
+        public int workerLoneBarrackHalfHeight = 4;
+
         @Config.Comment("Cost to hire a worker (in deniers). 1 argent = 64 deniers.")
         @Config.RangeInt(min = 0, max = 10000000)
         public int workerHireCostDeniers = 640;

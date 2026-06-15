@@ -6,6 +6,7 @@ import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRela
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiHomeNamePrompt;
 import com.jubitus.travellers.client.gui.home.GuiWorkerHomeList;
+import com.jubitus.travellers.client.gui.home.GuiWorkerLoneBarrackPrompt;
 import com.jubitus.travellers.client.gui.orders.GuiWorkerOrders;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
 import com.jubitus.travellers.client.gui.transport.GuiWorker;
@@ -62,6 +63,9 @@ public class ClientGuiHandler extends CommonGuiHandler {
         }
         if (id == TravellersGuiIds.HOME_NAME_PROMPT) {
             return new GuiHomeNamePrompt(player, new BlockPos(x, y, z));
+        }
+        if (id == TravellersGuiIds.LONE_BARRACK_PROMPT) {
+            return new GuiWorkerLoneBarrackPrompt(player, new BlockPos(x, y, z));
         }
         if (id == TravellersGuiIds.WORKER_HOME_LIST) {
             Entity e = world.getEntityByID(x);

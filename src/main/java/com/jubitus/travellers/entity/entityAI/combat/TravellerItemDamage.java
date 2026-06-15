@@ -68,11 +68,12 @@ public final class TravellerItemDamage {
      * using player base speed (4.0 attacks/s) so vanilla and modded items work out of the box.
      */
     public static int computeAttackCooldownTicks(EntityLivingBase entity) {
+        ItemStack weapon = entity.getHeldItemMainhand();
+        if (weapon.isEmpty()) return 24; // bare hands: fixed cooldown, ignore multiplier
+
         if (!TravellersModConfig.weaponAttackSpeedEnabled) {
             return TravellersModConfig.baseAttackCooldownTicks;
         }
-        ItemStack weapon = entity.getHeldItemMainhand();
-        if (weapon.isEmpty()) return scaled(TravellersModConfig.baseAttackCooldownTicks);
 
         Multimap<String, AttributeModifier> mods = weapon.getAttributeModifiers(EntityEquipmentSlot.MAINHAND);
         double speedMod = 0.0;

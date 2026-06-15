@@ -12,6 +12,10 @@ import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
 import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
 import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
 import com.jubitus.travellers.server.net.message.home.*;
+import com.jubitus.travellers.server.net.message.home.MsgCreateLoneBarrack;
+import com.jubitus.travellers.server.net.message.home.MsgDeleteLoneBarrack;
+import com.jubitus.travellers.server.net.message.home.MsgLoneBarrackResult;
+import com.jubitus.travellers.server.net.message.home.MsgOpenLoneBarrackPrompt;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgClearEscortLeader;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgMakeWorkerLeader;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgToggleFollow;
@@ -26,8 +30,8 @@ import com.jubitus.travellers.server.net.message.choir.MsgWorkerChoirToggle;
 import com.jubitus.travellers.server.net.message.relations.MsgSetVillageEnemy;
 import com.jubitus.travellers.server.net.message.relations.MsgWorkerRequestVillageRelations;
 import com.jubitus.travellers.server.net.message.relations.MsgWorkerVillageRelationsList;
-import com.jubitus.travellers.server.net.message.config.MsgOpenTravellersConfigGui;
-import com.jubitus.travellers.server.net.message.config.MsgSaveTravellersConfig;
+import com.jubitus.jubiconfig.network.MsgOpenConfigGui;
+import com.jubitus.jubiconfig.network.MsgSaveConfigGui;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSoundDone;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
 import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
@@ -156,9 +160,17 @@ public final class TravellerFollowNet {
                 MsgOpenHomeNamePrompt.class,
                 isClient ? new MsgOpenHomeNamePrompt.ClientHandler() : new MsgOpenHomeNamePrompt.NoopHandler()
         );
+        registerClientOnly(
+                MsgOpenLoneBarrackPrompt.class,
+                isClient ? new MsgOpenLoneBarrackPrompt.ClientHandler() : new MsgOpenLoneBarrackPrompt.NoopHandler()
+        );
         CHANNEL.registerMessage(MsgWorkerDeleteHome.Handler.class, MsgWorkerDeleteHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGetEquipment.Handler.class, MsgWorkerGetEquipment.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgLeaderSetHome.Handler.class, MsgLeaderSetHome.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgCreateLoneBarrack.Handler.class, MsgCreateLoneBarrack.class, id++, Side.SERVER);
+        registerClientOnly(MsgLoneBarrackResult.class,
+                isClient ? new MsgLoneBarrackResult.ClientHandler() : new MsgLoneBarrackResult.NoopHandler());
+        CHANNEL.registerMessage(MsgDeleteLoneBarrack.Handler.class, MsgDeleteLoneBarrack.class, id++, Side.SERVER);
         registered = true;
 
         CHANNEL.registerMessage(
@@ -183,9 +195,14 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgRequestFormationHub.Handler.class, MsgRequestFormationHub.class, id++, Side.SERVER);
 
         // Config GUI messages
-        registerClientOnly(MsgOpenTravellersConfigGui.class,
-                isClient ? new MsgOpenTravellersConfigGui.Handler() : new MsgOpenTravellersConfigGui.NoopHandler());
-        CHANNEL.registerMessage(MsgSaveTravellersConfig.Handler.class, MsgSaveTravellersConfig.class, id++, Side.SERVER);
+        registerClientOnly(MsgOpenConfigGui.class,
+                isClient ? new MsgOpenConfigGui.Handler() : new MsgOpenConfigGui.NoopHandler());
+        CHANNEL.registerMessage(MsgSaveConfigGui.Handler.class, MsgSaveConfigGui.class, id++, Side.SERVER);
+
+        // Detail tiles (256×256, client requests when zoomed in, server serves pre-generated data)
+        CHANNEL.registerMessage(MsgRequestDetailTiles.Handler.class, MsgRequestDetailTiles.class, id++, Side.SERVER);
+        registerClientOnly(MsgMapDetailTileData.class,
+                isClient ? new MsgMapDetailTileData.ClientHandler() : new MsgMapDetailTileData.NoopHandler());
     }
 
 

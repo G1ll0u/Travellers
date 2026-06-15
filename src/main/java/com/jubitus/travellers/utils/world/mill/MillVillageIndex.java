@@ -392,51 +392,6 @@ public final class MillVillageIndex {
      * @param radiusXZ horizontal radius (blocks) to scan
      * @param radiusY  vertical radius (blocks up/down from TH Y) to scan
      */
-//    public static java.util.List<BuildingInfo> listBuildingsAroundVillage(
-//            World world,
-//            BlockPos approxTH,
-//            int radiusXZ,
-//            int radiusY) {
-//
-//        MillWorldData wd = getWD(world);
-//        if (wd == null) {
-//            return java.util.Collections.emptyList();
-//        }
-//
-//        // Try to lock to a “real” TH position (in case approxTH is slightly off)
-//        VillageInfo vi = findExact(world, approxTH);
-//        if (vi == null) vi = findNearest3D(world, approxTH, radiusXZ);
-//        if (vi == null) vi = findNearest2D(world, approxTH, radiusXZ);
-//
-//        if (vi == null) {
-//            // No village found around that center; nothing to scan.
-//            return java.util.Collections.emptyList();
-//        }
-//
-//        BlockPos center = vi.center;
-//        int cx = center.getX();
-//        int cy = center.getY();
-//        int cz = center.getZ();
-//
-//        java.util.List<BuildingInfo> result = new ArrayList<>();
-//        java.util.Set<Building> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-//
-//        // Brute-force scan; reasonable radius keeps it fine performance-wise
-//        for (int dx = -radiusXZ; dx <= radiusXZ; dx++) {
-//            for (int dz = -radiusXZ; dz <= radiusXZ; dz++) {
-//                for (int dy = -radiusY; dy <= radiusY; dy++) {
-//                    Point p = new Point(cx + dx, cy + dy, cz + dz);
-//                    Building silva = wd.getBuilding(p);
-//                    if (silva == null) continue;
-//                    if (!seen.add(silva)) continue; // multiple chest blocks → same Building
-//
-//                    result.add(buildBuildingInfo(silva));
-//                }
-//            }
-//        }
-//
-//        return result;
-//    }
     public static List<BuildingInfo> listBuildingsAroundVillageCached(
             World world,
             BlockPos approxTH,

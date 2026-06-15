@@ -43,16 +43,16 @@ public class MixinCultureInjectBarracks {
         plan.nativeName = "Workers Barracks";
         plan.tags.add("barracks");
         plan.radius = TravellersModConfig.workerBarracksRadius;
-        plan.heightRadius = 5;
+        plan.heightRadius = 3;
         plan.minResources.put(BuildingCustomPlan.TypeRes.SIGN, 1);
         plan.maxResources.put(BuildingCustomPlan.TypeRes.SIGN, 1);
         plan.minResources.put(BuildingCustomPlan.TypeRes.CHEST, 1);
         plan.maxResources.put(BuildingCustomPlan.TypeRes.CHEST, 20);
-        int slots = TravellersModConfig.barracksSlotsPerBuilding;
-        if (slots > 0) {
-            plan.minResources.put(BuildingCustomPlan.TypeRes.SPAWN, slots);
-            plan.maxResources.put(BuildingCustomPlan.TypeRes.SPAWN, slots);
-        }
+//        int slots = TravellersModConfig.barracksSlotsPerBuilding;
+//        if (slots > 0) {
+//            plan.minResources.put(BuildingCustomPlan.TypeRes.SPAWN, slots);
+//            plan.maxResources.put(BuildingCustomPlan.TypeRes.SPAWN, slots);
+//        }
         return plan;
     }
 }

@@ -383,14 +383,18 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
             boolean shouldWake;
             if (workerLeader) {
-                shouldWake =
-                        slot.leaderActuallyMoving && (
+                // Compare the coordinator's fresh ideal position against where this worker settled.
+                // This catches settings changes (style, spacing, distance) even when the leader is stopped,
+                // since slot.idealX/Y/Z is always recomputed by the coordinator on each rebuild.
+                double idealDriftSq = distanceSq(slot.idealX, slot.idealY, slot.idealZ, idleSlotX, idleSlotY, idleSlotZ);
+                shouldWake = idealDriftSq > 1.5D * 1.5D
+                        || (slot.leaderActuallyMoving && (
                                 leaderMoveSq > 2.25D * 2.25D ||
                                         idleDriftSq > 2.4D * 2.4D ||
                                         horizontalDistanceTo(target) > stopDist + 3.0D
-                        );
+                        ));
             } else {
-                // Joueur : réveil beaucoup plus sensible
+                // Player: much more sensitive wake-up
                 shouldWake =
                         slot.leaderActuallyMoving
                                 || leaderMoveSq > 0.60D * 0.60D
@@ -404,8 +408,15 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 return;
             }
 
-            // Pour un joueur, on ne garde pas de délai artificiel de réveil
-            if (workerLeader && wakeupCooldown > 0) {
+            // Skip wake-up stagger when the leader has teleported far (e.g., travel AI rescue).
+            // A large slot displacement means the leader jumped suddenly — followers must react
+            // immediately rather than waiting for the staggered cooldown to expire.
+            double idealDriftForWake = workerLeader
+                    ? distanceSq(slot.idealX, slot.idealY, slot.idealZ, idleSlotX, idleSlotY, idleSlotZ)
+                    : 0.0D;
+            boolean largeLeaderJump = idealDriftForWake > 8.0D * 8.0D;
+
+            if (workerLeader && wakeupCooldown > 0 && !largeLeaderJump) {
                 worker.getNavigator().clearPath();
                 worker.setSprinting(false);
                 return;
@@ -463,8 +474,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             worker.setSprinting(false);
             hasActivePathGoal = false;
 
-            // Idle dur uniquement quand le leader est un worker.
-            // Pour un joueur, on reste réactif à ses petits déplacements.
+            // Hard idle only when the leader is a worker.
+            // For player leaders, stay reactive to small movements.
             if (workerLeader) {
                 idleAtSlot = true;
                 idleSlotX = goal.x;
@@ -479,7 +490,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 return;
             }
 
-            // Leader joueur : pas de mise en idle longue
+            // Player leader: no long idle state
             idleAtSlot = false;
             wakeupCooldown = 0;
             settledTicks = Math.min(settledTicks, SETTLED_FAST_PATH_TICKS);
@@ -491,7 +502,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         // update — the "orbiting around the leader" symptom.
         if (settledTicks >= SETTLED_FAST_PATH_TICKS && closeEnoughToSlot) {
             if (slot.workerLeader) {
-                // Worker leader : on amortit fortement pour éviter le réveil en choeur
+                // Worker leader: strong damping to avoid synchronized wake-up across the group
                 double idealDx = worker.posX - slot.idealX;
                 double idealDz = worker.posZ - slot.idealZ;
                 double idealDriftSq = idealDx * idealDx + idealDz * idealDz;
@@ -505,7 +516,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 settledTicks = 0;
                 goalRefreshCooldown = 0;
             } else {
-                // Joueur : tolérance plus faible, on réagit vite
+                // Player leader: lower tolerance, react quickly
                 double idealDx = worker.posX - slot.idealX;
                 double idealDz = worker.posZ - slot.idealZ;
                 double idealDriftSq = idealDx * idealDx + idealDz * idealDz;
@@ -1089,6 +1100,18 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 onTeleportRecovery(cfg);
                 return true;
             }
+
+            // Short-step failed (e.g., mountain between worker and leader with no reachable
+            // spot in that narrow corridor). Try a wide search centered on the leader so we
+            // can land on the far side of any obstacle blocking the path.
+            candidate = FollowRecoveryHelper.findWideTeleportNearLeader(
+                    worker, target, 12.0D, cfg.rescue.surfaceMinLeaderDistance);
+
+            if (candidate != null) {
+                FollowRecoveryHelper.teleportWorker(worker, candidate);
+                onTeleportRecovery(cfg);
+                return true;
+            }
         }
 
         return false;
@@ -1295,8 +1318,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean leaderStill = Math.abs(target.posX - target.prevPosX) < 0.05D
                 && Math.abs(target.posZ - target.prevPosZ) < 0.05D;
 
-        // Très important :
-        // pas de steering "micro-correctif" près du slot, sinon ça crée l'orbite/spin.
+        // No micro-corrective steering near the slot — this causes orbiting/spinning.
         if (shouldBlockDirectSteering(goal, target)) {
             worker.getNavigator().clearPath();
             return;
@@ -1322,7 +1344,9 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         if (airborneLeader) {
             if (horizToGoal > 1.8D) {
-                worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, clampedSpeed);
+                if (!tryGapJump(goal.x, goal.z, clampedSpeed)) {
+                    worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, clampedSpeed);
+                }
             } else {
                 worker.getNavigator().clearPath();
             }
@@ -1330,22 +1354,41 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         if (mode == FollowMode.CAVE && Math.abs(worker.posY - target.posY) <= 3.0D) {
-            worker.getMoveHelper().setMoveTo(goal.x, goal.y, goal.z, Math.max(0.20D, moveSpeed * 0.92D));
+            double s = Math.max(0.20D, moveSpeed * 0.92D);
+            if (!tryGapJump(goal.x, goal.z, s)) {
+                worker.getMoveHelper().setMoveTo(goal.x, goal.y, goal.z, s);
+            }
             return;
         }
 
         if (verticalGap > 1.25D) {
             if (horizToGoal > 2.0D) {
-                worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, Math.max(0.20D, moveSpeed * 0.84D));
+                double s = Math.max(0.20D, moveSpeed * 0.84D);
+                if (!tryGapJump(goal.x, goal.z, s)) {
+                    worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, s);
+                }
             } else if (!leaderStill) {
-                worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, Math.max(0.20D, moveSpeed * 0.78D));
+                double s = Math.max(0.20D, moveSpeed * 0.78D);
+                if (!tryGapJump(goal.x, goal.z, s)) {
+                    worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, s);
+                }
             } else {
                 worker.getNavigator().clearPath();
             }
             return;
         }
 
-        worker.getMoveHelper().setMoveTo(goal.x, goal.y, goal.z, clampedSpeed);
+        if (!tryGapJump(goal.x, goal.z, clampedSpeed)) {
+            worker.getMoveHelper().setMoveTo(goal.x, goal.y, goal.z, clampedSpeed);
+        }
+    }
+
+    private boolean tryGapJump(double goalX, double goalZ, double speed) {
+        PathNavigate nav = worker.getNavigator();
+        if (nav instanceof TravellerNavigateGround) {
+            return ((TravellerNavigateGround) nav).offerGapJump(goalX, goalZ, speed);
+        }
+        return false;
     }
 
     private boolean slotLikeLeaderMovement(EntityLivingBase target) {
@@ -2099,7 +2142,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             else if (groupSize >= 20)      base = 18;
             else                           base = 14;
         } else {
-            // Joueur : réactif mais pas trop agressif pour les grands groupes
+            // Player leader: reactive but not too aggressive for large groups
             if (groupSize >= 200)          base = 12;
             else if (groupSize >= 100)     base = 10;
             else if (groupSize >= 60)      base = 8;
@@ -2236,7 +2279,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (at.getMaterial() == Material.LAVA || below.getMaterial() == Material.LAVA) return true;
         if (atBlock == Blocks.FIRE || belowBlock == Blocks.FIRE) return true;
 
-        // L’eau est considérée dangereuse ici pour éviter le "demi-tour trop tard".
+        // Water is considered hazardous here to avoid turning back too late at the edge.
         if (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER) return true;
 
         if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) {

@@ -97,6 +97,10 @@ public class EntityAITravel extends EntityAIBase {
     private boolean wasInWater = false;
     private int boatRetryCooldown = 0;
     private int detourGraceTicks = 0;
+    // --- Underground state cache (avoid world queries every tick) ---
+    private boolean cachedUnderground = false;
+    private int undergroundCacheRefreshTick = -999;
+    private static final int UNDERGROUND_CACHE_TICKS = 20;
     // --- Force surface rescue if underground too long ---
     private int undergroundTicks = 0;
     private int stuckTicks = 0;
@@ -119,6 +123,15 @@ public class EntityAITravel extends EntityAIBase {
     private int targetNearSq = 0;
     // simple guard so we don't spam boat spawning
     private boolean triedBoatThisLeg = false;
+    // MPB road route tracker — pre-planned route through the road network
+    private final com.jubitus.travellers.utils.world.MPBRouteTracker mpbRoute =
+            new com.jubitus.travellers.utils.world.MPBRouteTracker();
+    // When > 0, skip MPB road routing (set after TP rescue to break oscillation)
+    private int roadBlockedTicks = 0;
+    // Earliest tick a road route plan may run; failed plans retry periodically so
+    // travellers in direct mode keep checking whether a road can be joined.
+    private int nextRoadPlanTick = 0;
+    private static final int ROAD_PLAN_RETRY_TICKS = 15 * 20;
     public EntityAITravel(EntityTraveller mob, double speed, int stepBlocks) {
         this.mob = mob;
         this.speed = speed;
@@ -354,6 +367,11 @@ public class EntityAITravel extends EntityAIBase {
         arriveInside = mob.isAtTargetStop();
         this.targetVillage = getLiveGoalPos();
         if (this.targetVillage == null) return;
+
+        // Fresh road plan whenever travel AI re-engages (e.g. after a village visit)
+        mpbRoute.invalidate();
+        roadBlockedTicks = 0;
+        nextRoadPlanTick = 0;
         double d2 = horizDistSq(mob.getPosition(), targetVillage);
         bestDistSq = d2;
         progressCheckpointSq = d2;
@@ -382,6 +400,7 @@ public class EntityAITravel extends EntityAIBase {
 
 
         triedBoatThisLeg = false;
+        undergroundCacheRefreshTick = -999;
     }
 
     @Override
@@ -397,6 +416,7 @@ public class EntityAITravel extends EntityAIBase {
         if (mob instanceof EntityTravellerWorker) {
             ((EntityTravellerWorker) mob).setUsingTravelAI(false);
         }
+        undergroundCacheRefreshTick = -999;
     }
 
     @Override
@@ -443,6 +463,7 @@ public class EntityAITravel extends EntityAIBase {
         if (stuckActionCooldown > 0) stuckActionCooldown--;
         if (stuckTpCooldown > 0) stuckTpCooldown--;
         if (detourGraceTicks > 0) detourGraceTicks--;
+        if (roadBlockedTicks > 0) roadBlockedTicks--;
         // -----------------------------------------
         // Ambient chatter (keep)
         // -----------------------------------------
@@ -611,8 +632,10 @@ public class EntityAITravel extends EntityAIBase {
         }
 
 
-        // Reached waypoint? reseed next
-        if (currentWaypoint != null && mob.getDistanceSqToCenter(currentWaypoint) <= this.reachDistSq) {
+        // Reached waypoint? reseed next.
+        // Road waypoints use XZ-only distance: the road block Y may not match terrain Y, and
+        // requiring 3D closeness would stall the entity if it passes overhead or underfoot.
+        if (currentWaypoint != null && isRoadWaypointReached(currentWaypoint)) {
             currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
             mob.setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
@@ -652,7 +675,21 @@ public class EntityAITravel extends EntityAIBase {
             noProgressTicks = Math.min(noProgressTicks, 20);
             stuckTicks = Math.min(stuckTicks, 20);
 
-            // keep movement tracking consistent
+            // Steer toward the waypoint instead of standing still while waiting for a
+            // path slot. Only applied when the direct path is clear of lava and cliffs.
+            if (!mob.world.isRemote && currentWaypoint != null && !isInBoat()) {
+                double d2ToWp = mob.getDistanceSqToCenter(currentWaypoint);
+                if (d2ToWp > reachDistSq && d2ToWp <= 8.0 * 8.0
+                        && isDirectPathSafe(currentWaypoint)) {
+                    mob.getMoveHelper().setMoveTo(
+                            currentWaypoint.getX() + 0.5,
+                            currentWaypoint.getY(),
+                            currentWaypoint.getZ() + 0.5,
+                            getActiveSpeed()
+                    );
+                }
+            }
+
             lastMovePos = now;
             return;
         }
@@ -689,10 +726,13 @@ public class EntityAITravel extends EntityAIBase {
 
 
         // -----------------------------------------
-// Underground detector (caves, overhangs)
+// Underground detector (caves, overhangs) — result cached every 20 ticks
 // -----------------------------------------
-        boolean underground = isUndergroundNow();
-        if (underground) undergroundTicks++;
+        if ((mob.ticksExisted - undergroundCacheRefreshTick) >= UNDERGROUND_CACHE_TICKS) {
+            cachedUnderground = isUndergroundNow();
+            undergroundCacheRefreshTick = mob.ticksExisted;
+        }
+        if (cachedUnderground) undergroundTicks++;
         else undergroundTicks = 0;
         // -----------------------------------------
         // ===== SIMPLE GLOBAL STUCK LOGIC =====
@@ -717,6 +757,12 @@ public class EntityAITravel extends EntityAIBase {
         if (improve >= PROGRESS_IMPROVE_SQ) {
             bestDistSq = d2;
             noProgressTicks = 0;
+        } else if (mpbRoute.hasRoute()) {
+            // On a planned road route the path may curve away from the destination before
+            // eventually converging — suppress distance-based stall so the entity is not
+            // falsely rescued while correctly following the road.
+            noProgressTicks = 0;
+            if (improve > 0) bestDistSq = d2; // still track best distance
         } else {
             noProgressTicks++;
         }
@@ -795,6 +841,8 @@ public class EntityAITravel extends EntityAIBase {
                     rescued |= teleportToward(targetVillage, TP_STEP_BLOCKS);
 
                     if (rescued) {
+                        mpbRoute.invalidate();
+                        roadBlockedTicks = STUCK_TP_CD; // don't re-engage road routing right away
                         resetStuckState();
                         bestDistSq = mob.getDistanceSqToCenter(targetVillage);
                         stuckTpCooldown = STUCK_TP_CD;
@@ -856,6 +904,9 @@ public class EntityAITravel extends EntityAIBase {
 
     private void retarget(BlockPos newTarget) {
         this.targetVillage = newTarget;
+        mpbRoute.invalidate();
+        roadBlockedTicks = 0;
+        nextRoadPlanTick = 0;
 
         resetStuckState(); // ok as long as we re-init below
 
@@ -897,18 +948,17 @@ public class EntityAITravel extends EntityAIBase {
         stuckStage = 0;
         stuckActionCooldown = 0;
         stuckTpCooldown = 0;
+        noProgressTicks = 0;
 
         lastMovePos = mob.getPositionVector();
         noMoveTicks = 0;
 
-// also reset the 1-second window tracker (you currently don't)
         moveWindowStart = lastMovePos;
         moveWindowTicks = 0;
         moveWindowInit = true;
 
         lastPathIndex = -1;
         pathNoAdvanceTicks = 0;
-
     }
 
     private static double horizDistSq(BlockPos a, BlockPos b) {
@@ -1160,18 +1210,43 @@ public class EntityAITravel extends EntityAIBase {
             return null;
         }
 
-        // --- MPB road-following ---
-        if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT && mob.world instanceof WorldServer) {
+        // --- MPB road-following via pre-planned leg route ---
+        // Catchup workers chase a moving owner goal: never route them through roads.
+        boolean catchupTravel = mob instanceof EntityTravellerWorker
+                && ((EntityTravellerWorker) mob).isCatchupTravel();
+        if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT
+                && !catchupTravel
+                && roadBlockedTicks <= 0
+                && mob.world instanceof WorldServer) {
             WorldServer ws = (WorldServer) mob.world;
-            int roadStep = Math.max(16, Math.min(step, (int) Math.sqrt(mob.getDistanceSqToCenter(dest)) - 4));
-            int searchR = (mob.getDistanceSqToCenter(dest) > 64 * 64) ? 22 : 14;
-            // API returns the road block pos (solid); feet = one block above
-            BlockPos roadBlock = com.jubitus.travellers.utils.world.MPBIntegration.findNextRoadWaypoint(
-                    ws, from.getX(), from.getZ(), dest.getX(), dest.getZ(), roadStep, searchR);
-            if (roadBlock != null) {
-                BlockPos roadFeet = roadBlock.up();
-                if (isAreaLoaded(roadFeet, 1) && isNavigable(roadFeet)) {
-                    return roadFeet;
+
+            // Plan or re-plan when the target changed, the follower went off-route,
+            // or a previous plan found no route (periodic retry while in direct mode)
+            if ((!mpbRoute.isRouteFor(dest.getX(), dest.getZ()) || mpbRoute.needsReplan())
+                    && mob.ticksExisted >= nextRoadPlanTick) {
+                mpbRoute.planRoute(ws, from.getX(), from.getZ(), dest.getX(), dest.getZ());
+                nextRoadPlanTick = mpbRoute.hasRoute() ? 0
+                        : mob.ticksExisted + ROAD_PLAN_RETRY_TICKS + mob.getRNG().nextInt(100);
+                if (com.jubitus.travellers.config.TravellersConfig.GENERAL.mpbDebugLog) {
+                    net.minecraftforge.fml.common.FMLLog.log(
+                            org.apache.logging.log4j.Level.INFO,
+                            "[Travellers/MPB] Route planned: %d waypoints from %d,%d to %d,%d",
+                            mpbRoute.routeSize(), from.getX(), from.getZ(), dest.getX(), dest.getZ());
+                }
+            }
+
+            BlockPos roadWp = mpbRoute.getNextWaypoint(from.getX(), from.getZ(), step);
+            if (roadWp != null) {
+                BlockPos resolved = resolveRoadTarget(from, roadWp, step);
+                if (resolved != null) {
+                    if (com.jubitus.travellers.config.TravellersConfig.GENERAL.mpbDebugLog) {
+                        net.minecraftforge.fml.common.FMLLog.log(
+                                org.apache.logging.log4j.Level.INFO,
+                                "[Travellers/MPB] Road target: %d,%d,%d (resolved %d,%d,%d)",
+                                roadWp.getX(), roadWp.getY(), roadWp.getZ(),
+                                resolved.getX(), resolved.getY(), resolved.getZ());
+                    }
+                    return resolved;
                 }
             }
         }
@@ -1228,6 +1303,42 @@ public class EntityAITravel extends EntityAIBase {
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Converts a road target (XZ authoritative, stored Y possibly stale) into a navigable
+     * waypoint. Distant targets (village transit, off-route rejoin) are approached in steps;
+     * Y is resolved from the actual terrain because the road index Y can be outdated.
+     */
+    @Nullable
+    private BlockPos resolveRoadTarget(BlockPos from, BlockPos roadWp, int step) {
+        long dx = roadWp.getX() - from.getX();
+        long dz = roadWp.getZ() - from.getZ();
+        long d2 = dx * dx + dz * dz;
+
+        // Too far for one hop: steer toward it within loaded chunks
+        long maxHopSq = (long) step * step * 9 / 4; // (1.5 * step)^2
+        if (d2 > maxHopSq) {
+            Vec3d dir = new Vec3d(dx, 0, dz).normalize();
+            return surfaceAtOffset(from, dir, step, Vec3d.ZERO);
+        }
+
+        if (isAreaLoaded(roadWp, 1)) {
+            BlockPos surface = findSurfaceOrWaterY(roadWp);
+            if (surface != null) return surface;
+            for (int dy = -2; dy <= 3; dy++) {
+                BlockPos adj = roadWp.add(0, dy, 0);
+                if (isNavigable(adj)) return adj;
+            }
+        }
+
+        // Unloaded or unwalkable target: take a safe partial step toward it
+        if (d2 >= 9) {
+            Vec3d dir = new Vec3d(dx, 0, dz).normalize();
+            int hop = Math.max(8, (int) Math.min(step, Math.sqrt(d2)));
+            return surfaceAtOffset(from, dir, hop, Vec3d.ZERO);
+        }
         return null;
     }
 
@@ -1453,6 +1564,15 @@ public class EntityAITravel extends EntityAIBase {
                 return;
             }
         }
+    }
+
+    private boolean isRoadWaypointReached(BlockPos wp) {
+        if (mpbRoute.hasRoute()) {
+            double dx = mob.posX - (wp.getX() + 0.5);
+            double dz = mob.posZ - (wp.getZ() + 0.5);
+            return dx * dx + dz * dz <= reachDistSq;
+        }
+        return mob.getDistanceSqToCenter(wp) <= reachDistSq;
     }
 
     // Forward component (in blocks) from 'from' to 'p' along the direction to the target (XZ only)
@@ -2574,6 +2694,57 @@ public class EntityAITravel extends EntityAIBase {
                 || m == Material.ICE);
     }
 
+    /**
+     * Checks the direct walking path toward {@code waypoint} for immediate hazards:
+     * forbidden liquids (lava, mod fluids) and cliff drops deeper than 3 blocks.
+     * Samples at 1-block intervals, up to 4 steps. Returns false (unsafe) if any
+     * hazard is found or a block is unloaded. Vanilla water is treated as safe ground
+     * since it breaks falls. Trees and fences are handled by entity collision; this
+     * method only guards against non-recoverable hazards.
+     */
+    private boolean isDirectPathSafe(BlockPos waypoint) {
+        Vec3d pos = mob.getPositionVector();
+        double dx = waypoint.getX() + 0.5 - pos.x;
+        double dz = waypoint.getZ() + 0.5 - pos.z;
+        double horizLen = Math.sqrt(dx * dx + dz * dz);
+        if (horizLen < 1e-6) return true;
+        dx /= horizLen;
+        dz /= horizLen;
+
+        int mobY = MathHelper.floor(pos.y);
+        int steps = Math.min(4, (int) Math.ceil(horizLen));
+
+        for (int i = 1; i <= steps; i++) {
+            int nx = MathHelper.floor(pos.x + dx * i);
+            int nz = MathHelper.floor(pos.z + dz * i);
+
+            BlockPos feet = new BlockPos(nx, mobY, nz);
+            BlockPos head = feet.up();
+
+            // Don't steer into unloaded territory
+            if (!mob.world.isBlockLoaded(feet) || !mob.world.isBlockLoaded(head)) return false;
+
+            // Lava or other forbidden liquids at feet/head level
+            if (isForbiddenLiquid(mob.world.getBlockState(feet))) return false;
+            if (isForbiddenLiquid(mob.world.getBlockState(head))) return false;
+
+            // Cliff: require solid ground (or vanilla water) within 3 blocks below
+            boolean hasSupport = false;
+            for (int dy = 0; dy >= -3; dy--) {
+                BlockPos check = new BlockPos(nx, mobY + dy, nz);
+                if (!mob.world.isBlockLoaded(check)) { hasSupport = true; break; }
+                IBlockState s = mob.world.getBlockState(check);
+                if (isVanillaWater(s)) { hasSupport = true; break; }
+                if (!s.getMaterial().isLiquid() && s.getMaterial().blocksMovement()) {
+                    hasSupport = true;
+                    break;
+                }
+            }
+            if (!hasSupport) return false;
+        }
+        return true;
+    }
+
     private boolean isCliffAheadTowardTarget(int ahead, int drop) {
         if (targetVillage == null) return false;
         Vec3d pos = mob.getPositionVector();
@@ -2897,5 +3068,10 @@ public class EntityAITravel extends EntityAIBase {
         if (!TravellersModConfig.debugFollowTeleport) return;
         if (mob == null || mob.world == null || mob.world.isRemote) return;
         MillLog.major(mob, "[TravelDebug][" + tag + "][id=" + mob.getEntityId() + "] " + message);
+    }
+
+    /** Returns a snapshot of the current MPB road route for diagnostics. Never null. */
+    public com.jubitus.travellers.utils.world.MPBRouteTracker.RouteSnapshot getMPBRouteSnapshot() {
+        return mpbRoute.snapshot();
     }
 }

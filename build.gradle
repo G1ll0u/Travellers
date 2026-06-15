@@ -387,7 +387,7 @@ tasks.register('generateDynamicSounds') {
         def travIndexOut = file("$voicesDir/index.json")
         def raidIndexOut = file("$voicesDir/raiders_index.json")
 
-        def kinds = ["talk", "hurt", "hello", "ambient"]
+        def kinds = ["talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death"]
         def soundsMap = [:]
 
         def mkIndex = { String defLang, String defPers ->
@@ -411,7 +411,57 @@ tasks.register('generateDynamicSounds') {
         def oggsIn = { File f ->
             def kids = f.listFiles()
             if (kids == null) return []
-            return kids.findAll { it.isFile() && it.name.toLowerCase().endsWith(".ogg") }.sort { a, b -> a.name <=> b.name }
+            def files = kids.findAll { it.isFile() && it.name.toLowerCase().endsWith(".ogg") }
+            def withSpaces = files.findAll { it.name.contains(" ") }
+            if (!withSpaces.isEmpty()) {
+                throw new GradleException("[generateDynamicSounds] OGG filenames must not contain spaces:\n" +
+                    withSpaces.collect { "  " + it.absolutePath }.join("\n"))
+            }
+            return files.sort { a, b -> a.name <=> b.name }
+        }
+
+        // Parse OGG Vorbis file and return duration in ticks (20 ticks/s). Returns 0 on error.
+        def readOggDurationTicks = { File oggFile ->
+            try {
+                RandomAccessFile raf = new RandomAccessFile(oggFile, "r")
+                long fileLen = raf.length()
+                if (fileLen < 27) { raf.close(); return 0 }
+
+                int sampleRate = 44100
+                int headerSize = (int) Math.min(256L, fileLen)
+                byte[] header = new byte[headerSize]
+                raf.read(header)
+                for (int i = 0; i < headerSize - 15; i++) {
+                    if (header[i] == (byte)1 && header[i+1] == (byte)'v' && header[i+2] == (byte)'o' &&
+                        header[i+3] == (byte)'r' && header[i+4] == (byte)'b' &&
+                        header[i+5] == (byte)'i' && header[i+6] == (byte)'s') {
+                        sampleRate = ((header[i+12] & 0xFF)) | ((header[i+13] & 0xFF) << 8) |
+                                     ((header[i+14] & 0xFF) << 16) | ((header[i+15] & 0xFF) << 24)
+                        break
+                    }
+                }
+
+                int scanSize = (int) Math.min(65536L, fileLen)
+                byte[] tail = new byte[scanSize]
+                raf.seek(fileLen - scanSize)
+                raf.read(tail)
+                raf.close()
+
+                long granule = 0L
+                for (int i = tail.length - 27; i >= 0; i--) {
+                    if (tail[i] == (byte)'O' && tail[i+1] == (byte)'g' &&
+                        tail[i+2] == (byte)'g' && tail[i+3] == (byte)'S') {
+                        long g = 0L
+                        for (int b = 0; b < 8; b++) {
+                            g |= ((long)(tail[i + 6 + b] & 0xFF)) << (b * 8)
+                        }
+                        if (g > 0L && g != -1L) { granule = g; break }
+                    }
+                }
+
+                if (sampleRate <= 0 || granule <= 0L) return 0
+                return (int) Math.ceil((double) granule / sampleRate * 20.0)
+            } catch (Exception ignored) { return 0 }
         }
 
         def emitCategory = { File baseDir, String eventPrefix, String soundNamePrefix, def indexObj ->
@@ -450,32 +500,41 @@ tasks.register('generateDynamicSounds') {
                         def aggregateEventKey = "${eventPrefix}.${lang}.${personality}.${kind}"
                         def aggregateEntries = []
                         def exactEventKeys = []
+                        boolean anyNeedsStream = (kind == "ambient")
 
                         files.eachWithIndex { File ogg, int i ->
                             def baseName = ogg.name.substring(0, ogg.name.length() - 4)
 
                             def soundPath = "${MODID}:${soundNamePrefix}/${lang}/${personality}/${kind}/${baseName}"
-                            aggregateEntries << [name: soundPath]
 
                             def exactEventKey = "${eventPrefix}.${lang}.${personality}.${kind}.__${i}"
                             exactEventKeys << exactEventKey
 
+                            boolean shouldStream = (kind == "ambient") || (readOggDurationTicks(ogg) > 60)
+                            if (shouldStream) anyNeedsStream = true
+                            aggregateEntries << [name: soundPath, stream: shouldStream]
                             soundsMap[exactEventKey] = [
                                     category: "voice",
-                                    sounds  : [[name: soundPath]],
-                                    stream  : true
+                                    sounds  : [[name: soundPath, stream: shouldStream]]
                             ]
                             if (kind == "talk" || kind == "hello") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.talk"
                             if (kind == "hurt") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.hurt"
+                            if (kind == "attack") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.attack"
+                            if (kind == "creeper") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.creeper"
+                            if (kind == "kill") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.kill"
+                            if (kind == "death") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.death"
                         }
 
                         soundsMap[aggregateEventKey] = [
                                 category: "voice",
-                                sounds  : aggregateEntries,
-                                stream  : true
+                                sounds  : aggregateEntries
                         ]
                         if (kind == "talk" || kind == "hello") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.talk"
                         if (kind == "hurt") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.hurt"
+                        if (kind == "attack") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.attack"
+                        if (kind == "creeper") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.creeper"
+                        if (kind == "kill") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.kill"
+                        if (kind == "death") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.death"
 
                         indexObj.clips[lang][personality][kind] = exactEventKeys
                     }
@@ -499,57 +558,8 @@ tasks.register('generateDynamicSounds') {
 
         // ---- Choir songs ----
         // Structure: sounds/travellers/<lang>/<personality>/choir/<songName>/<stem_N>.ogg
-        // Generates event keys: entity.travellers.<lang>.<personality>.choir.<songName>.__<i>
         // choir_index.json: { songs: {...}, aliases: {...}, durationTicks per song }
         def choirIndex = [:]   // lang -> personality -> [{ name, stems, durationTicks }]
-
-        // Parse OGG Vorbis file and return duration in ticks (20 ticks/s). Returns 0 on error.
-        def readOggDurationTicks = { File oggFile ->
-            try {
-                RandomAccessFile raf = new RandomAccessFile(oggFile, "r")
-                long fileLen = raf.length()
-                if (fileLen < 27) { raf.close(); return 0 }
-
-                // Read sample rate from Vorbis identification header (in first ~200 bytes)
-                int sampleRate = 44100
-                int headerSize = (int) Math.min(256L, fileLen)
-                byte[] header = new byte[headerSize]
-                raf.read(header)
-                for (int i = 0; i < headerSize - 15; i++) {
-                    // Vorbis ID packet: 0x01 + "vorbis"
-                    if (header[i] == (byte)1 && header[i+1] == (byte)'v' && header[i+2] == (byte)'o' &&
-                        header[i+3] == (byte)'r' && header[i+4] == (byte)'b' &&
-                        header[i+5] == (byte)'i' && header[i+6] == (byte)'s') {
-                        // sample rate at offset 12 from packet start (little-endian 32-bit)
-                        sampleRate = ((header[i+12] & 0xFF)) | ((header[i+13] & 0xFF) << 8) |
-                                     ((header[i+14] & 0xFF) << 16) | ((header[i+15] & 0xFF) << 24)
-                        break
-                    }
-                }
-
-                // Scan last 64 KB for the final OGG page to get total granule position
-                int scanSize = (int) Math.min(65536L, fileLen)
-                byte[] tail = new byte[scanSize]
-                raf.seek(fileLen - scanSize)
-                raf.read(tail)
-                raf.close()
-
-                long granule = 0L
-                for (int i = tail.length - 27; i >= 0; i--) {
-                    if (tail[i] == (byte)'O' && tail[i+1] == (byte)'g' &&
-                        tail[i+2] == (byte)'g' && tail[i+3] == (byte)'S') {
-                        long g = 0L
-                        for (int b = 0; b < 8; b++) {
-                            g |= ((long)(tail[i + 6 + b] & 0xFF)) << (b * 8)
-                        }
-                        if (g > 0L && g != -1L) { granule = g; break }
-                    }
-                }
-
-                if (sampleRate <= 0 || granule <= 0L) return 0
-                return (int) Math.ceil((double) granule / sampleRate * 20.0)
-            } catch (Exception ignored) { return 0 }
-        }
 
         def emitChoir = { File baseDir, String eventPrefix, String soundNamePrefix ->
             if (!baseDir.exists() || !baseDir.isDirectory()) return
@@ -579,8 +589,7 @@ tasks.register('generateDynamicSounds') {
                             stemKeys << eventKey
                             soundsMap[eventKey] = [
                                     category: "voice",
-                                    sounds  : [[name: soundPath]],
-                                    stream  : true
+                                    sounds  : [[name: soundPath, stream: true]]
                             ]
                             int dur = readOggDurationTicks(ogg)
                             if (dur > maxDurationTicks) maxDurationTicks = dur
@@ -619,3 +628,12 @@ tasks.register('generateDynamicSounds') {
 }
 
 processResources.dependsOn(generateDynamicSounds)
+
+tasks.register('deployToServer', Exec) {
+    group = 'deployment'
+    description = 'Copies production jar to travellers-latest.jar and deploys to server'
+    mustRunAfter 'build'
+    commandLine 'bash', "${projectDir}/deploy.sh"
+}
+
+tasks.named('build').configure { finalizedBy 'deployToServer' }

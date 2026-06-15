@@ -15,11 +15,5 @@
                 }
             ]
         }
-    },
-    "aliases": {
-        "fr": {
-            "gilles_fou": "gilles",
-            "vener": "gilles"
-        }
     }
 }

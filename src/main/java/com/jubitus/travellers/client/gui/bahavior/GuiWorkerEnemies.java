@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.bahavior;
 
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSetWorkerHostile;
@@ -174,15 +175,10 @@ public class GuiWorkerEnemies extends GuiScreen {
         java.util.List<String> names = worker.getHostileNamesClient();
         if (names == null) names = java.util.Collections.emptyList();
 
-        // border like recruit
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
-
-        this.fontRenderer.drawString(
+        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
+        TravellersGuiTheme.drawTitle(this.fontRenderer,
                 I18n.format("travellers.worker.enemies.count", names.size()),
-                listX,
-                listY - 10,
-                0xE0E0E0
-        );
+                listX, listY - 10);
 
         int maxRows = Math.min(listH / rowH, names.size());
         for (int i = 0; i < maxRows; i++) {
@@ -192,8 +188,7 @@ public class GuiWorkerEnemies extends GuiScreen {
             boolean hovered = mouseX >= listX && mouseX < listX + listW
                     && mouseY >= rowTop && mouseY < rowBottom;
 
-            int bg = hovered ? 0x20FFFFFF : 0x20000000; // same hover style
-            drawRect(listX, rowTop, listX + listW, rowBottom, bg);
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, false);
 
             String name = names.get(i);
 
@@ -205,7 +200,8 @@ public class GuiWorkerEnemies extends GuiScreen {
             int maxUnscaledWidth = (int) ((this.listW - 6) / scale);
             String label = this.fontRenderer.trimStringToWidth(name, maxUnscaledWidth);
 
-            this.fontRenderer.drawString(label, 0, 0, 0xE0E0E0);
+            int textColor = hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
+            this.fontRenderer.drawString(label, 0, 0, textColor);
             GlStateManager.popMatrix();
         }
     }

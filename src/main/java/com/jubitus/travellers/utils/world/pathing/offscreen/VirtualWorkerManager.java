@@ -607,41 +607,38 @@ public class VirtualWorkerManager extends WorldSavedData {
     private void materializeWorker(WorldServer world, VirtualWorkerRecord r, long now, boolean forceLoadChunk) {
         if (world.getEntityFromUuid(r.uuid) != null) return;
 
-        double spawnX = r.posX;
-        double spawnY = r.posY;
-        double spawnZ = r.posZ;
+        // Always snap to block center: guarantees ≥0.5 blocks distance from any wall,
+        // which prevents the horizontal suffocation check (±0.24 eye offset) from clipping walls.
+        double spawnX = Math.floor(r.posX) + 0.5;
+        double spawnZ = Math.floor(r.posZ) + 0.5;
 
+        // Spread only for workers that have traveled far, to avoid stacking at the same block.
+        // Use integer block offsets so the result is also a block center.
+        // Only use spread if the target chunk is already loaded.
         if (r.hasTraveledFar) {
-            // Worker moved significantly: stored Y is from the virtualization origin and is stale.
-            // Apply a small spread then find safe ground Y (skipping tree canopy).
-            spawnX = r.posX + (world.rand.nextDouble() - 0.5) * MATERIALIZE_SPREAD * 2;
-            spawnZ = r.posZ + (world.rand.nextDouble() - 0.5) * MATERIALIZE_SPREAD * 2;
+            int ox = (int) Math.round((world.rand.nextDouble() - 0.5) * MATERIALIZE_SPREAD * 2);
+            int oz = (int) Math.round((world.rand.nextDouble() - 0.5) * MATERIALIZE_SPREAD * 2);
+            double cx = Math.floor(r.posX) + ox + 0.5;
+            double cz = Math.floor(r.posZ) + oz + 0.5;
+            int cbx = (int) Math.floor(cx);
+            int cbz = (int) Math.floor(cz);
+            if (world.getChunkProvider().chunkExists(cbx >> 4, cbz >> 4)) {
+                spawnX = cx;
+                spawnZ = cz;
+            }
+        }
 
-            int bx = (int) Math.floor(spawnX);
-            int bz = (int) Math.floor(spawnZ);
+        int bx = (int) Math.floor(spawnX);
+        int bz = (int) Math.floor(spawnZ);
 
-            if (forceLoadChunk) {
-                world.getChunkProvider().provideChunk(bx >> 4, bz >> 4);
-            }
-            if (!world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
-                spawnX = r.posX;
-                spawnZ = r.posZ;
-                bx = (int) Math.floor(spawnX);
-                bz = (int) Math.floor(spawnZ);
-            }
-            if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
-                spawnY = findSafeGroundY(world, bx, bz, r.posY);
-            }
-        } else {
-            // Worker is near its virtualization point — X/Z are correct, but Y may be a
-            // fractional mid-step value from the pathfinding AI (e.g. 30.5 mid-climb).
-            // In a tight cave that can put the entity's head inside the ceiling block.
-            // Snap Y to the nearest solid floor within 2 blocks below stored position.
-            int bx = (int) Math.floor(spawnX);
-            int bz = (int) Math.floor(spawnZ);
-            if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
-                spawnY = snapToFloor(world, bx, spawnY, bz);
-            }
+        if (forceLoadChunk) {
+            world.getChunkProvider().provideChunk(bx >> 4, bz >> 4);
+        }
+
+        double spawnY = r.posY;
+        if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
+            spawnY = findSafeFloorY(world, bx, bz, r.posY);
+            spawnY = ensureNotInSolid(world, bx, spawnY, bz);
         }
 
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
@@ -660,48 +657,67 @@ public class VirtualWorkerManager extends WorldSavedData {
     }
 
     /**
-     * Snaps posY to the nearest valid floor within 2 blocks below the stored position.
-     * Handles mid-step pathfinding Y values (e.g. 30.5 mid-climb) that would otherwise
-     * put the entity's head inside a cave ceiling. Falls back to posY if no clear floor
-     * is found in range (e.g. entity is in mid-air).
+     * Finds a safe Y for the entity to stand at (bx, bz).
+     * Searches outward from referenceY first — this preserves underground positions
+     * (cave workers stay underground, not teleported to the surface).
+     * Falls back to a top-down surface scan only if nothing is found nearby.
      */
-    private static double snapToFloor(WorldServer world, int bx, double posY, int bz) {
-        int startY = (int) Math.floor(posY);
-        for (int y = startY; y >= Math.max(0, startY - 2); y--) {
-            BlockPos pos = new BlockPos(bx, y, bz);
-            net.minecraft.block.state.IBlockState st = world.getBlockState(pos);
-            if (st.getBlock().isAir(st, world, pos)) continue;
-            net.minecraft.block.state.IBlockState s1 = world.getBlockState(pos.up());
-            net.minecraft.block.state.IBlockState s2 = world.getBlockState(pos.up(2));
-            if (s1.getBlock().isAir(s1, world, pos.up())
-                    && s2.getBlock().isAir(s2, world, pos.up(2))) {
-                return y + 1.0;
+    private static double findSafeFloorY(WorldServer world, int bx, int bz, double referenceY) {
+        int refY = (int) Math.floor(referenceY);
+        int maxY = world.getActualHeight() - 3;
+
+        // Search outward from refY: down first at each offset, then up.
+        // This keeps cave workers in their cave and surface workers on the surface.
+        for (int offset = 0; offset <= 32; offset++) {
+            int yDown = refY - offset;
+            if (yDown >= 1 && isSafeFloor(world, bx, yDown, bz)) return yDown + 1.0;
+            if (offset > 0) {
+                int yUp = refY + offset;
+                if (yUp <= maxY && isSafeFloor(world, bx, yUp, bz)) return yUp + 1.0;
             }
         }
-        return posY;
-    }
 
-    /**
-     * Returns a Y coordinate suitable for standing at (bx, bz): the first solid block
-     * from the top that is not foliage (leaves/logs), with at least two air blocks above.
-     * Avoids spawning workers on top of tree canopies.
-     */
-    private static double findSafeGroundY(WorldServer world, int bx, int bz, double fallbackY) {
-        for (int y = world.getHeight() - 1; y > 1; y--) {
+        // Last resort: top-down scan skipping foliage (handles extreme terrain changes)
+        for (int y = maxY; y > 1; y--) {
             BlockPos pos = new BlockPos(bx, y, bz);
             net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
             net.minecraft.block.Block block = state.getBlock();
             if (block instanceof net.minecraft.block.BlockLeaves) continue;
             if (block instanceof net.minecraft.block.BlockLog) continue;
             if (block.isAir(state, world, pos)) continue;
-            // Verify two passable blocks above so the entity can stand
-            net.minecraft.block.state.IBlockState s1 = world.getBlockState(pos.up());
-            net.minecraft.block.state.IBlockState s2 = world.getBlockState(pos.up(2));
-            if (s1.getBlock().isAir(s1, world, pos.up()) && s2.getBlock().isAir(s2, world, pos.up(2))) {
-                return y + 1.0;
+            if (isSafeFloor(world, bx, y, bz)) return y + 1.0;
+        }
+
+        return referenceY;
+    }
+
+    private static boolean isSafeFloor(WorldServer world, int bx, int y, int bz) {
+        BlockPos floor = new BlockPos(bx, y, bz);
+        net.minecraft.block.state.IBlockState st = world.getBlockState(floor);
+        if (st.getBlock().isAir(st, world, floor)) return false;
+        net.minecraft.block.state.IBlockState s1 = world.getBlockState(floor.up());
+        net.minecraft.block.state.IBlockState s2 = world.getBlockState(floor.up(2));
+        return s1.getBlock().isAir(s1, world, floor.up())
+                && s2.getBlock().isAir(s2, world, floor.up(2));
+    }
+
+    /**
+     * If spawnY lands inside a solid block (e.g. spread pushed the worker into a wall),
+     * pushes Y up until two consecutive air blocks are found.
+     */
+    private static double ensureNotInSolid(WorldServer world, int bx, double spawnY, int bz) {
+        int y = (int) Math.floor(spawnY);
+        int maxY = world.getActualHeight() - 2;
+        for (int i = 0; y + i <= maxY; i++) {
+            BlockPos p1 = new BlockPos(bx, y + i, bz);
+            BlockPos p2 = new BlockPos(bx, y + i + 1, bz);
+            net.minecraft.block.state.IBlockState s1 = world.getBlockState(p1);
+            net.minecraft.block.state.IBlockState s2 = world.getBlockState(p2);
+            if (s1.getBlock().isAir(s1, world, p1) && s2.getBlock().isAir(s2, world, p2)) {
+                return y + i;
             }
         }
-        return fallbackY;
+        return spawnY;
     }
 
     // -------------------------------------------------------------------------

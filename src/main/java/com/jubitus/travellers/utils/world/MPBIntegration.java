@@ -5,6 +5,8 @@ import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.List;
 
 public final class MPBIntegration {
 
@@ -14,6 +16,13 @@ public final class MPBIntegration {
     private static Method methodIsOnRoad;
     private static Method methodFindNextWaypoint;
     private static Method methodFindRoadSpawnPos;
+    private static Method methodFindNearestRoadPos;
+    private static Method methodFindRoadRoute;
+    private static Method methodFindRoadRouteLegs;
+    private static Method methodGetConnectedVillages;
+
+    /** Fallback leg split: consecutive waypoints farther apart than this are a village crossing. */
+    private static final int LEG_GAP_THRESHOLD_SQ = 40 * 40;
 
     private MPBIntegration() {}
 
@@ -24,6 +33,17 @@ public final class MPBIntegration {
             methodFindNextWaypoint = apiClass.getMethod("findNextRoadWaypointToward",
                     WorldServer.class, int.class, int.class, int.class, int.class, int.class, int.class);
             methodFindRoadSpawnPos = apiClass.getMethod("findRoadSpawnPos", WorldServer.class, int.class, int.class, int.class);
+            methodFindNearestRoadPos = apiClass.getMethod("findNearestRoadPos", WorldServer.class, int.class, int.class, int.class);
+            methodFindRoadRoute = apiClass.getMethod("findRoadRoute",
+                    WorldServer.class, int.class, int.class, int.class, int.class, int.class);
+            methodGetConnectedVillages = apiClass.getMethod("getConnectedVillages", WorldServer.class);
+            // Optional (newer MPB only); fallback splits the flat route by gap distance
+            try {
+                methodFindRoadRouteLegs = apiClass.getMethod("findRoadRouteLegs",
+                        WorldServer.class, int.class, int.class, int.class, int.class, int.class);
+            } catch (NoSuchMethodException e) {
+                methodFindRoadRouteLegs = null;
+            }
             return true;
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             return false;
@@ -58,6 +78,81 @@ public final class MPBIntegration {
             return (BlockPos) methodFindRoadSpawnPos.invoke(null, world, x, z, maxRadius);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    @Nullable
+    public static BlockPos findNearestRoadPos(WorldServer world, int x, int z, int maxRadius) {
+        if (!PRESENT) return null;
+        try {
+            return (BlockPos) methodFindNearestRoadPos.invoke(null, world, x, z, maxRadius);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Returns an ordered list of road-surface BlockPos for a route, or empty list if no route found. */
+    @SuppressWarnings("unchecked")
+    public static List<BlockPos> findRoadRoute(WorldServer world, int fromX, int fromZ, int toX, int toZ, int maxSearchRadius) {
+        if (!PRESENT) return Collections.emptyList();
+        try {
+            List<BlockPos> result = (List<BlockPos>) methodFindRoadRoute.invoke(null, world, fromX, fromZ, toX, toZ, maxSearchRadius);
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Returns the route split into legs: each inner list is a physically contiguous road
+     * polyline; legs are separated by village crossings. Empty list if no route found.
+     * Uses the structured MPB API when available, otherwise splits the flat route by gaps.
+     */
+    @SuppressWarnings("unchecked")
+    public static List<List<BlockPos>> findRoadRouteLegs(WorldServer world, int fromX, int fromZ,
+                                                         int toX, int toZ, int maxSearchRadius) {
+        if (!PRESENT) return Collections.emptyList();
+        if (methodFindRoadRouteLegs != null) {
+            try {
+                List<List<BlockPos>> result = (List<List<BlockPos>>)
+                        methodFindRoadRouteLegs.invoke(null, world, fromX, fromZ, toX, toZ, maxSearchRadius);
+                return result != null ? result : Collections.emptyList();
+            } catch (Exception e) {
+                return Collections.emptyList();
+            }
+        }
+        return splitByGaps(findRoadRoute(world, fromX, fromZ, toX, toZ, maxSearchRadius));
+    }
+
+    private static List<List<BlockPos>> splitByGaps(List<BlockPos> flat) {
+        if (flat.isEmpty()) return Collections.emptyList();
+        List<List<BlockPos>> legs = new java.util.ArrayList<>();
+        List<BlockPos> current = new java.util.ArrayList<>();
+        BlockPos prev = null;
+        for (BlockPos p : flat) {
+            if (prev != null) {
+                long dx = p.getX() - prev.getX(), dz = p.getZ() - prev.getZ();
+                if (dx * dx + dz * dz > LEG_GAP_THRESHOLD_SQ) {
+                    legs.add(current);
+                    current = new java.util.ArrayList<>();
+                }
+            }
+            current.add(p);
+            prev = p;
+        }
+        if (!current.isEmpty()) legs.add(current);
+        return legs;
+    }
+
+    /** Returns village center positions (XZ, Y=0) that are endpoints of road segments. */
+    @SuppressWarnings("unchecked")
+    public static List<BlockPos> getConnectedVillages(WorldServer world) {
+        if (!PRESENT) return Collections.emptyList();
+        try {
+            List<BlockPos> result = (List<BlockPos>) methodGetConnectedVillages.invoke(null, world);
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            return Collections.emptyList();
         }
     }
 }

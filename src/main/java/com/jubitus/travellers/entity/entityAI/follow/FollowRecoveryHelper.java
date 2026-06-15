@@ -293,6 +293,30 @@ public final class FollowRecoveryHelper {
         );
     }
 
+    /**
+     * Wide-radius fallback for when the direct short-step teleport fails (e.g., a mountain
+     * sits between the worker and its leader). Searches around the leader position with no
+     * worker-distance constraint so the worker can land on the far side of any obstacle.
+     */
+    @Nullable
+    public static TeleportCandidate findWideTeleportNearLeader(EntityTravellerWorker worker,
+                                                               EntityLivingBase leader,
+                                                               double searchRadius,
+                                                               double minLeaderDistance) {
+        return findBestSpotNear(
+                worker,
+                leader,
+                leader.posX,
+                leader.posY,
+                leader.posZ,
+                (int) Math.ceil(searchRadius),
+                false,
+                minLeaderDistance,
+                searchRadius,
+                1024.0D
+        );
+    }
+
     public static void teleportWorker(EntityTravellerWorker worker, TeleportCandidate candidate) {
         worker.getNavigator().clearPath();
         worker.setPositionAndUpdate(candidate.x, candidate.y, candidate.z);

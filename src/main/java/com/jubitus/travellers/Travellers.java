@@ -3,7 +3,6 @@ package com.jubitus.travellers;
 import com.jubitus.travellers.client.input.FormationHubKeyHandler;
 import com.jubitus.travellers.client.input.WorldMapKeyHandler;
 import com.jubitus.travellers.client.render.ClientProxy;
-import com.jubitus.travellers.client.sound.ChoirSoundWarmer;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
@@ -14,8 +13,9 @@ import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireMa
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeChestHandler;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerOffscreenHandler;
 import com.jubitus.travellers.entity.travellers.*;
-import com.jubitus.travellers.config.TravellersConfigHistory;
-import com.jubitus.travellers.config.TravellersConfigPersistence;
+import com.jubitus.jubiconfig.JubiConfig;
+import com.jubitus.jubiconfig.command.CommandModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.utils.commands.*;
 import com.jubitus.travellers.utils.mobs.MobTargetInjector;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -81,7 +81,7 @@ public class Travellers {
         event.registerServerCommand(new CommandVillageNeeds());
         event.registerServerCommand(new TravellerCommandChunks());
         event.registerServerCommand(new CommandSummonWorkers());
-        event.registerServerCommand(new CommandTravellersConfig());
+        event.registerServerCommand(new CommandModConfig("travellers"));
     }
 
     @Mod.EventHandler
@@ -93,10 +93,31 @@ public class Travellers {
 
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
-        File configFile = new File(configDir, "travellers.cfg");
-        TravellersModConfig.init(configFile);
-        TravellersConfigPersistence.applyOnStartup();
-        TravellersConfigHistory.loadFromFile();
+        // Legacy .cfg is kept in .internal/ so it doesn't clutter config/travellers/.
+        // Players configure the mod via the GUI or travellers_overrides.properties.
+        File internalDir = new File(configDir, ".internal");
+        if (!internalDir.exists()) internalDir.mkdirs();
+        File configFile = new File(internalDir, "travellers_legacy.cfg");
+        // One-time migration: move old travellers.cfg to the new location
+        File oldConfigFile = new File(configDir, "travellers.cfg");
+        if (oldConfigFile.exists() && !configFile.exists()) {
+            oldConfigFile.renameTo(configFile);
+        }
+        TravellersModConfig.init(configFile, configDir);
+        JubiConfig.init(
+                "travellers", "Travellers", "travellersconfig",
+                TravellersConfig.class, TravellerFollowNet.CHANNEL,
+                () -> {
+                    TravellersModConfig.syncFromTravellersConfig();
+                    TravellersModConfig.applyDerivedValues();
+                    TravellersModConfig.applyRuntimeEffects();
+                    TravellersModConfig.syncServerCachesFromConfig();
+                    TravellersModConfig.broadcastServerCostsToAllPlayers();
+                },
+                configDir, 1
+        );
+        JubiConfig.applyOnStartup("travellers");
+        JubiConfig.loadHistory("travellers");
         TravellersModConfig.syncFromTravellersConfig();
         TravellersModConfig.applyDerivedValues();
         TravellersModConfig.syncServerCachesFromConfig();
@@ -120,6 +141,7 @@ public class Travellers {
 
         // Client-only stuff
         if (event.getSide().isClient()) {
+            MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.client.sound.SoundCodecHooks.class);
             ClientProxy.registerRenderers();
             FormationHubKeyHandler formationKeyHandler = new FormationHubKeyHandler();
             FormationHubKeyHandler.register();
@@ -276,15 +298,6 @@ public class Travellers {
             CampfireManager.get(ws).extinguishAllForWorld(ws);
         }
     }
-
-    @Mod.EventHandler
-    public void onLoadComplete(net.minecraftforge.fml.common.event.FMLLoadCompleteEvent event) {
-        // On s'assure d'exécuter cela uniquement du côté Client (pour éviter les crashs sur un serveur dédié)
-        if (event.getSide().isClient()) {
-            ChoirSoundWarmer.warmUpAtLaunch();
-        }
-    }
-
 
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {

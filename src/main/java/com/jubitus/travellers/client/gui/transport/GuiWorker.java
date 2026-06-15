@@ -1,10 +1,11 @@
 package com.jubitus.travellers.client.gui.transport;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
@@ -38,14 +39,13 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     private static final int MAP_W = 150;
 
-    // ── Palette de couleurs thématique (Beige / Hub) ──────────────────────────
-    private static final int COL_BG       = 0xFF2A2219;
-    private static final int COL_BORDER   = 0xFF685747;
-    private static final int COL_TEXT     = 0xF2D2B9;
-    private static final int COL_TEXT_DIM = 0xFFA08060;
-    private static final int COL_SEL      = 0x604A3C20;
-    private static final int COL_HOVER    = 0x3AFFFFFF;
-    private static final int COL_PANEL    = 0xFF1E1A14;
+    private static final int COL_BG       = TravellersGuiTheme.COL_BG;
+    private static final int COL_BORDER   = TravellersGuiTheme.COL_BORDER;
+    private static final int COL_TEXT     = TravellersGuiTheme.COL_TEXT;
+    private static final int COL_TEXT_DIM = TravellersGuiTheme.COL_TEXT_DIM;
+    private static final int COL_SEL      = TravellersGuiTheme.COL_ROW_SEL;
+    private static final int COL_HOVER    = TravellersGuiTheme.COL_ROW_HOVER;
+    private static final int COL_PANEL    = TravellersGuiTheme.COL_PANEL;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -176,34 +176,16 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     private void rebuildMapMarkers() {
         if (mapController == null) return;
-        mapController.panel.clearMarkers();
 
-        for (MsgWorkerGoList.Entry e : poiEntries) {
-            if (e.pos == null) continue;
-            if (e.kind == MsgWorkerGoList.Kind.VILLAGE)
-                mapController.panel.addMarker(WorldMapMarkerFactory.village(e.pos, e.label));
-            else
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label));
-        }
-
+        // Highlighted village (the currently selected row)
+        java.util.Set<net.minecraft.util.math.BlockPos> highlighted = null;
         if (selectedIndex >= 0 && selectedIndex < villages.size()) {
-            mapController.panel.addMarker(
-                    WorldMapMarkerFactory.villageHighlighted(
-                            villages.get(selectedIndex).center,
-                            villages.get(selectedIndex).display));
+            highlighted = java.util.Collections.singleton(villages.get(selectedIndex).center);
         }
 
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
-            if (e.pos == null) continue;
-            String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker";
-            if (e.isLeader)
-                mapController.panel.addMarker(WorldMapMarkerFactory.leader(e.pos, name, e.ownerColor));
-            else
-                mapController.panel.addMarker(WorldMapMarkerFactory.follower(e.pos, name, e.ownerColor));
-        }
-
-        mapController.panel.addMarker(WorldMapMarkerFactory.player(
-                player.getPosition(), player.getName(), playerOwnerColor));
+        mapController.panel.clearMarkers();
+        WorldMapContentPopulator.populate(
+                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, highlighted);
     }
 
     @Override

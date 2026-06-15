@@ -1014,16 +1014,21 @@ public final class CultureRegistry {
         defaultLang = (defaultLang == null ? "en" : defaultLang).toLowerCase(java.util.Locale.ROOT);
         defaultPersonality = (defaultPersonality == null ? "default" : defaultPersonality).toLowerCase(java.util.Locale.ROOT);
 
-        SoundEvent[] talk = resolveExactEvents(idx, lang, personality, "talk", defaultLang, defaultPersonality);
-        SoundEvent[] hurt = resolveExactEvents(idx, lang, personality, "hurt", defaultLang, defaultPersonality);
-        SoundEvent[] hello = resolveExactEvents(idx, lang, personality, "hello", defaultLang, defaultPersonality);
+        SoundEvent[] talk    = resolveExactEvents(idx, lang, personality, "talk",    defaultLang, defaultPersonality);
+        SoundEvent[] hurt    = resolveExactEvents(idx, lang, personality, "hurt",    defaultLang, defaultPersonality);
+        SoundEvent[] hello   = resolveExactEvents(idx, lang, personality, "hello",   defaultLang, defaultPersonality);
         SoundEvent[] ambient = resolveExactEvents(idx, lang, personality, "ambient", defaultLang, defaultPersonality);
+        SoundEvent[] attack  = resolveExactEvents(idx, lang, personality, "attack",  defaultLang, defaultPersonality);
+        SoundEvent[] creeper = resolveExactEvents(idx, lang, personality, "creeper", defaultLang, defaultPersonality);
+        SoundEvent[] kill    = resolveExactEvents(idx, lang, personality, "kill",    defaultLang, defaultPersonality);
+        SoundEvent[] death   = resolveExactEvents(idx, lang, personality, "death",   defaultLang, defaultPersonality);
 
-        return new VoiceSet(talk, hurt, hello, ambient);
+        return new VoiceSet(talk, hurt, hello, ambient, attack, creeper, kill, death);
     }
 
     public static String pickRandomRaiderPersonalityId(String cultureId, java.util.Random rand) {
         String cid = (cultureId == null ? "" : cultureId).toLowerCase(java.util.Locale.ROOT);
+        ensureRaiderVoiceDataForCulture(cid);
 
         java.util.List<VoicePersonality> list = RAIDER_VOICE_VARIANTS.get(cid);
         if (list == null || list.isEmpty()) return "";
@@ -1032,18 +1037,67 @@ public final class CultureRegistry {
         return (p == null || p.id == null) ? "" : p.id;
     }
 
+    private static void ensureRaiderVoiceDataForCulture(String cultureId) {
+        String cid = normalizeCultureId(cultureId);
+        if (cid.isEmpty()) return;
+
+        if (RAIDER_VOICE_VARIANTS.containsKey(cid) && RAIDER_VOICES.containsKey(cid)) return;
+
+        RaiderVoiceIndex idx = RaiderVoiceIndex.loadOrDefault();
+        String lang = langForCulture(cid).toLowerCase(java.util.Locale.ROOT);
+
+        java.util.List<String> persIds = idx.langs.get(lang);
+        if (persIds == null) persIds = java.util.Collections.emptyList();
+
+        java.util.List<VoicePersonality> personalities = new java.util.ArrayList<>();
+        for (String pid : persIds) {
+            if (pid == null) continue;
+            String clean = pid.trim().toLowerCase(java.util.Locale.ROOT);
+            if (clean.isEmpty()) continue;
+            VoiceSet vs = buildRaiderVoiceSet(lang, clean, idx.defaultLang, idx.defaultPersonality);
+            personalities.add(new VoicePersonality(clean, vs));
+        }
+        RAIDER_VOICE_VARIANTS.put(cid, personalities);
+
+        String fallbackPid = idx.defaultPersonality == null ? "default" : idx.defaultPersonality;
+        fallbackPid = fallbackPid.toLowerCase(java.util.Locale.ROOT);
+
+        boolean hasGlobalDefault = false;
+        for (String p : persIds) {
+            if (p != null && p.equalsIgnoreCase(fallbackPid)) { hasGlobalDefault = true; break; }
+        }
+        if (!hasGlobalDefault && !persIds.isEmpty() && persIds.get(0) != null) {
+            fallbackPid = persIds.get(0).toLowerCase(java.util.Locale.ROOT);
+        }
+
+        RAIDER_VOICES.put(cid, buildRaiderVoiceSet(lang, fallbackPid, idx.defaultLang, idx.defaultPersonality));
+    }
+
     public static VoiceSet resolveRaiderVoiceSet(String cultureId, String personalityId) {
         String cid = (cultureId == null ? "" : cultureId).toLowerCase(java.util.Locale.ROOT);
+        ensureRaiderVoiceDataForCulture(cid);
 
-        boolean isNormanLike = cid.contains("norman");
-        String lang = langForCulture(cultureId);
+        // 1) Exact personality match in pre-built variants
+        if (personalityId != null && !personalityId.isEmpty()) {
+            String pid = personalityId.toLowerCase(java.util.Locale.ROOT);
+            java.util.List<VoicePersonality> vars = RAIDER_VOICE_VARIANTS.get(cid);
+            if (vars != null) {
+                for (VoicePersonality vp : vars) {
+                    if (vp != null && vp.id != null
+                            && vp.id.toLowerCase(java.util.Locale.ROOT).equals(pid)) {
+                        return vp.voiceSet;
+                    }
+                }
+            }
+        }
 
+        // 2) Culture fallback (first personality for that lang)
+        VoiceSet fallback = RAIDER_VOICES.get(cid);
+        if (fallback != null) return fallback;
 
-        // These defaults come from raiders_index.json (you can store them globally if you prefer)
-        String defaultLang = "en";
-        String defaultPersonality = "default";
-
-        return buildRaiderVoiceSet(lang, personalityId, defaultLang, defaultPersonality);
+        // 3) Last resort: en/default
+        RaiderVoiceIndex idx = RaiderVoiceIndex.loadOrDefault();
+        return buildRaiderVoiceSet("en", "default", idx.defaultLang, idx.defaultPersonality);
     }
 
     @javax.annotation.Nullable
@@ -1056,16 +1110,21 @@ public final class CultureRegistry {
         RaiderVoiceIndex idx = RaiderVoiceIndex.loadOrDefault();
 
         lang = (lang == null ? "en" : lang).toLowerCase(java.util.Locale.ROOT);
-        personality = (personality == null ? "default" : personality).toLowerCase(java.util.Locale.ROOT);
         defaultLang = (defaultLang == null ? "en" : defaultLang).toLowerCase(java.util.Locale.ROOT);
         defaultPersonality = (defaultPersonality == null ? "default" : defaultPersonality).toLowerCase(java.util.Locale.ROOT);
+        // Empty personality means "none chosen yet" — use the index default so raiders find their sounds.
+        if (personality == null || personality.isEmpty()) personality = defaultPersonality;
+        personality = personality.toLowerCase(java.util.Locale.ROOT);
 
-        SoundEvent[] talk = resolveExactRaiderEvents(idx, lang, personality, "talk", defaultLang, defaultPersonality);
-        SoundEvent[] hurt = resolveExactRaiderEvents(idx, lang, personality, "hurt", defaultLang, defaultPersonality);
-        SoundEvent[] hello = resolveExactRaiderEvents(idx, lang, personality, "hello", defaultLang, defaultPersonality);
+        SoundEvent[] talk    = resolveExactRaiderEvents(idx, lang, personality, "talk",    defaultLang, defaultPersonality);
+        SoundEvent[] hurt    = resolveExactRaiderEvents(idx, lang, personality, "hurt",    defaultLang, defaultPersonality);
+        SoundEvent[] hello   = resolveExactRaiderEvents(idx, lang, personality, "hello",   defaultLang, defaultPersonality);
         SoundEvent[] ambient = resolveExactRaiderEvents(idx, lang, personality, "ambient", defaultLang, defaultPersonality);
+        SoundEvent[] attack  = resolveExactRaiderEvents(idx, lang, personality, "attack",  defaultLang, defaultPersonality);
+        SoundEvent[] kill    = resolveExactRaiderEvents(idx, lang, personality, "kill",    defaultLang, defaultPersonality);
+        SoundEvent[] death   = resolveExactRaiderEvents(idx, lang, personality, "death",   defaultLang, defaultPersonality);
 
-        return new VoiceSet(talk, hurt, hello, ambient);
+        return new VoiceSet(talk, hurt, hello, ambient, attack, null, kill, death);
     }
 
     private static SoundEvent[] resolveExactRaiderEvents(
@@ -1077,15 +1136,6 @@ public final class CultureRegistry {
             String defaultPersonality
     ) {
         java.util.List<String> keys = getRaiderClipKeys(idx, lang, personality, kind);
-
-        if ((keys == null || keys.isEmpty()) && !personality.equalsIgnoreCase(defaultPersonality)) {
-            keys = getRaiderClipKeys(idx, lang, defaultPersonality, kind);
-        }
-
-        if ((keys == null || keys.isEmpty())
-                && (!lang.equalsIgnoreCase(defaultLang) || !personality.equalsIgnoreCase(defaultPersonality))) {
-            keys = getRaiderClipKeys(idx, defaultLang, defaultPersonality, kind);
-        }
 
         if (keys == null || keys.isEmpty()) {
             return new SoundEvent[0];
@@ -1123,10 +1173,8 @@ public final class CultureRegistry {
         String id = (cultureId == null ? "" : cultureId).toLowerCase(java.util.Locale.ROOT);
 
         // Add your mapping rules here.
-        // Use contains() so it works for "german", "german_village", etc.
         if (id.contains("norman")) return "fr";
         if (id.contains("franks")) return "fr";
-        if (id.contains("german")) return "de";
 
         // default
         return "en";
@@ -1178,15 +1226,6 @@ public final class CultureRegistry {
             String defaultPersonality
     ) {
         java.util.List<String> keys = getClipKeys(idx, lang, personality, kind);
-
-        if ((keys == null || keys.isEmpty()) && !personality.equalsIgnoreCase(defaultPersonality)) {
-            keys = getClipKeys(idx, lang, defaultPersonality, kind);
-        }
-
-        if ((keys == null || keys.isEmpty())
-                && (!lang.equalsIgnoreCase(defaultLang) || !personality.equalsIgnoreCase(defaultPersonality))) {
-            keys = getClipKeys(idx, defaultLang, defaultPersonality, kind);
-        }
 
         if (keys == null || keys.isEmpty()) {
             return new SoundEvent[0];

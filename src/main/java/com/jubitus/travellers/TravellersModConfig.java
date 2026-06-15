@@ -94,7 +94,7 @@ public class TravellersModConfig {
     public static final double SWIM_MULT = 3; // ~+130% in water (feels snappy, stays stable)
     public static final double CORRIDOR_WIDTH = 64.0; // tune 32–64
     private static final String CONFIG_VERSION_KEY = "configVersion";
-    private static final String CURRENT_VERSION = "5.2"; // yes I always change ver when testing, that's stupid
+    private static final String CURRENT_VERSION = "5.3"; // yes I always change ver when testing, that's stupid
     // Recruit mission tuning
     public static int recruitMaxVillageRadius = 4000;        // max distance from player
     public static int recruitVillagesMin = 1;
@@ -310,6 +310,22 @@ public class TravellersModConfig {
     public static float travellerChoirVolume;
     public static float travellerTalkVolume;
     public static float travellerHurtVolume;
+    public static boolean attackSoundEnabled;
+    public static int attackSoundEntityCooldownTicks;
+    public static int attackSoundZoneCooldownTicks;
+    public static float attackSoundVolume;
+    public static boolean creeperWarnEnabled;
+    public static double creeperWarnCreeperRadius;
+    public static double creeperWarnTravellerRadius;
+    public static int creeperWarnCooldownTicks;
+    public static float creeperWarnVolume;
+    public static boolean killSoundEnabled;
+    public static int killSoundEntityCooldownTicks;
+    public static int killSoundZoneCooldownTicks;
+    public static float killSoundVolume;
+    public static boolean deathSoundEnabled;
+    public static int deathSoundZoneCooldownTicks;
+    public static float deathSoundVolume;
     public static boolean enableTravellerRaider = true;
     public static int RaiderWeight;
     public static int RaiderMinGroup;
@@ -336,9 +352,9 @@ public class TravellersModConfig {
     public static int travellerSpawnMaxDist = 128;       // from player
     public static int travellerSpawnLightMin = 8;       // same as your getCanSpawnHere
     public static boolean despawnWhenFarFromPlayers = true;
-    public static int farExtraChunks = 2;           // buffer beyond view radius (in chunks)
-    public static int farGraceTicks = 15 * 20;      // must be far for ~15s to fade
-    public static int farMinDistanceBlocks = 128;   // hard floor even if view radius is tiny
+    public static int farExtraChunks = 0;           // unused — kept for config compat only
+    public static int farGraceTicks = 5 * 20;       // must be outside view distance for ~5s to fade
+    public static int farMinDistanceBlocks = 64;    // hard floor if view distance is very small
     // Raiders — soft-spawn target & pacing
     public static int raiderTargetLoaded = 16;          // keep far lower than travellers
     public static int raiderTopUpEveryTicks = 400;     // try every ~10s
@@ -441,10 +457,13 @@ public class TravellersModConfig {
     public static double travellerStepLimiterStrength = 1.5D;
     public static double travellerHurtLimiterStrength = 1.5D;
 
-    public static void init(File configFile) {
-        CONFIG_FILE = configFile;
+    private static File OVERRIDES_DIR; // config/travellers/ — where travellers_overrides.properties lives
 
-        // NEW: delete legacy /config/travellers.cfg if it exists
+    public static void init(File configFile, File overridesDir) {
+        CONFIG_FILE = configFile;
+        OVERRIDES_DIR = overridesDir;
+
+        // delete legacy /config/travellers.cfg if it exists (root level, pre-internal-move)
         deleteLegacyRootConfig();
 
         // Ensure parent folder exists
@@ -474,6 +493,7 @@ public class TravellersModConfig {
             if (!CURRENT_VERSION.equals(version)) {
                 System.out.println("[ModConfig] Config version mismatch (found '" + version + "'). Recreating as " + CURRENT_VERSION + "...");
                 backupAndDelete(configFile, version);
+                backupAndDeleteProperties(OVERRIDES_DIR, version);
                 CONFIG = new Configuration(configFile);
                 writeDefaults(CONFIG);
                 System.out.println("[ModConfig] Config recreated with version " + CURRENT_VERSION + ".");
@@ -724,6 +744,22 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.SOUND.travellerHurtVolume = travellerHurtVolume;
         com.jubitus.travellers.config.TravellersConfig.SOUND.travellerStepLimiterStrength = (float) travellerStepLimiterStrength;
         com.jubitus.travellers.config.TravellersConfig.SOUND.travellerHurtLimiterStrength = (float) travellerHurtLimiterStrength;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.attackSoundEnabled = attackSoundEnabled;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.attackSoundEntityCooldownTicks = attackSoundEntityCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.attackSoundZoneCooldownTicks = attackSoundZoneCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.attackSoundVolume = attackSoundVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.creeperWarnEnabled = creeperWarnEnabled;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.creeperWarnCreeperRadius = creeperWarnCreeperRadius;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.creeperWarnTravellerRadius = creeperWarnTravellerRadius;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.creeperWarnCooldownTicks = creeperWarnCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.creeperWarnVolume = creeperWarnVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.killSoundEnabled = killSoundEnabled;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.killSoundEntityCooldownTicks = killSoundEntityCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.killSoundZoneCooldownTicks = killSoundZoneCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.killSoundVolume = killSoundVolume;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.deathSoundEnabled = deathSoundEnabled;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.deathSoundZoneCooldownTicks = deathSoundZoneCooldownTicks;
+        com.jubitus.travellers.config.TravellersConfig.SOUND.deathSoundVolume = deathSoundVolume;
 
         com.jubitus.travellers.config.TravellersConfig.CHOIR.choirEnabled = choirEnabled;
         com.jubitus.travellers.config.TravellersConfig.CHOIR.choirGroupRadius = (float) CHOIR_GROUP_RADIUS;
@@ -859,6 +895,28 @@ public class TravellersModConfig {
             if (configFile.exists() && !configFile.delete()) {
                 System.err.println("[ModConfig] Also failed to delete old config file.");
             }
+        }
+    }
+
+    private static void backupAndDeleteProperties(File configDir, String oldVersion) {
+        File props = new File(configDir, "travellers_overrides.properties");
+        if (!props.exists() || props.length() == 0L) return;
+        try {
+            String ts = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss").format(new java.util.Date());
+            File backup = new File(configDir, "travellers_overrides_" + ts + ".properties.bak");
+            try {
+                java.nio.file.Files.move(props.toPath(), backup.toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (Exception moveEx) {
+                java.nio.file.Files.copy(props.toPath(), backup.toPath(),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                if (!props.delete()) throw new java.io.IOException("Could not delete overrides after backup");
+            }
+            System.out.println("[ModConfig] Backed up overrides to: " + backup.getName());
+        } catch (Throwable t) {
+            System.err.println("[ModConfig] Failed to backup overrides file: " + t.getMessage());
+            props.delete();
         }
     }
 
@@ -1089,14 +1147,15 @@ public class TravellersModConfig {
                 "Minimum ticks between solo ambient voice lines (400 = 20s).");
         travellerAmbientMaxDelay = cfg.getInt("travellerAmbientMaxDelay", "sound", 1200, 80, 60_000,
                 "Maximum ticks between solo ambient voice lines (1200 = 60s).");
-        travellerAmbientVolume = cfg.getFloat("travellerAmbientVolume", "sound", 0.8F, 0.0F, 1.0F,
-                "Volume for solo ambient travel voice lines (0.0–1.0).");
-        travellerChoirVolume = cfg.getFloat("travellerChoirVolume", "sound", 1.0F, 0.0F, 1.0F,
-                "Volume for choir/group singing (0.0–1.0).");
-        travellerTalkVolume = cfg.getFloat("travellerTalkVolume", "sound", 1.0F, 0.0F, 1.0F,
-                "Volume for talk and hello voice lines (0.0–1.0).");
-        travellerHurtVolume = cfg.getFloat("travellerHurtVolume", "sound", 0.9F, 0.0F, 1.0F,
-                "Volume for hurt sounds (0.0–1.0).");
+        com.jubitus.travellers.config.TravellersConfig.Sound so = com.jubitus.travellers.config.TravellersConfig.SOUND;
+        travellerAmbientVolume = cfg.getFloat("travellerAmbientVolume", "sound", so.travellerAmbientVolume, 0.0F, 8.0F,
+                "Volume for solo ambient travel voice lines. Values above 1.0 extend audible range with SoundPhysics.");
+        travellerChoirVolume = cfg.getFloat("travellerChoirVolume", "sound", so.travellerChoirVolume, 0.0F, 8.0F,
+                "Volume for choir/group singing. Values above 1.0 extend audible range with SoundPhysics.");
+        travellerTalkVolume = cfg.getFloat("travellerTalkVolume", "sound", so.travellerTalkVolume, 0.0F, 8.0F,
+                "Volume for talk and hello voice lines. Values above 1.0 extend audible range with SoundPhysics.");
+        travellerHurtVolume = cfg.getFloat("travellerHurtVolume", "sound", so.travellerHurtVolume, 0.0F, 8.0F,
+                "Volume for hurt sounds. Values above 1.0 extend audible range with SoundPhysics.");
         travellerStepLimiterStrength = cfg.getFloat(
                 "travellerStepLimiterStrength",
                 "audio",
@@ -1117,6 +1176,39 @@ public class TravellersModConfig {
         if (travellerAmbientMaxDelay < travellerAmbientMinDelay) {
             travellerAmbientMaxDelay = travellerAmbientMinDelay;
         }
+
+        attackSoundEnabled = cfg.getBoolean("attackSoundEnabled", "sound", so.attackSoundEnabled,
+                "If true, travellers and raiders shout when engaging a new combat target.");
+        attackSoundEntityCooldownTicks = cfg.getInt("attackSoundEntityCooldownTicks", "sound", so.attackSoundEntityCooldownTicks, 20, 6000,
+                "Minimum ticks before the same entity can shout again.");
+        attackSoundZoneCooldownTicks = cfg.getInt("attackSoundZoneCooldownTicks", "sound", so.attackSoundZoneCooldownTicks, 40, 12000,
+                "Minimum ticks before another shout in the same 64-block zone (prevents group spam).");
+        attackSoundVolume = cfg.getFloat("attackSoundVolume", "sound", so.attackSoundVolume, 0.0f, 8.0f,
+                "Volume for attack shout voice lines. Values above 1.0 extend audible range with SoundPhysics.");
+        creeperWarnEnabled = cfg.getBoolean("creeperWarnEnabled", "sound", so.creeperWarnEnabled,
+                "If true, nearby travellers warn the player when a creeper approaches from outside their field of view.");
+        creeperWarnCreeperRadius = cfg.getFloat("creeperWarnCreeperRadius", "sound", (float) so.creeperWarnCreeperRadius, 8.0f, 64.0f,
+                "Radius (blocks) in which travellers detect a threatening creeper near the player.");
+        creeperWarnTravellerRadius = cfg.getFloat("creeperWarnTravellerRadius", "sound", (float) so.creeperWarnTravellerRadius, 4.0f, 32.0f,
+                "Max distance (blocks) between the warning traveller and the player.");
+        creeperWarnCooldownTicks = cfg.getInt("creeperWarnCooldownTicks", "sound", so.creeperWarnCooldownTicks, 100, 12000,
+                "Minimum ticks between two creeper warnings for the same player.");
+        creeperWarnVolume = cfg.getFloat("creeperWarnVolume", "sound", so.creeperWarnVolume, 0.0f, 8.0f,
+                "Volume for creeper warning voice lines. Values above 1.0 extend audible range with SoundPhysics.");
+        killSoundEnabled = cfg.getBoolean("killSoundEnabled", "sound", so.killSoundEnabled,
+                "If true, travellers and raiders play a voice line when they kill an entity.");
+        killSoundEntityCooldownTicks = cfg.getInt("killSoundEntityCooldownTicks", "sound", so.killSoundEntityCooldownTicks, 20, 6000,
+                "Minimum ticks before the same entity can play a kill sound again.");
+        killSoundZoneCooldownTicks = cfg.getInt("killSoundZoneCooldownTicks", "sound", so.killSoundZoneCooldownTicks, 40, 12000,
+                "Minimum ticks before another kill sound is allowed within the same 64-block zone.");
+        killSoundVolume = cfg.getFloat("killSoundVolume", "sound", so.killSoundVolume, 0.0f, 8.0f,
+                "Volume for kill voice lines. Values above 1.0 extend audible range with SoundPhysics.");
+        deathSoundEnabled = cfg.getBoolean("deathSoundEnabled", "sound", so.deathSoundEnabled,
+                "If true, travellers and raiders play a voice line when they die.");
+        deathSoundZoneCooldownTicks = cfg.getInt("deathSoundZoneCooldownTicks", "sound", so.deathSoundZoneCooldownTicks, 40, 12000,
+                "Minimum ticks before another death sound is allowed within the same 64-block zone.");
+        deathSoundVolume = cfg.getFloat("deathSoundVolume", "sound", so.deathSoundVolume, 0.0f, 8.0f,
+                "Volume for death voice lines. Values above 1.0 extend audible range with SoundPhysics.");
 
         // CHOIR
         choirEnabled = cfg.getBoolean("choirEnabled", "choir", true,
@@ -2626,8 +2718,24 @@ public class TravellersModConfig {
         travellerChoirVolume          = so.travellerChoirVolume;
         travellerTalkVolume           = so.travellerTalkVolume;
         travellerHurtVolume           = so.travellerHurtVolume;
-        travellerStepLimiterStrength  = so.travellerStepLimiterStrength;
-        travellerHurtLimiterStrength  = so.travellerHurtLimiterStrength;
+        travellerStepLimiterStrength      = so.travellerStepLimiterStrength;
+        travellerHurtLimiterStrength      = so.travellerHurtLimiterStrength;
+        attackSoundEnabled                = so.attackSoundEnabled;
+        attackSoundEntityCooldownTicks    = so.attackSoundEntityCooldownTicks;
+        attackSoundZoneCooldownTicks      = so.attackSoundZoneCooldownTicks;
+        attackSoundVolume                 = so.attackSoundVolume;
+        creeperWarnEnabled                = so.creeperWarnEnabled;
+        creeperWarnCreeperRadius          = so.creeperWarnCreeperRadius;
+        creeperWarnTravellerRadius        = so.creeperWarnTravellerRadius;
+        creeperWarnCooldownTicks          = so.creeperWarnCooldownTicks;
+        creeperWarnVolume                 = so.creeperWarnVolume;
+        killSoundEnabled                  = so.killSoundEnabled;
+        killSoundEntityCooldownTicks      = so.killSoundEntityCooldownTicks;
+        killSoundZoneCooldownTicks        = so.killSoundZoneCooldownTicks;
+        killSoundVolume                   = so.killSoundVolume;
+        deathSoundEnabled                 = so.deathSoundEnabled;
+        deathSoundZoneCooldownTicks       = so.deathSoundZoneCooldownTicks;
+        deathSoundVolume                  = so.deathSoundVolume;
 
         // Choir
         choirEnabled                  = ch.choirEnabled;

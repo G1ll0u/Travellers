@@ -1,8 +1,10 @@
 package com.jubitus.travellers.client.gui.go;
 
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.GuiWorldMapPanel;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -198,37 +200,36 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     private void rebuildMarkers() {
         if (mapController == null) return;
-        mapController.panel.clearMarkers();
-
         int workerColor = worker != null ? worker.getOwnerMarkColor() : playerOwnerColor;
 
+        // Convert rows to GoList entries for the populator
+        java.util.List<MsgWorkerGoList.Entry> pois = new java.util.ArrayList<>();
         for (Row r : rows) {
             if (r.pos == null) continue;
-            if (r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) {
-                mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(r.pos, r.label, workerColor));
-            } else if (r.kind == MsgWorkerGoList.Kind.VILLAGE) {
-                mapController.panel.addMarker(WorldMapMarkerFactory.village(r.pos, r.label));
-            } else {
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(r.pos, r.label, workerColor));
-            }
-        }
-
-        if (selectedRowPos != null) {
-            mapController.panel.addMarker(new GuiWorldMapPanel.Marker(selectedRowPos, 0xFFFFE39A, 3,
-                    GuiWorldMapPanel.Marker.MarkerType.VILLAGE, null));
-        }
-
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
-            if (e.pos == null) continue;
-            String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker#" + e.entityId;
-            if (e.isLeader)
-                mapController.panel.addMarker(WorldMapMarkerFactory.leader(e.pos, name, e.ownerColor));
+            MsgWorkerGoList.Entry e;
+            if (r.kind == MsgWorkerGoList.Kind.VILLAGE)
+                e = MsgWorkerGoList.Entry.village(r.pos, r.label, r.distance);
+            else if (r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE)
+                e = MsgWorkerGoList.Entry.controlledVillage(r.pos, r.label, r.distance);
             else
-                mapController.panel.addMarker(WorldMapMarkerFactory.follower(e.pos, name, e.ownerColor));
+                e = MsgWorkerGoList.Entry.home(r.pos, r.label, r.distance);
+            pois.add(e);
         }
 
-        mapController.panel.addMarker(WorldMapMarkerFactory.player(
-                player.getPosition(), player.getName(), workerColor));
+        // Highlighted: the currently selected row (shown in gold)
+        java.util.Set<net.minecraft.util.math.BlockPos> highlighted = null;
+        if (selectedRowPos != null) {
+            highlighted = java.util.Collections.singleton(selectedRowPos);
+        }
+
+        mapController.panel.clearMarkers();
+        WorldMapContentPopulator.populate(
+                mapController.panel, pois, workerEntries, player, workerColor, highlighted);
+
+        // Custom map-click position (not a POI) drawn on top of workers, below player
+        if (selectedMapPos != null) {
+            mapController.panel.addMarker(WorldMapMarkerFactory.villageHighlighted(selectedMapPos, null));
+        }
     }
 
     @Override
@@ -247,7 +248,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         GlStateManager.disableDepth();
 
         if (mapController != null) {
-            drawRect(mapX - 2, mapY - 2, mapX + mapW + 2, mapY + mapH + 2, 0x80000000);
+            TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
             rebuildMarkers();
             mapController.draw();
         }
@@ -268,7 +269,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     }
 
     private void drawList(int mouseX, int mouseY) {
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, 0x80000000);
+        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
         clampScroll();
 
         int rowsVisible = Math.min(getVisibleRows(), rows.size() - scrollOffset);
@@ -279,8 +280,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                     && mouseY >= rowTop && mouseY < rowBottom;
             int globalIdx = scrollOffset + i;
             boolean sel = (globalIdx == selectedIndex);
-            int bg = sel ? 0x4033FF33 : (hovered ? 0x20FFFFFF : 0x20000000);
-            drawRect(listX, rowTop, listX + listW, rowBottom, bg);
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, sel);
 
             Row r = rows.get(globalIdx);
             final float scale = 0.85F;
@@ -293,7 +293,8 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             GlStateManager.pushMatrix();
             GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
             GlStateManager.scale(scale, scale, 1.0F);
-            this.fontRenderer.drawString(label, 0, 0, 0xE0E0E0);
+            int textColor = hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
+            this.fontRenderer.drawString(label, 0, 0, textColor);
             GlStateManager.popMatrix();
         }
     }
@@ -380,7 +381,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-        int stepBlocks = mapController.panel.getZoomBlocksPerPixel() * 48;
+        int stepBlocks = Math.round(mapController.panel.getZoomBlocksPerPixel() * 48);
 
         if (button == backButton) {
             if (leaderMode && returnTo != null) {
@@ -398,13 +399,13 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         if (button == panE) { mapController.panel.pan( stepBlocks, 0); return; }
 
         if (button == zoomOutButton) {
-            mapController.panel.setZoomBlocksPerPixel(
-                    Math.min(WorldMapController.MAX_ZOOM_BPP, mapController.panel.getZoomBlocksPerPixel() + 1));
+            mapController.handleWheel(mapController.mapX + mapController.mapW / 2,
+                    mapController.mapY + mapController.mapH / 2, -1);
             return;
         }
         if (button == zoomInButton) {
-            mapController.panel.setZoomBlocksPerPixel(
-                    Math.max(1, mapController.panel.getZoomBlocksPerPixel() - 1));
+            mapController.handleWheel(mapController.mapX + mapController.mapW / 2,
+                    mapController.mapY + mapController.mapH / 2, 1);
             return;
         }
 

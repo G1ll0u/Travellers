@@ -1,6 +1,8 @@
 package com.jubitus.travellers.client.gui.home;
 
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
@@ -10,6 +12,7 @@ import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.home.MsgLeaderSetHome;
+import com.jubitus.travellers.server.net.message.home.MsgDeleteLoneBarrack;
 import com.jubitus.travellers.server.net.message.home.MsgWorkerDeleteHome;
 import com.jubitus.travellers.server.net.message.home.MsgWorkerGetEquipment;
 import com.jubitus.travellers.server.net.message.home.MsgWorkerRequestHomeList;
@@ -198,7 +201,7 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
             Row row = this.homes.get(idx);
             TravellerHomeManager.HomeType homeType = row.isBarracks
                     ? TravellerHomeManager.HomeType.BARRACKS
-                    : TravellerHomeManager.HomeType.CHEST;
+                    : (row.isLoneBarrack ? TravellerHomeManager.HomeType.LONE_BARRACK : TravellerHomeManager.HomeType.CHEST);
             if (leaderMode) {
                 TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderSetHome(leaderUUID, row.pos, homeType));
                 if (returnTo != null) mc.displayGuiScreen(returnTo);
@@ -216,11 +219,14 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
             int idx = this.selectedIdx;
             if (idx < 0 || idx >= this.homes.size()) return;
             Row row = this.homes.get(idx);
-            if (row.isBarracks) return;
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerDeleteHome(row.pos));
+            if (row.isLoneBarrack) {
+                TravellerFollowNet.CHANNEL.sendToServer(new MsgDeleteLoneBarrack(row.pos));
+            } else if (!row.isBarracks) {
+                TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerDeleteHome(row.pos));
+            }
             this.selectedIdx = null;
-            this.setBtn.enabled     = false;
-            this.deleteBtn.enabled  = false;
+            this.setBtn.enabled      = false;
+            this.deleteBtn.enabled   = false;
             this.getEquipBtn.enabled = false;
             return;
         }
@@ -283,8 +289,8 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
             this.selectedIdx = idx;
             Row row = this.homes.get(idx);
             this.setBtn.enabled      = true;
-            this.deleteBtn.enabled   = !row.isBarracks;
-            this.getEquipBtn.enabled = row.isBarracks;
+            this.deleteBtn.enabled   = !row.isBarracks;  // lone barracks and old chests are deletable
+            this.getEquipBtn.enabled = row.isBarracks || row.isLoneBarrack;
             if (mapController != null) mapController.setCenter(row.pos);
             rebuildMarkers();
         }
@@ -326,7 +332,7 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
         GlStateManager.disableDepth();
 
         if (mapController != null) {
-            drawRect(mapX - 2, mapY - 2, mapX + mapW + 2, mapY + mapH + 2, 0x80000000);
+            TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
             rebuildMarkers();
             mapController.draw();
         }
@@ -349,16 +355,16 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
     }
 
     private void drawHomeList(int mouseX, int mouseY) {
-        drawRect(this.listX - 2, this.listY - 2, this.listX + this.listW + 2, this.listY + this.listH + 2, 0x80000000);
+        TravellersGuiTheme.drawInnerPanel(this.listX - 2, this.listY - 2, this.listW + 4, this.listH + 4);
 
-        this.fontRenderer.drawString(
+        TravellersGuiTheme.drawTitle(this.fontRenderer,
                 I18n.format("travellers.worker.home_list.title", "Homes"),
-                this.listX, this.listY - 10, 0xF9CBAE);
+                this.listX, this.listY - 10);
 
         if (this.homes.isEmpty()) {
             this.fontRenderer.drawString(
                     I18n.format("travellers.worker.home_list.empty", "No homes."),
-                    this.listX + 4, this.listY + 4, 0xC0C0C0);
+                    this.listX + 4, this.listY + 4, TravellersGuiTheme.COL_TEXT_DIM);
             return;
         }
 
@@ -376,14 +382,13 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
                     && mouseY >= rowTop && mouseY < rowBottom;
             boolean selected = this.selectedIdx != null && this.selectedIdx == globalIdx;
 
-            int bg = selected ? 0x4033FF33 : (hovered ? 0x20FFFFFF : 0x20000000);
-            drawRect(this.listX, rowTop, this.listX + this.listW, rowBottom, bg);
+            TravellersGuiTheme.drawListRow(this.listX, rowTop, this.listW, this.rowH, hovered, selected);
 
             Row row = this.homes.get(globalIdx);
 
             String base   = row.name == null || row.name.trim().isEmpty()
                     ? I18n.format("travellers.gui.unnamed", "(unnamed)") : row.name.trim();
-            String prefix = row.isBarracks ? "[B] " : "[C] ";
+            String prefix = row.isBarracks ? "[B] " : (row.isLoneBarrack ? "[LB] " : "[C] ");
             String label  = prefix + base;
             if (assigned != null && assigned.equals(row.pos)) label = "* " + label;
 
@@ -392,24 +397,17 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
             GlStateManager.translate(this.listX + 3, rowTop + 2, 0.0F);
             GlStateManager.scale(scale, scale, 1.0F);
             int maxWidth = (int) ((this.listW - 6) / scale);
-            this.fontRenderer.drawString(this.fontRenderer.trimStringToWidth(label, maxWidth), 0, 0, 0xE0E0E0);
+            int textColor = hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
+            this.fontRenderer.drawString(this.fontRenderer.trimStringToWidth(label, maxWidth), 0, 0, textColor);
             GlStateManager.popMatrix();
         }
     }
 
     private void drawEquipDialog() {
-        int px = listX - 2;
-        int py = listY - 2;
-        int pw = listW + 4;
-        int ph = listH + 4;
-        drawRect(px, py, px + pw, py + ph, 0xFF2A2219);
-        drawRect(px,          py,          px + pw,     py + 1,      0xFF685747);
-        drawRect(px,          py + ph - 1, px + pw,     py + ph,     0xFF685747);
-        drawRect(px,          py,          px + 1,      py + ph,     0xFF685747);
-        drawRect(px + pw - 1, py,          px + pw,     py + ph,     0xFF685747);
-        this.fontRenderer.drawString(
+        TravellersGuiTheme.drawPanel(listX - 2, listY - 2, listW + 4, listH + 4);
+        TravellersGuiTheme.drawTitle(this.fontRenderer,
                 I18n.format("travellers.worker.home_list.equip_title", "Choose mission:"),
-                listX + 2, listY - 10, 0xF2D2B9);
+                listX + 2, listY - 10);
     }
 
     private void rebuildMarkers() {
@@ -419,12 +417,14 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
         int ownerColor = (worker != null) ? worker.getOwnerMarkColor() : playerOwnerColor;
         BlockPos assigned = (worker != null) ? worker.getAssignedHomePos() : null;
 
+        // Home markers (lowest priority — workers and player drawn on top by populator)
         for (int i = 0; i < homes.size(); i++) {
             Row row = homes.get(i);
             if (row.pos == null) continue;
             String base  = (row.name == null || row.name.trim().isEmpty())
                     ? I18n.format("travellers.gui.unnamed", "(unnamed)") : row.name.trim();
-            String label = (row.isBarracks ? "[B] " : "[C] ") + base;
+            String prefix = row.isBarracks ? "[B] " : (row.isLoneBarrack ? "[LB] " : "[C] ");
+            String label = prefix + base;
             if (assigned != null && assigned.equals(row.pos)) label = "* " + label;
 
             if (this.selectedIdx != null && this.selectedIdx == i) {
@@ -434,17 +434,13 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
             }
         }
 
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
-            if (e.pos == null) continue;
-            String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker";
-            if (e.isLeader)
-                mapController.panel.addMarker(WorldMapMarkerFactory.leader(e.pos, name, e.ownerColor));
-            else
-                mapController.panel.addMarker(WorldMapMarkerFactory.follower(e.pos, name, e.ownerColor));
-        }
-
-        mapController.panel.addMarker(WorldMapMarkerFactory.player(
-                player.getPosition(), player.getName(), playerOwnerColor));
+        // Workers + player via standard populator (no POIs for this GUI)
+        WorldMapContentPopulator.populate(
+                mapController.panel,
+                java.util.Collections.emptyList(),
+                workerEntries,
+                player,
+                playerOwnerColor);
     }
 
     @Override
@@ -462,8 +458,10 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
         this.homes.clear();
         int n = Math.min(pos.size(), names.size());
         for (int i = 0; i < n; i++) {
-            boolean barracks = i < types.size() && types.get(i) == 1;
-            this.homes.add(new Row(pos.get(i), names.get(i), barracks));
+            int t = i < types.size() ? types.get(i) : 0;
+            boolean barracks = t == 1;
+            boolean loneBarrack = t == 2;
+            this.homes.add(new Row(pos.get(i), names.get(i), barracks, loneBarrack));
         }
         this.selectedIdx = null;
         this.scrollOffset = 0;
@@ -511,11 +509,13 @@ public class GuiWorkerHomeList extends GuiScreen implements IWorkerMapReceiver {
         final BlockPos pos;
         final String name;
         final boolean isBarracks;
+        final boolean isLoneBarrack;
 
-        Row(BlockPos pos, String name, boolean isBarracks) {
+        Row(BlockPos pos, String name, boolean isBarracks, boolean isLoneBarrack) {
             this.pos  = pos;
             this.name = name == null ? "" : name;
             this.isBarracks = isBarracks;
+            this.isLoneBarrack = isLoneBarrack;
         }
     }
 }

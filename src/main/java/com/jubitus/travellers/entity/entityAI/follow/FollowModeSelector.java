@@ -82,13 +82,25 @@ public final class FollowModeSelector {
         double verticalGapForCatchup = ctx.verticalGapToSlot;
 
         if (distForCatchup <= 32.0D) {
-            // Mountain-climbing scenario: close horizontally but large vertical gap + stagnating
+            // Mountain scenario: close horizontally but blocked by terrain + stagnating.
+            // Threshold lowered to 8 blocks so moderate hills also trigger catchup.
             if (!ctx.underground
-                    && verticalGapForCatchup >= 12.0D
+                    && verticalGapForCatchup >= 8.0D
                     && pathFailTicks >= cfg.catchup.verticalEmergencyPathFailTicks
                     && stagnationTicks >= cfg.catchup.verticalEmergencyStagnationTicks) {
                 return true;
             }
+
+            // Last resort: completely blocked for 15+ seconds despite being close to the slot.
+            // Covers small mountains where the vertical gap is < 8 and no teleport rescue found
+            // a valid landing spot — the travel AI will navigate around the obstacle.
+            if (!ctx.underground
+                    && distForCatchup > 5.0D
+                    && pathFailTicks >= 30
+                    && stagnationTicks >= 300) {
+                return true;
+            }
+
             return false;
         }
 

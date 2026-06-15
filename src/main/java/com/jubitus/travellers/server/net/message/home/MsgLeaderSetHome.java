@@ -3,6 +3,8 @@ package com.jubitus.travellers.server.net.message.home;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
 import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
@@ -122,6 +124,13 @@ public class MsgLeaderSetHome implements IMessage {
                     return b.location.getIBuildingPlan().getNativeName();
                 }
                 return "Barracks";
+            }
+            if (type == TravellerHomeManager.HomeType.LONE_BARRACK) {
+                LoneBarrackManager lbMgr = LoneBarrackManager.get(world);
+                for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                    if (pos.equals(r.center)) return r.name;
+                }
+                return "Lone Barrack";
             }
             TravellerHomeManager mgr = TravellerHomeManager.get(world);
             TravellerHomeManager.HomeChest hc = mgr.findHome(player.getUniqueID(), world.provider.getDimension(), pos);

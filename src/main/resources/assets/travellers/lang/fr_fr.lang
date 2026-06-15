@@ -66,17 +66,37 @@ travellers.worker.village_relations.toggle_enemy=Changer statut
 travellers.home_name_prompt.title=Nom de votre maison
 travellers.home_name_prompt.subtitle=Vous pouvez l'assigner à vos hommes de main.
 
-travellers.worker.home_list.title=Maisons
-travellers.worker.home_list.set_home=Définir maison
+travellers.worker.home_list.title=Casernes
+travellers.worker.home_list.set_home=Définir caserne
 
 travellers.worker.orders.go=Aller...
-travellers.worker.orders.home=Maison
-travellers.worker.orders.go_home=Retour maison
-travellers.worker.orders.go_home_no_home=Pas de maison
+travellers.worker.orders.home=Casernes
+travellers.worker.orders.go_home=Aller à la caserne
+travellers.worker.orders.go_home_no_home=Aller à la caserne (aucune)
 travellers.worker.orders.leader_count=Leader (%s)
 
 travellers.worker.recruit.start=Recruter
 travellers.worker.recruit.fee=Coût : %s
 travellers.worker.recruit.too_close=Trop proche. Min. : %sm
 
-travellers.worker.home_list.empty=Tu n'as pas de maison, nullos.
+travellers.worker.home_list.empty=Aucune caserne assignée.
+
+# Lone Barrack
+travellers.lone_barrack.prompt.title=Nouvelle Caserne Solitaire
+travellers.lone_barrack.prompt.name=Nom :
+travellers.lone_barrack.prompt.half_width=Largeur :
+travellers.lone_barrack.prompt.half_depth=Profondeur :
+travellers.lone_barrack.prompt.half_height=Hauteur :
+travellers.lone_barrack.prompt.validate=Créer caserne
+travellers.lone_barrack.error.no_coffers=Aucun coffre trouvé dans la zone.
+travellers.lone_barrack.error.overlaps=Cette zone chevauche une caserne solitaire existante.
+travellers.lone_barrack.error.in_village=Vous essayez de créer une Caserne Solitaire dans un village. Si le village vous appartient, utilisez le menu normal de création de bâtiment de Millénaire et sélectionnez 'Workers Barracks'.
+travellers.lone_barrack.created=Caserne solitaire créée !
+
+# Légende de la carte
+travellers.map.legend.village=Village
+travellers.map.legend.controlled_village=Village ctr.
+travellers.map.legend.home=Caserne
+travellers.map.legend.follower=Suivant
+travellers.map.legend.leader=Chef
+travellers.map.legend.player=Vous

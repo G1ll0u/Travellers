@@ -86,6 +86,9 @@ public final class ModSounds {
                 reg(out, eventPrefix + "." + lang + "." + personality + ".hurt");
                 reg(out, eventPrefix + "." + lang + "." + personality + ".hello");
                 reg(out, eventPrefix + "." + lang + "." + personality + ".ambient");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".attack");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".kill");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".death");
             }
         }
     }
@@ -124,6 +127,10 @@ public final class ModSounds {
                 reg(out, eventPrefix + "." + lang + "." + personality + ".hurt");
                 reg(out, eventPrefix + "." + lang + "." + personality + ".hello");
                 reg(out, eventPrefix + "." + lang + "." + personality + ".ambient");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".attack");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".creeper");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".kill");
+                reg(out, eventPrefix + "." + lang + "." + personality + ".death");
             }
         }
     }
@@ -180,7 +187,6 @@ public final class ModSounds {
         for (CultureDef def : CultureRegistry.all()) {
             String cultureId = def.id.toLowerCase(java.util.Locale.ROOT);
 
-            // Use your real mapping (norman->fr, german->de, etc.)
             String lang = CultureRegistry.langForCulture(cultureId).toLowerCase(java.util.Locale.ROOT);
 
 
