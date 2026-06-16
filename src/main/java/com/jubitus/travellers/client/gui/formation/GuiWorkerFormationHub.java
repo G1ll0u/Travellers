@@ -1,7 +1,7 @@
 package com.jubitus.travellers.client.gui.formation;
 
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
-import com.jubitus.travellers.client.gui.home.GuiWorkerHomeList;
+import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
@@ -695,7 +695,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         if (selectedIndex >= leaders.size()) return;
         FormationLeaderInfo sel = leaders.get(selectedIndex);
         if (sel.isPlayer) return;
-        mc.displayGuiScreen(new GuiWorkerHomeList(player, sel.uuid, representativeEntityId, this));
+        mc.displayGuiScreen(new GuiWorkerBarracks(player, this));
     }
 
     private void handleComeBack() {

@@ -33,6 +33,18 @@ travellers.worker.orders.following_player=Follow me
 travellers.worker.orders.title=Orders
 travellers.worker.hub.behavior=Behavior
 travellers.worker.hub.map=Map
+travellers.worker.hub.barracks=Barracks
+
+travellers.worker.barracks.list=Barracks
+travellers.worker.barracks.unassigned=Unassigned Henchmen
+travellers.worker.barracks.selected=Selected Barrack Henchmen
+travellers.worker.barracks.dragdrop=Drag & drop to assign/unassign
+travellers.worker.barracks.delete=Delete Barrack
+travellers.worker.barracks.get_equip=Get Equipment
+travellers.worker.barracks.equip_title=Choose mission:
+travellers.worker.barracks.equip_stay=Equip and Stay
+travellers.worker.barracks.equip_return=Equip and Return
+travellers.worker.barracks.full=This barrack is full (one Henchman per bed).
 
 travellers.gui.back=Back
 travellers.gui.close=Close
@@ -47,7 +59,7 @@ travellers.gui.unnamed=(unnamed)
 
 travellers.map.center=Center
 travellers.map.chunks.legend.loaded_normal=Loaded chunks (normal)
-travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers workers
+travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers Henchmen
 travellers.map.chunks.legend.villages=Village Town Halls
 travellers.map.chunks.legend.center_chunk=White square = current center chunk
 travellers.map.chunks.legend.player_pos=Green dot = your pos
@@ -57,7 +69,7 @@ travellers.worker.behavior.player_enemies=Player enemies
 travellers.worker.behavior.village_relations=Village relations
 
 travellers.worker.enemies.title=Add/remove player enemies
-travellers.worker.enemies.hint=(that workers will attack at sight)
+travellers.worker.enemies.hint=(that Henchmen will attack at sight)
 travellers.worker.enemies.count=Enemies: %s
 
 travellers.worker.village_relations.title=Village relations
@@ -65,7 +77,7 @@ travellers.worker.village_relations.hint=Select a village, then toggle enemy.
 travellers.worker.village_relations.toggle_enemy=Toggle enemy
 
 travellers.home_name_prompt.title=Name of your home
-travellers.home_name_prompt.subtitle=You can assign it to hired workers and send them here, more to come.
+travellers.home_name_prompt.subtitle=You can assign it to hired Henchmen and send them here, more to come.
 
 travellers.worker.home_list.title=Barracks
 travellers.worker.home_list.set_home=Set Barrack
@@ -94,7 +106,7 @@ travellers.worker.formation.preview_surface_bias=Cave adaptive: OFF
 travellers.worker.formation.scope=Scope
 travellers.worker.formation.scope_type=Type
 travellers.worker.formation.scope.player=Player
-travellers.worker.formation.scope.worker=Worker leader
+travellers.worker.formation.scope.worker=Henchman leader
 travellers.worker.formation.followers=Followers
 
 travellers.worker.formation.style=Style
@@ -124,17 +136,17 @@ travellers.worker.formation.hover.slot=Follower slot %s
 travellers.worker.formation.hover.escort=Close escort #%s
 travellers.worker.formation.hover.offset=Offset: x=%s z=%s
 
-travellers.worker.hub.mark_button=Worker mark
-travellers.worker.hub.mark_button.desc=Edit your hired workers visual mark
+travellers.worker.hub.mark_button=Henchman mark
+travellers.worker.hub.mark_button.desc=Edit your hired Henchmen visual mark
 
-travellers.worker.mark.title=Worker Mark
+travellers.worker.mark.title=Henchman Mark
 travellers.worker.mark.style=Style
 travellers.worker.mark.color=Color: %s
 travellers.worker.mark.preview=Preview
-travellers.worker.mark.preview.follower=Worker
+travellers.worker.mark.preview.follower=Henchman
 travellers.worker.mark.preview.leader=Leader
 travellers.worker.mark.preview.leader_hint=Leaders use a dedicated overlay
-travellers.worker.mark.saved=Worker mark saved
+travellers.worker.mark.saved=Henchman mark saved
 
 travellers.worker.mark.style.plain=Plain
 travellers.worker.mark.style.double=Double
@@ -161,17 +173,20 @@ key.travellers.formation_hub=Open Formation Hub
 key.travellers.world_map=Open World Map
 key.categories.travellers=Travellers
 
-# Lone Barrack
-travellers.lone_barrack.prompt.title=New Lone Barrack
+# Barrack
+travellers.lone_barrack.prompt.title=New Barrack
 travellers.lone_barrack.prompt.name=Name:
 travellers.lone_barrack.prompt.half_width=width
 travellers.lone_barrack.prompt.half_depth=depth
 travellers.lone_barrack.prompt.half_height=height
 travellers.lone_barrack.prompt.validate=Create Barrack
+travellers.lone_barrack.prompt.chests=Chests: %s (min. 1)
+travellers.lone_barrack.prompt.beds=Beds: %s (min. 1)
 travellers.lone_barrack.error.no_coffers=No chests found in the area. Place at least one chest in the radius.
-travellers.lone_barrack.error.overlaps=This area overlaps an existing lone barrack.
-travellers.lone_barrack.error.in_village=You are trying to create a Lone Barrack inside a village. If you own this village, use the normal Millenaire building menu and select 'Workers Barracks'.
-travellers.lone_barrack.created=Lone Barrack created!
+travellers.lone_barrack.error.no_beds=No beds found in the area. Place at least one bed (capacity = one Henchman per bed).
+travellers.lone_barrack.error.overlaps=This area overlaps an existing barrack.
+travellers.lone_barrack.error.in_village=You are trying to create a Barrack inside a village. If you own this village, use the normal Millenaire building menu and select 'Henchmans Barracks'.
+travellers.lone_barrack.created=Barrack created!
 
 # Map legend
 travellers.map.legend.village=Village

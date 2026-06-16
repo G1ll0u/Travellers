@@ -33,7 +33,6 @@ public class GuiWorkerOrders extends GuiScreen {
 
     private GuiButton recruitButton;
     private GuiButton followPlayerButton;
-    private GuiButton homeButton;
     private GuiButton followButton;
     private GuiButton leaderButton;
     private GuiButton goButton;
@@ -93,19 +92,10 @@ public class GuiWorkerOrders extends GuiScreen {
                 I18n.format("travellers.worker.orders.recruit")
         ));
 
-        this.homeButton = this.addButton(new GuiButton(
-                6,
-                centerX - bw / 2,
-                yBase + (bh + gap) * 3,
-                bw,
-                bh,
-                I18n.format("travellers.worker.orders.home")
-        ));
-
         this.followPlayerButton = this.addButton(new GuiButton(
                 4,
                 centerX - bw / 2,
-                yBase + (bh + gap) * 4,
+                yBase + (bh + gap) * 3,
                 bw,
                 bh,
                 I18n.format("travellers.worker.orders.follow_player")
@@ -114,7 +104,7 @@ public class GuiWorkerOrders extends GuiScreen {
         this.goButton = this.addButton(new GuiButton(
                 8,
                 centerX - bw / 2,
-                yBase + (bh + gap) * 5,
+                yBase + (bh + gap) * 4,
                 bw,
                 bh,
                 I18n.format("travellers.worker.orders.go")
@@ -123,7 +113,7 @@ public class GuiWorkerOrders extends GuiScreen {
         this.choirButton = this.addButton(new GuiButton(
                 10,
                 centerX - bw / 2,
-                yBase + (bh + gap) * 6,
+                yBase + (bh + gap) * 5,
                 bw,
                 bh,
                 ""
@@ -132,7 +122,7 @@ public class GuiWorkerOrders extends GuiScreen {
         this.backButton = this.addButton(new GuiButton(
                 9,
                 centerX - bw / 2,
-                yBase + (bh + gap) * 7,
+                yBase + (bh + gap) * 6,
                 bw,
                 bh,
                 I18n.format("travellers.gui.back")
@@ -170,9 +160,6 @@ public class GuiWorkerOrders extends GuiScreen {
                     ? I18n.format("travellers.worker.orders.follow_player")
                     : I18n.format("travellers.worker.orders.following_player");
         }
-
-        this.homeButton.visible = hiredByMe;
-        this.homeButton.enabled = hiredByMe;
 
         this.leaderButton.visible = hiredByMe;
         this.leaderButton.enabled = hiredByMe;
@@ -244,13 +231,6 @@ public class GuiWorkerOrders extends GuiScreen {
         if (button == followPlayerButton) {
             TravellerFollowNet.CHANNEL.sendToServer(
                     new MsgClearEscortLeader(worker.getEntityId())
-            );
-            return;
-        }
-
-        if (button == homeButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HOME)
             );
             return;
         }

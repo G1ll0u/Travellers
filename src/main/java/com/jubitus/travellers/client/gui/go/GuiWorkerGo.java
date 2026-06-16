@@ -44,7 +44,11 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private GuiButton backButton;
     private GuiButton zoomInButton, zoomOutButton, recenterButton;
     private GuiButton goButton;
+    private GuiButton getEquipButton;
     private GuiButton panN, panS, panW, panE;
+
+    private boolean showEquipDialog = false;
+    private GuiButton equipStayButton, equipReturnButton, equipCancelButton;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -155,6 +159,23 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         this.backButton = this.addButton(new GuiButton(9, listX, buttonsTop, 50, bh,
                 I18n.format("travellers.gui.back", "Back")));
 
+        // Second row under the list: Get Equipment (only for controlled villages / lone barracks)
+        int buttonsTop2 = buttonsTop + bh + gap;
+        this.getEquipButton = this.addButton(new GuiButton(10, listX, buttonsTop2, listW, bh,
+                I18n.format("travellers.worker.barracks.get_equip", "Get Equipment")));
+        this.getEquipButton.enabled = false;
+
+        // Inline equip dialog buttons (over the list), hidden until opened
+        int dlgY = listY + 4;
+        this.equipStayButton   = this.addButton(new GuiButton(11, listX, dlgY, listW, bh,
+                I18n.format("travellers.worker.barracks.equip_stay", "Equip and Stay")));
+        this.equipReturnButton = this.addButton(new GuiButton(12, listX, dlgY + bh + gap, listW, bh,
+                I18n.format("travellers.worker.barracks.equip_return", "Equip and Return")));
+        this.equipCancelButton = this.addButton(new GuiButton(13, listX, dlgY + (bh + gap) * 2, listW, bh,
+                I18n.format("travellers.gui.cancel", "Cancel")));
+        showEquipDialog = false;
+        applyEquipDialogVisibility();
+
         rows.clear();
         scrollOffset = 0;
         selectedIndex = -1;
@@ -181,6 +202,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         rows.sort(Comparator.comparingInt(r -> r.distance));
         selectedIndex = -1;
         goButton.enabled = false;
+        if (getEquipButton != null) getEquipButton.enabled = false;
         scrollOffset = 0;
         clampScroll();
         rebuildMarkers();
@@ -253,12 +275,19 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             mapController.draw();
         }
 
+        if (showEquipDialog) {
+            TravellersGuiTheme.drawPanel(listX - 2, listY - 2, listW + 4, listH + 4);
+            TravellersGuiTheme.drawTitle(this.fontRenderer,
+                    I18n.format("travellers.worker.barracks.equip_title", "Choose mission:"),
+                    listX + 2, listY - 10);
+        }
+
         super.drawScreen(mouseX, mouseY, partialTicks);
 
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
 
-        drawList(mouseX, mouseY);
+        if (!showEquipDialog) drawList(mouseX, mouseY);
 
         if (mapController != null) {
             String label = mapController.getTooltip(mouseX, mouseY);
@@ -325,6 +354,12 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        // While the equip dialog is open, only its buttons are interactive.
+        if (showEquipDialog) {
+            super.mouseClicked(mouseX, mouseY, mouseButton);
+            return;
+        }
+
         // Right-click drag handled by controller
         if (mapController != null && mapController.onMouseClick(mouseX, mouseY, mouseButton)) {
             super.mouseClicked(mouseX, mouseY, mouseButton);
@@ -341,6 +376,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             selectedRowPos = null;
             selectedIndex = -1;
             goButton.enabled = true;
+            updateGetEquipEnabled();
             rebuildMarkers();
             return;
         }
@@ -356,6 +392,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 mapController.setCenter(r.pos);
                 mapController.panel.setSelectedPos(r.pos);
                 goButton.enabled = true;
+                updateGetEquipEnabled();
                 rebuildMarkers();
             }
         }
@@ -387,6 +424,29 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             if (leaderMode && returnTo != null) {
                 mc.displayGuiScreen(returnTo);
             } else {
+                TravellerFollowNet.CHANNEL.sendToServer(
+                        new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS));
+            }
+            return;
+        }
+
+        if (button == getEquipButton) {
+            showEquipDialog = true;
+            applyEquipDialogVisibility();
+            return;
+        }
+        if (button == equipCancelButton) {
+            showEquipDialog = false;
+            applyEquipDialogVisibility();
+            return;
+        }
+        if (button == equipStayButton || button == equipReturnButton) {
+            sendGetEquipment(button == equipStayButton);
+            showEquipDialog = false;
+            applyEquipDialogVisibility();
+            if (leaderMode && returnTo != null) {
+                mc.displayGuiScreen(returnTo);
+            } else if (!leaderMode && worker != null) {
                 TravellerFollowNet.CHANNEL.sendToServer(
                         new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS));
             }
@@ -438,6 +498,38 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         }
 
         super.actionPerformed(button);
+    }
+
+    private void applyEquipDialogVisibility() {
+        boolean d = showEquipDialog;
+        equipStayButton.visible = d;
+        equipReturnButton.visible = d;
+        equipCancelButton.visible = d;
+
+        goButton.visible = !d;
+        getEquipButton.visible = !d;
+        backButton.visible = !d;
+        panN.visible = !d; panS.visible = !d; panW.visible = !d; panE.visible = !d;
+        zoomInButton.visible = !d; zoomOutButton.visible = !d; recenterButton.visible = !d;
+    }
+
+    /** Get Equipment is allowed only for a controlled village or a lone barrack row. */
+    private void updateGetEquipEnabled() {
+        boolean ok = selectedMapPos == null && selectedIndex >= 0 && selectedIndex < rows.size()
+                && (rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
+                    || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.HOME);
+        if (getEquipButton != null) getEquipButton.enabled = ok;
+    }
+
+    private void sendGetEquipment(boolean stay) {
+        if (selectedIndex < 0 || selectedIndex >= rows.size()) return;
+        Row r = rows.get(selectedIndex);
+        boolean useWholeVillage = r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE;
+        UUID targetUUID = leaderMode ? leaderUUID : (worker != null ? worker.getUniqueID() : null);
+        if (targetUUID == null || r.pos == null) return;
+        TravellerFollowNet.CHANNEL.sendToServer(
+                new com.jubitus.travellers.server.net.message.home.MsgWorkerGetEquipment(
+                        targetUUID, stay, useWholeVillage, r.pos));
     }
 
     private static class Row {

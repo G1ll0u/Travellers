@@ -5,7 +5,7 @@ import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiHomeNamePrompt;
-import com.jubitus.travellers.client.gui.home.GuiWorkerHomeList;
+import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.orders.GuiWorkerOrders;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -125,7 +125,7 @@ public class MsgOpenClientWorkerGui implements IMessage {
                     case HOME: {
                         Entity e = world.getEntityByID(msg.entityId);
                         if (e instanceof EntityTravellerWorker) {
-                            mc.displayGuiScreen(new GuiWorkerHomeList(player, (EntityTravellerWorker) e));
+                            mc.displayGuiScreen(new GuiWorkerBarracks(player, (EntityTravellerWorker) e));
                         }
                         return;
                     }

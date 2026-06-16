@@ -9,8 +9,6 @@
     "MixinBuildingSafeBuyingPrice",
     "MixinBuildingResManagerAccessor",
     "MixinBlockPathSlab",
-    "MixinCultureInjectBarracks",
-    "MixinVillageTypeInjectBarracks",
     "MixinMillVillagerFriendlyTraveller",
     "MixinSummon"
   ],

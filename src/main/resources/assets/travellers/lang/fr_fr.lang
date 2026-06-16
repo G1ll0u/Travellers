@@ -33,6 +33,18 @@ travellers.worker.orders.following_player=Me suivre
 travellers.worker.orders.title=Ordres
 travellers.worker.hub.behavior=Comportement
 travellers.worker.hub.map=Carte
+travellers.worker.hub.barracks=Casernes
+
+travellers.worker.barracks.list=Casernes
+travellers.worker.barracks.unassigned=Ouvriers sans caserne
+travellers.worker.barracks.selected=Ouvriers de la caserne
+travellers.worker.barracks.dragdrop=Glissez-déposez pour assigner/retirer
+travellers.worker.barracks.delete=Supprimer la caserne
+travellers.worker.barracks.get_equip=Équiper
+travellers.worker.barracks.equip_title=Choisir la mission :
+travellers.worker.barracks.equip_stay=Équiper et rester
+travellers.worker.barracks.equip_return=Équiper et revenir
+travellers.worker.barracks.full=Cette caserne est pleine (un ouvrier par lit).
 
 travellers.gui.back=Retour
 travellers.gui.add=Ajouter
@@ -88,7 +100,10 @@ travellers.lone_barrack.prompt.half_width=Largeur :
 travellers.lone_barrack.prompt.half_depth=Profondeur :
 travellers.lone_barrack.prompt.half_height=Hauteur :
 travellers.lone_barrack.prompt.validate=Créer caserne
+travellers.lone_barrack.prompt.chests=Coffres : %s (min. 1)
+travellers.lone_barrack.prompt.beds=Lits : %s (min. 1)
 travellers.lone_barrack.error.no_coffers=Aucun coffre trouvé dans la zone.
+travellers.lone_barrack.error.no_beds=Aucun lit trouvé dans la zone. Placez au moins un lit (capacité = un ouvrier par lit).
 travellers.lone_barrack.error.overlaps=Cette zone chevauche une caserne solitaire existante.
 travellers.lone_barrack.error.in_village=Vous essayez de créer une Caserne Solitaire dans un village. Si le village vous appartient, utilisez le menu normal de création de bâtiment de Millénaire et sélectionnez 'Workers Barracks'.
 travellers.lone_barrack.created=Caserne solitaire créée !

@@ -14,7 +14,6 @@ import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormationGui;
 import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
-import com.jubitus.travellers.server.net.message.home.MsgWorkerHomeList;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
@@ -202,13 +201,6 @@ public class MsgOpenWorkerSubGui implements IMessage {
                                 player
                         );
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
-                                new MsgWorkerHomeList(
-                                        worker.getEntityId(),
-                                        TravellerHomeManager.get(world).getHomesOfPlayerFull(player)
-                                ),
-                                player
-                        );
                         return;
 
                     case HUB:

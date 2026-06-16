@@ -958,6 +958,13 @@ public class TravellersConfig {
     }
 
     public static class Worker {
+        @Config.Comment("If true, hired workers without a barrack are automatically assigned to the nearest one.")
+        public boolean autoAssignWorkersToBarracks = false;
+
+        @Config.Comment("Number of in-game days before a dead worker respawns at their barrack (requires workerRespawnInBarracks).")
+        @Config.RangeInt(min = 1, max = 30)
+        public int workerBarrackRespawnDays = 3;
+
         @Config.Comment("Default half-width (X axis) for lone barracks detection.")
         @Config.RangeInt(min = 4, max = 16)
         public int workerLoneBarrackHalfWidth = 5;

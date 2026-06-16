@@ -21,7 +21,7 @@ public final class WorldMapMarkerFactory {
     }
 
     public static GuiWorldMapPanel.Marker follower(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFF000000 | darken(ownerRgb, 0.55f), 2,
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), 2,
                 GuiWorldMapPanel.Marker.MarkerType.FOLLOWER, name);
     }
 

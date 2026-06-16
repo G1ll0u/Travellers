@@ -75,6 +75,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
                 com.jubitus.travellers.utils.world.mill.BarracksSlotManager bsm =
                         com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(ws);
                 bsm.processRespawns(ws);
+                // Lone barrack bed respawns
+                com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(ws).processRespawns(ws);
                 // Reconcile deleted barracks for all online players
                 int dim = ws.provider.getDimension();
                 for (net.minecraft.entity.player.EntityPlayer player : ws.playerEntities) {

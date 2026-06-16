@@ -609,6 +609,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     /** Try to find and assign the nearest barracks with a free slot. Warns the owner if none available. */
     private void tryAutoAssignBarracks(net.minecraft.entity.player.EntityPlayer owner) {
+        if (!com.jubitus.travellers.config.TravellersConfig.WORKER.autoAssignWorkersToBarracks) return;
         if (!TravellersModConfig.controlledVillageFeatureEnabled) return;
         if (!isWorkerHomeless()) return;
 
@@ -1560,6 +1561,26 @@ public class EntityTravellerWorker extends EntityTraveller {
                     && assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS) {
                 // Has barracks but respawn disabled or no owner: free the slot
                 com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(world).unassignWorker(this.getUniqueID());
+            }
+
+            // Lone barrack bed respawn handling
+            if (hiredFollower && followOwnerId != null
+                    && assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK
+                    && assignedHomePos != null
+                    && TravellersModConfig.workerRespawnInBarracks) {
+                try {
+                    NBTTagCompound nbt = new NBTTagCompound();
+                    writeToNBT(nbt);
+                    stripInventoryNbt(nbt);
+                    net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
+                    net.minecraft.world.WorldServer bw = srv != null ? srv.getWorld(assignedHomeDim) : null;
+                    if (bw != null) {
+                        com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(bw)
+                                .scheduleRespawn(followOwnerId, this.getUniqueID(), assignedHomePos, assignedHomeDim, nbt);
+                    }
+                } catch (Exception e) {
+                    System.err.println("[Travellers] Failed to schedule lone barrack respawn: " + e.getMessage());
+                }
             }
         }
 
@@ -3950,6 +3971,13 @@ public class EntityTravellerWorker extends EntityTraveller {
                 assignedHomeName = nbt.getString("HomeName");
                 assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType
                         .fromOrdinal(nbt.hasKey("HomeType") ? nbt.getInteger("HomeType") : 0);
+                // Millenaire barracks buildings were removed: drop any legacy BARRACKS home assignment.
+                if (assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS) {
+                    assignedHomePos = null;
+                    assignedHomeDim = 0;
+                    assignedHomeName = "";
+                    assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.CHEST;
+                }
             } else {
                 assignedHomePos = null;
                 assignedHomeDim = 0;

@@ -51,6 +51,21 @@ public class MsgWorkerGetEquipment implements IMessage {
         buf.writeLong(homePos.toLong());
     }
 
+    private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos, boolean useWholeVillage) {
+        if (pos == null) return false;
+        java.util.UUID ownerId = player.getUniqueID();
+        if (useWholeVillage) {
+            if (!com.jubitus.travellers.TravellersModConfig.controlledVillageFeatureEnabled) return false;
+            return com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper
+                    .getControlledVillageCenters(player.world, player).contains(pos);
+        }
+        for (com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord r :
+                com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(player.world).getByOwner(ownerId)) {
+            if (pos.equals(r.center)) return true;
+        }
+        return false;
+    }
+
     public static class Handler implements IMessageHandler<MsgWorkerGetEquipment, IMessage> {
         @Override
         public IMessage onMessage(MsgWorkerGetEquipment msg, MessageContext ctx) {
@@ -60,6 +75,10 @@ public class MsgWorkerGetEquipment implements IMessage {
                 if (srv == null) return;
 
                 UUID ownerId = player.getUniqueID();
+
+                // Validate the target: must be one of the player's controlled villages (whole-village)
+                // or one of the player's lone barracks. Blocks ordinary villages and others' barracks.
+                if (!isValidEquipTarget(player, msg.homePos, msg.useWholeVillage)) return;
 
                 // Try real entity first
                 for (WorldServer ws : srv.worlds) {

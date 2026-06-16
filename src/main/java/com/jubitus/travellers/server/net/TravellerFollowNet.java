@@ -83,8 +83,6 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgWorkerSetHome.Handler.class, MsgWorkerSetHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGoHome.Handler.class, MsgWorkerGoHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgRegisterHomeChest.Handler.class, MsgRegisterHomeChest.class, id++, Side.SERVER);
-        CHANNEL.registerMessage(MsgWorkerRequestHomeList.Handler.class,
-                MsgWorkerRequestHomeList.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerRequestGoList.Handler.class, MsgWorkerRequestGoList.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGoTo.Handler.class, MsgWorkerGoTo.class, id++, Side.SERVER);
         CHANNEL.registerMessage(
@@ -137,9 +135,6 @@ public final class TravellerFollowNet {
                 isClient ? new MsgWorkerGoList.ClientHandler() : new MsgWorkerGoList.NoopHandler());
 
         // server -> client (client-only handlers, use Noop on dedicated server)
-        registerClientOnly(MsgWorkerHomeList.class,
-                isClient ? new MsgWorkerHomeList.ClientHandler() : new MsgWorkerHomeList.NoopHandler());
-
         registerClientOnly(MsgSyncWorkerHome.class,
                 isClient ? new MsgSyncWorkerHome.ClientHandler() : new MsgSyncWorkerHome.NoopHandler());
         CHANNEL.registerMessage(MsgRequestMapTiles.Handler.class,
@@ -164,13 +159,22 @@ public final class TravellerFollowNet {
                 MsgOpenLoneBarrackPrompt.class,
                 isClient ? new MsgOpenLoneBarrackPrompt.ClientHandler() : new MsgOpenLoneBarrackPrompt.NoopHandler()
         );
-        CHANNEL.registerMessage(MsgWorkerDeleteHome.Handler.class, MsgWorkerDeleteHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGetEquipment.Handler.class, MsgWorkerGetEquipment.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgLeaderSetHome.Handler.class, MsgLeaderSetHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgCreateLoneBarrack.Handler.class, MsgCreateLoneBarrack.class, id++, Side.SERVER);
         registerClientOnly(MsgLoneBarrackResult.class,
                 isClient ? new MsgLoneBarrackResult.ClientHandler() : new MsgLoneBarrackResult.NoopHandler());
         CHANNEL.registerMessage(MsgDeleteLoneBarrack.Handler.class, MsgDeleteLoneBarrack.class, id++, Side.SERVER);
+
+        // Barracks-assignment GUI
+        CHANNEL.registerMessage(MsgRequestWorkerBarracksData.Handler.class,
+                MsgRequestWorkerBarracksData.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgAssignWorkerBarrack.Handler.class,
+                MsgAssignWorkerBarrack.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgUnassignWorkerBarrack.Handler.class,
+                MsgUnassignWorkerBarrack.class, id++, Side.SERVER);
+        registerClientOnly(MsgWorkerBarracksData.class,
+                isClient ? new MsgWorkerBarracksData.ClientHandler() : new MsgWorkerBarracksData.NoopHandler());
         registered = true;
 
         CHANNEL.registerMessage(

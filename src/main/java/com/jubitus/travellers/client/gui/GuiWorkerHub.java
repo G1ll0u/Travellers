@@ -40,6 +40,7 @@ public class GuiWorkerHub extends GuiScreen {
     private GuiButton mapButton;
     private GuiButton backButton;
     private GuiButton formationButton;
+    private GuiButton barracksButton;
     private GuiColorSwatchButton markButton;
 
     private int xSize = 176;
@@ -121,19 +122,29 @@ public class GuiWorkerHub extends GuiScreen {
         ));
 
         int row3Y = row2Y + bh + 6;
+        int left3 = x + (this.xSize - totalW) / 2;
 
         this.formationButton = this.addButton(new GuiButton(
                 5,
-                centerX - bw - gap / 2,
+                left3,
                 row3Y,
                 bw,
                 bh,
                 I18n.format("travellers.worker.hub.formation")
         ));
 
+        this.barracksButton = this.addButton(new GuiButton(
+                9,
+                left3 + bw + gap,
+                row3Y,
+                bw,
+                bh,
+                I18n.format("travellers.worker.hub.barracks")
+        ));
+
         this.mapButton = this.addButton(new GuiButton(
                 6,
-                centerX + gap / 2,
+                left3 + (bw + gap) * 2,
                 row3Y,
                 bw,
                 bh,
@@ -212,6 +223,11 @@ public class GuiWorkerHub extends GuiScreen {
             formationButton.enabled = hiredByMe;
         }
 
+        if (barracksButton != null) {
+            barracksButton.visible = true;
+            barracksButton.enabled = hiredByMe;
+        }
+
         if (behaviorButton != null) {
             behaviorButton.visible = true;
             behaviorButton.enabled = hiredByMe;
@@ -244,6 +260,12 @@ public class GuiWorkerHub extends GuiScreen {
         if (button == formationButton) {
             TravellerFollowNet.CHANNEL.sendToServer(
                     new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.FORMATION)
+            );
+            return;
+        }
+        if (button == barracksButton) {
+            TravellerFollowNet.CHANNEL.sendToServer(
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HOME)
             );
             return;
         }

@@ -5,7 +5,6 @@ import com.jubitus.travellers.client.gui.bahavior.relations.ContainerWorkerVilla
 import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiHomeNamePrompt;
-import com.jubitus.travellers.client.gui.home.GuiWorkerHomeList;
 import com.jubitus.travellers.client.gui.home.GuiWorkerLoneBarrackPrompt;
 import com.jubitus.travellers.client.gui.orders.GuiWorkerOrders;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
@@ -66,12 +65,6 @@ public class ClientGuiHandler extends CommonGuiHandler {
         }
         if (id == TravellersGuiIds.LONE_BARRACK_PROMPT) {
             return new GuiWorkerLoneBarrackPrompt(player, new BlockPos(x, y, z));
-        }
-        if (id == TravellersGuiIds.WORKER_HOME_LIST) {
-            Entity e = world.getEntityByID(x);
-            return (e instanceof EntityTravellerWorker)
-                    ? new GuiWorkerHomeList(player, (EntityTravellerWorker) e)
-                    : null;
         }
         if (id == TravellersGuiIds.WORKER_GO) {
             Entity e = world.getEntityByID(x);

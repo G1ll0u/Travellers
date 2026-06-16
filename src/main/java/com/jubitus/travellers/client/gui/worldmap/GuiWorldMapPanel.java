@@ -37,6 +37,23 @@ public class GuiWorldMapPanel {
      */
     public static int MARKER_SCALE = 1;
 
+    // ── Marker textures ───────────────────────────────────────────────────────
+    /** Source PNG resolution — display size is set independently via getMarkerBaseSize(). */
+    private static final int MARKER_PNG_SIZE = 16;
+
+    private static final ResourceLocation TEX_PLAYER =
+        new ResourceLocation("travellers", "textures/map/marker_player.png");
+    private static final ResourceLocation TEX_VILLAGE =
+        new ResourceLocation("travellers", "textures/map/marker_village.png");
+    private static final ResourceLocation TEX_CTRL_VILLAGE =
+        new ResourceLocation("travellers", "textures/map/marker_controlled_village.png");
+    private static final ResourceLocation TEX_HOME =
+        new ResourceLocation("travellers", "textures/map/marker_home.png");
+    private static final ResourceLocation TEX_LEADER =
+        new ResourceLocation("travellers", "textures/map/marker_leader.png");
+    private static final ResourceLocation TEX_FOLLOWER =
+        new ResourceLocation("travellers", "textures/map/marker_follower.png");
+
     /**
      * Extra pixels added on each side of the terrain texture beyond the viewport.
      * Pan within ±MARGIN pixels uses GL translate only (no rebuild).
@@ -221,134 +238,94 @@ public class GuiWorldMapPanel {
     // ── Marker rendering ─────────────────────────────────────────────────────
 
     /**
-     * Markers are drawn in priority order so high-priority markers always appear on top:
-     *   VILLAGE / CONTROLLED_VILLAGE → HOME → FOLLOWER → LEADER → PLAYER
+     * Draw order: first = background, last = foreground.
+     *   FOLLOWER → LEADER → HOME → VILLAGE / CONTROLLED_VILLAGE → PLAYER
      */
     private static final Marker.MarkerType[] DRAW_ORDER = {
-        Marker.MarkerType.VILLAGE,
-        Marker.MarkerType.CONTROLLED_VILLAGE,
-        Marker.MarkerType.HOME,
         Marker.MarkerType.FOLLOWER,
         Marker.MarkerType.LEADER,
+        Marker.MarkerType.HOME,
+        Marker.MarkerType.VILLAGE,
+        Marker.MarkerType.CONTROLLED_VILLAGE,
         Marker.MarkerType.PLAYER,
     };
 
     private void drawMarkers(int mapX, int mapY) {
-        // Scale up when zoomed into detail mode so markers never appear smaller than 1 block on screen.
         int scale = Math.max(MARKER_SCALE, Math.round(1f / blocksPerPixel));
-
-        // Pass 1: all shadows — drawn before any fill so shadows never darken other markers.
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         for (Marker.MarkerType pass : DRAW_ORDER) {
             for (Marker m : markers) {
                 if (m.type != pass) continue;
                 int sx = worldToScreenX(m.pos.getX(), mapX);
                 int sy = worldToScreenY(m.pos.getZ(), mapY);
-                drawMarkerShadow(m.type, sx, sy, scale);
+                drawMarkerPng(getMarkerTexture(m.type), sx, sy, m.argb, getMarkerBaseSize(m.type) * scale);
             }
         }
-        // Pass 2: all fills on top.
-        for (Marker.MarkerType pass : DRAW_ORDER) {
-            for (Marker m : markers) {
-                if (m.type != pass) continue;
-                int sx = worldToScreenX(m.pos.getX(), mapX);
-                int sy = worldToScreenY(m.pos.getZ(), mapY);
-                drawMarkerFill(m.type, sx, sy, m.argb, scale);
-            }
-        }
+        GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
-    // ── Pixel-art marker shapes ───────────────────────────────────────────────
-
-    /** Used by the legend — draws shadow then fill for a single isolated shape. */
-    private static void drawMarkerShape(Marker.MarkerType type, int cx, int cy, int color, int s) {
-        drawMarkerShadow(type, cx, cy, s);
-        drawMarkerFill(type, cx, cy, color, s);
-    }
-
-    private static void drawMarkerShadow(Marker.MarkerType type, int cx, int cy, int s) {
-        int d = 0x60000000;
+    private static ResourceLocation getMarkerTexture(Marker.MarkerType type) {
         switch (type) {
-            case PLAYER:
-                rect(cx - s,  cy + s,   cx + 4*s, cy + 2*s, d);
-                rect(cx + s,  cy - s,   cx + 2*s, cy + s,   d);
-                rect(cx + s,  cy + 2*s, cx + 2*s, cy + 4*s, d);
-                break;
-            case LEADER:
-                rect(cx,      cy - s,   cx + 3*s, cy,        d);
-                rect(cx - s,  cy,       cx + 4*s, cy + 3*s,  d);
-                rect(cx,      cy + 3*s, cx + 3*s, cy + 4*s,  d);
-                break;
-            case FOLLOWER:
-                rect(cx + s,  cy,       cx + 2*s, cy + s,   d);
-                rect(cx,      cy + s,   cx + 3*s, cy + 2*s, d);
-                rect(cx + s,  cy + 2*s, cx + 2*s, cy + 3*s, d);
-                break;
-            case VILLAGE:
-            case CONTROLLED_VILLAGE:
-                trapeze(cx + s, cy + s, d, s);
-                break;
-            case HOME:
-                for (int i = 0; i <= 3; i++) {
-                    int hw = (3 - i) * s;
-                    rect(cx - hw + s, cy - 2*s + i*s + s, cx + hw + 2*s, cy - 2*s + (i + 1)*s + s, d);
-                }
-                break;
+            case PLAYER:             return TEX_PLAYER;
+            case VILLAGE:            return TEX_VILLAGE;
+            case CONTROLLED_VILLAGE: return TEX_CTRL_VILLAGE;
+            case HOME:               return TEX_HOME;
+            case LEADER:             return TEX_LEADER;
+            case FOLLOWER:           return TEX_FOLLOWER;
+            default:                 return TEX_VILLAGE;
         }
     }
 
-    private static void drawMarkerFill(Marker.MarkerType type, int cx, int cy, int argb, int s) {
+    /** Base display size in screen pixels — independent of PNG resolution. */
+    private static int getMarkerBaseSize(Marker.MarkerType type) {
         switch (type) {
-            case PLAYER:
-                rect(cx - 2*s, cy,       cx + 3*s, cy + s,   argb);
-                rect(cx,       cy - 2*s, cx + s,   cy + 3*s, argb);
-                break;
-            case LEADER:
-                rect(cx - s,   cy - 2*s, cx + 2*s, cy - s,   argb);
-                rect(cx - 2*s, cy - s,   cx + 3*s, cy + 2*s, argb);
-                rect(cx - s,   cy + 2*s, cx + 2*s, cy + 3*s, argb);
-                break;
-            case FOLLOWER:
-                rect(cx,      cy - s,  cx + s,   cy,       argb);
-                rect(cx - s,  cy,      cx + 2*s, cy + s,   argb);
-                rect(cx,      cy + s,  cx + s,   cy + 2*s, argb);
-                break;
+            case PLAYER:             return 4;
             case VILLAGE:
-            case CONTROLLED_VILLAGE:
-                trapeze(cx, cy, argb, s);
-                break;
+            case CONTROLLED_VILLAGE: return 6;
             case HOME:
-                for (int i = 0; i <= 3; i++) {
-                    int hw = (3 - i) * s;
-                    rect(cx - hw, cy - 2*s + i*s, cx + hw + s, cy - 2*s + (i + 1)*s, argb);
-                }
-                break;
+            case LEADER:             return 4;
+            case FOLLOWER:           return 4;
+            default:                 return 4;
         }
     }
 
-    private static void trapeze(int cx, int cy, int color, int s) {
-        rect(cx - s,   cy - 2*s, cx + 2*s, cy - s,  color); // 3 units top
-        rect(cx - 2*s, cy - s,   cx + 3*s, cy,      color); // 5 units middle
-        rect(cx - 3*s, cy,       cx + 4*s, cy + s,  color); // 7 units bottom
+    /** Draws the marker PNG tinted with argb, with a soft shadow offset by 1px. */
+    private void drawMarkerPng(ResourceLocation tex, int cx, int cy, int argb, int size) {
+        int half = size / 2;
+        GlStateManager.enableTexture2D();
+        mc.getTextureManager().bindTexture(tex);
+        // Pass size as texture dimensions so UV always spans [0,1] regardless of PNG resolution.
+        GlStateManager.color(0f, 0f, 0f, 0.45f);
+        net.minecraft.client.gui.Gui.drawModalRectWithCustomSizedTexture(
+            cx - half + 1, cy - half + 1, 0, 0, size, size, size, size);
+        float r = ((argb >> 16) & 0xFF) / 255f;
+        float g = ((argb >>  8) & 0xFF) / 255f;
+        float b = ( argb        & 0xFF) / 255f;
+        float a = ((argb >> 24) & 0xFF) / 255f;
+        GlStateManager.color(r, g, b, a);
+        net.minecraft.client.gui.Gui.drawModalRectWithCustomSizedTexture(
+            cx - half, cy - half, 0, 0, size, size, size, size);
     }
 
     // ── Legend ────────────────────────────────────────────────────────────────
 
     private static final Marker.MarkerType[] LEGEND_TYPES = {
+        Marker.MarkerType.PLAYER,
         Marker.MarkerType.VILLAGE,
         Marker.MarkerType.CONTROLLED_VILLAGE,
         Marker.MarkerType.HOME,
-        Marker.MarkerType.FOLLOWER,
         Marker.MarkerType.LEADER,
-        Marker.MarkerType.PLAYER,
+        Marker.MarkerType.FOLLOWER,
     };
 
     private static final String[] LEGEND_KEYS = {
+        "travellers.map.legend.player",
         "travellers.map.legend.village",
         "travellers.map.legend.controlled_village",
         "travellers.map.legend.home",
-        "travellers.map.legend.follower",
         "travellers.map.legend.leader",
-        "travellers.map.legend.player",
+        "travellers.map.legend.follower",
     };
 
     private void drawLegend(int mapX, int mapY) {
@@ -356,22 +333,31 @@ public class GuiWorldMapPanel {
 
         int[] colors = buildLegendColors();
 
+        // Only show legend entries for marker types actually present on the map.
+        // Each GUI decides which markers it adds, so the legend follows automatically.
+        boolean[] present = presentMarkerTypes();
+
         int entryH    = 9;
         int shapeArea = 12; // pixels reserved for the shape
         int shapeGap  = 3;
         int padX = 4, padY = 3;
 
-        // Measure text width to size the background
+        // Measure text width and count visible entries to size the background.
         int maxTextW = 0;
+        int visibleCount = 0;
         String[] labels = new String[LEGEND_KEYS.length];
         for (int i = 0; i < LEGEND_KEYS.length; i++) {
+            if (!present[i]) continue;
             labels[i] = net.minecraft.client.resources.I18n.format(LEGEND_KEYS[i]);
             int tw = fr.getStringWidth(labels[i]);
             if (tw > maxTextW) maxTextW = tw;
+            visibleCount++;
         }
 
+        if (visibleCount == 0) return;
+
         int legendW = padX + shapeArea + shapeGap + maxTextW + padX;
-        int legendH = padY + LEGEND_TYPES.length * entryH + padY;
+        int legendH = padY + visibleCount * entryH + padY;
 
         int lx = mapX + 3;
         int ly = mapY + h - legendH - 3;
@@ -379,29 +365,45 @@ public class GuiWorldMapPanel {
         // Semi-transparent dark background — very subtle
         net.minecraft.client.gui.Gui.drawRect(lx, ly, lx + legendW, ly + legendH, 0x99090909);
 
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        int row = 0;
         for (int i = 0; i < LEGEND_TYPES.length; i++) {
-            int ey = ly + padY + i * entryH;
+            if (!present[i]) continue;
+            int ey = ly + padY + row * entryH;
             int shapeCx = lx + padX + shapeArea / 2;
             int shapeCy = ey + entryH / 2;
-
-            // Draw shape at scale=1 (fixed legend size, always compact)
-            drawMarkerShape(LEGEND_TYPES[i], shapeCx, shapeCy, colors[i], 1);
-
-            // Draw label
+            drawMarkerPng(getMarkerTexture(LEGEND_TYPES[i]), shapeCx, shapeCy, colors[i], 8);
+            GlStateManager.color(1f, 1f, 1f, 1f);
             fr.drawString(labels[i], lx + padX + shapeArea + shapeGap, ey + (entryH - 8) / 2, 0xEEDDBB);
+            row++;
         }
     }
 
+    /** Flags, parallel to LEGEND_TYPES, marking which marker types are currently on the map. */
+    private boolean[] presentMarkerTypes() {
+        boolean[] present = new boolean[LEGEND_TYPES.length];
+        for (Marker m : markers) {
+            for (int i = 0; i < LEGEND_TYPES.length; i++) {
+                if (LEGEND_TYPES[i] == m.type) {
+                    present[i] = true;
+                    break;
+                }
+            }
+        }
+        return present;
+    }
+
     private int[] buildLegendColors() {
-        int ownerArgb     = 0xFF000000 | (legendOwnerColor & 0xFFFFFF);
-        int followerArgb  = 0xFF000000 | WorldMapMarkerFactory.darken(legendOwnerColor & 0xFFFFFF, 0.55f);
+        int ownerArgb    = 0xFF000000 | (legendOwnerColor & 0xFFFFFF);
+        int followerArgb = 0xFF000000 | WorldMapMarkerFactory.darken(legendOwnerColor & 0xFFFFFF, 0.55f);
         return new int[] {
+            ownerArgb,                              // PLAYER
             WorldMapMarkerFactory.COLOR_VILLAGE,    // VILLAGE
             ownerArgb,                              // CONTROLLED_VILLAGE
             ownerArgb,                              // HOME
-            followerArgb,                           // FOLLOWER
             ownerArgb,                              // LEADER
-            ownerArgb,                              // PLAYER
+            followerArgb,                           // FOLLOWER
         };
     }
 
