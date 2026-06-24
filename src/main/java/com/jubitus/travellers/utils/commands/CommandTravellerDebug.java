@@ -4,18 +4,23 @@ import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.SoundEvent;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Loader;
 
 import javax.annotation.Nullable;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 public class CommandTravellerDebug extends CommandBase {
@@ -27,21 +32,25 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug";
+        return "/travellersdebug [sound stress|sound rapidfire|cultures]";
     }
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
-        // Ensure cultures are loaded from Millénaire before dumping
+        if (args.length >= 1 && args[0].equalsIgnoreCase("sound")) {
+            String sub = args.length >= 2 ? args[1].toLowerCase() : "stress";
+            executeSoundDebug(server, sender, sub);
+            return;
+        }
+
+        // Default: culture dump
         try {
             CultureRegistry.bootstrapAllMillenaireCultures();
         } catch (Exception ex) {
-            // Don't hard-fail the command, just note it
             sender.sendMessage(new TextComponentString(
                     TextFormatting.RED + "Warning: error bootstrapping cultures: " + ex.getMessage()));
         }
 
-        // Where to write the dump: config folder
         File configDir = Loader.instance().getConfigDir();
         if (configDir == null) {
             throw new CommandException("Config directory is null; cannot write debug file.");
@@ -61,6 +70,78 @@ public class CommandTravellerDebug extends CommandBase {
         sender.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "Traveller debug exported to: " +
                         TextFormatting.YELLOW + outFile.getAbsolutePath()));
+    }
+
+    // --- Sound stress test ---
+
+    private void executeSoundDebug(MinecraftServer server, ICommandSender sender, String sub) throws CommandException {
+        if (!(sender instanceof EntityPlayerMP)) {
+            throw new CommandException("Must be run by a player.");
+        }
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        World world = player.world;
+
+        double radius = 64.0;
+        AxisAlignedBB box = player.getEntityBoundingBox().grow(radius, 32, radius);
+        List<EntityTraveller> nearby = world.getEntitiesWithinAABB(EntityTraveller.class, box,
+                t -> t != null && t.isEntityAlive());
+
+        if (nearby.isEmpty()) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "No travellers within " + (int) radius + " blocks."));
+            return;
+        }
+
+        int triggered = 0;
+        if (sub.equals("stress")) {
+            // Play ambient (streamed) sounds on all nearby travellers simultaneously.
+            // This stresses the sound engine with many concurrent OGG streams.
+            for (EntityTraveller t : nearby) {
+                SoundEvent snd = pickAmbientOrTalk(t);
+                if (snd == null) continue;
+                t.playVoiceMoving(snd, 1.0f, 1.0f, 400, true, EntityTraveller.VoiceKind.AMBIENT);
+                triggered++;
+            }
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN +
+                    "Sound stress: triggered " + triggered + "/" + nearby.size() + " travellers. Check logs for CodecJOrbis errors."));
+
+        } else if (sub.equals("rapidfire")) {
+            // Rapid stop+start on each entity: play ambient, immediately replace with talk.
+            // This reproduces the race condition where a streamed OGG is stopped and immediately reopened.
+            for (EntityTraveller t : nearby) {
+                SoundEvent ambient = pickAmbientOrTalk(t);
+                SoundEvent talk = pickTalkOrAmbient(t);
+                if (ambient == null || talk == null) continue;
+                // First play starts the stream
+                t.playVoiceMoving(ambient, 1.0f, 1.0f, 200, true, EntityTraveller.VoiceKind.AMBIENT);
+                // Immediate replacement triggers the stop+restart race in the sound engine
+                t.playVoiceMoving(talk, 1.0f, 1.0f, 200, true, EntityTraveller.VoiceKind.TALK);
+                triggered++;
+            }
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN +
+                    "Sound rapidfire: triggered " + triggered + "/" + nearby.size() + " stop+restart cycles. Check for CodecJOrbis errors."));
+
+        } else {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED +
+                    "Unknown sound subcommand. Use: stress | rapidfire"));
+        }
+    }
+
+    @Nullable
+    private SoundEvent pickAmbientOrTalk(EntityTraveller t) {
+        VoiceSet vs = CultureRegistry.TRAVELLER_VOICES.get(t.getCultureId().toLowerCase(java.util.Locale.ROOT));
+        if (vs == null) return null;
+        if (vs.ambient.length > 0) return vs.ambient[t.getRNG().nextInt(vs.ambient.length)];
+        if (vs.talk.length > 0) return vs.talk[t.getRNG().nextInt(vs.talk.length)];
+        return null;
+    }
+
+    @Nullable
+    private SoundEvent pickTalkOrAmbient(EntityTraveller t) {
+        VoiceSet vs = CultureRegistry.TRAVELLER_VOICES.get(t.getCultureId().toLowerCase(java.util.Locale.ROOT));
+        if (vs == null) return null;
+        if (vs.talk.length > 0) return vs.talk[t.getRNG().nextInt(vs.talk.length)];
+        if (vs.ambient.length > 0) return vs.ambient[t.getRNG().nextInt(vs.ambient.length)];
+        return null;
     }
 
     private void dumpEverything(PrintWriter out) {

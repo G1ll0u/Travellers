@@ -16,7 +16,7 @@ public class FormationHubKeyHandler {
 
     public static final KeyBinding KEY = new KeyBinding(
             "key.travellers.formation_hub",
-            Keyboard.KEY_G,
+            Keyboard.KEY_H,
             "key.categories.travellers"
     );
 

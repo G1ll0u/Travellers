@@ -132,9 +132,7 @@ public class MsgLeaderSetHome implements IMessage {
                 }
                 return "Lone Barrack";
             }
-            TravellerHomeManager mgr = TravellerHomeManager.get(world);
-            TravellerHomeManager.HomeChest hc = mgr.findHome(player.getUniqueID(), world.provider.getDimension(), pos);
-            return hc != null ? hc.name : "";
+            return "";
         }
     }
 }

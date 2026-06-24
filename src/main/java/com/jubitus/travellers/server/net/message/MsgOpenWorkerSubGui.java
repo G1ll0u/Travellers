@@ -270,8 +270,13 @@ public class MsgOpenWorkerSubGui implements IMessage {
                                         if (ownerId.equals(vr.followOwnerUUID) && ldr.getUniqueID().equals(vr.escortLeaderUUID))
                                             fc++;
                                     }
-                                    leaders.add(new FormationLeaderInfo(ldr.getUniqueID(), ldr.getName(), fc,
-                                            ldr.posX, ldr.posZ, false, false));
+                                    FormationLeaderInfo info = new FormationLeaderInfo(ldr.getUniqueID(), ldr.getName(), fc,
+                                            ldr.posX, ldr.posZ, false, false);
+                                    info.cultureId = ldr.getCultureId();
+                                    info.textureIndex = ldr.getTextureIndex();
+                                    info.ownerColor = ldr.getOwnerMarkColor();
+                                    info.entityId = ldr.getEntityId();
+                                    leaders.add(info);
                                     settingsByScope.put(ldrScope.asMapKey(), fsd.getSettings(ldrScope));
                                 }
                             }

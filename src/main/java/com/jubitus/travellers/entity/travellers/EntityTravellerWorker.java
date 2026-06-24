@@ -148,8 +148,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersModConfig.returnFollowSwitchDist; // tweak (24–40 works well)
     // How often to refresh the catchup target (ticks)
     private static final int CATCHUP_REPATH_INTERVAL_TICKS = 40; // 2s
-    // --- home chest idle behaviour (unemployed roaming) ---
-    private static final int HOME_CHEST_WAIT_MAX_TICKS = 5 * 60 * 20; // 5 minutes
     // How long to wait after loot pickup before saying goodbye & roaming again
     private static final int POST_JOB_FAREWELL_TICKS = 0; // 5 seconds (tweak)
     // How often (in ticks) to refresh target when returning
@@ -173,7 +171,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     int assignedHomeDim = 0;
     String assignedHomeName = "";
     com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType assignedHomeType =
-            com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.CHEST;
+            com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
     boolean goingHome = false;
     private int barracksFindCooldown = 0;
     private int anchorScanCooldown = 0;
@@ -204,8 +202,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     private Entity followerLookTarget = null;
     private int followerLookTicks = 0;
-    private boolean atHomeChest = false;
-    private int homeChestWaitTicks = 0;
     int postJobFarewellTicks = 0;
     boolean postJobFarewellActive = false;
     private double baseFollowRange;
@@ -563,18 +559,13 @@ public class EntityTravellerWorker extends EntityTraveller {
         return this.dataManager.get(HOME_NAME_DM);
     }
 
-    public void setAssignedHome(@Nullable BlockPos pos, int dim, String name) {
-        setAssignedHome(pos, dim, name,
-                com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.CHEST);
-    }
-
     public void setAssignedHome(@Nullable BlockPos pos, int dim, String name,
             com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType type) {
         this.assignedHomePos = pos;
         this.assignedHomeDim = dim;
         this.assignedHomeName = name == null ? "" : name;
         this.assignedHomeType = type == null
-                ? com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.CHEST
+                ? com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK
                 : type;
 
         this.dataManager.set(
@@ -1356,11 +1347,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
         }
 
-        // --- NEW: idle roaming behaviour at player home chests ---
-        // Only when not currently doing a job
-        if (this.mode == WorkerMode.IDLE && !this.postJobFarewellActive && !this.isWaitingForPickup()) {
-            tickHomeChestWaiting();
-        }
         if (!world.isRemote) {
             if (this.mode == WorkerMode.IDLE
                     && !this.isJobActive()
@@ -1564,22 +1550,29 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
 
             // Lone barrack bed respawn handling
-            if (hiredFollower && followOwnerId != null
+            if (hiredFollower
                     && assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK
-                    && assignedHomePos != null
-                    && TravellersModConfig.workerRespawnInBarracks) {
-                try {
-                    NBTTagCompound nbt = new NBTTagCompound();
-                    writeToNBT(nbt);
-                    stripInventoryNbt(nbt);
-                    net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
-                    net.minecraft.world.WorldServer bw = srv != null ? srv.getWorld(assignedHomeDim) : null;
+                    && assignedHomePos != null) {
+                net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
+                net.minecraft.world.WorldServer bw = srv != null ? srv.getWorld(assignedHomeDim) : null;
+                if (followOwnerId != null && TravellersModConfig.workerRespawnInBarracks) {
+                    try {
+                        NBTTagCompound nbt = new NBTTagCompound();
+                        writeToNBT(nbt);
+                        stripInventoryNbt(nbt);
+                        if (bw != null) {
+                            com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(bw)
+                                    .scheduleRespawn(followOwnerId, this.getUniqueID(), assignedHomePos, assignedHomeDim, nbt);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[Travellers] Failed to schedule lone barrack respawn: " + e.getMessage());
+                    }
+                } else {
+                    // Respawn disabled or no owner: free the bed slot immediately
                     if (bw != null) {
                         com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(bw)
-                                .scheduleRespawn(followOwnerId, this.getUniqueID(), assignedHomePos, assignedHomeDim, nbt);
+                                .unassignWorker(this.getUniqueID());
                     }
-                } catch (Exception e) {
-                    System.err.println("[Travellers] Failed to schedule lone barrack respawn: " + e.getMessage());
                 }
             }
         }
@@ -2174,86 +2167,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return this.mode == WorkerMode.IDLE && !this.isWaitingForPickup();
     }
 
-    private void tickHomeChestWaiting() {
-        if (world.isRemote) return;
-        if (this.mode != WorkerMode.IDLE) {
-            // Only do this when unemployed
-            atHomeChest = false;
-            homeChestWaitTicks = 0;
-            return;
-        }
-
-        TravelCommon tc = this.getTravelCommon();
-        BlockPos target = tc.getTargetVillage(); // generic "current stop" target
-
-        if (target == null) {
-            atHomeChest = false;
-            homeChestWaitTicks = 0;
-            return;
-        }
-
-        // Only care if we're actually at the target
-        if (!tc.isAtTargetStop()) {
-            atHomeChest = false;
-            homeChestWaitTicks = 0;
-            return;
-        }
-
-        // Is this target a registered home chest?
-        if (!TravellerHomeManager.get(world).isHomeChest(world, target)) {
-            atHomeChest = false;
-            homeChestWaitTicks = 0;
-            return;
-        }
-
-        // From here: we are an idle worker at a home chest
-        atHomeChest = true;
-
-        // Keep travel AI from departing
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
-        this.getNavigator().clearPath();
-
-// Look for any nearby player (owner or not)
-        final double playerRadius = 8.0D;
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(playerRadius, 4.0D, playerRadius);
-        List<EntityPlayer> players = world.getEntitiesWithinAABB(EntityPlayer.class, box);
-        boolean playerNearby = !players.isEmpty();
-
-// --- Social behavior while waiting ---
-        if (playerNearby) {
-            // Look at the closest player
-            EntityPlayer p = players.get(0);
-            this.getLookHelper().setLookPositionWithEntity(
-                    p,
-                    10.0F,
-                    (float) this.getVerticalFaceSpeed()
-            );
-
-            // Say hello once shortly after arriving
-            if (homeChestWaitTicks == 20) {
-                this.playHelloSound();
-            }
-
-            // IMPORTANT: don't count waiting time while someone is nearby
-            // so he won't leave while being "discovered".
-            return;
-        }
-
-// No player nearby -> count down the "leave home" timer
-        homeChestWaitTicks++;
-
-// Leave only after timeout AND no player nearby
-        if (homeChestWaitTicks >= HOME_CHEST_WAIT_MAX_TICKS) {
-            homeChestWaitTicks = 0;
-            atHomeChest = false;
-
-            // Allow travel AI to plan next hop
-            tc.setReadyToDepart(true);
-            tc.setDepartCooldownTicks(0);
-        }
-
-    }
 
     private void updateDynamicNavigation() {
         if (world.isRemote) return;
@@ -3795,7 +3708,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 nbt.setInteger("HomeZ", assignedHomePos.getZ());
                 nbt.setInteger("HomeDim", assignedHomeDim);
                 nbt.setString("HomeName", assignedHomeName);
-                nbt.setInteger("HomeType", assignedHomeType == null ? 0 : assignedHomeType.ordinal());
+                nbt.setInteger("HomeType", assignedHomeType == null ? 2 : assignedHomeType.toNbt());
             }
             nbt.setBoolean("GoingHome", goingHome);
 
@@ -3970,19 +3883,12 @@ public class EntityTravellerWorker extends EntityTraveller {
                 assignedHomeDim = nbt.getInteger("HomeDim");
                 assignedHomeName = nbt.getString("HomeName");
                 assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType
-                        .fromOrdinal(nbt.hasKey("HomeType") ? nbt.getInteger("HomeType") : 0);
-                // Millenaire barracks buildings were removed: drop any legacy BARRACKS home assignment.
-                if (assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS) {
-                    assignedHomePos = null;
-                    assignedHomeDim = 0;
-                    assignedHomeName = "";
-                    assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.CHEST;
-                }
+                        .fromNbt(nbt.hasKey("HomeType") ? nbt.getInteger("HomeType") : 0);
             } else {
                 assignedHomePos = null;
                 assignedHomeDim = 0;
                 assignedHomeName = "";
-                assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.CHEST;
+                assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
             }
 
             if (!world.isRemote) {

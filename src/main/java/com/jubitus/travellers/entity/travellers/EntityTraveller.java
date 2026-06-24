@@ -2535,9 +2535,18 @@ public void fall(float distance, float damageMultiplier) {
 
         final WorldServer ws = (WorldServer) this.world;
 
-        // Probe a small chunk square around the mob; if ANY is missing, we're at the edge.
+        int viewChunksEdge;
+        try {
+            viewChunksEdge = ws.getMinecraftServer().getPlayerList().getViewDistance();
+        } catch (Throwable t) {
+            viewChunksEdge = TravellersModConfig.serverViewDistanceFallbackChunks;
+        }
+        // Cap r at half the view distance so we never trigger for entities close to the player
+        // on small view distances.
+        final int r = Math.max(1, Math.min(TravellersModConfig.despawnProbeRadiusChunks, viewChunksEdge / 2));
+
+        // Probe a chunk square around the mob; if ANY is unloaded, we're near the edge.
         final BlockPos p = this.getPosition();
-        final int r = Math.max(0, TravellersModConfig.despawnProbeRadiusChunks);
         final int cx0 = (p.getX() >> 4) - r;
         final int cx1 = (p.getX() >> 4) + r;
         final int cz0 = (p.getZ() >> 4) - r;
@@ -2556,7 +2565,8 @@ public void fall(float distance, float damageMultiplier) {
         if (touchingEdge) {
             nearUnloadTicks++;
         } else {
-            nearUnloadTicks = 0;
+            // Decay instead of hard reset: entity oscillating at the border still accumulates.
+            nearUnloadTicks = Math.max(0, nearUnloadTicks - 1);
         }
 
         if (nearUnloadTicks >= TravellersModConfig.despawnEdgeGraceTicks) {

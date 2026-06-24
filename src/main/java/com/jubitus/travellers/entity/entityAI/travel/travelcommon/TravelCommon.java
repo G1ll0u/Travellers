@@ -231,25 +231,8 @@ public class TravelCommon {
                 TravellersModConfig.VILLAGE_PICK_RADIUS * 4
         );
 
-        if (owner instanceof EntityTravellerWorker) {
-            // For workers, also consider home chests as possible destinations.
-            int homeRadius = Math.max(512, TravellersModConfig.VILLAGE_PICK_RADIUS); // tweak as you like
-            List<BlockPos> homes = getWorkerHomeStopsNear(origin, homeRadius);
-
-            if (!homes.isEmpty()) {
-                Random rand = owner.getRNG();
-
-                // Chance to pick a home chest instead of a village
-                float homeChance = 0.5F; // 50% – tweak or move to config
-
-                if (dest == null || rand.nextFloat() < homeChance) {
-                    dest = homes.get(rand.nextInt(homes.size()));
-                }
-            }
-        }
-
         if (dest == null) {
-            return; // no mill and no homes => no route
+            return;
         }
 
 
@@ -445,26 +428,6 @@ public class TravelCommon {
         return pick != null ? pick : candidates.get(owner.getRNG().nextInt(n));
     }
 
-    private List<BlockPos> getWorkerHomeStopsNear(BlockPos origin, int maxRadius) {
-        if (!(owner instanceof EntityTravellerWorker)) return Collections.emptyList();
-
-        World world = owner.getEntityWorld();
-        if (world == null || world.isRemote) return Collections.emptyList();
-
-        List<BlockPos> all = TravellerHomeManager.get(world).getAllHomesInDimension(world);
-        if (all.isEmpty()) return Collections.emptyList();
-
-        long r2 = (long) maxRadius * (long) maxRadius;
-        List<BlockPos> result = new ArrayList<>();
-
-        for (BlockPos p : all) {
-            if (origin.distanceSq(p) <= r2) {
-                result.add(p);
-            }
-        }
-
-        return result;
-    }
 
     /**
      * Returns [v1, v2, ..., dest], where each v is a village near the straight line

@@ -57,6 +57,13 @@ public class VirtualWorkerRecord {
     // Used at materialization to decide whether Y needs surface-clamping.
     public boolean hasTraveledFar;
 
+    // Formation slot offset from the escort leader, captured at virtualization.
+    // Used by MaterializePositionResolver to restore the worker to its exact slot
+    // instead of placing it in a generic ring around the leader.
+    public boolean hasEscortSlotOffset = false;
+    public double escortSlotDx;
+    public double escortSlotDz;
+
     // Cached display data for the worldmap (set at virtualization)
     public String name = "";
     public int ownerColor = 0xFFFFFF;
@@ -113,6 +120,11 @@ public class VirtualWorkerRecord {
         tag.setBoolean("TraveledFar", hasTraveledFar);
         tag.setString("Name", name != null ? name : "");
         tag.setInteger("OwnerColor", ownerColor);
+        if (hasEscortSlotOffset) {
+            tag.setBoolean("HasSlotOff", true);
+            tag.setDouble("SlotDX", escortSlotDx);
+            tag.setDouble("SlotDZ", escortSlotDz);
+        }
         return tag;
     }
 
@@ -128,6 +140,14 @@ public class VirtualWorkerRecord {
         VirtualWorkerRecord r = new VirtualWorkerRecord(uuid, px, py, pz, yaw, dim, entityData);
         r.isHiredFollower = tag.getBoolean("Hired");
         if (tag.hasKey("OwnerUUID")) r.followOwnerUUID = UUID.fromString(tag.getString("OwnerUUID"));
+        // Backwards-compat: old records didn't save Hired/OwnerUUID at the record level.
+        // Fall back to the entity NBT which has always stored these fields.
+        if (!r.isHiredFollower && entityData != null) {
+            r.isHiredFollower = entityData.getBoolean("HiredFollower");
+        }
+        if (r.followOwnerUUID == null && entityData != null && entityData.hasKey("FollowOwnerIdLeast")) {
+            r.followOwnerUUID = entityData.getUniqueId("FollowOwnerId");
+        }
         r.isCatchupMode = tag.getBoolean("Catchup");
         if (tag.hasKey("CatchupUUID")) r.catchupTargetUUID = UUID.fromString(tag.getString("CatchupUUID"));
         r.workerMode = tag.hasKey("Mode") ? tag.getString("Mode") : "IDLE";
@@ -145,6 +165,11 @@ public class VirtualWorkerRecord {
         r.hasTraveledFar = tag.getBoolean("TraveledFar");
         r.name = tag.hasKey("Name") ? tag.getString("Name") : "";
         r.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;
+        r.hasEscortSlotOffset = tag.getBoolean("HasSlotOff");
+        if (r.hasEscortSlotOffset) {
+            r.escortSlotDx = tag.getDouble("SlotDX");
+            r.escortSlotDz = tag.getDouble("SlotDZ");
+        }
         return r;
     }
 }

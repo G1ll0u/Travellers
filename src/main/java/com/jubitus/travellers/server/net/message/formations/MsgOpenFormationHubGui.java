@@ -104,16 +104,23 @@ public class MsgOpenFormationHubGui implements IMessage {
                     }
                 }
 
-                Minecraft.getMinecraft().displayGuiScreen(
-                        new com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub(
-                                Minecraft.getMinecraft().player,
-                                msg.representativeEntityId,
-                                msg.standalone,
-                                leaders,
-                                settingsByScope,
-                                initialScope
-                        )
-                );
+                net.minecraft.client.gui.GuiScreen current = Minecraft.getMinecraft().currentScreen;
+                if (current instanceof com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub) {
+                    // Update leaders in place — avoids flicker and re-init when refreshing after group changes
+                    ((com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub) current)
+                            .updateLeaders(leaders, settingsByScope);
+                } else {
+                    Minecraft.getMinecraft().displayGuiScreen(
+                            new com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub(
+                                    Minecraft.getMinecraft().player,
+                                    msg.representativeEntityId,
+                                    msg.standalone,
+                                    leaders,
+                                    settingsByScope,
+                                    initialScope
+                            )
+                    );
+                }
             });
             return null;
         }

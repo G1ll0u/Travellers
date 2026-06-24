@@ -9,6 +9,7 @@ import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormati
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationByScope;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateWorkerFormationSettings;
 import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
+import com.jubitus.travellers.server.net.message.group.MsgGroupCreate;
 import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
 import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
 import com.jubitus.travellers.server.net.message.home.*;
@@ -82,7 +83,6 @@ public final class TravellerFollowNet {
                 MsgOpenWorkerSubGui.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerSetHome.Handler.class, MsgWorkerSetHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGoHome.Handler.class, MsgWorkerGoHome.class, id++, Side.SERVER);
-        CHANNEL.registerMessage(MsgRegisterHomeChest.Handler.class, MsgRegisterHomeChest.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerRequestGoList.Handler.class, MsgWorkerRequestGoList.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGoTo.Handler.class, MsgWorkerGoTo.class, id++, Side.SERVER);
         CHANNEL.registerMessage(
@@ -152,10 +152,6 @@ public final class TravellerFollowNet {
                 MsgSetVillageEnemy.class, id++, Side.SERVER);
 
         registerClientOnly(
-                MsgOpenHomeNamePrompt.class,
-                isClient ? new MsgOpenHomeNamePrompt.ClientHandler() : new MsgOpenHomeNamePrompt.NoopHandler()
-        );
-        registerClientOnly(
                 MsgOpenLoneBarrackPrompt.class,
                 isClient ? new MsgOpenLoneBarrackPrompt.ClientHandler() : new MsgOpenLoneBarrackPrompt.NoopHandler()
         );
@@ -191,6 +187,7 @@ public final class TravellerFollowNet {
         registerClientOnly(MsgChoirSingerMute.class, isClient ? new MsgChoirSingerMute.Handler() : new MsgChoirSingerMute.NoopHandler());
 
         CHANNEL.registerMessage(MsgGroupComeBack.Handler.class, MsgGroupComeBack.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgGroupCreate.Handler.class, MsgGroupCreate.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgGroupMerge.Handler.class, MsgGroupMerge.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgLeaderGoTo.Handler.class, MsgLeaderGoTo.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgUpdateFormationByScope.Handler.class, MsgUpdateFormationByScope.class, id++, Side.SERVER);
@@ -207,6 +204,12 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgRequestDetailTiles.Handler.class, MsgRequestDetailTiles.class, id++, Side.SERVER);
         registerClientOnly(MsgMapDetailTileData.class,
                 isClient ? new MsgMapDetailTileData.ClientHandler() : new MsgMapDetailTileData.NoopHandler());
+
+        // Formation hub: Get Equipment
+        CHANNEL.registerMessage(MsgRequestEquipDests.Handler.class, MsgRequestEquipDests.class, id++, Side.SERVER);
+        registerClientOnly(MsgEquipDestsResponse.class,
+                isClient ? new MsgEquipDestsResponse.ClientHandler() : new MsgEquipDestsResponse.NoopHandler());
+        CHANNEL.registerMessage(MsgLeaderGetEquip.Handler.class, MsgLeaderGetEquip.class, id++, Side.SERVER);
     }
 
 

@@ -53,6 +53,8 @@ public class GuiWorldMapPanel {
         new ResourceLocation("travellers", "textures/map/marker_leader.png");
     private static final ResourceLocation TEX_FOLLOWER =
         new ResourceLocation("travellers", "textures/map/marker_follower.png");
+    private static final ResourceLocation TEX_DESTINATION_CROSS =
+        new ResourceLocation("travellers", "textures/map/marker_destination_cross.png");
 
     /**
      * Extra pixels added on each side of the terrain texture beyond the viewport.
@@ -62,7 +64,7 @@ public class GuiWorldMapPanel {
     private static final int MARGIN = 16;
 
     public static class Marker {
-        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, LEADER, FOLLOWER, PLAYER }
+        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, LEADER, FOLLOWER, FOLLOWER_HIGHLIGHTED, PLAYER, DESTINATION_CROSS }
 
         public final BlockPos pos;
         public final int argb;
@@ -239,15 +241,17 @@ public class GuiWorldMapPanel {
 
     /**
      * Draw order: first = background, last = foreground.
-     *   FOLLOWER → LEADER → HOME → VILLAGE / CONTROLLED_VILLAGE → PLAYER
+     *   FOLLOWER → FOLLOWER_HIGHLIGHTED → LEADER → HOME → VILLAGE / CONTROLLED_VILLAGE → PLAYER
      */
     private static final Marker.MarkerType[] DRAW_ORDER = {
         Marker.MarkerType.FOLLOWER,
+        Marker.MarkerType.FOLLOWER_HIGHLIGHTED,
         Marker.MarkerType.LEADER,
         Marker.MarkerType.HOME,
         Marker.MarkerType.VILLAGE,
         Marker.MarkerType.CONTROLLED_VILLAGE,
         Marker.MarkerType.PLAYER,
+        Marker.MarkerType.DESTINATION_CROSS,
     };
 
     private void drawMarkers(int mapX, int mapY) {
@@ -272,7 +276,9 @@ public class GuiWorldMapPanel {
             case CONTROLLED_VILLAGE: return TEX_CTRL_VILLAGE;
             case HOME:               return TEX_HOME;
             case LEADER:             return TEX_LEADER;
-            case FOLLOWER:           return TEX_FOLLOWER;
+            case FOLLOWER:
+            case FOLLOWER_HIGHLIGHTED: return TEX_FOLLOWER;
+            case DESTINATION_CROSS:  return TEX_DESTINATION_CROSS;
             default:                 return TEX_VILLAGE;
         }
     }
@@ -286,6 +292,8 @@ public class GuiWorldMapPanel {
             case HOME:
             case LEADER:             return 4;
             case FOLLOWER:           return 4;
+            case FOLLOWER_HIGHLIGHTED: return 7;
+            case DESTINATION_CROSS:  return 8;
             default:                 return 4;
         }
     }
@@ -384,8 +392,11 @@ public class GuiWorldMapPanel {
     private boolean[] presentMarkerTypes() {
         boolean[] present = new boolean[LEGEND_TYPES.length];
         for (Marker m : markers) {
+            // Treat FOLLOWER_HIGHLIGHTED as FOLLOWER for legend purposes.
+            Marker.MarkerType effectiveType = (m.type == Marker.MarkerType.FOLLOWER_HIGHLIGHTED)
+                    ? Marker.MarkerType.FOLLOWER : m.type;
             for (int i = 0; i < LEGEND_TYPES.length; i++) {
-                if (LEGEND_TYPES[i] == m.type) {
+                if (LEGEND_TYPES[i] == effectiveType) {
                     present[i] = true;
                     break;
                 }

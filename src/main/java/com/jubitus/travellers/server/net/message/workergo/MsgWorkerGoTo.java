@@ -1,7 +1,8 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -73,13 +74,11 @@ public class MsgWorkerGoTo implements IMessage {
                     list.add(MsgWorkerGoList.Entry.village(v, label, dist));
                 }
 
-                TravellerHomeManager mgr = TravellerHomeManager.get(player.world);
-                List<TravellerHomeManager.HomeChest> homes = mgr.getHomesOfPlayerFull(player);
-                for (TravellerHomeManager.HomeChest h : homes) {
-                    BlockPos p = h.pos;
-                    int dist = EntityTravellerWorker.dist2D(origin, p);
-                    String label = (h.name != null && !h.name.isEmpty()) ? h.name : "Home";
-                    list.add(MsgWorkerGoList.Entry.home(p, label, dist));
+                LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
+                for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                    int dist = EntityTravellerWorker.dist2D(origin, r.center);
+                    String label =(r.name != null && !r.name.isEmpty() ? r.name : "Barrack");
+                    list.add(MsgWorkerGoList.Entry.home(r.center, label, dist));
                 }
 
                 list.sort(Comparator.comparingInt(a -> a.distance));

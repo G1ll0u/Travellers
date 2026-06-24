@@ -39,6 +39,7 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
     private final float baseVolume;
 
     boolean isChoir = false;
+    boolean isAmbient = false;
     boolean stoppedExternally = false;
     long muteUntilMs = 0;
 
@@ -81,6 +82,12 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
 
     public int getEntityId() {
         return entityId;
+    }
+
+    public double getDistanceSqToPlayer() {
+        EntityPlayer player = Minecraft.getMinecraft().player;
+        if (player == null || entity == null) return 0.0;
+        return entity.getDistanceSq(player);
     }
 
     public void stopNow() {

@@ -40,7 +40,7 @@ dependencies {
     implementation files('libs/millenaire-8.1.2.jar')
     implementation files('libs/millmix-1.1.6.jar')
     implementation files('libs/DramaticTrees-1.12.2-0.13.4.jar')
-    implementation files('libs/millpathbuilder-0.0.2alpha.jar')
+    implementation files('libs/ultreia-b0.1.0.jar')
 
     implementation 'mezz:jei:4.29.13'
     // Example - Dependency descriptor:

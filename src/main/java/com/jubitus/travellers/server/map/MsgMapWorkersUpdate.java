@@ -10,6 +10,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class MsgMapWorkersUpdate implements IMessage {
 
@@ -20,6 +21,7 @@ public class MsgMapWorkersUpdate implements IMessage {
         public String name;
         public boolean isLeader;
         public int ownerColor; // RGB (no alpha)
+        public UUID uuid;     // null for legacy entries
     }
 
     private List<Entry> entries = new ArrayList<>();
@@ -49,6 +51,8 @@ public class MsgMapWorkersUpdate implements IMessage {
             e.name = ByteBufUtils.readUTF8String(buf);
             e.isLeader = buf.readBoolean();
             e.ownerColor = buf.readInt();
+            boolean hasUuid = buf.readBoolean();
+            if (hasUuid) e.uuid = new UUID(buf.readLong(), buf.readLong());
             entries.add(e);
         }
     }
@@ -66,6 +70,8 @@ public class MsgMapWorkersUpdate implements IMessage {
             ByteBufUtils.writeUTF8String(buf, e.name != null ? e.name : "");
             buf.writeBoolean(e.isLeader);
             buf.writeInt(e.ownerColor);
+            buf.writeBoolean(e.uuid != null);
+            if (e.uuid != null) { buf.writeLong(e.uuid.getMostSignificantBits()); buf.writeLong(e.uuid.getLeastSignificantBits()); }
         }
     }
 

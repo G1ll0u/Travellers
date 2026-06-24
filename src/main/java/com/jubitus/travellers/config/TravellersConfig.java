@@ -377,13 +377,13 @@ public class TravellersConfig {
         @Config.RangeInt(min = 2, max = 32)
         public int serverViewDistanceFallbackChunks = 8;
 
-        @Config.Comment("Chunks around entity that must all be loaded to suppress edge despawn.")
-        @Config.RangeInt(min = 0, max = 4)
-        public int despawnProbeRadiusChunks = 1;
+        @Config.Comment("Probe radius in chunks for edge despawn. 4 = triggers at chunk 5+ from player (80 blocks at view=8). Capped at viewDistance/2 at runtime.")
+        @Config.RangeInt(min = 1, max = 8)
+        public int despawnProbeRadiusChunks = 4;
 
-        @Config.Comment("Ticks standing near chunk edge before the entity fades out.")
+        @Config.Comment("Ticks near chunk edge before the entity fades out. Counter decays (not resets) when entity re-enters the safe zone.")
         @Config.RangeInt(min = 0, max = 1200)
-        public int despawnEdgeGraceTicks = 60;
+        public int despawnEdgeGraceTicks = 40;
     }
 
     public static class Attributes {
@@ -821,6 +821,13 @@ public class TravellersConfig {
         @Config.Comment("Distance rolloff exponent when SoundPhysics is absent. 1.0 = natural 1/r (recommended), 2.0 = inverse-square (fast fade), 0.5 = gentle.")
         @Config.RangeDouble(min = 0.25, max = 4.0)
         public double voiceRolloffPower = 1.0;
+
+        @Config.Comment("Max simultaneous entity-linked voice sounds (ambient + talk + choir combined). Prevents OpenAL source pool exhaustion. Lower if you get 'Channel null' errors.")
+        @Config.RangeInt(min = 4, max = 30)
+        public int maxConcurrentVoiceSounds = 16;
+
+        @Config.Comment("Log every sound play/stop event to the client log (for debugging CodecJOrbis errors). Disable in production.")
+        public boolean soundDebugLog = true;
     }
 
     public static class Choir {
@@ -947,7 +954,7 @@ public class TravellersConfig {
         public int workerBarracksRadius = 10;
 
         @Config.Comment("If true, dead workers with a barracks home respawn there the next in-game day.")
-        public boolean workerRespawnInBarracks = false;
+        public boolean workerRespawnInBarracks = true;
 
         @Config.Comment("In-game day time (0-23999) when dead workers respawn at their barracks.")
         @Config.RangeInt(min = 0, max = 23999)
@@ -966,15 +973,15 @@ public class TravellersConfig {
         public int workerBarrackRespawnDays = 3;
 
         @Config.Comment("Default half-width (X axis) for lone barracks detection.")
-        @Config.RangeInt(min = 4, max = 16)
+        @Config.RangeInt(min = 4, max = 32)
         public int workerLoneBarrackHalfWidth = 5;
 
         @Config.Comment("Default half-depth (Z axis) for lone barracks detection.")
-        @Config.RangeInt(min = 4, max = 16)
+        @Config.RangeInt(min = 4, max = 32)
         public int workerLoneBarrackHalfDepth = 5;
 
         @Config.Comment("Default half-height for lone barracks detection.")
-        @Config.RangeInt(min = 2, max = 32)
+        @Config.RangeInt(min = 2, max = 64)
         public int workerLoneBarrackHalfHeight = 4;
 
         @Config.Comment("Cost to hire a worker (in deniers). 1 argent = 64 deniers.")
@@ -1022,6 +1029,10 @@ public class TravellersConfig {
         @Config.Comment("Minimum block distance between worker villages.")
         @Config.RangeInt(min = 100, max = 10000)
         public int workerVillageMinDistance = 250;
+
+        @Config.Comment("Initial zoom for the worldmap in the formation hub (blocks per pixel). Smaller = more zoomed in. 0.5 means 1 block per 2 pixels.")
+        @Config.RangeDouble(min = 0.0625, max = 8.0)
+        public double formationHubMapInitialBpp = 0.5;
     }
 
     public static class Recruitment {

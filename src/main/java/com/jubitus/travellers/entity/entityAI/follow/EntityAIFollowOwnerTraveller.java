@@ -664,27 +664,34 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean leaderStill = !slot.leaderActuallyMoving;
         boolean workerNearSticky = distanceSq(worker.posX, worker.posY, worker.posZ, stickyGoalX, stickyGoalY, stickyGoalZ) <= 3.8D * 3.8D;
 
+        // When the coordinator's ideal slot moved away from where we last settled (settings changed),
+        // skip all snap-back so workers actually navigate to the new formation positions.
+        double idealStickyDriftSq = distanceSq(slot.idealX, slot.idealY, slot.idealZ, stickyGoalX, stickyGoalY, stickyGoalZ);
+        boolean formationMoved = idealStickyDriftSq > 1.5D * 1.5D;
+
         if (slot.workerLeader && leaderStill) {
-            if (workerNearSticky && stickyDistSq <= 3.2D * 3.2D) {
+            if (!formationMoved && workerNearSticky && stickyDistSq <= 3.2D * 3.2D) {
                 return new GoalCandidate(stickyGoalX, stickyGoalY, stickyGoalZ);
             }
 
-            double selfDx = worker.posX - target.posX;
-            double selfDz = worker.posZ - target.posZ;
-            double selfDistSq = selfDx * selfDx + selfDz * selfDz;
-            if (selfDistSq >= 3.0D * 3.0D && selfDistSq <= 8.0D * 8.0D) {
-                BlockPos selfFeet = new BlockPos(worker.posX, worker.getEntityBoundingBox().minY, worker.posZ);
-                if (isStandableFast(selfFeet)) {
-                    return new GoalCandidate(worker.posX, selfFeet.getY(), worker.posZ);
+            if (!formationMoved) {
+                double selfDx = worker.posX - target.posX;
+                double selfDz = worker.posZ - target.posZ;
+                double selfDistSq = selfDx * selfDx + selfDz * selfDz;
+                if (selfDistSq >= 3.0D * 3.0D && selfDistSq <= 8.0D * 8.0D) {
+                    BlockPos selfFeet = new BlockPos(worker.posX, worker.getEntityBoundingBox().minY, worker.posZ);
+                    if (isStandableFast(selfFeet)) {
+                        return new GoalCandidate(worker.posX, selfFeet.getY(), worker.posZ);
+                    }
                 }
             }
         }
 
-        if (leaderStill && workerNearSticky && stickyDistSq <= STICKY_GOAL_EPSILON_SQ) {
+        if (leaderStill && workerNearSticky && stickyDistSq <= STICKY_GOAL_EPSILON_SQ && !formationMoved) {
             return new GoalCandidate(stickyGoalX, stickyGoalY, stickyGoalZ);
         }
 
-        if (mode == FollowMode.CAVE && workerNearSticky && stickyDistSq <= 2.8D * 2.8D) {
+        if (mode == FollowMode.CAVE && workerNearSticky && stickyDistSq <= 2.8D * 2.8D && !formationMoved) {
             return new GoalCandidate(stickyGoalX, stickyGoalY, stickyGoalZ);
         }
 

@@ -28,7 +28,7 @@ public final class MPBIntegration {
 
     private static boolean detect() {
         try {
-            apiClass = Class.forName("com.jubitus.millpathbuilder.api.MPBRoadAPI");
+            apiClass = Class.forName("com.jubitus.ultreia.api.MPBRoadAPI");
             methodIsOnRoad = apiClass.getMethod("isOnRoad", WorldServer.class, int.class, int.class);
             methodFindNextWaypoint = apiClass.getMethod("findNextRoadWaypointToward",
                     WorldServer.class, int.class, int.class, int.class, int.class, int.class, int.class);

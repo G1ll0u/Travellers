@@ -221,20 +221,29 @@ public class BarracksSlotManager extends WorldSavedData {
     }
 
     private static BlockPos findSafeSpawnPos(WorldServer world, BlockPos center, int radius) {
-        // Try center first
-        BlockPos top = world.getTopSolidOrLiquidBlock(center);
-        if (isSafeSpawn(world, top)) return top.up();
+        // Search outward from the barracks center Y rather than from the surface,
+        // so workers appear on the building's interior floor rather than on the roof.
+        int cx = center.getX(), cz = center.getZ();
+        if (world.getChunkProvider().chunkExists(cx >> 4, cz >> 4)) {
+            double safeY = com.jubitus.travellers.utils.world.pathing.offscreen.MaterializePositionResolver
+                    .findSafeFloorY(world, cx, cz, center.getY());
+            BlockPos p = new BlockPos(cx, (int) safeY, cz);
+            if (isSafeSpawn(world, p.down())) return p;
+        }
 
-        // Try random offsets
+        // Try nearby offsets at the same reference Y
         Random rand = world.rand;
         for (int i = 0; i < 12; i++) {
             int ox = rand.nextInt(radius * 2 + 1) - radius;
             int oz = rand.nextInt(radius * 2 + 1) - radius;
-            top = world.getTopSolidOrLiquidBlock(new BlockPos(center.getX() + ox, center.getY(), center.getZ() + oz));
-            if (isSafeSpawn(world, top)) return top.up();
+            int nx = cx + ox, nz = cz + oz;
+            if (!world.getChunkProvider().chunkExists(nx >> 4, nz >> 4)) continue;
+            double safeY = com.jubitus.travellers.utils.world.pathing.offscreen.MaterializePositionResolver
+                    .findSafeFloorY(world, nx, nz, center.getY());
+            BlockPos p = new BlockPos(nx, (int) safeY, nz);
+            if (isSafeSpawn(world, p.down())) return p;
         }
 
-        // Fallback: center + 1 (might be inside a block but is better than nothing)
         return center.up();
     }
 

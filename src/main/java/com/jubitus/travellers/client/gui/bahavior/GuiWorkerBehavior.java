@@ -11,6 +11,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 @SideOnly(Side.CLIENT)
@@ -18,6 +19,7 @@ public class GuiWorkerBehavior extends GuiScreen {
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
+    @Nullable private final GuiScreen returnTo;
 
     private GuiButton villageRelationsButton;
     private GuiButton enemiesButton;
@@ -29,8 +31,13 @@ public class GuiWorkerBehavior extends GuiScreen {
     private int guiTop;
 
     public GuiWorkerBehavior(EntityPlayer player, EntityTravellerWorker worker) {
+        this(player, worker, null);
+    }
+
+    public GuiWorkerBehavior(EntityPlayer player, EntityTravellerWorker worker, @Nullable GuiScreen returnTo) {
         this.player = player;
         this.worker = worker;
+        this.returnTo = returnTo;
     }
 
     @Override
@@ -79,9 +86,13 @@ public class GuiWorkerBehavior extends GuiScreen {
         }
 
         if (button == this.backButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(this.worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB)
-            );
+            if (returnTo != null) {
+                mc.displayGuiScreen(returnTo);
+            } else {
+                TravellerFollowNet.CHANNEL.sendToServer(
+                        new MsgOpenWorkerSubGui(this.worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB)
+                );
+            }
             return;
         }
 

@@ -500,7 +500,7 @@ tasks.register('generateDynamicSounds') {
                         def aggregateEventKey = "${eventPrefix}.${lang}.${personality}.${kind}"
                         def aggregateEntries = []
                         def exactEventKeys = []
-                        boolean anyNeedsStream = (kind == "ambient")
+                        boolean anyNeedsStream = false
 
                         files.eachWithIndex { File ogg, int i ->
                             def baseName = ogg.name.substring(0, ogg.name.length() - 4)
@@ -510,7 +510,7 @@ tasks.register('generateDynamicSounds') {
                             def exactEventKey = "${eventPrefix}.${lang}.${personality}.${kind}.__${i}"
                             exactEventKeys << exactEventKey
 
-                            boolean shouldStream = (kind == "ambient") || (readOggDurationTicks(ogg) > 60)
+                            boolean shouldStream = (readOggDurationTicks(ogg) > 60)
                             if (shouldStream) anyNeedsStream = true
                             aggregateEntries << [name: soundPath, stream: shouldStream]
                             soundsMap[exactEventKey] = [

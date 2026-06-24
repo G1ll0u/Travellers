@@ -39,9 +39,6 @@ public class VirtualWorkerManager extends WorldSavedData {
     // Max forced materializations per tick (hired workers are prioritized)
     private static final int DELIVERY_PER_TICK = 2;
 
-    // Random spread applied at materialization to prevent collision stacking (blocks, ±radius)
-    private static final double MATERIALIZE_SPREAD = 2.5;
-
     // How often to refresh dynamic goals (ticks)
     private static final int GOAL_REFRESH_INTERVAL = 20;
 
@@ -590,6 +587,19 @@ public class VirtualWorkerManager extends WorldSavedData {
         r.escortLeaderUUID = worker.getEscortLeaderUUID();
         r.virtualizedTick = now;
 
+        // Capture exact slot offset so the worker restores to its formation slot,
+        // not to a generic ring around the leader.
+        if (r.escortLeaderUUID != null) {
+            double[] slotOff = new double[2];
+            if (com.jubitus.travellers.entity.entityAI.follow.FollowFormationCoordinator
+                    .snapshotSlotOffset(r.escortLeaderUUID, world.provider.getDimension(),
+                            worker.getUniqueID(), slotOff)) {
+                r.hasEscortSlotOffset = true;
+                r.escortSlotDx = slotOff[0];
+                r.escortSlotDz = slotOff[1];
+            }
+        }
+
         // Compute initial goal
         BlockPos initialGoal = worker.getVirtualGoal();
         r.goal = initialGoal;
@@ -607,44 +617,19 @@ public class VirtualWorkerManager extends WorldSavedData {
     private void materializeWorker(WorldServer world, VirtualWorkerRecord r, long now, boolean forceLoadChunk) {
         if (world.getEntityFromUuid(r.uuid) != null) return;
 
-        // Always snap to block center: guarantees ≥0.5 blocks distance from any wall,
-        // which prevents the horizontal suffocation check (±0.24 eye offset) from clipping walls.
-        double spawnX = Math.floor(r.posX) + 0.5;
-        double spawnZ = Math.floor(r.posZ) + 0.5;
+        MaterializePositionResolver.ResolvedPosition pos =
+                MaterializePositionResolver.resolve(world, r, records);
 
-        // Spread only for workers that have traveled far, to avoid stacking at the same block.
-        // Use integer block offsets so the result is also a block center.
-        // Only use spread if the target chunk is already loaded.
-        if (r.hasTraveledFar) {
-            int ox = (int) Math.round((world.rand.nextDouble() - 0.5) * MATERIALIZE_SPREAD * 2);
-            int oz = (int) Math.round((world.rand.nextDouble() - 0.5) * MATERIALIZE_SPREAD * 2);
-            double cx = Math.floor(r.posX) + ox + 0.5;
-            double cz = Math.floor(r.posZ) + oz + 0.5;
-            int cbx = (int) Math.floor(cx);
-            int cbz = (int) Math.floor(cz);
-            if (world.getChunkProvider().chunkExists(cbx >> 4, cbz >> 4)) {
-                spawnX = cx;
-                spawnZ = cz;
-            }
-        }
-
-        int bx = (int) Math.floor(spawnX);
-        int bz = (int) Math.floor(spawnZ);
-
+        int bx = (int) Math.floor(pos.x);
+        int bz = (int) Math.floor(pos.z);
         if (forceLoadChunk) {
             world.getChunkProvider().provideChunk(bx >> 4, bz >> 4);
-        }
-
-        double spawnY = r.posY;
-        if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
-            spawnY = findSafeFloorY(world, bx, bz, r.posY);
-            spawnY = ensureNotInSolid(world, bx, spawnY, bz);
         }
 
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
         worker.readFromNBT(r.entityNbt);
         worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(spawnX, spawnY, spawnZ, r.rotYaw, 0.0f);
+        worker.setPositionAndRotation(pos.x, pos.y, pos.z, r.rotYaw, 0.0f);
         worker.motionX = 0;
         worker.motionY = 0;
         worker.motionZ = 0;
@@ -654,70 +639,6 @@ public class VirtualWorkerManager extends WorldSavedData {
         world.spawnEntity(worker);
         graceUntil.put(r.uuid, now + MATERIALIZE_GRACE_TICKS);
         markDirty();
-    }
-
-    /**
-     * Finds a safe Y for the entity to stand at (bx, bz).
-     * Searches outward from referenceY first — this preserves underground positions
-     * (cave workers stay underground, not teleported to the surface).
-     * Falls back to a top-down surface scan only if nothing is found nearby.
-     */
-    private static double findSafeFloorY(WorldServer world, int bx, int bz, double referenceY) {
-        int refY = (int) Math.floor(referenceY);
-        int maxY = world.getActualHeight() - 3;
-
-        // Search outward from refY: down first at each offset, then up.
-        // This keeps cave workers in their cave and surface workers on the surface.
-        for (int offset = 0; offset <= 32; offset++) {
-            int yDown = refY - offset;
-            if (yDown >= 1 && isSafeFloor(world, bx, yDown, bz)) return yDown + 1.0;
-            if (offset > 0) {
-                int yUp = refY + offset;
-                if (yUp <= maxY && isSafeFloor(world, bx, yUp, bz)) return yUp + 1.0;
-            }
-        }
-
-        // Last resort: top-down scan skipping foliage (handles extreme terrain changes)
-        for (int y = maxY; y > 1; y--) {
-            BlockPos pos = new BlockPos(bx, y, bz);
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            net.minecraft.block.Block block = state.getBlock();
-            if (block instanceof net.minecraft.block.BlockLeaves) continue;
-            if (block instanceof net.minecraft.block.BlockLog) continue;
-            if (block.isAir(state, world, pos)) continue;
-            if (isSafeFloor(world, bx, y, bz)) return y + 1.0;
-        }
-
-        return referenceY;
-    }
-
-    private static boolean isSafeFloor(WorldServer world, int bx, int y, int bz) {
-        BlockPos floor = new BlockPos(bx, y, bz);
-        net.minecraft.block.state.IBlockState st = world.getBlockState(floor);
-        if (st.getBlock().isAir(st, world, floor)) return false;
-        net.minecraft.block.state.IBlockState s1 = world.getBlockState(floor.up());
-        net.minecraft.block.state.IBlockState s2 = world.getBlockState(floor.up(2));
-        return s1.getBlock().isAir(s1, world, floor.up())
-                && s2.getBlock().isAir(s2, world, floor.up(2));
-    }
-
-    /**
-     * If spawnY lands inside a solid block (e.g. spread pushed the worker into a wall),
-     * pushes Y up until two consecutive air blocks are found.
-     */
-    private static double ensureNotInSolid(WorldServer world, int bx, double spawnY, int bz) {
-        int y = (int) Math.floor(spawnY);
-        int maxY = world.getActualHeight() - 2;
-        for (int i = 0; y + i <= maxY; i++) {
-            BlockPos p1 = new BlockPos(bx, y + i, bz);
-            BlockPos p2 = new BlockPos(bx, y + i + 1, bz);
-            net.minecraft.block.state.IBlockState s1 = world.getBlockState(p1);
-            net.minecraft.block.state.IBlockState s2 = world.getBlockState(p2);
-            if (s1.getBlock().isAir(s1, world, p1) && s2.getBlock().isAir(s2, world, p2)) {
-                return y + i;
-            }
-        }
-        return spawnY;
     }
 
     // -------------------------------------------------------------------------
@@ -866,8 +787,13 @@ public class VirtualWorkerManager extends WorldSavedData {
             String name = leaderRec.entityNbt.hasKey("CustomName")
                     ? leaderRec.entityNbt.getString("CustomName")
                     : "Henchman";
-            result.add(new FormationLeaderInfo(leaderId, name, count,
-                    leaderRec.posX, leaderRec.posZ, false, true));
+            FormationLeaderInfo vInfo = new FormationLeaderInfo(leaderId, name, count,
+                    leaderRec.posX, leaderRec.posZ, false, true);
+            vInfo.cultureId = leaderRec.entityNbt.hasKey("CultureId") ? leaderRec.entityNbt.getString("CultureId") : "";
+            vInfo.textureIndex = leaderRec.entityNbt.hasKey("TextureIdx") ? leaderRec.entityNbt.getInteger("TextureIdx") : 0;
+            vInfo.ownerColor = leaderRec.ownerColor;
+            vInfo.entityId = -1;
+            result.add(vInfo);
         }
 
         return result;

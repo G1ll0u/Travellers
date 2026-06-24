@@ -12,6 +12,13 @@ public final class FormationLeaderInfo {
     public boolean isPlayer;
     public boolean isVirtual;
 
+    // Display data for the leader list
+    public String cultureId = "";
+    public int textureIndex = 0;
+    public int ownerColor = 0xFFFFFF;
+    // -1 if virtual (no loaded entity)
+    public int entityId = -1;
+
     public FormationLeaderInfo() {}
 
     public FormationLeaderInfo(@Nullable UUID uuid, String name, int followerCount,
@@ -34,6 +41,10 @@ public final class FormationLeaderInfo {
         tag.setDouble("PZ", posZ);
         tag.setBoolean("IsPlayer", isPlayer);
         tag.setBoolean("IsVirtual", isVirtual);
+        tag.setString("CultureId", cultureId);
+        tag.setInteger("TextureIndex", textureIndex);
+        tag.setInteger("OwnerColor", ownerColor);
+        tag.setInteger("EntityId", entityId);
         return tag;
     }
 
@@ -46,6 +57,10 @@ public final class FormationLeaderInfo {
         info.posZ = tag.getDouble("PZ");
         info.isPlayer = tag.getBoolean("IsPlayer");
         info.isVirtual = tag.getBoolean("IsVirtual");
+        info.cultureId = tag.hasKey("CultureId") ? tag.getString("CultureId") : "";
+        info.textureIndex = tag.hasKey("TextureIndex") ? tag.getInteger("TextureIndex") : 0;
+        info.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;
+        info.entityId = tag.hasKey("EntityId") ? tag.getInteger("EntityId") : -1;
         return info;
     }
 }

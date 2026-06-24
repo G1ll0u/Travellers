@@ -65,25 +65,9 @@ public class MsgWorkerSetHome implements IMessage {
                     handleBarracksHome(msg, player, w);
                 } else if (homeType == TravellerHomeManager.HomeType.LONE_BARRACK) {
                     handleLoneBarrackHome(msg, player, w);
-                } else {
-                    handleChestHome(msg, player, w);
                 }
             });
             return null;
-        }
-
-        private void handleChestHome(MsgWorkerSetHome msg, EntityPlayerMP player, EntityTravellerWorker w) {
-            TravellerHomeManager mgr = TravellerHomeManager.get(player.world);
-            TravellerHomeManager.HomeChest hc = mgr.findHome(player.getUniqueID(), player.world.provider.getDimension(), msg.pos);
-            if (hc == null) {
-                player.sendMessage(new TextComponentString(TextFormatting.RED + "That home no longer exists."));
-                return;
-            }
-
-            w.setAssignedHome(hc.pos, hc.dimension, hc.name, TravellerHomeManager.HomeType.CHEST);
-
-            TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
-            player.sendMessage(new TextComponentString(TextFormatting.GREEN + "Home assigned: " + hc.name));
         }
 
         private void handleBarracksHome(MsgWorkerSetHome msg, EntityPlayerMP player, EntityTravellerWorker w) {

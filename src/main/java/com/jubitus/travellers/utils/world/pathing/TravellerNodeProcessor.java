@@ -39,9 +39,9 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         if (mpbPathBlock == null && MPBIntegration.PRESENT) {
             mpbPathBlock = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS
-                    .getValue(new net.minecraft.util.ResourceLocation("millpathbuilder", "path_block"));
+                    .getValue(new net.minecraft.util.ResourceLocation("ultreia", "path_block"));
             mpbPathSlab = net.minecraftforge.fml.common.registry.ForgeRegistries.BLOCKS
-                    .getValue(new net.minecraft.util.ResourceLocation("millpathbuilder", "path_slab"));
+                    .getValue(new net.minecraft.util.ResourceLocation("ultreia", "path_slab"));
         }
     }
 

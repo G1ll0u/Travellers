@@ -248,9 +248,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         WorldMapContentPopulator.populate(
                 mapController.panel, pois, workerEntries, player, workerColor, highlighted);
 
-        // Custom map-click position (not a POI) drawn on top of workers, below player
+        // Custom map-click destination drawn above all other markers
         if (selectedMapPos != null) {
-            mapController.panel.addMarker(WorldMapMarkerFactory.villageHighlighted(selectedMapPos, null));
+            mapController.panel.addMarker(WorldMapMarkerFactory.destinationCross(selectedMapPos));
         }
     }
 
@@ -315,7 +315,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             final float scale = 0.85F;
             String prefix = r.kind == MsgWorkerGoList.Kind.VILLAGE ? "[V] "
                     : r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE ? "[CV] "
-                    : "[H] ";
+                    : ""; //<-- yes it's stupid
             String distSuffix = " (" + r.distance + "m)";
             String label = shortenNameWithSuffix(prefix + r.label, distSuffix, (int)((listW - 6) / scale));
 
@@ -372,7 +372,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         if (mouseButton == 0 && mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             BlockPos pos = mapController.screenToWorld(mouseX, mouseY);
             selectedMapPos = pos;
-            mapController.panel.setSelectedPos(pos);
+            mapController.panel.setSelectedPos(null);
             selectedRowPos = null;
             selectedIndex = -1;
             goButton.enabled = true;

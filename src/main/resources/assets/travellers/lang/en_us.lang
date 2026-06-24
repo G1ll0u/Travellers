@@ -160,6 +160,14 @@ travellers.worker.formation.merge=Merge with...
 travellers.worker.formation.merge_cancel=Cancel Merge
 travellers.worker.formation.merge_hint=Click a group to merge into
 travellers.worker.formation.set_home=Barracks
+travellers.worker.formation.group=Create Group
+travellers.worker.formation.followers_selected=%s workers selected
+travellers.worker.formation.assign_hint=Click a leader to assign the selected followers
+travellers.worker.formation.go_pick_hint=Click on the map to set destination
+travellers.worker.formation.go_pick_cancel=Esc to cancel
+travellers.worker.formation.go_cancel=Cancel
+travellers.worker.formation.get_equip=Get Equipment...
+travellers.worker.formation.equip_pick_hint=Click a village or barrack on the map
 
 travellers.worker.home_list.delete=Delete
 travellers.worker.home_list.get_equip=Get Equipment

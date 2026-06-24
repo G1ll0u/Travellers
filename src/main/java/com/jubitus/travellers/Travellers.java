@@ -10,7 +10,7 @@ import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeChestHandler;
+import com.jubitus.travellers.entity.entityAI.travel.travelcommon.LoneBarrackInteractionHandler;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerOffscreenHandler;
 import com.jubitus.travellers.entity.travellers.*;
 import com.jubitus.jubiconfig.JubiConfig;
@@ -124,7 +124,7 @@ public class Travellers {
         ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
-        MinecraftForge.EVENT_BUS.register(new TravellerHomeChestHandler());
+        MinecraftForge.EVENT_BUS.register(new LoneBarrackInteractionHandler());
         MinecraftForge.EVENT_BUS.register(TravellerWorkerLootHandler.class);
         MinecraftForge.EVENT_BUS.register(TravellerOffscreenHandler.class);
         MinecraftForge.EVENT_BUS.register(ModSounds.class);

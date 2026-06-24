@@ -1,22 +1,33 @@
 package com.jubitus.travellers.client.gui.formation;
 
+import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
+import com.jubitus.travellers.client.gui.home.WorkerHeadRenderer;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
+import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
+import com.jubitus.travellers.server.net.message.formations.MsgRequestFormationHub;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationByScope;
 import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
+import com.jubitus.travellers.server.net.message.group.MsgGroupCreate;
 import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
+import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
+import com.jubitus.travellers.server.net.message.home.MsgEquipDestsResponse;
+import com.jubitus.travellers.server.net.message.home.MsgLeaderGetEquip;
+import com.jubitus.travellers.server.net.message.home.MsgRequestEquipDests;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList;
@@ -26,6 +37,7 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextFormatting;
@@ -33,22 +45,17 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @SideOnly(Side.CLIENT)
 public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
 
     // ── Layout constants ──────────────────────────────────────────────────────
-    private static final int X_SIZE  = 660;
-    private static final int Y_SIZE  = 290;
-    private static final int MAP_W   = 150;
-    private static final int LIST_W  = 130;
-    private static final int ROW_H   = 20;
+    private static final int X_SIZE   = 660;
+    private static final int Y_SIZE   = 290;
+    private static final int LIST_W   = 150;
+    private static final int ORDERS_W = 130;
+    private static final int ROW_H    = 22;
 
     private static final int COL_BG       = TravellersGuiTheme.COL_BG;
     private static final int COL_BORDER   = TravellersGuiTheme.COL_BORDER;
@@ -57,6 +64,9 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     private static final int COL_SEL      = TravellersGuiTheme.COL_ROW_SEL;
     private static final int COL_HOVER    = TravellersGuiTheme.COL_ROW_HOVER;
     private static final int COL_PANEL    = TravellersGuiTheme.COL_PANEL;
+
+    // ── Selection mode ────────────────────────────────────────────────────────
+    private enum SelectionMode { NONE, LEADER, FOLLOWERS }
 
     // ── Data ──────────────────────────────────────────────────────────────────
     private final EntityPlayer player;
@@ -71,17 +81,41 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
     // ── GUI geometry ──────────────────────────────────────────────────────────
     private int guiLeft, guiTop, effW, effH;
-    private int mapAreaX, mapAreaY, mapAreaH;
     private int listX, listY, listH;
-    private int formX;
-    private int previewX, previewY, previewW, previewH;
+    private int ordersX, ordersW;
+    private int mapAreaX, mapAreaY, mapAreaH, mapW;
     private int rightX, rightW;
-    private int bottomY;
+    private int contentY, bottomY;
 
     // ── State ─────────────────────────────────────────────────────────────────
     private int listScroll = 0;
-    private boolean formationTab = true;
     private boolean mergeMode = false;
+    private boolean assignFollowersMode = false;
+    private SelectionMode selectionMode = SelectionMode.NONE;
+    private List<UUID> mapSelectedFollowers = Collections.emptyList();
+
+    // ── Rectangle selection ───────────────────────────────────────────────────
+    private boolean mapDragSelecting = false;
+    private int mapDragStartX, mapDragStartY;
+    private int mapDragCurrentX, mapDragCurrentY;
+
+    // ── Go destination picking mode ───────────────────────────────────────────
+    private boolean goPickingMode = false;
+    private UUID goPickingLeaderUUID = null;
+
+    // ── Equip destination picking mode ────────────────────────────────────────
+    private boolean equipPickingMode = false;
+    private UUID equipPickingLeaderUUID = null;
+    private List<MsgEquipDestsResponse.EquipDestInfo> equipDests = null;
+
+    private BlockPos destinationCrossPos = null;
+    private long destinationCrossExpireMs = 0L;
+    private static final long DESTINATION_CROSS_DURATION_MS = 1500L;
+    private static final net.minecraft.util.ResourceLocation DESTINATION_CROSS_TEX =
+            new net.minecraft.util.ResourceLocation("travellers", "textures/map/destination_cross.png");
+
+    // After CREATE_GROUP, auto-select the new leader when updateLeaders() arrives
+    private Set<UUID> pendingSelectFromFollowers = Collections.emptySet();
 
     // ── Map data ──────────────────────────────────────────────────────────────
     private WorldMapController mapController;
@@ -90,7 +124,6 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     private int playerOwnerColor = 0xFFFFFF;
 
     // ── Widgets ───────────────────────────────────────────────────────────────
-    private GuiFormationPreviewPanel previewPanel;
     private GuiWorkerFormationSlider escortsSlider;
     private GuiWorkerFormationSlider followDistSlider;
     private GuiWorkerFormationSlider spacingSlider;
@@ -99,15 +132,22 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
     private GuiButton styleButton;
     private GuiButton caveButton;
-    private GuiButton tabFormBtn;
-    private GuiButton tabOrderBtn;
-    private GuiButton zoomInBtn, zoomOutBtn, recenterBtn;
     private GuiButton backButton;
+    // Leader orders
     private GuiButton goButton;
     private GuiButton comeBackButton;
     private GuiButton mergeButton;
     private GuiButton mergeCancelButton;
-    private GuiButton homeButton;
+    // Follower orders
+    private GuiButton groupButton;
+    private GuiButton followerComeBackButton;
+    private GuiButton followerMergeButton;
+    // General
+    private GuiButton barracksButton;
+    private GuiButton behaviorButton;
+    // Go / equip destination picking
+    private GuiButton cancelGoButton;
+    private GuiButton getEquipButton;
 
     // ── Sync ──────────────────────────────────────────────────────────────────
     private long lastSendMs = 0L;
@@ -138,6 +178,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             }
         }
         applySelection();
+        if (!leaders.isEmpty()) selectionMode = SelectionMode.LEADER;
     }
 
     // ── Init ─────────────────────────────────────────────────────────────────
@@ -152,42 +193,31 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         guiLeft = (width  - effW) / 2;
         guiTop  = Math.max(2, (height - effH) / 2);
 
-        // Map area (leftmost)
-        mapAreaX = guiLeft + 6;
-        mapAreaY = guiTop + 22;
-        mapAreaH = effH - 44;
+        contentY = guiTop + 22;
+        bottomY  = guiTop + effH - 24;
 
-        // Leader list
-        listX = mapAreaX + MAP_W + 8;
-        listY = guiTop + 22;
+        // Leaders list (leftmost)
+        listX = guiLeft + 6;
+        listY = contentY;
         listH = effH - 44;
 
-        // Form area
-        formX = listX + LIST_W + 8;
+        // Orders panel
+        ordersX = listX + LIST_W + 4;
+        ordersW = ORDERS_W;
 
-        int tabY  = guiTop + 18;
-        int tabW  = 96;
-        int tabH  = 20;
-        tabFormBtn  = addButton(new GuiButton(20, formX, tabY, tabW, tabH, I18n.format("travellers.worker.formation.title")));
-        tabOrderBtn = addButton(new GuiButton(21, formX + tabW + 4, tabY, tabW, tabH, I18n.format("travellers.worker.formation.orders_tab")));
+        // Worldmap
+        mapAreaX = ordersX + ordersW + 4;
+        mapAreaY = contentY;
+        mapAreaH = effH - 44;
 
-        int contentY = tabY + tabH + 4;
+        // Sliders (rightmost) — map shrinks first so the slider panel keeps its full width
+        int budget = effW - (6 + LIST_W + 4 + ordersW + 4 + 4 + 8);
+        rightW = Math.max(80, Math.min(134, budget - 80));
+        mapW   = Math.max(80, budget - rightW);
+        rightX = mapAreaX + mapW + 4;
 
-        previewX = formX + 4;
-        previewY = contentY;
-        previewW = 198;
-        previewH = effH - (contentY - guiTop) - 28;
-
-        int fc = currentSettings != null ? getFollowerCount() : 0;
-        previewPanel = new GuiFormationPreviewPanel(Minecraft.getMinecraft(), previewW, previewH);
-        previewPanel.setData(currentSettings != null ? currentSettings : WorkerFormationSettings.defaults(), fc);
-
-        rightX = previewX + previewW + 8;
-        rightW = guiLeft + effW - 8 - rightX;
-        if (rightW < 100) rightW = 100;
-
+        // ── Sliders ───────────────────────────────────────────────────────────
         int rowY = contentY;
-
         styleButton = addButton(new GuiButton(1, rightX, rowY, rightW, 20, ""));
         rowY += 26;
         caveButton  = addButton(new GuiButton(2, rightX, rowY, rightW, 20, ""));
@@ -199,58 +229,63 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
                 1.0D, currentSettings != null ? currentSettings.numEscorts : 0,
                 v -> Integer.toString((int) Math.round(v)));
         rowY += 34;
-
         followDistSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.follow_distance",
                 WorkerFormationSettings.MIN_FOLLOW_DISTANCE, WorkerFormationSettings.MAX_FOLLOW_DISTANCE,
                 0.5D, currentSettings != null ? currentSettings.followDistance : 8.0,
                 v -> formatDouble(v));
         rowY += 34;
-
         spacingSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.spacing",
                 WorkerFormationSettings.MIN_SPACING, WorkerFormationSettings.MAX_SPACING,
                 0.25D, currentSettings != null ? currentSettings.spacing : 1.0,
                 v -> formatDouble(v));
         rowY += 34;
-
         widthSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.width",
                 WorkerFormationSettings.MIN_WIDTH, WorkerFormationSettings.MAX_WIDTH,
                 1.0D, currentSettings != null ? currentSettings.width : 4,
                 v -> Integer.toString((int) Math.round(v)));
         rowY += 34;
-
         turnSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.turn",
                 WorkerFormationSettings.MIN_TURN_SMOOTHNESS, WorkerFormationSettings.MAX_TURN_SMOOTHNESS,
                 5.0D, currentSettings != null ? currentSettings.turnSmoothness : 40,
                 v -> Integer.toString((int) Math.round(v)));
 
-        bottomY = guiTop + effH - 24;
+        // ── Orders buttons ────────────────────────────────────────────────────
+        int obX = ordersX + 2;
+        int obW = ordersW - 4;
+        int obY = contentY + 2;
 
-        zoomOutBtn  = addButton(new GuiButton(10, previewX,      bottomY, 20, 20, "-"));
-        zoomInBtn   = addButton(new GuiButton(11, previewX + 24, bottomY, 20, 20, "+"));
-        recenterBtn = addButton(new GuiButton(12, previewX + 50, bottomY, 60, 20,
-                I18n.format("travellers.worker.formation.preview.reset")));
+        // Leader orders
+        goButton          = addButton(new GuiButton(30, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.go")));
+        comeBackButton    = addButton(new GuiButton(31, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
+        mergeButton       = addButton(new GuiButton(32, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
+        mergeCancelButton = addButton(new GuiButton(33, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
+        cancelGoButton    = addButton(new GuiButton(34, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.go_cancel")));
+        getEquipButton    = addButton(new GuiButton(40, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.get_equip")));
 
+        // Follower orders
+        groupButton            = addButton(new GuiButton(35, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.group", "Group")));
+        followerComeBackButton = addButton(new GuiButton(38, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
+        followerMergeButton    = addButton(new GuiButton(39, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
+
+        // General buttons (always visible, below orders; shifted down to make room for getEquipButton)
+        int genY = contentY + 129;
+        barracksButton = addButton(new GuiButton(36, obX, genY,      obW, 20, I18n.format("travellers.worker.hub.barracks")));
+        behaviorButton = addButton(new GuiButton(37, obX, genY + 24, obW, 20, I18n.format("travellers.worker.hub.behavior")));
+
+        // ── Back button ───────────────────────────────────────────────────────
         backButton = addButton(new GuiButton(99, guiLeft + effW - 70, bottomY, 60, 20,
                 I18n.format(standalone ? "travellers.gui.close" : "travellers.gui.back")));
 
-        int obY = contentY;
-        int obW = rightW + previewW + 8;
-        int obX = previewX;
-        goButton       = addButton(new GuiButton(30, obX, obY,        obW, 20, I18n.format("travellers.worker.formation.go")));
-        comeBackButton = addButton(new GuiButton(31, obX, obY + 24,   obW, 20, I18n.format("travellers.worker.formation.come_back")));
-        mergeButton    = addButton(new GuiButton(32, obX, obY + 48,   obW, 20, I18n.format("travellers.worker.formation.merge")));
-        homeButton     = addButton(new GuiButton(34, obX, obY + 72,   obW, 20, I18n.format("travellers.worker.formation.set_home", "Set Home")));
-        mergeCancelButton = addButton(new GuiButton(33, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
-
-        // Map
+        // ── Worldmap ──────────────────────────────────────────────────────────
         BlockPos initialCenter = getSelectedLeaderPos();
         mapController = new WorldMapController(
-                Minecraft.getMinecraft(), mapAreaX, mapAreaY, MAP_W, mapAreaH,
+                Minecraft.getMinecraft(), mapAreaX, mapAreaY, mapW, mapAreaH,
                 "travellers_formation_hub_map", initialCenter);
+        mapController.panel.setZoomBlocksPerPixel((float) TravellersConfig.WORKER.formationHubMapInitialBpp);
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
@@ -263,8 +298,49 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
+        goPickingMode = false;
+        goPickingLeaderUUID = null;
+        equipPickingMode = false;
+        equipPickingLeaderUUID = null;
+        equipDests = null;
         flushPendingSync(true);
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+    }
+
+    // ── Public refresh (called by MsgOpenFormationHubGui when hub is already open) ──
+
+    public void updateLeaders(List<FormationLeaderInfo> newLeaders, Map<String, WorkerFormationSettings> newSettings) {
+        leaders.clear();
+        leaders.addAll(newLeaders);
+        settingsByScope.clear();
+        settingsByScope.putAll(newSettings);
+
+        // After CREATE_GROUP: find the new leader (its UUID was one of the selected followers)
+        if (!pendingSelectFromFollowers.isEmpty()) {
+            for (int i = 0; i < leaders.size(); i++) {
+                FormationLeaderInfo info = leaders.get(i);
+                if (!info.isPlayer && info.uuid != null && pendingSelectFromFollowers.contains(info.uuid)) {
+                    selectedIndex = i;
+                    selectionMode = SelectionMode.LEADER;
+                    mapSelectedFollowers = Collections.emptyList();
+                    pendingSelectFromFollowers = Collections.emptySet();
+                    applySelection();
+                    refreshButtons();
+                    return;
+                }
+            }
+            pendingSelectFromFollowers = Collections.emptySet();
+        }
+
+        // Normal refresh: clamp selectedIndex, keep mode
+        if (selectedIndex >= leaders.size()) selectedIndex = leaders.isEmpty() ? 0 : leaders.size() - 1;
+        if (!leaders.isEmpty()) {
+            if (selectionMode == SelectionMode.NONE) selectionMode = SelectionMode.LEADER;
+        } else {
+            selectionMode = SelectionMode.NONE;
+        }
+        applySelection();
+        refreshButtons();
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
@@ -288,34 +364,83 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
                 TextFormatting.BOLD + I18n.format("travellers.worker.formation.hub_title"),
                 guiLeft + effW / 2, guiTop + 6, COL_TEXT);
 
-        // Map
+        // Leaders list
+        drawLeaderList(mouseX, mouseY);
+        drawRect(listX + LIST_W + 1, guiTop + 2, listX + LIST_W + 2, guiTop + effH - 2, COL_BORDER);
+
+        // Orders panel background
+        drawRect(ordersX - 1, contentY - 1, ordersX + ordersW + 1, contentY + listH + 1, 0x18FFFFFF);
+        drawRect(ordersX + ordersW + 1, guiTop + 2, ordersX + ordersW + 2, guiTop + effH - 2, COL_BORDER);
+
+        // Worldmap
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         if (mapController != null) {
-            drawRect(mapAreaX - 1, mapAreaY - 1, mapAreaX + MAP_W + 1, mapAreaY + mapAreaH + 1, COL_PANEL);
+            drawRect(mapAreaX - 1, mapAreaY - 1, mapAreaX + mapW + 1, mapAreaY + mapAreaH + 1, COL_PANEL);
             rebuildMapMarkers();
             mapController.draw();
+            drawDestinationCross();
         }
+        drawRect(mapAreaX + mapW + 1, guiTop + 2, mapAreaX + mapW + 2, guiTop + effH - 2, COL_BORDER);
 
-        // Separator: map | list
-        drawRect(listX - 4, guiTop + 2, listX - 3, guiTop + effH - 2, COL_BORDER);
 
-        drawLeaderList(mouseX, mouseY);
-
-        // Separator: list | form
-        drawRect(listX + LIST_W + 3, guiTop + 2, listX + LIST_W + 4, guiTop + effH - 2, COL_BORDER);
-
-        if (formationTab) {
-            drawFormationContent(mouseX, mouseY, partialTicks);
-        } else {
-            drawOrdersContent(mouseX, mouseY);
+        // Bottom bar hints
+        if (goPickingMode) {
+            int hintY = bottomY + 6;
+            int hintMaxX = guiLeft + effW - 74; // leave room for back button on the right
+            drawCenteredString(fontRenderer,
+                    I18n.format("travellers.worker.formation.go_pick_hint") + "  "
+                    + TextFormatting.GRAY + I18n.format("travellers.worker.formation.go_pick_cancel"),
+                    guiLeft + hintMaxX / 2, hintY, 0xFFFFE060);
+        } else if (equipPickingMode) {
+            int hintY = bottomY + 6;
+            int hintMaxX = guiLeft + effW - 74;
+            drawCenteredString(fontRenderer,
+                    I18n.format("travellers.worker.formation.equip_pick_hint") + "  "
+                    + TextFormatting.GRAY + I18n.format("travellers.worker.formation.go_pick_cancel"),
+                    guiLeft + hintMaxX / 2, hintY, 0xFFE060FF);
+        } else if (mergeMode) {
+            int hintY = bottomY + 6;
+            int hintMaxX = guiLeft + effW - 74;
+            drawCenteredString(fontRenderer,
+                    I18n.format("travellers.worker.formation.merge_hint") + "  "
+                    + TextFormatting.GRAY + I18n.format("travellers.worker.formation.merge_cancel"),
+                    guiLeft + hintMaxX / 2, hintY, 0xFFFFE060);
+        } else if (assignFollowersMode) {
+            int hintY = bottomY + 6;
+            int hintMaxX = guiLeft + effW - 74;
+            drawCenteredString(fontRenderer,
+                    I18n.format("travellers.worker.formation.assign_hint") + "  "
+                    + TextFormatting.GRAY + I18n.format("travellers.worker.formation.go_pick_cancel"),
+                    guiLeft + hintMaxX / 2, hintY, 0xFF60FFB0);
         }
-
-        if (mergeMode) drawMergeOverlay(mouseX, mouseY);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        if (formationTab && !mergeMode) {
+        // Rectangle selection drawn on top of everything, clipped to the map area
+        if (mapDragSelecting) {
+            GlStateManager.disableTexture2D();
+            GlStateManager.enableBlend();
+            GlStateManager.disableAlpha();
+            int rx1 = Math.max(mapAreaX,          Math.min(mapDragStartX, mapDragCurrentX));
+            int ry1 = Math.max(mapAreaY,          Math.min(mapDragStartY, mapDragCurrentY));
+            int rx2 = Math.min(mapAreaX + mapW,  Math.max(mapDragStartX, mapDragCurrentX));
+            int ry2 = Math.min(mapAreaY + mapAreaH, Math.max(mapDragStartY, mapDragCurrentY));
+            if (rx1 < rx2 && ry1 < ry2) {
+                drawRect(rx1, ry1, rx2, ry2, 0x3300AAFF);
+                GlStateManager.enableAlpha();
+                drawHorizontalLine(rx1, rx2, ry1, 0xFF00AAFF);
+                drawHorizontalLine(rx1, rx2, ry2, 0xFF00AAFF);
+                drawVerticalLine(rx1, ry1, ry2, 0xFF00AAFF);
+                drawVerticalLine(rx2, ry1, ry2, 0xFF00AAFF);
+            } else {
+                GlStateManager.enableAlpha();
+            }
+            GlStateManager.enableTexture2D();
+        }
+
+        // Sliders (always visible, rendered last so they appear on top)
+        {
             escortsSlider.draw(mc, mouseX, mouseY);
             followDistSlider.draw(mc, mouseX, mouseY);
             spacingSlider.draw(mc, mouseX, mouseY);
@@ -323,25 +448,44 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             turnSlider.draw(mc, mouseX, mouseY);
         }
 
-        // Highlight selected tab
-        GuiButton activeTab = formationTab ? tabFormBtn : tabOrderBtn;
-        if (activeTab != null && !mergeMode)
-            drawRect(activeTab.x, activeTab.y, activeTab.x + activeTab.width, activeTab.y + activeTab.height, 0x60FFFFFF);
-
-        if (formationTab && !mergeMode) {
-            List<String> hover = previewPanel.getHoverLines(mouseX, mouseY, previewX, previewY);
-            if (!hover.isEmpty()) {
-                drawHoveringText(hover, mouseX, mouseY);
-                return;
-            }
-        }
-
-        if (mapController != null && !mergeMode) {
+        // Map tooltip
+        if (mapController != null && !mapDragSelecting) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty()) {
                 drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
             }
         }
+    }
+
+    private void drawDestinationCross() {
+        if (destinationCrossPos == null || mapController == null) return;
+        long now = System.currentTimeMillis();
+        if (now >= destinationCrossExpireMs) { destinationCrossPos = null; return; }
+
+        float cx = mapController.panel.getCenterXf();
+        float cz = mapController.panel.getCenterZf();
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+
+        int sx = (int)(mapAreaX + mapW / 2f + (destinationCrossPos.getX() - cx) / bpp);
+        int sy = (int)(mapAreaY + mapAreaH / 2f + (destinationCrossPos.getZ() - cz) / bpp);
+
+        // Clamp to map area
+        if (sx < mapAreaX || sx >= mapAreaX + mapW || sy < mapAreaY || sy >= mapAreaY + mapAreaH) return;
+
+        float elapsed = (now - (destinationCrossExpireMs - DESTINATION_CROSS_DURATION_MS)) / (float) DESTINATION_CROSS_DURATION_MS;
+        float alpha = elapsed < 0.6f ? 1.0f : 1.0f - (elapsed - 0.6f) / 0.4f;
+
+        GlStateManager.enableBlend();
+        GlStateManager.color(1f, 1f, 1f, alpha);
+        mc.getTextureManager().bindTexture(DESTINATION_CROSS_TEX);
+        net.minecraft.client.renderer.BufferBuilder bb = net.minecraft.client.renderer.Tessellator.getInstance().getBuffer();
+        bb.begin(7, net.minecraft.client.renderer.vertex.DefaultVertexFormats.POSITION_TEX);
+        bb.pos(sx - 4, sy + 4, 0).tex(0, 1).endVertex();
+        bb.pos(sx + 4, sy + 4, 0).tex(1, 1).endVertex();
+        bb.pos(sx + 4, sy - 4, 0).tex(1, 0).endVertex();
+        bb.pos(sx - 4, sy - 4, 0).tex(0, 0).endVertex();
+        net.minecraft.client.renderer.Tessellator.getInstance().draw();
+        GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
     private void drawLeaderList(int mouseX, int mouseY) {
@@ -355,24 +499,32 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             if (idx >= leaders.size()) break;
 
             int rowTop = listY + i * ROW_H;
-            boolean hovered = !mergeMode && mouseX >= listX && mouseX < listX + LIST_W
+            boolean hovered = mouseX >= listX && mouseX < listX + LIST_W
                     && mouseY >= rowTop && mouseY < rowTop + ROW_H;
-            boolean selected = idx == selectedIndex && !mergeMode;
+            boolean selected = idx == selectedIndex && selectionMode == SelectionMode.LEADER
+                    && !mergeMode && !assignFollowersMode;
 
             FormationLeaderInfo info = leaders.get(idx);
-            boolean mergeTarget = mergeMode && idx != selectedIndex;
+            boolean isMergeTarget    = mergeMode          && idx != selectedIndex && hovered;
+            boolean isAssignTarget   = assignFollowersMode && hovered;
 
-            int bg = selected ? COL_SEL : (hovered ? COL_HOVER : 0);
+            int bg = selected ? COL_SEL : (hovered && !mergeMode && !assignFollowersMode ? COL_HOVER : 0);
             if (bg != 0) drawRect(listX, rowTop, listX + LIST_W, rowTop + ROW_H, bg);
-            if (mergeTarget && mouseX >= listX && mouseX < listX + LIST_W
-                    && mouseY >= rowTop && mouseY < rowTop + ROW_H) {
-                drawRect(listX, rowTop, listX + LIST_W, rowTop + ROW_H, 0x50FFE060);
+            if (isMergeTarget)  drawRect(listX, rowTop, listX + LIST_W, rowTop + ROW_H, 0x50FFE060);
+            if (isAssignTarget) drawRect(listX, rowTop, listX + LIST_W, rowTop + ROW_H, 0x5000FF88);
+
+            // Head icon
+            if (!info.isPlayer) {
+                GlStateManager.color(1f, 1f, 1f, 1f);
+                WorkerHeadRenderer.draw(info.cultureId, info.textureIndex, info.ownerColor,
+                        listX + 2, rowTop + 2, 18);
             }
 
+            int textOffX = info.isPlayer ? 3 : 22;
             String name = info.isPlayer ? I18n.format("travellers.worker.formation.you") : info.name;
             if (info.isVirtual) name = TextFormatting.GRAY + name;
-            String nameTrimmed = fontRenderer.trimStringToWidth(name, LIST_W - 4);
-            fontRenderer.drawString(nameTrimmed, listX + 3, rowTop + 2, selected ? 0xFFFFCC88 : COL_TEXT);
+            String nameTrimmed = fontRenderer.trimStringToWidth(name, LIST_W - textOffX - 2);
+            fontRenderer.drawString(nameTrimmed, listX + textOffX, rowTop + 2, selected ? 0xFFFFCC88 : COL_TEXT);
 
             double dx = info.posX - player.posX;
             double dz = info.posZ - player.posZ;
@@ -382,7 +534,7 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
             GlStateManager.pushMatrix();
             float sc = 0.8f;
-            GlStateManager.translate(listX + 3, rowTop + 11, 0f);
+            GlStateManager.translate(listX + textOffX, rowTop + 12, 0f);
             GlStateManager.scale(sc, sc, 1f);
             fontRenderer.drawString(sub, 0, 0, COL_TEXT_DIM);
             GlStateManager.popMatrix();
@@ -394,32 +546,12 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             fontRenderer.drawString("▼", listX + LIST_W - 10, listY + listH - 9, COL_TEXT_DIM);
     }
 
-    private void drawFormationContent(int mouseX, int mouseY, float partialTicks) {
-        previewPanel.draw(previewX, previewY, mouseX, mouseY);
-
-        if (selectedIndex < leaders.size()) {
-            FormationLeaderInfo sel = leaders.get(selectedIndex);
-            String lbl = sel.isPlayer ? I18n.format("travellers.worker.formation.you") : sel.name;
-            String header = I18n.format("travellers.worker.formation.followers") + ": " + sel.followerCount;
-            fontRenderer.drawString(lbl, rightX, guiTop + 6, COL_TEXT);
-            fontRenderer.drawString(header, rightX, guiTop + 6 + 9, COL_TEXT_DIM);
-        }
-    }
-
-    private void drawOrdersContent(int mouseX, int mouseY) {
-        if (selectedIndex >= leaders.size()) return;
-        FormationLeaderInfo sel = leaders.get(selectedIndex);
-        String lbl = sel.isPlayer ? I18n.format("travellers.worker.formation.you") : sel.name;
-        drawCenteredString(fontRenderer,
-                TextFormatting.BOLD + lbl,
-                formX + (guiLeft + effW - 6 - formX) / 2,
-                guiTop + 42, COL_TEXT);
-    }
-
-    private void drawMergeOverlay(int mouseX, int mouseY) {
-        int overlayX = listX + LIST_W + 3;
+    private void drawModeOverlay() {
+        int overlayX = ordersX - 3;
         drawRect(overlayX, guiTop, guiLeft + effW, guiTop + effH, 0xC0000000);
-        String hint = I18n.format("travellers.worker.formation.merge_hint");
+        String hint = assignFollowersMode
+                ? I18n.format("travellers.worker.formation.assign_hint", "Click a leader to assign followers")
+                : I18n.format("travellers.worker.formation.merge_hint");
         drawCenteredString(fontRenderer, hint,
                 overlayX + (guiLeft + effW - overlayX) / 2,
                 guiTop + effH / 2, 0xFFFFE060);
@@ -431,7 +563,41 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         if (mapController == null) return;
         mapController.panel.clearMarkers();
         WorldMapContentPopulator.populate(
-                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor);
+                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, null);
+
+        // Add highlighted markers on top (same type = drawn last within the pass = above normal ones)
+        if (selectionMode == SelectionMode.LEADER && selectedIndex < leaders.size()) {
+            FormationLeaderInfo sel = leaders.get(selectedIndex);
+            if (!sel.isPlayer && sel.uuid != null) {
+                for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+                    if (e.isLeader && sel.uuid.equals(e.uuid) && e.pos != null) {
+                        String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker#" + e.entityId;
+                        mapController.panel.addMarker(WorldMapMarkerFactory.leaderHighlighted(e.pos, name));
+                        break;
+                    }
+                }
+            }
+        } else if (selectionMode == SelectionMode.FOLLOWERS && !mapSelectedFollowers.isEmpty()) {
+            Set<UUID> selSet = new HashSet<>(mapSelectedFollowers);
+            for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+                if (!e.isLeader && e.uuid != null && selSet.contains(e.uuid) && e.pos != null) {
+                    String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker#" + e.entityId;
+                    mapController.panel.addMarker(WorldMapMarkerFactory.followerHighlighted(e.pos, name, e.ownerColor));
+                }
+            }
+        }
+
+        // In equip picking mode, highlight valid destinations on the map
+        if (equipPickingMode && equipDests != null) {
+            for (MsgEquipDestsResponse.EquipDestInfo d : equipDests) {
+                if (d.pos == null) continue;
+                if (d.useWholeVillage) {
+                    mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(d.pos, d.name, playerOwnerColor));
+                } else {
+                    mapController.panel.addMarker(WorldMapMarkerFactory.home(d.pos, d.name, playerOwnerColor));
+                }
+            }
+        }
     }
 
     // ── IWorkerGoListReceiver ─────────────────────────────────────────────────
@@ -455,13 +621,16 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         }
     }
 
+    // ── Equip destinations (called by MsgEquipDestsResponse.ClientHandler) ───
+
+    public void onEquipDestsReceived(List<MsgEquipDestsResponse.EquipDestInfo> dests) {
+        this.equipDests = dests;
+    }
+
     // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-        if (button == tabFormBtn)  { formationTab = true;  refreshButtons(); return; }
-        if (button == tabOrderBtn) { formationTab = false; refreshButtons(); return; }
-
         if (button == backButton) {
             flushPendingSync(true);
             if (standalone) {
@@ -473,6 +642,16 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             return;
         }
 
+        if (button == cancelGoButton) {
+            goPickingMode = false;
+            goPickingLeaderUUID = null;
+            equipPickingMode = false;
+            equipPickingLeaderUUID = null;
+            equipDests = null;
+            refreshButtons();
+            return;
+        }
+
         if (button == styleButton) {
             if (currentSettings != null) { currentSettings.style = currentSettings.style.next(); onSettingsChanged(true); }
             return;
@@ -481,21 +660,29 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             if (currentSettings != null) { currentSettings.adaptiveCave = !currentSettings.adaptiveCave; onSettingsChanged(true); }
             return;
         }
-        if (button == zoomInBtn)   { previewPanel.zoomIn();    return; }
-        if (button == zoomOutBtn)  { previewPanel.zoomOut();   return; }
-        if (button == recenterBtn) { previewPanel.resetView(); return; }
 
-        if (button == goButton)          { handleGoButton();   return; }
-        if (button == comeBackButton)    { handleComeBack();   return; }
-        if (button == mergeButton)       { enterMergeMode();   return; }
-        if (button == homeButton)        { handleHomeButton(); return; }
-        if (button == mergeCancelButton) { exitMergeMode();    return; }
+        if (button == getEquipButton)         { handleGetEquipButton();        return; }
+        if (button == goButton)               { handleGoButton();              return; }
+        if (button == comeBackButton)         { handleComeBack();              return; }
+        if (button == mergeButton)            { enterMergeMode();              return; }
+        if (button == mergeCancelButton)      { exitMergeMode();               return; }
+        if (button == groupButton)            { handleGroupButton();           return; }
+        if (button == followerComeBackButton) { handleFollowerComeBack();      return; }
+        if (button == followerMergeButton)    { enterAssignFollowersMode();    return; }
+        if (button == barracksButton)         { handleBarracksButton();        return; }
+        if (button == behaviorButton)         { handleBehaviorButton();        return; }
 
         super.actionPerformed(button);
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (keyCode == 1) { // Escape
+            if (goPickingMode)       { goPickingMode = false; goPickingLeaderUUID = null; refreshButtons(); return; }
+            if (equipPickingMode)    { equipPickingMode = false; equipPickingLeaderUUID = null; equipDests = null; refreshButtons(); return; }
+            if (assignFollowersMode) { exitAssignFollowersMode(); return; }
+            if (mergeMode)           { exitMergeMode();           return; }
+        }
         if (keyCode == FormationHubKeyHandler.KEY.getKeyCode()) {
             flushPendingSync(true);
             mc.displayGuiScreen(null);
@@ -506,24 +693,57 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        // Map right-click pan
-        if (mapController != null && mapController.onMouseClick(mouseX, mouseY, mouseButton)) {
+        // Right-click on map → pan
+        if (mapController != null && mouseButton == 1 && mapController.isMouseOver(mouseX, mouseY)) {
+            mapController.onMouseClick(mouseX, mouseY, mouseButton);
             super.mouseClicked(mouseX, mouseY, mouseButton);
             return;
         }
 
-        // List click
+        // Go / equip picking: handle map click immediately, no drag or selection
+        if (mouseButton == 0 && (goPickingMode || equipPickingMode) && mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
+            handleMapSingleClick(mouseX, mouseY);
+            return;
+        }
+
+        // Merge mode: left-click on map to pick a target leader
+        if (mouseButton == 0 && mergeMode && mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
+            handleMapMergeClick(mouseX, mouseY);
+            return;
+        }
+
+        // Left-click on map → start rectangle selection (only when not in a mode overlay)
+        if (mouseButton == 0 && mapController != null && mapController.isMouseOver(mouseX, mouseY)
+                && !mergeMode && !assignFollowersMode && !goPickingMode && !equipPickingMode) {
+            mapDragSelecting = true;
+            mapDragStartX = mapDragCurrentX = mouseX;
+            mapDragStartY = mapDragCurrentY = mouseY;
+            return;
+        }
+
+        // Assign followers mode: left-click on map to pick a target leader
+        if (mouseButton == 0 && assignFollowersMode && mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
+            handleMapAssignClick(mouseX, mouseY);
+            return;
+        }
+
+        // Click on leaders list
         if (mouseButton == 0 && mouseX >= listX && mouseX < listX + LIST_W
                 && mouseY >= listY && mouseY < listY + listH) {
             int idx = listScroll + (mouseY - listY) / ROW_H;
             if (idx >= 0 && idx < leaders.size()) {
-                if (mergeMode) { if (idx != selectedIndex) performMerge(idx); }
-                else selectLeader(idx);
+                if (assignFollowersMode) {
+                    if (!leaders.get(idx).isPlayer) performFollowerAssign(idx);
+                } else if (mergeMode) {
+                    if (idx != selectedIndex) performMerge(idx);
+                } else {
+                    selectLeaderByIndex(idx);
+                }
                 return;
             }
         }
 
-        if (formationTab && !mergeMode) {
+        if (!mergeMode && !assignFollowersMode) {
             boolean consumed = false;
             if (escortsSlider.mousePressed(mouseX, mouseY, mouseButton))    consumed = true;
             if (followDistSlider.mousePressed(mouseX, mouseY, mouseButton)) consumed = true;
@@ -531,7 +751,6 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             if (widthSlider.mousePressed(mouseX, mouseY, mouseButton))      consumed = true;
             if (turnSlider.mousePressed(mouseX, mouseY, mouseButton))       consumed = true;
             if (consumed) { pullSliders(); onSettingsChanged(false); return; }
-            if (previewPanel.mousePressed(mouseX, mouseY, mouseButton, previewX, previewY)) return;
         }
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
@@ -540,8 +759,16 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+
+        if (mapDragSelecting) {
+            mapDragCurrentX = mouseX;
+            mapDragCurrentY = mouseY;
+            return;
+        }
+
         if (mapController != null) mapController.onMouseDrag(mouseX, mouseY);
-        if (!formationTab || mergeMode) return;
+
+        if (mergeMode || assignFollowersMode) return;
         boolean changed = false;
         changed |= escortsSlider.mouseDragged(mouseX, mouseY);
         changed |= followDistSlider.mouseDragged(mouseX, mouseY);
@@ -549,21 +776,32 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         changed |= widthSlider.mouseDragged(mouseX, mouseY);
         changed |= turnSlider.mouseDragged(mouseX, mouseY);
         if (changed) { pullSliders(); onSettingsChanged(false); }
-        previewPanel.mouseDragged(mouseX, mouseY);
     }
 
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         super.mouseReleased(mouseX, mouseY, state);
+
+        if (mapDragSelecting && state == 0) {
+            mapDragSelecting = false;
+            int dragDist = Math.abs(mapDragCurrentX - mapDragStartX) + Math.abs(mapDragCurrentY - mapDragStartY);
+            if (dragDist < 5) {
+                handleMapSingleClick(mapDragCurrentX, mapDragCurrentY);
+            } else {
+                computeMapRectangleSelection();
+            }
+            return;
+        }
+
         if (mapController != null) mapController.onMouseRelease(state);
-        if (!formationTab || mergeMode) return;
+
+        if (mergeMode || assignFollowersMode) return;
         boolean changed = false;
         changed |= escortsSlider.mouseReleased(state);
         changed |= followDistSlider.mouseReleased(state);
         changed |= spacingSlider.mouseReleased(state);
         changed |= widthSlider.mouseReleased(state);
         changed |= turnSlider.mouseReleased(state);
-        previewPanel.mouseReleased(state);
         if (changed) { pullSliders(); onSettingsChanged(false); flushPendingSync(true); }
     }
 
@@ -580,19 +818,244 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             clampScroll();
         } else if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
-        } else if (formationTab && !mergeMode && previewPanel != null
-                && previewPanel.isMouseOver(mouseX, mouseY, previewX, previewY)) {
-            previewPanel.handleWheel(wheel);
+        }
+    }
+
+    // ── Map selection ─────────────────────────────────────────────────────────
+
+    private void handleMapSingleClick(int mouseX, int mouseY) {
+        if (mapController == null) return;
+
+        if (goPickingMode) {
+            BlockPos dest = mapController.screenToWorld(mouseX, mouseY);
+            TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGoTo(goPickingLeaderUUID, dest));
+            destinationCrossPos = dest;
+            destinationCrossExpireMs = System.currentTimeMillis() + DESTINATION_CROSS_DURATION_MS;
+            goPickingMode = false;
+            goPickingLeaderUUID = null;
+            refreshButtons();
+            return;
+        }
+
+        if (equipPickingMode) {
+            if (equipDests != null) {
+                MsgEquipDestsResponse.EquipDestInfo nearest = findNearestEquipDest(mouseX, mouseY);
+                if (nearest != null) {
+                    TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGetEquip(equipPickingLeaderUUID, nearest.pos, nearest.useWholeVillage));
+                    destinationCrossPos = nearest.pos;
+                    destinationCrossExpireMs = System.currentTimeMillis() + DESTINATION_CROSS_DURATION_MS;
+                }
+            }
+            equipPickingMode = false;
+            equipPickingLeaderUUID = null;
+            equipDests = null;
+            refreshButtons();
+            return;
+        }
+
+        boolean shift = isShiftKeyDown();
+
+        // Try to match a worker entry by proximity first (more reliable than tooltip)
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        float cx = mapController.panel.getCenterXf();
+        float cz = mapController.panel.getCenterZf();
+        float threshold = Math.max(6f, bpp * 6);
+
+        MsgMapWorkersUpdate.Entry closest = null;
+        float closestDist = Float.MAX_VALUE;
+        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+            if (e.pos == null || e.uuid == null) continue;
+            float sx = mapAreaX + mapW / 2f + (e.pos.getX() - cx) / bpp;
+            float sy = mapAreaY + mapAreaH / 2f + (e.pos.getZ() - cz) / bpp;
+            float dx = mouseX - sx, dy = mouseY - sy;
+            float dist = dx * dx + dy * dy;
+            if (dist < threshold * threshold && dist < closestDist) {
+                closestDist = dist;
+                closest = e;
+            }
+        }
+
+        if (closest != null) {
+            if (shift) {
+                // Shift + click: only add followers, ignore leaders
+                if (!closest.isLeader) {
+                    Set<UUID> combined = new HashSet<>(mapSelectedFollowers);
+                    combined.add(closest.uuid);
+                    mapSelectedFollowers = new ArrayList<>(combined);
+                    selectionMode = SelectionMode.FOLLOWERS;
+                    refreshButtons();
+                }
+                // Shift + click on leader → ignore, keep current selection
+            } else {
+                if (closest.isLeader) {
+                    selectLeaderByUUID(closest.uuid);
+                } else {
+                    // Single follower clicked without shift → select just that one
+                    mapSelectedFollowers = new ArrayList<>(Collections.singletonList(closest.uuid));
+                    selectionMode = SelectionMode.FOLLOWERS;
+                    refreshButtons();
+                }
+            }
+            return;
+        }
+
+        if (shift) {
+            // Shift + click on empty space → keep current selection
+            return;
+        }
+
+        // Nothing found — cancel selection
+        selectionMode = SelectionMode.NONE;
+        mapSelectedFollowers = Collections.emptyList();
+        refreshButtons();
+    }
+
+    private void handleMapMergeClick(int mouseX, int mouseY) {
+        if (mapController == null) return;
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        float cx = mapController.panel.getCenterXf();
+        float cz = mapController.panel.getCenterZf();
+        float threshold = Math.max(6f, bpp * 6);
+
+        MsgMapWorkersUpdate.Entry closest = null;
+        float closestDist = Float.MAX_VALUE;
+        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+            if (!e.isLeader || e.pos == null || e.uuid == null) continue;
+            float sx = mapAreaX + mapW / 2f + (e.pos.getX() - cx) / bpp;
+            float sy = mapAreaY + mapAreaH / 2f + (e.pos.getZ() - cz) / bpp;
+            float dx = mouseX - sx, dy = mouseY - sy;
+            float dist = dx * dx + dy * dy;
+            if (dist < threshold * threshold && dist < closestDist) {
+                closestDist = dist;
+                closest = e;
+            }
+        }
+
+        if (closest != null && closest.uuid != null) {
+            for (int i = 0; i < leaders.size(); i++) {
+                if (closest.uuid.equals(leaders.get(i).uuid) && i != selectedIndex) {
+                    performMerge(i);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void handleMapAssignClick(int mouseX, int mouseY) {
+        if (mapController == null) return;
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        float cx = mapController.panel.getCenterXf();
+        float cz = mapController.panel.getCenterZf();
+        float threshold = Math.max(6f, bpp * 6);
+
+        MsgMapWorkersUpdate.Entry closest = null;
+        float closestDist = Float.MAX_VALUE;
+        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+            if (!e.isLeader || e.pos == null || e.uuid == null) continue;
+            float sx = mapAreaX + mapW / 2f + (e.pos.getX() - cx) / bpp;
+            float sy = mapAreaY + mapAreaH / 2f + (e.pos.getZ() - cz) / bpp;
+            float dx = mouseX - sx, dy = mouseY - sy;
+            float dist = dx * dx + dy * dy;
+            if (dist < threshold * threshold && dist < closestDist) {
+                closestDist = dist;
+                closest = e;
+            }
+        }
+
+        if (closest != null && closest.uuid != null) {
+            for (int i = 0; i < leaders.size(); i++) {
+                if (closest.uuid.equals(leaders.get(i).uuid)) {
+                    performFollowerAssign(i);
+                    return;
+                }
+            }
+        }
+    }
+
+    private void computeMapRectangleSelection() {
+        if (mapController == null) return;
+
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        float cx = mapController.panel.getCenterXf();
+        float cz = mapController.panel.getCenterZf();
+
+        float wx1 = cx + (mapDragStartX   - mapAreaX - mapW   / 2f) * bpp;
+        float wz1 = cz + (mapDragStartY   - mapAreaY - mapAreaH / 2f) * bpp;
+        float wx2 = cx + (mapDragCurrentX - mapAreaX - mapW   / 2f) * bpp;
+        float wz2 = cz + (mapDragCurrentY - mapAreaY - mapAreaH / 2f) * bpp;
+
+        // Expand bounds by half the marker visual size so workers whose marker overlaps the rectangle are included.
+        float marginBlocks = Math.max(6f, bpp * 6) * bpp;
+        float minX = Math.min(wx1, wx2) - marginBlocks;
+        float maxX = Math.max(wx1, wx2) + marginBlocks;
+        float minZ = Math.min(wz1, wz2) - marginBlocks;
+        float maxZ = Math.max(wz1, wz2) + marginBlocks;
+
+        boolean shift = isShiftKeyDown();
+        List<UUID> leaderUUIDs   = new ArrayList<>();
+        List<UUID> followerUUIDs = new ArrayList<>();
+
+        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+            if (e.pos == null || e.uuid == null) continue;
+            float ex = e.pos.getX();
+            float ez = e.pos.getZ();
+            if (ex >= minX && ex <= maxX && ez >= minZ && ez <= maxZ) {
+                if (e.isLeader) leaderUUIDs.add(e.uuid);
+                else followerUUIDs.add(e.uuid);
+            }
+        }
+
+        if (shift) {
+            // Shift: only add followers to existing selection, ignore leaders
+            if (!followerUUIDs.isEmpty()) {
+                Set<UUID> combined = new HashSet<>(mapSelectedFollowers);
+                combined.addAll(followerUUIDs);
+                mapSelectedFollowers = new ArrayList<>(combined);
+                selectionMode = SelectionMode.FOLLOWERS;
+                refreshButtons();
+            }
+            // Nothing found or only leaders → keep current selection unchanged
+            return;
+        }
+
+        if (leaderUUIDs.isEmpty() && followerUUIDs.isEmpty()) {
+            selectionMode = SelectionMode.NONE;
+            mapSelectedFollowers = Collections.emptyList();
+            refreshButtons();
+            return;
+        }
+
+        if (!leaderUUIDs.isEmpty()) {
+            // Leader priority: select first leader in list matching any selected UUID
+            UUID firstLeaderUUID = leaderUUIDs.get(0);
+            selectLeaderByUUID(firstLeaderUUID);
+        } else {
+            selectionMode = SelectionMode.FOLLOWERS;
+            mapSelectedFollowers = followerUUIDs;
+            refreshButtons();
         }
     }
 
     // ── Selection ─────────────────────────────────────────────────────────────
 
-    private void selectLeader(int idx) {
+    private void selectLeaderByIndex(int idx) {
         if (idx < 0 || idx >= leaders.size()) return;
+        if (goPickingMode) { goPickingMode = false; goPickingLeaderUUID = null; }
+        if (equipPickingMode) { equipPickingMode = false; equipPickingLeaderUUID = null; equipDests = null; }
         selectedIndex = idx;
+        selectionMode = SelectionMode.LEADER;
+        mapSelectedFollowers = Collections.emptyList();
         applySelection();
         refreshButtons();
+    }
+
+    private void selectLeaderByUUID(UUID uuid) {
+        for (int i = 0; i < leaders.size(); i++) {
+            if (uuid.equals(leaders.get(i).uuid)) {
+                selectLeaderByIndex(i);
+                return;
+            }
+        }
     }
 
     private void applySelection() {
@@ -605,7 +1068,6 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         FormationLeaderInfo info = leaders.get(idx);
         selectedScope = scopeOf(info);
         currentSettings = getSettingsForScope(selectedScope);
-        if (previewPanel != null) previewPanel.setData(currentSettings, info.followerCount);
         pushSettingsToSliders();
 
         if (mapController != null) {
@@ -680,26 +1142,87 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         refreshButtons();
     }
 
-    // ── Leader Orders ─────────────────────────────────────────────────────────
+    // ── Assign followers to leader ────────────────────────────────────────────
 
-    private void handleGoButton() {
-        if (selectedIndex >= leaders.size()) return;
-        FormationLeaderInfo sel = leaders.get(selectedIndex);
-        if (sel.isPlayer) return;
-        BlockPos leaderPos = new BlockPos((int) sel.posX, 64, (int) sel.posZ);
-        GuiWorkerGo goGui = GuiWorkerGo.forLeader(player, sel.uuid, representativeEntityId, leaderPos, this);
-        mc.displayGuiScreen(goGui);
+    private void enterAssignFollowersMode() {
+        if (mapSelectedFollowers.isEmpty()) return;
+        assignFollowersMode = true;
+        refreshButtons();
     }
 
-    private void handleHomeButton() {
-        if (selectedIndex >= leaders.size()) return;
+    private void exitAssignFollowersMode() {
+        assignFollowersMode = false;
+        refreshButtons();
+    }
+
+    private void performFollowerAssign(int targetIdx) {
+        if (targetIdx < 0 || targetIdx >= leaders.size()) { exitAssignFollowersMode(); return; }
+        FormationLeaderInfo target = leaders.get(targetIdx);
+        if (target.isPlayer) { exitAssignFollowersMode(); return; }
+
+        TravellerFollowNet.CHANNEL.sendToServer(
+                new MsgGroupCreate(MsgGroupCreate.Action.ASSIGN_TO_LEADER, mapSelectedFollowers, target.uuid));
+
+        // Optimistic update: add follower count to that leader
+        target.followerCount += mapSelectedFollowers.size();
+
+        mapSelectedFollowers = Collections.emptyList();
+        exitAssignFollowersMode();
+        selectionMode = SelectionMode.LEADER;
+        selectedIndex = targetIdx;
+        applySelection();
+        refreshButtons();
+
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+
+    private void handleGetEquipButton() {
+        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
         FormationLeaderInfo sel = leaders.get(selectedIndex);
         if (sel.isPlayer) return;
-        mc.displayGuiScreen(new GuiWorkerBarracks(player, this));
+        equipPickingMode = true;
+        equipPickingLeaderUUID = sel.uuid;
+        equipDests = null;
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestEquipDests());
+        refreshButtons();
+    }
+
+    private MsgEquipDestsResponse.EquipDestInfo findNearestEquipDest(int mouseX, int mouseY) {
+        if (equipDests == null || mapController == null) return null;
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        float cx = mapController.panel.getCenterXf();
+        float cz = mapController.panel.getCenterZf();
+        float threshSq = 10f * 10f;
+        MsgEquipDestsResponse.EquipDestInfo nearest = null;
+        float nearestDist = Float.MAX_VALUE;
+        for (MsgEquipDestsResponse.EquipDestInfo d : equipDests) {
+            if (d.pos == null) continue;
+            float sx = mapAreaX + mapW / 2f + (d.pos.getX() - cx) / bpp;
+            float sy = mapAreaY + mapAreaH / 2f + (d.pos.getZ() - cz) / bpp;
+            float dx = mouseX - sx;
+            float dy = mouseY - sy;
+            float distSq = dx * dx + dy * dy;
+            if (distSq <= threshSq && distSq < nearestDist) {
+                nearestDist = distSq;
+                nearest = d;
+            }
+        }
+        return nearest;
+    }
+
+    private void handleGoButton() {
+        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
+        FormationLeaderInfo sel = leaders.get(selectedIndex);
+        if (sel.isPlayer) return;
+        goPickingMode = true;
+        goPickingLeaderUUID = sel.uuid;
+        refreshButtons();
     }
 
     private void handleComeBack() {
-        if (selectedIndex >= leaders.size()) return;
+        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
         FormationLeaderInfo sel = leaders.get(selectedIndex);
         if (sel.isPlayer) return;
         TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupComeBack(sel.uuid));
@@ -707,20 +1230,55 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         int count = sel.followerCount + 1;
         leaders.remove(selectedIndex);
         if (!leaders.isEmpty()) {
-            if (selectedIndex >= leaders.size()) selectedIndex = leaders.size() - 1;
-            for (FormationLeaderInfo l : leaders) {
-                if (l.isPlayer) { l.followerCount += count; break; }
+            for (int i = 0; i < leaders.size(); i++) {
+                if (leaders.get(i).isPlayer) {
+                    leaders.get(i).followerCount += count;
+                    selectedIndex = i;
+                    break;
+                }
             }
+            if (selectedIndex >= leaders.size()) selectedIndex = leaders.size() - 1;
             applySelection();
         }
         refreshButtons();
+    }
+
+    private void handleGroupButton() {
+        if (selectionMode != SelectionMode.FOLLOWERS || mapSelectedFollowers.isEmpty()) return;
+        // Save UUIDs before clearing — used to auto-select the new leader when updateLeaders() arrives
+        pendingSelectFromFollowers = new HashSet<>(mapSelectedFollowers);
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupCreate(MsgGroupCreate.Action.CREATE_GROUP, mapSelectedFollowers, null));
+        mapSelectedFollowers = Collections.emptyList();
+        selectionMode = SelectionMode.NONE;
+        refreshButtons();
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+    }
+
+    private void handleFollowerComeBack() {
+        if (selectionMode != SelectionMode.FOLLOWERS || mapSelectedFollowers.isEmpty()) return;
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupCreate(MsgGroupCreate.Action.COME_BACK, mapSelectedFollowers, null));
+        mapSelectedFollowers = Collections.emptyList();
+        selectionMode = SelectionMode.NONE;
+        refreshButtons();
+    }
+
+    private void handleBarracksButton() {
+        mc.displayGuiScreen(new GuiWorkerBarracks(player, this));
+    }
+
+    private void handleBehaviorButton() {
+        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
+        FormationLeaderInfo sel = leaders.get(selectedIndex);
+        if (sel.isPlayer || sel.entityId < 0) return;
+        Entity e = mc.world.getEntityByID(sel.entityId);
+        if (!(e instanceof EntityTravellerWorker)) return;
+        mc.displayGuiScreen(new GuiWorkerBehavior(player, (EntityTravellerWorker) e, this));
     }
 
     // ── Settings sync ─────────────────────────────────────────────────────────
 
     private void onSettingsChanged(boolean immediate) {
         if (currentSettings != null) currentSettings.clamp();
-        if (previewPanel != null) previewPanel.setData(currentSettings, getFollowerCount());
         refreshButtons();
         pendingSync = true;
         if (immediate) flushPendingSync(true);
@@ -745,32 +1303,50 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         currentSettings.width          = (int) Math.round(widthSlider.getValue());
         currentSettings.turnSmoothness = (int) Math.round(turnSlider.getValue());
         currentSettings.clamp();
-        if (previewPanel != null) previewPanel.setData(currentSettings, getFollowerCount());
     }
 
     // ── Button refresh ────────────────────────────────────────────────────────
 
     private void refreshButtons() {
-        boolean noSelection = selectedIndex >= leaders.size();
-        FormationLeaderInfo sel = noSelection ? null : leaders.get(selectedIndex);
+        boolean noSel = selectedIndex >= leaders.size();
+        FormationLeaderInfo sel = noSel ? null : leaders.get(selectedIndex);
         boolean isPlayer = sel != null && sel.isPlayer;
+        boolean isLeaderMode   = selectionMode == SelectionMode.LEADER   && !mergeMode && !assignFollowersMode;
+        boolean isFollowerMode = selectionMode == SelectionMode.FOLLOWERS && !mergeMode && !assignFollowersMode;
 
-        boolean showForm = formationTab && !mergeMode;
-        if (styleButton != null) styleButton.visible   = showForm;
-        if (caveButton  != null) caveButton.visible    = showForm;
-        if (zoomInBtn   != null) zoomInBtn.visible     = showForm;
-        if (zoomOutBtn  != null) zoomOutBtn.visible    = showForm;
-        if (recenterBtn != null) recenterBtn.visible   = showForm;
+        // Formation sliders & style buttons
+        if (styleButton != null) { styleButton.visible = !mergeMode && !assignFollowersMode; }
+        if (caveButton  != null) { caveButton.visible  = !mergeMode && !assignFollowersMode; }
 
-        boolean showOrders = !formationTab && !mergeMode;
-        if (goButton       != null) { goButton.visible       = showOrders; goButton.enabled       = showOrders && !isPlayer; }
-        if (comeBackButton != null) { comeBackButton.visible = showOrders; comeBackButton.enabled = showOrders && !isPlayer; }
-        if (mergeButton    != null) { mergeButton.visible    = showOrders; mergeButton.enabled    = showOrders && !isPlayer; }
-        if (homeButton     != null) { homeButton.visible     = showOrders; homeButton.enabled     = showOrders && !isPlayer; }
+        // Leader orders
+        boolean showLeaderOrders = isLeaderMode;
+        boolean anyPickingMode = goPickingMode || equipPickingMode;
+        if (goButton       != null) { goButton.visible = showLeaderOrders; goButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode; }
+        if (comeBackButton != null) { comeBackButton.visible = showLeaderOrders; comeBackButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode; }
+        if (mergeButton    != null) { mergeButton.visible = showLeaderOrders; mergeButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode && leaders.size() > 1; }
+        if (getEquipButton != null) { getEquipButton.visible = showLeaderOrders && !isPlayer && !anyPickingMode; getEquipButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode; }
+
+        // Follower orders
+        boolean hasFollowers = !mapSelectedFollowers.isEmpty();
+        boolean moreThanOneLeader = leaders.stream().filter(l -> !l.isPlayer).count() > 0;
+        if (groupButton             != null) { groupButton.visible = isFollowerMode; groupButton.enabled = isFollowerMode && mapSelectedFollowers.size() >= 2; }
+        if (followerComeBackButton  != null) { followerComeBackButton.visible = isFollowerMode; followerComeBackButton.enabled = isFollowerMode && hasFollowers; }
+        if (followerMergeButton     != null) { followerMergeButton.visible = isFollowerMode; followerMergeButton.enabled = isFollowerMode && hasFollowers && moreThanOneLeader; }
+
+        // Merge / go-cancel
         if (mergeCancelButton != null) mergeCancelButton.visible = mergeMode;
-        if (backButton != null) backButton.visible = !mergeMode;
+        if (cancelGoButton    != null) cancelGoButton.visible = anyPickingMode && !mergeMode && !assignFollowersMode;
+        if (backButton        != null) backButton.visible = !mergeMode && !assignFollowersMode;
 
-        if (showForm && currentSettings != null) {
+        // General buttons
+        if (barracksButton != null) { barracksButton.visible = !mergeMode && !assignFollowersMode; barracksButton.enabled = !anyPickingMode; }
+        if (behaviorButton != null) {
+            behaviorButton.visible = !mergeMode && !assignFollowersMode;
+            behaviorButton.enabled = !anyPickingMode && isLeaderMode && sel != null && !isPlayer && sel.entityId >= 0;
+        }
+
+        // Update style/cave labels
+        if (!mergeMode && !assignFollowersMode && currentSettings != null) {
             if (styleButton != null)
                 styleButton.displayString = I18n.format("travellers.worker.formation.style") + ": "
                         + I18n.format("travellers.worker.formation.style."
@@ -788,11 +1364,6 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         if (scope == null) return WorkerFormationSettings.defaults();
         WorkerFormationSettings s = settingsByScope.get(scope.asMapKey());
         return s != null ? s.copy().clamp() : WorkerFormationSettings.defaults();
-    }
-
-    private int getFollowerCount() {
-        if (selectedIndex >= leaders.size()) return 0;
-        return leaders.get(selectedIndex).followerCount;
     }
 
     private WorkerFormationScopeKey scopeOf(FormationLeaderInfo info) {

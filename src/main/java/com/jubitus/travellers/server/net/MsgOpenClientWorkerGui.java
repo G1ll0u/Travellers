@@ -4,7 +4,6 @@ import com.jubitus.travellers.client.gui.GuiWorkerHub;
 import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
-import com.jubitus.travellers.client.gui.home.GuiHomeNamePrompt;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.orders.GuiWorkerOrders;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
@@ -67,8 +66,7 @@ public class MsgOpenClientWorkerGui implements IMessage {
         BEHAVIOR,
         GO,
         HOME,
-        VILLAGE_RELATIONS,
-        HOME_NAME_PROMPT
+        VILLAGE_RELATIONS
     }
 
     public static class Handler implements IMessageHandler<MsgOpenClientWorkerGui, IMessage> {
@@ -138,9 +136,6 @@ public class MsgOpenClientWorkerGui implements IMessage {
                         return;
                     }
 
-                    case HOME_NAME_PROMPT: {
-                        mc.displayGuiScreen(new GuiHomeNamePrompt(player, msg.pos));
-                    }
                 }
             });
             return null;

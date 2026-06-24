@@ -50,6 +50,77 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
     }
 
+    public static GuiWorldMapPanel.Marker destinationCross(BlockPos pos) {
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFF4444, 3,
+                GuiWorldMapPanel.Marker.MarkerType.DESTINATION_CROSS, null);
+    }
+
+    /**
+     * Selected follower: drawn larger (7px vs 4px) with boosted saturation and lightness.
+     * Tweak vivify() constants to adjust the highlight strength.
+     */
+    public static GuiWorldMapPanel.Marker followerHighlighted(BlockPos pos, String name, int ownerRgb) {
+        return new GuiWorldMapPanel.Marker(pos, 0xFF000000 | vivify(ownerRgb & 0xFFFFFF), 2,
+                GuiWorldMapPanel.Marker.MarkerType.FOLLOWER_HIGHLIGHTED, name);
+    }
+
+    /**
+     * Boosts saturation and pushes lightness toward a bright range, keeping the hue.
+     * Saturation: multiplied by 1.5 (clamped to 1).
+     * Lightness:  pushed toward 0.70 (darker colors climb up, already-bright ones stay).
+     */
+    private static int vivify(int rgb) {
+        float[] hsl = rgbToHsl(rgb);
+        hsl[1] = Math.min(1f, hsl[1] * 1.5f);
+        hsl[2] = Math.min(1f, hsl[2] + (0.70f - hsl[2]) * 0.6f);
+        return hslToRgb(hsl[0], hsl[1], hsl[2]);
+    }
+
+    private static float[] rgbToHsl(int rgb) {
+        float r = ((rgb >> 16) & 0xFF) / 255f;
+        float g = ((rgb >>  8) & 0xFF) / 255f;
+        float b = ( rgb        & 0xFF) / 255f;
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float l = (max + min) / 2f;
+        float s = 0f, h = 0f;
+        if (max != min) {
+            float d = max - min;
+            s = l > 0.5f ? d / (2f - max - min) : d / (max + min);
+            if      (max == r) h = (g - b) / d + (g < b ? 6f : 0f);
+            else if (max == g) h = (b - r) / d + 2f;
+            else               h = (r - g) / d + 4f;
+            h /= 6f;
+        }
+        return new float[]{ h, s, l };
+    }
+
+    private static int hslToRgb(float h, float s, float l) {
+        if (s == 0f) {
+            int v = clamp((int)(l * 255f));
+            return (v << 16) | (v << 8) | v;
+        }
+        float q = l < 0.5f ? l * (1f + s) : l + s - l * s;
+        float p = 2f * l - q;
+        return (hue(p, q, h + 1f/3f) << 16) | (hue(p, q, h) << 8) | hue(p, q, h - 1f/3f);
+    }
+
+    private static int hue(float p, float q, float t) {
+        if (t < 0f) t += 1f;
+        if (t > 1f) t -= 1f;
+        float v;
+        if      (t < 1f/6f) v = p + (q - p) * 6f * t;
+        else if (t < 1f/2f) v = q;
+        else if (t < 2f/3f) v = p + (q - p) * (2f/3f - t) * 6f;
+        else                 v = p;
+        return clamp((int)(v * 255f));
+    }
+
+    public static GuiWorldMapPanel.Marker leaderHighlighted(BlockPos pos, String name) {
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFFEE44, 3,
+                GuiWorldMapPanel.Marker.MarkerType.LEADER, name);
+    }
+
     public static GuiWorldMapPanel.Marker villageEnemy(BlockPos pos, String name) {
         return new GuiWorldMapPanel.Marker(pos, 0xFFCC3333, 2,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
@@ -58,6 +129,14 @@ public final class WorldMapMarkerFactory {
     public static GuiWorldMapPanel.Marker villageEnemyHighlighted(BlockPos pos, String name) {
         return new GuiWorldMapPanel.Marker(pos, 0xFFFF6644, 3,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
+    }
+
+    /** Blends an RGB value toward white by `factor` (0=unchanged, 1=white). */
+    public static int lighten(int rgb, float factor) {
+        int r = clamp((int)(((rgb >> 16) & 0xFF) + (255 - ((rgb >> 16) & 0xFF)) * factor));
+        int g = clamp((int)(((rgb >>  8) & 0xFF) + (255 - ((rgb >>  8) & 0xFF)) * factor));
+        int b = clamp((int)(( rgb        & 0xFF) + (255 - ( rgb        & 0xFF)) * factor));
+        return (r << 16) | (g << 8) | b;
     }
 
     /** Darkens an RGB value (no alpha) by factor (0=black, 1=unchanged). */

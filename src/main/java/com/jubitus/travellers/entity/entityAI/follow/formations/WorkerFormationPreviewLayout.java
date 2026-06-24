@@ -8,9 +8,15 @@ public final class WorkerFormationPreviewLayout {
     private WorkerFormationPreviewLayout() {
     }
 
+    /** Capped at 64 points — suitable for GUI previews. */
     public static List<Point> buildPreview(WorkerFormationSettings settings, int count) {
+        return buildLayout(settings, Math.min(64, count));
+    }
+
+    /** No cap on count — suitable for map display with large groups. */
+    public static List<Point> buildLayout(WorkerFormationSettings settings, int count) {
         WorkerFormationSettings s = settings.copy().clamp();
-        int max = Math.max(1, Math.min(64, count));
+        int max = Math.max(1, count);
         List<Point> out = new ArrayList<>(max);
 
         // Escort slots come first in the output so the preview shows them near the leader

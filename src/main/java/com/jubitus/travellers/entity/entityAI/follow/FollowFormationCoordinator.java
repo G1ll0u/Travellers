@@ -83,6 +83,28 @@ public final class FollowFormationCoordinator {
         return slot;
     }
 
+    /**
+     * Captures the current slot offset from the leader for the given worker.
+     * Called at virtualization so MaterializePositionResolver can restore the
+     * worker to its formation slot on re-materialization.
+     *
+     * @param out2 receives [dx, dz] — slot offset from leader in world coords
+     * @return true if valid offset was stored in out2
+     */
+    public static boolean snapshotSlotOffset(UUID leaderId, int dimension, UUID workerId, double[] out2) {
+        LeaderKey key = new LeaderKey(dimension, leaderId);
+        LeaderContext ctx = CONTEXTS.get(key);
+        if (ctx == null) return false;
+        SlotAssignment slot = ctx.assignments.get(workerId);
+        if (slot == null || slot.projectedGroundTarget) return false;
+        double dx = slot.leaderOffsetDx;
+        double dz = slot.leaderOffsetDz;
+        if (Math.abs(dx) < 0.05 && Math.abs(dz) < 0.05) return false; // no meaningful offset
+        out2[0] = dx;
+        out2[1] = dz;
+        return true;
+    }
+
     public static void notifyWorkerRejoined(UUID workerId) {
         for (LeaderContext ctx : CONTEXTS.values()) {
             if (ctx.persistentOrdinals.containsKey(workerId) || ctx.persistentFormOrdinals.containsKey(workerId)) {

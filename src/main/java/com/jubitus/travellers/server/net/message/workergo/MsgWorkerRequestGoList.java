@@ -67,7 +67,7 @@ public class MsgWorkerRequestGoList implements IMessage {
                 LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
                 for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
                     int dist = EntityTravellerWorker.dist2D(origin, r.center);
-                    String label = "[LB] " + (r.name != null && !r.name.isEmpty() ? r.name : "Barrack");
+                    String label =(r.name != null && !r.name.isEmpty() ? r.name : "Barrack");
                     out.add(MsgWorkerGoList.Entry.home(r.center, label, dist));
                 }
 

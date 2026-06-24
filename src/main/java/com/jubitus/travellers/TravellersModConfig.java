@@ -343,8 +343,8 @@ public class TravellersModConfig {
     public static int raiderLocalCapRadius = 192;
     public static int travellerSpawnPermille = 120; // 12% of “eligible” attempts
     public static boolean despawnNearUnloadedChunks = true;
-    public static int despawnProbeRadiusChunks = 1; // how many chunks around the mob must be loaded (1 = 3x3)
-    public static int despawnEdgeGraceTicks = 3 * 20; // time standing near the edge before fading
+    public static int despawnProbeRadiusChunks = 4; // probe radius in chunks — with view=8 triggers at chunk 5+ (80 blocks)
+    public static int despawnEdgeGraceTicks = 2 * 20; // 2 s near the edge before fading (decay-based, not hard-reset)
     public static int travellerTargetLoaded = 48;       // total travellers you’d like loaded (across all dims)
     public static int travellerTopUpEveryTicks = 20 * 15;    // how often to try
     public static int travellerAttemptsPerPlayer = 1;   // attempts per player each cycle
