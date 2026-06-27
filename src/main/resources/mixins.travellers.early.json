@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.jubitus.travellers.mixins",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "mixins.travellers.refmap.json",
+  "mixins": [
+    "MixinWolfFriendlyTraveller"
+  ],
+  "client": [],
+  "server": []
+}

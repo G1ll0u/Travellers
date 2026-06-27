@@ -1,0 +1,51 @@
+package com.jubitus.travellers.server.net.message.home;
+
+import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
+import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
+import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
+import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
+import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class MsgRequestEquipDests implements IMessage {
+
+    public MsgRequestEquipDests() {}
+
+    @Override public void fromBytes(ByteBuf buf) {}
+    @Override public void toBytes(ByteBuf buf) {}
+
+    public static class Handler implements IMessageHandler<MsgRequestEquipDests, IMessage> {
+        @Override
+        public IMessage onMessage(MsgRequestEquipDests msg, MessageContext ctx) {
+            EntityPlayerMP player = ctx.getServerHandler().player;
+            player.getServerWorld().addScheduledTask(() -> {
+                List<MsgEquipDestsResponse.EquipDestInfo> dests = new ArrayList<>();
+
+                if (TravellersModConfig.controlledVillageFeatureEnabled) {
+                    for (BlockPos pos : MillControlledVillageHelper.getControlledVillageCenters(player.world, player)) {
+                        String name = MillVillageIndex.nameForApprox(player.world, pos);
+                        dests.add(new MsgEquipDestsResponse.EquipDestInfo(pos, true, name));
+                    }
+                }
+
+                LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
+                for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                    String name = (r.name != null && !r.name.isEmpty()) ? r.name : "Barrack";
+                    dests.add(new MsgEquipDestsResponse.EquipDestInfo(r.center, false, name));
+                }
+
+                TravellerFollowNet.CHANNEL.sendTo(new MsgEquipDestsResponse(dests), player);
+            });
+            return null;
+        }
+    }
+}
