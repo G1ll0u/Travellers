@@ -12,7 +12,6 @@ import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.entity.entityAI.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
@@ -29,8 +28,6 @@ import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.inventory.EntityEquipmentSlot;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundCategory;
@@ -200,14 +197,6 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // Fish while travelling (adds flavor during travel phases)
         this.tasks.addTask(11, new EntityAIFishWhileTravel(this));
-
-        // Follow leader / follow behavior for raiders
-        aiFollow = new EntityAIFollowTraveller(
-                this,
-                0.819D,
-                TravellersModConfig.movementSpeedWhileFollowing
-        );
-        this.tasks.addTask(15, aiFollow);
 
         // === UTILITY / IDLE BEHAVIOR =========================================================
 

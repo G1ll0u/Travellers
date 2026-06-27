@@ -6,8 +6,8 @@ import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
@@ -41,7 +41,7 @@ public class MsgRequestFormationHub implements IMessage {
                 if (srv == null) return;
 
                 WorldServer overworld = srv.worlds[0];
-                VirtualWorkerManager vwm = VirtualWorkerManager.get(overworld);
+                VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
                 UUID ownerId = player.getUniqueID();
                 WorkerFormationSavedData fsd = WorkerFormationSavedData.get(player.world);
                 Map<String, WorkerFormationSettings> settingsByScope = new HashMap<>();
@@ -49,7 +49,7 @@ public class MsgRequestFormationHub implements IMessage {
 
                 int realDirectCount = WorkerFormationScopeResolver.countDirectFollowersForPlayer(srv, ownerId);
                 int virtualDirectCount = 0;
-                for (VirtualWorkerRecord vr : vwm.getRecordsView()) {
+                for (VirtualTravellerRecord vr : vwm.getRecordsView()) {
                     if (ownerId.equals(vr.followOwnerUUID) && vr.escortLeaderUUID == null && vr.isHiredFollower)
                         virtualDirectCount++;
                 }
@@ -72,7 +72,7 @@ public class MsgRequestFormationHub implements IMessage {
                         WorkerFormationScopeKey ldrScope = new WorkerFormationScopeKey(
                                 WorkerFormationScopeKey.Type.WORKER, ldr.getUniqueID());
                         int fc = ldr.getLeaderFollowerCount();
-                        for (VirtualWorkerRecord vr : vwm.getRecordsView()) {
+                        for (VirtualTravellerRecord vr : vwm.getRecordsView()) {
                             if (ownerId.equals(vr.followOwnerUUID) && ldr.getUniqueID().equals(vr.escortLeaderUUID))
                                 fc++;
                         }

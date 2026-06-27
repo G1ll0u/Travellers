@@ -25,7 +25,6 @@ import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
-import com.jubitus.travellers.utils.world.spawn.TravellerSpawnGuards;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
@@ -129,7 +128,6 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(TravellerOffscreenHandler.class);
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
         MinecraftForge.EVENT_BUS.register(MobTargetInjector.class);
-        MinecraftForge.EVENT_BUS.register(TravellerSpawnGuards.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
 
 
@@ -141,6 +139,7 @@ public class Travellers {
 
         // Client-only stuff
         if (event.getSide().isClient()) {
+            com.jubitus.travellers.client.sound.TravellerSoundCache.preload();
             MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.client.sound.SoundCodecHooks.class);
             ClientProxy.registerRenderers();
             FormationHubKeyHandler formationKeyHandler = new FormationHubKeyHandler();
@@ -274,8 +273,6 @@ public class Travellers {
             System.out.println("[Travellers] Traveller entity disabled in config.");
         }
 
-        // Other event bus registrations
-        MinecraftForge.EVENT_BUS.register(TravellerSpawnGuards.class);
         MinecraftForge.EVENT_BUS.register(new MobTargetInjector());
     }
 

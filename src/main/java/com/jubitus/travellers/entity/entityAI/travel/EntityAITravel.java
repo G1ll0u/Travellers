@@ -422,6 +422,13 @@ public class EntityAITravel extends EntityAIBase {
     @Override
     public void updateTask() {
 
+        // Don't interfere with an active gap jump — let physics carry the entity.
+        if (mob.getNavigator() instanceof com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround) {
+            if (((com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround) mob.getNavigator()).isGapJumping()) {
+                return;
+            }
+        }
+
 // -----------------------------------------
 // OFFSCREEN (NOT TRACKED): NEVER PATHFIND, NEVER LOAD CHUNKS.
 // Only chunkloader + offscreenHop should move them.
@@ -825,6 +832,13 @@ public class EntityAITravel extends EntityAIBase {
             }
         }
 
+        // Fast rescue: when the entity has no path at all and hasn't moved for 3 s,
+        // skip the slow escalation and go straight to teleport stage.
+        if (!mob.world.isRemote && mob.getNavigator().noPath() && noMoveTicks >= 3 * 20 && stuckTpCooldown == 0) {
+            stuckTicks = Math.max(stuckTicks, STUCK_T3);
+            stuckStage = Math.max(stuckStage, 2);
+        }
+
         if (!mob.world.isRemote && stuckActionCooldown == 0) {
 
             // ✅ TP stage first (highest priority)
@@ -1044,12 +1058,7 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         double navSpeed = getActiveSpeed();
-        boolean ok = mob.getNavigator().tryMoveToXYZ(
-                currentWaypoint.getX() + 0.5,
-                currentWaypoint.getY(),
-                currentWaypoint.getZ() + 0.5,
-                navSpeed
-        );
+        boolean ok = navigateTo(currentWaypoint, navSpeed);
 
 // throttle next path attempt
         nextComputePathTick = mob.ticksExisted + PATH_COOLDOWN_TICKS;
@@ -1060,12 +1069,10 @@ public class EntityAITravel extends EntityAIBase {
         }
 
 
-// NEW: if pathfinder refuses, immediately pick a nearer waypoint
+// If pathfinder refuses, try a shorter hop toward target
         if (!ok && targetVillage != null) {
-            // shrink the hop and try again (prevents "stand still until TP")
             int old = this.stepBlocks;
             this.stepBlocks = Math.max(12, old / 2);
-
             BlockPos retry = computeNextWaypointToward(targetVillage, this.stepBlocks);
             this.stepBlocks = old;
 
@@ -1073,13 +1080,18 @@ public class EntityAITravel extends EntityAIBase {
                 this.currentWaypoint = retry;
                 mob.setCurrentWaypoint(retry);
                 debugMark(retry);
+                ok = navigateTo(retry, navSpeed);
+            }
 
-                mob.getNavigator().tryMoveToXYZ(
-                        retry.getX() + 0.5,
-                        retry.getY(),
-                        retry.getZ() + 0.5,
-                        navSpeed
-                );
+            // Both attempts failed and the entity is stuck — try any nearby position to
+            // escape enclosed spaces (buildings, etc.) before the teleport system activates.
+            if (!ok && !mob.world.isRemote && noMoveTicks >= 40) {
+                BlockPos escape = findLocalEscapeWaypoint();
+                if (escape != null) {
+                    this.currentWaypoint = escape;
+                    mob.setCurrentWaypoint(escape);
+                    navigateTo(escape, navSpeed);
+                }
             }
         }
         if (pathNoAdvanceTicks >= 8 * 20) { // 8s stuck on same node (or no path)
@@ -1111,6 +1123,24 @@ public class EntityAITravel extends EntityAIBase {
         triedBoatThisLeg = false;
         // Let Roam start this tick
         // (Roam’s shouldExecute() will pass now because distance ≤ VILLAGE_NEAR)
+    }
+
+    /**
+     * Calls tryMoveToXYZ with FOLLOW_RANGE clamped to just past the waypoint distance.
+     * Prevents PathNavigateGround from creating a ChunkCache extending far beyond the waypoint,
+     * which would load chunks along the road well outside the player's view distance.
+     */
+    private boolean navigateTo(BlockPos waypoint, double speed) {
+        net.minecraft.entity.ai.attributes.IAttributeInstance followRangeAttr =
+                mob.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.FOLLOW_RANGE);
+        double fullRange = followRangeAttr.getBaseValue();
+        double dist = Math.sqrt(mob.getDistanceSq(waypoint.getX() + 0.5, waypoint.getY(), waypoint.getZ() + 0.5));
+        double safeRange = Math.max(16.0, dist + 8.0);
+        boolean clamped = safeRange < fullRange;
+        if (clamped) followRangeAttr.setBaseValue(safeRange);
+        boolean ok = mob.getNavigator().tryMoveToXYZ(waypoint.getX() + 0.5, waypoint.getY(), waypoint.getZ() + 0.5, speed);
+        if (clamped) followRangeAttr.setBaseValue(fullRange);
+        return ok;
     }
 
     /**
@@ -1212,10 +1242,14 @@ public class EntityAITravel extends EntityAIBase {
 
         // --- MPB road-following via pre-planned leg route ---
         // Catchup workers chase a moving owner goal: never route them through roads.
+        // Raiders ignore the road network unless explicitly enabled in config.
         boolean catchupTravel = mob instanceof EntityTravellerWorker
                 && ((EntityTravellerWorker) mob).isCatchupTravel();
+        boolean raiderRoadAllowed = !(mob instanceof com.jubitus.travellers.entity.travellers.EntityTravellerRaider)
+                || com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raidersUseUltreiaPaths;
         if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT
                 && !catchupTravel
+                && raiderRoadAllowed
                 && roadBlockedTicks <= 0
                 && mob.world instanceof WorldServer) {
             WorldServer ws = (WorldServer) mob.world;
@@ -1535,6 +1569,26 @@ public class EntityAITravel extends EntityAIBase {
         return head.getMaterial().isReplaceable() || head.getMaterial().isLiquid();
 
         // If you really want to forbid "head in lava / mod fluids", that’s already covered by isForbiddenLiquid above.
+    }
+
+    /**
+     * Scans all 8 compass directions at 6 blocks to find any navigable position.
+     * Used as a last resort when the entity is stuck in an enclosed space
+     * and normal directional waypoints all fail.
+     */
+    @Nullable
+    private BlockPos findLocalEscapeWaypoint() {
+        BlockPos from = mob.getPosition();
+        for (int a = 0; a < 8; a++) {
+            double rad = Math.PI * 2.0 * a / 8.0;
+            int nx = from.getX() + (int) Math.round(Math.sin(rad) * 6);
+            int nz = from.getZ() + (int) Math.round(Math.cos(rad) * 6);
+            BlockPos candidate = findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
+            if (candidate != null && isAreaLoaded(candidate, 1) && isNavigable(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private void tryDetourWide() {
@@ -2200,8 +2254,18 @@ public class EntityAITravel extends EntityAIBase {
         // 1) Dismount + delete boat no matter what
         dismountAndDeleteBoat();
         wasInWater = false;
-        boatRetryCooldown = 0; // optional: allow immediate re-boat if still water
+        boatRetryCooldown = 0;
         triedBoatThisLeg = false;
+
+        // Invalidate MPB route so it re-plans from the new shore position.
+        // Without this, the pre-planned route would point to a road segment that is
+        // now behind the traveller (the boat crossed straight over water), causing
+        // a U-turn back into the river and a boat re-entry loop.
+        mpbRoute.invalidate();
+        roadBlockedTicks = 0;
+        nextRoadPlanTick = 0;
+        resetStuckState();
+        if (targetVillage != null) bestDistSq = horizDistSq(mob.getPosition(), targetVillage);
 
         // 2) If we found a shore tile, snap next waypoint to it
         if (shore != null) {

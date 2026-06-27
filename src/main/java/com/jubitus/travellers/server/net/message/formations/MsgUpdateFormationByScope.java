@@ -4,7 +4,7 @@ import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -73,7 +73,7 @@ public class MsgUpdateFormationByScope implements IMessage {
                 }
             }
             WorldServer overworld = server.worlds[0];
-            return VirtualWorkerManager.get(overworld).isWorkerOwnedByPlayer(workerId, playerId);
+            return VirtualTravellerManager.get(overworld).isWorkerOwnedByPlayer(workerId, playerId);
         }
     }
 }

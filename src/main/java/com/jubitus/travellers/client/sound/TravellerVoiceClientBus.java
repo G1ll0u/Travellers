@@ -17,6 +17,10 @@ public final class TravellerVoiceClientBus {
     private static final Logger LOGGER = LogManager.getLogger("TravellerSound");
     private static final java.util.Map<Integer, EntityLinkedSound> LIVE = new java.util.HashMap<>();
 
+    // ponytail: ms-bucket throttle; prevents burst of concurrent JAR reads that corrupt Jorbis streams
+    private static int startsThisBucket = 0;
+    private static long bucketMs = 0;
+
     private TravellerVoiceClientBus() {
     }
 
@@ -62,6 +66,25 @@ public final class TravellerVoiceClientBus {
                 // Non-ambient (choir, talk, hurt): evict the farthest sound of any kind
                 evictFarthestAny(mc);
             }
+        }
+
+        // Throttle new JAR stream opens to avoid concurrent reads corrupting Jorbis.
+        // Choir sounds are exempt — they must start on time.
+        if (!isChoir) {
+            long now = System.currentTimeMillis();
+            if (now - bucketMs > 50) { // ~1 tick window
+                startsThisBucket = 0;
+                bucketMs = now;
+            }
+            int maxPerTick = TravellersConfig.SOUND.maxNewSoundsPerTick;
+            if (startsThisBucket >= maxPerTick) {
+                if (TravellersConfig.SOUND.soundDebugLog) {
+                    LOGGER.info("[SoundBus] THROTTLE entity={} event={}", t.getEntityId(),
+                            evt.getRegistryName() != null ? evt.getRegistryName() : "?");
+                }
+                return;
+            }
+            startsThisBucket++;
         }
 
         boolean isAmbient = evt.getRegistryName() != null && evt.getRegistryName().getPath().contains("ambient");

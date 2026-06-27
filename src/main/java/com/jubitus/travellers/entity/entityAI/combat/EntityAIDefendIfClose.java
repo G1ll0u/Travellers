@@ -15,6 +15,7 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.EnumDifficulty;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Traveller will defensively aggro the nearest non-blacklisted IMob that gets close.
@@ -259,6 +260,18 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             if (w.isHiredFollower() && !w.isFollowOrderActive()) {
                 double r = TravellersModConfig.anchorModeEngageRadius;
                 return r * r;
+            }
+            // Followers of an idle/anchored leader inherit the same reduced range
+            UUID leaderUUID = w.getEscortLeaderUUID();
+            if (leaderUUID != null) {
+                net.minecraft.entity.Entity leaderEntity = ((net.minecraft.world.WorldServer) w.world).getEntityFromUuid(leaderUUID);
+                if (leaderEntity instanceof EntityTravellerWorker) {
+                    EntityTravellerWorker leader = (EntityTravellerWorker) leaderEntity;
+                    if (!leader.isFollowOrderActive()) {
+                        double r = TravellersModConfig.anchorModeEngageRadius;
+                        return r * r;
+                    }
+                }
             }
         }
 

@@ -7,8 +7,8 @@ import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -81,7 +81,7 @@ public class WorkerMapStream {
             this.goal = null;
         }
 
-        WorkerInfo(VirtualWorkerRecord vr, boolean isLeader) {
+        WorkerInfo(VirtualTravellerRecord vr, boolean isLeader) {
             this.entityId = -1; // no loaded entity
             this.dim = vr.dimension;
             this.x = (int) vr.posX;
@@ -279,18 +279,18 @@ public class WorkerMapStream {
             }
         }
 
-        // Add virtual workers from the overworld VirtualWorkerManager
+        // Add virtual workers from the overworld VirtualTravellerManager
         WorldServer overworld = server.getWorld(0);
         if (overworld != null) {
-            VirtualWorkerManager vmgr = VirtualWorkerManager.get(overworld);
+            VirtualTravellerManager vmgr = VirtualTravellerManager.get(overworld);
 
             // Collect UUIDs that have virtual followers escorting them (= virtual leaders)
             java.util.Set<UUID> virtualLeaderUUIDs = new java.util.HashSet<>();
-            for (VirtualWorkerRecord vr : vmgr.getRecordsView()) {
+            for (VirtualTravellerRecord vr : vmgr.getRecordsView()) {
                 if (vr.escortLeaderUUID != null) virtualLeaderUUIDs.add(vr.escortLeaderUUID);
             }
 
-            for (VirtualWorkerRecord vr : vmgr.getRecordsView()) {
+            for (VirtualTravellerRecord vr : vmgr.getRecordsView()) {
                 if (!vr.isHiredFollower || vr.followOwnerUUID == null) continue;
                 boolean isLeader = virtualLeaderUUIDs.contains(vr.uuid);
                 byOwner.computeIfAbsent(vr.followOwnerUUID, k -> new ArrayList<>())

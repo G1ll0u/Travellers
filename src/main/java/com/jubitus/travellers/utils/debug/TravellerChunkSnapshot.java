@@ -2,7 +2,7 @@ package com.jubitus.travellers.utils.debug;
 
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.WorldServer;
@@ -23,12 +23,16 @@ public class TravellerChunkSnapshot {
     public final List<ChunkPos> normalChunks;
     public final List<BlockPos> villages;
     public final List<BlockPos> virtualWorkers;
+    public final List<BlockPos> virtualTravellers;
+    public final List<BlockPos> virtualRaiders;
 
     public TravellerChunkSnapshot(int centerX, int centerZ, int radiusBlocks, int radiusChunks,
                                   List<ChunkPos> merchantChunks,
                                   List<ChunkPos> normalChunks,
                                   List<BlockPos> villages,
-                                  List<BlockPos> virtualWorkers) {
+                                  List<BlockPos> virtualWorkers,
+                                  List<BlockPos> virtualTravellers,
+                                  List<BlockPos> virtualRaiders) {
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.radiusBlocks = radiusBlocks;
@@ -37,6 +41,8 @@ public class TravellerChunkSnapshot {
         this.normalChunks = normalChunks;
         this.villages = villages;
         this.virtualWorkers = virtualWorkers;
+        this.virtualTravellers = virtualTravellers;
+        this.virtualRaiders = virtualRaiders;
     }
 
     public static TravellerChunkSnapshot create(WorldServer world, BlockPos center, int radiusBlocks) {
@@ -97,11 +103,12 @@ public class TravellerChunkSnapshot {
             }
         }
 
-        List<BlockPos> virtualWorkers = VirtualWorkerManager.get(world).getPositionsInRadius(
-                world.provider.getDimension(),
-                center.getX(), center.getZ(),
-                radiusBlocks
-        );
+        VirtualTravellerManager mgr = VirtualTravellerManager.get(world);
+        int dim = world.provider.getDimension();
+
+        List<BlockPos> virtualWorkers = mgr.getPositionsInRadius(dim, center.getX(), center.getZ(), radiusBlocks, "WORKER");
+        List<BlockPos> virtualTravellers = mgr.getPositionsInRadius(dim, center.getX(), center.getZ(), radiusBlocks, "TRAVELLER");
+        List<BlockPos> virtualRaiders = mgr.getPositionsInRadius(dim, center.getX(), center.getZ(), radiusBlocks, "RAIDER");
 
         return new TravellerChunkSnapshot(
                 centerChunkX,
@@ -111,7 +118,9 @@ public class TravellerChunkSnapshot {
                 new ArrayList<>(merchant),
                 new ArrayList<>(normal),
                 villages,
-                virtualWorkers
+                virtualWorkers,
+                virtualTravellers,
+                virtualRaiders
         );
     }
 }

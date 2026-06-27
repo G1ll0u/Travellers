@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.group;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -61,7 +61,7 @@ public class MsgGroupComeBack implements IMessage {
                 if (server == null) return;
 
                 WorldServer overworld = server.worlds[0];
-                VirtualWorkerManager vwm = VirtualWorkerManager.get(overworld);
+                VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
 
                 List<EntityTravellerWorker> toUpdate = new ArrayList<>();
                 for (WorldServer ws : server.worlds) {

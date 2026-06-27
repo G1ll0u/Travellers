@@ -3,6 +3,7 @@ package com.jubitus.travellers.entity.entityAI.follow;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.block.Block;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
@@ -61,7 +62,11 @@ public final class FollowRecoveryHelper {
         if (cover < use.cave.minCoverBlocks) return false;
 
         int sky = world.getLightFor(EnumSkyBlock.SKY, pos.up());
-        return sky <= use.cave.maxSkyLight;
+        if (sky > use.cave.maxSkyLight) return false;
+
+        // Reject tree canopies: only foliage-type blocks overhead → not a real roof
+        if (hasOnlyFoliageCover(world, pos)) return false;
+        return true;
     }
 
     public static boolean isEnclosedFollowSpace(World world,
@@ -76,8 +81,9 @@ public final class FollowRecoveryHelper {
         if (!world.isBlockLoaded(pos)) return false;
         if (isLeaderMeaningfullyUnderground(world, leader, use)) return true;
         if (world.canSeeSky(pos)) return false;
-        // Any solid block above = enclosed: catches buildings, dungeons, and overhangs,
-        // not just deep caves. Leaves/glass don't count (getTopSolidOrLiquidBlock skips them).
+        int sky = world.getLightFor(EnumSkyBlock.SKY, pos.up());
+        if (sky > use.cave.maxSkyLight) return false;
+        if (hasOnlyFoliageCover(world, pos)) return false;
         return getCoverBlocks(world, pos) >= 1;
     }
 
@@ -85,6 +91,26 @@ public final class FollowRecoveryHelper {
         if (world == null || pos == null || !world.isBlockLoaded(pos)) return 0;
         BlockPos top = world.getTopSolidOrLiquidBlock(new BlockPos(pos.getX(), 0, pos.getZ()));
         return Math.max(0, top.getY() - pos.getY());
+    }
+
+    /**
+     * Returns true if the only non-replaceable blocks between pos and open sky are foliage-like:
+     * leaves, vines, or any low-opacity block (DynamicTrees branches, etc.).
+     * Used to avoid triggering cave mode under tree canopies.
+     */
+    private static boolean hasOnlyFoliageCover(World world, BlockPos pos) {
+        for (int dy = 1; dy <= 20; dy++) {
+            BlockPos above = pos.add(0, dy, 0);
+            if (!world.isBlockLoaded(above)) return false;
+            IBlockState state = world.getBlockState(above);
+            Material mat = state.getMaterial();
+            if (mat.isReplaceable()) continue;
+            if (mat == Material.LEAVES || mat == Material.VINE) continue;
+            // DynamicTrees branches and similar partial blocks have low opacity — treat as foliage
+            if (state.getBlock().getLightOpacity(state) < 10) continue;
+            return false;
+        }
+        return true;
     }
 
     public static int countSolidSides(World world, BlockPos pos) {

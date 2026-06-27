@@ -6,8 +6,8 @@ import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
 import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
@@ -94,8 +94,8 @@ public class MsgLeaderSetHome implements IMessage {
 
                 // Try virtual record
                 WorldServer overworld = srv.worlds[0];
-                VirtualWorkerManager vwm = VirtualWorkerManager.get(overworld);
-                VirtualWorkerRecord r = vwm.getRecord(msg.leaderUUID);
+                VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
+                VirtualTravellerRecord r = vwm.getRecord(msg.leaderUUID);
                 if (r == null || !ownerId.equals(r.followOwnerUUID)) return;
 
                 if (homeType == TravellerHomeManager.HomeType.BARRACKS) {

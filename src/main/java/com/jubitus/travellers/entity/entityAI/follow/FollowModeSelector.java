@@ -56,7 +56,9 @@ public final class FollowModeSelector {
             caveCandidateTicks = 0;
         }
 
-        if (stableLocalMode != FollowMode.CAVE && caveCandidateTicks >= cfg.cave.enterModeTicks) {
+        // Small stagger so workers don't all request paths simultaneously at the cave entrance.
+        int enterTicks = cfg.cave.enterModeTicks + Math.min(30, Math.max(0, (int)(ctx.dist3d * 0.5)));
+        if (stableLocalMode != FollowMode.CAVE && caveCandidateTicks >= enterTicks) {
             stableLocalMode = FollowMode.CAVE;
         } else if (stableLocalMode == FollowMode.CAVE && openCandidateTicks >= cfg.cave.exitModeTicks) {
             stableLocalMode = FollowMode.SURFACE;

@@ -16,8 +16,8 @@ import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormati
 import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -237,7 +237,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             if (srv == null) return;
 
                             WorldServer overworld = srv.worlds[0];
-                            VirtualWorkerManager vwm = VirtualWorkerManager.get(overworld);
+                            VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
                             UUID ownerId = player.getUniqueID();
                             WorkerFormationSavedData fsd = WorkerFormationSavedData.get(world);
                             Map<String, WorkerFormationSettings> settingsByScope = new HashMap<>();
@@ -246,7 +246,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                             int realDirectCount = WorkerFormationScopeResolver.countDirectFollowersForPlayer(srv, ownerId);
                             int virtualDirectCount = 0;
-                            for (VirtualWorkerRecord vr : vwm.getRecordsView()) {
+                            for (VirtualTravellerRecord vr : vwm.getRecordsView()) {
                                 if (ownerId.equals(vr.followOwnerUUID) && vr.escortLeaderUUID == null && vr.isHiredFollower)
                                     virtualDirectCount++;
                             }
@@ -266,7 +266,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                                     WorkerFormationScopeKey ldrScope = new WorkerFormationScopeKey(
                                             WorkerFormationScopeKey.Type.WORKER, ldr.getUniqueID());
                                     int fc = ldr.getLeaderFollowerCount();
-                                    for (VirtualWorkerRecord vr : vwm.getRecordsView()) {
+                                    for (VirtualTravellerRecord vr : vwm.getRecordsView()) {
                                         if (ownerId.equals(vr.followOwnerUUID) && ldr.getUniqueID().equals(vr.escortLeaderUUID))
                                             fc++;
                                     }

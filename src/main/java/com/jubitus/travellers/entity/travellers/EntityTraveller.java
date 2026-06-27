@@ -1,7 +1,6 @@
 package com.jubitus.travellers.entity.travellers;
 
 
-import com.google.common.collect.Multimap;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.render.backpack.BackpackRegistry;
@@ -24,7 +23,7 @@ import com.jubitus.travellers.entity.entityAI.combat.TravellerItemDamage;
 import com.jubitus.travellers.entity.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowTraveller;
+import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowGroupLeader;
 import com.jubitus.travellers.entity.entityAI.follow.PathScheduler;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
@@ -43,17 +42,13 @@ import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Enchantments;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.*;
@@ -90,7 +85,6 @@ import net.minecraftforge.items.ItemStackHandler;
 import org.millenaire.common.block.IBlockPath;
 
 import javax.annotation.Nullable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -158,8 +152,10 @@ public class EntityTraveller extends EntityCreature {
     EntityAIRangedBowTravellerSafe aiRanged;
     EntityAIAttackMeleeCustom aiMelee;
     EntityAIDefendIfClose aiDefendIfClose;
-    EntityAIFollowTraveller aiFollow;
     EntityAITravel aiTravel;
+
+    // UUID of the group leader this entity follows (null = leader or solo)
+    @Nullable private UUID groupLeaderUUID;
     int spawnAmbientCooldownTicks = 0;                       // counts down server-side
     // server-side only
     private int trackingPlayers = 0;
@@ -655,6 +651,8 @@ public class EntityTraveller extends EntityCreature {
         aiMelee = new EntityAIAttackMeleeCustom(this, TravellersModConfig.attackMovementSpeed, true, 0.30);
         this.tasks.addTask(4, aiMelee);
 
+        this.tasks.addTask(5, new EntityAIFollowGroupLeader(this, TravellersModConfig.movementSpeedWhileTravel));
+
         aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true);
 
         this.targetTasks.addTask(1, aiDefendIfClose);
@@ -679,9 +677,6 @@ public class EntityTraveller extends EntityCreature {
         this.tasks.addTask(24, new EntityAIOpenDoor(this, true));
 
         this.tasks.addTask(25, new EntityAIRoamInsideVillage(this, 0.34D, 3 * 20, 10 * 20, TravellersModConfig.villageRoamMinDuration * 20, TravellersModConfig.villageRoamMaxDuration * 20));// Optional: customize 2-minute duration or wordlist at runtime
-
-        aiFollow = new EntityAIFollowTraveller(this, 0.819, TravellersModConfig.movementSpeedWhileFollowing);
-        this.tasks.addTask(26, aiFollow);
 
         aiTravel = new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, TravellersModConfig.stepBlocks);
         this.tasks.addTask(27, aiTravel);
@@ -1222,6 +1217,7 @@ public class EntityTraveller extends EntityCreature {
             compound.setInteger("DepartCooldown", travelCommon.getDepartCooldownTicks());
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, getVoicePersonalityId());
+            if (groupLeaderUUID != null) compound.setUniqueId("GroupLeaderUUID", groupLeaderUUID);
 
             NBTTagList lst = new NBTTagList();
             for (BlockPos p : travelCommon.route) {
@@ -1313,6 +1309,9 @@ public class EntityTraveller extends EntityCreature {
             }
         }
         travelCommon.routeIndex = compound.getInteger("RouteIndex");
+        travelCommon.setReadyToDepart(compound.getBoolean("ReadyToDepart"));
+        travelCommon.setDepartCooldownTicks(compound.getInteger("DepartCooldown"));
+        groupLeaderUUID = compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null;
     }
 
     @Override
@@ -1363,26 +1362,6 @@ public class EntityTraveller extends EntityCreature {
             markCombatNow();
         }
 
-        if (travelCommon.routeIndex >= 0 && travelCommon.routeIndex < travelCommon.route.size()) {
-            BlockPos curStop = travelCommon.route.get(travelCommon.routeIndex);
-            travelCommon.setTargetVillage(curStop);
-
-            boolean nearCurrentStop = travelCommon.isAtTargetStop();
-
-            if (nearCurrentStop && !travelCommon.isVillageIdling() && travelCommon.isReadyToDepart()) {
-                travelCommon.routeIndex++;
-                travelCommon.setReadyToDepart(false);
-                travelCommon.setDepartCooldownTicks(80);
-                if (travelCommon.routeIndex < travelCommon.route.size()) {
-                    travelCommon.setTargetVillage(travelCommon.route.get(travelCommon.routeIndex));
-                    this.getNavigator().clearPath();
-                } else {
-                    travelCommon.routeIndex = -1;
-                    travelCommon.route.clear();
-                    travelCommon.setTargetVillage(null);
-                }
-            }
-        }
         if (travellerCamp.campJoinCooldown > 0) travellerCamp.campJoinCooldown--;
         if (world.isRemote && hurtAnimCooldown > 0) hurtAnimCooldown--;
         if (speakCooldown > 0) speakCooldown--;
@@ -2382,6 +2361,66 @@ public void fall(float distance, float damageMultiplier) {
         return travelCommon.routeIndex;
     }
 
+    /** Returns a snapshot of the current travel route waypoints (read-only copy). */
+    @Nullable
+    public UUID getGroupLeaderUUID() {
+        return groupLeaderUUID;
+    }
+
+    public void setGroupLeaderUUID(@Nullable UUID uuid) {
+        this.groupLeaderUUID = uuid;
+    }
+
+    public java.util.List<BlockPos> getTravelRoute() {
+        return java.util.Collections.unmodifiableList(travelCommon.route);
+    }
+
+    /**
+     * Re-applies route state that advanced while the entity was virtualized.
+     * Called by VirtualTravellerManager immediately after readFromNBT during materialization.
+     */
+    public void restoreVirtualRoute(java.util.List<BlockPos> route, int routeIndex) {
+        travelCommon.route.clear();
+        travelCommon.route.addAll(route);
+        travelCommon.routeIndex = routeIndex;
+        if (routeIndex >= 0 && routeIndex < route.size()) {
+            travelCommon.setTargetVillage(route.get(routeIndex));
+        }
+        travelCommon.setReadyToDepart(true);
+        travelCommon.setVillageIdleTicks(0);
+        travelCommon.setVillageIdling(false);
+        // Clear stale AI state from virtualization time
+        travelCommon.setCurrentWaypoint(null);
+        travelCommon.setDepartCooldownTicks(0);
+    }
+
+    /**
+     * Returns true if this entity can safely be virtualized (removed from world and simulated offscreen).
+     * Does NOT check player distance — that is the caller's responsibility.
+     */
+    public boolean canVirtualize() {
+        if (isDead) return false;
+        if (isInCombat()) return false;
+        if (isHandActive()) return false;
+        if (isRiding()) return false;
+        return true;
+    }
+
+    /**
+     * Attempts to virtualize this entity via VirtualTravellerManager instead of despawning.
+     * Returns true if successfully virtualized (entity is now dead and managed offscreen).
+     * Returns false if virtualization is not possible (no valid world, not eligible, etc.).
+     */
+    private boolean tryVirtualize() {
+        if (!(world instanceof net.minecraft.world.WorldServer)) return false;
+        if (!canVirtualize()) return false;
+        com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager mgr =
+                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.get(
+                        (net.minecraft.world.WorldServer) world);
+        mgr.virtualizeTraveller((net.minecraft.world.WorldServer) world, this, world.getTotalWorldTime());
+        return true;
+    }
+
 
     public boolean isAmbientPlayingNow() {
         return isVoiceLockedNow() && voiceKindNow == VoiceKind.AMBIENT;
@@ -2525,6 +2564,7 @@ public void fall(float distance, float damageMultiplier) {
         if (this instanceof EntityTravellerMerchant || this instanceof EntityTravellerWorker) {
             return;
         }
+        // Workers are already handled by VirtualTravellerManager.checkVirtualize()
         if (!TravellersModConfig.despawnNearUnloadedChunks) return;
         if (this.world.isRemote) return;                         // server only
         if (!(this.world instanceof WorldServer)) return;
@@ -2570,10 +2610,10 @@ public void fall(float distance, float damageMultiplier) {
         }
 
         if (nearUnloadTicks >= TravellersModConfig.despawnEdgeGraceTicks) {
-            // Cleanly "fade out": no loot, no sound spam, also remove the companion dog.
+            if (tryVirtualize()) return;
+            // Fallback: clean fade (no route or virtualization not available)
             EntityTravellerDog dog = getDog();
             if (dog != null && !dog.world.isRemote) {
-                // DON'T kill if owned by a player
                 if (!(dog.isTamed() && dog.getOwner() instanceof EntityPlayer)) {
                     dog.setDead();
                 }
@@ -2616,13 +2656,14 @@ public void fall(float distance, float damageMultiplier) {
         }
 
         if (farFromPlayersTicks >= TravellersModConfig.farGraceTicks) {
+            if (tryVirtualize()) return;
             EntityTravellerDog d = getDog();
             if (d != null && !d.world.isRemote) {
                 if (!(d.isTamed() && d.getOwner() instanceof EntityPlayer)) {
                     d.setDead();
                 }
             }
-            this.setDead(); // clean fade (no loot)
+            this.setDead();
         }
     }
 
@@ -2656,7 +2697,7 @@ public void fall(float distance, float damageMultiplier) {
         untrackedTicks++;
 
         if (untrackedTicks >= UNTRACKED_GRACE_TICKS) {
-            // Clean fade: also remove companion dog (same rule you used elsewhere)
+            if (tryVirtualize()) return;
             EntityTravellerDog dog = getDog();
             if (dog != null && !dog.world.isRemote) {
                 if (!(dog.isTamed() && dog.getOwner() instanceof EntityPlayer)) {

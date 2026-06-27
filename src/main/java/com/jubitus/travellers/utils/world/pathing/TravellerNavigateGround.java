@@ -24,6 +24,8 @@ public class TravellerNavigateGround extends PathNavigateGround {
 
     // Gap-jump state
     private int gapJumpCooldown = 0;
+    // Tracks ticks remaining while a gap jump is still in flight (entity is airborne)
+    private int jumpInFlightTicks = 0;
 
     private Vec3d smoothedSteerDir = Vec3d.ZERO;
     private double lastSafeMoveX = Double.NaN;
@@ -104,8 +106,19 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return new Vec3d(p.x + 0.5D, y, p.z + 0.5D);
     }
 
+    /** True while a gap jump was recently fired and the entity is still airborne. */
+    public boolean isGapJumping() {
+        return jumpInFlightTicks > 0 && !this.entity.onGround;
+    }
+
     @Override
     protected void pathFollow() {
+        // Don't steer while a gap jump is in flight — let physics carry the entity.
+        if (isGapJumping()) {
+            jumpInFlightTicks--;
+            return;
+        }
+        if (this.entity.onGround) jumpInFlightTicks = 0;
         antiStuckTick();
         if (this.currentPath == null || this.currentPath.isFinished()) {
             return;
@@ -398,6 +411,16 @@ public class TravellerNavigateGround extends PathNavigateGround {
                 this.world, this.world.getTotalWorldTime(), cx, cy, cz, dirX, dirZ);
         if (gap.type != GapJumpResult.Type.JUMPABLE) return false;
 
+        // Reject jumps that would take the entity sideways or backward relative to its target.
+        // This prevents jumping into water when walking alongside a shore.
+        double lDx = gap.landX - this.entity.posX;
+        double lDz = gap.landZ - this.entity.posZ;
+        double lDist = Math.sqrt(lDx * lDx + lDz * lDz);
+        if (lDist > 1e-6) {
+            double cosAngle = (dirX * lDx + dirZ * lDz) / lDist;
+            if (cosAngle < 0.3) return false; // jump is too perpendicular to travel direction
+        }
+
         // --- Commit to the jump ---
 
         // Clear the active path so the path-follower cannot steer the entity toward a detour
@@ -414,6 +437,8 @@ public class TravellerNavigateGround extends PathNavigateGround {
         applyJumpMotion(gap);
 
         gapJumpCooldown = 28 + gap.gapWidth * 10;
+        // Track flight time so pathFollow doesn't steer while airborne (approx 20 ticks for same-height jump)
+        jumpInFlightTicks = 25 + gap.gapWidth * 5;
 
         // Keep the move helper pointed at the landing so the entity stays oriented correctly
         // while airborne (air forces are weak but accumulate over many ticks).

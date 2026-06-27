@@ -4,8 +4,8 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.mixins.MixinBuildingResManagerAccessor;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
@@ -77,9 +77,9 @@ public final class WorkerEquipExchanger {
         }
 
         // Virtual followers
-        VirtualWorkerManager vwm = VirtualWorkerManager.get(ws);
+        VirtualTravellerManager vwm = VirtualTravellerManager.get(ws);
         boolean dirty = false;
-        for (VirtualWorkerRecord r : vwm.getAllRecords()) {
+        for (VirtualTravellerRecord r : vwm.getAllRecords()) {
             if (!leaderUUID.equals(r.escortLeaderUUID)) continue;
             EntityTravellerWorker temp = new EntityTravellerWorker(ws);
             temp.readFromNBT(r.entityNbt);

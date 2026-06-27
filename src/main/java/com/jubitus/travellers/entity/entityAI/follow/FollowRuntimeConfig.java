@@ -46,8 +46,8 @@ public final class FollowRuntimeConfig {
         cave.minCoverBlocks = 2;
         cave.maxSkyLight = 7;
         cave.minSideSolids = 2;
-        cave.enterModeTicks = 10;
-        cave.exitModeTicks = 24;
+        cave.enterModeTicks = 60;
+        cave.exitModeTicks = 30;
         cave.baseLeaderDistance = 2.1D;
         cave.rowSpacing = 1.28D;
         cave.laneSpacing = 0.98D;

@@ -20,6 +20,8 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
     private Set<ChunkPos> merchantSet;
     private Set<ChunkPos> normalSet;
     private Set<ChunkPos> virtualWorkerChunks;
+    private Set<ChunkPos> virtualTravellerChunks;
+    private Set<ChunkPos> virtualRaiderChunks;
 
     public GuiTravellerChunks(TravellerChunkSnapshot snapshot) {
         updateSnapshot(snapshot);
@@ -33,6 +35,14 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         for (BlockPos pos : snapshot.virtualWorkers) {
             virtualWorkerChunks.add(new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4));
         }
+        this.virtualTravellerChunks = new HashSet<>();
+        for (BlockPos pos : snapshot.virtualTravellers) {
+            virtualTravellerChunks.add(new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4));
+        }
+        this.virtualRaiderChunks = new HashSet<>();
+        for (BlockPos pos : snapshot.virtualRaiders) {
+            virtualRaiderChunks.add(new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4));
+        }
     }
 
     @Override
@@ -40,8 +50,8 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         this.drawDefaultBackground();
 
         int gridPadding = 40;
-        // La légende prend 5 lignes de 12px + un décalage de 8px = 68px, plus une marge basse
-        int legendReserve = 80;
+        // Legend: 7 lines × 12px + 8px offset = 92px
+        int legendReserve = 104;
         int gridSize = Math.min(this.width - gridPadding * 2, this.height - gridPadding * 2 - legendReserve);
 
         int gridLeft = (this.width - gridSize) / 2;
@@ -75,7 +85,13 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
                     color = 0xFF0066CC; // merchant forced
                 }
                 if (virtualWorkerChunks.contains(cp)) {
-                    color = 0xFF884400; // virtual worker present in this chunk
+                    color = 0xFF884400; // virtual worker (orange-brown)
+                }
+                if (virtualTravellerChunks.contains(cp)) {
+                    color = 0xFFBBAA00; // virtual traveller (yellow)
+                }
+                if (virtualRaiderChunks.contains(cp)) {
+                    color = 0xFF880000; // virtual raider (red) — highest priority
                 }
 
                 drawRect(cellX, cellY, cellX2, cellY2, color);
@@ -145,6 +161,18 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         legendTop += spacingY;
         drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFF884400);
         this.fontRenderer.drawString("Virtual workers (" + snapshot.virtualWorkers.size() + ")",
+                legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
+
+        // Virtual travellers
+        legendTop += spacingY;
+        drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFFBBAA00);
+        this.fontRenderer.drawString("Virtual travellers (" + snapshot.virtualTravellers.size() + ")",
+                legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
+
+        // Virtual raiders
+        legendTop += spacingY;
+        drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFF880000);
+        this.fontRenderer.drawString("Virtual raiders (" + snapshot.virtualRaiders.size() + ")",
                 legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
 
         // Center

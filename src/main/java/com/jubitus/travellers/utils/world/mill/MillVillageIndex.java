@@ -100,6 +100,22 @@ public final class MillVillageIndex {
         return out;
     }
 
+    /** Returns lone building centers paired with their culture key (may be null). */
+    public static List<net.minecraft.util.Tuple<BlockPos, String>> getAllLoneBuildingCentersWithCulture(World world) {
+        MillWorldData wd = getWD(world);
+        if (wd == null || wd.loneBuildingsList == null || wd.loneBuildingsList.pos == null) {
+            return java.util.Collections.emptyList();
+        }
+        List<String> cultures = wd.loneBuildingsList.cultures;
+        List<net.minecraft.util.Tuple<BlockPos, String>> out = new ArrayList<>(wd.loneBuildingsList.pos.size());
+        for (int i = 0; i < wd.loneBuildingsList.pos.size(); i++) {
+            BlockPos pos = toBlockPos(wd.loneBuildingsList.pos.get(i));
+            String culture = (cultures != null && i < cultures.size()) ? cultures.get(i) : null;
+            out.add(new net.minecraft.util.Tuple<>(pos, culture));
+        }
+        return out;
+    }
+
     /**
      * All known settlement centers (villages + lone buildings) for this world/dimension.
      */
@@ -890,6 +906,33 @@ public final class MillVillageIndex {
         if (total > globalMax) total = globalMax;
 
         return total;
+    }
+
+    public static int computeWorldRaiderTarget(WorldServer ws) {
+        Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
+
+        final double perVillager = TravellersModConfig.raiderCapPerVillager;
+        final int minPerVillage = TravellersModConfig.raiderCapMinPerVillage;
+        final int maxPerVillage = TravellersModConfig.raiderCapMaxPerVillage;
+        final int perLone = TravellersModConfig.raiderCapPerLoneBuilding;
+
+        int total = 0;
+
+        for (Map.Entry<VillageInfo, Integer> e : pops.entrySet()) {
+            int villagers = e.getValue();
+            if (villagers <= 0) continue;
+            int t = (int) Math.floor(villagers * perVillager);
+            if (t < minPerVillage) t = minPerVillage;
+            if (t > maxPerVillage) t = maxPerVillage;
+            total += t;
+        }
+
+        MillWorldData wd = getWD(ws);
+        if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            total += wd.loneBuildingsList.pos.size() * perLone;
+        }
+
+        return Math.min(total, TravellersModConfig.loadedRaiderCap);
     }
 
     public static Map<VillageInfo, Integer> countVillagersPerVillage(World world) {

@@ -2,6 +2,8 @@
 
 **Travellers** is a Millénaire-focused immersion mod that brings the world outside village borders to life. Instead of keeping Millénaire NPCs confined to their settlements, Travellers introduces roaming people who **move between villages and react to what happens along the way**. You'll naturally encounter them while exploring the world.
 
+Basically, Travellers was just a mod aiming to add roaming travellers that travel between villages. But the more I worked on, the more ideas I got and added.
+
 **REQUIRES MILLENAIRE 8.1.2 + MIXINBOOTER TO WORK**
 
 ### Millenaire integration
@@ -38,13 +40,10 @@ Travellers are built to handle real travel rather than scripted wandering:
 * They **really** travel between villages even when very far (Henchmen only — normal Travellers despawn after a while)
 * They can **fight hostile mobs**, use melee or ranged combat (bows when available), and **upgrade their equipment** by picking up better items found on the ground.
 
-### Dynamic, Millénaire-aware spawning
+### Real population system
 
-Travellers uses a "soft spawner" approach that adapts to the world:
-
-* Spawn rates and local caps scale with **nearby village count**, **village population**, and **lone buildings**.
-* All values are configurable in-game via `/travellersconfig` or the Forge mod options button.
-* You can edit server config from client through this config menu, avoiding you to restart for most settings
+All travellers, raiders and henchmen are virtualized when unloaded. Meaning their movement is simulated when they are outside view distance.
+Meaning every traveller is unique and moves in the world.
 
 ### Raiders
 
@@ -157,7 +156,15 @@ You can ignore it.
 ### Big thanks
 
 **@Aidan** from the Millénaire Discord for beta testing and finding lots of bugs!
+Aidan is the guy that reported the worst bugs, he helped me a lot thanks to him.
 
 **@Joshy Boy** from the Millénaire Discord for reporting bugs!
+Joshy is this guy that complains
 
-**@Shwartz** for the Huari, Japanese, and Norman (default) backpack models!
+**@Shwartz** from the Millénaire Discord for the Huari, Japanese, and Norman (default) backpack models!
+
+### AI Disclosure
+
+Yeah my friend Claude Code helped me doing this project in 1 year instead of never even trying doing it.
+You can freely screenshot this part and tell people it's AI slop.
+

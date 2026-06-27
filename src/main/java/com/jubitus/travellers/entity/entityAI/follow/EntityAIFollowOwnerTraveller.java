@@ -535,7 +535,20 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             repathCooldown--;
         }
 
-        boolean goalChanged = !hasGoal || distanceSq(goal.x, goal.y, goal.z, lastGoalX, lastGoalY, lastGoalZ) > GOAL_EPSILON_SQ;
+        // Capture previous anchor BEFORE updating, then update unconditionally so
+        // goalChanged only fires for single-tick jumps (teleports, large formation
+        // changes) — not for ordinary movement-induced slot drift.
+        // BUG that was here: lastGoalX was only updated when we didn't return early,
+        // causing 1.25-block drift to accumulate and bypass repathCooldown every ~10
+        // ticks instead of the designed 24, multiplying pathfinder calls by ~2x.
+        boolean prevHasGoal = hasGoal;
+        double prevGoalX = lastGoalX, prevGoalY = lastGoalY, prevGoalZ = lastGoalZ;
+        lastGoalX = goal.x;
+        lastGoalY = goal.y;
+        lastGoalZ = goal.z;
+        hasGoal = true;
+
+        boolean goalChanged = !prevHasGoal || distanceSq(goal.x, goal.y, goal.z, prevGoalX, prevGoalY, prevGoalZ) > GOAL_EPSILON_SQ;
         boolean noPath = worker.getNavigator().noPath();
         boolean canReusePath = shouldReuseCurrentPath(goal);
 
@@ -546,11 +559,6 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (!goalChanged && repathCooldown > 0 && !noPath) {
             return;
         }
-
-        lastGoalX = goal.x;
-        lastGoalY = goal.y;
-        lastGoalZ = goal.z;
-        hasGoal = true;
 
         double distToLeader = horizontalDistanceTo(target);
         double distToGoal = Math.sqrt(distGoalSq);
@@ -1045,7 +1053,13 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean visible = canSeeTarget(target);
 
         if (mode == FollowMode.CAVE) {
-            if (modeTicks < cfg.rescue.caveModeGraceTicks) {
+            boolean outsideVsUnderground = FollowRecoveryHelper.isWorkerOutsideWhileLeaderUnderground(worker, target);
+
+            // Surface workers with underground leader: shorter grace, relaxed thresholds.
+            // They can never get activePathTicks (underground goal unreachable from surface),
+            // so the normal condition would never trigger without this bypass.
+            int graceTicks = outsideVsUnderground ? 15 : cfg.rescue.caveModeGraceTicks;
+            if (modeTicks < graceTicks) {
                 return false;
             }
 
@@ -1056,7 +1070,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             int minStagnation = cfg.rescue.caveMinStagnationTicks;
             int minFailed = cfg.rescue.caveMinFailedPathTicks;
 
-            if (visible) {
+            if (outsideVsUnderground) {
+                // Faster thresholds: stagnation builds quickly since the path always fails,
+                // and activePathTicks can never reach 20 from the surface.
+                minStagnation = 50;
+                minFailed = 16;
+            } else if (visible) {
                 minStagnation += cfg.rescue.visibleExtraStagnationTicks;
                 minFailed += cfg.rescue.visibleExtraFailedPathTicks;
             }
@@ -1064,7 +1083,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             boolean caveCase =
                     stagnationTicks >= minStagnation
                             && failedAllowedPathTicks >= minFailed
-                            && activePathTicks >= cfg.rescue.minActivePathTicks;
+                            && (activePathTicks >= cfg.rescue.minActivePathTicks || outsideVsUnderground);
 
             if (caveCase) {
                 boolean rescued = FollowRecoveryHelper.tryCaveFollowRescue(
@@ -1256,7 +1275,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             return base + Math.abs((worker.getEntityId() * 13) % 2);
         }
 
-        int base = slot.groupSize >= 60 ? 24 : (slot.groupSize >= 30 ? 19 : 14);
+        int base = slot.groupSize >= 100 ? 34 : (slot.groupSize >= 60 ? 28 : (slot.groupSize >= 30 ? 22 : 16));
 
         if (slot.compactness < 0.8D) base += 2;
         if (mode == FollowMode.CAVE) base = Math.max(5, base - 1);
@@ -2061,7 +2080,13 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             failedAllowedPathTicks = 0;
             stagnationTicks = 0;
             activePathTicks = 0;
-            recentPathSuccessTicks = Math.max(recentPathSuccessTicks, 20);
+            // Workers on the surface while the leader is underground can't get active paths —
+            // skip the recent-path delay so cave rescue can fire quickly for them.
+            boolean outsideUnderground = followTarget != null
+                    && FollowRecoveryHelper.isWorkerOutsideWhileLeaderUnderground(worker, followTarget);
+            if (!outsideUnderground) {
+                recentPathSuccessTicks = Math.max(recentPathSuccessTicks, 20);
+            }
             schedulerDeniedTicks = 0;
             hasProgressAnchor = false;
         }
@@ -2088,10 +2113,10 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         boolean workerLeader = slot.workerLeader;
 
-        double leaderMoveThresholdSq = workerLeader ? (2.75D * 2.75D) : GOAL_REEVAL_LEADER_MOVE_SQ;
-        double leaderMoveThresholdY  = workerLeader ? 5.0D : 3.0D;
-        double workerMoveThresholdSq = workerLeader ? (1.50D * 1.50D) : GOAL_REEVAL_WORKER_MOVE_SQ;
-        double idealShiftThresholdSq = workerLeader ? (4.25D * 4.25D) : (2.75D * 2.75D);
+        double leaderMoveThresholdSq = workerLeader ? (4.0D * 4.0D) : (2.5D * 2.5D);
+        double leaderMoveThresholdY  = workerLeader ? 6.0D : 4.0D;
+        double workerMoveThresholdSq = workerLeader ? (2.5D * 2.5D) : (2.0D * 2.0D);
+        double idealShiftThresholdSq = workerLeader ? (5.5D * 5.5D) : (3.5D * 3.5D);
 
         boolean noPath = worker.getNavigator().noPath();
 
@@ -2143,18 +2168,18 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         int base;
         if (workerLeader) {
-            if (groupSize >= 200)          base = 36;
-            else if (groupSize >= 100)     base = 30;
-            else if (groupSize >= 60)      base = 24;
-            else if (groupSize >= 20)      base = 18;
-            else                           base = 14;
+            if (groupSize >= 200)          base = 48;
+            else if (groupSize >= 100)     base = 40;
+            else if (groupSize >= 60)      base = 32;
+            else if (groupSize >= 20)      base = 24;
+            else                           base = 18;
         } else {
             // Player leader: reactive but not too aggressive for large groups
-            if (groupSize >= 200)          base = 12;
-            else if (groupSize >= 100)     base = 10;
-            else if (groupSize >= 60)      base = 8;
-            else if (mode == FollowMode.CAVE) base = 5;
-            else                           base = 4;
+            if (groupSize >= 200)          base = 16;
+            else if (groupSize >= 100)     base = 14;
+            else if (groupSize >= 60)      base = 10;
+            else if (mode == FollowMode.CAVE) base = 6;
+            else                           base = 5;
         }
 
         int stagger;

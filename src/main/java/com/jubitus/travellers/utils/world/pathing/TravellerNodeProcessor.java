@@ -99,11 +99,20 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             if (p == null) continue;
 
             double nextSurfY = surfaceYForNode(p.x, p.y, p.z);
+            double rise = nextSurfY - curSurfY;
 
-            // If the floor rises more than we can step/jump-handle as a "walk" move, reject it.
-            // (This prevents paths that lead to infinite pushing at snow-block+layer edges.)
-            if ((nextSurfY - curSurfY) > maxUp) {
+            if (rise > maxUp) {
                 options[i] = null;
+                continue;
+            }
+
+            // Penalize uphill moves so travellers prefer flat terrain over mountains.
+            // Path blocks (roads, village paths) are exempt so road-following is not disrupted.
+            if (rise > 0.5) {
+                BlockPos feet = new BlockPos(p.x, p.y, p.z);
+                if (!isPathPreferred(feet)) {
+                    p.costMalus += (float) Math.min(rise * 0.8, 2.5f);
+                }
             }
         }
 

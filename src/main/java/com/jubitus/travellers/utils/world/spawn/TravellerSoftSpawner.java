@@ -8,7 +8,7 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -35,22 +35,26 @@ import org.millenaire.common.village.Building;
 import org.millenaire.common.world.MillWorldData;
 
 import javax.annotation.Nullable;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.utils.world.MPBIntegration;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 
 import static com.jubitus.travellers.entity.entityAI.travel.EntityAITravel.intersectsForbiddenLiquid;
 
 @Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public final class TravellerSoftSpawner {
 
-    private static int raiderTickCounter = 0;
-    private static int tickCounter = 0;
-    // NEW: merchant maintenance tick
     private static int merchantTickCounter = 0;
     private static int workerTickCounter = 0;
     private static int merchantVillageCursor = 0;
     private static int workerVillageCursor = 0;
+    private static int populationTickCounter = 0;
 
 
     private TravellerSoftSpawner() {
@@ -69,20 +73,6 @@ public final class TravellerSoftSpawner {
         WorldServer ws = server.getWorld(0); // overworld only
         if (ws == null) return;
 
-        // Traveller top-up
-        if (TravellersModConfig.enableTravellerSoftSpawns) {
-            if ((++tickCounter % Math.max(1, TravellersModConfig.travellerTopUpEveryTicks)) == 0) {
-                runTravellerTopUp(ws);
-            }
-        }
-
-        // Raider top-up
-        if (TravellersModConfig.enableRaiderSoftSpawns) {
-            if ((++raiderTickCounter % Math.max(1, TravellersModConfig.raiderTopUpEveryTicks)) == 0) {
-                runRaiderTopUp(ws);
-            }
-        }
-
         // Merchants maintenance
         if ((++merchantTickCounter % Math.max(1, TravellersModConfig.merchantRecheckEveryTicks)) == 0) {
             ensureMerchantsForVillages(ws);
@@ -92,333 +82,275 @@ public final class TravellerSoftSpawner {
         if ((++workerTickCounter % Math.max(1, TravellersModConfig.workerRecheckEveryTicks)) == 0) {
             ensureWorkersForVillages(ws);
         }
+
+        // Global population controller: keeps travellers/raiders populated world-wide, including unloaded areas
+        if (TravellersConfig.OFFSCREEN.globalPopulationEnabled) {
+            int interval = Math.max(40, TravellersConfig.OFFSCREEN.globalPopulationRefreshTicks);
+            if ((++populationTickCounter % interval) == 0) {
+                runVirtualPopulationTopUp(ws);
+            }
+        }
     }
 
 
-    private static void runTravellerTopUp(WorldServer ws) {
-        if (TravellersModConfig.enableTravellerSoftSpawns) {
+    /**
+     * World-wide global population controller.
+     * Iterates all known Millénaire settlements (villages + lone buildings) regardless of chunk state,
+     * and spawns virtual traveller/raider records to fill any deficit vs. the target population.
+     * Virtual entities materialize automatically when a player approaches.
+     */
+    private static void runVirtualPopulationTopUp(WorldServer ws) {
+        VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
 
-            if (MillVillageIndex.getAllSettlementCenters(ws).size() < 2) return;
+        int totalVirtual = mgr.getTotalCount();
+        int totalLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
+        int globalCap = TravellersConfig.OFFSCREEN.globalPopulationCap;
+        if (totalVirtual + totalLoaded >= globalCap) return;
 
-            for (EntityPlayerMP p : ws.getMinecraftServer().getPlayerList().getPlayers()) {
-                if (p.world != ws) continue;
+        // Villages — uses Millenaire WorldSavedData, no chunk loading required.
+        // Population may read as 0 for unloaded villages; travellerCapMinPerVillage/raiderCapMinPerVillage
+        // still produce a non-zero target, so population always recovers after a reset.
+        Map<MillVillageIndex.VillageInfo, Integer> populations = MillVillageIndex.countVillagersPerVillage(ws);
 
-                BlockPos playerPos = p.getPosition();
+        int spawnsThisCycle = 0;
+        final int maxSpawnsPerCycle = Math.max(1, TravellersConfig.OFFSCREEN.globalPopulationMaxSpawnsPerCycle);
 
-                int regionalCap = MillVillageIndex.computeRegionalTravellerCap(ws, playerPos,
-                        TravellersModConfig.travellerRegionalRadius);
-                if (regionalCap <= 0) {
-                    continue;
+        for (Map.Entry<MillVillageIndex.VillageInfo, Integer> entry : populations.entrySet()) {
+            if (spawnsThisCycle >= maxSpawnsPerCycle) break;
+            if (totalVirtual + totalLoaded >= globalCap) break;
+
+            MillVillageIndex.VillageInfo vi = entry.getKey();
+            int pop = entry.getValue();
+
+            // Use per-villager formula; min cap ensures population recovers even when chunks are unloaded (pop=0)
+            int targetTravellers = (int) Math.floor(pop * TravellersModConfig.travellerCapPerVillager);
+            targetTravellers = Math.max(targetTravellers, TravellersModConfig.travellerCapMinPerVillage);
+            targetTravellers = Math.min(targetTravellers, TravellersModConfig.travellerCapMaxPerVillage);
+
+            int targetRaiders = (int) Math.floor(pop * TravellersModConfig.raiderCapPerVillager);
+            targetRaiders = Math.max(targetRaiders, TravellersModConfig.raiderCapMinPerVillage);
+            targetRaiders = Math.min(targetRaiders, TravellersModConfig.raiderCapMaxPerVillage);
+
+            BlockPos villageCenter = vi.center;
+            String cultureId = vi.cultureKey != null && !vi.cultureKey.isEmpty() ? vi.cultureKey : null;
+
+            int virtualTravellers = mgr.countByHomeVillage(villageCenter, "TRAVELLER");
+            int loadedTravellers = countTravellersNearVillage(ws, villageCenter, 256, false);
+            int needTravellers = targetTravellers - virtualTravellers - loadedTravellers;
+
+            int virtualRaiders = mgr.countByHomeVillage(villageCenter, "RAIDER");
+            int loadedRaiders = countTravellersNearVillage(ws, villageCenter, 256, true);
+            int needRaiders = targetRaiders - virtualRaiders - loadedRaiders;
+
+            for (int i = 0; i < needTravellers && spawnsThisCycle < maxSpawnsPerCycle; i++) {
+                spawnVirtualTraveller(ws, mgr, villageCenter, "TRAVELLER", cultureId);
+                spawnsThisCycle++;
+                totalVirtual++;
+            }
+            for (int i = 0; i < needRaiders && spawnsThisCycle < maxSpawnsPerCycle; i++) {
+                spawnVirtualTraveller(ws, mgr, villageCenter, "RAIDER", cultureId);
+                spawnsThisCycle++;
+                totalVirtual++;
+            }
+        }
+
+        // Lone buildings — use fixed per-building caps, culture from the lone building itself
+        if (spawnsThisCycle < maxSpawnsPerCycle && totalVirtual + totalLoaded < globalCap) {
+            List<net.minecraft.util.Tuple<BlockPos, String>> loneBuildings =
+                    MillVillageIndex.getAllLoneBuildingCentersWithCulture(ws);
+            int travellerPerLone = TravellersModConfig.travellerCapPerLoneBuilding;
+            int raiderPerLone = TravellersModConfig.raiderCapPerLoneBuilding;
+
+            for (net.minecraft.util.Tuple<BlockPos, String> lone : loneBuildings) {
+                if (spawnsThisCycle >= maxSpawnsPerCycle) break;
+                if (totalVirtual + totalLoaded >= globalCap) break;
+
+                BlockPos loneCenter = lone.getFirst();
+                String loneCulture = lone.getSecond();
+
+                int need = travellerPerLone - mgr.countByHomeVillage(loneCenter, "TRAVELLER")
+                        - countTravellersNearVillage(ws, loneCenter, 128, false);
+                for (int i = 0; i < need && spawnsThisCycle < maxSpawnsPerCycle; i++) {
+                    spawnVirtualTraveller(ws, mgr, loneCenter, "TRAVELLER", loneCulture);
+                    spawnsThisCycle++;
+                    totalVirtual++;
                 }
 
-                int regionalCount = countTravellersInRegion(ws, playerPos,
-                        TravellersModConfig.travellerRegionalRadius);
-                if (regionalCount >= regionalCap) {
-                    continue;
-                }
-
-                Random r = p.getRNG();
-                boolean spawnedAnyForPlayer = false;
-
-                for (int attempt = 0; attempt < TravellersModConfig.travellerMaxPositionChecksPerAttempt; attempt++) {
-
-                    // ✅ use travellers distances, not raiders ones
-                    BlockPos pos = pickSpawnPosAround(ws, playerPos, r,
-                            TravellersModConfig.travellerSpawnMinDist,
-                            TravellersModConfig.travellerSpawnMaxDist);
-                    if (pos == null) continue;
-                    if (!chunkExists(ws, pos)) continue;
-
-                    // World-data based density (mill + lone buildings)
-                    double density = MillVillageIndex.travellerDensityAt(ws, pos);
-
-                    // Boost density based on village population (nearest village)
-                    double popMult = MillVillageIndex.populationWeightAt(ws, pos);
-                    density *= popMult;
-
-                    // If density is zero, no known center nearby -> skip
-                    if (density <= 0.0) {
-                        continue;
-                    }
-
-                    // Treat density as a chance gate (between 0 and ~1.0+ after boost)
-                    double gate = Math.min(1.0, density);
-                    if (ws.rand.nextDouble() > gate) {
-                        continue; // failed density roll
-                    }
-
-                    // Still keep local per-spot cap (prevents crazy clumps)
-                    if (!SpawnThrottles.underLocalCap(ws, pos, EntityTraveller.class,
-                            TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
-                        continue;
-
-                    // Vanilla-style veto at the anchor (cheap early bail)
-                    float sx = (float) (pos.getX() + 0.5);
-                    float sy = (float) pos.getY();
-                    float sz = (float) (pos.getZ() + 0.5);
-                    EntityTraveller probe = new EntityTraveller(ws);
-                    probe.setLocationAndAngles(sx, sy, sz, 0f, 0f);
-
-                    Event.Result res =
-                            net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(probe, ws, sx, sy, sz);
-
-
-                    // ---------- group spawn ----------
-                    int gMin = Math.max(1, TravellersModConfig.MinGroupSizeAtSpawn);
-                    int gMax = Math.max(gMin, TravellersModConfig.MaxGroupSizeAtSpawn);
-
-                    double d = Math.max(0.0, Math.min(1.0, density));
-                    double rawGroup = gMin + (gMax - gMin) * d;
-                    int group = (int) Math.round(rawGroup * (0.8 + r.nextDouble() * 0.4));
-                    group = Math.max(1, Math.min(group, gMax));
-
-                    IEntityLivingData sharedSpawnData = null;
-
-                    // decide culture once for the whole group, based on nearby mill
-                    EntityTraveller.SpawnData cultureSpawnData = null;
-                    if (TravellersModConfig.travellerCultureWeightedSpawn) {
-                        String cultureId = MillVillageIndex.pickCultureForTravellerSpawn(ws, pos, ws.rand);
-                        if (cultureId != null && !cultureId.isEmpty()) {
-                            cultureSpawnData = new EntityTraveller.SpawnData(cultureId);
-                        }
-                    }
-
-                    int spawned = 0;
-                    for (int i = 0; i < group && regionalCount < regionalCap; i++) {
-                        int ox = r.nextInt(5) - 2;
-                        int oz = r.nextInt(5) - 2;
-                        BlockPos posI = new BlockPos(pos.getX() + ox, pos.getY(), pos.getZ() + oz);
-
-                        if (!chunkExists(ws, posI)) continue;
-
-                        if (!SpawnThrottles.underLocalCap(ws, posI, EntityTraveller.class,
-                                TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
-                            continue;
-
-                        float mx = posI.getX() + 0.5f, my = posI.getY(), mz = posI.getZ() + 0.5f;
-
-                        EntityTraveller t = new EntityTraveller(ws);
-                        t.setLocationAndAngles(mx, my, mz, r.nextFloat() * 360f, 0f);
-
-                        if (tooCloseOrVisibleToPlayer(ws, t, p)) {
-                            t.setDead();
-                            continue;
-                        }
-
-                        if (!ws.checkNoEntityCollision(t.getEntityBoundingBox())) {
-                            t.setDead();
-                            continue;
-                        }
-                        if (!ws.getCollisionBoxes(t, t.getEntityBoundingBox()).isEmpty()) {
-                            t.setDead();
-                            continue;
-                        }
-                        if (intersectsForbiddenLiquid(ws, t.getEntityBoundingBox())) {
-                            t.setDead();
-                            continue;
-                        }
-
-                        // If we pre-picked a culture, feed it into onInitialSpawn
-                        if (sharedSpawnData == null && cultureSpawnData != null) {
-                            sharedSpawnData = cultureSpawnData;
-                        }
-
-                        sharedSpawnData = t.onInitialSpawn(ws.getDifficultyForLocation(posI), sharedSpawnData);
-
-                        // Keep the HARD global safety cap as last resort
-                        int nowLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
-                        if (nowLoaded >= TravellersModConfig.loadedTravellerCap) {
-                            t.setDead();
-                            break;
-                        }
-
-                        boolean ok = ws.spawnEntity(t);
-                        if (!ok) {
-                            t.setDead();
-                            continue;
-                        }
-                        spawned++;
-                        regionalCount++;
-
-                    }
-
-                    if (spawned > 0) {
-                        spawnedAnyForPlayer = true;
-                        break; // one successful group per player per cycle
-                    }
-                }
-
-                if (spawnedAnyForPlayer) {
-                    // move to next player
+                int needR = raiderPerLone - mgr.countByHomeVillage(loneCenter, "RAIDER")
+                        - countTravellersNearVillage(ws, loneCenter, 128, true);
+                for (int i = 0; i < needR && spawnsThisCycle < maxSpawnsPerCycle; i++) {
+                    spawnVirtualTraveller(ws, mgr, loneCenter, "RAIDER", loneCulture);
+                    spawnsThisCycle++;
+                    totalVirtual++;
                 }
             }
         }
     }
 
-    private static void runRaiderTopUp(WorldServer ws) {
-        // ---------- Raider soft top-up ----------
-// ---------- Raider soft top-up ----------
-// ---------- Raider soft top-up ----------
-        if (TravellersModConfig.enableRaiderSoftSpawns) {
+    /** Count real (loaded) travellers or raiders near a village center within given radius. */
+    private static int countTravellersNearVillage(WorldServer ws, BlockPos center, int radius, boolean raidersOnly) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                center.getX() - radius, 0, center.getZ() - radius,
+                center.getX() + radius, ws.getActualHeight(), center.getZ() + radius);
+        if (raidersOnly) {
+            return ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box,
+                    net.minecraft.entity.Entity::isEntityAlive).size();
+        } else {
+            int total = ws.getEntitiesWithinAABB(EntityTraveller.class, box,
+                    net.minecraft.entity.Entity::isEntityAlive).size();
+            // Subtract workers and raiders (we only want plain travellers)
+            total -= ws.getEntitiesWithinAABB(EntityTravellerWorker.class, box,
+                    net.minecraft.entity.Entity::isEntityAlive).size();
+            total -= ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box,
+                    net.minecraft.entity.Entity::isEntityAlive).size();
+            return Math.max(0, total);
+        }
+    }
 
-            if (MillVillageIndex.getAllSettlementCenters(ws).size() < 2) return;
+    /**
+     * Creates VirtualTravellerRecords for a traveller or raider (and optional group followers).
+     * The leader spawns at a random mid-route point; followers share the same route and track the leader.
+     * No world entity is created.
+     */
+    private static void spawnVirtualTraveller(WorldServer ws, VirtualTravellerManager mgr,
+                                              BlockPos homeVillage, String entityClass, @Nullable String cultureId) {
+        List<BlockPos> allCenters = MillVillageIndex.getAllSettlementCenters(ws);
+        if (allCenters.size() < 2) return;
 
-            // Global safety cap from config (keep as an overall guard)
-            int loadedRaiders = 0;
-            for (WorldServer w : ws.getMinecraftServer().worlds) {
-                loadedRaiders += w.getEntities(EntityTravellerRaider.class, net.minecraft.entity.Entity::isEntityAlive).size();
-            }
+        // Pick a random destination different from home
+        List<BlockPos> candidates = new ArrayList<>(allCenters);
+        candidates.removeIf(c -> c.getX() == homeVillage.getX() && c.getZ() == homeVillage.getZ());
+        if (candidates.isEmpty()) return;
+        BlockPos dest = candidates.get(ws.rand.nextInt(candidates.size()));
 
-            if (loadedRaiders < TravellersModConfig.raiderTargetLoaded
-                    && ws.getDifficulty() != EnumDifficulty.PEACEFUL) {
-
-                for (EntityPlayerMP p : ws.getMinecraftServer().getPlayerList().getPlayers()) {
-                    if (p.world != ws) continue;
-                    Random r = p.getRNG();
-
-                    BlockPos playerPos = p.getPosition();
-
-                    // --- NEW: regional raiders cap (same inputs as travellers) ---
-                    int regionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, playerPos,
-                            TravellersModConfig.raiderRegionalRadius);
-                    if (regionalCap <= 0) {
-                        // no Millénaire “threat budget” here → no raiders around this player
-                        continue;
-                    }
-
-                    int regionalCount = countRaidersInRegion(ws, playerPos,
-                            TravellersModConfig.raiderRegionalRadius);
-                    if (regionalCount >= regionalCap) {
-                        // this area is already at or above its raiders budget
-                        continue;
-                    }
-
-                    boolean spawnedAnyForPlayer = false;
-
-                    for (int k = 0; k < TravellersModConfig.raiderMaxPositionChecksPerAttempt; k++) {
-                        if (r.nextFloat() > TravellersModConfig.raiderSoftSpawnChancePerAttempt) continue;
-
-                        BlockPos pos = pickSpawnPosAround(ws, playerPos, r,
-                                TravellersModConfig.raiderSpawnMinDist,
-                                TravellersModConfig.raiderSpawnMaxDist);
-                        if (pos == null) continue;
-                        if (!chunkExists(ws, pos)) continue;
-
-                        // --- NEW: never spawn *inside* village ---
-                        // use a “too close” radius; tune this in config
-                        if (MillVillageIndex.isNearVillage(ws, pos, TravellersModConfig.raiderMinVillageDistance)) {
-                            // too close to Town Hall / inside village bubble → skip
-                            continue;
-                        }
-
-                        // Raiders should still hang around Millénaire influence,
-                        // so require some density
-                        double density = MillVillageIndex.travellerDensityAt(ws, pos);
-                        if (density <= 0.0) {
-                            continue; // no influence ⇒ no raiders
-                        }
-
-                        // Base chance from config
-                        double baseChance = Math.max(0.0, Math.min(1.0, TravellersModConfig.raiderBaseSpawnChance));
-                        double effectiveChance = Math.min(1.0, baseChance * density);
-
-                        if (ws.rand.nextDouble() > effectiveChance) {
-                            continue; // this anchor fails, try another
-                        }
-
-                        // Raider local cap
-                        if (!SpawnThrottles.underLocalCap(ws, pos, EntityTravellerRaider.class,
-                                TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius))
-                            continue;
-
-                        if (!ws.getBlockState(pos.down()).isOpaqueCube()) continue;
-
-                        float sx = (float) (pos.getX() + 0.5);
-                        float sy = (float) pos.getY();
-                        float sz = (float) (pos.getZ() + 0.5);
-
-                        // quick preflight at anchor with a probe
-                        EntityTravellerRaider anchorProbe = new EntityTravellerRaider(ws);
-                        anchorProbe.setLocationAndAngles(sx, sy, sz, r.nextFloat() * 360f, 0f);
-                        if (!ws.checkNoEntityCollision(anchorProbe.getEntityBoundingBox())) continue;
-                        if (!ws.getCollisionBoxes(anchorProbe, anchorProbe.getEntityBoundingBox()).isEmpty())
-                            continue;
-                        if (ws.containsAnyLiquid(anchorProbe.getEntityBoundingBox())) continue;
-
-                        // ---------- group spawn ----------
-                        int gMin = Math.max(1, TravellersModConfig.RaiderMinGroup);
-                        int gMax = Math.max(gMin, TravellersModConfig.RaiderMaxGroup);
-                        int group = gMin + r.nextInt(gMax - gMin + 1);
-
-                        IEntityLivingData sharedRaiderSpawnData = null;
-
-                        int spawned = 0;
-                        for (int i = 0; i < group; i++) {
-                            // ALSO respect regional cap inside the group loop
-                            if (regionalCount >= regionalCap) break;
-
-                            int ox = r.nextInt(5) - 2;
-                            int oz = r.nextInt(5) - 2;
-                            BlockPos posI = new BlockPos(pos.getX() + ox, pos.getY(), pos.getZ() + oz);
-                            if (!chunkExists(ws, posI)) continue;
-
-                            if (!SpawnThrottles.underLocalCap(ws, posI, EntityTravellerRaider.class,
-                                    TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius))
-                                continue;
-
-                            if (!ws.getBlockState(posI.down()).isOpaqueCube()) continue;
-
-                            float mx = posI.getX() + 0.5f, my = posI.getY(), mz = posI.getZ() + 0.5f;
-
-                            EntityTravellerRaider raider = new EntityTravellerRaider(ws);
-                            raider.setLocationAndAngles(mx, my, mz, r.nextFloat() * 360f, 0f);
-
-                            if (tooCloseOrVisibleToPlayer(ws, raider, p)) {
-                                raider.setDead();
-                                continue;
-                            }
-
-                            if (!ws.checkNoEntityCollision(raider.getEntityBoundingBox())) {
-                                raider.setDead();
-                                continue;
-                            }
-                            if (!ws.getCollisionBoxes(raider, raider.getEntityBoundingBox()).isEmpty()) {
-                                raider.setDead();
-                                continue;
-                            }
-                            if (ws.containsAnyLiquid(raider.getEntityBoundingBox())) {
-                                raider.setDead();
-                                continue;
-                            }
-
-                            sharedRaiderSpawnData = raider.onInitialSpawn(
-                                    ws.getDifficultyForLocation(posI),
-                                    sharedRaiderSpawnData
-                            );
-
-                            int nowR = ws.getEntities(EntityTravellerRaider.class, net.minecraft.entity.Entity::isEntityAlive).size();
-                            if (nowR >= TravellersModConfig.loadedRaiderCap) {
-                                raider.setDead();
-                                break; // stop group
-                            }
-
-                            ws.spawnEntity(raider);
-                            spawned++;
-                            regionalCount++; // <--- IMPORTANT: track per-region budget
-                        }
-
-                        if (spawned > 0) {
-                            spawnedAnyForPlayer = true;
-                            break; // one successful group per player-cycle
-                        }
-                    }
-
-                    if (spawnedAnyForPlayer) {
-                        // move to next player
-                    }
-                }
+        // Build the full route from home to destination
+        List<BlockPos> fullRoute = new ArrayList<>();
+        boolean useRoads = MPBIntegration.PRESENT
+                && (!"RAIDER".equals(entityClass) || TravellersConfig.SPAWN_RAIDERS.raidersUseUltreiaPaths);
+        if (useRoads) {
+            List<BlockPos> mpbRoute = MPBIntegration.findRoadRoute(
+                    ws, homeVillage.getX(), homeVillage.getZ(), dest.getX(), dest.getZ(), 48);
+            if (mpbRoute != null && !mpbRoute.isEmpty()) {
+                fullRoute.addAll(mpbRoute);
             }
         }
+        // Ensure destination is the final waypoint
+        if (fullRoute.isEmpty()
+                || fullRoute.get(fullRoute.size() - 1).getX() != dest.getX()
+                || fullRoute.get(fullRoute.size() - 1).getZ() != dest.getZ()) {
+            fullRoute.add(dest);
+        }
+
+        // Pick a random waypoint in the middle 20-80% of the route as the spawn point.
+        // This places the entity somewhere between two villages rather than at a village center.
+        int routeSize = fullRoute.size();
+        int lo = routeSize / 5;
+        int hi = (routeSize * 4) / 5;
+        if (lo >= hi) lo = 0;
+        int spawnIdx = (lo >= hi) ? lo : lo + ws.rand.nextInt(hi - lo);
+        BlockPos spawnWaypoint = fullRoute.get(spawnIdx);
+
+        // Resolve Y: use real terrain surface if chunk is loaded, otherwise keep waypoint Y or use 64
+        BlockPos spawnPos = resolveVirtualSpawnY(ws, spawnWaypoint);
+
+        // Raiders must not spawn inside village perimeters
+        if ("RAIDER".equals(entityClass)
+                && MillVillageIndex.isNearVillage(ws, spawnPos, TravellersModConfig.raiderMinVillageDistance)) {
+            return;
+        }
+
+        // Build un-spawned temp entity to populate NBT (culture, name, equipment)
+        EntityTraveller tempEntity = "RAIDER".equals(entityClass)
+                ? new EntityTravellerRaider(ws)
+                : new EntityTraveller(ws);
+        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+        net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
+                ? new EntityTraveller.SpawnData(cultureId) : null;
+        tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+
+        net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
+        tempEntity.writeToNBT(entityNbt);
+
+        VirtualTravellerRecord r = new VirtualTravellerRecord(
+                tempEntity.getUniqueID(),
+                spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+                ws.rand.nextFloat() * 360f,
+                ws.provider.getDimension(),
+                entityNbt
+        );
+        r.entityClass = entityClass;
+        r.homeVillage = new BlockPos(homeVillage.getX(), 0, homeVillage.getZ());
+
+        // Route = remaining waypoints from spawnIdx onward
+        r.travelRoute = new ArrayList<>(fullRoute.subList(spawnIdx, routeSize));
+        r.routeIndex = 0;
+        r.goal = r.travelRoute.isEmpty() ? dest : r.travelRoute.get(0);
+
+        r.virtualizedTick = ws.getTotalWorldTime();
+        mgr.addRecord(r);
+
+        // Roll for group followers — same culture as the leader, same route
+        int groupSize = rollGroupSize(ws.rand, entityClass);
+        for (int i = 1; i < groupSize; i++) {
+            spawnVirtualFollower(ws, mgr, r, entityClass, cultureId, spawnPos);
+        }
+    }
+
+    private static int rollGroupSize(java.util.Random rand, String entityClass) {
+        boolean isTraveller = "TRAVELLER".equals(entityClass);
+        int chance = isTraveller
+                ? TravellersConfig.SPAWN_TRAVELLERS.groupSpawnChance
+                : TravellersConfig.SPAWN_RAIDERS.groupSpawnChance;
+        if (chance <= 0 || rand.nextInt(100) >= chance) return 1;
+        int min = isTraveller
+                ? TravellersConfig.SPAWN_TRAVELLERS.groupMinSize
+                : TravellersConfig.SPAWN_RAIDERS.groupMinSize;
+        int max = isTraveller
+                ? TravellersConfig.SPAWN_TRAVELLERS.groupMaxSize
+                : TravellersConfig.SPAWN_RAIDERS.groupMaxSize;
+        if (min >= max) return min;
+        return min + rand.nextInt(max - min + 1);
+    }
+
+    private static void spawnVirtualFollower(WorldServer ws, VirtualTravellerManager mgr,
+                                             VirtualTravellerRecord leader, String entityClass,
+                                             @Nullable String cultureId, BlockPos spawnPos) {
+        EntityTraveller tempEntity = "RAIDER".equals(entityClass)
+                ? new EntityTravellerRaider(ws)
+                : new EntityTraveller(ws);
+        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+        net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
+                ? new EntityTraveller.SpawnData(cultureId) : null;
+        tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+        tempEntity.setGroupLeaderUUID(leader.uuid);
+
+        net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
+        tempEntity.writeToNBT(entityNbt);
+
+        VirtualTravellerRecord r = new VirtualTravellerRecord(
+                tempEntity.getUniqueID(),
+                spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+                ws.rand.nextFloat() * 360f,
+                ws.provider.getDimension(),
+                entityNbt
+        );
+        r.entityClass = entityClass;
+        r.homeVillage = leader.homeVillage;
+        r.groupLeaderUUID = leader.uuid;
+        r.travelRoute = new ArrayList<>(leader.travelRoute);
+        r.routeIndex = leader.routeIndex;
+        r.goal = leader.goal;
+        r.virtualizedTick = ws.getTotalWorldTime();
+        mgr.addRecord(r);
+    }
+
+    /** Returns a spawn position for a virtual entity: real surface Y if chunk is loaded, waypoint Y or 64 otherwise. */
+    private static BlockPos resolveVirtualSpawnY(WorldServer ws, BlockPos xzPos) {
+        if (chunkExists(ws, xzPos)) {
+            BlockPos top = ws.getTopSolidOrLiquidBlock(xzPos);
+            if (top != null && top.getY() > 0) return top;
+        }
+        return xzPos.getY() > 0 ? xzPos : new BlockPos(xzPos.getX(), 64, xzPos.getZ());
     }
 
     public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
@@ -427,59 +359,6 @@ public final class TravellerSoftSpawner {
                 center.getX() + radiusXZ, ws.getActualHeight(), center.getZ() + radiusXZ
         );
         return ws.getEntitiesWithinAABB(EntityTraveller.class, box, net.minecraft.entity.Entity::isEntityAlive).size();
-    }
-
-    private static BlockPos pickSpawnPosAround(WorldServer ws, BlockPos center, Random r, int min, int max) {
-        final int tries = 12;
-        for (int i = 0; i < tries; i++) {
-            double theta = r.nextDouble() * Math.PI * 2.0;
-            int dist = min + r.nextInt(Math.max(1, (max - min + 1)));
-            int x = center.getX() + (int) Math.round(Math.cos(theta) * dist);
-            int z = center.getZ() + (int) Math.round(Math.sin(theta) * dist);
-
-            // pick ground Y (never load chunks)
-            BlockPos guess = new BlockPos(x, center.getY(), z);
-            if (!chunkExists(ws, guess)) continue;
-
-            BlockPos top = ws.getTopSolidOrLiquidBlock(guess);
-            // small up/down polish to avoid leaves/low ceilings
-            BlockPos p = top;
-            for (int up = 0; up < 2 && p.getY() < ws.getActualHeight() - 1; up++) {
-                if (isStandable(ws, p)) break;
-                p = p.up();
-            }
-            if (!isStandable(ws, p)) {
-                // quick downward probe
-                BlockPos q = top.down();
-                for (int down = 0; down < 6 && q.getY() > 1; down++, q = q.down()) {
-                    if (isStandable(ws, q)) {
-                        p = q;
-                        break;
-                    }
-                }
-            }
-            if (isStandable(ws, p)) {
-                if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT) {
-                    BlockPos roadPos = com.jubitus.travellers.utils.world.MPBIntegration
-                            .findRoadSpawnPos(ws, p.getX(), p.getZ(), 24);
-                    if (roadPos != null && isStandable(ws, roadPos)) {
-                        return roadPos;
-                    }
-                }
-                return p;
-            }
-        }
-        return null;
-    }
-
-    private static boolean tooCloseOrVisibleToPlayer(WorldServer ws, EntityTraveller t, EntityPlayerMP p) {
-        double d2 = t.getDistanceSq(p);
-        if (d2 < 26 * 26) return true; // keep a little reveal distance
-        // Optionally avoid direct LoS “pop-in”
-        AxisAlignedBB bb = t.getEntityBoundingBox().grow(0.5);
-        return ws.rayTraceBlocks(p.getPositionEyes(1f),
-                p.getPositionEyes(1f).add(p.getLookVec().scale(Math.sqrt(d2))),
-                false, true, false) == null && p.getEntityBoundingBox().intersects(bb);
     }
 
     public static int countRaidersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
@@ -729,7 +608,7 @@ public final class TravellerSoftSpawner {
         List<EntityTravellerWorker> loadedWorkers =
                 ws.getEntities(EntityTravellerWorker.class, net.minecraft.entity.Entity::isEntityAlive);
 
-        VirtualWorkerManager vwm = VirtualWorkerManager.get(ws);
+        VirtualTravellerManager vwm = VirtualTravellerManager.get(ws);
         int virtualCount = vwm.getTotalCount();
 
         if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;

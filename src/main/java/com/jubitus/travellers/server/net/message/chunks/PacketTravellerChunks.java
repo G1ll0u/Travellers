@@ -61,10 +61,19 @@ public class PacketTravellerChunks implements IMessage {
         int virtualCount = buf.readInt();
         List<BlockPos> virtualWorkers = new ArrayList<>(virtualCount);
         for (int i = 0; i < virtualCount; i++) {
-            int x = buf.readInt();
-            int y = buf.readInt();
-            int z = buf.readInt();
-            virtualWorkers.add(new BlockPos(x, y, z));
+            virtualWorkers.add(new BlockPos(buf.readInt(), buf.readInt(), buf.readInt()));
+        }
+
+        int travCount = buf.readInt();
+        List<BlockPos> virtualTravellers = new ArrayList<>(travCount);
+        for (int i = 0; i < travCount; i++) {
+            virtualTravellers.add(new BlockPos(buf.readInt(), buf.readInt(), buf.readInt()));
+        }
+
+        int raiderCount = buf.readInt();
+        List<BlockPos> virtualRaiders = new ArrayList<>(raiderCount);
+        for (int i = 0; i < raiderCount; i++) {
+            virtualRaiders.add(new BlockPos(buf.readInt(), buf.readInt(), buf.readInt()));
         }
 
         this.snapshot = new TravellerChunkSnapshot(
@@ -75,7 +84,9 @@ public class PacketTravellerChunks implements IMessage {
                 merchant,
                 normal,
                 villages,
-                virtualWorkers
+                virtualWorkers,
+                virtualTravellers,
+                virtualRaiders
         );
     }
 
@@ -107,9 +118,17 @@ public class PacketTravellerChunks implements IMessage {
 
         buf.writeInt(snapshot.virtualWorkers.size());
         for (BlockPos bp : snapshot.virtualWorkers) {
-            buf.writeInt(bp.getX());
-            buf.writeInt(bp.getY());
-            buf.writeInt(bp.getZ());
+            buf.writeInt(bp.getX()); buf.writeInt(bp.getY()); buf.writeInt(bp.getZ());
+        }
+
+        buf.writeInt(snapshot.virtualTravellers.size());
+        for (BlockPos bp : snapshot.virtualTravellers) {
+            buf.writeInt(bp.getX()); buf.writeInt(bp.getY()); buf.writeInt(bp.getZ());
+        }
+
+        buf.writeInt(snapshot.virtualRaiders.size());
+        for (BlockPos bp : snapshot.virtualRaiders) {
+            buf.writeInt(bp.getX()); buf.writeInt(bp.getY()); buf.writeInt(bp.getZ());
         }
     }
 

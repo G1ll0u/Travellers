@@ -5,9 +5,12 @@ import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.culture.VoiceSet;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.SoundEvent;
@@ -15,6 +18,7 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.Loader;
 
 import javax.annotation.Nullable;
@@ -32,11 +36,16 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug [sound stress|sound rapidfire|cultures]";
+        return "/travellersdebug [reset|sound stress|sound rapidfire|cultures]";
     }
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        if (args.length >= 1 && args[0].equalsIgnoreCase("reset")) {
+            executeReset(server, sender);
+            return;
+        }
+
         if (args.length >= 1 && args[0].equalsIgnoreCase("sound")) {
             String sub = args.length >= 2 ? args[1].toLowerCase() : "stress";
             executeSoundDebug(server, sender, sub);
@@ -70,6 +79,32 @@ public class CommandTravellerDebug extends CommandBase {
         sender.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "Traveller debug exported to: " +
                         TextFormatting.YELLOW + outFile.getAbsolutePath()));
+    }
+
+    // --- Reset: wipe all virtual travellers/raiders and kill loaded ones ---
+
+    private void executeReset(MinecraftServer server, ICommandSender sender) {
+        int virtualRemoved = 0;
+        int loadedKilled = 0;
+
+        for (WorldServer ws : server.worlds) {
+            VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
+            virtualRemoved += mgr.clearByClass("TRAVELLER", "RAIDER");
+
+            for (Entity e : new java.util.ArrayList<>(ws.loadedEntityList)) {
+                if (e instanceof EntityTravellerWorker) continue;
+                if (e instanceof EntityTraveller && !e.isDead) {
+                    e.setDead();
+                    loadedKilled++;
+                }
+            }
+        }
+
+        sender.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "Reset complete: " +
+                TextFormatting.YELLOW + virtualRemoved + TextFormatting.GREEN + " virtual records removed, " +
+                TextFormatting.YELLOW + loadedKilled + TextFormatting.GREEN + " loaded entities killed." +
+                TextFormatting.GRAY + " Workers untouched."));
     }
 
     // --- Sound stress test ---

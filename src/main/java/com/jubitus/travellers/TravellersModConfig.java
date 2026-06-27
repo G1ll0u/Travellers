@@ -583,17 +583,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.SPAWN.travellerCultureWeightUseVillagePopulation = travellerCultureWeightUseVillagePopulation;
 
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.loadedTravellerCap = loadedTravellerCap;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.minGroupSizeAtSpawn = MinGroupSizeAtSpawn;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.maxGroupSizeAtSpawn = MaxGroupSizeAtSpawn;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.enableTravellerSoftSpawns = enableTravellerSoftSpawns;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerTargetLoaded = travellerTargetLoaded;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerTopUpEveryTicks = travellerTopUpEveryTicks;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerAttemptsPerPlayer = travellerAttemptsPerPlayer;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnMinDist = travellerSpawnMinDist;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnMaxDist = travellerSpawnMaxDist;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnLightMin = travellerSpawnLightMin;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerMaxPositionChecksPerAttempt = travellerMaxPositionChecksPerAttempt;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerBaseSpawnChance = (float) travellerBaseSpawnChance;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerVillager = travellerCapPerVillager;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage = travellerCapMinPerVillage;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage = travellerCapMaxPerVillage;
@@ -603,20 +592,9 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius = travellerRegionalRadius;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCap = travellerLocalCap;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCapRadius = travellerLocalCapRadius;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnPermille = travellerSpawnPermille;
 
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap = loadedRaiderCap;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMinGroup = RaiderMinGroup;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMaxGroup = RaiderMaxGroup;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.enableRaiderSoftSpawns = enableRaiderSoftSpawns;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderTargetLoaded = raiderTargetLoaded;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderTopUpEveryTicks = raiderTopUpEveryTicks;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderAttemptsPerPlayer = raiderAttemptsPerPlayer;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderSoftSpawnChancePerAttempt = raiderSoftSpawnChancePerAttempt;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderSpawnMinDist = raiderSpawnMinDist;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderSpawnMaxDist = raiderSpawnMaxDist;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance = raiderMinVillageDistance;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderBaseSpawnChance = raiderBaseSpawnChance;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapPerVillager = raiderCapPerVillager;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapMinPerVillage = raiderCapMinPerVillage;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderCapMaxPerVillage = raiderCapMaxPerVillage;
@@ -624,7 +602,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderRegionalRadius = raiderRegionalRadius;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderLocalCap = raiderLocalCap;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderLocalCapRadius = raiderLocalCapRadius;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raiderMaxPositionChecksPerAttempt = raiderMaxPositionChecksPerAttempt;
 
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerMinPop = workerMinPop;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerPopPerWorker = workerPopPerWorker;
@@ -2546,17 +2523,6 @@ public class TravellersModConfig {
 
         // SpawnTravellers
         loadedTravellerCap            = st.loadedTravellerCap;
-        MinGroupSizeAtSpawn           = st.minGroupSizeAtSpawn;
-        MaxGroupSizeAtSpawn           = st.maxGroupSizeAtSpawn;
-        enableTravellerSoftSpawns     = st.enableTravellerSoftSpawns;
-        travellerTargetLoaded         = st.travellerTargetLoaded;
-        travellerTopUpEveryTicks      = st.travellerTopUpEveryTicks;
-        travellerAttemptsPerPlayer    = st.travellerAttemptsPerPlayer;
-        travellerSpawnMinDist         = st.travellerSpawnMinDist;
-        travellerSpawnMaxDist         = st.travellerSpawnMaxDist;
-        travellerSpawnLightMin        = st.travellerSpawnLightMin;
-        travellerMaxPositionChecksPerAttempt = st.travellerMaxPositionChecksPerAttempt;
-        travellerBaseSpawnChance      = st.travellerBaseSpawnChance;
         travellerCapPerVillager       = st.travellerCapPerVillager;
         travellerCapMinPerVillage     = st.travellerCapMinPerVillage;
         travellerCapMaxPerVillage     = st.travellerCapMaxPerVillage;
@@ -2566,21 +2532,10 @@ public class TravellersModConfig {
         travellerRegionalRadius       = st.travellerRegionalRadius;
         travellerLocalCap             = st.travellerLocalCap;
         travellerLocalCapRadius       = st.travellerLocalCapRadius;
-        travellerSpawnPermille        = st.travellerSpawnPermille;
 
         // SpawnRaiders
         loadedRaiderCap               = sr.loadedRaiderCap;
-        RaiderMinGroup                = sr.raiderMinGroup;
-        RaiderMaxGroup                = sr.raiderMaxGroup;
-        enableRaiderSoftSpawns        = sr.enableRaiderSoftSpawns;
-        raiderTargetLoaded            = sr.raiderTargetLoaded;
-        raiderTopUpEveryTicks         = sr.raiderTopUpEveryTicks;
-        raiderAttemptsPerPlayer       = sr.raiderAttemptsPerPlayer;
-        raiderSoftSpawnChancePerAttempt = sr.raiderSoftSpawnChancePerAttempt;
-        raiderSpawnMinDist            = sr.raiderSpawnMinDist;
-        raiderSpawnMaxDist            = sr.raiderSpawnMaxDist;
         raiderMinVillageDistance      = sr.raiderMinVillageDistance;
-        raiderBaseSpawnChance         = sr.raiderBaseSpawnChance;
         raiderCapPerVillager          = sr.raiderCapPerVillager;
         raiderCapMinPerVillage        = sr.raiderCapMinPerVillage;
         raiderCapMaxPerVillage        = sr.raiderCapMaxPerVillage;
@@ -2588,7 +2543,6 @@ public class TravellersModConfig {
         raiderRegionalRadius          = sr.raiderRegionalRadius;
         raiderLocalCap                = sr.raiderLocalCap;
         raiderLocalCapRadius          = sr.raiderLocalCapRadius;
-        raiderMaxPositionChecksPerAttempt = sr.raiderMaxPositionChecksPerAttempt;
 
         // SpawnWorkers
         workerMinPop                  = sw.workerMinPop;

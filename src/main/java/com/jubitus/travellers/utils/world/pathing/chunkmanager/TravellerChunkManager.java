@@ -6,7 +6,7 @@ import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
@@ -64,7 +64,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         long now = ws.getTotalWorldTime();
 
         // Virtual workers: simulate movement and handle materialization/virtualization
-        VirtualWorkerManager.get(ws).tick(ws, now);
+        VirtualTravellerManager.get(ws).tick(ws, now);
 
         // Morning tick: process barracks respawns and reconcile deleted barracks for online players
         if (TravellersModConfig.workerRespawnInBarracks) {
@@ -307,7 +307,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
             EntityTraveller t = (EntityTraveller) ent;
 
-            // Workers are managed by VirtualWorkerManager — skip offscreen hops for them
+            // Workers are managed by VirtualTravellerManager — skip offscreen hops for them
             if (t instanceof EntityTravellerWorker) continue;
 
             // 3) Skip if player is ACTUALLY watching (normal AI handles movement).

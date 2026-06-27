@@ -11,10 +11,10 @@ import java.util.UUID;
 
 public final class PathScheduler {
 
-    public static int GLOBAL_MAX_PATHS_PER_TICK = 280;
+    public static int GLOBAL_MAX_PATHS_PER_TICK = 160;
 
-    public static double OWNER_PATHS_PER_SECOND = 250.0;
-    public static double OWNER_MAX_BURST = 32.0;
+    public static double OWNER_PATHS_PER_SECOND = 120.0;
+    public static double OWNER_MAX_BURST = 20.0;
 
     public static int OWNER_STATE_EXPIRE_TICKS = 20 * 30;
     public static int FOLLOWER_STATE_EXPIRE_TICKS = 20 * 12;
@@ -180,7 +180,7 @@ public final class PathScheduler {
             return false;
         }
 
-        int lanes = 3;
+        int lanes = 4;
         int lane = Math.floorMod(followerEntityId * 17, lanes);
         int tickLane = (int) Math.floorMod(now, lanes);
 

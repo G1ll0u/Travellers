@@ -143,173 +143,110 @@ public class TravellersConfig {
     }
 
     public static class SpawnTravellers {
-        @Config.Comment("Max concurrently loaded travellers before soft spawner stops.")
+        @Config.Comment("Hard cap on concurrently loaded traveller entities. Vanilla spawn checks respect this.")
         @Config.RangeInt(min = 2, max = 2048)
         public int loadedTravellerCap = 64;
 
-        @Config.Comment("Minimum group size when spawning travellers.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int minGroupSizeAtSpawn = 2;
-
-        @Config.Comment("Maximum group size when spawning travellers.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int maxGroupSizeAtSpawn = 12;
-
-        @Config.Comment("Enable soft spawner for travellers.")
-        public boolean enableTravellerSoftSpawns = true;
-
-        @Config.Comment("Soft target for concurrently loaded travellers across all dimensions.")
-        @Config.RangeInt(min = 0, max = 500)
-        public int travellerTargetLoaded = 48;
-
-        @Config.Comment("How often (ticks) to attempt soft-spawning travellers.")
-        @Config.RangeInt(min = 1, max = 36000)
-        public int travellerTopUpEveryTicks = 300;
-
-        @Config.Comment("Spawn attempts per player each soft-spawn cycle.")
-        @Config.RangeInt(min = 0, max = 20)
-        public int travellerAttemptsPerPlayer = 1;
-
-        @Config.Comment("Minimum spawn distance from a player (blocks).")
-        @Config.RangeInt(min = 8, max = 512)
-        public int travellerSpawnMinDist = 64;
-
-        @Config.Comment("Maximum spawn distance from a player (blocks).")
-        @Config.RangeInt(min = 16, max = 1024)
-        public int travellerSpawnMaxDist = 128;
-
-        @Config.Comment("Minimum block light level at the spawn position.")
-        @Config.RangeInt(min = 0, max = 15)
-        public int travellerSpawnLightMin = 8;
-
-        @Config.Comment("Max random positions tested per soft-spawn attempt before giving up.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int travellerMaxPositionChecksPerAttempt = 4;
-
-        @Config.Comment("Base chance per anchor attempt, before density influence (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float travellerBaseSpawnChance = 0.6f;
-
-        @Config.Comment("Travellers per villager for dynamic world cap computation.")
+        @Config.Comment("Travellers per villager for global population formula: target = max(pop * perVillager, minPerVillage).")
         @Config.RangeDouble(min = 0.01, max = 10.0)
         public float travellerCapPerVillager = 1.0f / 3.0f;
 
-        @Config.Comment("Minimum travellers each village contributes to dynamic cap.")
+        @Config.Comment("Minimum travellers the global controller spawns per village, even if population is 0 or unloaded.")
         @Config.RangeInt(min = 0, max = 64)
         public int travellerCapMinPerVillage = 2;
 
-        @Config.Comment("Maximum travellers each village contributes to dynamic cap.")
+        @Config.Comment("Maximum travellers the global controller spawns per village.")
         @Config.RangeInt(min = 0, max = 64)
         public int travellerCapMaxPerVillage = 8;
 
-        @Config.Comment("Travellers each lone building contributes to dynamic cap.")
+        @Config.Comment("Travellers the global controller spawns per lone building.")
         @Config.RangeInt(min = 0, max = 4)
         public int travellerCapPerLoneBuilding = 1;
 
-        @Config.Comment("Global minimum for dynamic world traveller target.")
+        @Config.Comment("Global minimum traveller target across the whole world.")
         @Config.RangeInt(min = 0, max = 128)
         public int travellerCapGlobalMin = 4;
 
-        @Config.Comment("Global maximum for dynamic world traveller target.")
+        @Config.Comment("Global maximum traveller target across the whole world.")
         @Config.RangeInt(min = 0, max = 256)
         public int travellerCapGlobalMax = 1024;
 
-        @Config.Comment("Radius (blocks) for regional traveller cap computation around a player.")
+        @Config.Comment("Radius (blocks) used to compute regional traveller counts for /travellersinfo display.")
         @Config.RangeInt(min = 128, max = 8000)
         public int travellerRegionalRadius = 800;
 
-        @Config.Comment("Max travellers within local cap radius.")
+        @Config.Comment("Max travellers within local cap radius (vanilla spawn guard).")
         @Config.RangeInt(min = 1, max = 512)
         public int travellerLocalCap = 64;
 
-        @Config.Comment("Radius for local traveller cap check (blocks).")
+        @Config.Comment("Radius for local traveller cap check (blocks, vanilla spawn guard).")
         @Config.RangeInt(min = 32, max = 2048)
         public int travellerLocalCapRadius = 192;
 
-        @Config.Comment("Permille of eligible spawn attempts that actually place a traveller.")
-        @Config.RangeInt(min = 0, max = 1000)
-        public int travellerSpawnPermille = 120;
+        @Config.Comment("Chance (0-100) that a virtual traveller spawn event creates a group instead of a solo traveller.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int groupSpawnChance = 35;
+
+        @Config.Comment("Minimum group size when a traveller group spawns.")
+        @Config.RangeInt(min = 2, max = 12)
+        public int groupMinSize = 2;
+
+        @Config.Comment("Maximum group size for traveller groups.")
+        @Config.RangeInt(min = 2, max = 12)
+        public int groupMaxSize = 4;
     }
 
     public static class SpawnRaiders {
-        @Config.Comment("Max concurrently loaded raiders before soft spawner stops.")
+        @Config.Comment("Hard cap on concurrently loaded raider entities. Vanilla spawn checks respect this.")
         @Config.RangeInt(min = 1, max = 256)
         public int loadedRaiderCap = 64;
 
-        @Config.Comment("Minimum group size when spawning raiders.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int raiderMinGroup = 2;
-
-        @Config.Comment("Maximum group size when spawning raiders.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int raiderMaxGroup = 8;
-
-        @Config.Comment("Enable soft spawner for raiders.")
-        public boolean enableRaiderSoftSpawns = true;
-
-        @Config.Comment("Soft target for concurrently loaded raiders across all dimensions.")
-        @Config.RangeInt(min = 0, max = 200)
-        public int raiderTargetLoaded = 16;
-
-        @Config.Comment("How often (ticks) to attempt soft-spawning raiders.")
-        @Config.RangeInt(min = 1, max = 36000)
-        public int raiderTopUpEveryTicks = 400;
-
-        @Config.Comment("Spawn attempts per player each soft-spawn cycle for raiders.")
-        @Config.RangeInt(min = 0, max = 10)
-        public int raiderAttemptsPerPlayer = 2;
-
-        @Config.Comment("Chance per soft-spawn attempt that raiders are actually placed (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float raiderSoftSpawnChancePerAttempt = 1.0f;
-
-        @Config.Comment("Minimum spawn distance from a player for raiders (blocks).")
-        @Config.RangeInt(min = 8, max = 1024)
-        public int raiderSpawnMinDist = 96;
-
-        @Config.Comment("Maximum spawn distance from a player for raiders (blocks).")
-        @Config.RangeInt(min = 16, max = 2048)
-        public int raiderSpawnMaxDist = 320;
-
-        @Config.Comment("Minimum distance from Millenaire village centers where raiders cannot soft-spawn.")
+        @Config.Comment("Minimum distance (blocks) from any village center where raiders are forbidden to spawn virtually.")
         @Config.RangeInt(min = 16, max = 512)
         public int raiderMinVillageDistance = 160;
 
-        @Config.Comment("Base chance per raider soft-spawn attempt before density multiplier (0.0–1.0).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float raiderBaseSpawnChance = 0.65f;
-
-        @Config.Comment("Raiders per villager for dynamic regional cap computation.")
+        @Config.Comment("Raiders per villager for global population formula: target = max(pop * perVillager, minPerVillage).")
         @Config.RangeDouble(min = 0.01, max = 10.0)
         public float raiderCapPerVillager = 0.15f;
 
-        @Config.Comment("Minimum raiders each village contributes to regional cap.")
+        @Config.Comment("Minimum raiders the global controller spawns per village, even if population is 0 or unloaded.")
         @Config.RangeInt(min = 0, max = 32)
         public int raiderCapMinPerVillage = 1;
 
-        @Config.Comment("Maximum raiders each village contributes to regional cap.")
+        @Config.Comment("Maximum raiders the global controller spawns per village.")
         @Config.RangeInt(min = 0, max = 32)
         public int raiderCapMaxPerVillage = 12;
 
-        @Config.Comment("Raiders each lone building contributes to regional cap.")
+        @Config.Comment("Raiders the global controller spawns per lone building.")
         @Config.RangeInt(min = 0, max = 4)
         public int raiderCapPerLoneBuilding = 1;
 
-        @Config.Comment("Radius (blocks) for regional raider cap computation around a player.")
+        @Config.Comment("Radius (blocks) used to compute regional raider counts for /travellersinfo display.")
         @Config.RangeInt(min = 128, max = 8000)
         public int raiderRegionalRadius = 600;
 
-        @Config.Comment("Max raiders within local cap radius.")
+        @Config.Comment("Max raiders within local cap radius (vanilla spawn guard).")
         @Config.RangeInt(min = 1, max = 512)
         public int raiderLocalCap = 64;
 
-        @Config.Comment("Radius for local raider cap check (blocks).")
+        @Config.Comment("Radius for local raider cap check (blocks, vanilla spawn guard).")
         @Config.RangeInt(min = 32, max = 2048)
         public int raiderLocalCapRadius = 192;
 
-        @Config.Comment("Max random positions tested per raider soft-spawn attempt.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int raiderMaxPositionChecksPerAttempt = 4;
+        @Config.Comment("If true, raiders use the Ultreia/MPB road network for both real and virtual travel. False = raiders roam freely off-road.")
+        public boolean raidersUseUltreiaPaths = false;
+
+        @Config.Comment("Chance (0-100) that a virtual raider spawn event creates a group instead of a solo raider.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int groupSpawnChance = 50;
+
+        @Config.Comment("Minimum group size when a raider group spawns.")
+        @Config.RangeInt(min = 2, max = 12)
+        public int groupMinSize = 2;
+
+        @Config.Comment("Maximum group size for raider groups.")
+        @Config.RangeInt(min = 2, max = 12)
+        public int groupMaxSize = 5;
     }
 
     public static class SpawnWorkers {
@@ -692,6 +629,21 @@ public class TravellersConfig {
 
         @Config.Comment("Allow travellers to chunk-load areas along their path.")
         public boolean allowTravellerChunkLoading = true;
+
+        @Config.Comment("Enable the world-wide global population controller that keeps travellers and raiders populated across all settlements, even when chunks are unloaded.")
+        public boolean globalPopulationEnabled = true;
+
+        @Config.Comment("How often (in ticks) the global population controller runs. Lower = faster repopulation after reset, higher CPU cost.")
+        @Config.RangeInt(min = 40, max = 12000)
+        public int globalPopulationRefreshTicks = 200;
+
+        @Config.Comment("Hard cap on total virtual travellers + raiders. Prevents runaway growth.")
+        @Config.RangeInt(min = 0, max = 10000)
+        public int globalPopulationCap = 2000;
+
+        @Config.Comment("Max virtual traveller/raider records spawned per refresh cycle. Higher = faster recovery after /travellersdebug reset.")
+        @Config.RangeInt(min = 1, max = 500)
+        public int globalPopulationMaxSpawnsPerCycle = 60;
     }
 
     public static class Travel {
@@ -759,6 +711,10 @@ public class TravellersConfig {
         @Config.Comment("Minimum ticks before another shout is allowed within the same 64-block zone (prevents group spam).")
         @Config.RangeInt(min = 40, max = 12000)
         public int attackSoundZoneCooldownTicks = 40;
+
+        @Config.Comment("Maximum new sounds that can start in a single tick (throttle to prevent audio spam).")
+        @Config.RangeInt(min = 1, max = 20)
+        public int maxNewSoundsPerTick = 5;
 
         @Config.Comment("Volume for attack shout voice lines. Values above 1.0 extend audible range with SoundPhysics.")
         @Config.RangeDouble(min = 0.0, max = 8.0)

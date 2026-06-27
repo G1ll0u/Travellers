@@ -1,8 +1,8 @@
 package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerRecord;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
@@ -93,8 +93,8 @@ public class MsgWorkerGetEquipment implements IMessage {
 
                 // Try virtual record
                 WorldServer overworld = srv.worlds[0];
-                VirtualWorkerManager vwm = VirtualWorkerManager.get(overworld);
-                VirtualWorkerRecord r = vwm.getRecord(msg.workerUUID);
+                VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
+                VirtualTravellerRecord r = vwm.getRecord(msg.workerUUID);
                 if (r == null || !ownerId.equals(r.followOwnerUUID)) return;
 
                 EntityTravellerWorker temp = new EntityTravellerWorker(overworld);

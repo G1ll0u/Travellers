@@ -13,7 +13,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 
 import java.util.List;
 import java.util.Objects;
@@ -121,7 +121,7 @@ public class MsgMakeWorkerLeader implements IMessage {
                         }
                     }
 
-                    VirtualWorkerManager vwm = VirtualWorkerManager.get(player.getServerWorld());
+                    VirtualTravellerManager vwm = VirtualTravellerManager.get(player.getServerWorld());
                     assigned += vwm.cmdMakeLeader(leaderId, ownerId);
 
                     if (assigned > 0) {

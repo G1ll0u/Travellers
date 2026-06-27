@@ -258,7 +258,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         removeTaskOfType(EntityAIRoamInsideVillage.class);
         removeTaskOfType(EntityAITravel.class);
-        removeTaskOfType(EntityAIFollowTraveller.class);
+        removeTaskOfType(EntityAIFollowGroupLeader.class);
         removeTaskOfType(EntityAICampJoinFire.class);
         removeTaskOfType(EntityAICampPause.class);
         removeTaskOfType(EntityAIStopAndLookAtPlayer.class);
@@ -2618,8 +2618,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
 
             if (!world.isRemote && world instanceof net.minecraft.world.WorldServer) {
-                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager vwm =
-                        com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager
+                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager vwm =
+                        com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager
                                 .get((net.minecraft.world.WorldServer) world);
                 if (vwm.isVirtual(leaderId)) {
                     // Leader is in the virtual registry (either still in entity list with isDead,
@@ -3143,7 +3143,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         return true;
     }
 
-    /** Called by VirtualWorkerManager after a virtual equipment exchange. */
+    /** Called by VirtualTravellerManager after a virtual equipment exchange. */
     public void finishGetEquipVirtually(boolean stay, BlockPos target) {
         if (stay) {
             mode = WorkerMode.IDLE;
@@ -3456,8 +3456,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Always check virtual registry first: setDead() leaves the entity in the loaded
         // list for 1+ ticks with isDead=true, which would incorrectly look like a dead leader.
         if (world instanceof net.minecraft.world.WorldServer) {
-            com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager vwm =
-                    com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager
+            com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager vwm =
+                    com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager
                             .get((net.minecraft.world.WorldServer) world);
             if (vwm.isVirtual(leaderId)) {
                 // Leader is virtual and alive; keep escort UUID
@@ -3498,8 +3498,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (leaderId == null) return;
         if (!(world instanceof net.minecraft.world.WorldServer)) return;
 
-        com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager vwm =
-                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualWorkerManager
+        com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager vwm =
+                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager
                         .get((net.minecraft.world.WorldServer) world);
         if (!vwm.isVirtual(leaderId)) return;
 
