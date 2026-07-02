@@ -21,6 +21,7 @@ public class TravellersConfig {
     public static final Sound SOUND = new Sound();
     public static final Choir CHOIR = new Choir();
     public static final Camp CAMP = new Camp();
+    public static final CampEvents CAMP_EVENTS = new CampEvents();
     public static final Fishing FISHING = new Fishing();
     public static final ControlledVillage CONTROLLED_VILLAGE = new ControlledVillage();
     public static final Worker WORKER = new Worker();
@@ -858,6 +859,76 @@ public class TravellersConfig {
         @Config.Comment("Per-tick chance (0–1) that a traveller starts a camp when conditions are met.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public float campStartChancePerTick = 0.0008f;
+    }
+
+    // New offscreen-capable camp event system (travellers + raiders). Independent from the legacy Camp class above.
+    public static class CampEvents {
+        @Config.Comment("Master switch for the new offscreen-capable camp event system.")
+        public boolean enabled = true;
+
+        @Config.Comment("Radius (blocks) of a campsite: shelters and firepit are placed within this distance of the center.")
+        @Config.RangeInt(min = 4, max = 32)
+        public int campsiteRadius = 10;
+
+        @Config.Comment("Minimum distance (blocks) between two campsites.")
+        @Config.RangeInt(min = 16, max = 2048)
+        public int campsiteMinSpacing = 256;
+
+        @Config.Comment("Campsites are never discovered closer than this (blocks) to any Millenaire village.")
+        @Config.RangeInt(min = 0, max = 2048)
+        public int campsiteMinVillageDistance = 300;
+
+        @Config.Comment("Max chunk-discovery probes processed per server tick (keeps exploration cheap).")
+        @Config.RangeInt(min = 1, max = 64)
+        public int discoveryProbesPerTick = 4;
+
+        @Config.Comment("Chance (0-1) that an eligible freshly-loaded chunk is registered as a campsite candidate.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double discoveryChancePerChunk = 0.02;
+
+        @Config.Comment("A campsite must hold at least this many valid shelter slots to be kept.")
+        @Config.RangeInt(min = 1, max = 16)
+        public int minShelterSlots = 2;
+
+        @Config.Comment("Maximum shelter slots recorded per campsite.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int maxShelterSlots = 6;
+
+        @Config.Comment("Minimum gap (blocks) between two shelter footprints in a campsite.")
+        @Config.RangeInt(min = 0, max = 8)
+        public int shelterGap = 1;
+
+        @Config.Comment("Max ground-height variation (blocks) tolerated across a footprint; the footprint is graded flat when a shelter is built. Higher = works on rougher (RTG/modded) terrain.")
+        @Config.RangeInt(min = 0, max = 6)
+        public int flatTolerance = 3;
+
+        @Config.Comment("How close (blocks) a traveller must pass a campsite center to consider stopping.")
+        @Config.RangeInt(min = 4, max = 128)
+        public int campSeekRadius = 32;
+
+        @Config.Comment("Chance (0-1) that a traveller passing a campsite during the day stops to camp.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double daytimeStopChance = 0.15;
+
+        @Config.Comment("Minimum daytime camp pause, in ticks (20 ticks = 1s).")
+        @Config.RangeInt(min = 20, max = 240000)
+        public int daytimePauseMinTicks = 2400;
+
+        @Config.Comment("Maximum daytime camp pause, in ticks.")
+        @Config.RangeInt(min = 20, max = 240000)
+        public int daytimePauseMaxTicks = 7200;
+
+        @Config.Comment("Ticks between each block placed/removed by a loaded traveller building or tearing down its shelter (20 ticks = 1s). Default: ~1 block every half second.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int buildTicksPerBlock = 10;
+
+        @Config.Comment("Ticks per block of construction/teardown progress for camps with no traveller loaded nearby (virtual/offscreen). Same pace as buildTicksPerBlock by default.")
+        @Config.RangeInt(min = 1, max = 2000)
+        public int virtualBuildTicksPerBlock = 10;
+
+        @Config.Comment("Horizontal (X/Z only) distance a traveller must be within to place or break the next block of its shelter without repositioning.")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double buildReachDistance = 4.0;
     }
 
     public static class Fishing {

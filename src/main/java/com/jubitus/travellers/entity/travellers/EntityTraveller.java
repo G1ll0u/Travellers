@@ -661,7 +661,10 @@ public class EntityTraveller extends EntityCreature {
         autoEatTask = new EntityAIAutoEat(this, TravellersModConfig.eatHealthThreshold);
         this.tasks.addTask(8, autoEatTask);
 
-        if (TravellersModConfig.campsEnabled) {
+        if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
+            // New camp event system: keep occupants at their slot (build is handled by the manager).
+            this.tasks.addTask(6, new com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampStay(this));
+        } else if (TravellersModConfig.campsEnabled) {
             this.tasks.addTask(6, new EntityAICampPause(this));                       // leader
             this.tasks.addTask(7, new EntityAICampJoinFire(this, 0.34D)); // joiner
         }
@@ -2020,6 +2023,9 @@ public void fall(float distance, float damageMultiplier) {
                     new MsgStopTravellerVoice(this),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             travellerCamp.cleanupOwnedCampfireIfAny();
+            // Camp event system: free this traveller's slot so the camp updates / can be reused.
+            com.jubitus.travellers.utils.world.camp.CampsiteManager.get((net.minecraft.world.WorldServer) world)
+                    .releaseOccupant(this.getUniqueID());
         }
         tryPlayDeathSound();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {

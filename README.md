@@ -51,6 +51,12 @@ The mod also adds a hostile variant:
 
 * **Raider** (`travellers:traveller_raider`) travels like a Traveller, but **attacks players and Millénaire villagers**.
 
+### Camps
+
+Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild, away from villages. Watch closely and you'll see a traveller actually **build its shelter block by block**, swinging its arm as it goes, before finally lighting the campfire. When it's time to leave, it **tears the shelter back down** the same way, and the last one to leave puts out the fire.
+
+This all keeps happening even when you're not there to watch — camps quietly progress in the background and pick up right where they left off (mid-build, mid-teardown, whatever) the next time you wander back.
+
 ---
 
 ## Henchmen
@@ -153,7 +159,7 @@ Travellers may sometimes cause these logs to appear :
 
 You can ignore it.
 
-### Big thanks
+## Big thanks
 
 **@Aidan** from the Millénaire Discord for beta testing and finding lots of bugs!
 Aidan is the guy that reported the worst bugs, he helped me a lot thanks to him.
@@ -163,8 +169,11 @@ Joshy is this guy that complains
 
 **@Shwartz** from the Millénaire Discord for the Huari, Japanese, and Norman (default) backpack models!
 
-### AI Disclosure
+## AI Disclosure
 
 Yeah my friend Claude Code helped me doing this project in 1 year instead of never even trying doing it.
 You can freely screenshot this part and tell people it's AI slop.
 
+## AI Art disclosure
+
+No AI generated art has been used in this mod. Every resource, from audio to textures are hand-made.

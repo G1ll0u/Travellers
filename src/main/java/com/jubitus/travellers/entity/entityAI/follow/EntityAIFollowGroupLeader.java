@@ -1,11 +1,14 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.utils.world.camp.CampsiteManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -33,6 +36,10 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
     private double lastProgressZ;
     private boolean hasProgressAnchor;
 
+    // Cached leader-camping check (campOf iterates camp occupants — refreshed every 10 ticks).
+    private int campCheckCooldown = 0;
+    private boolean leaderIsCamping = false;
+
     public EntityAIFollowGroupLeader(EntityTraveller follower, double speed) {
         this.follower = follower;
         this.speed = speed;
@@ -45,7 +52,8 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         EntityTraveller l = resolveLeader();
         if (l == null) return false;
         this.leader = l;
-        // Always active when leader is alive — prevents EntityAITravel from overriding follow.
+        // Yield to EntityAICampStay when the leader is camping.
+        if (isLeaderCamping()) return false;
         return true;
     }
 
@@ -53,6 +61,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
     public boolean shouldContinueExecuting() {
         if (leader == null || leader.isDead) return false;
         if (follower.getAttackTarget() != null && !follower.getAttackTarget().isDead) return false;
+        if (isLeaderCamping()) return false;
         return true;
     }
 
@@ -68,6 +77,8 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         follower.getNavigator().clearPath();
         leader = null;
         hasProgressAnchor = false;
+        campCheckCooldown = 0;
+        leaderIsCamping = false;
     }
 
     @Override
@@ -184,6 +195,17 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
             return standPos;
         }
         return null;
+    }
+
+    private boolean isLeaderCamping() {
+        if (!TravellersConfig.CAMP_EVENTS.enabled || follower.world.isRemote || leader == null) return false;
+        if (campCheckCooldown > 0) {
+            campCheckCooldown--;
+            return leaderIsCamping;
+        }
+        leaderIsCamping = CampsiteManager.get((WorldServer) follower.world).campOf(leader.getUniqueID()) != null;
+        campCheckCooldown = 10;
+        return leaderIsCamping;
     }
 
     @Nullable

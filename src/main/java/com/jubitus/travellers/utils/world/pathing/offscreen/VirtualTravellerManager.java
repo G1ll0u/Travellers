@@ -6,6 +6,9 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.utils.world.MPBIntegration;
+import com.jubitus.travellers.utils.world.camp.CampOccupant;
+import com.jubitus.travellers.utils.world.camp.CampsiteManager;
+import com.jubitus.travellers.utils.world.camp.CampsiteRecord;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import net.minecraft.entity.Entity;
@@ -150,9 +153,85 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
     }
 
+    /**
+     * Returns true if the record is camping (halted at its slot) this tick. Also self-heals: if the
+     * occupant is gone (departed/evicted), clears the cache and returns false so travel resumes.
+     */
+    private boolean handleCamp(WorldServer world, VirtualTravellerRecord r) {
+        CampsiteManager cm = CampsiteManager.get(world);
+        if (r.campSiteId != null) {
+            CampsiteRecord camp = cm.getById(r.campSiteId);
+            CampOccupant occ = camp != null ? camp.occupants.get(r.campSlotIndex) : null;
+            if (occ == null || !occ.travellerUUID.equals(r.uuid)) {
+                r.campSiteId = null;
+                r.campSlotIndex = -1;
+                r.campCooldownUntil = world.getTotalWorldTime() + 1200L; // ~1 min before camping again
+                return false; // resume normal routing
+            }
+            BlockPos sp = cm.slotStandPos(r.campSiteId, r.campSlotIndex);
+            if (sp != null) {
+                r.posX = sp.getX() + 0.5;
+                r.posY = sp.getY();
+                r.posZ = sp.getZ() + 0.5;
+                r.goal = sp;
+            }
+            return true;
+        }
+        return tryCampClaim(world, r, cm);
+    }
+
+    /** Attempts to claim a campsite for a passing traveller/raider. Groups join their leader's camp. */
+    private boolean tryCampClaim(WorldServer world, VirtualTravellerRecord r, CampsiteManager cm) {
+        if (!TravellersConfig.CAMP_EVENTS.enabled) return false;
+        if (world.getTotalWorldTime() < r.campCooldownUntil) return false; // just left a camp
+
+        CampsiteRecord camp;
+        if (r.groupLeaderUUID != null) {
+            // Follower: only camp if the leader is already camping, and join that exact site.
+            VirtualTravellerRecord leader = records.get(r.groupLeaderUUID);
+            if (leader == null || leader.campSiteId == null) return false;
+            camp = cm.getById(leader.campSiteId);
+            if (camp == null || !camp.canClaim(r.entityClass)) return false;
+        } else {
+            camp = cm.findClaimable(r.dimension, r.posX, r.posZ, r.entityClass,
+                    TravellersConfig.CAMP_EVENTS.campSeekRadius);
+            if (camp == null) return false;
+            // Night: always stop. Day: roll the configured chance. Followers skip this (they follow the leader).
+            if (!CampsiteManager.isNight(world)
+                    && world.rand.nextDouble() >= TravellersConfig.CAMP_EVENTS.daytimeStopChance) {
+                return false;
+            }
+        }
+
+        String culture = r.entityNbt != null ? r.entityNbt.getString("CultureId") : "";
+        long now = world.getTotalWorldTime();
+        // Followers use the leader's departTick so the whole group leaves together.
+        long depart = CampsiteManager.computeDepartTick(world, now);
+        if (r.groupLeaderUUID != null) {
+            for (com.jubitus.travellers.utils.world.camp.CampOccupant o : camp.occupants.values()) {
+                if (o.travellerUUID.equals(r.groupLeaderUUID)) { depart = o.departTick; break; }
+            }
+        }
+        int slot = cm.claim(camp, r.uuid, r.entityClass, culture, now, depart);
+        if (slot < 0) return false;
+
+        r.campSiteId = camp.id;
+        r.campSlotIndex = slot;
+        BlockPos sp = cm.slotStandPos(camp.id, slot);
+        if (sp != null) {
+            r.posX = sp.getX() + 0.5;
+            r.posY = sp.getY();
+            r.posZ = sp.getZ() + 0.5;
+            r.goal = sp;
+        }
+        return true;
+    }
+
     private void refreshGoal(WorldServer world, VirtualTravellerRecord r) {
         // Non-worker travellers/raiders: advance through route, replan at end
         if (!"WORKER".equals(r.entityClass)) {
+            // Camp lifecycle takes priority: halt at the slot while camping, or claim a passing campsite.
+            if (handleCamp(world, r)) return;
             // Group follower: track leader's virtual position directly
             if (r.groupLeaderUUID != null) {
                 VirtualTravellerRecord leaderRec = records.get(r.groupLeaderUUID);
@@ -726,6 +805,18 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.entityClass = entity instanceof EntityTravellerRaider ? "RAIDER" : "TRAVELLER";
         r.groupLeaderUUID = entity.getGroupLeaderUUID();
 
+        // Re-derive camp occupation from the campsite (the occupant is the source of truth).
+        CampsiteRecord camp = CampsiteManager.get(world).campOf(entity.getUniqueID());
+        if (camp != null) {
+            for (Map.Entry<Integer, CampOccupant> e : camp.occupants.entrySet()) {
+                if (e.getValue().travellerUUID.equals(entity.getUniqueID())) {
+                    r.campSiteId = camp.id;
+                    r.campSlotIndex = e.getKey();
+                    break;
+                }
+            }
+        }
+
         // Assign home village so runVirtualPopulationTopUp doesn't over-spawn for this village.
         // Use the entity's origin village if available, otherwise the nearest known village.
         com.jubitus.travellers.utils.world.mill.MillVillageIndex.VillageInfo nearest =
@@ -774,11 +865,34 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
 
         if ("TRAVELLER".equals(r.entityClass) || "RAIDER".equals(r.entityClass)) {
+            // Camping entity: spawn inside its slot on a real floor (never legs-in-ground or floating).
+            BlockPos campStand = null;
+            if (r.campSiteId != null) {
+                CampsiteManager campMgr = CampsiteManager.get(world);
+                campStand = campMgr.slotStandPos(r.campSiteId, r.campSlotIndex);
+                if (campStand != null) {
+                    // If the shelter is already in the world, spawn at the entrance (outside the
+                    // footprint) so the entity never materializes inside a wall and suffocates.
+                    CampsiteRecord campRec = campMgr.getById(r.campSiteId);
+                    com.jubitus.travellers.utils.world.camp.CampOccupant occ =
+                            campRec != null ? campRec.occupants.get(r.campSlotIndex) : null;
+                    BlockPos spawnPos = (occ != null && occ.hasAnyStructure())
+                            ? campMgr.slotApproachPos(r.campSiteId, r.campSlotIndex)
+                            : campStand;
+                    if (spawnPos == null) spawnPos = campStand;
+                    double cy = MaterializePositionResolver.findSafeFloorY(
+                            world, spawnPos.getX(), spawnPos.getZ(), spawnPos.getY());
+                    cy = MaterializePositionResolver.ensureNotInSolid(world, spawnPos.getX(), cy, spawnPos.getZ());
+                    pos = new MaterializePositionResolver.ResolvedPosition(spawnPos.getX() + 0.5, cy, spawnPos.getZ() + 0.5);
+                }
+            }
+
             // For travellers on an MPB route, snap spawn position to the nearest road point.
             // This makes the entity appear on the road it was virtually walking, rather than
             // slightly beside it (virtual movement interpolates linearly between road waypoints).
             // Raiders are excluded because they don't use roads.
-            if ("TRAVELLER".equals(r.entityClass)
+            if (campStand == null
+                    && "TRAVELLER".equals(r.entityClass)
                     && MPBIntegration.PRESENT
                     && !r.travelRoute.isEmpty()) {
                 BlockPos roadPos = MPBIntegration.findNearestRoadPos(world, bx, bz, 24);
@@ -803,10 +917,15 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (r.groupLeaderUUID != null) {
                 entity.setGroupLeaderUUID(r.groupLeaderUUID);
             }
-            // Restore only the final destination — EntityAITravel + MPBRouteTracker replans
-            // a fresh road route from the spawn point. Passing the full MPB waypoint list
-            // would cause readyToDepart to toggle on a road waypoint (not a village), breaking Roam AI.
-            if (!r.travelRoute.isEmpty()) {
+            if (campStand != null) {
+                // Camping: stay put at the slot. Real camp behaviour (build/sleep/wander) is AI (P4).
+                entity.setReadyToDepart(false);
+                entity.setVillageIdling(true);
+                entity.setVillageIdleTicks(0);
+            } else if (!r.travelRoute.isEmpty()) {
+                // Restore only the final destination — EntityAITravel + MPBRouteTracker replans
+                // a fresh road route from the spawn point. Passing the full MPB waypoint list
+                // would cause readyToDepart to toggle on a road waypoint (not a village), breaking Roam AI.
                 BlockPos dest = r.travelRoute.get(r.travelRoute.size() - 1);
                 entity.restoreVirtualRoute(java.util.Collections.singletonList(dest), 0);
             } else {

@@ -66,6 +66,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // Virtual workers: simulate movement and handle materialization/virtualization
         VirtualTravellerManager.get(ws).tick(ws, now);
 
+        // Campsite discovery probes + camp lifecycle (budgeted, no chunk force-loading)
+        com.jubitus.travellers.utils.world.camp.CampsiteManager.get(ws).tick(ws, now);
+
         // Morning tick: process barracks respawns and reconcile deleted barracks for online players
         if (TravellersModConfig.workerRespawnInBarracks) {
             long currentDay = ws.getWorldTime() / 24000L;

@@ -81,6 +81,13 @@ public class VirtualTravellerRecord {
     // Non-null for traveller/raider group followers: UUID of the group leader they must track.
     @Nullable public UUID groupLeaderUUID;
 
+    // Camp occupation cache (P3). The campsite occupant is the source of truth; these are re-derived
+    // on virtualize. When set, the entity halts its route and sits at its slot.
+    @Nullable public UUID campSiteId;
+    public int campSlotIndex = -1;
+    // Transient: blocks re-claiming a camp right after leaving one (prevents daytime loitering).
+    public long campCooldownUntil = 0L;
+
     // Cached display data for the worldmap (set at virtualization)
     public String name = "";
     public int ownerColor = 0xFFFFFF;
@@ -148,6 +155,10 @@ public class VirtualTravellerRecord {
         tag.setString("EC", entityClass);
         tag.setInteger("RI", routeIndex);
         if (groupLeaderUUID != null) tag.setString("GroupLeader", groupLeaderUUID.toString());
+        if (campSiteId != null) {
+            tag.setString("CampSite", campSiteId.toString());
+            tag.setInteger("CampSlot", campSlotIndex);
+        }
         if (!travelRoute.isEmpty()) {
             NBTTagList routeList = new NBTTagList();
             for (BlockPos p : travelRoute) {
@@ -203,6 +214,10 @@ public class VirtualTravellerRecord {
         r.entityClass = tag.hasKey("EC") ? tag.getString("EC") : "WORKER";
         r.routeIndex = tag.hasKey("RI") ? tag.getInteger("RI") : -1;
         if (tag.hasKey("GroupLeader")) r.groupLeaderUUID = UUID.fromString(tag.getString("GroupLeader"));
+        if (tag.hasKey("CampSite")) {
+            r.campSiteId = UUID.fromString(tag.getString("CampSite"));
+            r.campSlotIndex = tag.getInteger("CampSlot");
+        }
         if (tag.hasKey("TR", 9)) {
             NBTTagList routeList = tag.getTagList("TR", 11);
             for (int i = 0; i < routeList.tagCount(); i++) {

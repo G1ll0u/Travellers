@@ -71,6 +71,7 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerCount());
         event.registerServerCommand(new CommandMountTraveller());
         event.registerServerCommand(new CommandTravellerDebug());
+        event.registerServerCommand(new com.jubitus.travellers.utils.commands.CommandTravellersShelter());
         event.registerServerCommand(new CommandDumpCultureItems());
         event.registerServerCommand(new CommandMillDump());
         event.registerServerCommand(new CommandMillNearestVillageDump());
@@ -129,6 +130,7 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
         MinecraftForge.EVENT_BUS.register(MobTargetInjector.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
+        MinecraftForge.EVENT_BUS.register(new com.jubitus.travellers.utils.world.camp.CampsiteDiscoveryHandler());
 
 
         if (event.getSide().isClient()) {
