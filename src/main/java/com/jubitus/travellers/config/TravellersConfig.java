@@ -56,17 +56,21 @@ public class TravellersConfig {
         @Config.Comment("Show name tags above travellers heads.")
         public boolean showTravellerNames = false;
 
-        @Config.Comment("How often (in ticks) the normal map tiles (64x64) are generated. Lower = faster generation, higher CPU cost. Default: 20 (1s).")
+        @Config.Comment("How often (in ticks) the normal map tiles (64x64) are generated. Lower = faster generation, higher CPU cost. Chunk-load pregen already keeps most tiles pre-filled, so this mostly does cheap no-op scans. Default: 10 (0.5s).")
         @Config.RangeInt(min = 1, max = 200)
-        public int mapTileGenIntervalTicks = 20;
+        public int mapTileGenIntervalTicks = 10;
 
         @Config.Comment("How often (in ticks) the normal map tiles are refreshed to reflect terrain changes. Default: 10 (0.5s).")
         @Config.RangeInt(min = 1, max = 200)
         public int mapTileRefreshIntervalTicks = 10;
 
-        @Config.Comment("How often (in ticks) detail map tiles (256x256, 1px=1block) are generated. Lower = faster, higher CPU cost. Default: 40 (2s).")
+        @Config.Comment("Pixels re-sampled per normal tile per refresh run. Higher = faster terrain updates, higher CPU cost. Default: 512.")
+        @Config.RangeInt(min = 16, max = 4096)
+        public int mapTileRefreshPixelsPerRun = 512;
+
+        @Config.Comment("How often (in ticks) detail map tiles (256x256, 1px=1block) are generated. Lower = faster, higher CPU cost. Chunk-load pregen already keeps most tiles pre-filled, so this mostly does cheap no-op scans. Default: 20 (1s).")
         @Config.RangeInt(min = 1, max = 400)
-        public int mapDetailGenIntervalTicks = 40;
+        public int mapDetailGenIntervalTicks = 20;
 
         @Config.Comment("Max pixels filled per detail tile generation run. Higher = faster fill, higher CPU spike. Default: 4096.")
         @Config.RangeInt(min = 64, max = 65536)
@@ -79,6 +83,13 @@ public class TravellersConfig {
         @Config.Comment("Pixels re-sampled per detail tile per refresh run. Higher = faster terrain updates, higher CPU cost. Default: 2048.")
         @Config.RangeInt(min = 16, max = 65536)
         public int mapDetailRefreshPixelsPerRun = 2048;
+
+        @Config.Comment("Opportunistically fill the shared map tile cache whenever a chunk loads (player exploring, worker travel, or a world pregeneration tool). Never affects per-player fog of war.")
+        public boolean mapPregenOnChunkLoadEnabled = true;
+
+        @Config.Comment("Max chunks processed per server tick by the chunk-load map pregen. Caps CPU cost if many chunks load at once (e.g. a bulk world pregeneration tool).")
+        @Config.RangeInt(min = 1, max = 2048)
+        public int mapPregenMaxChunksPerTick = 64;
     }
 
     public static class Spawn {
@@ -263,11 +274,11 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 16)
         public int workerMaxPerVillage = 8;
 
-        @Config.Comment("How often (ticks) villages are re-scanned for worker assignment.")
-        @Config.RangeInt(min = 1, max = 72000)
-        public int workerRecheckEveryTicks = 200;
+        @Config.Comment("Workers the global population controller spawns per lone building.")
+        @Config.RangeInt(min = 0, max = 4)
+        public int workerCapPerLoneBuilding = 0;
 
-        @Config.Comment("Max concurrently loaded workers in this world (0 = no limit).")
+        @Config.Comment("Hard cap on total workers (virtual + loaded) spawned by the population controller. Does not count hired workers assigned via the barracks/recruitment flow beyond their home village's own target.")
         @Config.RangeInt(min = 0, max = 2048)
         public int workerLoadedCap = 1024;
 
@@ -443,20 +454,19 @@ public class TravellersConfig {
 
         @Config.Comment("Max engagement radius for workers in anchor/stay mode.")
         @Config.RangeInt(min = 3, max = 64)
-        public int anchorModeEngageRadius = 12;
+        public int anchorModeEngageRadius = 8;
 
         @Config.Comment("Max engagement radius for entities in low-health defensive mode.")
         @Config.RangeInt(min = 2, max = 16)
         public int lowHealthEngageRadius = 5;
 
-        @Config.Comment("Require a valid path before acquiring aggro on a target.")
-        public boolean requirePathForAggro = true;
+        @Config.Comment("Ticks a traveller keeps chasing an attack target after losing sight/proximity of it, before giving up (unless it dies or leaves attackTriggerRange first).")
+        @Config.RangeInt(min = 0, max = 400)
+        public int losMemoryTicks = 60;
 
-        @Config.Comment("Require line-of-sight for memory targets (recalled after a break).")
-        public boolean requireLOSForMemoryTargets = true;
-
-        @Config.Comment("Require line-of-sight when chaining aggro from allies.")
-        public boolean requireLOSForChainTargets = true;
+        @Config.Comment("Minimum ticks a melee attacker holds its slot on a target before it can be evicted by a better-placed attacker (prevents mid-chase eviction in crowded fights).")
+        @Config.RangeInt(min = 0, max = 400)
+        public int engagementGraceTicks = 60;
 
         @Config.Comment("View radius (blocks) for off-screen traveller entities.")
         @Config.RangeDouble(min = 16.0, max = 1024.0)
@@ -867,12 +877,12 @@ public class TravellersConfig {
         public boolean enabled = true;
 
         @Config.Comment("Radius (blocks) of a campsite: shelters and firepit are placed within this distance of the center.")
-        @Config.RangeInt(min = 4, max = 32)
-        public int campsiteRadius = 10;
+        @Config.RangeInt(min = 4, max = 64)
+        public int campsiteRadius = 16;
 
         @Config.Comment("Minimum distance (blocks) between two campsites.")
         @Config.RangeInt(min = 16, max = 2048)
-        public int campsiteMinSpacing = 256;
+        public int campsiteMinSpacing = 128;
 
         @Config.Comment("Campsites are never discovered closer than this (blocks) to any Millenaire village.")
         @Config.RangeInt(min = 0, max = 2048)
@@ -891,8 +901,8 @@ public class TravellersConfig {
         public int minShelterSlots = 2;
 
         @Config.Comment("Maximum shelter slots recorded per campsite.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int maxShelterSlots = 6;
+        @Config.RangeInt(min = 1, max = 256)
+        public int maxShelterSlots = 64;
 
         @Config.Comment("Minimum gap (blocks) between two shelter footprints in a campsite.")
         @Config.RangeInt(min = 0, max = 8)
@@ -922,13 +932,41 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 200)
         public int buildTicksPerBlock = 10;
 
-        @Config.Comment("Ticks per block of construction/teardown progress for camps with no traveller loaded nearby (virtual/offscreen). Same pace as buildTicksPerBlock by default.")
+        @Config.Comment("Ticks per block of construction/teardown progress for camps with no traveller loaded nearby (virtual/offscreen). Loaded builders also spend time walking between placements, so this should be higher than buildTicksPerBlock for a comparable overall pace.")
         @Config.RangeInt(min = 1, max = 2000)
-        public int virtualBuildTicksPerBlock = 10;
+        public int virtualBuildTicksPerBlock = 20;
 
         @Config.Comment("Horizontal (X/Z only) distance a traveller must be within to place or break the next block of its shelter without repositioning.")
         @Config.RangeDouble(min = 1.0, max = 8.0)
         public double buildReachDistance = 4.0;
+
+        @Config.Comment("Every this many ticks, a camping traveller/raider with a bed rolls a chance to take a daytime nap.")
+        @Config.RangeInt(min = 20, max = 72000)
+        public int daytimeNapRollIntervalTicks = 2400;
+
+        @Config.Comment("Chance (0-1), per roll, that a camping traveller/raider with a bed takes a daytime nap.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double daytimeNapChance = 0.12;
+
+        @Config.Comment("Minimum daytime nap duration, in ticks, once asleep.")
+        @Config.RangeInt(min = 20, max = 72000)
+        public int daytimeNapMinTicks = 400;
+
+        @Config.Comment("Maximum daytime nap duration, in ticks, once asleep.")
+        @Config.RangeInt(min = 20, max = 72000)
+        public int daytimeNapMaxTicks = 1200;
+
+        @Config.Comment("After being woken up (e.g. by combat), a camping traveller/raider waits this many ticks before it is allowed to lie back down.")
+        @Config.RangeInt(min = 0, max = 12000)
+        public int wakeCooldownTicks = 100;
+
+        @Config.Comment("Radius (blocks) around a sleeping/napping traveller or raider scanned for hostile threats. If any are found, it wakes up and is allowed to fight back instead of staying passively asleep.")
+        @Config.RangeDouble(min = 1.0, max = 32.0)
+        public double sleepThreatWakeRadius = 6.0;
+
+        @Config.Comment("Once a camp has no occupants left (e.g. they were all killed), its abandoned firepit goes out after this many ticks (6000 = 5 min). The unlit pit lingers like a ruin until the camp is reused or cleaned up.")
+        @Config.RangeInt(min = 20, max = 240000)
+        public int emptyCampFirepitExtinguishTicks = 6000;
     }
 
     public static class Fishing {
@@ -1144,11 +1182,28 @@ public class TravellersConfig {
     }
 
     public static class Filters {
+        // --- Traveller ---
         @Config.Comment("Villager txt tags excluded from traveller appearance pool. E.g.: child,chief,hostile")
-        public String[] excludedVillagerTagsRaw = new String[]{"child", "chief", "hostile"};
+        public String[] excludedTravellerVillagerTagsRaw = new String[]{"child", "chief", "hostile"};
 
         @Config.Comment("Villager txt filenames (without .txt) excluded from traveller pool.")
-        public String[] excludedVillagerFilesRaw = new String[]{"alchemist", "alchemistapprentice", "alchemistassistant"};
+        public String[] excludedTravellerVillagerFilesRaw = new String[]{"alchemist", "alchemistapprentice", "alchemistassistant"};
+
+        @Config.Comment("Villager tags included in traveller appearance pool (empty = no restriction, allow all not excluded above).")
+        public String[] includedTravellerVillagerTagsRaw = new String[]{};
+
+        @Config.Comment("Villager filenames included in traveller appearance pool (empty = no restriction).")
+        public String[] includedTravellerVillagerFilesRaw = new String[]{};
+
+        @Config.Comment("If true, ALL includedTravellerVillagerTagsRaw must be present on the villager (AND). If false, ANY one tag matching is enough (OR).")
+        public boolean includeTravellerTagMatchRequiresAll = false;
+
+        // --- Raider ---
+        @Config.Comment("Villager txt tags excluded from raider appearance pool.")
+        public String[] excludedRaiderVillagerTagsRaw = new String[]{};
+
+        @Config.Comment("Villager txt filenames (without .txt) excluded from raider pool.")
+        public String[] excludedRaiderVillagerFilesRaw = new String[]{};
 
         @Config.Comment("Villager tags included in raider appearance pool (empty = no restriction).")
         public String[] includedRaiderVillagerTagsRaw = new String[]{"hostile"};
@@ -1156,12 +1211,26 @@ public class TravellersConfig {
         @Config.Comment("Villager filenames included in raider appearance pool (empty = no restriction).")
         public String[] includedRaiderVillagerFilesRaw = new String[]{};
 
+        @Config.Comment("If true, ALL includedRaiderVillagerTagsRaw must be present on the villager (AND). If false, ANY one tag matching is enough (OR).")
+        public boolean includeRaiderTagMatchRequiresAll = false;
+
+        // --- Worker ---
+        @Config.Comment("Villager txt tags excluded from worker appearance pool.")
+        public String[] excludedWorkerVillagerTagsRaw = new String[]{};
+
+        @Config.Comment("Villager txt filenames (without .txt) excluded from worker pool.")
+        public String[] excludedWorkerVillagerFilesRaw = new String[]{};
+
         @Config.Comment("Villager tags included in worker appearance pool (empty = no restriction).")
         public String[] includedWorkerVillagerTagsRaw = new String[]{"helpInAttacks", "heavydrinker", "archer", "raider"};
 
         @Config.Comment("Villager filenames included in worker appearance pool (empty = no restriction).")
         public String[] includedWorkerVillagerFilesRaw = new String[]{};
 
+        @Config.Comment("If true, ALL includedWorkerVillagerTagsRaw must be present on the villager (AND). If false, ANY one tag matching is enough (OR).")
+        public boolean includeWorkerTagMatchRequiresAll = false;
+
+        // --- Merchant (EntityTravellerMerchant is being phased out, left as-is) ---
         @Config.Comment("Villager tags included in merchant appearance pool (empty = no restriction).")
         public String[] includedMerchantVillagerTagsRaw = new String[]{"visitor"};
 

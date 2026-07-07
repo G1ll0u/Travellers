@@ -41,6 +41,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
 
     @Override
     public boolean shouldExecute() {
+        if (traveller.isSleepingInBed()) return false;
         if (isDisabledForHiredWorker()) return false;
         if (traveller.world.isRemote) return false;
         if (traveller.hasFollowLeader()) return false;
@@ -71,6 +72,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
 
     @Override
     public boolean shouldContinueExecuting() {
+        if (traveller.isSleepingInBed()) return false;
         if (isDisabledForHiredWorker()) return false;
         if (traveller.hasFollowLeader()) return false;
         if (traveller.isInCombat() || traveller.isAutoEating()) return false;

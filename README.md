@@ -53,7 +53,11 @@ The mod also adds a hostile variant:
 
 ### Camps
 
-Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild, away from villages. Watch closely and you'll see a traveller actually **build its shelter block by block**, swinging its arm as it goes, before finally lighting the campfire. When it's time to leave, it **tears the shelter back down** the same way, and the last one to leave puts out the fire.
+Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild, away from villages. Watch closely and you'll see a traveller actually **build its shelter block by block**, swinging its arm as it goes, before finally lighting the campfire. On uneven ground it first **banks up a foundation by hand, using blocks matching the local terrain** — sand in a desert, clay on a mesa, whatever the biome (or terrain mod) provides. When it's time to leave, it **tears the shelter back down** the same way — and then **repairs the ground by hand too**, putting the original terrain back block by block before walking off. The last one to leave puts out the fire.
+
+If a whole camp gets wiped out (raiders happen...), the abandoned campfire **burns out on its own** after a few minutes, leaving a cold firepit and half-built ruins behind until another group moves in and relights it.
+
+Camps only ever settle on **natural terrain** — they will never flatten your house, a village, or any other structure, even one built on a camp spot long after the camp was scouted.
 
 This all keeps happening even when you're not there to watch — camps quietly progress in the background and pick up right where they left off (mid-build, mid-teardown, whatever) the next time you wander back.
 

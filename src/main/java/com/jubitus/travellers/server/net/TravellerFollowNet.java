@@ -1,6 +1,11 @@
 package com.jubitus.travellers.server.net;
 
+import com.jubitus.travellers.server.map.MsgMapCampUpdate;
+import com.jubitus.travellers.server.map.MsgMapPopulationUpdate;
 import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.MsgOpenPopulationMap;
+import com.jubitus.travellers.server.map.MsgSubscribeCampMap;
+import com.jubitus.travellers.server.map.MsgSubscribePopulationMap;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
@@ -210,6 +215,18 @@ public final class TravellerFollowNet {
         registerClientOnly(MsgEquipDestsResponse.class,
                 isClient ? new MsgEquipDestsResponse.ClientHandler() : new MsgEquipDestsResponse.NoopHandler());
         CHANNEL.registerMessage(MsgLeaderGetEquip.Handler.class, MsgLeaderGetEquip.class, id++, Side.SERVER);
+
+        // Population map (travellers/raiders/workers, loaded + virtual, world overview)
+        registerClientOnly(MsgOpenPopulationMap.class,
+                isClient ? new MsgOpenPopulationMap.Handler() : new MsgOpenPopulationMap.NoopHandler());
+        CHANNEL.registerMessage(MsgSubscribePopulationMap.Handler.class, MsgSubscribePopulationMap.class, id++, Side.SERVER);
+        registerClientOnly(MsgMapPopulationUpdate.class,
+                isClient ? new MsgMapPopulationUpdate.ClientHandler() : new MsgMapPopulationUpdate.NoopHandler());
+
+        // Camp debug overlay (firepits + shelter slots, loaded + virtual), same map GUI
+        CHANNEL.registerMessage(MsgSubscribeCampMap.Handler.class, MsgSubscribeCampMap.class, id++, Side.SERVER);
+        registerClientOnly(MsgMapCampUpdate.class,
+                isClient ? new MsgMapCampUpdate.ClientHandler() : new MsgMapCampUpdate.NoopHandler());
     }
 
 

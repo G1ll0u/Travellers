@@ -5,6 +5,7 @@ import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
@@ -857,7 +858,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         boostedFollowRange = baseFollowRange * 2.0D;
 
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersModConfig.workerMaxHealth);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.workerMaxHealth);
 
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
                 .setBaseValue(baseFollowRange);
@@ -865,7 +866,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (moveAttr != null) {
             // Make workers a bit quicker than generic travellers
             // TravellersModConfig.movementSpeed is the base used in EntityTraveller.onInitialSpawn
-            moveAttr.setBaseValue(TravellersModConfig.movementSpeed);
+            moveAttr.setBaseValue(TravellersConfig.ATTRIBUTES.movementSpeed);
         }
     }
 
@@ -1438,6 +1439,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             int count = c.getWorkerTextureCount();
             int idx = this.rand.nextInt(Math.max(1, count <= 0 ? 1 : count));
             this.setTextureIndex(idx);
+            rollRenderScale(getActiveAppearance());
         }
         IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (moveAttr != null) {
@@ -1622,7 +1624,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Same idea if you have worker-specific HP etc:
         IAttributeInstance hpAttr = this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
         if (hpAttr != null) {
-            hpAttr.setBaseValue(TravellersModConfig.workerMaxHealth);
+            hpAttr.setBaseValue(TravellersConfig.ATTRIBUTES.workerMaxHealth);
             if (this.getHealth() > this.getMaxHealth()) {
                 this.setHealth(this.getMaxHealth());
             }

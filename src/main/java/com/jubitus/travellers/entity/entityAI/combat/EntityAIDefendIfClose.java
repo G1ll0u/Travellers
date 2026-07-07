@@ -116,7 +116,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             effectiveTickRate = 3; // scan faster during/just after combat
         }
 
-        if ((mob.ticksExisted + tickPhase) % effectiveTickRate != 0) return false;
+        if (!mob.isRetargetBoosted() && (mob.ticksExisted + tickPhase) % effectiveTickRate != 0) return false;
 
 
         // keep any existing target
@@ -251,6 +251,11 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         // Low health: emergency-only range, entity focuses on healing
         if (mob.isLowHealth()) {
             double r = TravellersModConfig.lowHealthEngageRadius;
+            return r * r;
+        }
+
+        if (mob.isCampingPassive()) {
+            double r = TravellersModConfig.anchorModeEngageRadius;
             return r * r;
         }
 

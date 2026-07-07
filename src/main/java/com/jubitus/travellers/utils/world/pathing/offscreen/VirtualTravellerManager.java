@@ -812,6 +812,12 @@ public class VirtualTravellerManager extends WorldSavedData {
                 if (e.getValue().travellerUUID.equals(entity.getUniqueID())) {
                     r.campSiteId = camp.id;
                     r.campSlotIndex = e.getKey();
+                    // Start the virtual build clock now: loaded time spent pacing/fighting between
+                    // block placements must not convert retroactively into virtual progress.
+                    CampOccupant occ = e.getValue();
+                    if (occ.buildState != CampOccupant.BuildState.BUILT) {
+                        occ.lastProgressTick = now;
+                    }
                     break;
                 }
             }
@@ -922,6 +928,10 @@ public class VirtualTravellerManager extends WorldSavedData {
                 entity.setReadyToDepart(false);
                 entity.setVillageIdling(true);
                 entity.setVillageIdleTicks(0);
+                // Sleep is a purely-loaded cosmetic pose, never simulated virtually or persisted to
+                // NBT — but force it off anyway so a fresh materialize can never render "lying down"
+                // while EntityAICampStay (re-evaluating from scratch) thinks the entity is standing.
+                entity.wakeUpTraveller();
             } else if (!r.travelRoute.isEmpty()) {
                 // Restore only the final destination — EntityAITravel + MPBRouteTracker replans
                 // a fresh road route from the spawn point. Passing the full MPB waypoint list
@@ -944,6 +954,14 @@ public class VirtualTravellerManager extends WorldSavedData {
             worker.motionZ = 0;
             applyRecordStateToWorker(r, worker);
             world.spawnEntity(worker);
+
+            if (r.homeVillage != null) {
+                com.jubitus.travellers.utils.world.spawn.TravellerVillageRegistry reg =
+                        com.jubitus.travellers.utils.world.spawn.TravellerVillageRegistry.get(world);
+                if (reg.getWorkerFor(r.homeVillage) == null) {
+                    reg.setWorkerFor(r.homeVillage, worker.getUniqueID());
+                }
+            }
         }
 
         graceUntil.put(r.uuid, now + MATERIALIZE_GRACE_TICKS);
@@ -1025,6 +1043,24 @@ public class VirtualTravellerManager extends WorldSavedData {
         VirtualTravellerRecord r = records.get(workerUUID);
         if (r == null) return false;
         return r.isHiredFollower && playerUUID.equals(r.followOwnerUUID);
+    }
+
+    /**
+     * Removes all WORKER virtual records that are not currently hired by a player.
+     * Returns the number of records removed.
+     */
+    public int clearWorkersExceptHired() {
+        int removed = 0;
+        java.util.Iterator<VirtualTravellerRecord> it = records.values().iterator();
+        while (it.hasNext()) {
+            VirtualTravellerRecord r = it.next();
+            if ("WORKER".equals(r.entityClass) && !r.isHiredFollower) {
+                it.remove();
+                removed++;
+            }
+        }
+        if (removed > 0) markDirty();
+        return removed;
     }
 
     public void cmdGroupComeBack(UUID leaderUUID, UUID ownerUUID) {

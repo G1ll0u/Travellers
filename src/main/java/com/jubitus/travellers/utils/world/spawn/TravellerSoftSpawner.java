@@ -51,9 +51,7 @@ import static com.jubitus.travellers.entity.entityAI.travel.EntityAITravel.inter
 public final class TravellerSoftSpawner {
 
     private static int merchantTickCounter = 0;
-    private static int workerTickCounter = 0;
     private static int merchantVillageCursor = 0;
-    private static int workerVillageCursor = 0;
     private static int populationTickCounter = 0;
 
 
@@ -78,12 +76,7 @@ public final class TravellerSoftSpawner {
             ensureMerchantsForVillages(ws);
         }
 
-        // Workers maintenance
-        if ((++workerTickCounter % Math.max(1, TravellersModConfig.workerRecheckEveryTicks)) == 0) {
-            ensureWorkersForVillages(ws);
-        }
-
-        // Global population controller: keeps travellers/raiders populated world-wide, including unloaded areas
+        // Global population controller: keeps travellers/raiders/workers populated world-wide, including unloaded areas
         if (TravellersConfig.OFFSCREEN.globalPopulationEnabled) {
             int interval = Math.max(40, TravellersConfig.OFFSCREEN.globalPopulationRefreshTicks);
             if ((++populationTickCounter % interval) == 0) {
@@ -96,7 +89,7 @@ public final class TravellerSoftSpawner {
     /**
      * World-wide global population controller.
      * Iterates all known Millénaire settlements (villages + lone buildings) regardless of chunk state,
-     * and spawns virtual traveller/raider records to fill any deficit vs. the target population.
+     * and spawns virtual traveller/raider/worker records to fill any deficit vs. the target population.
      * Virtual entities materialize automatically when a player approaches.
      */
     private static void runVirtualPopulationTopUp(WorldServer ws) {
@@ -105,7 +98,23 @@ public final class TravellerSoftSpawner {
         int totalVirtual = mgr.getTotalCount();
         int totalLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
         int globalCap = TravellersConfig.OFFSCREEN.globalPopulationCap;
-        if (totalVirtual + totalLoaded >= globalCap) return;
+
+        // Workers have their own budget so tuning traveller/raider population never starves workers or vice versa.
+        List<EntityTravellerWorker> loadedWorkersList =
+                ws.getEntities(EntityTravellerWorker.class, net.minecraft.entity.Entity::isEntityAlive);
+        Map<BlockPos, Integer> loadedWorkersByVillage = new java.util.HashMap<>();
+        for (EntityTravellerWorker w : loadedWorkersList) {
+            BlockPos home = w.getHomeVillage();
+            if (home == null) continue;
+            loadedWorkersByVillage.merge(new BlockPos(home.getX(), 0, home.getZ()), 1, Integer::sum);
+        }
+        int totalWorkers = loadedWorkersList.size() + mgr.countByClass("WORKER");
+        final int workerCap = TravellersConfig.SPAWN_WORKERS.workerLoadedCap;
+        // Anti-duplication guard for villages whose Town Hall got registered more than once at nearby positions.
+        java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>(loadedWorkersByVillage.keySet());
+        final int workerMinDist = Math.max(0, TravellersModConfig.workerVillageMinDistance);
+
+        if (totalVirtual + totalLoaded >= globalCap && (workerCap <= 0 || totalWorkers >= workerCap)) return;
 
         // Villages — uses Millenaire WorldSavedData, no chunk loading required.
         // Population may read as 0 for unloaded villages; travellerCapMinPerVillage/raiderCapMinPerVillage
@@ -117,71 +126,110 @@ public final class TravellerSoftSpawner {
 
         for (Map.Entry<MillVillageIndex.VillageInfo, Integer> entry : populations.entrySet()) {
             if (spawnsThisCycle >= maxSpawnsPerCycle) break;
-            if (totalVirtual + totalLoaded >= globalCap) break;
 
             MillVillageIndex.VillageInfo vi = entry.getKey();
             int pop = entry.getValue();
 
-            // Use per-villager formula; min cap ensures population recovers even when chunks are unloaded (pop=0)
-            int targetTravellers = (int) Math.floor(pop * TravellersModConfig.travellerCapPerVillager);
-            targetTravellers = Math.max(targetTravellers, TravellersModConfig.travellerCapMinPerVillage);
-            targetTravellers = Math.min(targetTravellers, TravellersModConfig.travellerCapMaxPerVillage);
-
-            int targetRaiders = (int) Math.floor(pop * TravellersModConfig.raiderCapPerVillager);
-            targetRaiders = Math.max(targetRaiders, TravellersModConfig.raiderCapMinPerVillage);
-            targetRaiders = Math.min(targetRaiders, TravellersModConfig.raiderCapMaxPerVillage);
-
             BlockPos villageCenter = vi.center;
             String cultureId = vi.cultureKey != null && !vi.cultureKey.isEmpty() ? vi.cultureKey : null;
 
-            int virtualTravellers = mgr.countByHomeVillage(villageCenter, "TRAVELLER");
-            int loadedTravellers = countTravellersNearVillage(ws, villageCenter, 256, false);
-            int needTravellers = targetTravellers - virtualTravellers - loadedTravellers;
+            if (totalVirtual + totalLoaded < globalCap) {
+                // Use per-villager formula; min cap ensures population recovers even when chunks are unloaded (pop=0)
+                int targetTravellers = (int) Math.floor(pop * TravellersModConfig.travellerCapPerVillager);
+                targetTravellers = Math.max(targetTravellers, TravellersModConfig.travellerCapMinPerVillage);
+                targetTravellers = Math.min(targetTravellers, TravellersModConfig.travellerCapMaxPerVillage);
 
-            int virtualRaiders = mgr.countByHomeVillage(villageCenter, "RAIDER");
-            int loadedRaiders = countTravellersNearVillage(ws, villageCenter, 256, true);
-            int needRaiders = targetRaiders - virtualRaiders - loadedRaiders;
+                int targetRaiders = (int) Math.floor(pop * TravellersModConfig.raiderCapPerVillager);
+                targetRaiders = Math.max(targetRaiders, TravellersModConfig.raiderCapMinPerVillage);
+                targetRaiders = Math.min(targetRaiders, TravellersModConfig.raiderCapMaxPerVillage);
 
-            for (int i = 0; i < needTravellers && spawnsThisCycle < maxSpawnsPerCycle; i++) {
-                spawnVirtualTraveller(ws, mgr, villageCenter, "TRAVELLER", cultureId);
-                spawnsThisCycle++;
-                totalVirtual++;
+                int virtualTravellers = mgr.countByHomeVillage(villageCenter, "TRAVELLER");
+                int loadedTravellers = countTravellersNearVillage(ws, villageCenter, 256, false);
+                int needTravellers = targetTravellers - virtualTravellers - loadedTravellers;
+
+                int virtualRaiders = mgr.countByHomeVillage(villageCenter, "RAIDER");
+                int loadedRaiders = countTravellersNearVillage(ws, villageCenter, 256, true);
+                int needRaiders = targetRaiders - virtualRaiders - loadedRaiders;
+
+                for (int i = 0; i < needTravellers && spawnsThisCycle < maxSpawnsPerCycle
+                        && totalVirtual + totalLoaded < globalCap; i++) {
+                    spawnVirtualTraveller(ws, mgr, villageCenter, "TRAVELLER", cultureId);
+                    spawnsThisCycle++;
+                    totalVirtual++;
+                }
+                for (int i = 0; i < needRaiders && spawnsThisCycle < maxSpawnsPerCycle
+                        && totalVirtual + totalLoaded < globalCap; i++) {
+                    spawnVirtualTraveller(ws, mgr, villageCenter, "RAIDER", cultureId);
+                    spawnsThisCycle++;
+                    totalVirtual++;
+                }
             }
-            for (int i = 0; i < needRaiders && spawnsThisCycle < maxSpawnsPerCycle; i++) {
-                spawnVirtualTraveller(ws, mgr, villageCenter, "RAIDER", cultureId);
-                spawnsThisCycle++;
-                totalVirtual++;
+
+            // Workers: same population-driven target formula used by the old loaded-only spawner
+            // (MillVillageIndex.desiredWorkersForPopulation), now grown the same way as travellers/raiders.
+            if ((workerCap <= 0 || totalWorkers < workerCap) && spawnsThisCycle < maxSpawnsPerCycle) {
+                BlockPos workerKey = new BlockPos(villageCenter.getX(), 0, villageCenter.getZ());
+                if (workerMinDist <= 0 || !withinXZOfAny(workerKey, workerAnchors, workerMinDist)) {
+                    int targetWorkers = MillVillageIndex.desiredWorkersForPopulation(pop);
+                    int haveLoaded = loadedWorkersByVillage.getOrDefault(workerKey, 0);
+                    int haveVirtual = mgr.countByHomeVillage(workerKey, "WORKER");
+                    int haveWorkers = haveLoaded + haveVirtual;
+                    if (haveWorkers > 0) workerAnchors.add(workerKey);
+
+                    int needWorkers = targetWorkers - haveWorkers;
+                    for (int i = 0; i < needWorkers && spawnsThisCycle < maxSpawnsPerCycle
+                            && (workerCap <= 0 || totalWorkers < workerCap); i++) {
+                        spawnVirtualWorker(ws, mgr, workerKey, cultureId);
+                        spawnsThisCycle++;
+                        totalWorkers++;
+                        workerAnchors.add(workerKey);
+                    }
+                }
             }
         }
 
         // Lone buildings — use fixed per-building caps, culture from the lone building itself
-        if (spawnsThisCycle < maxSpawnsPerCycle && totalVirtual + totalLoaded < globalCap) {
+        if (spawnsThisCycle < maxSpawnsPerCycle) {
             List<net.minecraft.util.Tuple<BlockPos, String>> loneBuildings =
                     MillVillageIndex.getAllLoneBuildingCentersWithCulture(ws);
             int travellerPerLone = TravellersModConfig.travellerCapPerLoneBuilding;
             int raiderPerLone = TravellersModConfig.raiderCapPerLoneBuilding;
+            int workerPerLone = TravellersConfig.SPAWN_WORKERS.workerCapPerLoneBuilding;
 
             for (net.minecraft.util.Tuple<BlockPos, String> lone : loneBuildings) {
                 if (spawnsThisCycle >= maxSpawnsPerCycle) break;
-                if (totalVirtual + totalLoaded >= globalCap) break;
 
                 BlockPos loneCenter = lone.getFirst();
                 String loneCulture = lone.getSecond();
 
-                int need = travellerPerLone - mgr.countByHomeVillage(loneCenter, "TRAVELLER")
-                        - countTravellersNearVillage(ws, loneCenter, 128, false);
-                for (int i = 0; i < need && spawnsThisCycle < maxSpawnsPerCycle; i++) {
-                    spawnVirtualTraveller(ws, mgr, loneCenter, "TRAVELLER", loneCulture);
-                    spawnsThisCycle++;
-                    totalVirtual++;
+                if (totalVirtual + totalLoaded < globalCap) {
+                    int need = travellerPerLone - mgr.countByHomeVillage(loneCenter, "TRAVELLER")
+                            - countTravellersNearVillage(ws, loneCenter, 128, false);
+                    for (int i = 0; i < need && spawnsThisCycle < maxSpawnsPerCycle
+                            && totalVirtual + totalLoaded < globalCap; i++) {
+                        spawnVirtualTraveller(ws, mgr, loneCenter, "TRAVELLER", loneCulture);
+                        spawnsThisCycle++;
+                        totalVirtual++;
+                    }
+
+                    int needR = raiderPerLone - mgr.countByHomeVillage(loneCenter, "RAIDER")
+                            - countTravellersNearVillage(ws, loneCenter, 128, true);
+                    for (int i = 0; i < needR && spawnsThisCycle < maxSpawnsPerCycle
+                            && totalVirtual + totalLoaded < globalCap; i++) {
+                        spawnVirtualTraveller(ws, mgr, loneCenter, "RAIDER", loneCulture);
+                        spawnsThisCycle++;
+                        totalVirtual++;
+                    }
                 }
 
-                int needR = raiderPerLone - mgr.countByHomeVillage(loneCenter, "RAIDER")
-                        - countTravellersNearVillage(ws, loneCenter, 128, true);
-                for (int i = 0; i < needR && spawnsThisCycle < maxSpawnsPerCycle; i++) {
-                    spawnVirtualTraveller(ws, mgr, loneCenter, "RAIDER", loneCulture);
-                    spawnsThisCycle++;
-                    totalVirtual++;
+                if (workerPerLone > 0 && (workerCap <= 0 || totalWorkers < workerCap)) {
+                    int needW = workerPerLone - mgr.countByHomeVillage(loneCenter, "WORKER");
+                    for (int i = 0; i < needW && spawnsThisCycle < maxSpawnsPerCycle
+                            && (workerCap <= 0 || totalWorkers < workerCap); i++) {
+                        spawnVirtualWorker(ws, mgr, loneCenter, loneCulture);
+                        spawnsThisCycle++;
+                        totalWorkers++;
+                    }
                 }
             }
         }
@@ -344,13 +392,62 @@ public final class TravellerSoftSpawner {
         mgr.addRecord(r);
     }
 
+    /**
+     * Creates a VirtualTravellerRecord for a worker at its home village, with a route already
+     * planned so materialization behaves exactly like a freshly spawned worker. No world entity
+     * is created.
+     */
+    private static void spawnVirtualWorker(WorldServer ws, VirtualTravellerManager mgr,
+                                           BlockPos homeVillage, @Nullable String cultureId) {
+        BlockPos spawnPos = resolveVirtualSpawnY(ws, homeVillage);
+
+        EntityTravellerWorker tempEntity = new EntityTravellerWorker(ws);
+        tempEntity.setHomeVillage(homeVillage);
+        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+
+        TravelCommon tc = tempEntity.getTravelCommon();
+        tc.updateNearestVillage();
+        tc.ensureRoutePlanned();
+        if (tc.route.isEmpty()) return; // not enough destinations to travel
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+
+        net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
+                ? new EntityTraveller.SpawnData(cultureId) : null;
+        tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+
+        net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
+        tempEntity.writeToNBT(entityNbt);
+
+        VirtualTravellerRecord r = new VirtualTravellerRecord(
+                tempEntity.getUniqueID(),
+                spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+                ws.rand.nextFloat() * 360f,
+                ws.provider.getDimension(),
+                entityNbt
+        );
+        r.entityClass = "WORKER";
+        r.homeVillage = new BlockPos(homeVillage.getX(), 0, homeVillage.getZ());
+        r.workerMode = "IDLE";
+        // Non-hired IDLE workers never get their goal re-derived by refreshGoal() (it only
+        // tracks dynamic targets like an owner or catchup); it must be seeded here once, exactly
+        // like virtualizeWorker() does via getVirtualGoal(), or advanceVirtual() has nothing to
+        // walk toward and the worker sits frozen at home until it materializes.
+        r.goal = tempEntity.getVirtualGoal();
+        r.virtualizedTick = ws.getTotalWorldTime();
+        mgr.addRecord(r);
+    }
+
     /** Returns a spawn position for a virtual entity: real surface Y if chunk is loaded, waypoint Y or 64 otherwise. */
     private static BlockPos resolveVirtualSpawnY(WorldServer ws, BlockPos xzPos) {
-        if (chunkExists(ws, xzPos)) {
-            BlockPos top = ws.getTopSolidOrLiquidBlock(xzPos);
+        // Never land a virtual spawn point on/inside a Millénaire building (e.g. a worker's home
+        // village center is the Town Hall itself). Pure metadata check, works without chunk loading.
+        BlockPos safeXZ = MillVillageIndex.resolveOutsideBuildings(ws, xzPos, 256);
+        if (chunkExists(ws, safeXZ)) {
+            BlockPos top = ws.getTopSolidOrLiquidBlock(safeXZ);
             if (top != null && top.getY() > 0) return top;
         }
-        return xzPos.getY() > 0 ? xzPos : new BlockPos(xzPos.getX(), 64, xzPos.getZ());
+        return safeXZ.getY() > 0 ? safeXZ : new BlockPos(safeXZ.getX(), 64, safeXZ.getZ());
     }
 
     public static int countTravellersInRegion(WorldServer ws, BlockPos center, int radiusXZ) {
@@ -586,138 +683,6 @@ public final class TravellerSoftSpawner {
 
         ws.spawnEntity(m);
 
-    }
-
-    /**
-     * Ensure each (Millénaire) village has a *population-based* number of travellers workers.
-     * Uses the same kind of formula as merchants, but with worker config knobs.
-     */
-    private static void ensureWorkersForVillages(WorldServer ws) {
-        MillWorldData wd = MillVillageIndex.getWD(ws);
-        if (wd == null) return;
-
-        List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(ws);
-        if (centers.isEmpty()) return;
-
-        TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
-
-        final int globalCap = TravellersModConfig.workerLoadedCap > 0
-                ? TravellersModConfig.workerLoadedCap
-                : TravellersModConfig.workerGlobalAssignedCap;
-
-        List<EntityTravellerWorker> loadedWorkers =
-                ws.getEntities(EntityTravellerWorker.class, net.minecraft.entity.Entity::isEntityAlive);
-
-        VirtualTravellerManager vwm = VirtualTravellerManager.get(ws);
-        int virtualCount = vwm.getTotalCount();
-
-        if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;
-
-        // 1) Précompte des workers loaded par village
-        Map<BlockPos, Integer> loadedByVillage = new java.util.HashMap<>();
-        for (EntityTravellerWorker w : loadedWorkers) {
-            BlockPos home = w.getHomeVillage();
-            if (home == null) continue;
-            loadedByVillage.merge(villageKey(home), 1, Integer::sum);
-        }
-
-        // 2) Prépare les ancres existantes (villages ayant déjà au moins un worker loaded)
-        java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>(loadedByVillage.keySet());
-
-        final int total = centers.size();
-        final int n = Math.min(TravellersModConfig.WORKER_VILLAGES_PER_PASS, total);
-
-        for (int it = 0; it < n; it++) {
-            if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;
-
-            BlockPos approx = centers.get((workerVillageCursor++ % total + total) % total).toImmutable();
-
-            // IMPORTANT : village "actif" = loaded de façon souple, pas besoin d'un joueur proche
-            if (!isVillageActiveForWorkerSpawn(ws, approx)) continue;
-
-            Building th = resolveTownHall(wd, ws, approx);
-            if (th == null) continue;
-
-            Point thp = th.getPos();
-            BlockPos thPos = new BlockPos(thp.getiX(), thp.getiY(), thp.getiZ());
-            BlockPos key = villageKey(thPos);
-
-            int minDist = Math.max(0, TravellersModConfig.workerVillageMinDistance);
-            if (minDist > 0 && withinXZOfAny(key, workerAnchors, minDist)) {
-                continue;
-            }
-
-            int villagers = MillVillageIndex.countVillagersInVillage(ws, thPos);
-            int desired = MillVillageIndex.desiredWorkersForPopulation(villagers);
-            if (desired <= 0) continue;
-
-            int haveLoaded = loadedByVillage.getOrDefault(key, 0);
-            int haveVirtual = vwm.getCountForVillage(key);
-            int haveTotal = haveLoaded + haveVirtual;
-            if (haveTotal >= desired) {
-                if (reg.getWorkerFor(key) == null) {
-                    for (EntityTravellerWorker w : loadedWorkers) {
-                        BlockPos home = w.getHomeVillage();
-                        if (home != null && villageKey(home).equals(key)) {
-                            reg.setWorkerFor(thPos, w.getUniqueID());
-                            break;
-                        }
-                    }
-                }
-                if (haveLoaded > 0 || haveVirtual > 0) {
-                    workerAnchors.add(key);
-                }
-                continue;
-            }
-
-            int missing = desired - haveTotal;
-            for (int i = 0; i < missing; i++) {
-                if (globalCap > 0 && loadedWorkers.size() + virtualCount >= globalCap) return;
-
-                EntityTravellerWorker spawned = spawnWorkerAtVillageReturn(ws, thPos);
-                if (spawned != null) {
-                    loadedWorkers.add(spawned);
-                    loadedByVillage.merge(key, 1, Integer::sum);
-                    reg.setWorkerFor(thPos, spawned.getUniqueID());
-                    workerAnchors.add(key);
-                }
-            }
-        }
-    }
-
-    @Nullable
-    private static EntityTravellerWorker spawnWorkerAtVillageReturn(WorldServer ws, BlockPos villageCenter) {
-        if (!isVillageActiveForWorkerSpawn(ws, villageCenter)) return null;
-
-        BlockPos spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 10, 28, 80, 2);
-        if (spawnPos == null) spawnPos = findNaturalSpawnNearVillage(ws, villageCenter, 6, 40, 120, 1);
-        if (spawnPos == null) spawnPos = ws.getTopSolidOrLiquidBlock(villageCenter);
-
-        EntityTravellerWorker w = new EntityTravellerWorker(ws);
-        w.setHomeVillage(villageCenter);
-        w.setLocationAndAngles(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
-                ws.rand.nextFloat() * 360f, 0);
-
-        if (!ws.checkNoEntityCollision(w.getEntityBoundingBox())) return null;
-        if (!ws.getCollisionBoxes(w, w.getEntityBoundingBox()).isEmpty()) return null;
-
-        TravelCommon tc = w.getTravelCommon();
-        tc.updateNearestVillage();
-        tc.ensureRoutePlanned();
-        if (tc.route.isEmpty()) return null; // not enough destinations to travel
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
-
-        IEntityLivingData spawnData = createCultureSpawnDataForPos(ws, spawnPos, ws.rand);
-        w.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
-
-        Event.Result res = net.minecraftforge.event.ForgeEventFactory.canEntitySpawn(w, ws,
-                (float) w.posX, (float) w.posY, (float) w.posZ);
-        if (res == Event.Result.DENY) return null;
-
-        if (!ws.spawnEntity(w)) return null;
-
-        return w;
     }
 
     private static boolean isVillageActiveForWorkerSpawn(WorldServer ws, BlockPos center) {
@@ -1109,23 +1074,6 @@ public final class TravellerSoftSpawner {
         reg.removeMerchantFor(home, m.getUniqueID());
 
         // Do NOT respawn here. ensureMerchantsForVillages will respawn later (batched + loaded-only).
-    }
-
-    private static BlockPos villageKey(BlockPos p) {
-        return new BlockPos(p.getX(), 0, p.getZ()).toImmutable();
-    }
-
-    @Nullable
-    private static Building resolveTownHall(MillWorldData wd, WorldServer ws, BlockPos approxCenter) {
-        // best effort: “any TH near this XZ”
-        Building th = MillVillageIndex.findAnyTownHallNear(wd, approxCenter, 16);
-        if (th != null) return th;
-
-        // fallback: try exact (rarely works if Y matches)
-        th = MillVillageIndex.getTownHallBuilding(wd, approxCenter);
-        if (th != null && th.isTownhall) return th;
-
-        return null;
     }
 
 

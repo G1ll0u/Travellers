@@ -131,7 +131,13 @@ public class TravellerCombatLogic {
         if (e.getRevengeTarget() == entity) return true;
         if (entity.getRevengeTarget() == e) return true;
         DamageSource ds = entity.getLastDamageSource();
-        return ds != null && ds.getTrueSource() == e;
+        if (ds != null && ds.getTrueSource() == e) return true;
+
+        // Owner-assist: as long as the owner is still actively fighting this same target,
+        // don't let the worker get evicted from its slot just because the target never
+        // personally engaged the worker (e.g. an unusual/passive entity type the worker
+        // wouldn't normally target on its own).
+        return entity.isOwnerStillFightingAssistTarget(e);
     }
 
     // -------------------------------------------------------------------------

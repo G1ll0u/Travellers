@@ -36,11 +36,16 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug [reset|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave]|sound stress|sound rapidfire|cultures]";
+        return "/travellersdebug [reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave]|sound stress|sound rapidfire|cultures]";
     }
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        if (args.length >= 2 && args[0].equalsIgnoreCase("reset") && args[1].equalsIgnoreCase("workers")) {
+            executeResetWorkers(server, sender);
+            return;
+        }
+
         if (args.length >= 1 && args[0].equalsIgnoreCase("reset")) {
             executeReset(server, sender);
             return;
@@ -113,6 +118,34 @@ public class CommandTravellerDebug extends CommandBase {
                 TextFormatting.YELLOW + loadedKilled + TextFormatting.GREEN + " loaded entities killed, " +
                 TextFormatting.YELLOW + campsRemoved + TextFormatting.GREEN + " campsites cleared." +
                 TextFormatting.GRAY + " Workers untouched."));
+    }
+
+    // --- Reset workers: wipe non-hired virtual/loaded workers, hired workers are preserved ---
+
+    private void executeResetWorkers(MinecraftServer server, ICommandSender sender) {
+        int virtualRemoved = 0;
+        int loadedKilled = 0;
+
+        for (WorldServer ws : server.worlds) {
+            VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
+            virtualRemoved += mgr.clearWorkersExceptHired();
+
+            for (Entity e : new java.util.ArrayList<>(ws.loadedEntityList)) {
+                if (!(e instanceof EntityTravellerWorker) || e.isDead) continue;
+                EntityTravellerWorker worker = (EntityTravellerWorker) e;
+                if (worker.isHiredFollower()) continue;
+                com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager.INSTANCE
+                        .untrackChunkloader(worker);
+                worker.setDead();
+                loadedKilled++;
+            }
+        }
+
+        sender.sendMessage(new TextComponentString(
+                TextFormatting.GREEN + "Worker reset complete: " +
+                TextFormatting.YELLOW + virtualRemoved + TextFormatting.GREEN + " virtual records removed, " +
+                TextFormatting.YELLOW + loadedKilled + TextFormatting.GREEN + " loaded workers killed." +
+                TextFormatting.GRAY + " Hired workers preserved."));
     }
 
     // --- Camp listing: show campsites near the player ---

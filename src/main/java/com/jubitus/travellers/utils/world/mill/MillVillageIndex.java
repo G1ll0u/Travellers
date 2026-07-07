@@ -943,6 +943,9 @@ public final class MillVillageIndex {
             return result;
         }
 
+        VillagePopulationCache popCache =
+                world instanceof WorldServer ? VillagePopulationCache.get((WorldServer) world) : null;
+
         // 1) Build a Building -> count map from all known villagers
         Map<Building, Integer> countsByTH = new java.util.IdentityHashMap<>();
 
@@ -960,10 +963,13 @@ public final class MillVillageIndex {
             Point p = wd.villagesList.pos.get(i);
             if (p == null) continue;
 
+            BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
             Building th = wd.getBuilding(p);
             if (th == null) {
-                // Town Hall not loaded / missing – treat as zero population
-                BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+                // Town Hall not resolved this session (village never visited/loaded yet) — a
+                // village's population is frozen while unloaded, so fall back to the last
+                // reading we recorded for it instead of treating it as genuinely empty.
+                int lastKnown = popCache != null ? popCache.getLastKnown(center) : -1;
                 VillageInfo vi = new VillageInfo(
                         center,
                         true,
@@ -971,13 +977,13 @@ public final class MillVillageIndex {
                         safeString(wd.villagesList.types, i, ""),
                         safeString(wd.villagesList.cultures, i, "")
                 );
-                result.put(vi, 0);
+                result.put(vi, Math.max(lastKnown, 0));
                 continue;
             }
 
             int count = countsByTH.getOrDefault(th, 0);
+            if (popCache != null) popCache.recordPopulation(center, count);
 
-            BlockPos center = new BlockPos(p.getiX(), p.getiY(), p.getiZ());
             VillageInfo vi = new VillageInfo(
                     center,
                     true,
@@ -1157,6 +1163,62 @@ public final class MillVillageIndex {
             if (b != null) return b;
         }
         return null;
+    }
+
+    /**
+     * Returns the Millénaire building (if any) whose planar (XZ) footprint contains pos.
+     * Pure in-memory metadata lookup — no chunk loading required, so it works identically for
+     * virtual (offscreen) and loaded entities.
+     */
+    @Nullable
+    public static Building findBuildingContainingPlanar(WorldServer ws, BlockPos pos, int villageSearchRadius) {
+        MillWorldData wd = getWD(ws);
+        if (wd == null) return null;
+        Building anchor = findBuildingForDonation(wd, pos, villageSearchRadius);
+        if (anchor == null) return null;
+
+        Point p = new Point(pos);
+        Building hit = anchor.getBuildingAtCoordPlanar(p);
+        if (hit != null) return hit;
+        // Lone buildings aren't always included in their own getBuildings() list.
+        if (anchor.location != null && anchor.location.isInsidePlanar(p)) return anchor;
+        return null;
+    }
+
+    /** Nudges (x,z) to just outside the given building's planar footprint, toward the nearest edge. */
+    private static BlockPos pushOutsideBuildingFootprint(Building building, BlockPos pos) {
+        BuildingLocation loc = building.location;
+        final int margin = 2;
+        int x = pos.getX();
+        int z = pos.getZ();
+
+        int distMinX = x - (loc.minx - margin);
+        int distMaxX = (loc.maxx + margin) - x;
+        int distMinZ = z - (loc.minz - margin);
+        int distMaxZ = (loc.maxz + margin) - z;
+        int min = Math.min(Math.min(distMinX, distMaxX), Math.min(distMinZ, distMaxZ));
+
+        if (min == distMinX) x = loc.minx - margin;
+        else if (min == distMaxX) x = loc.maxx + margin;
+        else if (min == distMinZ) z = loc.minz - margin;
+        else z = loc.maxz + margin;
+
+        return new BlockPos(x, pos.getY(), z);
+    }
+
+    /**
+     * Resolves pos to a position outside any Millénaire building's footprint, so travellers/raiders/
+     * workers never spawn or materialize on a rooftop. Bounded to a few iterations in case the nudged
+     * point lands inside a neighbouring building.
+     */
+    public static BlockPos resolveOutsideBuildings(WorldServer ws, BlockPos pos, int villageSearchRadius) {
+        BlockPos candidate = pos;
+        for (int i = 0; i < 4; i++) {
+            Building hit = findBuildingContainingPlanar(ws, candidate, villageSearchRadius);
+            if (hit == null || hit.location == null) return candidate;
+            candidate = pushOutsideBuildingFootprint(hit, candidate);
+        }
+        return candidate;
     }
 
     public static int desiredWorkersForPopulation(int villagers) {

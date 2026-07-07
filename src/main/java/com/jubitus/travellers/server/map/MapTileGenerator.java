@@ -208,6 +208,92 @@ public final class MapTileGenerator {
         return changed;
     }
 
+    // ── Chunk-scoped fill (opportunistic pregen on chunk load) ──────────────
+
+    /**
+     * Fills only the normal-tile (64x64) pixels that fall within the given chunk.
+     * Chunk boundaries are pixel-aligned (16 blocks = 4 pixels at step 4), so this
+     * touches exactly the pixels owned by that chunk, no scan of the rest of the tile.
+     */
+    public static boolean fillChunkPixels(World world, int chunkX, int chunkZ, byte[] inout) {
+        if (inout == null || inout.length != 64 * 64) return false;
+
+        final int chunksPerTile = WorldMapDiscovery.CHUNKS_PER_TILE;
+        int tileX = Math.floorDiv(chunkX, chunksPerTile);
+        int tileZ = Math.floorDiv(chunkZ, chunksPerTile);
+
+        int localChunkX = chunkX - tileX * chunksPerTile;
+        int localChunkZ = chunkZ - tileZ * chunksPerTile;
+
+        final int pxPerChunk = 64 / chunksPerTile; // 4
+        final int lpx0 = localChunkX * pxPerChunk;
+        final int lpz0 = localChunkZ * pxPerChunk;
+
+        final int tileBlocks = chunksPerTile * 16;
+        final int step = tileBlocks / 64; // 4
+        final int baseX = tileX * tileBlocks;
+        final int baseZ = tileZ * tileBlocks;
+
+        boolean changed = false;
+        for (int dz = 0; dz < pxPerChunk; dz++) {
+            for (int dx = 0; dx < pxPerChunk; dx++) {
+                int px = lpx0 + dx;
+                int pz = lpz0 + dz;
+                int idx = pz * 64 + px;
+                if ((inout[idx] & 0xFF) != 0) continue;
+
+                int wx = baseX + px * step + step / 2;
+                int wz = baseZ + pz * step + step / 2;
+
+                if (!world.isBlockLoaded(new BlockPos(wx, 0, wz), false)) continue;
+
+                inout[idx] = (byte) (sampleTone(world, wx, wz, step) & 0xFF);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * Fills only the detail-tile (256x256, 1px = 1 block) pixels that fall within the given chunk.
+     */
+    public static boolean fillDetailChunkPixels(World world, int chunkX, int chunkZ, byte[] inout) {
+        if (inout == null || inout.length != DETAIL_BYTES) return false;
+
+        final int chunksPerTile = WorldMapDiscovery.CHUNKS_PER_TILE;
+        int tileX = Math.floorDiv(chunkX, chunksPerTile);
+        int tileZ = Math.floorDiv(chunkZ, chunksPerTile);
+
+        int localChunkX = chunkX - tileX * chunksPerTile;
+        int localChunkZ = chunkZ - tileZ * chunksPerTile;
+
+        final int lx0 = localChunkX * 16;
+        final int lz0 = localChunkZ * 16;
+
+        final int tileBlocks = chunksPerTile * 16;
+        final int baseX = tileX * tileBlocks;
+        final int baseZ = tileZ * tileBlocks;
+
+        boolean changed = false;
+        for (int dz = 0; dz < 16; dz++) {
+            for (int dx = 0; dx < 16; dx++) {
+                int px = lx0 + dx;
+                int pz = lz0 + dz;
+                int idx = pz * DETAIL_PX + px;
+                if ((inout[idx] & 0xFF) != 0) continue;
+
+                int wx = baseX + px;
+                int wz = baseZ + pz;
+
+                if (!world.isBlockLoaded(new BlockPos(wx, 0, wz), false)) continue;
+
+                inout[idx] = (byte) (sampleTone(world, wx, wz, 1) & 0xFF);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
     private static int clamp(int v, int lo, int hi) {
         return (v < lo) ? lo : (v > hi) ? hi : v;
     }

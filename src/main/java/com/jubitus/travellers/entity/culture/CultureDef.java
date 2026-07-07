@@ -9,8 +9,20 @@ public final class CultureDef {
     public final String displayName;
     private final java.util.List<TravellerAppearance> travellerLooks = new java.util.ArrayList<>();
     private final java.util.List<TravellerAppearance> raiderLooks = new java.util.ArrayList<>();
-    private final java.util.List<String> maleFirstNames = new java.util.ArrayList<>();
-    private final java.util.List<String> familyNames = new java.util.ArrayList<>();
+
+    /**
+     * Millenaire pairs first/family names per villager type (e.g. a caste's first name list is only
+     * ever combined with that same caste's family name list). Keeping one pool per distinct
+     * (firstNameListId, familyNameListId) pair - instead of flattening every list from every villager
+     * file into two big culture-wide pools - avoids cross-pairing combinations Millenaire would
+     * never produce (e.g. a low-caste first name with a high-caste family name).
+     */
+    private static final class NamePool {
+        final java.util.List<String> firstNames = new java.util.ArrayList<>();
+        final java.util.List<String> familyNames = new java.util.ArrayList<>();
+    }
+
+    private final java.util.Map<String, NamePool> namePools = new java.util.LinkedHashMap<>();
     private final java.util.List<TravellerAppearance> workerLooks = new java.util.ArrayList<>();
     private final java.util.List<TravellerAppearance> merchantLooks = new java.util.ArrayList<>();
 
@@ -211,8 +223,17 @@ public final class CultureDef {
     }
     // --- Name list API ---
 
-    public void addMaleFirstNames(java.util.List<String> names) {
-        addAllUniqueTrimmed(maleFirstNames, names);
+    /**
+     * Registers/merges a villager type's first+family name lists as one pool, keyed by the
+     * (firstNameListId, familyNameListId) pair so unrelated villager types never get their
+     * names cross-paired (see {@link NamePool}).
+     */
+    public void addNamePool(String firstNameListId, String familyNameListId,
+                             java.util.List<String> firstNames, java.util.List<String> familyNames) {
+        String key = (firstNameListId == null ? "" : firstNameListId) + "|" + (familyNameListId == null ? "" : familyNameListId);
+        NamePool pool = namePools.computeIfAbsent(key, k -> new NamePool());
+        addAllUniqueTrimmed(pool.firstNames, firstNames);
+        addAllUniqueTrimmed(pool.familyNames, familyNames);
     }
 
     private static void addAllUniqueTrimmed(java.util.List<String> target, java.util.List<String> src) {
@@ -227,21 +248,26 @@ public final class CultureDef {
         }
     }
 
-    public void addFamilyNames(java.util.List<String> names) {
-        addAllUniqueTrimmed(familyNames, names);
-    }
-
     public boolean hasMaleFirstNames() {
-        return !maleFirstNames.isEmpty();
+        for (NamePool p : namePools.values()) {
+            if (!p.firstNames.isEmpty()) return true;
+        }
+        return false;
     }
 
     public boolean hasFamilyNames() {
-        return !familyNames.isEmpty();
+        for (NamePool p : namePools.values()) {
+            if (!p.familyNames.isEmpty()) return true;
+        }
+        return false;
     }
 
     public String randomFullName(java.util.Random r) {
-        String first = randomMaleFirstName(r);
-        String last = randomFamilyName(r);
+        NamePool pool = randomNonEmptyPool(r);
+        String first = pool != null && !pool.firstNames.isEmpty()
+                ? pool.firstNames.get(r.nextInt(pool.firstNames.size())) : "";
+        String last = pool != null && !pool.familyNames.isEmpty()
+                ? pool.familyNames.get(r.nextInt(pool.familyNames.size())) : "";
 
         if (first.isEmpty() && last.isEmpty()) return "";
         if (last.isEmpty()) return first;
@@ -249,14 +275,14 @@ public final class CultureDef {
         return first + " " + last;
     }
 
-    public String randomMaleFirstName(java.util.Random r) {
-        if (maleFirstNames.isEmpty()) return "";
-        return maleFirstNames.get(r.nextInt(maleFirstNames.size()));
-    }
-
-    public String randomFamilyName(java.util.Random r) {
-        if (familyNames.isEmpty()) return "";
-        return familyNames.get(r.nextInt(familyNames.size()));
+    @javax.annotation.Nullable
+    private NamePool randomNonEmptyPool(java.util.Random r) {
+        java.util.List<NamePool> nonEmpty = new java.util.ArrayList<>();
+        for (NamePool p : namePools.values()) {
+            if (!p.firstNames.isEmpty() || !p.familyNames.isEmpty()) nonEmpty.add(p);
+        }
+        if (nonEmpty.isEmpty()) return null;
+        return nonEmpty.get(r.nextInt(nonEmpty.size()));
     }
 
     public void addWorkerAppearance(TravellerAppearance a) {

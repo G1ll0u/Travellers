@@ -23,6 +23,11 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
     // 40 ticks = 2 seconds. Fine for follow escort — still reacts quickly enough.
     private static final int IDLE_CHECK_INTERVAL = 40;
 
+    // Vanilla's targetChance is a per-tick random gate we can't reach directly (private/final) —
+    // re-rolling it several times in the same tick is the cheap way to make a boosted retarget
+    // near-certain to fire this tick instead of waiting on chance.
+    private static final int RETARGET_BOOST_ATTEMPTS = 20;
+
     private final EntityTravellerWorker worker;
 
     public ThrottledAttackTargetAI(EntityTravellerWorker worker,
@@ -43,14 +48,24 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
         // Anchor/stay mode: don't range far, EntityAIDefendIfClose handles close defense
         if (worker.isHiredFollower() && !worker.isFollowOrderActive()) return false;
 
+        boolean boosted = worker.isRetargetBoosted();
+
         // If the worker is quietly following and has no current target,
         // only scan every IDLE_CHECK_INTERVAL ticks.
         // We spread the checks across entity IDs so all 500 workers don't hit the same tick.
-        if (worker.isFollowOrderActive() && worker.getAttackTarget() == null) {
+        if (!boosted && worker.isFollowOrderActive() && worker.getAttackTarget() == null) {
             if ((worker.ticksExisted + worker.getEntityId() * 7) % IDLE_CHECK_INTERVAL != 0) {
                 return false;
             }
         }
+
+        if (boosted) {
+            for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {
+                if (super.shouldExecute()) return true;
+            }
+            return false;
+        }
+
         return super.shouldExecute();
     }
 }

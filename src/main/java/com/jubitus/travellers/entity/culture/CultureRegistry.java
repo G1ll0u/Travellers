@@ -45,6 +45,8 @@ public final class CultureRegistry {
     public static void bootstrapAllMillenaireCultures() {
         if (bootstrapped) return; // optional now, but fine
 
+        VillagerFilterRules.refresh();
+
         List<File> roots = new ArrayList<>();
 
         File base = detectMillenaireBaseCultures();
@@ -203,24 +205,18 @@ public final class CultureRegistry {
 
 
     private static void parseVillagerTxt(CultureDef culture, File txt) {
-        // === 1) Traveller file-based exclusion ===
-        // (Raiders use includes instead, so they never early-return here.)
-        boolean fileExcludedForTravellers = TravellersModConfig.isVillagerFileExcludedForTravellers(txt);
-
         String gender = "male";
         List<String> baseTextures = new ArrayList<>();
         List<String> clothesTextures = new ArrayList<>();
+        float baseHeight = 1.0f;
 
-        // Travellers: if any tag=... matches EXCLUDED_VILLAGER_TAGS, we skip for travellers only
-        boolean excludedTravellerByTag = false;
-
-        // Raiders: we use a whitelist. Track all tags in the file.
+        // Tags declared by this villager file, used by VillagerFilterRules for all pool types.
         Set<String> tagsInFile = new HashSet<>();
 
         String firstNameListId = null;
         String familyNameListId = null;
 
-        // Normalized filename (without .txt) for raiders includes
+        // Normalized filename (without .txt) used by VillagerFilterRules file matching.
         String villagerBaseName = txt.getName().toLowerCase(Locale.ROOT);
         if (villagerBaseName.endsWith(".txt")) {
             villagerBaseName = villagerBaseName.substring(0, villagerBaseName.length() - 4);
@@ -238,22 +234,10 @@ public final class CultureRegistry {
                 String key = line.substring(0, eq).trim();
                 String value = line.substring(eq + 1).trim();
 
-                // --- tag filter from config ---
                 if ("tag".equalsIgnoreCase(key)) {
-                    String tagLc = value.toLowerCase(Locale.ROOT);
+                    tagsInFile.add(value.toLowerCase(Locale.ROOT));
 
-                    // Travellers: classic exclude behavior
-                    if (TravellersModConfig.EXCLUDED_VILLAGER_TAGS.contains(tagLc)) {
-                        excludedTravellerByTag = true;
-                    }
-
-                    // Raiders: collect for later include checks
-                    tagsInFile.add(tagLc);
-
-                    continue;
-                }
-
-                if ("gender".equalsIgnoreCase(key)) {
+                } else if ("gender".equalsIgnoreCase(key)) {
                     gender = value.toLowerCase(Locale.ROOT);
 
                 } else if ("texture".equalsIgnoreCase(key)) {
@@ -280,21 +264,12 @@ public final class CultureRegistry {
                 } else if ("familyNameList".equalsIgnoreCase(key)) {
                     familyNameListId = value;
 
-
-                    // May be:
-                    //   clothes=category,path
-                    // or
-                    //   clothes=category,index,path
-
-                    String[] parts = value.split(",");
-                    if (parts.length == 2) {
-                        // category, path
-                        clothesTextures.add(parts[1].trim());
-                    } else if (parts.length >= 3) {
-                        // category, index, path (Seljuk-style)
-                        clothesTextures.add(parts[2].trim());
+                } else if ("baseheight".equalsIgnoreCase(key)) {
+                    try {
+                        baseHeight = Float.parseFloat(value);
+                    } catch (NumberFormatException ignored) {
+                        // keep default 1.0
                     }
-
                 }
             }
         } catch (Exception e) {
@@ -302,54 +277,16 @@ public final class CultureRegistry {
             return;
         }
 
-        // === 2) Decide raiders inclusion ===
+        boolean travellerAllowed = VillagerFilterRules.TRAVELLER.isAllowed(tagsInFile, villagerBaseName);
+        boolean raiderAllowed = VillagerFilterRules.RAIDER.isAllowed(tagsInFile, villagerBaseName);
+        boolean workerAllowed = VillagerFilterRules.WORKER.isAllowed(tagsInFile, villagerBaseName);
 
-        // Are there any include rules configured?
-        boolean hasRaiderFileIncludes = !TravellersModConfig.INCLUDED_RAIDER_VILLAGER_FILES.isEmpty();
-        boolean hasRaiderTagIncludes = !TravellersModConfig.INCLUDED_RAIDER_VILLAGER_TAGS.isEmpty();
-
-        // Check filename match (if rules exist)
-        boolean raiderFileMatch = hasRaiderFileIncludes &&
-                TravellersModConfig.INCLUDED_RAIDER_VILLAGER_FILES.contains(villagerBaseName);
-
-        // Check tag match (if rules exist)
-        boolean raiderTagMatch = false;
-        if (hasRaiderTagIncludes) {
-            for (String t : tagsInFile) {
-                if (TravellersModConfig.INCLUDED_RAIDER_VILLAGER_TAGS.contains(t)) {
-                    raiderTagMatch = true;
-                    break;
-                }
-            }
-        }
-// === 2b) Decide worker inclusion ===
-        boolean hasWorkerFileIncludes = !TravellersModConfig.INCLUDED_WORKER_VILLAGER_FILES.isEmpty();
-        boolean hasWorkerTagIncludes = !TravellersModConfig.INCLUDED_WORKER_VILLAGER_TAGS.isEmpty();
-
-        boolean workerFileMatch = hasWorkerFileIncludes &&
-                TravellersModConfig.INCLUDED_WORKER_VILLAGER_FILES.contains(villagerBaseName);
-
-        boolean workerTagMatch = false;
-        if (hasWorkerTagIncludes) {
-            for (String t : tagsInFile) {
-                if (TravellersModConfig.INCLUDED_WORKER_VILLAGER_TAGS.contains(t)) {
-                    workerTagMatch = true;
-                    break;
-                }
-            }
-        }
-
-// Design choice: workers only come from *explicit* includes, so default=false
-        boolean workerAllowed = (hasWorkerFileIncludes && workerFileMatch)
-                || (hasWorkerTagIncludes && workerTagMatch);
-
-// === 2c) Decide merchant inclusion ===
+        // Merchant keeps its original include-only whitelist behaviour (EntityTravellerMerchant is
+        // slated for removal, not worth migrating to the new symmetric filter engine).
         boolean hasMerchantFileIncludes = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_FILES.isEmpty();
         boolean hasMerchantTagIncludes = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.isEmpty();
-
         boolean merchantFileMatch = hasMerchantFileIncludes &&
                 TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_FILES.contains(villagerBaseName);
-
         boolean merchantTagMatch = false;
         if (hasMerchantTagIncludes) {
             for (String t : tagsInFile) {
@@ -359,26 +296,14 @@ public final class CultureRegistry {
                 }
             }
         }
-
         boolean merchantAllowed = (hasMerchantFileIncludes && merchantFileMatch)
                 || (hasMerchantTagIncludes && merchantTagMatch);
 
-        // Final decision:
-        // - If no includes defined at all -> raiderAllowed = true (backwards compatible).
-        // - Else -> allowed if filename OR tag matches an include.
-        boolean raiderAllowed;
-        if (!hasRaiderFileIncludes && !hasRaiderTagIncludes) {
-            raiderAllowed = true;
-        } else {
-            raiderAllowed = (hasRaiderFileIncludes && raiderFileMatch)
-                    || (hasRaiderTagIncludes && raiderTagMatch);
-        }
-
-        // === 3) Gender & texture guards (common) ===
+        // === Gender & texture guards (common) ===
         if (!"male".equals(gender)) return;  // adjust if you want females too
         if (baseTextures.isEmpty()) return;
 
-        // === 4) Build appearance objects once ===
+        // === Build appearance objects once ===
         List<TravellerAppearance> built = new ArrayList<>();
         for (String texStr : baseTextures) {
             ResourceLocation base = normalizeMillenaireTexture(texStr);
@@ -388,7 +313,7 @@ public final class CultureRegistry {
                 continue;
             }
 
-            TravellerAppearance app = new TravellerAppearance(base);
+            TravellerAppearance app = new TravellerAppearance(base, baseHeight);
 
             for (String c : clothesTextures) {
                 ResourceLocation cl = normalizeMillenaireTexture(c);
@@ -404,8 +329,8 @@ public final class CultureRegistry {
 
         if (built.isEmpty()) return;
 
-// === 5) Add to TRAVELLER pool if allowed ===
-        if (!fileExcludedForTravellers && !excludedTravellerByTag) {
+        // === Add to TRAVELLER pool if allowed ===
+        if (travellerAllowed) {
             for (TravellerAppearance app : built) {
                 culture.addTravellerAppearance(app);
             }
@@ -413,7 +338,7 @@ public final class CultureRegistry {
             System.out.println("[Travellers] Skipping travellers appearance for file=" + txt.getName());
         }
 
-// === 6) Add to RAIDER pool if allowed by include rules ===
+        // === Add to RAIDER pool if allowed ===
         if (raiderAllowed) {
             for (TravellerAppearance app : built) {
                 culture.addRaiderAppearance(app);
@@ -422,42 +347,36 @@ public final class CultureRegistry {
             System.out.println("[Travellers] Skipping raiders appearance (not whitelisted) file=" + txt.getName());
         }
 
-// === 7) Add to WORKER pool if allowed ===
+        // === Add to WORKER pool if allowed ===
         if (workerAllowed) {
             for (TravellerAppearance app : built) {
                 culture.addWorkerAppearance(app);
             }
         } else {
-            // Optional debug
             System.out.println("[Travellers] Skipping worker appearance (not whitelisted) file=" + txt.getName());
         }
 
-// === 8) Add to MERCHANT pool if allowed ===
+        // === Add to MERCHANT pool if allowed ===
         if (merchantAllowed) {
             for (TravellerAppearance app : built) {
                 culture.addMerchantAppearance(app);
             }
         } else {
-            // Optional debug
             System.out.println("[Travellers] Skipping merchant appearance (not whitelisted) file=" + txt.getName());
         }
 
-
-        // === 7) Name lists: firstNameList / familyNameList -> /cultures/<culture>/namelists/*.txt
+        // === Name lists: firstNameList / familyNameList -> /cultures/<culture>/namelists/*.txt ===
+        // Paired per villager type (see CultureDef.addNamePool) so names never cross-combine
+        // between unrelated lists (e.g. different castes) the way Millenaire itself never would.
         if (firstNameListId != null || familyNameListId != null) {
             File cultureDir = findCultureDirForVillagerFile(txt);
             if (cultureDir != null) {
-                if (firstNameListId != null) {
-                    List<String> firstNames = loadNameList(cultureDir, firstNameListId);
-                    if (!firstNames.isEmpty()) {
-                        culture.addMaleFirstNames(firstNames);
-                    }
-                }
-                if (familyNameListId != null) {
-                    List<String> familyNames = loadNameList(cultureDir, familyNameListId);
-                    if (!familyNames.isEmpty()) {
-                        culture.addFamilyNames(familyNames);
-                    }
+                List<String> firstNames = firstNameListId != null
+                        ? loadNameList(cultureDir, firstNameListId) : Collections.emptyList();
+                List<String> familyNames = familyNameListId != null
+                        ? loadNameList(cultureDir, familyNameListId) : Collections.emptyList();
+                if (!firstNames.isEmpty() || !familyNames.isEmpty()) {
+                    culture.addNamePool(firstNameListId, familyNameListId, firstNames, familyNames);
                 }
             }
         }
@@ -545,10 +464,10 @@ public final class CultureRegistry {
         return CULT.values();
     }
 
+    /** Returns null if no culture is registered under this id - callers must handle that case. */
+    @javax.annotation.Nullable
     public static CultureDef get(String id) {
-        CultureDef d = CULT.get(id);
-        if (d == null && !CULT.isEmpty()) return CULT.values().iterator().next();
-        return d;
+        return CULT.get(id);
     }
 
     public static File detectMillenaireCultures() {

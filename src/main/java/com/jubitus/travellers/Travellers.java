@@ -114,7 +114,7 @@ public class Travellers {
                     TravellersModConfig.syncServerCachesFromConfig();
                     TravellersModConfig.broadcastServerCostsToAllPlayers();
                 },
-                configDir, 1
+                configDir, 2
         );
         JubiConfig.applyOnStartup("travellers");
         JubiConfig.loadHistory("travellers");

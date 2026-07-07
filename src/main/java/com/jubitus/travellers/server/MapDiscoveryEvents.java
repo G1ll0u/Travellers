@@ -27,13 +27,13 @@ public class MapDiscoveryEvents {
     private static final java.util.Map<Long, Integer> DETAIL_PIXEL_CURSOR = new java.util.HashMap<>();
 
     private static final int DISCOVER_EVERY_TICKS    = 5;   // 0.25s — not exposed, always fast
-    private static final int REFRESH_PIXELS_PER_TILE = 512;
     private static final int REFRESH_MIN_FILLED      = 512;
     private static final int DETAIL_MIN_NORMAL_FILLED = 32;
 
     // Intervals and budgets read from config each cycle so changes apply immediately in-game
     private static int genEveryTicks()           { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapTileGenIntervalTicks; }
     private static int refreshEveryTicks()       { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapTileRefreshIntervalTicks; }
+    private static int refreshPixelsPerTile()    { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapTileRefreshPixelsPerRun; }
     private static int detailGenEveryTicks()     { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailGenIntervalTicks; }
     private static int detailGenPixels()         { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailGenPixelsPerRun; }
     private static int detailRefreshEveryTicks() { return com.jubitus.travellers.config.TravellersConfig.RENDERING.mapDetailRefreshIntervalTicks; }
@@ -149,8 +149,9 @@ public class MapDiscoveryEvents {
                     if (countNonZero(data) < REFRESH_MIN_FILLED) continue;
 
                     int cursor = PIXEL_CURSOR.getOrDefault(key, 0);
-                    int changed = MapTileGenerator.refreshPixels(world, tx, tz, data, cursor, REFRESH_PIXELS_PER_TILE);
-                    PIXEL_CURSOR.put(key, (cursor + REFRESH_PIXELS_PER_TILE) % MapTileImageSavedData.TILE_BYTES);
+                    int pixelsPerRun = refreshPixelsPerTile();
+                    int changed = MapTileGenerator.refreshPixels(world, tx, tz, data, cursor, pixelsPerRun);
+                    PIXEL_CURSOR.put(key, (cursor + pixelsPerRun) % MapTileImageSavedData.TILE_BYTES);
 
                     if (changed > 0) {
                         img.put(key, data);

@@ -55,6 +55,10 @@ public class GuiWorldMapPanel {
         new ResourceLocation("travellers", "textures/map/marker_follower.png");
     private static final ResourceLocation TEX_DESTINATION_CROSS =
         new ResourceLocation("travellers", "textures/map/marker_destination_cross.png");
+    private static final ResourceLocation TEX_CAMP_FIREPIT =
+        new ResourceLocation("travellers", "textures/map/marker_camp_firepit.png");
+    private static final ResourceLocation TEX_CAMP_SLOT =
+        new ResourceLocation("travellers", "textures/map/marker_camp_slot.png");
 
     /**
      * Extra pixels added on each side of the terrain texture beyond the viewport.
@@ -64,7 +68,7 @@ public class GuiWorldMapPanel {
     private static final int MARGIN = 16;
 
     public static class Marker {
-        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, LEADER, FOLLOWER, FOLLOWER_HIGHLIGHTED, PLAYER, DESTINATION_CROSS }
+        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, LEADER, FOLLOWER, FOLLOWER_HIGHLIGHTED, PLAYER, DESTINATION_CROSS, POP_TRAVELLER, POP_RAIDER, POP_WORKER, CAMP_FIREPIT, CAMP_SLOT }
 
         public final BlockPos pos;
         public final int argb;
@@ -250,6 +254,11 @@ public class GuiWorldMapPanel {
         Marker.MarkerType.HOME,
         Marker.MarkerType.VILLAGE,
         Marker.MarkerType.CONTROLLED_VILLAGE,
+        Marker.MarkerType.CAMP_SLOT,
+        Marker.MarkerType.CAMP_FIREPIT,
+        Marker.MarkerType.POP_TRAVELLER,
+        Marker.MarkerType.POP_RAIDER,
+        Marker.MarkerType.POP_WORKER,
         Marker.MarkerType.PLAYER,
         Marker.MarkerType.DESTINATION_CROSS,
     };
@@ -279,6 +288,11 @@ public class GuiWorldMapPanel {
             case FOLLOWER:
             case FOLLOWER_HIGHLIGHTED: return TEX_FOLLOWER;
             case DESTINATION_CROSS:  return TEX_DESTINATION_CROSS;
+            case POP_TRAVELLER:
+            case POP_RAIDER:
+            case POP_WORKER:         return TEX_FOLLOWER;
+            case CAMP_FIREPIT:       return TEX_CAMP_FIREPIT;
+            case CAMP_SLOT:          return TEX_CAMP_SLOT;
             default:                 return TEX_VILLAGE;
         }
     }
@@ -294,6 +308,11 @@ public class GuiWorldMapPanel {
             case FOLLOWER:           return 4;
             case FOLLOWER_HIGHLIGHTED: return 7;
             case DESTINATION_CROSS:  return 8;
+            case POP_TRAVELLER:
+            case POP_RAIDER:
+            case POP_WORKER:         return 4;
+            case CAMP_FIREPIT:       return 5;
+            case CAMP_SLOT:          return 4;
             default:                 return 4;
         }
     }
@@ -325,6 +344,8 @@ public class GuiWorldMapPanel {
         Marker.MarkerType.HOME,
         Marker.MarkerType.LEADER,
         Marker.MarkerType.FOLLOWER,
+        Marker.MarkerType.CAMP_FIREPIT,
+        Marker.MarkerType.CAMP_SLOT,
     };
 
     private static final String[] LEGEND_KEYS = {
@@ -334,6 +355,8 @@ public class GuiWorldMapPanel {
         "travellers.map.legend.home",
         "travellers.map.legend.leader",
         "travellers.map.legend.follower",
+        "travellers.map.legend.camp_firepit",
+        "travellers.map.legend.camp_slot",
     };
 
     private void drawLegend(int mapX, int mapY) {
@@ -415,6 +438,8 @@ public class GuiWorldMapPanel {
             ownerArgb,                              // HOME
             ownerArgb,                              // LEADER
             followerArgb,                           // FOLLOWER
+            WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT, // CAMP_FIREPIT (lit color swatch)
+            WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT,  // CAMP_SLOT (built color swatch)
         };
     }
 

@@ -9,6 +9,7 @@ import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.client.sound.TravellerCrowdSoundLimiter;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.culture.VoiceSet;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIFishWhileTravel;
@@ -41,6 +42,8 @@ import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockBed;
+import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.*;
@@ -109,12 +112,24 @@ public class EntityTraveller extends EntityCreature {
     private static final ResourceLocation TRAVELLER_LOOT =
             new ResourceLocation("travellers", "entities/traveller_pack");
     private static final DataParameter<Integer> TEXTURE_INDEX = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.VARINT);
+    // Per-entity render scale rolled at spawn from the active appearance's baseHeight, mirroring
+    // Millenaire's own VillagerRecord scale roll (baseHeight * random 0.80-0.89 for adults).
+    private static final DataParameter<Float> RENDER_SCALE = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
     // ---- GAP / CLIFF handling ----
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
     private static final int ARRIVE_IN = Math.max(8, TravellersModConfig.VILLAGE_NEAR - 4); // e.g., 28 if near=32
     private static final int ARRIVE_OUT = TravellersModConfig.VILLAGE_NEAR + 4;              // e.g., 36
     private static final DataParameter<Boolean> AIMING_BOW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
+    // --- Camp sleep pose (synced for render only, never persisted to NBT: virtualization must
+    // never rematerialize an entity mid-sleep, see EntityAICampStay) ---
+    private static final DataParameter<Boolean> SLEEPING =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
+    private static final DataParameter<BlockPos> SLEEPING_BED_POS =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BLOCK_POS);
+    // Server-only exact sleep spot, re-applied every tick via holdSleepPosition() so nearby-entity
+    // collisions/pushes can never slide a sleeping traveller off its bed.
+    private double sleepAnchorX, sleepAnchorY, sleepAnchorZ;
     // Configuration-ish knobs
     private static final DataParameter<String> CULTURE_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
@@ -198,6 +213,10 @@ public class EntityTraveller extends EntityCreature {
     @Nullable
     private UUID dogId = null;
     private int currentFollowers = 0;
+    // Set/cleared each tick by EntityAICampStay while peacefully occupying a camp (building, wandering,
+    // napping, sleeping). Never persisted: purely a same-tick "don't proactively engage" signal for
+    // EntityAIDefendIfClose / RaiderAttackTargetAI. Retaliation (TravellerHurtByTarget) ignores this flag.
+    private boolean campingPassive = false;
     public EntityTraveller(World worldIn) {
         super(worldIn);
         this.setPathPriority(PathNodeType.BLOCKED, -1.0F);
@@ -314,6 +333,34 @@ public class EntityTraveller extends EntityCreature {
         if ((this.ticksExisted & 0x3F) != 0) return; // every ~64 ticks
         int now = this.ticksExisted;
         ignoreTargetsUntil.entrySet().removeIf(en -> now > en.getValue());
+    }
+
+    private int retargetBoostUntilTick = 0;
+
+    /**
+     * Bypasses target-scan throttling (tick-rate gates, vanilla's random check-interval) for a
+     * few ticks. Call once when a target is confirmed dead so the next target is acquired
+     * immediately instead of waiting on the normal polling cadence.
+     */
+    public void requestImmediateRetarget() {
+        retargetBoostUntilTick = this.ticksExisted + 5;
+    }
+
+    public boolean isRetargetBoosted() {
+        return this.ticksExisted <= retargetBoostUntilTick;
+    }
+
+    /**
+     * True while a hired worker's owner is still actively fighting the given target — used to
+     * keep an owner-assist chase alive even though the worker itself was never personally
+     * attacked by that target (so the direct-aggression "calm"/"threat" signals never trip).
+     */
+    public boolean isOwnerStillFightingAssistTarget(EntityLivingBase target) {
+        if (!(this instanceof EntityTravellerWorker)) return false;
+        EntityPlayer owner = ((EntityTravellerWorker) this).getFollowOwner();
+        if (owner == null || !owner.isEntityAlive()) return false;
+        if (owner.getLastAttackedEntity() != target) return false;
+        return (owner.ticksExisted - owner.getLastAttackedEntityTime()) <= TravellersModConfig.playerFleeForgiveTicks;
     }
 
     @Override
@@ -457,8 +504,29 @@ public class EntityTraveller extends EntityCreature {
         return camp;
     }
 
+    @Nullable
     public CultureDef getCulture() {
         return CultureRegistry.get(getCultureId());
+    }
+
+    /**
+     * Which appearance pool (traveller/raider/worker) this entity draws its texture index from.
+     * Centralized here so rendering and scale both resolve the same TravellerAppearance -
+     * subclasses used to be picked inconsistently between call sites (e.g. workers rendering
+     * from the traveller pool despite rolling their index against the worker pool).
+     */
+    public TravellerAppearance getActiveAppearance() {
+        CultureDef c = getCulture();
+        if (c == null) {
+            return new TravellerAppearance(new ResourceLocation("minecraft", "textures/entity/steve.png"));
+        }
+        if (this instanceof EntityTravellerRaider) {
+            return c.getRaiderAppearance(getTextureIndex());
+        }
+        if (this instanceof EntityTravellerWorker) {
+            return c.getWorkerAppearance(getTextureIndex());
+        }
+        return c.getAppearance(getTextureIndex());
     }
 
     public String getCultureId() {
@@ -889,7 +957,10 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(VOICE_PERSONALITY_ID, ""); // NEW: empty = “no personality chosen”
 
         this.dataManager.register(TEXTURE_INDEX, 0);
+        this.dataManager.register(RENDER_SCALE, 1.0F);
         this.dataManager.register(AIMING_BOW, Boolean.FALSE); // NEW
+        this.dataManager.register(SLEEPING, Boolean.FALSE);
+        this.dataManager.register(SLEEPING_BED_POS, BlockPos.ORIGIN);
     }
     public static void dbg(String s) {
         System.out.println("[TravellersDBG] " + s);
@@ -1060,6 +1131,11 @@ public class EntityTraveller extends EntityCreature {
             tickFollowTimer();
 
             EntityLivingBase tgtNow = this.getAttackTarget();
+            if (tgtNow != null && !tgtNow.isEntityAlive()) {
+                // Target just died — bypass target-scan throttling so the next enemy is
+                // picked up within a tick or two instead of waiting on the normal poll cadence.
+                requestImmediateRetarget();
+            }
             if (tgtNow == null || !tgtNow.isEntityAlive()) {
                 EntityLivingBase rev = this.getRevengeTarget();
                 boolean revAlive = rev != null && rev.isEntityAlive();
@@ -1124,7 +1200,14 @@ public class EntityTraveller extends EntityCreature {
             boolean fleeingLongEnough =
                     (this.ticksExisted - combat.lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
 
-            if (playerCalm && fleeingLongEnough && !wasRecentlyThreat) {
+            // 4) Assist chases (worker joining its owner against a player it was never
+            // personally attacked by) must not be "forgiven" just because THIS worker was
+            // never hit — playerCalm/wasRecentlyThreat only track direct aggression against
+            // this entity. As long as the owner is still actively fighting the same player,
+            // the assist stays alive regardless of those two signals.
+            boolean assistStillDriven = isOwnerStillFightingAssistTarget(p);
+
+            if (playerCalm && fleeingLongEnough && !wasRecentlyThreat && !assistStillDriven) {
                 this.setAttackTarget(null);
                 this.setInCombat(false);
                 this.getNavigator().clearPath();
@@ -1209,6 +1292,7 @@ public class EntityTraveller extends EntityCreature {
             compound.setBoolean("VillageIdling", travelCommon.isVillageIdling());
             compound.setInteger("RouteIndex", travelCommon.routeIndex);
             compound.setInteger("TextureIdx", getTextureIndex());
+            compound.setFloat("RenderScale", getRenderScale());
             compound.setFloat("Wanderlust", travelCommon.wanderlust);
             compound.setFloat("ExploreChance", travelCommon.exploreChance);
             compound.setFloat("HopPreference", travelCommon.hopPreference);
@@ -1282,6 +1366,7 @@ public class EntityTraveller extends EntityCreature {
             inventory.deserializeNBT(compound.getCompoundTag("TravellerInv"));
         }
         if (compound.hasKey("TextureIdx")) setTextureIndex(compound.getInteger("TextureIdx"));
+        if (compound.hasKey("RenderScale")) setRenderScale(compound.getFloat("RenderScale"));
         if (compound.hasKey("Wanderlust")) travelCommon.wanderlust = compound.getFloat("Wanderlust");
         if (compound.hasKey("ExploreChance")) travelCommon.exploreChance = compound.getFloat("ExploreChance");
         if (compound.hasKey("HopPreference")) travelCommon.hopPreference = compound.getFloat("HopPreference");
@@ -1344,6 +1429,12 @@ public class EntityTraveller extends EntityCreature {
         }
 
         super.onLivingUpdate();
+
+        // Undo any drift super.onLivingUpdate() may have caused (nearby-entity collision, stray AI
+        // movement) after it's already run, so a sleeping traveller never visibly slides.
+        if (!world.isRemote && isSleepingInBed()) {
+            holdSleepPosition();
+        }
 
         // Clear revenge target immediately if the attacker is blacklisted
         if (!world.isRemote) {
@@ -1532,6 +1623,7 @@ public class EntityTraveller extends EntityCreature {
         CultureDef c = CultureRegistry.get(cid);
         int tCount = (c != null) ? c.travellerAppearanceCount() : 0;
         setTextureIndex(this.rand.nextInt(Math.max(1, tCount <= 0 ? 1 : tCount)));
+        rollRenderScale(getActiveAppearance());
 
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
@@ -1632,6 +1724,23 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.set(TEXTURE_INDEX, index);
     }
 
+    public float getRenderScale() {
+        return this.dataManager.get(RENDER_SCALE);
+    }
+
+    public void setRenderScale(float scale) {
+        this.dataManager.set(RENDER_SCALE, scale);
+    }
+
+    /**
+     * Replicates Millenaire's own VillagerRecord scale roll: baseHeight * random 0.80-0.89,
+     * rolled once at spawn (per-instance jitter, like real villagers) then persisted.
+     */
+    public void rollRenderScale(TravellerAppearance appearance) {
+        float baseHeight = appearance != null ? appearance.baseHeight : 1.0f;
+        setRenderScale(baseHeight * (0.80f + this.rand.nextInt(10) / 100f));
+    }
+
     public void setCultureId(String id) {
         this.dataManager.set(CULTURE_ID, id);
     }
@@ -1642,6 +1751,167 @@ public class EntityTraveller extends EntityCreature {
 
     public void setAimingBow(boolean v) {
         if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
+    }
+
+    public boolean isCampingPassive() {
+        return campingPassive;
+    }
+
+    public void setCampingPassive(boolean v) {
+        this.campingPassive = v;
+    }
+
+    public boolean isSleepingInBed() {
+        return this.dataManager.get(SLEEPING);
+    }
+
+    public BlockPos getSleepingBedPos() {
+        return this.dataManager.get(SLEEPING_BED_POS);
+    }
+
+    /**
+     * Lies down in the given bed block. No distance/safety checks (the calling AI already
+     * guarantees proximity and camp-only context) — this is a cosmetic pose, not vanilla
+     * player-sleeping (no time skip, no spawn point).
+     *
+     * <p>Mirrors {@link net.minecraft.entity.player.EntityPlayer#trySleep} exactly: the entity is
+     * anchored near the HEAD half (nudged 0.4 blocks further along {@code FACING}, away from the
+     * foot), and the render is separately shifted back toward the foot by
+     * {@link #getSleepRenderOffset()} (mirroring {@code EntityPlayer#setRenderOffsetForSleep}) so
+     * the body visually spans the full two-block bed regardless of {@code FACING}/bed type. An
+     * earlier FOOT-anchored attempt without that render shift is why this needs the comment: the
+     * two pieces (anchor position and render offset) only look right together.
+     */
+    public boolean trySleepInBed(BlockPos bedPos) {
+        if (world.isRemote || !isEntityAlive() || isSleepingInBed()) return false;
+        IBlockState state = world.getBlockState(bedPos);
+        if (!(state.getBlock() instanceof BlockBed)) return false;
+
+        BlockBed.EnumPartType part = state.getValue(BlockBed.PART);
+        BlockPos headPos = bedPos;
+        if (part != BlockBed.EnumPartType.HEAD) {
+            BlockPos candidate = bedPos.offset(state.getValue(BlockHorizontal.FACING));
+            IBlockState candidateState = world.getBlockState(candidate);
+            if (candidateState.getBlock() instanceof BlockBed
+                    && candidateState.getValue(BlockBed.PART) == BlockBed.EnumPartType.HEAD) {
+                headPos = candidate;
+                state = candidateState;
+            } // else: single/broken bed fallback, sleep on the one block found
+        }
+
+        EnumFacing facing = state.getValue(BlockHorizontal.FACING);
+        double x = headPos.getX() + 0.5D + facing.getXOffset() * 0.4D;
+        double z = headPos.getZ() + 0.5D + facing.getZOffset() * 0.4D;
+        // Rest on the bed's OWN collision box, not vanilla's 0.6875 constant — Millénaire beds
+        // (BlockMillBed) have custom, often lower collision heights and the constant floats above them.
+        double y = headPos.getY() + state.getBoundingBox(world, headPos).maxY;
+
+        this.setSize(0.2F, 0.2F);
+        this.motionX = 0.0D;
+        this.motionY = 0.0D;
+        this.motionZ = 0.0D;
+        this.setPosition(x, y, z);
+        this.sleepAnchorX = x;
+        this.sleepAnchorY = y;
+        this.sleepAnchorZ = z;
+        this.dataManager.set(SLEEPING_BED_POS, headPos);
+        this.dataManager.set(SLEEPING, true);
+        return true;
+    }
+
+    public void wakeUpTraveller() {
+        if (world.isRemote || !isSleepingInBed()) return;
+        this.setSize(0.5F, 1.6F);
+        this.dataManager.set(SLEEPING, false);
+    }
+
+    /**
+     * Re-pins the entity to its exact sleep anchor every tick, undoing any drift from nearby
+     * entity collisions (also blocked outright via {@link #canBePushed()}) or stray AI movement —
+     * a sleeping entity must never visibly slide out of its bed.
+     */
+    private void holdSleepPosition() {
+        this.motionX = 0.0D;
+        this.motionY = 0.0D;
+        this.motionZ = 0.0D;
+        if (this.posX != sleepAnchorX || this.posY != sleepAnchorY || this.posZ != sleepAnchorZ) {
+            this.setPosition(sleepAnchorX, sleepAnchorY, sleepAnchorZ);
+        }
+    }
+
+    @Override
+    public boolean canBePushed() {
+        if (isSleepingInBed()) return false;
+        return super.canBePushed();
+    }
+
+    /**
+     * Sleeping intentionally rests the entity on the bed's own (sometimes tall) collision box,
+     * which can otherwise overlap a low ceiling/wall and trigger vanilla's "in wall" suffocation
+     * damage ({@code EntityLivingBase#onEntityUpdate}) — never appropriate for a cosmetic pose.
+     */
+    @Override
+    public boolean isEntityInsideOpaqueBlock() {
+        // campingPassive also covers block-by-block shelter build/teardown: a block placed
+        // against the mob's own bounding box must never suffocate the builder.
+        if (isSleepingInBed() || campingPassive) return false;
+        return super.isEntityInsideOpaqueBlock();
+    }
+
+    /**
+     * Client-only: bed facing in degrees, mirroring {@link EntityPlayer#getBedOrientationInDegrees()}
+     * exactly — vanilla uses its own hardcoded mapping, NOT {@link EnumFacing#getHorizontalAngle()}
+     * (which is 90° off and shifts the sleeping body sideways depending on bed orientation).
+     */
+    @SideOnly(Side.CLIENT)
+    public float getBedOrientationInDegrees() {
+        BlockPos bedPos = getSleepingBedPos();
+        IBlockState state = world.getBlockState(bedPos);
+        if (!(state.getBlock() instanceof BlockBed)) return 0.0F;
+        switch (state.getValue(BlockHorizontal.FACING)) {
+            case SOUTH: return 90.0F;
+            case WEST: return 0.0F;
+            case NORTH: return 270.0F;
+            case EAST: return 180.0F;
+            default: return 0.0F;
+        }
+    }
+
+    /**
+     * Client-only: how far to shift the rendered model away from the anchor (which sits near the
+     * HEAD half, see {@link #trySleepInBed}), mirroring {@code EntityPlayer#renderOffsetX/Z}. Without
+     * this the body renders bunched up near the headboard instead of spanning the full bed.
+     */
+    @SideOnly(Side.CLIENT)
+    public Vec3d getSleepRenderOffset() {
+        BlockPos bedPos = getSleepingBedPos();
+        IBlockState state = world.getBlockState(bedPos);
+        if (!(state.getBlock() instanceof BlockBed)) return Vec3d.ZERO;
+        EnumFacing facing = state.getValue(BlockHorizontal.FACING);
+        // Vanilla uses -1.8 for a full-size player; the model renders at getRenderScale()
+        // (RenderTraveller.preRenderCallback), so shrink the shift to keep the shorter
+        // body centered in the 2-block bed: -0.9 * (1 + scale).
+        double d = -0.9D * (1.0D + getRenderScale());
+        return new Vec3d(d * facing.getXOffset(), 0.0D, d * facing.getZOffset());
+    }
+
+    /**
+     * Client-only: while asleep, sample render light at the midpoint of the VISIBLE body (shifted
+     * toward the bed's foot by {@link #getSleepRenderOffset}) instead of the anchor cell near the
+     * headboard — a shelter block directly above the bed head otherwise darkens the whole body even
+     * though most of it lies in a lit cell.
+     */
+    @Override
+    @SideOnly(Side.CLIENT)
+    public int getBrightnessForRender() {
+        if (isSleepingInBed()) {
+            Vec3d off = getSleepRenderOffset();
+            BlockPos p = new BlockPos(posX + off.x * 0.5D, posY + 0.5D, posZ + off.z * 0.5D);
+            if (world.isBlockLoaded(p)) {
+                return world.getCombinedLight(p, 0);
+            }
+        }
+        return super.getBrightnessForRender();
     }
 
     void tryPlayAttackSound() {
@@ -1767,7 +2037,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
 
-    private void doInteractSwing(EnumHand hand) {
+    public void doInteractSwing(EnumHand hand) {
         // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
         world.setEntityState(this, (byte) (hand == EnumHand.OFF_HAND ? 5 : 4));
         // Also update server-side state so other logic that checks swing progresses is consistent
@@ -2192,7 +2462,7 @@ public void fall(float distance, float damageMultiplier) {
     // Seat height so the player doesn't clip the head.
     @Override
     public double getMountedYOffset() {
-        return this.height * 0.85D; // tweak 0.8–0.9 to taste
+        return this.height * getRenderScale();
     }
 
     // Allow exactly one passenger.
@@ -2330,6 +2600,14 @@ public void fall(float distance, float damageMultiplier) {
 
     public ItemStack makeGhostBow(ItemStack src) {
         return equipment.makeGhostBow(src);
+    }
+
+    public ItemStack makeGhostBlock(net.minecraft.block.state.IBlockState state) {
+        return equipment.makeGhostBlock(state);
+    }
+
+    public boolean isGhostBlock(ItemStack s) {
+        return equipment.isGhostBlock(s);
     }
 
     public boolean hasBowAnywherePublic() {

@@ -203,7 +203,10 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
             campCheckCooldown--;
             return leaderIsCamping;
         }
-        leaderIsCamping = CampsiteManager.get((WorldServer) follower.world).campOf(leader.getUniqueID()) != null;
+        CampsiteManager cm = CampsiteManager.get((WorldServer) follower.world);
+        // Also check the follower's own occupancy: the leader may finish its own teardown and
+        // leave the camp's occupant map before this follower has finished tearing its shelter down.
+        leaderIsCamping = cm.campOf(leader.getUniqueID()) != null || cm.campOf(follower.getUniqueID()) != null;
         campCheckCooldown = 10;
         return leaderIsCamping;
     }

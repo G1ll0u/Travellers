@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.entity.layers.LayerBipedArmor;
 import net.minecraft.client.renderer.entity.layers.LayerCustomHead;
 import net.minecraft.client.renderer.entity.layers.LayerHeldItem;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.Vec3d;
 
 public class RenderTraveller extends RenderBiped<EntityTraveller> {
 
@@ -40,21 +41,35 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
 
     @Override
     protected ResourceLocation getEntityTexture(EntityTraveller e) {
-        CultureDef c = e.getCulture();
-        TravellerAppearance app = c.getAppearance(e.getTextureIndex());
-
-        if (e instanceof EntityTravellerRaider) {
-            app = c.getRaiderAppearance(e.getTextureIndex());
-        } else {
-            app = c.getAppearance(e.getTextureIndex());
-        }
-
         // base nude or "underwear + hair" layer from Millénaire
-        return app.baseTexture;
+        return e.getActiveAppearance().baseTexture;
     }
 
     @Override
     protected void preRenderCallback(EntityTraveller entity, float partialTickTime) {
-        GlStateManager.scale(0.85F, 0.85F, 0.85F);
+        float s = entity.getRenderScale();
+        GlStateManager.scale(s, s, s);
+    }
+
+    @Override
+    protected void applyRotations(EntityTraveller entity, float ageInTicks, float rotationYaw, float partialTicks) {
+        if (entity.isEntityAlive() && entity.isSleepingInBed()) {
+            GlStateManager.rotate(entity.getBedOrientationInDegrees(), 0.0F, 1.0F, 0.0F);
+            GlStateManager.rotate(this.getDeathMaxRotation(entity), 0.0F, 0.0F, 1.0F);
+            GlStateManager.rotate(270.0F, 0.0F, 1.0F, 0.0F);
+        } else {
+            super.applyRotations(entity, ageInTicks, rotationYaw, partialTicks);
+        }
+    }
+
+    /** Shifts the render back toward the bed's foot half, mirroring RenderPlayer's sleep handling. */
+    @Override
+    protected void renderLivingAt(EntityTraveller entity, double x, double y, double z) {
+        if (entity.isEntityAlive() && entity.isSleepingInBed()) {
+            Vec3d offset = entity.getSleepRenderOffset();
+            super.renderLivingAt(entity, x + offset.x, y + offset.y, z + offset.z);
+        } else {
+            super.renderLivingAt(entity, x, y, z);
+        }
     }
 }

@@ -203,3 +203,10 @@ travellers.map.legend.home=Barrack
 travellers.map.legend.follower=Follower
 travellers.map.legend.leader=Leader
 travellers.map.legend.player=You
+travellers.map.legend.camp_firepit=Camp firepit
+travellers.map.legend.camp_slot=Camp shelter
+
+# Population map
+travellers.map.population.traveller=Travellers: %d (%d loaded, %d virtual)
+travellers.map.population.raider=Raiders: %d (%d loaded, %d virtual)
+travellers.map.population.worker=Workers: %d (%d loaded, %d virtual)

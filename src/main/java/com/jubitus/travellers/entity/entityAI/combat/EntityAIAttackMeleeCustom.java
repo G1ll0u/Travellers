@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
@@ -16,6 +17,10 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private static final float CHASE_BOOST = 1.28f;
     private static final float FIGHT_FACTOR = 1.08f;
     private static final float LERP = 0.55f;
+
+    // "Still engaged" proximity band — within this range, LOS memory refreshes even without a raytrace hit
+    private static final double NEAR_RANGE = 4.0D;
+    private static final double NEAR_RANGE_SQ = NEAR_RANGE * NEAR_RANGE;
 
     // Nouveau : on repousse activement le nav au lieu d'attendre le vanilla
     private static final int REPATH_INTERVAL_FAR = 4;
@@ -88,23 +93,29 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         EntityLivingBase tgt = attacker.getAttackTarget();
         if (tgt == null || !tgt.isEntityAlive()) return false;
 
-        if (tgt instanceof EntityPlayer) {
-            EntityPlayer p = (EntityPlayer) tgt;
-            boolean canSee = attacker.getEntitySenses().canSee(p);
-            double d2 = attacker.getDistanceSq(p);
-            boolean near = d2 <= 16.0D;
-            if (!canSee && !near) return false;
-
-            if (attacker instanceof EntityTraveller) {
-                if (shouldForgivePlayerChaseForAI(attacker, p)) return false;
-            }
-        }
-
         if (attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
-            if (t.hasBowInBackpackPublic()) {
-                double d2 = attacker.getDistanceSq(tgt);
-                if (d2 > meleeHoldSq) return false;
+
+            // Chase-memory: losing sight/proximity doesn't end the chase immediately.
+            // Applies equally to players and mobs — an attacker keeps pursuing a target it can't
+            // currently see for a grace window, and only truly gives up once that window expires
+            // with no LOS/proximity refresh (the "stuck" detector in EntityTraveller.onUpdate()
+            // still separately catches an unreachable target sooner).
+            boolean canSee = attacker.getEntitySenses().canSee(tgt);
+            double d2 = attacker.getDistanceSq(tgt);
+            boolean near = d2 <= NEAR_RANGE_SQ;
+            if (canSee || near) {
+                t.combat.lastLOSorCloseTick = t.ticksExisted;
+            } else if (t.ticksExisted - t.combat.lastLOSorCloseTick > TravellersConfig.COMBAT.losMemoryTicks) {
+                return false;
+            }
+
+            if (tgt instanceof EntityPlayer && shouldForgivePlayerChaseForAI(attacker, (EntityPlayer) tgt)) {
+                return false;
+            }
+
+            if (t.hasBowInBackpackPublic() && d2 > meleeHoldSq) {
+                return false;
             }
         }
 
@@ -124,6 +135,11 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         repathCooldown = 0;
         this.attacker.setSprinting(false);
         this.attacker.setAIMoveSpeed(aiSpeedNow);
+
+        // Fresh chase-memory window — avoids inheriting a stale tick count from a previous, unrelated fight
+        if (this.attacker instanceof EntityTraveller) {
+            ((EntityTraveller) this.attacker).combat.lastLOSorCloseTick = this.attacker.ticksExisted;
+        }
     }
 
     @Override
@@ -203,7 +219,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             this.attackTick--;
         }
 
-        if (gapXZSq <= reachSq && this.attackTick <= 0) {
+        // Never actually land a hit on something we can't see (e.g. through a thin wall corner)
+        if (gapXZSq <= reachSq && this.attackTick <= 0 && this.attacker.getEntitySenses().canSee(target)) {
             this.attackTick = TravellerItemDamage.computeAttackCooldownTicks(attacker);
             this.attacker.swingArm(EnumHand.MAIN_HAND);
             this.attacker.attackEntityAsMob(target);

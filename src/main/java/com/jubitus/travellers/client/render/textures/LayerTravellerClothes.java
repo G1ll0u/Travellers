@@ -20,8 +20,7 @@ public class LayerTravellerClothes implements net.minecraft.client.renderer.enti
                               float partialTicks, float ageInTicks, float netHeadYaw,
                               float headPitch, float scale) {
 
-        CultureDef c = entity.getCulture();
-        TravellerAppearance app = c.getAppearance(entity.getTextureIndex());
+        TravellerAppearance app = entity.getActiveAppearance();
 
         // pick one clothes texture at random *per entity* or based on some saved choice
         // simplest: deterministic by entity UUID so it stays stable

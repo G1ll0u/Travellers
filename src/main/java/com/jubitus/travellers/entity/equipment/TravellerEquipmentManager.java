@@ -12,6 +12,7 @@ import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Enchantments;
+import net.minecraft.init.Items;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.item.*;
 import net.minecraft.nbt.NBTTagCompound;
@@ -38,6 +39,7 @@ public class TravellerEquipmentManager {
     public static final String GHOST_BOW_TAG = "TravellerGhostBow";
     public static final String GHOST_TORCH_TAG = "TravellerGhostTorch";
     public static final String GHOST_ROD_TAG = "TravellerGhostRod";
+    public static final String GHOST_BLOCK_TAG = "TravellerGhostBlock";
 
     private final EntityTraveller entity;
 
@@ -213,6 +215,32 @@ public class TravellerEquipmentManager {
                 && s.getItem() == Item.getItemFromBlock(Blocks.TORCH)
                 && s.hasTagCompound()
                 && s.getTagCompound().getBoolean(GHOST_TORCH_TAG);
+    }
+
+    /**
+     * Visual-only item representing the block a traveller is about to place while building a shelter
+     * block by block. Returns {@link ItemStack#EMPTY} if the block has no item form (e.g. air, or a
+     * block — like doors/beds — whose item was registered standalone rather than via the block→item
+     * map) — caller should just leave the hand empty then.
+     *
+     * <p>Uses {@link net.minecraft.block.Block#damageDropped} rather than {@code getMetaFromState}: the
+     * latter is the full in-world metadata, which often encodes orientation bits (e.g. a wall torch's
+     * facing) that the item model never registered a variant for — that produced the "missing model"
+     * pink/black checkerboard. {@code damageDropped} is vanilla's own "meta for the item representation
+     * of this block state" (the same thing block breaking/picking uses), which strips exactly those bits.
+     */
+    public ItemStack makeGhostBlock(net.minecraft.block.state.IBlockState state) {
+        Item item = Item.getItemFromBlock(state.getBlock());
+        if (item == Items.AIR) return ItemStack.EMPTY;
+        ItemStack copy = new ItemStack(item, 1, state.getBlock().damageDropped(state));
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setBoolean(GHOST_BLOCK_TAG, true);
+        copy.setTagCompound(tag);
+        return copy;
+    }
+
+    public boolean isGhostBlock(ItemStack s) {
+        return checkGhostTag(s, GHOST_BLOCK_TAG);
     }
 
     // -------------------------------------------------------------------------

@@ -14,6 +14,11 @@ import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 public class RaiderAttackTargetAI<T extends EntityLivingBase>
         extends EntityAINearestAttackableTarget<T> {
 
+    // Vanilla's targetChance is a per-tick random gate we can't reach directly (private/final) —
+    // re-rolling it several times in the same tick is the cheap way to make a boosted retarget
+    // near-certain to fire this tick instead of waiting on chance.
+    private static final int RETARGET_BOOST_ATTEMPTS = 20;
+
     private final EntityTravellerRaider raider;
 
     public RaiderAttackTargetAI(EntityTravellerRaider raider,
@@ -40,6 +45,17 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         // Direct retaliation (attackEntityFrom) handles switching targets while in combat.
         EntityLivingBase current = raider.getAttackTarget();
         if (current != null && current.isEntityAlive()) return false;
+
+        // Peacefully camping: don't proactively scan for new targets. Retaliation still works
+        // via TravellerHurtByTarget.
+        if (raider.isCampingPassive()) return false;
+
+        if (raider.isRetargetBoosted()) {
+            for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {
+                if (super.shouldExecute()) return true;
+            }
+            return false;
+        }
 
         return super.shouldExecute();
     }

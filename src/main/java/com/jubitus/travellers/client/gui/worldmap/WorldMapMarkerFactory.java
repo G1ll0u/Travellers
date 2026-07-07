@@ -147,6 +147,67 @@ public final class WorldMapMarkerFactory {
         return (r << 16) | (g << 8) | b;
     }
 
+    /** Loaded = fully opaque, virtual = translucent so the two are visually distinguishable. */
+    private static final int COLOR_POP_TRAVELLER = 0x55CC66;
+    private static final int COLOR_POP_RAIDER    = 0xCC4444;
+    private static final int COLOR_POP_WORKER    = 0x4488CC;
+    private static final int VIRTUAL_ALPHA = 0xAA000000;
+    private static final int LOADED_ALPHA  = 0xFF000000;
+
+    public static GuiWorldMapPanel.Marker populationTraveller(BlockPos pos, boolean virtual, String label) {
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_TRAVELLER, 4,
+                GuiWorldMapPanel.Marker.MarkerType.POP_TRAVELLER, label);
+    }
+
+    public static GuiWorldMapPanel.Marker populationRaider(BlockPos pos, boolean virtual, String label) {
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_RAIDER, 4,
+                GuiWorldMapPanel.Marker.MarkerType.POP_RAIDER, label);
+    }
+
+    public static GuiWorldMapPanel.Marker populationWorker(BlockPos pos, boolean virtual, String label) {
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_WORKER, 4,
+                GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);
+    }
+
+    // --- Camp system debug markers ---
+    public static final int COLOR_CAMP_FIREPIT_LIT   = 0xFFCC6600; // orange embers
+    public static final int COLOR_CAMP_FIREPIT_UNLIT = 0xFF555555; // cold ash
+    public static final int COLOR_CAMP_SLOT_EMPTY        = 0xFF888888; // gray
+    public static final int COLOR_CAMP_SLOT_DISABLED     = 0xFFCC2222; // red
+    public static final int COLOR_CAMP_SLOT_BUILDING     = 0xFFDDDD44; // yellow
+    public static final int COLOR_CAMP_SLOT_BUILT        = 0xFF55CC66; // green
+    public static final int COLOR_CAMP_SLOT_TEARING_DOWN = 0xFFDD8844; // amber
+
+    /** Firepit anchor: opaque once physically built, translucent while only planned logically. */
+    public static GuiWorldMapPanel.Marker campFirepit(BlockPos pos, boolean built, boolean lit, String label) {
+        int rgb = lit ? COLOR_CAMP_FIREPIT_LIT : COLOR_CAMP_FIREPIT_UNLIT;
+        int alpha = built ? LOADED_ALPHA : VIRTUAL_ALPHA;
+        return new GuiWorldMapPanel.Marker(pos, alpha | rgb, 5,
+                GuiWorldMapPanel.Marker.MarkerType.CAMP_FIREPIT, label);
+    }
+
+    /**
+     * Shelter slot: color follows build state, alpha follows whether the occupant is currently a
+     * loaded entity (opaque) or virtualized (translucent) — same loaded/virtual convention as the
+     * population markers, letting virtual/physical mismatches jump out visually.
+     */
+    public static GuiWorldMapPanel.Marker campSlot(BlockPos pos, com.jubitus.travellers.server.map.MsgMapCampUpdate.SlotState state,
+                                                     boolean occupantVirtual, String label) {
+        int rgb;
+        switch (state) {
+            case DISABLED:      rgb = COLOR_CAMP_SLOT_DISABLED; break;
+            case BUILDING:      rgb = COLOR_CAMP_SLOT_BUILDING; break;
+            case BUILT:         rgb = COLOR_CAMP_SLOT_BUILT; break;
+            case TEARING_DOWN:  rgb = COLOR_CAMP_SLOT_TEARING_DOWN; break;
+            default:            rgb = COLOR_CAMP_SLOT_EMPTY; break;
+        }
+        boolean hasOccupant = state != com.jubitus.travellers.server.map.MsgMapCampUpdate.SlotState.EMPTY
+                && state != com.jubitus.travellers.server.map.MsgMapCampUpdate.SlotState.DISABLED;
+        int alpha = (hasOccupant && occupantVirtual) ? VIRTUAL_ALPHA : LOADED_ALPHA;
+        return new GuiWorldMapPanel.Marker(pos, alpha | rgb, 4,
+                GuiWorldMapPanel.Marker.MarkerType.CAMP_SLOT, label);
+    }
+
     private static int argb(int rgb) { return 0xFF000000 | (rgb & 0xFFFFFF); }
     private static int clamp(int v)  { return v < 0 ? 0 : (v > 255 ? 255 : v); }
 }

@@ -80,6 +80,18 @@ public final class CampfireBlock {
     }
 
     /**
+     * Same fire-pit state with the 'lit' property set to {@code lit} (alignment preserved).
+     * Null if {@code s} isn't the fire pit or has no 'lit' property.
+     */
+    public static IBlockState withLit(IBlockState s, boolean lit) {
+        Block b = get();
+        if (b == null || s == null || s.getBlock() != b) return null;
+        PropertyBool litProp = propBool(s, "lit");
+        if (litProp == null) return null;
+        return s.withProperty(litProp, lit);
+    }
+
+    /**
      * True if this is Millénaire's fire pit and its 'lit' property is true.
      */
     public static boolean isLit(IBlockState s) {

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.world.World;
@@ -128,11 +129,17 @@ public final class AttackTargetLimiter {
         }
 
         // full -> can we replace a worse attacker?
+        // Attackers still within their engagement grace window are never eviction candidates —
+        // this is what stops a traveller's chase from being cut short the instant a "better"
+        // contender shows up mid-fight.
+        long graceTicks = TravellersConfig.COMBAT.engagementGraceTicks;
         UUID worstId = null;
         AttackEntry worst = null;
 
         for (Map.Entry<UUID, AttackEntry> e : b.attackers.entrySet()) {
             AttackEntry cur = e.getValue();
+            if (now - cur.engagedSinceTick < graceTicks) continue;
+
             if (worst == null) {
                 worst = cur;
                 worstId = e.getKey();
@@ -153,6 +160,9 @@ public final class AttackTargetLimiter {
                 worstId = e.getKey();
             }
         }
+
+        // Every current attacker is still within its grace window -> no room to join yet
+        if (worst == null) return false;
 
         // If new attacker is better than worst -> replace
         boolean newIsBetter =
@@ -206,11 +216,13 @@ public final class AttackTargetLimiter {
 
     private static final class AttackEntry {
         long lastSeenTick;
+        final long engagedSinceTick; // set once, when the slot was first taken — grace window anchor
         int priority;     // 2 = melee preferred, 1 = bow, 0 = other
         double distSq;    // distance to target (used to keep "nearest")
 
         AttackEntry(long t, int p, double d2) {
             lastSeenTick = t;
+            engagedSinceTick = t;
             priority = p;
             distSq = d2;
         }

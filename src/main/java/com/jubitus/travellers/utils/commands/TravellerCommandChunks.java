@@ -1,11 +1,8 @@
 package com.jubitus.travellers.utils.commands;
 
-import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
-import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
+import com.jubitus.travellers.server.map.MsgOpenPopulationMap;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.WorldServer;
 
 // TravellerCommandChunks.java
 public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
@@ -17,7 +14,7 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
 
     @Override
     public String getUsage(net.minecraft.command.ICommandSender sender) {
-        return "/travellersChunks [radiusInBlocks]";
+        return "/travellerChunks";
     }
 
     @Override
@@ -30,19 +27,10 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
         }
 
         EntityPlayerMP player = (EntityPlayerMP) sender;
-        WorldServer world = (WorldServer) player.world;
 
-        int radiusBlocks = 256; // default
-        if (args.length >= 1) {
-            radiusBlocks = parseInt(args[0], 16, 8192); // clamp a bit
-        }
-
-        BlockPos center = player.getPosition();
-
-        // Build snapshot on the server then send to client
-        TravellerChunkSnapshot snapshot = TravellerChunkSnapshot.create(world, center, radiusBlocks);
-
-        Travellers.NETWORK.sendTo(new PacketTravellerChunks(snapshot), player);
+        // Opens the population world map GUI client-side; population data streams in afterward
+        // via MsgSubscribePopulationMap / PopulationMapStream.
+        TravellerFollowNet.sendToPlayer(player, new MsgOpenPopulationMap());
     }
 
     @Override

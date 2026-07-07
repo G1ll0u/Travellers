@@ -123,6 +123,17 @@ public class WorkerMapStream {
     }
 
     /**
+     * Exposes the last map view (dim, center, range) reported by this player's WorldMapController,
+     * so other map streams (e.g. PopulationMapStream) can reuse it without a second view-report packet.
+     * Returns {dim, centerX, centerZ, rangeBlocks}, or null if the player hasn't reported a view yet.
+     */
+    public static int[] getView(UUID playerId) {
+        ViewState v = VIEWS.get(playerId);
+        if (v == null) return null;
+        return new int[]{v.dim, v.cx, v.cz, v.range};
+    }
+
+    /**
      * Called by MsgWorkerMapView (client -> server).
      * The GUI sends the current center/zoom so the server sends only what is visible.
      */

@@ -3,6 +3,7 @@ package com.jubitus.travellers.entity.travellers;
 import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.entity.culture.VillagerFilterRules;
 import com.jubitus.travellers.entity.culture.VoiceSet;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
@@ -169,7 +170,11 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // === CAMP / GROUP BEHAVIOR ===========================================================
 
-        if (TravellersModConfig.campsEnabled) {
+        if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
+            // New camp event system: same task as travellers (faction separation is enforced by
+            // CampsiteRecord.canClaim, not by the AI).
+            this.tasks.addTask(6, new com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampStay(this));
+        } else if (TravellersModConfig.campsEnabled) {
             // 6: leader pauses at campcommon
             this.tasks.addTask(6, new EntityAICampPause(this));
 
@@ -179,8 +184,11 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // === TRAVEL / ROAMING / FOLLOWING ====================================================
 
-        // General travel route behavior
-        this.tasks.addTask(12, new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, 48));
+        // General travel route behavior. Keep the reference: getTravelAI()/offscreenHopTowardPos
+        // (stuck-rescue step-teleport) are null-checked against it and were silently disabled for
+        // raiders while it wasn't stored.
+        aiTravel = new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, 48);
+        this.tasks.addTask(12, aiTravel);
 
         // Roam inside mill
         this.tasks.addTask(
@@ -211,7 +219,6 @@ public class EntityTravellerRaider extends EntityTraveller {
         // === OPTIONAL / DISABLED FEATURES ====================================================
 
         // Raiders don't auto-eat by default; add this back if you want survival-focused foes.
-        aiTravel = null;
         autoEatTask = null;
     }
 
@@ -255,9 +262,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         String cid = null;
 
-        boolean whitelistActive =
-                !TravellersModConfig.INCLUDED_RAIDER_VILLAGER_FILES.isEmpty()
-                        || !TravellersModConfig.INCLUDED_RAIDER_VILLAGER_TAGS.isEmpty();
+        boolean whitelistActive = VillagerFilterRules.RAIDER.hasIncludeRules();
 
         if (whitelistActive) {
             String forced = CultureRegistry.pickRandomCultureIdWithRaiders(this.rand); // you implement
@@ -299,6 +304,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (rCount <= 0) rCount = 1;
 
         setTextureIndex(this.rand.nextInt(rCount));
+        rollRenderScale(getActiveAppearance());
 
 
         // Reset move attr base and make sure no swim boost lingers

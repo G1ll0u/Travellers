@@ -34,14 +34,6 @@ public class TravellersModConfig {
     // process only N villages per maintenance pass
     public static final int MERCHANT_VILLAGES_PER_PASS = 0;
     public static final int WORKER_VILLAGES_PER_PASS = 1;
-    public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
-    public static final java.util.Set<String> EXCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
-    // NEW: Raider include filters (whitelist-style)
-    public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_TAGS = new java.util.HashSet<>();
-    public static final java.util.Set<String> INCLUDED_RAIDER_VILLAGER_FILES = new java.util.HashSet<>();
-    // NEW: worker include filters (whitelist-style)
-    public static final java.util.Set<String> INCLUDED_WORKER_VILLAGER_TAGS = new java.util.HashSet<>();
-    public static final java.util.Set<String> INCLUDED_WORKER_VILLAGER_FILES = new java.util.HashSet<>();
     // NEW: merchant include filters (whitelist-style)
     public static final java.util.Set<String> INCLUDED_MERCHANT_VILLAGER_TAGS = new java.util.HashSet<>();
     public static final java.util.Set<String> INCLUDED_MERCHANT_VILLAGER_FILES = new java.util.HashSet<>();
@@ -54,8 +46,6 @@ public class TravellersModConfig {
     // NEW: two separate aggro blacklists
     public static final TravellerBlacklist TRAVELLER_AGGRO_BLACKLIST = new TravellerBlacklist();
     public static final TravellerBlacklist RAIDER_AGGRO_BLACKLIST = new TravellerBlacklist();
-    public static final java.util.Set<String> EXCLUDED_VILLAGER_TAGS = new java.util.HashSet<>();
-    public static final java.util.Set<String> EXCLUDED_VILLAGER_FILES = new java.util.HashSet<>();
     public static final int CAMP_JOIN_COOLDOWN_TICKS = 20 * 60; // 60s; tweak as you like
     public static final int THREAT_FOR_SEE_ATTACK = 5;// when we "observe" hostiles hurting allies/players
     public static final int CAMP_RANDOM_COOLDOWN = 6 * 60 * 20; // ~6 min between pauses
@@ -145,8 +135,7 @@ public class TravellersModConfig {
     public static int workerPopPerWorker = 10;
     @Config.Comment("Maximum number of travellers workers per village")
     public static int workerMaxPerVillage = 2;
-    @Config.Comment("How often (ticks) we re-check villages for worker counts")
-    public static int workerRecheckEveryTicks = 600;
+    public static int workerCapPerLoneBuilding = 0;
     public static boolean workerNotifyOnVillageTrade = true;
     // Base travel cost per used cargo slot for a trip of workerTravelDistanceBase blocks
     public static double workerTravelBaseCostPerSlot = 10.0D;
@@ -159,7 +148,7 @@ public class TravellersModConfig {
     public static int workerVillageDetectRadius = 4000;
     public static int workerStepBlocks = 24;
     public static int workerChunkRadius = 1; // whatever you want
-    public static double workerMaxHealth = 60.0D;
+    public static double workerMaxHealth = 40.0D;
     public static double workerFollowRange = 64.0D;
     // --- Traveller stats ---
     public static float travellerMaxHealth = 25.0F;
@@ -187,16 +176,6 @@ public class TravellersModConfig {
     public static int merchantMinSmallAmount = 1;
     // How many *different* items a merchant is allowed to donate during one visit.
     public static int merchantMaxDistinctItems = 1;
-    // --- Workers ---
-    public static String[] includedWorkerVillagerTagsRaw = new String[]{
-            "helpInAttacks",
-            "heavydrinker",
-            "archer",
-            "raider"
-    };
-    public static String[] includedWorkerVillagerFilesRaw = new String[]{
-
-    };
     // --- Merchants ---
     public static String[] includedMerchantVillagerTagsRaw = new String[]{
             "visitor"
@@ -214,12 +193,6 @@ public class TravellersModConfig {
     public static int mobFarmFenceRadius = 4;
     public static int mobFarmFenceThreshold = 12;
     public static int followMaxFollowersPerLeader = 4; // 0 or negative = unlimited
-    // Raw config arrays for raiders includes (default: empty = "no restriction")
-    public static String[] includedRaiderVillagerTagsRaw = new String[]{
-            "hostile"
-    };
-    public static String[] includedRaiderVillagerFilesRaw = new String[]{
-    };
     // How far mill/lonebuildings influence travellers spawns (in blocks)
     public static int travellerVillageInfluenceRadius = 1000;  // e.g. 400 blocks
     public static int travellerLoneInfluenceRadius = 600;  // e.g. 250 blocks
@@ -291,7 +264,7 @@ public class TravellersModConfig {
     // Fraction of max HP below which entities enter defensive mode (stop seeking new targets)
     public static float lowHealthCombatFrac = 0.20f;
     // Engagement radius (blocks) for anchor-mode workers (followOrderActive=false)
-    public static double anchorModeEngageRadius = 12.0D;
+    public static double anchorModeEngageRadius = 8.0D;
     // Engagement radius (blocks) for any entity in low-health defensive mode
     public static double lowHealthEngageRadius = 5.0D;
     // --- Combat item realism ---
@@ -372,8 +345,6 @@ public class TravellersModConfig {
     public static double travelTorchNearbyRadius = 20.0D; // “someone else has light” radius
     public static boolean spawnTravellerWithDog = false;
     public static double travellerDogSpawnChance = 0.0085; // 3%
-    public static String[] excludedVillagerTagsRaw = new String[]{"child", "chief", "hostile"};
-    public static String[] excludedVillagerFilesRaw = new String[]{"alchemist", "alchemistapprentice", "alchemistassistant"};
     public static int fishWaterScanRadius = 6;          // blocks
     public static int fishMinTimeTicks = 15 * 20;     // 8s
     public static int fishMaxTimeTicks = 40 * 20;    // 16s
@@ -433,9 +404,6 @@ public class TravellersModConfig {
     public static int raiderRegionalRadius = 600;
     // And a dedicated base spawn chance for raiders (instead of reusing travellers one)
     public static float raiderBaseSpawnChance;
-    public static boolean requirePathForAggro = true;
-    public static boolean requireLOSForMemoryTargets = true;
-    public static boolean requireLOSForChainTargets = true;
     public static double travellerOffscreenViewRadius = 256;
     public static double travellerViewBoostBaseRadius = 128;
     public static double travellerViewBoostCombatBonus = 128;
@@ -606,7 +574,7 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerMinPop = workerMinPop;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerPopPerWorker = workerPopPerWorker;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage = workerMaxPerVillage;
-        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerRecheckEveryTicks = workerRecheckEveryTicks;
+        com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerCapPerLoneBuilding = workerCapPerLoneBuilding;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.workerLoadedCap = workerLoadedCap;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantLoadedCap = merchantLoadedCap;
         com.jubitus.travellers.config.TravellersConfig.SPAWN_WORKERS.merchantMinPop = merchantMinPop;
@@ -655,9 +623,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.COMBAT.lowHealthCombatFrac = lowHealthCombatFrac;
         com.jubitus.travellers.config.TravellersConfig.COMBAT.anchorModeEngageRadius = (int) anchorModeEngageRadius;
         com.jubitus.travellers.config.TravellersConfig.COMBAT.lowHealthEngageRadius = (int) lowHealthEngageRadius;
-        com.jubitus.travellers.config.TravellersConfig.COMBAT.requirePathForAggro = requirePathForAggro;
-        com.jubitus.travellers.config.TravellersConfig.COMBAT.requireLOSForMemoryTargets = requireLOSForMemoryTargets;
-        com.jubitus.travellers.config.TravellersConfig.COMBAT.requireLOSForChainTargets = requireLOSForChainTargets;
         com.jubitus.travellers.config.TravellersConfig.COMBAT.travellerOffscreenViewRadius = travellerOffscreenViewRadius;
         com.jubitus.travellers.config.TravellersConfig.COMBAT.travellerViewBoostBaseRadius = travellerViewBoostBaseRadius;
         com.jubitus.travellers.config.TravellersConfig.COMBAT.travellerViewBoostCombatBonus = travellerViewBoostCombatBonus;
@@ -810,12 +775,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.MOB_FARM.mobFarmFenceRadius = mobFarmFenceRadius;
         com.jubitus.travellers.config.TravellersConfig.MOB_FARM.mobFarmFenceThreshold = mobFarmFenceThreshold;
 
-        com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerTagsRaw = excludedVillagerTagsRaw;
-        com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerFilesRaw = excludedVillagerFilesRaw;
-        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerTagsRaw = includedRaiderVillagerTagsRaw;
-        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerFilesRaw = includedRaiderVillagerFilesRaw;
-        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerTagsRaw = includedWorkerVillagerTagsRaw;
-        com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerFilesRaw = includedWorkerVillagerFilesRaw;
         com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerTagsRaw = includedMerchantVillagerTagsRaw;
         com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerFilesRaw = includedMerchantVillagerFilesRaw;
 
@@ -1958,59 +1917,6 @@ public class TravellersModConfig {
                 "Radius (in blocks) within which a nearby light source counts as 'someone else has light'."
         );
 
-        excludedVillagerTagsRaw = cfg.getStringList(
-                "ExcludedVillagerTags",
-                "Millenaire culture filters",
-                excludedVillagerTagsRaw,
-                "Any villager txt with tag=... matching one of these values will be excluded "
-                        + "from the travellers appearance pool. Example: [\"child\", \"bandit\"]"
-        );
-
-
-        excludedVillagerFilesRaw = cfg.getStringList(
-                "ExcludedVillagerFiles",
-                "Traveller villager filters",
-                excludedVillagerFilesRaw,
-                "Villager txt filenames (without path, with or without .txt) to exclude from the "
-                        + "travellers appearance pool. Example: [\"boy\", \"girl\", \"wife_laundry\"]"
-        );
-
-        includedRaiderVillagerTagsRaw = cfg.getStringList(
-                "IncludedRaiderVillagerTags",
-                "Raider villager filters",
-                includedRaiderVillagerTagsRaw,
-                "If non-empty, only villager txts with tag=... matching one of these values can be used " +
-                        "for the *raiders* appearance pool. Example: [\"bandit\", \"guard\"]. " +
-                        "Empty list = no tag restriction."
-        );
-
-        includedRaiderVillagerFilesRaw = cfg.getStringList(
-                "IncludedRaiderVillagerFiles",
-                "Raider villager filters",
-                includedRaiderVillagerFilesRaw,
-                "If non-empty, only villager txt filenames (without path, with or without .txt) matching " +
-                        "one of these values can be used for the raiders appearance pool. Example: [\"bandit\", \"guard\"] " +
-                        "Empty list = no filename restriction."
-        );
-
-        // --- Worker villager filters ---
-        includedWorkerVillagerTagsRaw = cfg.getStringList(
-                "IncludedWorkerVillagerTags",
-                "Worker villager filters",
-                includedWorkerVillagerTagsRaw,
-                "If non-empty, only villager txts with tag=... matching one of these values can be used " +
-                        "for the *worker* appearance pool. Example: [\"worker\", \"labourer\"]. " +
-                        "Empty list = no tag restriction by tag (files may still restrict)."
-        );
-
-        includedWorkerVillagerFilesRaw = cfg.getStringList(
-                "IncludedWorkerVillagerFiles",
-                "Worker villager filters",
-                includedWorkerVillagerFilesRaw,
-                "Villager txt base names (without .txt) that are allowed for the *worker* appearance pool. " +
-                        "Example: [\"nor_peasant\", \"nor_labourer\"]. Empty list = no file-based restriction."
-        );
-
 // --- Merchant villager filters ---
         includedMerchantVillagerTagsRaw = cfg.getStringList(
                 "IncludedMerchantVillagerTags",
@@ -2090,13 +1996,6 @@ public class TravellersModConfig {
                 "WorkerMaxPerVillage", "Soft spawn — Workers",
                 8, 0, 16,
                 "Maximum number of travellers workers assigned to a single village."
-        );
-
-        workerRecheckEveryTicks = cfg.getInt(
-                "WorkerRecheckEveryTicks", "Soft spawn — Workers",
-                200, 1, 20 * 60 * 60,
-                "How often (in ticks) villages are re-scanned for worker population / assignment.\n" +
-                        "Default 200 ticks ≈ 10 seconds."
         );
 
 
@@ -2211,81 +2110,6 @@ public class TravellersModConfig {
                 "Additional recruitment fee per visited village, in deniers.\n" +
                         "Example: 20 * 64 = 1280 deniers = 4 argent per village."
         );
-
-        // Rebuild sets (normalize to lower-case)
-        EXCLUDED_VILLAGER_TAGS.clear();
-        for (String t : excludedVillagerTagsRaw) {
-            if (t != null) {
-                String s = t.trim().toLowerCase(java.util.Locale.ROOT);
-                if (!s.isEmpty()) EXCLUDED_VILLAGER_TAGS.add(s);
-            }
-        }
-
-        EXCLUDED_VILLAGER_FILES.clear();
-        for (String f : excludedVillagerFilesRaw) {
-            if (f != null) {
-                String s = f.trim().toLowerCase(java.util.Locale.ROOT);
-                if (s.endsWith(".txt")) s = s.substring(0, s.length() - 4);
-                if (!s.isEmpty()) EXCLUDED_VILLAGER_FILES.add(s);
-            }
-        }
-
-        EXCLUDED_VILLAGER_TAGS.clear();
-        for (String t : excludedVillagerTagsRaw) {
-            if (t != null) {
-                String s = t.trim().toLowerCase(java.util.Locale.ROOT);
-                if (!s.isEmpty()) EXCLUDED_VILLAGER_TAGS.add(s);
-            }
-        }
-
-        EXCLUDED_VILLAGER_FILES.clear();
-        for (String f : excludedVillagerFilesRaw) {
-            if (f != null) {
-                String s = f.trim().toLowerCase(java.util.Locale.ROOT);
-                if (s.endsWith(".txt")) s = s.substring(0, s.length() - 4);
-                if (!s.isEmpty()) EXCLUDED_VILLAGER_FILES.add(s);
-            }
-        }
-
-        INCLUDED_RAIDER_VILLAGER_TAGS.clear();
-        for (String t : includedRaiderVillagerTagsRaw) {
-            if (t != null) {
-                String s = t.trim().toLowerCase(java.util.Locale.ROOT);
-                if (!s.isEmpty()) INCLUDED_RAIDER_VILLAGER_TAGS.add(s);
-            }
-        }
-
-        INCLUDED_RAIDER_VILLAGER_FILES.clear();
-        for (String f : includedRaiderVillagerFilesRaw) {
-            if (f != null) {
-                String s = f.trim().toLowerCase(java.util.Locale.ROOT);
-                if (s.endsWith(".txt")) s = s.substring(0, s.length() - 4);
-                if (!s.isEmpty()) INCLUDED_RAIDER_VILLAGER_FILES.add(s);
-            }
-        }
-        // --- Worker include sets ---
-        INCLUDED_WORKER_VILLAGER_TAGS.clear();
-        for (String t : includedWorkerVillagerTagsRaw) {
-            if (t != null) {
-                String s = t.trim().toLowerCase(java.util.Locale.ROOT);
-                if (!s.isEmpty()) {
-                    INCLUDED_WORKER_VILLAGER_TAGS.add(s);
-                }
-            }
-        }
-
-        INCLUDED_WORKER_VILLAGER_FILES.clear();
-        for (String f : includedWorkerVillagerFilesRaw) {
-            if (f != null) {
-                String s = f.trim().toLowerCase(java.util.Locale.ROOT);
-                if (s.endsWith(".txt")) {
-                    s = s.substring(0, s.length() - 4);
-                }
-                if (!s.isEmpty()) {
-                    INCLUDED_WORKER_VILLAGER_FILES.add(s);
-                }
-            }
-        }
 
         // --- Merchant include sets ---
         INCLUDED_MERCHANT_VILLAGER_TAGS.clear();
@@ -2406,33 +2230,8 @@ public class TravellersModConfig {
 
     // Called after TravellersConfig fields are updated via GUI/reflector to rebuild derived sets and apply guards.
     public static void applyDerivedValues() {
-        // Rebuild excluded traveller sets
-        EXCLUDED_VILLAGER_TAGS.clear();
-        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerTagsRaw) {
-            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) EXCLUDED_VILLAGER_TAGS.add(s); }
-        }
-        EXCLUDED_VILLAGER_FILES.clear();
-        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.excludedVillagerFilesRaw) {
-            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) EXCLUDED_VILLAGER_FILES.add(s); }
-        }
-        // Rebuild included raider sets
-        INCLUDED_RAIDER_VILLAGER_TAGS.clear();
-        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerTagsRaw) {
-            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) INCLUDED_RAIDER_VILLAGER_TAGS.add(s); }
-        }
-        INCLUDED_RAIDER_VILLAGER_FILES.clear();
-        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedRaiderVillagerFilesRaw) {
-            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) INCLUDED_RAIDER_VILLAGER_FILES.add(s); }
-        }
-        // Rebuild included worker sets
-        INCLUDED_WORKER_VILLAGER_TAGS.clear();
-        for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerTagsRaw) {
-            if (t != null) { String s = t.trim().toLowerCase(java.util.Locale.ROOT); if (!s.isEmpty()) INCLUDED_WORKER_VILLAGER_TAGS.add(s); }
-        }
-        INCLUDED_WORKER_VILLAGER_FILES.clear();
-        for (String f : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedWorkerVillagerFilesRaw) {
-            if (f != null) { String s = f.trim().toLowerCase(java.util.Locale.ROOT); if (s.endsWith(".txt")) s = s.substring(0, s.length()-4); if (!s.isEmpty()) INCLUDED_WORKER_VILLAGER_FILES.add(s); }
-        }
+        // Traveller/raider/worker filters are now owned entirely by VillagerFilterRules, refreshed
+        // right before culture bootstrap (CultureRegistry.bootstrapAllMillenaireCultures()).
         // Rebuild included merchant sets
         INCLUDED_MERCHANT_VILLAGER_TAGS.clear();
         for (String t : com.jubitus.travellers.config.TravellersConfig.FILTERS.includedMerchantVillagerTagsRaw) {
@@ -2548,7 +2347,7 @@ public class TravellersModConfig {
         workerMinPop                  = sw.workerMinPop;
         workerPopPerWorker            = sw.workerPopPerWorker;
         workerMaxPerVillage           = sw.workerMaxPerVillage;
-        workerRecheckEveryTicks       = sw.workerRecheckEveryTicks;
+        workerCapPerLoneBuilding      = sw.workerCapPerLoneBuilding;
         workerLoadedCap               = sw.workerLoadedCap;
         merchantLoadedCap             = sw.merchantLoadedCap;
         merchantMinPop                = sw.merchantMinPop;
@@ -2602,9 +2401,6 @@ public class TravellersModConfig {
         lowHealthCombatFrac           = cb.lowHealthCombatFrac;
         anchorModeEngageRadius        = cb.anchorModeEngageRadius;
         lowHealthEngageRadius         = cb.lowHealthEngageRadius;
-        requirePathForAggro           = cb.requirePathForAggro;
-        requireLOSForMemoryTargets    = cb.requireLOSForMemoryTargets;
-        requireLOSForChainTargets     = cb.requireLOSForChainTargets;
         travellerOffscreenViewRadius  = cb.travellerOffscreenViewRadius;
         travellerViewBoostBaseRadius  = cb.travellerViewBoostBaseRadius;
         travellerViewBoostCombatBonus = cb.travellerViewBoostCombatBonus;
@@ -2771,13 +2567,8 @@ public class TravellersModConfig {
         mobFarmFenceRadius            = mf.mobFarmFenceRadius;
         mobFarmFenceThreshold         = mf.mobFarmFenceThreshold;
 
-        // Filters (raw arrays)
-        excludedVillagerTagsRaw         = fl.excludedVillagerTagsRaw;
-        excludedVillagerFilesRaw        = fl.excludedVillagerFilesRaw;
-        includedRaiderVillagerTagsRaw   = fl.includedRaiderVillagerTagsRaw;
-        includedRaiderVillagerFilesRaw  = fl.includedRaiderVillagerFilesRaw;
-        includedWorkerVillagerTagsRaw   = fl.includedWorkerVillagerTagsRaw;
-        includedWorkerVillagerFilesRaw  = fl.includedWorkerVillagerFilesRaw;
+        // Filters (raw arrays) - traveller/raider/worker now live entirely in TravellersConfig.FILTERS,
+        // read directly by VillagerFilterRules. Only merchant (legacy, phased out) stays mirrored here.
         includedMerchantVillagerTagsRaw = fl.includedMerchantVillagerTagsRaw;
         includedMerchantVillagerFilesRaw = fl.includedMerchantVillagerFilesRaw;
 
@@ -2819,23 +2610,6 @@ public class TravellersModConfig {
     }
 
 
-    public static boolean isVillagerFileExcludedForTravellers(File file) {
-        if (file == null) return false;
-        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
-        if (name.endsWith(".txt")) {
-            name = name.substring(0, name.length() - 4);
-        }
-        return EXCLUDED_VILLAGER_FILES.contains(name);
-    }
-
-    public static boolean isVillagerFileExcludedForRaiders(File file) {
-        if (file == null) return false;
-        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
-        if (name.endsWith(".txt")) {
-            name = name.substring(0, name.length() - 4);
-        }
-        return EXCLUDED_RAIDER_VILLAGER_FILES.contains(name);
-    }
     public static void broadcastServerCostsToAllPlayers() {
         net.minecraftforge.fml.common.FMLCommonHandler fml = net.minecraftforge.fml.common.FMLCommonHandler.instance();
         net.minecraft.server.MinecraftServer srv = fml.getMinecraftServerInstance();

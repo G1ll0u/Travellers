@@ -4,8 +4,13 @@ import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.WorldServer;
+
+import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 
 import javax.annotation.Nullable;
 import java.util.Map;
@@ -122,6 +127,16 @@ public final class MaterializePositionResolver {
 
         int bx = (int) Math.floor(baseX);
         int bz = (int) Math.floor(baseZ);
+
+        // Never materialize on/inside a Millénaire building footprint (e.g. a Town Hall roof).
+        // Pure metadata check, works whether or not the chunk is loaded.
+        BlockPos safe = MillVillageIndex.resolveOutsideBuildings(
+                world, new BlockPos(bx, (int) referenceY, bz), 256);
+        bx = safe.getX();
+        bz = safe.getZ();
+        baseX = bx + 0.5;
+        baseZ = bz + 0.5;
+
         double spawnY = referenceY;
         if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
             spawnY = findSafeFloorY(world, bx, bz, referenceY);
@@ -230,5 +245,26 @@ public final class MaterializePositionResolver {
             }
         }
         return spawnY;
+    }
+
+    /**
+     * Nudges any living entity standing inside {@code [min, max]} (inclusive, block coords) up onto
+     * solid ground if a bulk terrain edit (grading a shelter footprint, restoring a snapshot) just
+     * left it embedded. World edits like {@code setBlockState} never displace entities on their own,
+     * so this must be called explicitly after any such bulk change touching ground the mob could be
+     * standing on.
+     */
+    public static void unstickEntitiesInVolume(WorldServer world, BlockPos min, BlockPos max) {
+        AxisAlignedBB box = new AxisAlignedBB(
+                min.getX(), min.getY() - 1, min.getZ(),
+                max.getX() + 1, max.getY() + 2, max.getZ() + 1);
+        for (EntityLivingBase e : world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
+            int bx = MathHelper.floor(e.posX);
+            int bz = MathHelper.floor(e.posZ);
+            double safeY = ensureNotInSolid(world, bx, e.posY, bz);
+            if (safeY != e.posY) {
+                e.setPositionAndUpdate(e.posX, safeY, e.posZ);
+            }
+        }
     }
 }
