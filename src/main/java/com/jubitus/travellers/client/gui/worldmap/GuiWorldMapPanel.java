@@ -68,7 +68,7 @@ public class GuiWorldMapPanel {
     private static final int MARGIN = 16;
 
     public static class Marker {
-        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, LEADER, FOLLOWER, FOLLOWER_HIGHLIGHTED, PLAYER, DESTINATION_CROSS, POP_TRAVELLER, POP_RAIDER, POP_WORKER, CAMP_FIREPIT, CAMP_SLOT }
+        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, LEADER, FOLLOWER, FOLLOWER_HIGHLIGHTED, PLAYER, DESTINATION_CROSS, POP_TRAVELLER, POP_RAIDER, POP_WORKER, CAMP_FIREPIT, CAMP_SLOT, BATTLE }
 
         public final BlockPos pos;
         public final int argb;
@@ -259,6 +259,7 @@ public class GuiWorldMapPanel {
         Marker.MarkerType.POP_TRAVELLER,
         Marker.MarkerType.POP_RAIDER,
         Marker.MarkerType.POP_WORKER,
+        Marker.MarkerType.BATTLE,
         Marker.MarkerType.PLAYER,
         Marker.MarkerType.DESTINATION_CROSS,
     };
@@ -293,6 +294,7 @@ public class GuiWorldMapPanel {
             case POP_WORKER:         return TEX_FOLLOWER;
             case CAMP_FIREPIT:       return TEX_CAMP_FIREPIT;
             case CAMP_SLOT:          return TEX_CAMP_SLOT;
+            case BATTLE:             return TEX_DESTINATION_CROSS;
             default:                 return TEX_VILLAGE;
         }
     }
@@ -313,6 +315,7 @@ public class GuiWorldMapPanel {
             case POP_WORKER:         return 4;
             case CAMP_FIREPIT:       return 5;
             case CAMP_SLOT:          return 4;
+            case BATTLE:             return 8;
             default:                 return 4;
         }
     }
@@ -543,7 +546,7 @@ public class GuiWorldMapPanel {
         int tileX = floorDiv(cx, WorldMapDiscovery.CHUNKS_PER_TILE);
         int tileZ = floorDiv(cz, WorldMapDiscovery.CHUNKS_PER_TILE);
         long key = (((long) tileX) << 32) ^ (tileZ & 0xFFFFFFFFL);
-        return ClientMapDiscovery.getTilesView().contains(key);
+        return ClientMapDiscovery.isFullMap() || ClientMapDiscovery.getTilesView().contains(key);
     }
 
     private static int floorDiv(int a, int b) {

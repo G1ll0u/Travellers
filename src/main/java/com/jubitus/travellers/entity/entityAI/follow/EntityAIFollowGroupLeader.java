@@ -27,7 +27,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
     private static final int STAGNATION_TELEPORT_TICKS = 160;
 
     private final EntityTraveller follower;
-    private final double speed;
+    private double speed;
 
     @Nullable private EntityTraveller leader;
     private int repathCooldown;
@@ -44,6 +44,10 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         this.follower = follower;
         this.speed = speed;
         setMutexBits(3);
+    }
+
+    public void setSpeed(double speed) {
+        this.speed = speed;
     }
 
     @Override

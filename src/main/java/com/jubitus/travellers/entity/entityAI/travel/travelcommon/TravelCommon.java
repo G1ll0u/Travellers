@@ -604,6 +604,7 @@ public class TravelCommon {
 
         if (owner.isInCombat() || owner.isInPostCombatSilence() || owner.isAutoEating() || owner.isHandActive()) return;
         if (owner.getTargetVillage() == null) return;
+        if (owner.getTravelAI() == null) return;
         if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
         if (owner.motionX * owner.motionX + owner.motionZ * owner.motionZ < 0.005) return;
 

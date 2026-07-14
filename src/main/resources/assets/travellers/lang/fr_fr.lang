@@ -57,6 +57,8 @@ travellers.gui.go=Vas-y
 travellers.gui.unnamed=(sans nom)
 
 travellers.map.center=Centrer
+travellers.map.teleport=Téléporter
+travellers.map.teleport.active=Cliquez la carte...
 travellers.map.chunks.legend.loaded_normal=Chunks chargés
 travellers.map.chunks.legend.loaded_merchants=Chunks des marchands
 travellers.map.chunks.legend.villages=Mairies des villages

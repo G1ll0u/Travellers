@@ -177,13 +177,26 @@ public class TravellerCombatLogic {
      * Executes a melee attack including enchantment bonuses, knockback and fire aspect.
      * Replaces the {@code attackEntityAsMob} body so it is defined in one place.
      */
-    public boolean performMeleeAttack(Entity target) {
-        float damage = (float) entity.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue();
-        ItemStack weapon = entity.getHeldItemMainhand();
-
-        if (!weapon.isEmpty() && target instanceof EntityLivingBase) {
-            damage += EnchantmentHelper.getModifierForCreature(weapon, ((EntityLivingBase) target).getCreatureAttribute());
+    /**
+     * Melee damage formula shared by loaded combat and the virtual battle simulation.
+     * creatureAttribute may be null (treated as UNDEFINED — generic enchant bonus only).
+     */
+    public static float computeMeleeDamage(float baseAttackDamage, ItemStack weapon,
+                                           @Nullable EnumCreatureAttribute creatureAttribute) {
+        float damage = baseAttackDamage;
+        if (!weapon.isEmpty()) {
+            damage += EnchantmentHelper.getModifierForCreature(weapon,
+                    creatureAttribute != null ? creatureAttribute : EnumCreatureAttribute.UNDEFINED);
         }
+        return damage;
+    }
+
+    public boolean performMeleeAttack(Entity target) {
+        float damage = computeMeleeDamage(
+                (float) entity.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).getAttributeValue(),
+                entity.getHeldItemMainhand(),
+                target instanceof EntityLivingBase
+                        ? ((EntityLivingBase) target).getCreatureAttribute() : null);
 
         if (target instanceof EntityPlayer) {
             damage *= TravellersModConfig.travellerPlayerDamageMultiplier;

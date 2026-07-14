@@ -227,6 +227,21 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgSubscribeCampMap.Handler.class, MsgSubscribeCampMap.class, id++, Side.SERVER);
         registerClientOnly(MsgMapCampUpdate.class,
                 isClient ? new MsgMapCampUpdate.ClientHandler() : new MsgMapCampUpdate.NoopHandler());
+
+        // Virtual battle markers (subscription piggybacks on MsgSubscribePopulationMap)
+        registerClientOnly(com.jubitus.travellers.server.map.MsgMapBattleUpdate.class,
+                isClient ? new com.jubitus.travellers.server.map.MsgMapBattleUpdate.ClientHandler()
+                         : new com.jubitus.travellers.server.map.MsgMapBattleUpdate.NoopHandler());
+
+        // Foreign (not-my-own) unit vision markers (subscription piggybacks on MsgSubscribeWorkerMap)
+        registerClientOnly(com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.class,
+                isClient ? new com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.ClientHandler()
+                         : new com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.NoopHandler());
+
+        // Debug: teleport player to a clicked map position
+        CHANNEL.registerMessage(
+                com.jubitus.travellers.server.net.message.map.MsgTeleportToPos.Handler.class,
+                com.jubitus.travellers.server.net.message.map.MsgTeleportToPos.class, id++, Side.SERVER);
     }
 
 

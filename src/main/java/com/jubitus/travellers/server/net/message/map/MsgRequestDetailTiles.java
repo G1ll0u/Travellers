@@ -44,6 +44,7 @@ public class MsgRequestDetailTiles implements IMessage {
             EntityPlayerMP p = ctx.getServerHandler().player;
             p.getServerWorld().addScheduledTask(() -> {
                 Set<Long> discovered = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
+                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.RENDERING.showFullMap;
                 MapDetailTileImageSavedData detail = MapDetailTileImageSavedData.get(p.world);
 
                 // Serves only pre-generated data — no chunk loading, no generation here
@@ -53,7 +54,7 @@ public class MsgRequestDetailTiles implements IMessage {
                 for (int tz = msg.minTileZ; tz <= msg.maxTileZ && sent < maxSend; tz++) {
                     for (int tx = msg.minTileX; tx <= msg.maxTileX && sent < maxSend; tx++) {
                         long key = pack(tx, tz);
-                        if (!discovered.contains(key)) continue;
+                        if (!fullMap && !discovered.contains(key)) continue;
                         byte[] data = detail.get(key);
                         if (data == null || data.length != MapTileGenerator.DETAIL_BYTES) continue;
                         TravellerFollowNet.CHANNEL.sendTo(new MsgMapDetailTileData(tx, tz, data), p);

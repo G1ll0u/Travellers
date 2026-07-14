@@ -85,15 +85,70 @@ public class VirtualTravellerRecord {
     // on virtualize. When set, the entity halts its route and sits at its slot.
     @Nullable public UUID campSiteId;
     public int campSlotIndex = -1;
-    // Transient: blocks re-claiming a camp right after leaving one (prevents daytime loitering).
+    // Blocks re-claiming a camp right after leaving one (prevents daytime loitering). Persisted so a
+    // server restart mid-cooldown can't be used to instantly re-claim a camp just left.
     public long campCooldownUntil = 0L;
 
     // Cached display data for the worldmap (set at virtualization)
     public String name = "";
     public int ownerColor = 0xFFFFFF;
 
+    // Current health. -1 = unknown (old record): resolved lazily from entityNbt / profile max.
+    public float health = -1f;
+    // Mirrors EntityAIAutoEat.recoverToFull: once healing starts below the threshold, commit to
+    // healing all the way to max HP rather than stopping as soon as it crosses back above it.
+    public boolean recoveringToFull = false;
+
+    // Non-null while this record is fighting in a virtual battle — normal goal refresh,
+    // movement, job arrivals and camp claims are all suspended.
+    @Nullable public UUID battleId;
+
+    // Transient caches derived from entityNbt (never persisted)
+    private transient com.jubitus.travellers.utils.world.battle.VirtualCombatProfile combatProfile;
+    private transient java.util.Set<UUID> declaredHostileOwners;
+
     // Transient: world-tick when this worker last performed a virtual donation. Not persisted.
     public long lastDonationTick = 0L;
+
+    /** Combat stats derived once from the frozen entity NBT (recomputed if entityNbt is replaced). */
+    public com.jubitus.travellers.utils.world.battle.VirtualCombatProfile getCombatProfile() {
+        if (combatProfile == null) {
+            combatProfile = com.jubitus.travellers.utils.world.battle.VirtualCombatProfile
+                    .fromEntityNbt(entityNbt, entityClass);
+        }
+        return combatProfile;
+    }
+
+    /** Invalidates transient caches after entityNbt is rewritten (virtual missions, equip swaps). */
+    public void invalidateNbtCaches() {
+        combatProfile = null;
+        declaredHostileOwners = null;
+    }
+
+    /** Current health, resolving unknown (-1) from entityNbt or the profile max. */
+    public float getHealthResolved() {
+        if (health < 0f) {
+            float fromNbt = entityNbt != null ? entityNbt.getFloat("Health") : 0f;
+            health = fromNbt > 0f ? fromNbt : getCombatProfile().maxHealth;
+        }
+        return health;
+    }
+
+    /** Owner UUIDs this hired worker's group has declared hostile (parsed from entityNbt). */
+    public java.util.Set<UUID> getDeclaredHostileOwners() {
+        if (declaredHostileOwners == null) {
+            java.util.Set<UUID> set = new java.util.HashSet<>();
+            if (entityNbt != null && entityNbt.hasKey("HostilePlayers", 9)) {
+                NBTTagList list = entityNbt.getTagList("HostilePlayers", 10);
+                for (int i = 0; i < list.tagCount(); i++) {
+                    NBTTagCompound c = list.getCompoundTagAt(i);
+                    if (c.hasUniqueId("Player")) set.add(c.getUniqueId("Player"));
+                }
+            }
+            declaredHostileOwners = set;
+        }
+        return declaredHostileOwners;
+    }
 
     public VirtualTravellerRecord(UUID uuid, double posX, double posY, double posZ, float rotYaw,
                                int dimension, NBTTagCompound entityNbt) {
@@ -154,11 +209,15 @@ public class VirtualTravellerRecord {
         }
         tag.setString("EC", entityClass);
         tag.setInteger("RI", routeIndex);
+        if (health >= 0f) tag.setFloat("HP", health);
+        if (recoveringToFull) tag.setBoolean("RecFull", true);
+        if (battleId != null) tag.setString("BattleId", battleId.toString());
         if (groupLeaderUUID != null) tag.setString("GroupLeader", groupLeaderUUID.toString());
         if (campSiteId != null) {
             tag.setString("CampSite", campSiteId.toString());
             tag.setInteger("CampSlot", campSlotIndex);
         }
+        if (campCooldownUntil > 0L) tag.setLong("CampCooldown", campCooldownUntil);
         if (!travelRoute.isEmpty()) {
             NBTTagList routeList = new NBTTagList();
             for (BlockPos p : travelRoute) {
@@ -213,11 +272,15 @@ public class VirtualTravellerRecord {
         }
         r.entityClass = tag.hasKey("EC") ? tag.getString("EC") : "WORKER";
         r.routeIndex = tag.hasKey("RI") ? tag.getInteger("RI") : -1;
+        r.health = tag.hasKey("HP") ? tag.getFloat("HP") : -1f;
+        r.recoveringToFull = tag.getBoolean("RecFull");
+        if (tag.hasKey("BattleId")) r.battleId = UUID.fromString(tag.getString("BattleId"));
         if (tag.hasKey("GroupLeader")) r.groupLeaderUUID = UUID.fromString(tag.getString("GroupLeader"));
         if (tag.hasKey("CampSite")) {
             r.campSiteId = UUID.fromString(tag.getString("CampSite"));
             r.campSlotIndex = tag.getInteger("CampSlot");
         }
+        r.campCooldownUntil = tag.getLong("CampCooldown");
         if (tag.hasKey("TR", 9)) {
             NBTTagList routeList = tag.getTagList("TR", 11);
             for (int i = 0; i < routeList.tagCount(); i++) {

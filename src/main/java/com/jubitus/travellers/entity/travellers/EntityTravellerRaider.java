@@ -52,7 +52,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(
                 Math.max(20.0, TravellersModConfig.maxHealth));
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(
-                Math.max(0.28, TravellersModConfig.movementSpeed));
+                Math.max(0.28, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed));
     }
 
     private boolean isValidMonsterLight() {
@@ -163,8 +163,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.tasks.addTask(2, aiRanged);
 
         // Melee combat
-        double baseWalk = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-        double meleeSpeed = TravellersModConfig.attackMovementSpeed; // <= 95% of walk speed
+        double meleeSpeed = com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking;
         aiMelee = new EntityAIAttackMeleeCustom(this, meleeSpeed, true, 0.65D);
         this.tasks.addTask(5, aiMelee);
 
@@ -187,7 +186,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // General travel route behavior. Keep the reference: getTravelAI()/offscreenHopTowardPos
         // (stuck-rescue step-teleport) are null-checked against it and were silently disabled for
         // raiders while it wasn't stored.
-        aiTravel = new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, 48);
+        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 48);
         this.tasks.addTask(12, aiTravel);
 
         // Roam inside mill
@@ -310,7 +309,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (attr != null) {
-            attr.setBaseValue(TravellersModConfig.movementSpeed);
+            attr.setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
             AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
             if (m != null) attr.removeModifier(m);
         }
@@ -492,7 +491,7 @@ public class EntityTravellerRaider extends EntityTraveller {
                 .setBaseValue(TravellersModConfig.raiderMaxHealth);
 
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                .setBaseValue(TravellersModConfig.movementSpeed);
+                .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
 
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
                 .setBaseValue(TravellersModConfig.travellerFollowRange);

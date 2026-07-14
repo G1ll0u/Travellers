@@ -6,15 +6,18 @@ public class TravellersConfig {
 
     public static final General GENERAL = new General();
     public static final Rendering RENDERING = new Rendering();
+    public static final EntityRenderLod ENTITY_RENDER_LOD = new EntityRenderLod();
     public static final Spawn SPAWN = new Spawn();
     public static final SpawnTravellers SPAWN_TRAVELLERS = new SpawnTravellers();
     public static final SpawnRaiders SPAWN_RAIDERS = new SpawnRaiders();
     public static final SpawnWorkers SPAWN_WORKERS = new SpawnWorkers();
     public static final Despawn DESPAWN = new Despawn();
     public static final Attributes ATTRIBUTES = new Attributes();
+    public static final Speed SPEED = new Speed();
     public static final Combat COMBAT = new Combat();
     public static final PlayerAggro PLAYER_AGGRO = new PlayerAggro();
     public static final Follow FOLLOW = new Follow();
+    public static final WorkerFormation WORKER_FORMATION = new WorkerFormation();
     public static final Destinations DESTINATIONS = new Destinations();
     public static final Offscreen OFFSCREEN = new Offscreen();
     public static final Travel TRAVEL = new Travel();
@@ -22,6 +25,7 @@ public class TravellersConfig {
     public static final Choir CHOIR = new Choir();
     public static final Camp CAMP = new Camp();
     public static final CampEvents CAMP_EVENTS = new CampEvents();
+    public static final BattleEvents BATTLE_EVENTS = new BattleEvents();
     public static final Fishing FISHING = new Fishing();
     public static final ControlledVillage CONTROLLED_VILLAGE = new ControlledVillage();
     public static final Worker WORKER = new Worker();
@@ -87,9 +91,33 @@ public class TravellersConfig {
         @Config.Comment("Opportunistically fill the shared map tile cache whenever a chunk loads (player exploring, worker travel, or a world pregeneration tool). Never affects per-player fog of war.")
         public boolean mapPregenOnChunkLoadEnabled = true;
 
+        @Config.Comment("Reveal the entire generated worldmap to every player, bypassing per-player fog of war. Only affects visibility of tiles already present in the shared tile cache; does not force generation of unexplored areas. Turning it back off restores each player's own fog of war exactly as it was. Applies the next time a player (re)opens the map.")
+        public boolean showFullMap = false;
+
         @Config.Comment("Max chunks processed per server tick by the chunk-load map pregen. Caps CPU cost if many chunks load at once (e.g. a bulk world pregeneration tool).")
         @Config.RangeInt(min = 1, max = 2048)
         public int mapPregenMaxChunksPerTick = 64;
+    }
+
+    public static class EntityRenderLod {
+        @Config.Comment("Master switch for distance-based LOD on traveller/raider/worker entity rendering (cosmetic overlay layers + held item). Reduces GPU/CPU cost when many are visible at once. Purely cosmetic beyond the configured distances.")
+        public boolean enabled = true;
+
+        @Config.Comment("Beyond this distance (blocks) from the camera, skip the clothes overlay layer. This layer re-renders the full biped model a second time, so it's the most expensive of the three and invisible at range anyway.")
+        @Config.RangeInt(min = 4, max = 128)
+        public int clothesLayerMaxDistance = 32;
+
+        @Config.Comment("Beyond this distance (blocks) from the camera, skip the owner-mark armband layer (workers only).")
+        @Config.RangeInt(min = 4, max = 128)
+        public int armbandLayerMaxDistance = 24;
+
+        @Config.Comment("Beyond this distance (blocks) from the camera, skip the backpack/bamboo/chuspas layer (workers/merchants only).")
+        @Config.RangeInt(min = 4, max = 128)
+        public int backpackLayerMaxDistance = 24;
+
+        @Config.Comment("Beyond this distance (blocks) from the camera, skip rendering the held item (weapon/tool in hand) for travellers/raiders/workers. Highest-impact option since vanilla's 3D item rendering is the single most expensive part of entity rendering.")
+        @Config.RangeInt(min = 4, max = 128)
+        public int heldItemMaxDistance = 40;
     }
 
     public static class Spawn {
@@ -340,22 +368,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 1.0, max = 1000.0)
         public float travellerMaxHealth = 20.0f;
 
-        @Config.Comment("Base movement speed multiplier.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeed = 0.52f;
-
-        @Config.Comment("Movement speed multiplier while following.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeedWhileFollowing = 0.55f;
-
-        @Config.Comment("Movement speed multiplier during travel task.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeedWhileTravel = 0.52f;
-
-        @Config.Comment("Movement speed multiplier while attacking.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeedWhileAttacking = 0.56f;
-
         @Config.Comment("FOLLOW_RANGE (detection radius) for generic travellers.")
         @Config.RangeDouble(min = 4.0, max = 256.0)
         public float travellerFollowRange = 64.0f;
@@ -426,6 +438,32 @@ public class TravellersConfig {
         @Config.Comment("Global cap on total assigned worker orders across the world.")
         @Config.RangeInt(min = 1, max = 65536)
         public int workerGlobalAssignedCap = 4096;
+    }
+
+    public static class Speed {
+        @Config.Comment("Base movement speed multiplier.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public float movementSpeed = 0.52f;
+
+        @Config.Comment("Movement speed multiplier while following.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public float movementSpeedWhileFollowing = 0.55f;
+
+        @Config.Comment("Movement speed multiplier during travel task.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public float movementSpeedWhileTravel = 0.52f;
+
+        @Config.Comment("AI move speed while fighting in melee reach. Chase speed (closing distance before reach) scales proportionally above this value.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public float movementSpeedWhileAttacking = 0.56f;
+
+        @Config.Comment("Boat speed multiplier for hired workers convoying a player's boat.")
+        @Config.RangeDouble(min = 0.1, max = 10.0)
+        public double followerBoatConvoySpeed = 4.0;
+
+        @Config.Comment("Approach speed while a traveller fishes during travel.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public double fishApproachSpeed = 0.45;
     }
 
     public static class Combat {
@@ -565,10 +603,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 256)
         public int followMaxFollowersPerLeader = 4;
 
-        @Config.Comment("Speed for boat convoy followers.")
-        @Config.RangeDouble(min = 0.1, max = 20.0)
-        public double followerBoatConvoySpeed = 4.0;
-
         @Config.Comment("Base ring radius (blocks) for formation slot placement.")
         @Config.RangeDouble(min = 0.5, max = 20.0)
         public double followerRingMoveBaseRadius = 2.2;
@@ -584,6 +618,76 @@ public class TravellersConfig {
         @Config.Comment("Ticks between formation chunk recomputation.")
         @Config.RangeInt(min = 1, max = 100)
         public int chunkRecomputeIntervalTicks = 5;
+    }
+
+    public static class WorkerFormation {
+        @Config.Comment("Max number of workers standing side-by-side in a formation row. Keeps big groups from spreading too wide to reach their spot.")
+        @Config.RangeInt(min = 2, max = 16)
+        public int maxRowWidth = 8;
+
+        @Config.Comment("Max number of workers standing side-by-side while following through tunnels or caves.")
+        @Config.RangeInt(min = 1, max = 4)
+        public int maxTunnelWidth = 3;
+
+        @Config.Comment("Distance (blocks) between formation rows.")
+        @Config.RangeDouble(min = 0.5, max = 6.0)
+        public double rowSpacing = 1.75;
+
+        @Config.Comment("Distance (blocks) between workers standing side-by-side.")
+        @Config.RangeDouble(min = 0.5, max = 6.0)
+        public double laneSpacing = 1.80;
+
+        @Config.Comment("Extra spacing (blocks) between the closest workers and the ones behind them.")
+        @Config.RangeDouble(min = 0.5, max = 6.0)
+        public double ringSpacing = 1.35;
+
+        @Config.Comment("How close a worker must get to its spot to count as 'in position'.")
+        @Config.RangeDouble(min = 0.5, max = 4.0)
+        public double arriveRadius = 1.35;
+
+        @Config.Comment("How close workers stay behind you.")
+        @Config.RangeDouble(min = 1.0, max = 10.0)
+        public double leaderDistancePlayer = 2.7;
+
+        @Config.Comment("How close workers stay behind a worker acting as their group leader.")
+        @Config.RangeDouble(min = 1.0, max = 10.0)
+        public double leaderDistanceWorkerLeader = 3.5;
+
+        @Config.Comment("Distance (blocks) between rows while underground.")
+        @Config.RangeDouble(min = 0.5, max = 4.0)
+        public double caveRowSpacing = 1.28;
+
+        @Config.Comment("Distance (blocks) between workers side-by-side while underground.")
+        @Config.RangeDouble(min = 0.3, max = 4.0)
+        public double caveLaneSpacing = 0.98;
+
+        @Config.Comment("How close a worker must get to its spot to count as 'in position' while underground.")
+        @Config.RangeDouble(min = 0.5, max = 6.0)
+        public double caveArriveRadius = 3.60;
+
+        @Config.Comment("How long (in ticks, 20 = 1 second) a worker can be stuck before it teleports closer to catch up.")
+        @Config.RangeInt(min = 20, max = 400)
+        public int stuckTeleportDelayTicks = 100;
+
+        @Config.Comment("Max distance (blocks) from the leader a stuck worker is allowed to teleport to.")
+        @Config.RangeDouble(min = 4.0, max = 32.0)
+        public double stuckTeleportMaxDistance = 10.0;
+
+        @Config.Comment("Slowest movement speed for workers trying to catch up (1.0 = normal walking speed).")
+        @Config.RangeDouble(min = 0.05, max = 1.0)
+        public double minSpeedMultiplier = 0.20;
+
+        @Config.Comment("Fastest movement speed for workers trying to catch up (1.0 = normal walking speed).")
+        @Config.RangeDouble(min = 0.5, max = 2.0)
+        public double maxSpeedMultiplier = 0.92;
+
+        @Config.Comment("How much faster workers move when you sprint.")
+        @Config.RangeDouble(min = 1.0, max = 2.0)
+        public double sprintSpeedBoost = 1.12;
+
+        @Config.Comment("How much faster workers move when they've fallen behind and need to catch up.")
+        @Config.RangeDouble(min = 0.0, max = 2.0)
+        public double catchUpSpeedBoost = 1.0;
     }
 
     public static class Destinations {
@@ -794,7 +898,7 @@ public class TravellersConfig {
         public int maxConcurrentVoiceSounds = 16;
 
         @Config.Comment("Log every sound play/stop event to the client log (for debugging CodecJOrbis errors). Disable in production.")
-        public boolean soundDebugLog = true;
+        public boolean soundDebugLog = false;
     }
 
     public static class Choir {
@@ -967,6 +1071,111 @@ public class TravellersConfig {
         @Config.Comment("Once a camp has no occupants left (e.g. they were all killed), its abandoned firepit goes out after this many ticks (6000 = 5 min). The unlit pit lingers like a ruin until the camp is reused or cleaned up.")
         @Config.RangeInt(min = 20, max = 240000)
         public int emptyCampFirepitExtinguishTicks = 6000;
+
+        @Config.Comment("Non-hired workers may join/found civilian camps alongside travellers (never raiders).")
+        public boolean workersCanCamp = true;
+
+        @Config.Comment("If true, a camp only accepts occupants matching the culture of its first occupant.")
+        public boolean campCultureRestrictionEnabled = false;
+
+        @Config.Comment("If true, raiders ignore campCultureRestrictionEnabled and may join/found a raider camp of any culture.")
+        public boolean raidersIgnoreCulture = true;
+    }
+
+    public static class BattleEvents {
+        @Config.Comment("Master switch for offscreen virtual battles between virtual travellers/raiders/workers.")
+        public boolean enableVirtualBattles = true;
+
+        @Config.Comment("Ticks between encounter-detection passes over virtual records.")
+        @Config.RangeInt(min = 5, max = 200)
+        public int detectionIntervalTicks = 20;
+
+        @Config.Comment("Ticks between battle simulation steps (pawn movement + attacks).")
+        @Config.RangeInt(min = 1, max = 100)
+        public int battleSimIntervalTicks = 10;
+
+        @Config.Comment("Distance (blocks) at which two hostile virtual parties engage each other.")
+        @Config.RangeInt(min = 8, max = 128)
+        public int engagementRadius = 48;
+
+        @Config.Comment("Virtual entities within this distance of an ongoing battle join it (group pull-in and reinforcements).")
+        @Config.RangeInt(min = 8, max = 256)
+        public int battleJoinRadius = 64;
+
+        @Config.Comment("Two battles whose centers drift closer than this are merged (when their sides are compatible).")
+        @Config.RangeInt(min = 8, max = 128)
+        public int mergeBattleDistance = 32;
+
+        @Config.Comment("Melee reach (blocks) for virtual pawns.")
+        @Config.RangeDouble(min = 1.0, max = 5.0)
+        public double meleeReach = 1.8;
+
+        @Config.Comment("Max simultaneous melee attackers per target (mirrors the loaded AttackTargetLimiter). Archers are exempt.")
+        @Config.RangeInt(min = 1, max = 16)
+        public int maxMeleePerTarget = 4;
+
+        @Config.Comment("Max battles advanced per simulation pass (round-robin across passes).")
+        @Config.RangeInt(min = 1, max = 64)
+        public int maxBattlesSimPerTick = 4;
+
+        @Config.Comment("Safety cap: a battle older than this many ticks is force-resolved (24000 = 1 day).")
+        @Config.RangeInt(min = 1200, max = 480000)
+        public int maxBattleDurationTicks = 24000;
+
+        @Config.Comment("Global multiplier applied to all virtual battle damage (tune virtual vs physical lethality).")
+        @Config.RangeDouble(min = 0.05, max = 10.0)
+        public double virtualDamageMultiplier = 1.0;
+
+        @Config.Comment("Allow virtual raiders to attack player-hired workers.")
+        public boolean raidersAttackHiredWorkers = true;
+
+        @Config.Comment("Raiders only engage hired workers after this many ticks of sustained proximity (100 = 5s). Passing groups are left alone.")
+        @Config.RangeInt(min = 0, max = 2400)
+        public int raiderVsHiredEngageDelayTicks = 100;
+
+        @Config.Comment("Allow virtual battles between hired workers of players who declared each other hostile.")
+        public boolean hiredVsHiredBattles = true;
+
+        @Config.Comment("Allow enemy groups to assault occupied camps (campers defend; camp ruins on death).")
+        public boolean campAssaults = true;
+
+        @Config.Comment("Hired-worker group leaders are targeted last and shielded by nearby followers, so they die among the last.")
+        public boolean leaderSurvivalBias = true;
+
+        @Config.Comment("Virtual traveller deaths in battle contribute their equipment/inventory to the battle's loot pool.")
+        public boolean dropLootTravellers = false;
+
+        @Config.Comment("Virtual raider deaths in battle contribute their equipment/inventory to the battle's loot pool.")
+        public boolean dropLootRaiders = false;
+
+        @Config.Comment("Virtual non-hired worker deaths in battle contribute their equipment/inventory to the battle's loot pool.")
+        public boolean dropLootWorkers = false;
+
+        @Config.Comment("Virtual hired-worker deaths in battle contribute their equipment/inventory to the battle's loot pool.")
+        public boolean dropLootHiredWorkers = true;
+
+        @Config.Comment("On a clear battle victory, surviving virtual winners try to upgrade their equipment from the battle's loot pool before the rest hits the ground.")
+        public boolean battleLootingEnabled = true;
+
+        @Config.Comment("Pending virtual loot drops expire after this many ticks (0 = never).")
+        @Config.RangeInt(min = 0, max = 1728000)
+        public int lootExpiryTicks = 0;
+
+        @Config.Comment("Notify a worker's owner when their hired workers enter a virtual battle.")
+        public boolean notifyOwnerOnBattleStart = true;
+
+        @Config.Comment("Notify a worker's owner when one of their hired workers dies in a virtual battle.")
+        public boolean notifyOwnerOnDeath = true;
+
+        @Config.Comment("Show active virtual battles as markers on the worldmap.")
+        public boolean battleMarkersOnMap = true;
+
+        @Config.Comment("Virtual travellers/workers regain health offscreen after combat, mirroring the physical EntityAIAutoEat AI (raiders excluded, they don't auto-eat physically either).")
+        public boolean virtualCombatHealingEnabled = true;
+
+        @Config.Comment("Ticks after last combat before offscreen healing can start (mirrors EntityAIAutoEat's physical post-combat lockout, 30-50 ticks).")
+        @Config.RangeInt(min = 0, max = 2400)
+        public int postCombatHealDelayTicks = 40;
     }
 
     public static class Fishing {
@@ -998,9 +1207,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public float fishStartChancePerTick = 0.002f;
 
-        @Config.Comment("Movement speed while approaching fishing spot.")
-        @Config.RangeDouble(min = 0.0, max = 2.0)
-        public double fishApproachSpeed = 0.45;
     }
 
     public static class ControlledVillage {
@@ -1098,6 +1304,16 @@ public class TravellersConfig {
         @Config.Comment("Initial zoom for the worldmap in the formation hub (blocks per pixel). Smaller = more zoomed in. 0.5 means 1 block per 2 pixels.")
         @Config.RangeDouble(min = 0.0625, max = 8.0)
         public double formationHubMapInitialBpp = 0.5;
+
+        @Config.Comment("Master switch: reveal foreign travellers/raiders/workers and battles on the player worldmap/formation hub, gated by hiredWorkerVisionRadius.")
+        public boolean foreignUnitVisionEnabled = true;
+
+        @Config.Comment("Radius (blocks) around each of a player's own alive hired units within which foreign travellers/raiders/workers and battles become visible on the map.")
+        @Config.RangeInt(min = 8, max = 512)
+        public int hiredWorkerVisionRadius = 48;
+
+        @Config.Comment("Show HP of discovered foreign entities on the map (own workers always show HP regardless of this setting).")
+        public boolean revealForeignEntityHealth = false;
     }
 
     public static class Recruitment {

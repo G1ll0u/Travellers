@@ -53,7 +53,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     public EntityAIFishWhileTravel(EntityTraveller mob) {
         this(
                 mob,
-                TravellersModConfig.fishApproachSpeed,
+                com.jubitus.travellers.config.TravellersConfig.SPEED.fishApproachSpeed,
                 TravellersModConfig.fishWaterScanRadius,
                 TravellersModConfig.fishMinTimeTicks,
                 TravellersModConfig.fishMaxTimeTicks,

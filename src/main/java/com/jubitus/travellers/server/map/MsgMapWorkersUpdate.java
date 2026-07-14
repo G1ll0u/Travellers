@@ -22,6 +22,9 @@ public class MsgMapWorkersUpdate implements IMessage {
         public boolean isLeader;
         public int ownerColor; // RGB (no alpha)
         public UUID uuid;     // null for legacy entries
+        public float health = -1f;    // -1 = unknown
+        public float maxHealth = -1f;
+        public boolean inBattle;
     }
 
     private List<Entry> entries = new ArrayList<>();
@@ -53,6 +56,9 @@ public class MsgMapWorkersUpdate implements IMessage {
             e.ownerColor = buf.readInt();
             boolean hasUuid = buf.readBoolean();
             if (hasUuid) e.uuid = new UUID(buf.readLong(), buf.readLong());
+            e.health = buf.readFloat();
+            e.maxHealth = buf.readFloat();
+            e.inBattle = buf.readBoolean();
             entries.add(e);
         }
     }
@@ -72,6 +78,9 @@ public class MsgMapWorkersUpdate implements IMessage {
             buf.writeInt(e.ownerColor);
             buf.writeBoolean(e.uuid != null);
             if (e.uuid != null) { buf.writeLong(e.uuid.getMostSignificantBits()); buf.writeLong(e.uuid.getLeastSignificantBits()); }
+            buf.writeFloat(e.health);
+            buf.writeFloat(e.maxHealth);
+            buf.writeBoolean(e.inBattle);
         }
     }
 

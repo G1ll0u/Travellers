@@ -47,6 +47,7 @@ public class MsgRequestMapTiles implements IMessage {
 
                 // tuiles découvertes du joueur
                 Set<Long> discovered = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
+                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.RENDERING.showFullMap;
 
                 // images stockées world-wide
                 MapTileImageSavedData img = MapTileImageSavedData.get(p.world);
@@ -61,8 +62,8 @@ public class MsgRequestMapTiles implements IMessage {
 
                         long key = pack(tx, tz);
 
-                        // on envoie seulement si découvert
-                        if (!discovered.contains(key)) continue;
+                        // on envoie seulement si découvert (ou si la carte complète est révélée pour tous)
+                        if (!fullMap && !discovered.contains(key)) continue;
 
                         byte[] data = img.get(key);
                         boolean had = (data != null && data.length == MapTileImageSavedData.TILE_BYTES);

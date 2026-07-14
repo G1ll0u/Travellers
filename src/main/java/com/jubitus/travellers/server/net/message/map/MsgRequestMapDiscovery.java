@@ -23,7 +23,8 @@ public class MsgRequestMapDiscovery implements IMessage {
             p.getServerWorld().addScheduledTask(() -> {
                 // récupère les tiles découvertes du joueur (mémoire serveur)
                 Set<Long> tiles = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
-                TravellerFollowNet.CHANNEL.sendTo(new MsgMapDiscoverySync(tiles), p);
+                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.RENDERING.showFullMap;
+                TravellerFollowNet.CHANNEL.sendTo(new MsgMapDiscoverySync(tiles, fullMap), p);
             });
             return null;
         }

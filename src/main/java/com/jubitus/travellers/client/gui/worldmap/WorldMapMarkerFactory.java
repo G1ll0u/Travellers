@@ -169,6 +169,12 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);
     }
 
+    /** Foreign hired worker discovered via vision: owner-tinted instead of the generic worker blue. */
+    public static GuiWorldMapPanel.Marker foreignHiredWorker(BlockPos pos, boolean virtual, int ownerRgb, String label) {
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | (ownerRgb & 0xFFFFFF), 4,
+                GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);
+    }
+
     // --- Camp system debug markers ---
     public static final int COLOR_CAMP_FIREPIT_LIT   = 0xFFCC6600; // orange embers
     public static final int COLOR_CAMP_FIREPIT_UNLIT = 0xFF555555; // cold ash
@@ -206,6 +212,12 @@ public final class WorldMapMarkerFactory {
         int alpha = (hasOccupant && occupantVirtual) ? VIRTUAL_ALPHA : LOADED_ALPHA;
         return new GuiWorldMapPanel.Marker(pos, alpha | rgb, 4,
                 GuiWorldMapPanel.Marker.MarkerType.CAMP_SLOT, label);
+    }
+
+    /** Active virtual battle: pulsing-red cross, always opaque (battles are always "live"). */
+    public static GuiWorldMapPanel.Marker battle(BlockPos pos, String label) {
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFF3030, 6,
+                GuiWorldMapPanel.Marker.MarkerType.BATTLE, label);
     }
 
     private static int argb(int rgb) { return 0xFF000000 | (rgb & 0xFFFFFF); }

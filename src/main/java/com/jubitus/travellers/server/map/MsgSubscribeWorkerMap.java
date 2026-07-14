@@ -31,8 +31,12 @@ public class MsgSubscribeWorkerMap implements IMessage {
             p.getServerWorld().addScheduledTask(() -> {
                 if (msg.subscribe) {
                     WorkerMapStream.subscribe(p.getUniqueID());
+                    BattleMapStream.subscribe(p.getUniqueID());
+                    ForeignUnitMapStream.subscribe(p.getUniqueID());
                 } else {
                     WorkerMapStream.unsubscribe(p.getUniqueID());
+                    BattleMapStream.unsubscribe(p.getUniqueID());
+                    ForeignUnitMapStream.unsubscribe(p.getUniqueID());
                 }
             });
             return null;

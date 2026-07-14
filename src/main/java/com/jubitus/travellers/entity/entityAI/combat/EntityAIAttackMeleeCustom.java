@@ -14,8 +14,9 @@ import net.minecraft.util.math.AxisAlignedBB;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
-    private static final float CHASE_BOOST = 1.28f;
-    private static final float FIGHT_FACTOR = 1.08f;
+    // Chase speed (closing distance) scales above the configured in-reach fight speed by this ratio,
+    // preserving the original 1.28/1.08 relationship between pursuit and fighting.
+    private static final float CHASE_RATIO = 1.28f / 1.08f;
     private static final float LERP = 0.55f;
 
     // "Still engaged" proximity band — within this range, LOS memory refreshes even without a raytrace hit
@@ -181,18 +182,27 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             attacker.setAIMoveSpeed(aiSpeedNow);
         } else {
             holdingPosition = false;
-            // Closing in or ready to strike — approach target
+
+            float fightSpeed = TravellersConfig.SPEED.movementSpeedWhileAttacking;
+            float chaseSpeed = fightSpeed * CHASE_RATIO;
+            float desired = inReach ? fightSpeed : chaseSpeed;
+
+            // Closing in or ready to strike — approach target.
+            // The multiplier passed here is re-applied every tick by EntityMoveHelper
+            // (speed × MOVEMENT_SPEED attribute) for as long as this path stays active,
+            // silently overriding any setAIMoveSpeed() call below — it must reflect our
+            // configured desired speed, not a flat 1.0 (full base speed).
             if (--repathCooldown <= 0) {
                 repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
                 if (CombatPathScheduler.tryAcquire(attacker.world, attacker.getEntityId(), 1)) {
-                    attacker.getNavigator().tryMoveToEntityLiving(tgt, 1.0D);
+                    double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
+                    attacker.getNavigator().tryMoveToEntityLiving(tgt, navMultiplier);
                 }
             }
 
-            float desired = inReach ? (float) (base * FIGHT_FACTOR) : (float) (base * CHASE_BOOST);
             if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
             aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
-            if (aiSpeedNow > 0.38f) aiSpeedNow = 0.38f;
+            if (aiSpeedNow > chaseSpeed) aiSpeedNow = chaseSpeed;
             attacker.setAIMoveSpeed(aiSpeedNow);
         }
 

@@ -107,6 +107,10 @@ public class EntityAITravel extends EntityAIBase {
     private int stuckStage = 0;           // 0=none, 1=detour, 2=wide detour, 3=TP mode
     private int stuckActionCooldown = 0;
     private int stuckTpCooldown = 0;
+    // Consecutive TP-stage cycles where neither teleport rescue nor detour found any loaded
+    // destination — signals the mob is pinned at the edge of the loaded/view area.
+    private int stuckRescueFailStreak = 0;
+    private static final int STUCK_RESCUE_FAIL_VIRTUALIZE_THRESHOLD = 3;
     private double bestDistSq = Double.MAX_VALUE;
     // ---- Movement-based stuck signal (prevents jitter resetting progress) ----
     private Vec3d lastMovePos = Vec3d.ZERO;
@@ -855,6 +859,7 @@ public class EntityAITravel extends EntityAIBase {
                     rescued |= teleportToward(targetVillage, TP_STEP_BLOCKS);
 
                     if (rescued) {
+                        stuckRescueFailStreak = 0;
                         mpbRoute.invalidate();
                         roadBlockedTicks = STUCK_TP_CD; // don't re-engage road routing right away
                         resetStuckState();
@@ -868,7 +873,20 @@ public class EntityAITravel extends EntityAIBase {
                         debugMark(currentWaypoint);
                         pushPathToWaypoint();
                     } else {
-                        tryDetourWide();
+                        boolean detoured = tryDetourWide();
+                        if (detoured) {
+                            stuckRescueFailStreak = 0;
+                        } else {
+                            // Every rescue candidate (teleport + all detour angles) failed to find a
+                            // loaded destination — the mob is genuinely pinned at the unloaded edge,
+                            // not merely stuck on terrain. Let the entity virtualize instead of
+                            // retrying forever; the method itself refuses to fire near a player.
+                            stuckRescueFailStreak++;
+                            if (stuckRescueFailStreak >= STUCK_RESCUE_FAIL_VIRTUALIZE_THRESHOLD
+                                    && mob.tryVirtualizeStuckAtEdge()) {
+                                return;
+                            }
+                        }
                         pushPathToWaypoint();
                         stuckActionCooldown = STUCK_ACTION_CD;
                         detourGraceTicks = DETOUR_GRACE_TICKS;
@@ -948,6 +966,7 @@ public class EntityAITravel extends EntityAIBase {
         stuckStage = 0;
         stuckActionCooldown = 0;
         stuckTpCooldown = 0;
+        stuckRescueFailStreak = 0;
         undergroundTicks = 0;
 
         this.triedBoatThisLeg = false;
@@ -1591,12 +1610,12 @@ public class EntityAITravel extends EntityAIBase {
         return null;
     }
 
-    private void tryDetourWide() {
-        if (this.targetVillage == null) return;
+    private boolean tryDetourWide() {
+        if (this.targetVillage == null) return false;
         BlockPos from = mob.getPosition();
         logState("DETOUR_WIDE_START", "from=" + from.getX() + "," + from.getY() + "," + from.getZ());
         Vec3d to = new Vec3d(targetVillage.getX() - from.getX(), 0, targetVillage.getZ() - from.getZ());
-        if (to.lengthSquared() < 1.0) return;
+        if (to.lengthSquared() < 1.0) return false;
 
         Vec3d base = to.normalize();
         int follow = (int) Math.floor(mob.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).getAttributeValue());
@@ -1615,9 +1634,10 @@ public class EntityAITravel extends EntityAIBase {
                 mob.setCurrentWaypoint(candidate);
                 debugMark(this.currentWaypoint);
                 logState("DETOUR_WIDE_PICK", "ang=" + angleDeg + ",step=" + detStep);
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     private boolean isRoadWaypointReached(BlockPos wp) {

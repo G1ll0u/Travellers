@@ -143,7 +143,6 @@ public class EntityTraveller extends EntityCreature {
 
 
     private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
-    private static final int UNTRACKED_GRACE_TICKS = 20 * 5; // NEW: 5 seconds (tweak)
     private static final double EMERGENCY_ENGAGE_RANGE_SQ = EMERGENCY_ENGAGE_RANGE * EMERGENCY_ENGAGE_RANGE;
     public final TravellerCamp travellerCamp = new TravellerCamp(this);
     public final TravellerCombatLogic combat = new TravellerCombatLogic(this);
@@ -168,6 +167,7 @@ public class EntityTraveller extends EntityCreature {
     EntityAIAttackMeleeCustom aiMelee;
     EntityAIDefendIfClose aiDefendIfClose;
     EntityAITravel aiTravel;
+    EntityAIFollowGroupLeader aiFollowGroupLeader;
 
     // UUID of the group leader this entity follows (null = leader or solo)
     @Nullable private UUID groupLeaderUUID;
@@ -201,13 +201,10 @@ public class EntityTraveller extends EntityCreature {
     private static final java.util.concurrent.ConcurrentHashMap<Long, Long> KILL_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.concurrent.ConcurrentHashMap<Long, Long> DEATH_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean choirSinging = false;   // managed by ChoirCoordinator, server-side only
-    private int nearUnloadTicks = 0; // counts consecutive "at the edge" seconds
     private int travelTorchCooldown = 0;
-    private int untrackedTicks = 0;                 // NEW: consecutive ticks not tracked by any player
     // --- spawn helper flags ---
     private boolean checkedCompanionSpawn = false;   // only run logic once
     private boolean suppressCompanionSpawn = false;  // set for eggs/commands/etc.
-    private int farFromPlayersTicks = 0;
     private int stuckTargetTicks = 0;
     private double lastTargetDistSq = -1.0D;
     @Nullable
@@ -716,10 +713,11 @@ public class EntityTraveller extends EntityCreature {
         this.tasks.addTask(3, aiRanged);
 
 
-        aiMelee = new EntityAIAttackMeleeCustom(this, TravellersModConfig.attackMovementSpeed, true, 0.30);
+        aiMelee = new EntityAIAttackMeleeCustom(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking, true, 0.30);
         this.tasks.addTask(4, aiMelee);
 
-        this.tasks.addTask(5, new EntityAIFollowGroupLeader(this, TravellersModConfig.movementSpeedWhileTravel));
+        aiFollowGroupLeader = new EntityAIFollowGroupLeader(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
+        this.tasks.addTask(5, aiFollowGroupLeader);
 
         aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true);
 
@@ -749,7 +747,7 @@ public class EntityTraveller extends EntityCreature {
 
         this.tasks.addTask(25, new EntityAIRoamInsideVillage(this, 0.34D, 3 * 20, 10 * 20, TravellersModConfig.villageRoamMinDuration * 20, TravellersModConfig.villageRoamMaxDuration * 20));// Optional: customize 2-minute duration or wordlist at runtime
 
-        aiTravel = new EntityAITravel(this, TravellersModConfig.movementSpeedWhileTravel, TravellersModConfig.stepBlocks);
+        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersModConfig.stepBlocks);
         this.tasks.addTask(27, aiTravel);
 
         this.tasks.addTask(28, new EntityAILookIdle(this));
@@ -765,7 +763,7 @@ public class EntityTraveller extends EntityCreature {
                 .setBaseValue(TravellersModConfig.travellerMaxHealth);
 
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                .setBaseValue(TravellersModConfig.movementSpeed);
+                .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
 
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
                 .setBaseValue(TravellersModConfig.travellerFollowRange);
@@ -1541,9 +1539,6 @@ public class EntityTraveller extends EntityCreature {
                     }
                 }
             }
-            checkAndMaybeDespawnFarFromPlayers();
-            checkAndMaybeDespawnAtChunkEdge();
-            checkAndMaybeDespawnWhenUntracked();
         }
 
 
@@ -1628,7 +1623,7 @@ public class EntityTraveller extends EntityCreature {
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (attr != null) {
-            attr.setBaseValue(TravellersModConfig.movementSpeed);
+            attr.setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
             AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
             if (m != null) attr.removeModifier(m);
         }
@@ -2296,6 +2291,9 @@ public void fall(float distance, float damageMultiplier) {
             // Camp event system: free this traveller's slot so the camp updates / can be reused.
             com.jubitus.travellers.utils.world.camp.CampsiteManager.get((net.minecraft.world.WorldServer) world)
                     .releaseOccupant(this.getUniqueID());
+            // Virtual battles: mark this pawn dead so the offscreen sim stays consistent.
+            com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
+                    .onParticipantDeath(this.getUniqueID());
         }
         tryPlayDeathSound();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
@@ -2585,7 +2583,7 @@ public void fall(float distance, float damageMultiplier) {
         // 1) Attributes
         getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(TravellersModConfig.maxHealth);
         if (getHealth() > getMaxHealth()) setHealth(getMaxHealth());
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(TravellersModConfig.movementSpeed);
+        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
         getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(TravellersModConfig.followRange);
         if (getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
@@ -2594,7 +2592,8 @@ public void fall(float distance, float damageMultiplier) {
 
         // 2) AI tunables
         if (aiDefendIfClose != null) aiDefendIfClose.setAssistRadius(TravellersModConfig.helpRange);
-        if (aiTravel != null) aiTravel.setSpeed(TravellersModConfig.movementSpeedWhileTravel);
+        if (aiTravel != null) aiTravel.setSpeed(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
+        if (aiFollowGroupLeader != null) aiFollowGroupLeader.setSpeed(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
 
     }
 
@@ -2683,8 +2682,12 @@ public void fall(float distance, float damageMultiplier) {
      * Does NOT check player distance — that is the caller's responsibility.
      */
     public boolean canVirtualize() {
+        return !isInCombat() && canVirtualizeIgnoringCombat();
+    }
+
+    /** Combat-agnostic eligibility — virtual battle participants may virtualize mid-fight. */
+    public boolean canVirtualizeIgnoringCombat() {
         if (isDead) return false;
-        if (isInCombat()) return false;
         if (isHandActive()) return false;
         if (isRiding()) return false;
         return true;
@@ -2697,7 +2700,10 @@ public void fall(float distance, float damageMultiplier) {
      */
     private boolean tryVirtualize() {
         if (!(world instanceof net.minecraft.world.WorldServer)) return false;
-        if (!canVirtualize()) return false;
+        // Edge/distance despawn paths ignore combat state on purpose: a mob that merely has a
+        // proximity-acquired target (e.g. a raider eyeing a stationary far-away player) must still
+        // be able to leave the world instead of getting stuck forever at the view-distance border.
+        if (!canVirtualizeIgnoringCombat()) return false;
         com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager mgr =
                 com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.get(
                         (net.minecraft.world.WorldServer) world);
@@ -2841,155 +2847,44 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     /**
-     * If we are travelling and very close to the not-loaded edge, count up and
-     * despawn after a small grace window. This never force-loads chunks.
+     * Called by {@code EntityAITravel} when its own stuck-rescue escalation has repeatedly
+     * failed to find any loaded destination to teleport/detour to — a precise signal that the
+     * mob is pinned against the edge of the loaded/view area (rather than merely stuck on
+     * terrain), since every rescue candidate ahead lives in a chunk that {@code isAreaLoaded}
+     * refuses to path or teleport into. Distance-gated so this can never fire near a player:
+     * only allowed once the mob is already past most of the server's view distance from every
+     * player, mirroring the same "never force-load chunks" contract as the rescue calls that
+     * led here. Workers are excluded — they rely on TravellerChunkManager to keep their route
+     * loaded and must never virtualize this way.
      */
-    private void checkAndMaybeDespawnAtChunkEdge() {
-        if (this instanceof EntityTravellerMerchant || this instanceof EntityTravellerWorker) {
-            return;
-        }
-        // Workers are already handled by VirtualTravellerManager.checkVirtualize()
-        if (!TravellersModConfig.despawnNearUnloadedChunks) return;
-        if (this.world.isRemote) return;                         // server only
-        if (!(this.world instanceof WorldServer)) return;
-        if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) {
-            nearUnloadTicks = 0;
-            return;
-        }
+    public boolean tryVirtualizeStuckAtEdge() {
+        if (this instanceof EntityTravellerMerchant || this instanceof EntityTravellerWorker) return false;
+        if (this.world.isRemote || !(this.world instanceof WorldServer)) return false;
+        if (this.isAutoEating() || this.isHandActive()) return false;
 
         final WorldServer ws = (WorldServer) this.world;
-
-        int viewChunksEdge;
-        try {
-            viewChunksEdge = ws.getMinecraftServer().getPlayerList().getViewDistance();
-        } catch (Throwable t) {
-            viewChunksEdge = TravellersModConfig.serverViewDistanceFallbackChunks;
-        }
-        // Cap r at half the view distance so we never trigger for entities close to the player
-        // on small view distances.
-        final int r = Math.max(1, Math.min(TravellersModConfig.despawnProbeRadiusChunks, viewChunksEdge / 2));
-
-        // Probe a chunk square around the mob; if ANY is unloaded, we're near the edge.
-        final BlockPos p = this.getPosition();
-        final int cx0 = (p.getX() >> 4) - r;
-        final int cx1 = (p.getX() >> 4) + r;
-        final int cz0 = (p.getZ() >> 4) - r;
-        final int cz1 = (p.getZ() >> 4) + r;
-
-        boolean touchingEdge = false;
-        for (int cx = cx0; cx <= cx1 && !touchingEdge; cx++) {
-            for (int cz = cz0; cz <= cz1; cz++) {
-                if (!ws.getChunkProvider().chunkExists(cx, cz)) {
-                    touchingEdge = true;
-                    break;
-                }
-            }
-        }
-
-        if (touchingEdge) {
-            nearUnloadTicks++;
-        } else {
-            // Decay instead of hard reset: entity oscillating at the border still accumulates.
-            nearUnloadTicks = Math.max(0, nearUnloadTicks - 1);
-        }
-
-        if (nearUnloadTicks >= TravellersModConfig.despawnEdgeGraceTicks) {
-            if (tryVirtualize()) return;
-            // Fallback: clean fade (no route or virtualization not available)
-            EntityTravellerDog dog = getDog();
-            if (dog != null && !dog.world.isRemote) {
-                if (!(dog.isTamed() && dog.getOwner() instanceof EntityPlayer)) {
-                    dog.setDead();
-                }
-            }
-            this.setDead();
-        }
-    }
-
-    private void checkAndMaybeDespawnFarFromPlayers() {
-        if (this instanceof EntityTravellerMerchant || this instanceof EntityTravellerWorker) {
-            return;
-        }
-        if (!TravellersModConfig.despawnWhenFarFromPlayers) return;
-        if (this.world.isRemote) return;
-        if (!(this.world instanceof WorldServer)) return;
-        if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) {
-            farFromPlayersTicks = 0;
-            return;
-        }
-
-        WorldServer ws = (WorldServer) this.world;
-
-        // 1.12.2: get view distance from PlayerList, not PlayerChunkMap
         int viewChunks;
         try {
-            viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance(); // e.g., 8–12
+            viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance();
         } catch (Throwable t) {
             viewChunks = TravellersModConfig.serverViewDistanceFallbackChunks;
         }
+        // Require being close to the real edge (75% of view distance) before allowing this —
+        // a mob merely stuck on terrain near a player must never vanish.
+        double minDistBlocks = Math.max(TravellersModConfig.farMinDistanceBlocks, viewChunks * 16.0 * 0.75);
+        if (ws.getClosestPlayer(this.posX, this.posY, this.posZ, minDistBlocks, false) != null) return false;
 
-        // Use exact view distance — no extra buffer so entities at the border ARE caught.
-        int bubbleBlocks = Math.max(TravellersModConfig.farMinDistanceBlocks, viewChunks * 16);
+        if (tryVirtualize()) return true;
 
-        boolean anyNear = ws.getClosestPlayer(this.posX, this.posY, this.posZ, bubbleBlocks, false) != null;
-
-        if (!anyNear) {
-            farFromPlayersTicks++;
-        } else {
-            farFromPlayersTicks = 0;
-        }
-
-        if (farFromPlayersTicks >= TravellersModConfig.farGraceTicks) {
-            if (tryVirtualize()) return;
-            EntityTravellerDog d = getDog();
-            if (d != null && !d.world.isRemote) {
-                if (!(d.isTamed() && d.getOwner() instanceof EntityPlayer)) {
-                    d.setDead();
-                }
+        // Fallback: clean fade (virtualization not available for some reason)
+        EntityTravellerDog dog = getDog();
+        if (dog != null && !dog.world.isRemote) {
+            if (!(dog.isTamed() && dog.getOwner() instanceof EntityPlayer)) {
+                dog.setDead();
             }
-            this.setDead();
         }
-    }
-
-    /**
-     * Despawn when no player is tracking us (usually right after we cross view distance).
-     * This is the simplest “despawn at view distance border”.
-     */
-    private void checkAndMaybeDespawnWhenUntracked() {
-        // Keep special types
-        if (this instanceof EntityTravellerMerchant || this instanceof EntityTravellerWorker) {
-            untrackedTicks = 0;
-            return;
-        }
-
-        if (world.isRemote) return;
-
-        // If ANY player is tracking us, reset and keep alive
-        if (isInPlayerViewDistanceApprox()) {
-            untrackedTicks = 0;
-            return;
-        }
-
-
-        // Don’t vanish while doing important stuff
-        if (this.isInCombat() || this.isAutoEating() || this.isHandActive()) {
-            untrackedTicks = 0;
-            return;
-        }
-
-        // Count up while untracked
-        untrackedTicks++;
-
-        if (untrackedTicks >= UNTRACKED_GRACE_TICKS) {
-            if (tryVirtualize()) return;
-            EntityTravellerDog dog = getDog();
-            if (dog != null && !dog.world.isRemote) {
-                if (!(dog.isTamed() && dog.getOwner() instanceof EntityPlayer)) {
-                    dog.setDead();
-                }
-            }
-            this.setDead();
-        }
+        this.setDead();
+        return true;
     }
 
     public boolean hasPlayerPassenger() {

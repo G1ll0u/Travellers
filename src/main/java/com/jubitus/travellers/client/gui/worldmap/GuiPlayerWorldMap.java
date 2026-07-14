@@ -25,7 +25,8 @@ import java.util.Collections;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
+public class GuiPlayerWorldMap extends GuiScreen
+        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver {
 
     private GuiButton backButton;
     private GuiButton zoomInButton, zoomOutButton, recenterButton;
@@ -39,6 +40,8 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
 
     private final List<MsgWorkerGoList.Entry> poiEntries  = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
+    private final List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
+    private final List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
     private int playerOwnerColor = 0xFFFFFF;
 
     public GuiPlayerWorldMap(EntityPlayer player, int contextWorkerId) {
@@ -50,10 +53,13 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
     public void initGui() {
         super.initGui();
 
-        mapW = Math.min(360, this.width - 20);
-        mapH = Math.min(240, this.height - 70);
-        mapX = (this.width  - mapW) / 2;
-        mapY = (this.height - mapH) / 2 - 10;
+        int sideMargin = 16;
+        int topMargin = 16;
+        int bottomBarHeight = 34; // gap + zoom/back button row
+        mapW = this.width - sideMargin * 2;
+        mapH = this.height - topMargin - bottomBarHeight;
+        mapX = sideMargin;
+        mapY = topMargin;
 
         this.buttonList.clear();
 
@@ -112,7 +118,7 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
     private void drawHoverTooltip(int mouseX, int mouseY) {
         String label = mapController.getTooltip(mouseX, mouseY);
         if (label != null && !label.isEmpty()) {
-            this.drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+            this.drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
         }
     }
 
@@ -190,11 +196,31 @@ public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceive
         rebuildMarkers();
     }
 
+    @Override
+    public void receiveBattles(List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> entries) {
+        battleEntries.clear();
+        if (entries != null) battleEntries.addAll(entries);
+        rebuildMarkers();
+    }
+
+    @Override
+    public void receiveForeignUnits(List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> entries) {
+        foreignEntries.clear();
+        if (entries != null) foreignEntries.addAll(entries);
+        rebuildMarkers();
+    }
+
     private void rebuildMarkers() {
         if (mapController == null) return;
         mapController.panel.clearMarkers();
         WorldMapContentPopulator.populate(
                 mapController.panel, poiEntries, workerEntries, player, playerOwnerColor);
+        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
+        WorldMapContentPopulator.populateForeignUnits(mapController.panel, foreignEntries, myDim);
+        for (com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry e : battleEntries) {
+            if (e.dim != myDim) continue;
+            mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
+        }
     }
 
     @Override

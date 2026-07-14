@@ -6182,6 +6182,276 @@
         ],
         "subtitle": "subtitles.entity.travellers.hurt"
     },
+    "entity.travellers.fr.vener.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__11": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__12": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__13": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__14": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__15": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_011",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__16": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_012",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__17": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_013",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__18": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_014",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__19": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_015",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__20": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_016",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__21": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_017",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__22": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_018",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__23": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_019",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__24": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_020",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__25": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_021",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__26": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_022",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__27": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_023",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__28": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_024",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__29": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_025",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__30": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_026",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.fr.vener.hurt.__31": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_027",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
     "entity.travellers.fr.vener.hurt": {
         "category": "voice",
         "sounds": [
@@ -6203,6 +6473,114 @@
             },
             {
                 "name": "travellers:travellers/fr/vener/hurt/grtd",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_010",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_011",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_012",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_013",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_014",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_015",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_016",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_017",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_018",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_019",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_020",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_021",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_022",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_023",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_024",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_025",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_026",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/fr/vener/hurt/take_027",
                 "stream": false
             }
         ],
@@ -6354,23 +6732,13 @@
         "category": "voice",
         "sounds": [
             {
-                "name": "travellers:travellers/fr/vener/death/take_001jkl",
-                "stream": true
-            }
-        ],
-        "subtitle": "subtitles.entity.travellers.death"
-    },
-    "entity.travellers.fr.vener.death.__2": {
-        "category": "voice",
-        "sounds": [
-            {
                 "name": "travellers:travellers/fr/vener/death/take_002",
                 "stream": false
             }
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__3": {
+    "entity.travellers.fr.vener.death.__2": {
         "category": "voice",
         "sounds": [
             {
@@ -6380,7 +6748,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__4": {
+    "entity.travellers.fr.vener.death.__3": {
         "category": "voice",
         "sounds": [
             {
@@ -6390,7 +6758,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__5": {
+    "entity.travellers.fr.vener.death.__4": {
         "category": "voice",
         "sounds": [
             {
@@ -6400,7 +6768,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__6": {
+    "entity.travellers.fr.vener.death.__5": {
         "category": "voice",
         "sounds": [
             {
@@ -6410,7 +6778,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__7": {
+    "entity.travellers.fr.vener.death.__6": {
         "category": "voice",
         "sounds": [
             {
@@ -6420,7 +6788,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__8": {
+    "entity.travellers.fr.vener.death.__7": {
         "category": "voice",
         "sounds": [
             {
@@ -6430,7 +6798,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__9": {
+    "entity.travellers.fr.vener.death.__8": {
         "category": "voice",
         "sounds": [
             {
@@ -6440,7 +6808,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__10": {
+    "entity.travellers.fr.vener.death.__9": {
         "category": "voice",
         "sounds": [
             {
@@ -6450,7 +6818,7 @@
         ],
         "subtitle": "subtitles.entity.travellers.death"
     },
-    "entity.travellers.fr.vener.death.__11": {
+    "entity.travellers.fr.vener.death.__10": {
         "category": "voice",
         "sounds": [
             {
@@ -6466,10 +6834,6 @@
             {
                 "name": "travellers:travellers/fr/vener/death/take_001",
                 "stream": false
-            },
-            {
-                "name": "travellers:travellers/fr/vener/death/take_001jkl",
-                "stream": true
             },
             {
                 "name": "travellers:travellers/fr/vener/death/take_002",

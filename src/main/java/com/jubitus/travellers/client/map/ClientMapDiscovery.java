@@ -6,11 +6,20 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class ClientMapDiscovery {
     private static final java.util.Set<Long> tiles = new java.util.HashSet<>();
+    private static volatile boolean fullMap = false;
 
     private ClientMapDiscovery() {}
 
     public static void clear() {
         tiles.clear();
+    }
+
+    public static void setFullMap(boolean value) {
+        fullMap = value;
+    }
+
+    public static boolean isFullMap() {
+        return fullMap;
     }
 
     /** Full replace (use only when you KNOW you want to reset). */

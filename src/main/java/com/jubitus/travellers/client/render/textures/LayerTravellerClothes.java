@@ -1,6 +1,8 @@
 package com.jubitus.travellers.client.render.textures;
 
+import com.jubitus.travellers.client.render.RenderLodHelper;
 import com.jubitus.travellers.client.render.RenderTraveller;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -19,6 +21,8 @@ public class LayerTravellerClothes implements net.minecraft.client.renderer.enti
     public void doRenderLayer(EntityTraveller entity, float limbSwing, float limbSwingAmount,
                               float partialTicks, float ageInTicks, float netHeadYaw,
                               float headPitch, float scale) {
+
+        if (RenderLodHelper.isBeyond(entity, TravellersConfig.ENTITY_RENDER_LOD.clothesLayerMaxDistance)) return;
 
         TravellerAppearance app = entity.getActiveAppearance();
 

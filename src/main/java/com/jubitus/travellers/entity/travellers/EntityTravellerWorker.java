@@ -340,7 +340,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Worker travel AI (for jobs)
         this.aiTravel = new EntityAITravel(
                 this,
-                TravellersModConfig.movementSpeedWhileTravel,
+                TravellersConfig.SPEED.movementSpeedWhileTravel,
                 TravellersModConfig.workerStepBlocks
         );
         this.tasks.addTask(11, aiTravel);
@@ -349,7 +349,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.tasks.addTask(12,
                 new EntityAIMerchantDeliverGoods(
                         this,
-                        TravellersModConfig.movementSpeedWhileTravel
+                        TravellersConfig.SPEED.movementSpeedWhileTravel
                 )
         );
 
@@ -865,8 +865,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (moveAttr != null) {
             // Make workers a bit quicker than generic travellers
-            // TravellersModConfig.movementSpeed is the base used in EntityTraveller.onInitialSpawn
-            moveAttr.setBaseValue(TravellersConfig.ATTRIBUTES.movementSpeed);
+            // TravellersConfig.SPEED.movementSpeed is the base used in EntityTraveller.onInitialSpawn
+            moveAttr.setBaseValue(TravellersConfig.SPEED.movementSpeed);
         }
     }
 
@@ -1443,7 +1443,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (moveAttr != null) {
-            moveAttr.setBaseValue(TravellersModConfig.movementSpeed);
+            moveAttr.setBaseValue(TravellersConfig.SPEED.movementSpeed);
         }
 
         // Move spawn weapon from MAINHAND into inventory so the GUI shows it and the ghost system manages display
@@ -1618,7 +1618,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Optional: also restore worker-specific move speed if you want
         IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (moveAttr != null) {
-            moveAttr.setBaseValue(TravellersModConfig.movementSpeed);
+            moveAttr.setBaseValue(TravellersConfig.SPEED.movementSpeed);
         }
 
         // Same idea if you have worker-specific HP etc:
@@ -2657,7 +2657,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                         idleAnchorPos.getX() + 0.5D,
                         idleAnchorPos.getY(),
                         idleAnchorPos.getZ() + 0.5D,
-                        TravellersModConfig.movementSpeedWhileFollowing * 0.85D  // was 0.4
+                        TravellersConfig.SPEED.movementSpeedWhileFollowing * 0.85D  // was 0.4
                 );
             }
         } else {
@@ -3128,8 +3128,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean canVirtualize() {
+        return !isInCombat() && canVirtualizeIgnoringCombat();
+    }
+
+    @Override
+    public boolean canVirtualizeIgnoringCombat() {
         if (isDead) return false;
-        if (isInCombat()) return false;
         if (isHandActive()) return false;
         if (isRiding()) return false;
         if (awaitingPickup) return false;
@@ -3539,7 +3543,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         virtualLeaderLastTargetX = targetX;
         virtualLeaderLastTargetZ = targetZ;
-        getNavigator().tryMoveToXYZ(targetX, leaderPos.getY(), targetZ, TravellersModConfig.movementSpeedWhileFollowing);
+        getNavigator().tryMoveToXYZ(targetX, leaderPos.getY(), targetZ, TravellersConfig.SPEED.movementSpeedWhileFollowing);
     }
 
     public void startGoToDestination(BlockPos pos, int dim) {

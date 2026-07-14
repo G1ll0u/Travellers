@@ -68,6 +68,19 @@ public final class MaterializePositionResolver {
         double baseZ = Math.floor(r.posZ) + 0.5;
         double referenceY = r.posY;
 
+        // Mid-battle pawn: appear exactly where the battle sim placed it — no formation slot,
+        // ring spread or building avoidance (the fight is where it is). Y is still resolved.
+        if (r.battleId != null) {
+            int bbx = (int) Math.floor(baseX);
+            int bbz = (int) Math.floor(baseZ);
+            double y = referenceY;
+            if (world.getChunkProvider().chunkExists(bbx >> 4, bbz >> 4)) {
+                y = findSafeFloorY(world, bbx, bbz, referenceY);
+                y = ensureNotInSolid(world, bbx, y, bbz);
+            }
+            return new ResolvedPosition(baseX, y, baseZ);
+        }
+
         // Group traveller/raider followers: spawn in a deterministic ring around the leader.
         // Must be checked before escortLeaderUUID (workers use that field, not this one).
         if (r.groupLeaderUUID != null) {
@@ -155,7 +168,7 @@ public final class MaterializePositionResolver {
      * Maps each UUID to a fixed angle and radius so every member of a group
      * occupies a different slot in a ring, even across multiple materializations.
      */
-    private static int[] followerSpreadOffset(UUID uuid) {
+    public static int[] followerSpreadOffset(UUID uuid) {
         long h = uuid.getLeastSignificantBits() ^ uuid.getMostSignificantBits();
         double angle = (h & 0xFFFFFFFFL) / (double) 0xFFFFFFFFL * 2.0 * Math.PI;
         double radius = FOLLOW_SPREAD_MIN

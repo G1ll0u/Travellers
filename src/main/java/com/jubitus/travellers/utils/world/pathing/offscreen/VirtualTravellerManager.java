@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.world.pathing.offscreen;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.entity.entityAI.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -128,6 +129,7 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private void advanceVirtual() {
         for (VirtualTravellerRecord r : records.values()) {
+            if (r.battleId != null) continue; // battle sim owns movement
             if (r.goal == null) continue;
             double dx = r.goal.getX() + 0.5 - r.posX;
             double dz = r.goal.getZ() + 0.5 - r.posZ;
@@ -149,8 +151,42 @@ public class VirtualTravellerManager extends WorldSavedData {
     private void refreshAllGoals(WorldServer world, long now) {
         for (VirtualTravellerRecord r : records.values()) {
             if (r.dimension != world.provider.getDimension()) continue;
+            simulateHealing(r, now);
+            if (r.battleId != null) continue; // travel/camp goals suspended while fighting
             refreshGoal(world, r);
         }
+    }
+
+    /**
+     * Offscreen counterpart to {@link com.jubitus.travellers.entity.entityAI.ambient.EntityAIAutoEat}:
+     * gradually heals a virtual record using the same threshold/lockout knobs as the physical AI, so a
+     * traveller/worker that fought (and survived) a virtual battle recovers HP while offscreen instead
+     * of staying wounded until a player happens to materialize it. Raiders are excluded (they don't
+     * auto-eat physically either — see EntityTravellerRaider.initEntityAI). Called every
+     * GOAL_REFRESH_INTERVAL (20 ticks), matching this method's own cadence.
+     */
+    private void simulateHealing(VirtualTravellerRecord r, long now) {
+        if (!TravellersConfig.BATTLE_EVENTS.virtualCombatHealingEnabled) return;
+        if ("RAIDER".equals(r.entityClass)) return;
+        if (r.battleId != null) return; // still fighting: physical AI blocks eating during combat too
+        if (r.entityNbt == null) return;
+
+        int lastCombatTick = r.entityNbt.getInteger("LastCombatTick");
+        if (now - lastCombatTick < TravellersConfig.BATTLE_EVENTS.postCombatHealDelayTicks) return;
+
+        float max = r.getCombatProfile().maxHealth;
+        float hp = r.getHealthResolved();
+        if (hp >= max - 0.001F) {
+            r.recoveringToFull = false;
+            return;
+        }
+        if (!r.recoveringToFull && hp > max * TravellersConfig.COMBAT.eatHealthThreshold) return;
+
+        r.recoveringToFull = true;
+        float healed = Math.min(max, hp + EntityAIAutoEat.AVG_HEAL_PER_TICK * GOAL_REFRESH_INTERVAL);
+        r.health = healed;
+        r.entityNbt.setFloat("Health", healed);
+        if (healed >= max - 0.001F) r.recoveringToFull = false;
     }
 
     /**
@@ -185,15 +221,17 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (!TravellersConfig.CAMP_EVENTS.enabled) return false;
         if (world.getTotalWorldTime() < r.campCooldownUntil) return false; // just left a camp
 
+        String culture = r.entityNbt != null ? r.entityNbt.getString("CultureId") : "";
+
         CampsiteRecord camp;
         if (r.groupLeaderUUID != null) {
             // Follower: only camp if the leader is already camping, and join that exact site.
             VirtualTravellerRecord leader = records.get(r.groupLeaderUUID);
             if (leader == null || leader.campSiteId == null) return false;
             camp = cm.getById(leader.campSiteId);
-            if (camp == null || !camp.canClaim(r.entityClass)) return false;
+            if (camp == null || !camp.canClaim(r.entityClass, culture)) return false;
         } else {
-            camp = cm.findClaimable(r.dimension, r.posX, r.posZ, r.entityClass,
+            camp = cm.findClaimable(r.dimension, r.posX, r.posZ, r.entityClass, culture,
                     TravellersConfig.CAMP_EVENTS.campSeekRadius);
             if (camp == null) return false;
             // Night: always stop. Day: roll the configured chance. Followers skip this (they follow the leader).
@@ -202,8 +240,6 @@ public class VirtualTravellerManager extends WorldSavedData {
                 return false;
             }
         }
-
-        String culture = r.entityNbt != null ? r.entityNbt.getString("CultureId") : "";
         long now = world.getTotalWorldTime();
         // Followers use the leader's departTick so the whole group leaves together.
         long depart = CampsiteManager.computeDepartTick(world, now);
@@ -232,11 +268,14 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (!"WORKER".equals(r.entityClass)) {
             // Camp lifecycle takes priority: halt at the slot while camping, or claim a passing campsite.
             if (handleCamp(world, r)) return;
-            // Group follower: track leader's virtual position directly
+            // Group follower: track leader's virtual position, offset by the same deterministic
+            // ring the materializer uses, so the group marches as a loose pack (not a stack).
             if (r.groupLeaderUUID != null) {
                 VirtualTravellerRecord leaderRec = records.get(r.groupLeaderUUID);
                 if (leaderRec != null) {
-                    r.goal = new BlockPos((int) leaderRec.posX, (int) leaderRec.posY, (int) leaderRec.posZ);
+                    int[] off = MaterializePositionResolver.followerSpreadOffset(r.uuid);
+                    r.goal = new BlockPos((int) leaderRec.posX + off[0], (int) leaderRec.posY,
+                            (int) leaderRec.posZ + off[1]);
                 } else {
                     // Leader materialized: followers keep their current goal until they also materialize
                     Entity liveLeader = world.getEntityFromUuid(r.groupLeaderUUID);
@@ -262,6 +301,11 @@ public class VirtualTravellerManager extends WorldSavedData {
             return;
         }
 
+        // Non-hired, idle workers may camp exactly like travellers (join/found a civilian camp).
+        // Hired or actively-working workers (mid-mission/escort) never stop to camp.
+        if (TravellersConfig.CAMP_EVENTS.workersCanCamp && !r.isHiredFollower
+                && "IDLE".equals(r.workerMode) && handleCamp(world, r)) return;
+
         // Escort follower: track leader (virtual or live) — highest priority after catchup
         if (r.escortLeaderUUID != null) {
             VirtualTravellerRecord leaderRec = records.get(r.escortLeaderUUID);
@@ -271,7 +315,14 @@ public class VirtualTravellerManager extends WorldSavedData {
                     r.goal = null;
                     return;
                 }
-                r.goal = new BlockPos((int) leaderRec.posX, (int) leaderRec.posY, (int) leaderRec.posZ);
+                // Formation-shaped marching: hold the captured slot offset relative to the leader
+                // (same world-frame offset the materializer restores), so the group keeps its shape.
+                if (r.hasEscortSlotOffset) {
+                    r.goal = new BlockPos((int) (leaderRec.posX + r.escortSlotDx), (int) leaderRec.posY,
+                            (int) (leaderRec.posZ + r.escortSlotDz));
+                } else {
+                    r.goal = new BlockPos((int) leaderRec.posX, (int) leaderRec.posY, (int) leaderRec.posZ);
+                }
                 return;
             }
             Entity leader = world.getEntityFromUuid(r.escortLeaderUUID);
@@ -288,6 +339,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 return;
             }
             // Leader gone: clear so we fall through to owner-follow below
+            r.escortLeaderUUID = null;
         }
 
         // Catchup: always track live target
@@ -337,6 +389,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         int dim = world.provider.getDimension();
         for (VirtualTravellerRecord r : records.values()) {
             if (r.dimension != dim) continue;
+            if (r.battleId != null) continue; // no job arrivals mid-battle
 
             // Hired workers on TO_VILLAGE missions: virtual delivery (inventory trade, no chunk load)
             if (r.isHiredFollower && r.jobGoal != null && "TO_VILLAGE".equals(r.workerMode)) {
@@ -438,6 +491,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         NBTTagCompound updatedNbt = new NBTTagCompound();
         worker.writeToNBT(updatedNbt);
         r.entityNbt = updatedNbt;
+        r.invalidateNbtCaches();
 
         // Update record to RETURNING so the virtual worker heads back to the employer
         r.workerMode = "RETURNING";
@@ -500,6 +554,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         NBTTagCompound updatedNbt = new NBTTagCompound();
         recruiter.writeToNBT(updatedNbt);
         r.entityNbt = updatedNbt;
+        r.invalidateNbtCaches();
         r.workerMode = recruiter.getMode().name();
         r.jobGoal = recruiter.getJobGoal(); // next stop, or null if returning
         BlockPos nextGoal = recruiter.getVirtualGoal();
@@ -532,6 +587,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         NBTTagCompound updatedNbt = new NBTTagCompound();
         worker.writeToNBT(updatedNbt);
         r.entityNbt = updatedNbt;
+        r.invalidateNbtCaches();
 
         // Mirror finalized state into the virtual record
         r.workerMode = "IDLE";
@@ -677,19 +733,33 @@ public class VirtualTravellerManager extends WorldSavedData {
             else if (e instanceof EntityTraveller) travellers.add((EntityTraveller) e);
         }
 
+        com.jubitus.travellers.utils.world.battle.VirtualBattleManager battleMgr =
+                com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world);
+
         for (EntityTravellerWorker worker : workers) {
             if (graceUntil.containsKey(worker.getUniqueID())) continue;
-            if (!worker.canVirtualize()) continue;
+            if (!canVirtualizeMaybeBattling(worker, battleMgr)) continue;
             if (isPlayerNear(worker.posX, worker.posZ, players, virtDistBlocks)) continue;
             virtualizeWorker(world, worker, now);
         }
 
         for (EntityTraveller entity : travellers) {
             if (graceUntil.containsKey(entity.getUniqueID())) continue;
-            if (!entity.canVirtualize()) continue;
+            // Unlike workers, travellers/raiders can proximity-acquire a passive player as attackTarget
+            // (RaiderAttackTargetAI) and stay "in combat" (travellerNoAggroOffscreen) for as long as that
+            // player is nearby. Distance-based virtualization must ignore that state entirely, or a raider
+            // idling at the view-distance edge near a stationary player would never leave the world.
+            if (!entity.canVirtualizeIgnoringCombat()) continue;
             if (isPlayerNear(entity.posX, entity.posZ, players, virtDistBlocks)) continue;
             virtualizeTraveller(world, entity, now);
         }
+    }
+
+    /** Battle participants may re-virtualize mid-combat (the sim takes over); others keep the combat gate. */
+    private static boolean canVirtualizeMaybeBattling(
+            EntityTraveller entity, com.jubitus.travellers.utils.world.battle.VirtualBattleManager battleMgr) {
+        if (entity.canVirtualize()) return true;
+        return battleMgr.isParticipant(entity.getUniqueID()) && entity.canVirtualizeIgnoringCombat();
     }
 
     // -------------------------------------------------------------------------
@@ -776,8 +846,16 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Compute initial goal
         BlockPos initialGoal = worker.getVirtualGoal();
         r.goal = initialGoal;
+        r.health = worker.getHealth();
+
+        // Non-hired workers camp exactly like travellers; re-derive occupation from the campsite.
+        if (TravellersConfig.CAMP_EVENTS.workersCanCamp && !r.isHiredFollower) {
+            deriveCampOccupation(world, worker.getUniqueID(), now, r);
+        }
 
         records.put(r.uuid, r);
+        com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
+                .restoreBattleIdIfParticipant(r);
 
         TravellerChunkManager.INSTANCE.untrackChunkloader(worker);
         worker.setDead();
@@ -785,6 +863,28 @@ public class VirtualTravellerManager extends WorldSavedData {
         markDirty();
         // Followers are NOT force-virtualized here; each one virtualizes individually
         // once it leaves the player's view distance (via checkVirtualize).
+    }
+
+    /**
+     * Re-derives {@code r.campSiteId}/{@code campSlotIndex} from the campsite occupant (the source of
+     * truth) at virtualize time, and resets the occupant's virtual build clock so loaded time spent
+     * pacing/fighting between block placements doesn't retroactively convert into virtual progress.
+     * Shared by traveller/raider and (non-hired, idle) worker virtualization.
+     */
+    private void deriveCampOccupation(WorldServer world, UUID uuid, long now, VirtualTravellerRecord r) {
+        CampsiteRecord camp = CampsiteManager.get(world).campOf(uuid);
+        if (camp == null) return;
+        for (Map.Entry<Integer, CampOccupant> e : camp.occupants.entrySet()) {
+            if (e.getValue().travellerUUID.equals(uuid)) {
+                r.campSiteId = camp.id;
+                r.campSlotIndex = e.getKey();
+                CampOccupant occ = e.getValue();
+                if (occ.buildState != CampOccupant.BuildState.BUILT) {
+                    occ.lastProgressTick = now;
+                }
+                break;
+            }
+        }
     }
 
     /** Virtualizes a non-worker EntityTraveller (traveller or raider). */
@@ -805,23 +905,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.entityClass = entity instanceof EntityTravellerRaider ? "RAIDER" : "TRAVELLER";
         r.groupLeaderUUID = entity.getGroupLeaderUUID();
 
-        // Re-derive camp occupation from the campsite (the occupant is the source of truth).
-        CampsiteRecord camp = CampsiteManager.get(world).campOf(entity.getUniqueID());
-        if (camp != null) {
-            for (Map.Entry<Integer, CampOccupant> e : camp.occupants.entrySet()) {
-                if (e.getValue().travellerUUID.equals(entity.getUniqueID())) {
-                    r.campSiteId = camp.id;
-                    r.campSlotIndex = e.getKey();
-                    // Start the virtual build clock now: loaded time spent pacing/fighting between
-                    // block placements must not convert retroactively into virtual progress.
-                    CampOccupant occ = e.getValue();
-                    if (occ.buildState != CampOccupant.BuildState.BUILT) {
-                        occ.lastProgressTick = now;
-                    }
-                    break;
-                }
-            }
-        }
+        deriveCampOccupation(world, entity.getUniqueID(), now, r);
 
         // Assign home village so runVirtualPopulationTopUp doesn't over-spawn for this village.
         // Use the entity's origin village if available, otherwise the nearest known village.
@@ -848,14 +932,54 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
 
         r.virtualizedTick = now;
+        r.health = entity.getHealth();
 
         records.put(r.uuid, r);
+        com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
+                .restoreBattleIdIfParticipant(r);
         entity.setDead();
         markDirty();
     }
 
     private void materializeWorker(WorldServer world, VirtualTravellerRecord r, long now, boolean forceLoadChunk) {
         materializeEntity(world, r, now, forceLoadChunk);
+    }
+
+    /** Pairing of the raw camp slot (or null if not camping) and the resolved safe spawn position. */
+    private static final class CampSpawnResult {
+        @Nullable final BlockPos campStand;
+        final MaterializePositionResolver.ResolvedPosition pos;
+
+        CampSpawnResult(@Nullable BlockPos campStand, MaterializePositionResolver.ResolvedPosition pos) {
+            this.campStand = campStand;
+            this.pos = pos;
+        }
+    }
+
+    /**
+     * Camp-aware spawn positioning shared by traveller/raider/worker materialize: places a camping
+     * entity inside its slot on a real floor (entrance point if the shelter already exists, to avoid
+     * spawning inside a wall) rather than the raw virtual position. Returns {@code fallback} unchanged
+     * when the record isn't camping.
+     */
+    private CampSpawnResult resolveCampSpawnPos(WorldServer world, VirtualTravellerRecord r,
+                                                 MaterializePositionResolver.ResolvedPosition fallback) {
+        if (r.campSiteId == null) return new CampSpawnResult(null, fallback);
+        CampsiteManager campMgr = CampsiteManager.get(world);
+        BlockPos campStand = campMgr.slotStandPos(r.campSiteId, r.campSlotIndex);
+        if (campStand == null) return new CampSpawnResult(null, fallback);
+
+        CampsiteRecord campRec = campMgr.getById(r.campSiteId);
+        CampOccupant occ = campRec != null ? campRec.occupants.get(r.campSlotIndex) : null;
+        BlockPos spawnPos = (occ != null && occ.hasAnyStructure())
+                ? campMgr.slotApproachPos(r.campSiteId, r.campSlotIndex)
+                : campStand;
+        if (spawnPos == null) spawnPos = campStand;
+        double cy = MaterializePositionResolver.findSafeFloorY(
+                world, spawnPos.getX(), spawnPos.getZ(), spawnPos.getY());
+        cy = MaterializePositionResolver.ensureNotInSolid(world, spawnPos.getX(), cy, spawnPos.getZ());
+        return new CampSpawnResult(campStand,
+                new MaterializePositionResolver.ResolvedPosition(spawnPos.getX() + 0.5, cy, spawnPos.getZ() + 0.5));
     }
 
     private void materializeEntity(WorldServer world, VirtualTravellerRecord r, long now, boolean forceLoadChunk) {
@@ -870,28 +994,16 @@ public class VirtualTravellerManager extends WorldSavedData {
             world.getChunkProvider().provideChunk(bx >> 4, bz >> 4);
         }
 
+        // Health may have changed virtually (battle sim) — sync into the frozen NBT before restore
+        if (r.health >= 0f && r.entityNbt != null) {
+            r.entityNbt.setFloat("Health", r.health);
+        }
+
         if ("TRAVELLER".equals(r.entityClass) || "RAIDER".equals(r.entityClass)) {
             // Camping entity: spawn inside its slot on a real floor (never legs-in-ground or floating).
-            BlockPos campStand = null;
-            if (r.campSiteId != null) {
-                CampsiteManager campMgr = CampsiteManager.get(world);
-                campStand = campMgr.slotStandPos(r.campSiteId, r.campSlotIndex);
-                if (campStand != null) {
-                    // If the shelter is already in the world, spawn at the entrance (outside the
-                    // footprint) so the entity never materializes inside a wall and suffocates.
-                    CampsiteRecord campRec = campMgr.getById(r.campSiteId);
-                    com.jubitus.travellers.utils.world.camp.CampOccupant occ =
-                            campRec != null ? campRec.occupants.get(r.campSlotIndex) : null;
-                    BlockPos spawnPos = (occ != null && occ.hasAnyStructure())
-                            ? campMgr.slotApproachPos(r.campSiteId, r.campSlotIndex)
-                            : campStand;
-                    if (spawnPos == null) spawnPos = campStand;
-                    double cy = MaterializePositionResolver.findSafeFloorY(
-                            world, spawnPos.getX(), spawnPos.getZ(), spawnPos.getY());
-                    cy = MaterializePositionResolver.ensureNotInSolid(world, spawnPos.getX(), cy, spawnPos.getZ());
-                    pos = new MaterializePositionResolver.ResolvedPosition(spawnPos.getX() + 0.5, cy, spawnPos.getZ() + 0.5);
-                }
-            }
+            CampSpawnResult campSpawn = resolveCampSpawnPos(world, r, pos);
+            BlockPos campStand = campSpawn.campStand;
+            pos = campSpawn.pos;
 
             // For travellers on an MPB route, snap spawn position to the nearest road point.
             // This makes the entity appear on the road it was virtually walking, rather than
@@ -920,9 +1032,9 @@ public class VirtualTravellerManager extends WorldSavedData {
             entity.motionX = 0;
             entity.motionY = 0;
             entity.motionZ = 0;
-            if (r.groupLeaderUUID != null) {
-                entity.setGroupLeaderUUID(r.groupLeaderUUID);
-            }
+            // Unconditional: entityNbt may still carry a stale (e.g. dead-leader) UUID that r.groupLeaderUUID
+            // has since cleared (see VirtualBattleManager.endBattle) — always overwrite, null included.
+            entity.setGroupLeaderUUID(r.groupLeaderUUID);
             if (campStand != null) {
                 // Camping: stay put at the slot. Real camp behaviour (build/sleep/wander) is AI (P4).
                 entity.setReadyToDepart(false);
@@ -944,7 +1056,15 @@ public class VirtualTravellerManager extends WorldSavedData {
                 entity.setVillageIdling(false);
             }
             world.spawnEntity(entity);
+            if (r.battleId != null) {
+                com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
+                        .onParticipantMaterialized(world, r.uuid, entity);
+            }
         } else {
+            // Non-hired workers camp like travellers; hired/working ones never have a campSiteId set.
+            CampSpawnResult campSpawn = resolveCampSpawnPos(world, r, pos);
+            pos = campSpawn.pos;
+
             EntityTravellerWorker worker = new EntityTravellerWorker(world);
             worker.readFromNBT(r.entityNbt);
             worker.setUniqueId(r.uuid);
@@ -953,7 +1073,18 @@ public class VirtualTravellerManager extends WorldSavedData {
             worker.motionY = 0;
             worker.motionZ = 0;
             applyRecordStateToWorker(r, worker);
+            if (campSpawn.campStand != null) {
+                // Camping: stay put at the slot, matching the traveller/raider camp-spawn branch above.
+                worker.setReadyToDepart(false);
+                worker.setVillageIdling(true);
+                worker.setVillageIdleTicks(0);
+                worker.wakeUpTraveller();
+            }
             world.spawnEntity(worker);
+            if (r.battleId != null) {
+                com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
+                        .onParticipantMaterialized(world, r.uuid, worker);
+            }
 
             if (r.homeVillage != null) {
                 com.jubitus.travellers.utils.world.spawn.TravellerVillageRegistry reg =

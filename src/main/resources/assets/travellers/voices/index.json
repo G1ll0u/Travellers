@@ -513,7 +513,34 @@
                     "entity.travellers.fr.vener.hurt.__1",
                     "entity.travellers.fr.vener.hurt.__2",
                     "entity.travellers.fr.vener.hurt.__3",
-                    "entity.travellers.fr.vener.hurt.__4"
+                    "entity.travellers.fr.vener.hurt.__4",
+                    "entity.travellers.fr.vener.hurt.__5",
+                    "entity.travellers.fr.vener.hurt.__6",
+                    "entity.travellers.fr.vener.hurt.__7",
+                    "entity.travellers.fr.vener.hurt.__8",
+                    "entity.travellers.fr.vener.hurt.__9",
+                    "entity.travellers.fr.vener.hurt.__10",
+                    "entity.travellers.fr.vener.hurt.__11",
+                    "entity.travellers.fr.vener.hurt.__12",
+                    "entity.travellers.fr.vener.hurt.__13",
+                    "entity.travellers.fr.vener.hurt.__14",
+                    "entity.travellers.fr.vener.hurt.__15",
+                    "entity.travellers.fr.vener.hurt.__16",
+                    "entity.travellers.fr.vener.hurt.__17",
+                    "entity.travellers.fr.vener.hurt.__18",
+                    "entity.travellers.fr.vener.hurt.__19",
+                    "entity.travellers.fr.vener.hurt.__20",
+                    "entity.travellers.fr.vener.hurt.__21",
+                    "entity.travellers.fr.vener.hurt.__22",
+                    "entity.travellers.fr.vener.hurt.__23",
+                    "entity.travellers.fr.vener.hurt.__24",
+                    "entity.travellers.fr.vener.hurt.__25",
+                    "entity.travellers.fr.vener.hurt.__26",
+                    "entity.travellers.fr.vener.hurt.__27",
+                    "entity.travellers.fr.vener.hurt.__28",
+                    "entity.travellers.fr.vener.hurt.__29",
+                    "entity.travellers.fr.vener.hurt.__30",
+                    "entity.travellers.fr.vener.hurt.__31"
                 ],
                 "hello": [
                     "entity.travellers.fr.vener.hello.__0",
@@ -548,8 +575,7 @@
                     "entity.travellers.fr.vener.death.__7",
                     "entity.travellers.fr.vener.death.__8",
                     "entity.travellers.fr.vener.death.__9",
-                    "entity.travellers.fr.vener.death.__10",
-                    "entity.travellers.fr.vener.death.__11"
+                    "entity.travellers.fr.vener.death.__10"
                 ]
             },
             "gilles_fou": {

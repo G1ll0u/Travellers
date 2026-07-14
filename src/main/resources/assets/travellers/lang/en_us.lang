@@ -58,6 +58,8 @@ travellers.gui.go=Go
 travellers.gui.unnamed=(unnamed)
 
 travellers.map.center=Center
+travellers.map.teleport=Teleport
+travellers.map.teleport.active=Click map...
 travellers.map.chunks.legend.loaded_normal=Loaded chunks (normal)
 travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers Henchmen
 travellers.map.chunks.legend.villages=Village Town Halls

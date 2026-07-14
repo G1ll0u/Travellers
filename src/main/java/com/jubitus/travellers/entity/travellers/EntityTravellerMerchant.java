@@ -43,7 +43,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
         super(worldIn);
         this.enablePersistence(); // vanilla: mark as persistent so it never despawns
         removeTaskOfType(EntityAIRoamInsideVillage.class);
-        this.tasks.addTask(9, new EntityAIMerchantDeliverGoods(this, TravellersModConfig.movementSpeedWhileTravel));
+        this.tasks.addTask(9, new EntityAIMerchantDeliverGoods(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel));
     }
     // --- home village API ---
 
@@ -84,7 +84,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
         this.tasks.addTask(16,
                 new EntityAITravel(
                         this,
-                        TravellersModConfig.movementSpeedWhileTravel,
+                        com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel,
                         TravellersModConfig.merchantStepBlocks
                 )
         );

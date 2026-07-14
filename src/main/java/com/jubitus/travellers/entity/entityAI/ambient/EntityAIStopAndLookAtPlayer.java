@@ -508,7 +508,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
 
         private void tryMoveTo(BlockPos p) {
             if (p == null) return;
-            double speed = mob.isInWater() ? 0.8 * TravellersModConfig.movementSpeedWhileTravel : TravellersModConfig.movementSpeedWhileTravel;
+            double speed = mob.isInWater() ? 0.8 * com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel : com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel;
             mob.getNavigator().tryMoveToXYZ(p.getX() + 0.5, p.getY(), p.getZ() + 0.5, speed);
         }
 

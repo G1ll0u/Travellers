@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
 
 public final class FollowRuntimeConfig {
 
@@ -22,19 +23,21 @@ public final class FollowRuntimeConfig {
     }
 
     public void reloadFromTravellersConfig() {
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+
         group.largeGroupStart = 12;
         group.hugeGroupStart = 28;
-        group.maxSurfaceLanes = 8;
-        group.maxTunnelLanes = 3;
+        group.maxSurfaceLanes = wf.maxRowWidth;
+        group.maxTunnelLanes = wf.maxTunnelWidth;
         group.extraBackoffPerFollower = 0.035D;
 
-        surface.baseLeaderDistancePlayer = 2.7D;
-        surface.baseLeaderDistanceWorker = 3.5D;
-        surface.ringSpacing = 1.35D;
-        surface.rowSpacing = 1.75D;
-        surface.laneSpacing = 1.80D;
+        surface.baseLeaderDistancePlayer = wf.leaderDistancePlayer;
+        surface.baseLeaderDistanceWorker = wf.leaderDistanceWorkerLeader;
+        surface.ringSpacing = wf.ringSpacing;
+        surface.rowSpacing = wf.rowSpacing;
+        surface.laneSpacing = wf.laneSpacing;
         surface.staggerOffset = 0.47D;
-        surface.arriveRadius = 1.35D;
+        surface.arriveRadius = wf.arriveRadius;
         surface.verticalTolerance = 12.8D;
         surface.goalSearchHorizontal = 3;
         surface.goalSearchVertical = 10;
@@ -49,9 +52,9 @@ public final class FollowRuntimeConfig {
         cave.enterModeTicks = 60;
         cave.exitModeTicks = 30;
         cave.baseLeaderDistance = 2.1D;
-        cave.rowSpacing = 1.28D;
-        cave.laneSpacing = 0.98D;
-        cave.arriveRadius = 3.60D;
+        cave.rowSpacing = wf.caveRowSpacing;
+        cave.laneSpacing = wf.caveLaneSpacing;
+        cave.arriveRadius = wf.caveArriveRadius;
         cave.verticalTolerance = 4.5D;
         cave.goalSearchHorizontal = 2;
         cave.goalSearchVertical = 12;
@@ -86,11 +89,11 @@ public final class FollowRuntimeConfig {
         rescue.caveMaxLeaderDistance = 24.0D;
         rescue.caveMaxHorizontal = 12.0D;
         rescue.caveMinVerticalAbove = 4.0D;
-        rescue.surfaceMinStagnationTicks = 100;
+        rescue.surfaceMinStagnationTicks = wf.stuckTeleportDelayTicks;
         rescue.surfaceMinFailedPathTicks = 35;
         rescue.surfaceMaxStep = 6.0D;
         rescue.surfaceMinLeaderDistance = 4.0D;
-        rescue.surfaceMaxLeaderDistance = 10.0D;
+        rescue.surfaceMaxLeaderDistance = wf.stuckTeleportMaxDistance;
         rescue.caveModeGraceTicks = 60;
         rescue.caveNoTeleportLeaderDistance = 4.0D;
         rescue.caveNoTeleportGoalDistance = 5.0D;

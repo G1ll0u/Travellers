@@ -69,6 +69,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // Campsite discovery probes + camp lifecycle (budgeted, no chunk force-loading)
         com.jubitus.travellers.utils.world.camp.CampsiteManager.get(ws).tick(ws, now);
 
+        // Virtual battles: encounter detection, offscreen combat sim, deferred loot
+        com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(ws).tick(ws, now);
+
         // Morning tick: process barracks respawns and reconcile deleted barracks for online players
         if (TravellersModConfig.workerRespawnInBarracks) {
             long currentDay = ws.getWorldTime() / 24000L;

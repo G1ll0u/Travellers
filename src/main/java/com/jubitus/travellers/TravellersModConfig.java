@@ -113,7 +113,6 @@ public class TravellersModConfig {
     public static int travellerOffscreenHopIntervalTicks = 20 * 7; // 6s, every 6s, do a hop
     public static int travellerOffscreenHopStepBlocks = 24;        // hop distance in blocks
     // optional tuning knobs if you like:
-    public static double followerBoatConvoySpeed = 4.0D;      // boats vs normal follow speed
     // Global damage multiplier applied to ALL damage travellers take.
 // Does NOT apply to damage caused by players.
 // 1.0 = normal, 0.5 = half damage, 0 = immune to non-player sources.
@@ -224,15 +223,12 @@ public class TravellersModConfig {
     public static int villageRadius;
     public static final int VILLAGE_RADIUS = villageRadius;     // area to roam in (blocks from center)
     public static double maxHealth;
-    public static double attackMovementSpeed;
     public static boolean callForHelp;
     public static double helpRange;
     public static int villageRoamMinDuration;
     public static int villageRoamMaxDuration;
-    public static double movementSpeedWhileTravel;
     public static String[] travellerAggroBlacklistIds = new String[0];      // e.g., {"minecraft:creeper", "alexsmobs:*"}
     public static String[] travellerAggroBlacklistClasses = new String[0];  // e.g., {"net.minecraft.entity.monster.EntityGhast"}
-    public static double movementSpeedWhileFollowing;
     // --- TRAVELLER TUNING ---
     public static int villageNear;
     public static final int VILLAGE_NEAR = villageNear;       // distance considered "arrived"
@@ -257,7 +253,6 @@ public class TravellersModConfig {
     public static int followDurationMax;
     public static float followAngleAlignDeg;
     public static float followStartChance = 0.75f;
-    public static double movementSpeed;
     public static int followRange;
     public static double attackDamage;
     public static double attackTriggerRange;
@@ -352,7 +347,6 @@ public class TravellersModConfig {
     public static int fishCastWindupTicks = 15;         // ticks
     public static int fishCooldownTicks = 5 * 60 * 20; // 3 minutes
     public static float fishStartChancePerTick = 0.002f;
-    public static double fishApproachSpeed = 0.45D;
     public static int stepBlocks = 24;
     // Minimum distance (in blocks) raiders must spawn away from any village TH
     public static int raiderMinVillageDistance = 160;
@@ -592,10 +586,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.DESPAWN.despawnEdgeGraceTicks = despawnEdgeGraceTicks;
 
         com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerMaxHealth = travellerMaxHealth;
-        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeed = (float) movementSpeed;
-        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeedWhileFollowing = (float) movementSpeedWhileFollowing;
-        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeedWhileTravel = (float) movementSpeedWhileTravel;
-        com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.movementSpeedWhileAttacking = (float) attackMovementSpeed;
         com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerFollowRange = travellerFollowRange;
         com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.attackDamage = (float) attackDamage;
         com.jubitus.travellers.config.TravellersConfig.ATTRIBUTES.travellerDamageScale = travellerDamageScale;
@@ -649,7 +639,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.FOLLOW.followDurationMax = followDurationMax;
         com.jubitus.travellers.config.TravellersConfig.FOLLOW.followStartChance = followStartChance;
         com.jubitus.travellers.config.TravellersConfig.FOLLOW.followMaxFollowersPerLeader = followMaxFollowersPerLeader;
-        com.jubitus.travellers.config.TravellersConfig.FOLLOW.followerBoatConvoySpeed = followerBoatConvoySpeed;
         com.jubitus.travellers.config.TravellersConfig.FOLLOW.followerRingMoveBaseRadius = followerRingMoveBaseRadius;
         com.jubitus.travellers.config.TravellersConfig.FOLLOW.followerRingMoveSlotStep = followerRingMoveSlotStep;
         com.jubitus.travellers.config.TravellersConfig.FOLLOW.returnFollowSwitchDist = returnFollowSwitchDist;
@@ -730,7 +719,6 @@ public class TravellersModConfig {
         com.jubitus.travellers.config.TravellersConfig.FISHING.fishCastWindupTicks = fishCastWindupTicks;
         com.jubitus.travellers.config.TravellersConfig.FISHING.fishCooldownTicks = fishCooldownTicks;
         com.jubitus.travellers.config.TravellersConfig.FISHING.fishStartChancePerTick = fishStartChancePerTick;
-        com.jubitus.travellers.config.TravellersConfig.FISHING.fishApproachSpeed = fishApproachSpeed;
 
         com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled = controlledVillageFeatureEnabled;
         com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.requireControlledVillageToHire = requireControlledVillageToHire;
@@ -896,7 +884,7 @@ public class TravellersModConfig {
                         .setBaseValue(attackDamage);
 
                 t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED)
-                        .setBaseValue(movementSpeed);
+                        .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
 
                 t.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.FOLLOW_RANGE)
                         .setBaseValue(cfgFollowRange);
@@ -1286,30 +1274,6 @@ public class TravellersModConfig {
                 "Max health of generic travellers (20 = player default)."
         );
         maxHealth = travellerMaxHealth; // keep old field in sync
-
-        movementSpeed = cfg.getFloat(
-                "MovementSpeedBase", "Traveller base attributes",
-                0.52f, 0.05f, 2.0f,
-                "Base speed mult."
-        );
-
-        movementSpeedWhileFollowing = cfg.getFloat(
-                "MovementSpeedWhileFollowing", "Traveller base attributes",
-                0.55f, 0.05f, 2.0f,
-                "Movement speed multiplier while following"
-        );
-
-        movementSpeedWhileTravel = cfg.getFloat(
-                "MovementSpeedWhileTravelling", "Traveller base attributes",
-                0.52f, 0.05f, 2.0f,
-                "Movement speed multiplier for travel task."
-        );
-
-        attackMovementSpeed = cfg.getFloat(
-                "MovementSpeedWhileAttacking", "Traveller base attributes",
-                0.56f, 0.05f, 2.0f,
-                "Movement speed multiplier while attacking."
-        );
 
         travellerFollowRange = cfg.getFloat(
                 "TravellerTrackRange", "Traveller base attributes",
@@ -2368,10 +2332,6 @@ public class TravellersModConfig {
         // Attributes
         travellerMaxHealth            = at.travellerMaxHealth;
         maxHealth                     = at.travellerMaxHealth;
-        movementSpeed                 = at.movementSpeed;
-        movementSpeedWhileFollowing   = at.movementSpeedWhileFollowing;
-        movementSpeedWhileTravel      = at.movementSpeedWhileTravel;
-        attackMovementSpeed           = at.movementSpeedWhileAttacking;
         travellerFollowRange          = at.travellerFollowRange;
         followRange                   = (int) at.travellerFollowRange;
         attackDamage                  = at.attackDamage;
@@ -2429,7 +2389,6 @@ public class TravellersModConfig {
         followDurationMax             = fo.followDurationMax;
         followStartChance             = fo.followStartChance;
         followMaxFollowersPerLeader   = fo.followMaxFollowersPerLeader;
-        followerBoatConvoySpeed       = fo.followerBoatConvoySpeed;
         followerRingMoveBaseRadius    = fo.followerRingMoveBaseRadius;
         followerRingMoveSlotStep      = fo.followerRingMoveSlotStep;
         returnFollowSwitchDist        = fo.returnFollowSwitchDist;
@@ -2517,7 +2476,6 @@ public class TravellersModConfig {
         fishCastWindupTicks           = fi.fishCastWindupTicks;
         fishCooldownTicks             = fi.fishCooldownTicks;
         fishStartChancePerTick        = fi.fishStartChancePerTick;
-        fishApproachSpeed             = fi.fishApproachSpeed;
 
         // ControlledVillage
         controlledVillageFeatureEnabled = cv.controlledVillageFeatureEnabled;

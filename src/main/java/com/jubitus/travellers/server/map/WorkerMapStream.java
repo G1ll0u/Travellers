@@ -64,6 +64,9 @@ public class WorkerMapStream {
         final float rotYaw;
         @javax.annotation.Nullable final UUID escortLeaderUUID;
         @javax.annotation.Nullable final BlockPos goal;
+        final float health;
+        final float maxHealth;
+        final boolean inBattle;
 
         WorkerInfo(EntityTravellerWorker w, int dim) {
             this.entityId = w.getEntityId();
@@ -79,6 +82,9 @@ public class WorkerMapStream {
             this.rotYaw = w.rotationYaw;
             this.escortLeaderUUID = null;
             this.goal = null;
+            this.health = w.getHealth();
+            this.maxHealth = w.getMaxHealth();
+            this.inBattle = w.combat.isInCombatRaw();
         }
 
         WorkerInfo(VirtualTravellerRecord vr, boolean isLeader) {
@@ -94,6 +100,9 @@ public class WorkerMapStream {
             this.rotYaw = vr.rotYaw;
             this.escortLeaderUUID = vr.escortLeaderUUID;
             this.goal = vr.goal;
+            this.health = vr.getHealthResolved();
+            this.maxHealth = vr.getCombatProfile().maxHealth;
+            this.inBattle = vr.battleId != null;
         }
     }
 
@@ -371,6 +380,9 @@ public class WorkerMapStream {
                 en.isLeader = w.isLeader;
                 en.ownerColor = w.ownerColor;
                 en.uuid = w.uuid;
+                en.health = w.health;
+                en.maxHealth = w.maxHealth;
+                en.inBattle = w.inBattle;
                 out.add(en);
             }
 

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.render.textures;
 
+import com.jubitus.travellers.client.render.RenderLodHelper;
 import com.jubitus.travellers.client.render.RenderTraveller;
 import com.jubitus.travellers.client.render.backpack.BackpackRegistry;
 import com.jubitus.travellers.client.render.backpack.IBackpackStyle;
@@ -9,6 +10,7 @@ import com.jubitus.travellers.client.render.models.ModelChuspas;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.ResourceLocation;
@@ -56,6 +58,8 @@ public class LayerTravellerBackpack implements net.minecraft.client.renderer.ent
                 && !(entity instanceof EntityTravellerMerchant)) return;
 
         if (!entity.shouldRenderBackpack()) return;
+
+        if (RenderLodHelper.isBeyond(entity, TravellersConfig.ENTITY_RENDER_LOD.backpackLayerMaxDistance)) return;
 
         IBackpackStyle style = BackpackRegistry.resolve(entity);
         if (style == null) return;

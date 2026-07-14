@@ -1,6 +1,8 @@
 package com.jubitus.travellers.client.render.marker;
 
+import com.jubitus.travellers.client.render.RenderLodHelper;
 import com.jubitus.travellers.client.render.RenderTraveller;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.client.model.ModelBiped;
@@ -32,6 +34,8 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
 
         EntityTravellerWorker worker = (EntityTravellerWorker) entity;
         if (!worker.shouldRenderOwnerMark()) return;
+
+        if (RenderLodHelper.isBeyond(entity, TravellersConfig.ENTITY_RENDER_LOD.armbandLayerMaxDistance)) return;
 
         WorkerMarkStyle style = worker.getOwnerMarkStyle();
         int color = worker.getOwnerMarkColor();

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
 import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
@@ -1295,31 +1296,34 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                                     double distToGoal,
                                     FollowMode mode,
                                     boolean airborneLeader) {
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+        double catchUp = wf.catchUpSpeedBoost;
+
         double targetMove = slot.leaderSpeed;
         double speed = baseSpeed;
 
         if (target.isSneaking()) speed *= 0.88D;
-        if (target.isSprinting()) speed *= 1.12D;
+        if (target.isSprinting()) speed *= wf.sprintSpeedBoost;
 
-        if (slot.isEscort && slot.leaderActuallyMoving) speed *= 1.10D;
+        if (slot.isEscort && slot.leaderActuallyMoving) speed *= 1.0D + 0.10D * catchUp;
 
-        if (targetMove > 0.08D) speed *= 1.08D;
-        if (targetMove > 0.14D) speed *= 1.10D;
+        if (targetMove > 0.08D) speed *= 1.0D + 0.08D * catchUp;
+        if (targetMove > 0.14D) speed *= 1.0D + 0.10D * catchUp;
 
-        if (distToGoal > 3.5D) speed *= 1.08D;
-        if (distToGoal > 6.0D) speed *= 1.12D;
-        if (distToGoal > 9.0D) speed *= 1.15D;
+        if (distToGoal > 3.5D) speed *= 1.0D + 0.08D * catchUp;
+        if (distToGoal > 6.0D) speed *= 1.0D + 0.12D * catchUp;
+        if (distToGoal > 9.0D) speed *= 1.0D + 0.15D * catchUp;
 
-        if (distToLeader > 14.0D) speed *= 1.10D;
-        if (distToLeader > 24.0D) speed *= 1.15D;
+        if (distToLeader > 14.0D) speed *= 1.0D + 0.10D * catchUp;
+        if (distToLeader > 24.0D) speed *= 1.0D + 0.15D * catchUp;
 
         if (mode == FollowMode.CAVE) speed *= 1.03D;
         if (airborneLeader) speed *= 1.04D;
         if (followTarget instanceof EntityTravellerWorker) speed *= 1.02D;
 
-        speed = MathHelper.clamp(speed, 0.20D, 0.92D);
+        speed = MathHelper.clamp(speed, wf.minSpeedMultiplier, wf.maxSpeedMultiplier);
         smoothedMoveSpeed = smoothedMoveSpeed * 0.76D + speed * 0.24D;
-        return MathHelper.clamp(smoothedMoveSpeed, 0.20D, 0.92D);
+        return MathHelper.clamp(smoothedMoveSpeed, wf.minSpeedMultiplier, wf.maxSpeedMultiplier);
     }
 
     private double getDesiredFollowDistance(EntityLivingBase target, FollowMode mode, FollowRuntimeConfig cfg) {
@@ -1869,7 +1873,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 return true;
             }
 
-            double speed = MathHelper.clamp(baseSpeed * TravellersModConfig.followerBoatConvoySpeed, 0.25D, 0.9D);
+            double speed = MathHelper.clamp(baseSpeed * com.jubitus.travellers.config.TravellersConfig.SPEED.followerBoatConvoySpeed, 0.25D, 0.9D);
             steerBoatTowards(myBoat, slotX, slotZ, speed);
             worker.getNavigator().clearPath();
 

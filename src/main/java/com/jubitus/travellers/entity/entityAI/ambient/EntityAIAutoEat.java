@@ -12,6 +12,16 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 
 public class EntityAIAutoEat extends EntityAIBase {
+    /**
+     * Average heal-per-tick across {@link #foods}(18/64 + 12/32 + 14/32 + 16/64 + 24/96 + 24/120) / 6.
+     * Used by the offscreen virtual healing sim (VirtualTravellerManager) to approximate this AI's
+     * gradual-eating heal rate without replicating the bite-by-bite/cosmetic logic offscreen.
+     */
+    public static final float AVG_HEAL_PER_TICK = 0.3F;
+    /** Post-combat eat lockout window (ticks), shared with the virtual healing sim for parity. */
+    public static final int POST_COMBAT_DELAY_MIN = 30;
+    public static final int POST_COMBAT_DELAY_MAX = 50;
+
     private final EntityTraveller mob;
     private final float healthFrac;   // start eating below this fraction of max HP
     private final int postCombatDelayMin, postCombatDelayMax;   // ticks
@@ -35,8 +45,8 @@ public class EntityAIAutoEat extends EntityAIBase {
         this.healthFrac = healthFrac;
 
 
-        this.postCombatDelayMin = 30;
-        this.postCombatDelayMax = 50;
+        this.postCombatDelayMin = POST_COMBAT_DELAY_MIN;
+        this.postCombatDelayMax = POST_COMBAT_DELAY_MAX;
         this.betweenBiteDelayMin = 12;
         this.betweenBiteDelayMax = 30;
 

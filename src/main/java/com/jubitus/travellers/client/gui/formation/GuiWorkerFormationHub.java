@@ -6,6 +6,8 @@ import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.home.WorkerHeadRenderer;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.IBattleMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.IForeignUnitMapReceiver;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
@@ -48,7 +50,8 @@ import java.io.IOException;
 import java.util.*;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
+public class GuiWorkerFormationHub extends GuiScreen
+        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver {
 
     // ── Layout constants ──────────────────────────────────────────────────────
     private static final int X_SIZE   = 660;
@@ -121,6 +124,8 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
     private WorldMapController mapController;
     private final List<MsgWorkerGoList.Entry> poiEntries = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
+    private final List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
+    private final List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
     private int playerOwnerColor = 0xFFFFFF;
 
     // ── Widgets ───────────────────────────────────────────────────────────────
@@ -565,6 +570,13 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
         WorldMapContentPopulator.populate(
                 mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, null);
 
+        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
+        WorldMapContentPopulator.populateForeignUnits(mapController.panel, foreignEntries, myDim);
+        for (com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry e : battleEntries) {
+            if (e.dim != myDim) continue;
+            mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
+        }
+
         // Add highlighted markers on top (same type = drawn last within the pass = above normal ones)
         if (selectionMode == SelectionMode.LEADER && selectedIndex < leaders.size()) {
             FormationLeaderInfo sel = leaders.get(selectedIndex);
@@ -619,6 +631,20 @@ public class GuiWorkerFormationHub extends GuiScreen implements IWorkerGoListRec
             workerEntries.add(e);
             if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
+    }
+
+    // ── IBattleMapReceiver / IForeignUnitMapReceiver ─────────────────────────────
+
+    @Override
+    public void receiveBattles(List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> entries) {
+        battleEntries.clear();
+        if (entries != null) battleEntries.addAll(entries);
+    }
+
+    @Override
+    public void receiveForeignUnits(List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> entries) {
+        foreignEntries.clear();
+        if (entries != null) foreignEntries.addAll(entries);
     }
 
     // ── Equip destinations (called by MsgEquipDestsResponse.ClientHandler) ───

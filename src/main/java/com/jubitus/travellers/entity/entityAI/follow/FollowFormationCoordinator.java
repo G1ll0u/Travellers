@@ -1118,8 +1118,11 @@ public final class FollowFormationCoordinator {
         switch (style) {
             case LINE: {
                 // Perpendicular line: workers spread sideways (±right vector), stacked in ranks behind.
-                // perLine = exactly settings.width — no maxSurfaceLanes cap here.
-                int perLine = Math.max(1, settings.width);
+                // Row length is capped at maxSurfaceLanes (same cap COMPACT/COLUMN already use)
+                // so very large groups grow backward (more ranks) instead of sideways past the
+                // distance workers can reliably reach a slot. Spacing (laneSpacing, below) still
+                // scales with the full width setting - only the row length is bounded.
+                int perLine = Math.max(1, Math.min(settings.width, cfg.group.maxSurfaceLanes));
                 int rank = ordinal / perLine;
                 int lineIndex = ordinal % perLine;
 
