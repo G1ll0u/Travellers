@@ -1,14 +1,15 @@
 package com.jubitus.travellers.server.net.message.recruit;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.utils.flooz.TravellerMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -74,23 +75,20 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
                     || !worker.getFollowOwnerId().equals(player.getUniqueID())) return;
 
             if (!worker.canStartRecruitMission()) {
-                player.sendMessage(new TextComponentString(TextFormatting.YELLOW + "I'm busy right now."));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_BUSY);
                 return;
             }
 
             if (msg.route == null || msg.route.isEmpty()) return;
 
-            // NEW: reject villages that are too close (server-side authority)
-// NEW: reject villages that are too close (server-side authority)
+            // reject villages that are too close (server-side authority)
             BlockPos origin = player.getPosition();
-            int minD = TravellersModConfig.recruitMinVillageDistance;
+            int minD = TravellersConfig.RECRUITMENT.recruitMinVillageDistance;
 
             for (BlockPos v : msg.route) {
                 int d = EntityTravellerWorker.dist2D(origin, v);
                 if (d < minD) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "That village is too close to recruit from. Minimum distance: " + minD + "m"
-                    ));
+                    NotificationService.notify(player, NotificationDefs.RECRUIT_VILLAGE_TOO_CLOSE, String.valueOf(minD));
                     return;
                 }
             }
@@ -106,17 +104,14 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
 
             int money = TravellerMoney.countPlayerMoney(player);
             if (money < fee) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "Recruit fee: " + MillCommonUtilities.getShortPrice(fee)
-                ));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_ROUTE_NOT_ENOUGH_FEE,
+                        MillCommonUtilities.getShortPrice(fee));
                 TravellerMoney.syncPlayerInventory(player);
                 return;
             }
 
             if (!TravellerMoney.trySpendPlayerMoney(player, fee)) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "Recruit fee payment failed. Try again."
-                ));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_PAYMENT_FAILED);
                 return;
             }
 

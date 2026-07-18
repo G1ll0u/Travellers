@@ -1,13 +1,13 @@
 package com.jubitus.travellers.server.net.message.recruit;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.utils.flooz.TravellerMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -55,20 +55,20 @@ public class MsgRecruitWorkers implements IMessage {
             if (!worker.isHiredFollower()
                     || worker.getFollowOwnerId() == null
                     || !worker.getFollowOwnerId().equals(player.getUniqueID())) {
-                player.sendMessage(new TextComponentString(TextFormatting.RED + "You don't control this worker."));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_NOT_YOUR_WORKER);
                 return;
             }
 
             // Must be idle (not job, not returning, not recruiting)
             if (!worker.canStartRecruitMission()) {
-                player.sendMessage(new TextComponentString(TextFormatting.YELLOW + "I'm busy right now."));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_BUSY);
                 return;
             }
 
             // Pick villages (simple: nearest within radius)
             List<BlockPos> villages = worker.pickRecruitVillages(player);
             if (villages.isEmpty()) {
-                player.sendMessage(new TextComponentString(TextFormatting.YELLOW + "No villages in range to recruit from."));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_NO_VILLAGES_IN_RANGE);
                 return;
             }
 
@@ -79,24 +79,19 @@ public class MsgRecruitWorkers implements IMessage {
 
             int money = TravellerMoney.countPlayerMoney(player);
             if (money < fee) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "Recruit fee: " + MillCommonUtilities.getShortPrice(fee) +
-                                " (you have " + MillCommonUtilities.getShortPrice(money) + ")"
-                ));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_NOT_ENOUGH_FEE,
+                        MillCommonUtilities.getShortPrice(fee), MillCommonUtilities.getShortPrice(money));
                 TravellerMoney.syncPlayerInventory(player);
                 return;
             }
 
             if (!TravellerMoney.trySpendPlayerMoney(player, fee)) {
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.RED + "Recruit fee payment failed. Try again."
-                ));
+                NotificationService.notify(player, NotificationDefs.RECRUIT_PAYMENT_FAILED);
                 return;
             }
 
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.GREEN + "Recruit mission started. Fee paid: " + MillCommonUtilities.getShortPrice(fee)
-            ));
+            NotificationService.notify(player, NotificationDefs.RECRUIT_MISSION_STARTED,
+                    MillCommonUtilities.getShortPrice(fee));
 
             worker.startRecruitMission(player, villages, returnPos);
         }

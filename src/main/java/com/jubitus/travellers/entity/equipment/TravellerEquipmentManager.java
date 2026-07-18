@@ -1,7 +1,8 @@
 package com.jubitus.travellers.entity.equipment;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.google.common.collect.Multimap;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -508,7 +509,7 @@ public class TravellerEquipmentManager {
         if (entity.world.isRemote) return;
 
         if (entity.combat.getInCombatFlag()) {
-            swordHideTicks = TravellersModConfig.SWORD_HIDE_DELAY;
+            swordHideTicks = TravellersConfig.COMBAT.swordHideDelay;
             ItemStack best = findBestWeaponInInventory();
             if (!best.isEmpty()) {
                 ItemStack cur = entity.getHeldItemMainhand();
@@ -543,7 +544,7 @@ public class TravellerEquipmentManager {
 
     /** Delays weapon-sheathe timer, used by the ranged AI to keep the sword shown while aiming. */
     public void delaySwordHideVisual() {
-        this.swordHideTicks = TravellersModConfig.SWORD_HIDE_DELAY;
+        this.swordHideTicks = TravellersConfig.COMBAT.swordHideDelay;
     }
 
     // -------------------------------------------------------------------------

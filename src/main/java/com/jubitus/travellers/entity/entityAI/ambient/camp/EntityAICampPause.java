@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.ambient.camp;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -25,10 +26,10 @@ import java.util.List;
 public class EntityAICampPause extends EntityAIBase {
     private static final int NEAR_VILLAGE_RADIUS = 100; // reuse your constant
     private static final int SCAN_RADIUS = 6;           // search for flat spot near the path
-    private static final float START_CHANCE_PER_TICK = TravellersModConfig.campStartChancePerTick;
+    private static final float START_CHANCE_PER_TICK = TravellersConfig.CAMP.campStartChancePerTick;
     private static final double MIN_DISTANCE_FROM_MOB_SQ = 5.0D; // at least 2 blocks away
     // NEW: how far we must be from water, in blocks
-    private static final int MIN_WATER_DISTANCE = TravellersModConfig.CAMP_RADIUS;
+    private static final int MIN_WATER_DISTANCE = TravellersConfig.CAMP.campRadius;
     // NEW: how big the flat clear area around the fire should be (radius in blocks)
     private static final int CLEAR_RADIUS = 1; // 1 = 3x3 area
     private final EntityTraveller mob;
@@ -239,7 +240,7 @@ public class EntityAICampPause extends EntityAIBase {
                 mob.world.setEntityState(mob, (byte) 4);
                 mob.swingArm(EnumHand.MAIN_HAND);
             }
-            nextSwing = closeEnough ? (TravellersModConfig.CAMP_SWING_EVERY + mob.getRNG().nextInt(25))
+            nextSwing = closeEnough ? (TravellersConfig.CAMP.campSwingEvery + mob.getRNG().nextInt(25))
                     : (30 + mob.getRNG().nextInt(30));
         }
 

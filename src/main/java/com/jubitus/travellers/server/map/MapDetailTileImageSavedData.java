@@ -10,6 +10,11 @@ import net.minecraft.world.storage.WorldSavedData;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Legacy pre-pyramid detail tile store. Read-only in current code: only
+ * {@link MapPyramidMigration} still touches this, to seed pyramid level 0 once from whatever
+ * detail data an existing world already has. Never written to anymore.
+ */
 public class MapDetailTileImageSavedData extends WorldSavedData {
     private static final String NAME = Tags.MOD_ID + "_map_detail_tile_images";
 
@@ -29,13 +34,7 @@ public class MapDetailTileImageSavedData extends WorldSavedData {
         return saved;
     }
 
-    public boolean has(long key) { return tiles.containsKey(key); }
-    public byte[] get(long key) { return tiles.get(key); }
-
-    public void put(long key, byte[] data) {
-        tiles.put(key, data);
-        markDirty();
-    }
+    public Map<Long, byte[]> view() { return java.util.Collections.unmodifiableMap(tiles); }
 
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
@@ -45,7 +44,7 @@ public class MapDetailTileImageSavedData extends WorldSavedData {
             NBTTagCompound c = list.getCompoundTagAt(i);
             long key = c.getLong("k");
             byte[] data = c.getByteArray("d");
-            if (data != null && data.length == MapTileGenerator.DETAIL_BYTES) {
+            if (data != null && data.length == MapTileGenerator.TILE_BYTES) {
                 tiles.put(key, data);
             }
         }

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.mobs;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -51,7 +52,7 @@ public final class PlayerDefenseHandler {
             // Engage!
             t.setAttackTarget(attacker);
             t.setInCombat(true);  // your helper ensures ghost sword shows & eating cancels
-            t.rememberThreat(attacker, TravellersModConfig.THREAT_FOR_SEE_ATTACK);
+            t.rememberThreat(attacker, TravellersConfig.COMBAT.threatForSeeAttack);
         }
     }
 
@@ -74,7 +75,7 @@ public final class PlayerDefenseHandler {
             if (!t.getEntitySenses().canSee(victim)) continue;
             t.setAttackTarget(victim);
             t.setInCombat(true);
-            t.rememberThreat(victim, TravellersModConfig.THREAT_FOR_SEE_ATTACK);
+            t.rememberThreat(victim, TravellersConfig.COMBAT.threatForSeeAttack);
         }
     }
 
@@ -88,7 +89,7 @@ public final class PlayerDefenseHandler {
         if (player.isCreative() || player.isSpectator()) return;
 
         // Notify nearby travellers that this player was aggressive "just now"
-        double r = TravellersModConfig.playerCalmNotifyRadius;
+        double r = TravellersConfig.PLAYER_AGGRO.playerCalmNotifyRadius;
         AxisAlignedBB box = new AxisAlignedBB(
                 player.posX - r, player.posY - 8, player.posZ - r,
                 player.posX + r, player.posY + 8, player.posZ + r

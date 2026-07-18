@@ -1,7 +1,6 @@
 package com.jubitus.travellers.entity.entityAI.choir;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.TravellersModConfig;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;

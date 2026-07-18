@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -57,9 +57,7 @@ public class MsgWorkerGoToPos implements IMessage {
                 }
 
                 if (w.isJobActive()) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "Worker is busy (job active)."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.GOTO_WORKER_BUSY);
                     return;
                 }
 
@@ -71,9 +69,7 @@ public class MsgWorkerGoToPos implements IMessage {
 
                 w.startGoToDestination(target, w.dimension);
 
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "Worker is going to selected map position."
-                ));
+                NotificationService.notify(player, NotificationDefs.GOTO_GOING_TO_POS);
             });
 
             return null;

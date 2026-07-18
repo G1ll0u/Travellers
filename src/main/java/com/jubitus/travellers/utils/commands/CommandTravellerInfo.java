@@ -1,6 +1,5 @@
 package com.jubitus.travellers.utils.commands;
 
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
@@ -92,10 +91,10 @@ public class CommandTravellerInfo extends CommandBase {
 
         msg(sender, String.format("§fTravellers: §a%d§f loaded + §e%d§f virtual = §a%d§f / target §e%d§f / hard cap §c%d",
                 loadedTravellers, virtualTravellers, loadedTravellers + virtualTravellers,
-                worldTravellerTarget, TravellersModConfig.loadedTravellerCap));
+                worldTravellerTarget, TravellersConfig.SPAWN_TRAVELLERS.loadedTravellerCap));
         msg(sender, String.format("§fRaiders:    §a%d§f loaded + §e%d§f virtual = §a%d§f / target §e%d§f / hard cap §c%d",
                 loadedRaiders, virtualRaiders, loadedRaiders + virtualRaiders,
-                worldRaiderTarget, TravellersModConfig.loadedRaiderCap));
+                worldRaiderTarget, TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap));
 
         // Village/lone breakdown for targets
         Map<MillVillageIndex.VillageInfo, Integer> pops = MillVillageIndex.countVillagersPerVillage(ws);
@@ -113,20 +112,20 @@ public class CommandTravellerInfo extends CommandBase {
         // --------------------------------------------------
         msg(sender, "§b--- Workers & Merchants (global) ---");
 
-        int globalWorkerCap = TravellersModConfig.workerLoadedCap > 0
-                ? TravellersModConfig.workerLoadedCap
-                : TravellersModConfig.workerGlobalAssignedCap;
+        int globalWorkerCap = TravellersConfig.SPAWN_WORKERS.workerLoadedCap > 0
+                ? TravellersConfig.SPAWN_WORKERS.workerLoadedCap
+                : TravellersConfig.ATTRIBUTES.workerGlobalAssignedCap;
 
         msg(sender, String.format("§fWorkers: §a%d§f loaded + §a%d§f virtual = §a%d§f / §e%d§f cap  (min pop §a%d§f, §a%d§f pop/worker, max §a%d§f/village)",
                 loadedWorkers, virtualWorkers, loadedWorkers + virtualWorkers, globalWorkerCap,
-                TravellersModConfig.workerMinPop,
-                TravellersModConfig.workerPopPerWorker,
-                TravellersModConfig.workerMaxPerVillage));
+                TravellersConfig.SPAWN_WORKERS.workerMinPop,
+                TravellersConfig.SPAWN_WORKERS.workerPopPerWorker,
+                TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage));
         msg(sender, String.format("§fMerchants: §a%d§f loaded / §e%d§f cap  (min pop §a%d§f, §a%d§f pop/merchant, max §a%d§f/village)",
-                loadedMerchants, TravellersModConfig.merchantLoadedCap,
-                TravellersModConfig.merchantMinPop,
-                TravellersModConfig.merchantPopPerMerchant,
-                TravellersModConfig.merchantMaxPerVillage));
+                loadedMerchants, TravellersConfig.SPAWN_WORKERS.merchantLoadedCap,
+                TravellersConfig.SPAWN_WORKERS.merchantMinPop,
+                TravellersConfig.SPAWN_WORKERS.merchantPopPerMerchant,
+                TravellersConfig.SPAWN_WORKERS.merchantMaxPerVillage));
 
         // --------------------------------------------------
         // 4) Regional Caps
@@ -134,28 +133,28 @@ public class CommandTravellerInfo extends CommandBase {
         msg(sender, "§b--- Regional Caps ---");
 
         int travRegionalCap = MillVillageIndex.computeRegionalTravellerCap(ws, pos,
-                TravellersModConfig.travellerRegionalRadius);
+                TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius);
         int travRegionalCount = TravellerSoftSpawner.countTravellersInRegion(ws, pos,
-                TravellersModConfig.travellerRegionalRadius);
+                TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius);
 
         int raidRegionalCap = MillVillageIndex.computeRegionalRaiderCap(ws, pos,
-                TravellersModConfig.raiderRegionalRadius);
+                TravellersConfig.SPAWN_RAIDERS.raiderRegionalRadius);
         int raidRegionalCount = TravellerSoftSpawner.countRaidersInRegion(ws, pos,
-                TravellersModConfig.raiderRegionalRadius);
+                TravellersConfig.SPAWN_RAIDERS.raiderRegionalRadius);
 
         String travRegColor = travRegionalCount >= travRegionalCap ? "§c" : "§a";
         String raidRegColor = raidRegionalCount >= raidRegionalCap ? "§c" : "§a";
 
         msg(sender, String.format("§fTravellers (%dm r): %s%d§f / §e%d§f cap",
-                TravellersModConfig.travellerRegionalRadius, travRegColor, travRegionalCount, travRegionalCap));
+                TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius, travRegColor, travRegionalCount, travRegionalCap));
         msg(sender, String.format("§fRaiders    (%dm r): %s%d§f / §e%d§f cap",
-                TravellersModConfig.raiderRegionalRadius, raidRegColor, raidRegionalCount, raidRegionalCap));
+                TravellersConfig.SPAWN_RAIDERS.raiderRegionalRadius, raidRegColor, raidRegionalCount, raidRegionalCap));
 
         // --------------------------------------------------
         // 5) Local Cap
         // --------------------------------------------------
-        int localCap = TravellersModConfig.travellerLocalCap;
-        int localRadius = TravellersModConfig.travellerLocalCapRadius;
+        int localCap = TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCap;
+        int localRadius = TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCapRadius;
         AxisAlignedBB box = new AxisAlignedBB(
                 pos.getX() - localRadius, pos.getY() - 32, pos.getZ() - localRadius,
                 pos.getX() + localRadius, pos.getY() + 32, pos.getZ() + localRadius);
@@ -167,7 +166,7 @@ public class CommandTravellerInfo extends CommandBase {
         // --------------------------------------------------
         // 6) Nearby Settlements breakdown
         // --------------------------------------------------
-        msg(sender, "§b--- Nearby Settlements (within " + TravellersModConfig.travellerRegionalRadius + "m) ---");
+        msg(sender, "§b--- Nearby Settlements (within " + TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius + "m) ---");
 
         int shown = 0;
         for (Map.Entry<MillVillageIndex.VillageInfo, Integer> e : pops.entrySet()) {
@@ -175,15 +174,15 @@ public class CommandTravellerInfo extends CommandBase {
             int dx = vi.center.getX() - pos.getX();
             int dz = vi.center.getZ() - pos.getZ();
             double dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist > TravellersModConfig.travellerRegionalRadius) continue;
+            if (dist > TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius) continue;
 
             int villagers = e.getValue();
 
-            int travBudget = (int) Math.floor(villagers * TravellersModConfig.travellerCapPerVillager);
-            if (travBudget < TravellersModConfig.travellerCapMinPerVillage)
-                travBudget = TravellersModConfig.travellerCapMinPerVillage;
-            if (travBudget > TravellersModConfig.travellerCapMaxPerVillage)
-                travBudget = TravellersModConfig.travellerCapMaxPerVillage;
+            int travBudget = (int) Math.floor(villagers * TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerVillager);
+            if (travBudget < TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage)
+                travBudget = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage;
+            if (travBudget > TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage)
+                travBudget = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage;
 
             int desiredWorkers = MillVillageIndex.desiredWorkersForPopulation(villagers);
             int desiredMerchants = MillVillageIndex.desiredMerchantsForPopulation(villagers);
@@ -205,9 +204,9 @@ public class CommandTravellerInfo extends CommandBase {
                 int dx = p.getiX() - pos.getX();
                 int dz = p.getiZ() - pos.getZ();
                 double dist = Math.sqrt(dx * dx + dz * dz);
-                if (dist > TravellersModConfig.travellerRegionalRadius) continue;
+                if (dist > TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius) continue;
                 msg(sender, String.format("§f[Lone] dist=§a%.0f§7m  travBudget=§a%d",
-                        dist, TravellersModConfig.travellerCapPerLoneBuilding));
+                        dist, TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerLoneBuilding));
                 loneShown++;
                 if (loneShown >= 4) {
                     msg(sender, "§7  ... (more lone buildings outside display limit)");

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VoiceSet;
@@ -228,7 +229,7 @@ public class TravelCommon {
 // Default: another village
         BlockPos dest = pickDiverseDestination(
                 origin,
-                TravellersModConfig.VILLAGE_PICK_RADIUS * 4
+                TravellersConfig.DESTINATIONS.villagePickRadius * 4
         );
 
         if (dest == null) {
@@ -241,7 +242,7 @@ public class TravelCommon {
         List<BlockPos> mids = collectMidsOnCorridor(
                 origin,
                 dest,
-                TravellersModConfig.CORRIDOR_WIDTH
+                TravellersConfig.TRAVEL.corridorWidth
         );
 
         this.route.clear();
@@ -345,9 +346,9 @@ public class TravelCommon {
         // --- NEW: clamp selection radius to a hard max (2000 blocks) ---
         int effectiveRadius;
         if (maxRadius <= 0) {
-            effectiveRadius = TravellersModConfig.VILLAGE_PICK_RADIUS;
+            effectiveRadius = TravellersConfig.DESTINATIONS.villagePickRadius;
         } else {
-            effectiveRadius = Math.min(maxRadius, TravellersModConfig.VILLAGE_PICK_RADIUS);
+            effectiveRadius = Math.min(maxRadius, TravellersConfig.DESTINATIONS.villagePickRadius);
         }
 
         long r2 = (long) effectiveRadius * (long) effectiveRadius;
@@ -564,7 +565,7 @@ public class TravelCommon {
             // Village centers → slightly tighter ring than VillageNearDistance
             if (isVillageCenter) {
                 int base = MillenaireVillageDirectory.nearRadiusFor(target);
-                if (base <= 0) base = TravellersModConfig.VILLAGE_NEAR;
+                if (base <= 0) base = TravellersConfig.DESTINATIONS.villageNear;
                 // e.g. ¾ of Millénaire radius, but never more than 24
                 int r = Math.min(24, Math.max(8, (int) (base * 0.75)));
                 return r;
@@ -577,7 +578,7 @@ public class TravelCommon {
         if (owner instanceof EntityTravellerMerchant || owner instanceof EntityTraveller) {
             if (isVillageCenter) {
                 int base = MillenaireVillageDirectory.nearRadiusFor(target);
-                if (base <= 0) base = TravellersModConfig.VILLAGE_NEAR;
+                if (base <= 0) base = TravellersConfig.DESTINATIONS.villageNear;
                 int r = Math.min(12, Math.max(8, (int) (base * 0.75)));
                 return r;
             }
@@ -585,7 +586,7 @@ public class TravelCommon {
 
         // Fallback: default behaviour
         int r = MillenaireVillageDirectory.nearRadiusFor(target);
-        if (r <= 0) r = TravellersModConfig.VILLAGE_NEAR;
+        if (r <= 0) r = TravellersConfig.DESTINATIONS.villageNear;
         return r;
     }
 
@@ -593,7 +594,7 @@ public class TravelCommon {
         // these three are simple getters on EntityTraveller (see section 2)
         if (owner.getSpawnAmbientCooldownTicks() > 0) return;
         if (owner.getTravelRecoverTicks() > 0) return;
-        if (!TravellersModConfig.travellerAmbient) return;
+        if (!TravellersConfig.SOUND.travellerAmbient) return;
         if (owner.isChoirSinging()) return;
         if (owner instanceof EntityTravellerWorker) {
             EntityTravellerWorker worker = (EntityTravellerWorker) owner;
@@ -635,7 +636,7 @@ public class TravelCommon {
         }
 
 
-        float vol = TravellersModConfig.travellerAmbientVolume;
+        float vol = TravellersConfig.SOUND.travellerAmbientVolume;
         float pitch = 0.95F + (owner.getRNG().nextFloat() - 0.5F) * 0.06F;
         int durTicks = 25 * 20 + owner.getRNG().nextInt(6 * 20);
 

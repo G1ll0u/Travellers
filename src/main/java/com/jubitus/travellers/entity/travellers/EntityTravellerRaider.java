@@ -1,6 +1,8 @@
 package com.jubitus.travellers.entity.travellers;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VillagerFilterRules;
@@ -50,7 +52,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.enablePersistence(); // optional: set false if you want normal hostile despawn behavior
         // Slightly higher base speed/HP if you want them scarier
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(
-                Math.max(20.0, TravellersModConfig.maxHealth));
+                Math.max(20.0, TravellersConfig.ATTRIBUTES.travellerMaxHealth));
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(
                 Math.max(0.28, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed));
     }
@@ -77,18 +79,18 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
 
         // HARD cap for loaded raiders
-        int cap = TravellersModConfig.loadedRaiderCap;
+        int cap = TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap;
         int loaded = this.world.getEntities(EntityTravellerRaider.class, Entity::isEntityAlive).size();
         if (loaded >= cap) return false;
 
         BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
 
         // Must be near a Millénaire village
-        if (!isNearAnyVillage(this.world, pos, TravellersModConfig.villageSpawnRadius)) return false;
+        if (!isNearAnyVillage(this.world, pos, TravellersConfig.SPAWN.villageSpawnRadius)) return false;
 
         // Local density
         if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTravellerRaider.class,
-                TravellersModConfig.raiderLocalCap, TravellersModConfig.raiderLocalCapRadius)) return false;
+                TravellersConfig.SPAWN_RAIDERS.raiderLocalCap, TravellersConfig.SPAWN_RAIDERS.raiderLocalCapRadius)) return false;
 
         // Ground sanity similar to vanilla
         if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
@@ -106,13 +108,13 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // 1) Retaliate when hurt
 // 1) Retaliate when hurt (safe custom version)
-        this.targetTasks.addTask(1, new TravellerHurtByTarget(this, true, TravellersModConfig.helpRange));
+        this.targetTasks.addTask(1, new TravellerHurtByTarget(this, true, TravellersConfig.COMBAT.helpRange));
 
         // 2) Defend allies / villagers if something is close enough
         this.targetTasks.addTask(
                 2,
-                new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true)
-                        .setAssistRadius(TravellersModConfig.helpRange)
+                new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.attackTriggerRange, true)
+                        .setAssistRadius(TravellersConfig.COMBAT.helpRange)
                         .setBowRangeBonus(0.0) // keep attackTriggerRange strict
         );
 
@@ -140,7 +142,7 @@ public class EntityTravellerRaider extends EntityTraveller {
                                                 && e != this
                                                 && this.isAggressiveToTravellers() != ((EntityTraveller) e).isAggressiveToTravellers())
                                         || (!(e instanceof EntityTraveller)
-                                                && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
+                                                && !TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
                                                 && this.shouldAttackExtraEntity(e))
                                 )
                 )
@@ -154,10 +156,10 @@ public class EntityTravellerRaider extends EntityTraveller {
         // Ranged combat (bow)
         aiRanged = new EntityAIRangedBowTravellerSafe(
                 this,
-                TravellersModConfig.rangedMinDist,
-                TravellersModConfig.rangedMaxDist,
-                TravellersModConfig.rangedCooldown,
-                Math.max(2.5D, TravellersModConfig.rangedMinDist + 1.0D),
+                TravellersConfig.COMBAT.rangedMinDist,
+                TravellersConfig.COMBAT.rangedMaxDist,
+                TravellersConfig.COMBAT.rangedCooldown,
+                Math.max(2.5D, TravellersConfig.COMBAT.rangedMinDist + 1.0D),
                 /* ghostEquipBow */ true
         );
         this.tasks.addTask(2, aiRanged);
@@ -173,7 +175,7 @@ public class EntityTravellerRaider extends EntityTraveller {
             // New camp event system: same task as travellers (faction separation is enforced by
             // CampsiteRecord.canClaim, not by the AI).
             this.tasks.addTask(6, new com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampStay(this));
-        } else if (TravellersModConfig.campsEnabled) {
+        } else if (TravellersConfig.CAMP.campsEnabled) {
             // 6: leader pauses at campcommon
             this.tasks.addTask(6, new EntityAICampPause(this));
 
@@ -197,8 +199,8 @@ public class EntityTravellerRaider extends EntityTraveller {
                         0.34D,
                         3 * 20,
                         10 * 20,
-                        TravellersModConfig.villageRoamMinDuration * 20,
-                        TravellersModConfig.villageRoamMaxDuration * 20
+                        TravellersConfig.DESTINATIONS.villageRoamMinDuration * 20,
+                        TravellersConfig.DESTINATIONS.villageRoamMaxDuration * 20
                 )
         ); // Optional: customize 2-minute duration or wordlist at runtime
 
@@ -224,7 +226,7 @@ public class EntityTravellerRaider extends EntityTraveller {
     protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
         // Never include same-faction travellers (already handled by XOR rule elsewhere)
         if (other instanceof EntityTraveller) return false;
-        return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(other);
+        return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(other);
     }
 
     // Don’t mute combat for creative players; still avoid aggro if you prefer:
@@ -253,7 +255,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
     @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, @Nullable IEntityLivingData livingdata) {
-        this.spawnAmbientCooldownTicks = TravellersModConfig.SPAWN_AMBIENT_DELAY_TICKS + this.rand.nextInt(5 * 20);
+        this.spawnAmbientCooldownTicks = TravellersConfig.SOUND.spawnAmbientDelayTicks + this.rand.nextInt(5 * 20);
 
         livingdata = super.onInitialSpawn(difficulty, livingdata);
 
@@ -488,20 +490,20 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // Generic travellers stats
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersModConfig.raiderMaxHealth);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.raiderMaxHealth);
 
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
                 .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
 
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(TravellersModConfig.travellerFollowRange);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.travellerFollowRange);
 
         // ATTACK_DAMAGE is not present by default for many entities
         if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         }
         this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                .setBaseValue(TravellersModConfig.attackDamage);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
     }
 
 }

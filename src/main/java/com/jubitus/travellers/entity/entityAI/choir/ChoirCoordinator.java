@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.choir;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.choir.ChoirRegistry;
 import com.jubitus.travellers.entity.culture.choir.ChoirSongDef;
@@ -48,10 +49,10 @@ public final class ChoirCoordinator {
 
         tickActiveSessions(world, now);
 
-        if (!TravellersModConfig.choirEnabled || !ChoirRegistry.hasAnySongs()) return;
+        if (!TravellersConfig.CHOIR.choirEnabled || !ChoirRegistry.hasAnySongs()) return;
         // Auto-choir is still throttled at the original interval
         if (now >= nextAutoAttemptTick) {
-            nextAutoAttemptTick = now + TravellersModConfig.CHOIR_AUTO_COOLDOWN_TICKS;
+            nextAutoAttemptTick = now + TravellersConfig.CHOIR.choirAutoCooldownTicks;
             boolean autoActive = sessions.stream().anyMatch(s -> s.ownerPlayerId == null);
             if (!autoActive) tryStartAutoChoir(world, now);
         }
@@ -67,7 +68,7 @@ public final class ChoirCoordinator {
             }
             if (isTooFarApart(s)) {
                 s.incrementSpreadFail();
-                if (s.getSpreadFailCount() >= TravellersModConfig.CHOIR_SPREAD_GRACE_CHECKS) {
+                if (s.getSpreadFailCount() >= TravellersConfig.CHOIR.choirSpreadGraceChecks) {
                     stopAndRemove(world, s, it);
                     continue;
                 }
@@ -131,7 +132,7 @@ public final class ChoirCoordinator {
         EntityTraveller leader = s.singers.get(0);
         if (!leader.isEntityAlive()) return true;
 
-        double maxDistSq = TravellersModConfig.CHOIR_BREAK_RADIUS * TravellersModConfig.CHOIR_BREAK_RADIUS;
+        double maxDistSq = TravellersConfig.CHOIR.choirBreakRadius * TravellersConfig.CHOIR.choirBreakRadius;
         for (EntityTraveller singer : s.singers) {
             if (!singer.isEntityAlive()) return true;
 
@@ -155,7 +156,7 @@ public final class ChoirCoordinator {
     // --- Auto choir ---
 
     private void tryStartAutoChoir(World world, long now) {
-        if (world.rand.nextFloat() >= TravellersModConfig.CHOIR_AUTO_CHANCE) return;
+        if (world.rand.nextFloat() >= TravellersConfig.CHOIR.choirAutoChance) return;
 
         List<EntityTraveller> candidates = world.getEntities(EntityTraveller.class, t ->
                 t != null && t.isEntityAlive() && !t.isChoirSinging() && !t.isInCombat()
@@ -173,7 +174,7 @@ public final class ChoirCoordinator {
             List<ChoirSongDef> songs = ChoirRegistry.getSongs(lang, personality);
             if (songs.isEmpty()) continue;
 
-            List<EntityTraveller> group = collectNearby(seed, candidates, TravellersModConfig.CHOIR_GROUP_RADIUS);
+            List<EntityTraveller> group = collectNearby(seed, candidates, TravellersConfig.CHOIR.choirGroupRadius);
             if (group.size() < 2) continue;
 
             ChoirSongDef song = nextSongRoundRobin(songs, songIndex, lang + ":" + personality);
@@ -218,7 +219,7 @@ public final class ChoirCoordinator {
         List<ChoirSongDef> songs = ChoirRegistry.getSongs(lang, personality);
         if (songs.isEmpty()) return;
 
-        double r = TravellersModConfig.CHOIR_GROUP_RADIUS;
+        double r = TravellersConfig.CHOIR.choirGroupRadius;
         AxisAlignedBB box = targetWorker.getEntityBoundingBox().grow(r, 8, r);
         List<EntityTravellerWorker> nearby = world.getEntitiesWithinAABB(
                 EntityTravellerWorker.class, box,
@@ -246,9 +247,9 @@ public final class ChoirCoordinator {
 
     private void startSession(World world, ChoirSongDef song, List<EntityTraveller> singers,
                               long now, @Nullable UUID ownerPlayerId) {
-        float vol = TravellersModConfig.travellerChoirVolume;
+        float vol = TravellersConfig.SOUND.travellerChoirVolume;
         float pitch = 1.0f;
-        int durTicks = song.durationTicks > 0 ? song.durationTicks : TravellersModConfig.CHOIR_SESSION_DURATION_TICKS;
+        int durTicks = song.durationTicks > 0 ? song.durationTicks : TravellersConfig.CHOIR.choirSessionDurationTicks;
         long endTick = now + durTicks;
 
         ChoirSession session = new ChoirSession(song, new ArrayList<>(singers), endTick,

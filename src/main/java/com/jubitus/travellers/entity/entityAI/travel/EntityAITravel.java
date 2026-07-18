@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.entityAI.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -266,7 +267,7 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         if (mob.isInWater()) {
-            s *= TravellersModConfig.SWIM_MULT;
+            s *= TravellersConfig.COMBAT.swimSpeedMultiplier;
         }
 
         return s;
@@ -478,7 +479,7 @@ public class EntityAITravel extends EntityAIBase {
         // -----------------------------------------
         // Ambient chatter (keep)
         // -----------------------------------------
-        if (!mob.world.isRemote && TravellersModConfig.travellerAmbient) {
+        if (!mob.world.isRemote && TravellersConfig.SOUND.travellerAmbient) {
             if (mob.ticksExisted >= mob.nextTravelAmbientTick) {
                 mob.maybePlayTravelAmbient();
             }
@@ -1803,7 +1804,7 @@ public class EntityAITravel extends EntityAIBase {
 
     // --- DEBUG ONLY ---
     private void debugMark(@Nullable BlockPos p) {
-        if (!TravellersModConfig.debug) return;
+        if (!TravellersConfig.GENERAL.debug) return;
         if (p == null) return;
         if (mob.world.isRemote) return;
 
@@ -1867,7 +1868,7 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private void logState(String event, String note) {
-        if (!TravellersModConfig.debug) {
+        if (!TravellersConfig.GENERAL.debug) {
         } // or a new flag e.g. debugTravelLog
     }
 
@@ -2444,7 +2445,7 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private boolean isFarEnoughFromAnyPlayer() {
-        double minDist = TravellersModConfig.travellerSimpleOffscreenMinPlayerDist;
+        double minDist = TravellersConfig.OFFSCREEN.travellerSimpleOffscreenMinPlayerDist;
         if (minDist <= 0) return true;
 
         EntityPlayer nearest = mob.world.getClosestPlayerToEntity(mob, minDist);
@@ -3149,7 +3150,7 @@ public class EntityAITravel extends EntityAIBase {
     }
 
     private void debug(String tag, String message) {
-        if (!TravellersModConfig.debugFollowTeleport) return;
+        if (!TravellersConfig.GENERAL.debugFollowTeleport) return;
         if (mob == null || mob.world == null || mob.world.isRemote) return;
         MillLog.major(mob, "[TravelDebug][" + tag + "][id=" + mob.getEntityId() + "] " + message);
     }

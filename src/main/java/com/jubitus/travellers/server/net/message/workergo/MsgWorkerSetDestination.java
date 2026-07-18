@@ -2,14 +2,13 @@ package com.jubitus.travellers.server.net.message.workergo;
 
 import com.jubitus.travellers.client.gui.transport.ContainerWorker;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.utils.flooz.TravellerMoney;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -93,19 +92,14 @@ public class MsgWorkerSetDestination implements IMessage {
                 int playerMoney = TravellerMoney.countPlayerMoney(player);
 
                 if (playerMoney < cost) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED +
-                                    I18n.format("travellers.worker.not_enough_money",
-                                            MillCommonUtilities.getShortPrice(cost))
-                    ));
+                    NotificationService.notify(player, NotificationDefs.GOTO_NOT_ENOUGH_MONEY,
+                            MillCommonUtilities.getShortPrice(cost));
                     TravellerMoney.syncPlayerInventory(player);
                     return;
                 }
 
                 if (!TravellerMoney.trySpendPlayerMoney(player, cost)) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "Payment failed. Try again."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.GOTO_PAYMENT_FAILED);
                     return;
                 }
             }
@@ -115,16 +109,14 @@ public class MsgWorkerSetDestination implements IMessage {
             worker.startVillageDeliveryJob(player, villageCenter, msg.donate);
 
             String costStr = MillCommonUtilities.getShortPrice(cost);
-            String modeText = msg.donate ? " as a donation" : "";
 
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "Alright, I'm heading to " +
-                            TextFormatting.GOLD + msg.label +
-                            TextFormatting.WHITE +
-                            (cost > 0
-                                    ? " for " + costStr + modeText + "."
-                                    : "!")
-            ));
+            if (cost <= 0) {
+                NotificationService.notify(player, NotificationDefs.GOTO_DELIVERY_STARTED_FREE, msg.label);
+            } else if (msg.donate) {
+                NotificationService.notify(player, NotificationDefs.GOTO_DELIVERY_STARTED_DONATE, msg.label, costStr);
+            } else {
+                NotificationService.notify(player, NotificationDefs.GOTO_DELIVERY_STARTED_PAID, msg.label, costStr);
+            }
         }
 
     }

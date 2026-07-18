@@ -1,9 +1,11 @@
 package com.jubitus.travellers.server.net.message.map;
 
-import com.jubitus.travellers.server.map.WorldMapDiscovery;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.server.map.MapDiscoverySavedData;
+import com.jubitus.travellers.server.map.MapPyramidStore;
 import com.jubitus.travellers.server.map.MapTileGenerator;
-import com.jubitus.travellers.server.map.MapTileImageSavedData;
+import com.jubitus.travellers.server.map.TileKey;
+import com.jubitus.travellers.server.map.WorldMapDiscovery;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -13,101 +15,94 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import java.util.Set;
 
+/**
+ * Client asks for exactly the tile keys it's missing at a given pyramid level (computed by
+ * diffing its own cache against the current view) — replaces the old "re-request the whole
+ * viewport bounding box every poll" behavior, which wasted bandwidth on tiles the client
+ * already had cached.
+ */
 public class MsgRequestMapTiles implements IMessage {
-    public int minTileX, maxTileX, minTileZ, maxTileZ;
+    public int level;
+    public long[] tileKeys;
 
     public MsgRequestMapTiles() {}
 
-    public MsgRequestMapTiles(int minTileX, int maxTileX, int minTileZ, int maxTileZ) {
-        this.minTileX = minTileX;
-        this.maxTileX = maxTileX;
-        this.minTileZ = minTileZ;
-        this.maxTileZ = maxTileZ;
+    public MsgRequestMapTiles(int level, long[] tileKeys) {
+        this.level = level;
+        this.tileKeys = tileKeys;
     }
 
     @Override public void fromBytes(ByteBuf buf) {
-        minTileX = buf.readInt();
-        maxTileX = buf.readInt();
-        minTileZ = buf.readInt();
-        maxTileZ = buf.readInt();
+        level = buf.readInt();
+        int n = buf.readInt();
+        tileKeys = new long[n];
+        for (int i = 0; i < n; i++) tileKeys[i] = buf.readLong();
     }
 
     @Override public void toBytes(ByteBuf buf) {
-        buf.writeInt(minTileX);
-        buf.writeInt(maxTileX);
-        buf.writeInt(minTileZ);
-        buf.writeInt(maxTileZ);
+        buf.writeInt(level);
+        buf.writeInt(tileKeys.length);
+        for (long k : tileKeys) buf.writeLong(k);
     }
 
     public static class Handler implements IMessageHandler<MsgRequestMapTiles, IMessage> {
+        private static final int MAX_KEYS_PER_REQUEST = 64;
+
         @Override
         public IMessage onMessage(MsgRequestMapTiles msg, MessageContext ctx) {
             EntityPlayerMP p = ctx.getServerHandler().player;
+            int level = Math.max(0, Math.min(msg.level, com.jubitus.travellers.server.map.PyramidDirtyPropagator.MAX_LEVEL));
+            long[] keys = msg.tileKeys;
+
             p.getServerWorld().addScheduledTask(() -> {
-
-                // tuiles découvertes du joueur
                 Set<Long> discovered = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
-                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.RENDERING.showFullMap;
+                boolean fullMap = TravellersConfig.RENDERING.showFullMap;
 
-                // images stockées world-wide
-                MapTileImageSavedData img = MapTileImageSavedData.get(p.world);
+                MapPyramidStore store = MapPyramidStore.get(p.world, level);
 
-                // Limite sécurité anti-spam
+                int pcx = ((int) Math.floor(p.posX)) >> 4;
+                int pcz = ((int) Math.floor(p.posZ)) >> 4;
+                int pTileX = TileKey.floorDiv(pcx, WorldMapDiscovery.CHUNKS_PER_TILE);
+                int pTileZ = TileKey.floorDiv(pcz, WorldMapDiscovery.CHUNKS_PER_TILE);
+
                 int sent = 0;
-                int maxSend = 64; // max 64 tuiles par requête
+                for (int i = 0; i < keys.length && sent < MAX_KEYS_PER_REQUEST; i++) {
+                    long key = keys[i];
+                    int tx = TileKey.unpackX(key);
+                    int tz = TileKey.unpackZ(key);
 
-                for (int tz = msg.minTileZ; tz <= msg.maxTileZ; tz++) {
-                    for (int tx = msg.minTileX; tx <= msg.maxTileX; tx++) {
-                        if (sent >= maxSend) return;
+                    if (!fullMap && !discovered.contains(key)) continue;
 
-                        long key = pack(tx, tz);
+                    byte[] data = store.get(key);
+                    boolean had = (data != null && data.length == MapTileGenerator.TILE_BYTES);
+                    if (!had) data = new byte[MapTileGenerator.TILE_BYTES];
 
-                        // on envoie seulement si découvert (ou si la carte complète est révélée pour tous)
-                        if (!fullMap && !discovered.contains(key)) continue;
-
-                        byte[] data = img.get(key);
-                        boolean had = (data != null && data.length == MapTileImageSavedData.TILE_BYTES);
-
-                        if (!had) {
-                            data = new byte[MapTileImageSavedData.TILE_BYTES]; // all 0 = unknown
-                        }
-
-// Only try to fill/generate tiles that are near the PLAYER (prevents heavy work when panning far)
-                        int pcx = ((int) Math.floor(p.posX)) >> 4;
-                        int pcz = ((int) Math.floor(p.posZ)) >> 4;
-                        int pTileX = floorDiv(pcx, WorldMapDiscovery.CHUNKS_PER_TILE);
-                        int pTileZ = floorDiv(pcz, WorldMapDiscovery.CHUNKS_PER_TILE);
-
+                    // Only level 0 ever samples the world, and only near the requesting
+                    // player's own position (prevents heavy generation work when panning far).
+                    boolean changed = false;
+                    if (level == 0) {
                         boolean nearPlayer = Math.abs(tx - pTileX) <= 1 && Math.abs(tz - pTileZ) <= 1;
-
-                        boolean changed = false;
                         if (nearPlayer) {
-                            changed = MapTileGenerator.fillMissingPixels(p.world, tx, tz, data);
+                            changed = MapTileGenerator.fillMissingPixels(p.world, tx, tz, data, Integer.MAX_VALUE);
                         }
-
-                        if (!had || changed) {
-                            img.put(key, data);
-                        }
-
-// Always send what we have (even if mostly unknown); client will draw unknown pixels gray
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgMapTileData(tx, tz, data), p);
-                        sent++;
-
-
                     }
+
+                    if (!had || changed) {
+                        store.put(key, data);
+                    }
+                    if (level == 0 && changed) {
+                        com.jubitus.travellers.server.map.PyramidDirtyPropagator.markParentDirty(
+                                p.world.provider.getDimension(), 0, tx, tz);
+                    }
+
+                    if (!had && level > 0) continue; // don't push still-empty derived tiles
+
+                    byte[] compressed = com.jubitus.travellers.server.map.TileCompression.deflate(data);
+                    TravellerFollowNet.CHANNEL.sendTo(new MsgMapTileData(level, tx, tz, compressed), p);
+                    sent++;
                 }
             });
             return null;
         }
-
-        private static long pack(int x, int z) {
-            return (((long) x) << 32) ^ (z & 0xFFFFFFFFL);
-        }
     }
-    private static int floorDiv(int a, int b) {
-        int r = a / b;
-        if ((a ^ b) < 0 && (r * b != a)) r--;
-        return r;
-    }
-
 }

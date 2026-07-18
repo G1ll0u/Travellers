@@ -1,10 +1,6 @@
 package com.jubitus.travellers.server.map;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationPreviewLayout;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
@@ -62,8 +58,6 @@ public class WorkerMapStream {
         final int ownerColor;
         final UUID uuid;
         final float rotYaw;
-        @javax.annotation.Nullable final UUID escortLeaderUUID;
-        @javax.annotation.Nullable final BlockPos goal;
         final float health;
         final float maxHealth;
         final boolean inBattle;
@@ -80,8 +74,6 @@ public class WorkerMapStream {
             this.ownerColor = w.getOwnerMarkColor() & 0xFFFFFF;
             this.uuid = w.getUniqueID();
             this.rotYaw = w.rotationYaw;
-            this.escortLeaderUUID = null;
-            this.goal = null;
             this.health = w.getHealth();
             this.maxHealth = w.getMaxHealth();
             this.inBattle = w.combat.isInCombatRaw();
@@ -98,8 +90,6 @@ public class WorkerMapStream {
             this.ownerColor = vr.ownerColor;
             this.uuid = vr.uuid;
             this.rotYaw = vr.rotYaw;
-            this.escortLeaderUUID = vr.escortLeaderUUID;
-            this.goal = vr.goal;
             this.health = vr.getHealthResolved();
             this.maxHealth = vr.getCombatProfile().maxHealth;
             this.inBattle = vr.battleId != null;
@@ -153,97 +143,6 @@ public class WorkerMapStream {
         int r = Math.max(64, Math.min(rangeBlocks, 8192));
 
         VIEWS.put(playerId, new ViewState(dim, centerX, centerZ, r, System.currentTimeMillis()));
-    }
-
-    /**
-     * Computes formation-aware display positions for escort followers so they appear spread
-     * around their leader on the worldmap rather than piled up at the same point.
-     * Uses the group's WorkerFormationSettings (style, spacing, width…) and the leader's
-     * heading to orient the formation correctly. Leaders are not affected.
-     */
-    private static Map<UUID, BlockPos> computeFollowerSpread(Map<UUID, List<WorkerInfo>> byOwner,
-                                                              WorldServer world) {
-        Map<UUID, WorkerInfo> byUUID = new HashMap<>();
-        for (List<WorkerInfo> list : byOwner.values()) {
-            for (WorkerInfo w : list) {
-                if (w.uuid != null) byUUID.put(w.uuid, w);
-            }
-        }
-
-        Map<UUID, BlockPos> overrides = new HashMap<>();
-        WorkerFormationSavedData formationData = WorkerFormationSavedData.get(world);
-
-        // Group followers by escort leader
-        Map<UUID, List<WorkerInfo>> followersByLeader = new HashMap<>();
-        for (List<WorkerInfo> list : byOwner.values()) {
-            for (WorkerInfo w : list) {
-                if (w.escortLeaderUUID != null) {
-                    followersByLeader.computeIfAbsent(w.escortLeaderUUID, k -> new ArrayList<>()).add(w);
-                }
-            }
-        }
-
-        for (Map.Entry<UUID, List<WorkerInfo>> entry : followersByLeader.entrySet()) {
-            UUID leaderUUID = entry.getKey();
-            List<WorkerInfo> followers = entry.getValue();
-            if (followers.isEmpty()) continue;
-
-            WorkerInfo leader = byUUID.get(leaderUUID);
-            if (leader == null) continue;
-
-            // Heading direction: prefer goal direction when the leader is moving, else rotYaw
-            double fwdX, fwdZ;
-            if (leader.goal != null) {
-                double dx = leader.goal.getX() + 0.5 - leader.x;
-                double dz = leader.goal.getZ() + 0.5 - leader.z;
-                double dist = Math.sqrt(dx * dx + dz * dz);
-                if (dist > 1.0) {
-                    fwdX = dx / dist;
-                    fwdZ = dz / dist;
-                } else {
-                    // Reached goal: use stored yaw (Minecraft: yaw=0 → South +Z)
-                    double yawRad = Math.toRadians(leader.rotYaw);
-                    fwdX = -Math.sin(yawRad);
-                    fwdZ = Math.cos(yawRad);
-                }
-            } else {
-                double yawRad = Math.toRadians(leader.rotYaw);
-                fwdX = -Math.sin(yawRad);
-                fwdZ = Math.cos(yawRad);
-            }
-
-            // Right perpendicular (clockwise 90° from forward in XZ)
-            double rightX = fwdZ;
-            double rightZ = -fwdX;
-
-            // Formation settings for this leader
-            WorkerFormationScopeKey scope = new WorkerFormationScopeKey(
-                    WorkerFormationScopeKey.Type.WORKER, leaderUUID);
-            WorkerFormationSettings settings = formationData.getSettings(scope);
-
-            // Sort followers deterministically so slot assignments are stable across ticks
-            followers.sort(Comparator.comparingInt(f -> f.uuid.hashCode()));
-
-            int total = followers.size();
-            List<WorkerFormationPreviewLayout.Point> slots =
-                    WorkerFormationPreviewLayout.buildLayout(settings, total);
-
-            // Scale up the formation positions for legibility on the worldmap
-            final double MAP_SCALE = 4.0;
-
-            for (int i = 0; i < total && i < slots.size(); i++) {
-                WorkerFormationPreviewLayout.Point p = slots.get(i);
-                // Preview coords are 10× real blocks; p.x = side, p.z = distance behind
-                double side = p.x / 10.0 * MAP_SCALE;
-                double back = p.z / 10.0 * MAP_SCALE;
-                double ox = side * rightX - back * fwdX;
-                double oz = side * rightZ - back * fwdZ;
-                overrides.put(followers.get(i).uuid,
-                        new BlockPos(leader.x + (int) Math.round(ox), leader.y, leader.z + (int) Math.round(oz)));
-            }
-        }
-
-        return overrides;
     }
 
     @SubscribeEvent
@@ -318,11 +217,6 @@ public class WorkerMapStream {
             }
         }
 
-        // Compute formation-aware display spread for escort followers
-        Map<UUID, BlockPos> followerSpread = overworld != null
-                ? computeFollowerSpread(byOwner, overworld)
-                : Collections.emptyMap();
-
         // Send updates per subscribed player
         for (UUID playerId : targets) {
             EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(playerId);
@@ -374,8 +268,7 @@ public class WorkerMapStream {
                 MsgMapWorkersUpdate.Entry en = new MsgMapWorkersUpdate.Entry();
                 en.entityId = w.entityId;
                 en.dim = w.dim;
-                BlockPos spreadPos = w.uuid != null ? followerSpread.get(w.uuid) : null;
-                en.pos = spreadPos != null ? spreadPos : new BlockPos(w.x, w.y, w.z);
+                en.pos = new BlockPos(w.x, w.y, w.z);
                 en.name = (w.name != null) ? w.name : "";
                 en.isLeader = w.isLeader;
                 en.ownerColor = w.ownerColor;

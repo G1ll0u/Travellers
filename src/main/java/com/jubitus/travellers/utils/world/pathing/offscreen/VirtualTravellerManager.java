@@ -17,8 +17,6 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.WorldServer;
@@ -127,6 +125,13 @@ public class VirtualTravellerManager extends WorldSavedData {
     // Keeps formation-adjustment moves (a few blocks toward the leader) from triggering the clamp.
     private static final double FAR_TRAVEL_THRESHOLD_SQ = 16.0 * 16.0;
 
+    // Blend factor for smoothing a virtual entity's facing toward its movement direction each sim
+    // step. Purely cosmetic (only visible via a materialized entity's initial facing), but without
+    // it a leader's rotYaw stays frozen at whatever it was at virtualization until the next
+    // waypoint snaps it - a worker-formation leader's own jittery heading would otherwise feed
+    // straight into VirtualFormationSimulator's follower offsets.
+    private static final float YAW_SMOOTHING_BLEND = 0.35F;
+
     private void advanceVirtual() {
         for (VirtualTravellerRecord r : records.values()) {
             if (r.battleId != null) continue; // battle sim owns movement
@@ -138,6 +143,8 @@ public class VirtualTravellerManager extends WorldSavedData {
             double step = Math.min(SIM_STEP, dist);
             r.posX += (dx / dist) * step;
             r.posZ += (dz / dist) * step;
+            float targetYaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
+            r.rotYaw = blendYawTowards(r.rotYaw, targetYaw, YAW_SMOOTHING_BLEND);
             if (!r.hasTraveledFar) {
                 double odx = r.posX - r.virtualizedPosX;
                 double odz = r.posZ - r.virtualizedPosZ;
@@ -148,12 +155,18 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
     }
 
+    /** Blends {@code from} toward {@code to} by {@code factor}, taking the shortest angular path. */
+    private static float blendYawTowards(float from, float to, float factor) {
+        float delta = net.minecraft.util.math.MathHelper.wrapDegrees(to - from);
+        return from + delta * factor;
+    }
+
     private void refreshAllGoals(WorldServer world, long now) {
         for (VirtualTravellerRecord r : records.values()) {
             if (r.dimension != world.provider.getDimension()) continue;
             simulateHealing(r, now);
             if (r.battleId != null) continue; // travel/camp goals suspended while fighting
-            refreshGoal(world, r);
+            refreshGoal(world, r, now);
         }
     }
 
@@ -263,7 +276,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         return true;
     }
 
-    private void refreshGoal(WorldServer world, VirtualTravellerRecord r) {
+    private void refreshGoal(WorldServer world, VirtualTravellerRecord r, long now) {
         // Non-worker travellers/raiders: advance through route, replan at end
         if (!"WORKER".equals(r.entityClass)) {
             // Camp lifecycle takes priority: halt at the slot while camping, or claim a passing campsite.
@@ -315,14 +328,11 @@ public class VirtualTravellerManager extends WorldSavedData {
                     r.goal = null;
                     return;
                 }
-                // Formation-shaped marching: hold the captured slot offset relative to the leader
-                // (same world-frame offset the materializer restores), so the group keeps its shape.
-                if (r.hasEscortSlotOffset) {
-                    r.goal = new BlockPos((int) (leaderRec.posX + r.escortSlotDx), (int) leaderRec.posY,
-                            (int) (leaderRec.posZ + r.escortSlotDz));
-                } else {
-                    r.goal = new BlockPos((int) leaderRec.posX, (int) leaderRec.posY, (int) leaderRec.posZ);
-                }
+                // Formation-shaped marching: a live, heading-aware slot from the shared geometry
+                // (same math the loaded FollowFormationCoordinator path uses), so the group keeps
+                // its shape and actually walks toward a settings change instead of snapping to it.
+                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
+                        leaderRec.posX, leaderRec.posY, leaderRec.posZ, true, now);
                 return;
             }
             Entity leader = world.getEntityFromUuid(r.escortLeaderUUID);
@@ -335,7 +345,8 @@ public class VirtualTravellerManager extends WorldSavedData {
                 }
             }
             if (leader != null && !leader.isDead) {
-                r.goal = leader.getPosition();
+                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
+                        leader.posX, leader.posY, leader.posZ, true, now);
                 return;
             }
             // Leader gone: clear so we fall through to owner-follow below
@@ -362,11 +373,13 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Active mission or go order: goal is fixed at virtualization, do not override
         if (!"IDLE".equals(r.workerMode)) return;
         if (r.goOrderActive) return;
-        // Hired follower with no active mission and follow ON: track owner position
+        // Hired follower with no active mission and follow ON: hold a live formation slot
+        // relative to the owner, same shared geometry as the escort-leader case above.
         if (r.isHiredFollower && r.followOwnerUUID != null && r.followOrderActive) {
             EntityPlayer owner = world.getPlayerEntityByUUID(r.followOwnerUUID);
             if (owner != null && !owner.isDead) {
-                r.goal = owner.getPosition();
+                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.followOwnerUUID,
+                        owner.posX, owner.posY, owner.posZ, false, now);
                 return;
             }
         }
@@ -546,8 +559,13 @@ public class VirtualTravellerManager extends WorldSavedData {
                 records.put(recruitId, rec);
             }
 
-            owner.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "Recruited " + recruitCount + " workers at a village."));
+            org.millenaire.common.world.MillWorldData recruitWd = MillVillageIndex.getWD(world);
+            org.millenaire.common.village.Building recruitTh = recruitWd != null
+                    ? MillVillageIndex.getTownHallBuilding(recruitWd, stop) : null;
+            String villageName = recruitTh != null ? recruitTh.getVillageQualifiedName() : "a village";
+            com.jubitus.travellers.notify.NotificationService.notify(owner,
+                    com.jubitus.travellers.notify.NotificationDefs.RECRUIT_WORKERS_RECRUITED,
+                    String.valueOf(recruitCount), villageName);
         }
 
         // Save recruiter updated state
@@ -830,17 +848,12 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.escortLeaderUUID = worker.getEscortLeaderUUID();
         r.virtualizedTick = now;
 
-        // Capture exact slot offset so the worker restores to its formation slot,
-        // not to a generic ring around the leader.
-        if (r.escortLeaderUUID != null) {
-            double[] slotOff = new double[2];
-            if (com.jubitus.travellers.entity.entityAI.follow.FollowFormationCoordinator
-                    .snapshotSlotOffset(r.escortLeaderUUID, world.provider.getDimension(),
-                            worker.getUniqueID(), slotOff)) {
-                r.hasEscortSlotOffset = true;
-                r.escortSlotDx = slotOff[0];
-                r.escortSlotDz = slotOff[1];
-            }
+        // Seed the persistent formation slot from the loaded coordinator's current ordinal (if any)
+        // so VirtualFormationSimulator keeps the worker in the same slot instead of appending it
+        // at the back of the line the moment it goes virtual.
+        if (r.escortLeaderUUID != null && r.formationOrdinal < 0) {
+            r.formationOrdinal = com.jubitus.travellers.entity.entityAI.follow.FollowFormationCoordinator
+                    .snapshotOrdinal(r.escortLeaderUUID, world.provider.getDimension(), worker.getUniqueID());
         }
 
         // Compute initial goal

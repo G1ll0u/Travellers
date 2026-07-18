@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
@@ -26,7 +27,7 @@ public class TravellerWorkerLootHandler {
         EntityTravellerWorker worker = (EntityTravellerWorker) src.getTrueSource();
 
         // Config: auto-loot on/off
-        if (!TravellersModConfig.workerAutoLootMobs) {
+        if (!TravellersConfig.WORKER.workerAutoLootMobs) {
             return;
         }
 

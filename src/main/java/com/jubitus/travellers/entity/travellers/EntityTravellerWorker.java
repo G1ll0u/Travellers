@@ -1,8 +1,9 @@
 package com.jubitus.travellers.entity.travellers;
 
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.google.common.base.Optional;
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -22,6 +23,8 @@ import com.jubitus.travellers.entity.entityAI.travel.EntityAIMerchantDeliverGood
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData;
 import com.jubitus.travellers.server.net.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -53,7 +56,8 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.*;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.EnumSkyBlock;
@@ -146,7 +150,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     // Public so EntityAIChoirFreeze (different package) can read them directly
     public double choirFreezeLookX, choirFreezeLookZ;
 
-    private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersModConfig.returnFollowSwitchDist; // tweak (24–40 works well)
+    private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist; // tweak (24–40 works well)
     // How often to refresh the catchup target (ticks)
     private static final int CATCHUP_REPATH_INTERVAL_TICKS = 40; // 2s
     // How long to wait after loot pickup before saying goodbye & roaming again
@@ -324,7 +328,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                     if (isOwner(e)) return false;
                     if (!(e instanceof net.minecraft.entity.monster.IMob)) return false;
 
-                    TravellerBlacklist blacklist = TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+                    TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
                     return blacklist == null || !blacklist.isBlacklisted(e);
                 }
         ));
@@ -341,7 +345,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.aiTravel = new EntityAITravel(
                 this,
                 TravellersConfig.SPEED.movementSpeedWhileTravel,
-                TravellersModConfig.workerStepBlocks
+                TravellersConfig.ATTRIBUTES.workerStepBlocks
         );
         this.tasks.addTask(11, aiTravel);
 
@@ -393,8 +397,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             return 0;
         }
 
-        double basePerSlot = TravellersModConfig.workerTravelBaseCostPerSlot;
-        double baseDistance = TravellersModConfig.workerTravelDistanceBase;
+        double basePerSlot = TravellersConfig.WORKER.workerTravelBaseCostPerSlot;
+        double baseDistance = TravellersConfig.WORKER.workerTravelDistanceBase;
         if (baseDistance <= 0.0D) {
             baseDistance = 800.0D;
         }
@@ -403,8 +407,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         double cost = basePerSlot * usedSlots * factor;
 
         // Flat base + global multiplier
-        cost = (cost + TravellersModConfig.workerTravelFlatBaseCost)
-                * TravellersModConfig.workerTravelCostMultiplier;
+        cost = (cost + TravellersConfig.WORKER.workerTravelFlatBaseCost)
+                * TravellersConfig.WORKER.workerTravelCostMultiplier;
 
         return (int) Math.ceil(cost);
     }
@@ -424,9 +428,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public static int computeRecruitFee(int routeDistance, int villagesCount) {
-        int flat = TravellersModConfig.recruitFeeFlat;
-        int perVillage = TravellersModConfig.recruitFeePerVillage * villagesCount;
-        int perDist = (int) Math.ceil(routeDistance * TravellersModConfig.recruitFeePerBlock);
+        int flat = TravellersConfig.RECRUITMENT.recruitFeeFlat;
+        int perVillage = TravellersConfig.RECRUITMENT.recruitFeePerVillage * villagesCount;
+        int perDist = (int) Math.ceil(routeDistance * TravellersConfig.RECRUITMENT.recruitFeePerBlock);
         return Math.max(0, flat + perVillage + perDist);
     }
 
@@ -602,7 +606,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     /** Try to find and assign the nearest barracks with a free slot. Warns the owner if none available. */
     private void tryAutoAssignBarracks(net.minecraft.entity.player.EntityPlayer owner) {
         if (!com.jubitus.travellers.config.TravellersConfig.WORKER.autoAssignWorkersToBarracks) return;
-        if (!TravellersModConfig.controlledVillageFeatureEnabled) return;
+        if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return;
         if (!isWorkerHomeless()) return;
 
         java.util.List<org.millenaire.common.village.Building> liveBarracks =
@@ -854,7 +858,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     protected void applyEntityAttributes() {
         super.applyEntityAttributes();
 
-        baseFollowRange = TravellersModConfig.workerFollowRange;
+        baseFollowRange = TravellersConfig.ATTRIBUTES.workerFollowRange;
         boostedFollowRange = baseFollowRange * 2.0D;
 
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
@@ -881,7 +885,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Blacklist
         if (target != null) {
-            TravellerBlacklist blacklist = TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+            TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
             if (blacklist != null && blacklist.isBlacklisted(target)) {
                 super.setAttackTarget(null);
                 return;
@@ -1071,7 +1075,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             tickVirtualLeaderFollow();
 
             // Periodic homeless check: try to find a barracks if we don't have one
-            if (isHiredFollower() && TravellersModConfig.controlledVillageFeatureEnabled) {
+            if (isHiredFollower() && TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) {
                 if (--barracksFindCooldown <= 0) {
                     barracksFindCooldown = 20 * 60 * 5; // every 5 minutes
                     if (isWorkerHomeless() && followOwnerId != null) {
@@ -1092,7 +1096,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (isHiredFollower() || (ticksExisted % 20) == 0) {
                 TravellerChunkManager.INSTANCE.onChunkloaderTick(
                         this,
-                        TravellersModConfig.workerChunkRadius
+                        TravellersConfig.ATTRIBUTES.workerChunkRadius
                 );
             }
             updateDynamicNavigation();
@@ -1162,13 +1166,13 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                 EntityPlayer owner = getFollowOwner();
                 if (owner != null) {
-                    owner.sendMessage(new TextComponentString(TextFormatting.GREEN + "Worker is now at home."));
+                    NotificationService.notify(owner, NotificationDefs.WORKER_ARRIVED_HOME);
                 }
             }
         }
 // --- "Go..." order arrival ---
         if (!world.isRemote && goOrderActive && goOrderTargetPos != null && goOrderTargetDim == this.dimension) {
-            int r = TravellersModConfig.workerGoArrivalRadius;
+            int r = TravellersConfig.WORKER.workerGoArrivalRadius;
             double dx = this.posX - (goOrderTargetPos.getX() + 0.5D);
             double dz = this.posZ - (goOrderTargetPos.getZ() + 0.5D);
             if (dx * dx + dz * dz <= (double) (r * r)) {
@@ -1313,10 +1317,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                     this.playHelloSound();
 
-                    String msg = this.hasUnsoldGoods
-                            ? TextFormatting.WHITE + "I'm here. I couldn't sell everything, some goods are still in my pack."
-                            : TextFormatting.WHITE + "I'm here with your goods. Check my pack.";
-                    employer.sendMessage(new TextComponentString(msg));
+                    NotificationService.notify(employer, this.hasUnsoldGoods
+                            ? NotificationDefs.WORKER_CARGO_ARRIVED_PARTIAL
+                            : NotificationDefs.WORKER_CARGO_ARRIVED_FULL);
                 }
 
             } else if (employerReturnPos != null && !awaitingPickup) {
@@ -1486,9 +1489,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // 2) If actually away doing a job, block interaction as before
         if (this.mode != WorkerMode.IDLE) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.YELLOW + "I'm already on a job. Wait for me to come back."
-            ));
+            NotificationService.notify(player, NotificationDefs.WORKER_ALREADY_ON_JOB);
             return true;
         }
 
@@ -1525,9 +1526,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (this.mode != WorkerMode.IDLE) {
                 EntityPlayer employer = getEmployer();
                 if (employer != null) {
-                    employer.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "Your worker has died during his periple."
-                    ));
+                    NotificationService.notify(employer, NotificationDefs.WORKER_DIED);
                 }
             }
 
@@ -1535,7 +1534,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (hiredFollower && followOwnerId != null
                     && assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS
                     && assignedHomePos != null
-                    && TravellersModConfig.workerRespawnInBarracks) {
+                    && TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
                 try {
                     NBTTagCompound nbt = new NBTTagCompound();
                     writeToNBT(nbt);
@@ -1557,7 +1556,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                     && assignedHomePos != null) {
                 net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
                 net.minecraft.world.WorldServer bw = srv != null ? srv.getWorld(assignedHomeDim) : null;
-                if (followOwnerId != null && TravellersModConfig.workerRespawnInBarracks) {
+                if (followOwnerId != null && TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
                     try {
                         NBTTagCompound nbt = new NBTTagCompound();
                         writeToNBT(nbt);
@@ -1605,7 +1604,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         super.onConfigReload();
 
         // Sync worker-specific ranges from config
-        this.baseFollowRange = TravellersModConfig.workerFollowRange;
+        this.baseFollowRange = TravellersConfig.ATTRIBUTES.workerFollowRange;
         this.boostedFollowRange = baseFollowRange * 4.0D;
 
         IAttributeInstance followAttr = this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
@@ -1808,10 +1807,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // ✅ NEW: seller-style gate (rep/day/attack/chestLocked)
         if (!canWorkerTradeWithVillage(th, employer)) {
             this.hasUnsoldGoods = true; // ensures “I couldn’t sell everything” message
-            employer.sendMessage(new TextComponentString(
-                    TextFormatting.RED +
-                            "The village refuses to trade with you (reputation too low or village is not trading right now)."
-            ));
+            NotificationService.notify(employer, NotificationDefs.TRADE_REFUSED);
 
             // Return to employer with all cargo untouched
             onJobDelivered();
@@ -1986,12 +1982,13 @@ public class EntityTravellerWorker extends EntityTraveller {
             townHall.adjustLanguage(employer, stored);
 
             if (repGain != 0 || moneyGain != 0) {
-                employer.sendMessage(new TextComponentString(
-                        TextFormatting.YELLOW + "[Worker debug] " +
-                                (donateMode ? "Donated " : "Sold ") +
-                                stored + "x " + stack.getDisplayName() +
-                                " for " + moneyGain + "d, rep +" + repGain
-                ));
+                if (donateMode) {
+                    NotificationService.notify(employer, NotificationDefs.TRADE_DONATED,
+                            String.valueOf(stored), stack.getDisplayName(), String.valueOf(repGain));
+                } else {
+                    NotificationService.notify(employer, NotificationDefs.TRADE_SOLD,
+                            String.valueOf(stored), stack.getDisplayName(), String.valueOf(moneyGain), String.valueOf(repGain));
+                }
             }
         }
 
@@ -1999,12 +1996,9 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (totalRep != 0) {
             MillLog.major(this, "[TravellersWorker] Applying reputation change: " + totalRep);
             building.adjustReputation(employer, totalRep);
-            if (TravellersModConfig.workerNotifyOnVillageTrade) {
+            if (TravellersConfig.WORKER.workerNotifyOnVillageTrade) {
                 String villageName = building.getVillageQualifiedName();
-                employer.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "[" + villageName + "] "
-                                + "accepted your offer and your reputation increased."
-                ));
+                NotificationService.notify(employer, NotificationDefs.TRADE_ACCEPTED, villageName);
             }
         } else {
             MillLog.major(this, "[TravellersWorker] No reputation change (totalRep == 0).");
@@ -2158,9 +2152,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
             // (Optional) tiny acknowledgement right away, or remove if you only
             // want the delayed goodbye.
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "I did what I had to do. Let me rest a bit."
-            ));
+            ITextComponent farewell = new TextComponentTranslation("travellers.dialogue.worker_farewell");
+            farewell.getStyle().setColor(TextFormatting.WHITE);
+            player.sendMessage(farewell);
         }
     }
 
@@ -2190,7 +2184,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Optional but strongly recommended: also keep travel step sane vs follow range
         if (aiTravel != null) {
             int fr = (int) Math.floor(followAttr.getAttributeValue());
-            aiTravel.setStepBlocks(Math.min(TravellersModConfig.workerStepBlocks, Math.max(12, fr - 8)));
+            aiTravel.setStepBlocks(Math.min(TravellersConfig.ATTRIBUTES.workerStepBlocks, Math.max(12, fr - 8)));
         }
     }
 
@@ -2648,7 +2642,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         if (this.getAttackTarget() != null) return;
 
-        double maxRadius = TravellersModConfig.workerIdleAnchorRadius;
+        double maxRadius = TravellersConfig.WORKER.workerIdleAnchorRadius;
         double distSq = this.getDistanceSqToCenter(idleAnchorPos);
 
         if (distSq > maxRadius * maxRadius) {
@@ -2691,9 +2685,9 @@ public class EntityTravellerWorker extends EntityTraveller {
         World world = this.world;
         BlockPos origin = player.getPosition();
 
-        int maxRadius = TravellersModConfig.recruitMaxVillageRadius;
-        int minN = TravellersModConfig.recruitVillagesMin;
-        int maxN = TravellersModConfig.recruitVillagesMax;
+        int maxRadius = TravellersConfig.RECRUITMENT.recruitMaxVillageRadius;
+        int minN = TravellersConfig.RECRUITMENT.recruitVillagesMin;
+        int maxN = TravellersConfig.RECRUITMENT.recruitVillagesMax;
 
         List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(world);
         List<BlockPos> inRange = new ArrayList<>();
@@ -2702,7 +2696,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             int d = dist2D(origin, c);
 
             // NEW: enforce minimum distance for recruitment
-            if (d < TravellersModConfig.recruitMinVillageDistance) {
+            if (d < TravellersConfig.RECRUITMENT.recruitMinVillageDistance) {
                 continue;
             }
 
@@ -2822,8 +2816,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         EntityPlayer owner = getFollowOwner();
         if (owner == null) return;
 
-        int min = TravellersModConfig.recruitSpawnMin;
-        int max = TravellersModConfig.recruitSpawnMax;
+        int min = TravellersConfig.RECRUITMENT.recruitSpawnMin;
+        int max = TravellersConfig.RECRUITMENT.recruitSpawnMax;
         int count = min + this.rand.nextInt(Math.max(1, (max - min + 1)));
 
         for (int i = 0; i < count; i++) {
@@ -2847,9 +2841,18 @@ public class EntityTravellerWorker extends EntityTraveller {
             ws.spawnEntity(w);
         }
 
-        owner.sendMessage(new TextComponentString(
-                TextFormatting.WHITE + "Recruited " + count + " workers at a village."
-        ));
+        String villageName = resolveVillageName(villageCenter);
+        NotificationService.notify(owner, NotificationDefs.RECRUIT_WORKERS_RECRUITED,
+                String.valueOf(count), villageName);
+    }
+
+    /**
+     * Best-effort village name lookup for player-facing recruit notifications.
+     */
+    private String resolveVillageName(BlockPos villageCenter) {
+        MillWorldData wd = MillVillageIndex.getWD(world);
+        Building th = wd != null ? MillVillageIndex.getTownHallBuilding(wd, villageCenter) : null;
+        return th != null ? th.getVillageQualifiedName() : "a village";
     }
 
     private void finishRecruitMission(@Nullable EntityPlayer owner) {
@@ -2878,7 +2881,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.setFollowOrderActive(true);
 
         if (owner != null) {
-            owner.sendMessage(new TextComponentString(TextFormatting.GREEN + "Recruit mission completed."));
+            NotificationService.notify(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED);
         }
     }
 
@@ -2891,8 +2894,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (stop == null || recruitSpawnedAt.contains(stop)) return 0;
         recruitSpawnedAt.add(stop);
 
-        int count = TravellersModConfig.recruitSpawnMin
-                + rand.nextInt(Math.max(1, TravellersModConfig.recruitSpawnMax - TravellersModConfig.recruitSpawnMin + 1));
+        int count = TravellersConfig.RECRUITMENT.recruitSpawnMin
+                + rand.nextInt(Math.max(1, TravellersConfig.RECRUITMENT.recruitSpawnMax - TravellersConfig.RECRUITMENT.recruitSpawnMin + 1));
 
         recruitIndex++;
         if (recruitIndex < recruitVillages.size()) {

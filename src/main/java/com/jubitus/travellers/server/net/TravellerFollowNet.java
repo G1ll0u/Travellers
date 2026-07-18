@@ -205,11 +205,6 @@ public final class TravellerFollowNet {
                 isClient ? new MsgOpenConfigGui.Handler() : new MsgOpenConfigGui.NoopHandler());
         CHANNEL.registerMessage(MsgSaveConfigGui.Handler.class, MsgSaveConfigGui.class, id++, Side.SERVER);
 
-        // Detail tiles (256×256, client requests when zoomed in, server serves pre-generated data)
-        CHANNEL.registerMessage(MsgRequestDetailTiles.Handler.class, MsgRequestDetailTiles.class, id++, Side.SERVER);
-        registerClientOnly(MsgMapDetailTileData.class,
-                isClient ? new MsgMapDetailTileData.ClientHandler() : new MsgMapDetailTileData.NoopHandler());
-
         // Formation hub: Get Equipment
         CHANNEL.registerMessage(MsgRequestEquipDests.Handler.class, MsgRequestEquipDests.class, id++, Side.SERVER);
         registerClientOnly(MsgEquipDestsResponse.class,
@@ -242,6 +237,11 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(
                 com.jubitus.travellers.server.net.message.map.MsgTeleportToPos.Handler.class,
                 com.jubitus.travellers.server.net.message.map.MsgTeleportToPos.class, id++, Side.SERVER);
+
+        // On-screen notification toasts
+        registerClientOnly(com.jubitus.travellers.server.net.message.notify.MsgShowNotification.class,
+                isClient ? new com.jubitus.travellers.server.net.message.notify.MsgShowNotification.Handler()
+                         : new com.jubitus.travellers.server.net.message.notify.MsgShowNotification.NoopHandler());
     }
 
 

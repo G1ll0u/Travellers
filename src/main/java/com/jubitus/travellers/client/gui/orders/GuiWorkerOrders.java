@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.orders;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
@@ -23,7 +24,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerOrders extends GuiScreen {
+public class GuiWorkerOrders extends GuiScreen implements ITravellersGui {
 
     private static final ResourceLocation TEX =
             new ResourceLocation("travellers", "textures/gui/worker_orders.png");
@@ -254,6 +255,7 @@ public class GuiWorkerOrders extends GuiScreen {
         drawOrdersTitle();
 
         super.drawScreen(mouseX, mouseY, partialTicks);
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawOrdersTitle() {

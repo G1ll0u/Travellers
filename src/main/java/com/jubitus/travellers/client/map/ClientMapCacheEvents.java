@@ -14,14 +14,14 @@ public class ClientMapCacheEvents {
     @SubscribeEvent
     public static void onClientConnect(net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent e) {
         ClientMapDiscovery.clear();
-        ClientMapTileCache.clear();
+        ClientTileCache.clear();
         GuiWorldMapPanelHooks.markDirty();
     }
 
     @SubscribeEvent
     public static void onClientDisconnect(net.minecraftforge.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent e) {
         ClientMapDiscovery.clear();
-        ClientMapTileCache.clear();
+        ClientTileCache.clear();
         GuiWorldMapPanelHooks.markDirty();
     }
 }

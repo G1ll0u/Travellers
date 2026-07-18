@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.travellers;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
@@ -85,7 +86,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
                 new EntityAITravel(
                         this,
                         com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel,
-                        TravellersModConfig.merchantStepBlocks
+                        TravellersConfig.ATTRIBUTES.merchantStepBlocks
                 )
         );
     }
@@ -94,15 +95,15 @@ public class EntityTravellerMerchant extends EntityTraveller {
     protected void applyEntityAttributes() {
         super.applyEntityAttributes();
 
-        baseFollowRange = TravellersModConfig.merchantFollowRange;
+        baseFollowRange = TravellersConfig.ATTRIBUTES.merchantFollowRange;
         boostedFollowRange = baseFollowRange * 4.0D;
 
         // Override with merchant-specific stats
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersModConfig.merchantMaxHealth);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.merchantMaxHealth);
 
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(TravellersModConfig.merchantFollowRange);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.merchantFollowRange);
 
         // Clamp current health to new max
         if (this.getHealth() > this.getMaxHealth()) {
@@ -117,7 +118,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
         if (!this.world.isRemote) {
             TravellerChunkManager.INSTANCE.onChunkloaderTick(
                     this,
-                    TravellersModConfig.merchantChunkRadius
+                    TravellersConfig.ATTRIBUTES.merchantChunkRadius
             );
         }
     }
@@ -228,7 +229,7 @@ public class EntityTravellerMerchant extends EntityTraveller {
 
         // stepBlocks (see next section: needs setter on EntityAITravel)
 //        if (aiTravel != null) {
-//            int baseStep = TravellersModConfig.workerStepBlocks;
+//            int baseStep = TravellersConfig.ATTRIBUTES.workerStepBlocks;
 //            int boostedStep = baseStep * 4;
 //            // I *recommend* instead:
 //            //   int boostedStep = baseStep / 2;

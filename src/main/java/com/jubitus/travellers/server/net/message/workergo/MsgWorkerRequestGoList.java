@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
@@ -52,7 +53,7 @@ public class MsgWorkerRequestGoList implements IMessage {
                 List<BlockPos> villages = MillVillageIndex.getAllVillageCenters(player.world);
                 BlockPos origin = player.getPosition();
 
-                java.util.Set<BlockPos> controlledVillages = TravellersModConfig.controlledVillageFeatureEnabled
+                java.util.Set<BlockPos> controlledVillages = TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
                         ? MillControlledVillageHelper.getControlledVillageCenters(player.world, player)
                         : java.util.Collections.emptySet();
 

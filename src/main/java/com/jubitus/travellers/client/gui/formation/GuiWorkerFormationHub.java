@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.formation;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
@@ -51,7 +52,7 @@ import java.util.*;
 
 @SideOnly(Side.CLIENT)
 public class GuiWorkerFormationHub extends GuiScreen
-        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver {
+        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui {
 
     // ── Layout constants ──────────────────────────────────────────────────────
     private static final int X_SIZE   = 660;
@@ -460,6 +461,7 @@ public class GuiWorkerFormationHub extends GuiScreen
                 drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
             }
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawDestinationCross() {

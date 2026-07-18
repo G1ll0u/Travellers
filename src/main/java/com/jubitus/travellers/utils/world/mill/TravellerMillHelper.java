@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.world.mill;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -342,11 +343,11 @@ public final class TravellerMillHelper {
         }
         if (reqMap.isEmpty()) return;
 
-        int maxDistinctItems = Math.max(1, TravellersModConfig.merchantMaxDistinctItems);
-        double giveFraction = TravellersModConfig.merchantGiveFraction > 0
-                ? TravellersModConfig.merchantGiveFraction : 1.0 / 12.0;
-        int minBulkAmount = Math.max(1, TravellersModConfig.merchantMinBulkAmount);
-        int minSmallAmount = Math.max(1, TravellersModConfig.merchantMinSmallAmount);
+        int maxDistinctItems = Math.max(1, TravellersConfig.MERCHANT.merchantMaxDistinctItems);
+        double giveFraction = TravellersConfig.MERCHANT.merchantGiveFraction > 0
+                ? TravellersConfig.MERCHANT.merchantGiveFraction : 1.0 / 12.0;
+        int minBulkAmount = Math.max(1, TravellersConfig.MERCHANT.merchantMinBulkAmount);
+        int minSmallAmount = Math.max(1, TravellersConfig.MERCHANT.merchantMinSmallAmount);
 
         int donationsDone = 0;
         for (Map.Entry<InvItem, Integer> e : reqMap.entrySet()) {

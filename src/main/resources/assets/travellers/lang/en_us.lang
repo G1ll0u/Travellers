@@ -212,3 +212,79 @@ travellers.map.legend.camp_slot=Camp shelter
 travellers.map.population.traveller=Travellers: %d (%d loaded, %d virtual)
 travellers.map.population.raider=Raiders: %d (%d loaded, %d virtual)
 travellers.map.population.worker=Workers: %d (%d loaded, %d virtual)
+
+# On-screen notifications
+travellers.notify.hire.success=Hired!
+travellers.notify.hire.already_hired_by_other=This travellers is already hired by someone else.
+travellers.notify.hire.needs_village_chief=You must be chief of a Millenaire village to hire henchmen.
+travellers.notify.hire.not_enough_money=You don't have enough money (%s needed).
+travellers.notify.hire.payment_failed=Hire failed: money could not be deducted.
+travellers.notify.hire.dismissed=The travellers will no longer follow you.
+
+travellers.notify.recruit.not_your_worker=You don't control this worker.
+travellers.notify.recruit.busy=I'm busy right now.
+travellers.notify.recruit.no_villages_in_range=No villages in range to recruit from.
+travellers.notify.recruit.not_enough_fee=Recruit fee: %s (you have %s)
+travellers.notify.recruit.route_not_enough_fee=Recruit fee: %s
+travellers.notify.recruit.payment_failed=Recruit fee payment failed. Try again.
+travellers.notify.recruit.mission_started=Recruit mission started. Fee paid: %s
+travellers.notify.recruit.workers_recruited=Recruited %s workers at %s.
+travellers.notify.recruit.mission_completed=Recruit mission completed.
+travellers.notify.recruit.village_too_close=That village is too close to recruit from. Minimum distance: %sm
+
+travellers.notify.worker.not_hired_transport=You must hire this worker to use Transport.
+travellers.notify.worker.not_hired_inventory=You can only access the pack of a worker you've hired.
+travellers.notify.worker.not_hired_orders=You can only give orders to a worker you've hired.
+travellers.notify.worker.not_hired_behavior=You can only manage behavior of a worker you've hired.
+travellers.notify.worker.not_hired_recruit=You can only recruit with a worker you've hired.
+travellers.notify.worker.not_hired_home=You can only manage home for a worker you've hired.
+travellers.notify.worker.not_hired_go=You can only order a worker you've hired.
+travellers.notify.worker.not_hired_formation=You can only manage formation of a worker you've hired.
+travellers.notify.worker.not_hired_village_relations=You can only manage village relations of a worker you've hired.
+
+travellers.notify.leader.released_followers=Released %s followers back to you.
+travellers.notify.leader.now_leading=This worker is now leading %s followers.
+travellers.notify.leader.no_free_followers=No free direct followers to assign.
+
+travellers.notify.home.not_your_worker=Not your worker.
+travellers.notify.home.none_assigned=No home assigned.
+travellers.notify.home.barracks_not_found=Barracks not found or not in your village.
+travellers.notify.home.barracks_full=This barracks is full!
+travellers.notify.home.barracks_assigned=Barracks assigned: %s
+travellers.notify.home.lone_barrack_not_found=Lone barrack not found.
+travellers.notify.home.lone_barrack_assigned=Lone Barrack assigned: %s
+
+travellers.notify.goto.worker_busy=Worker is busy (job active).
+travellers.notify.goto.going_to=Worker is going to: %s
+travellers.notify.goto.going_to_pos=Worker is going to selected map position.
+travellers.notify.goto.not_enough_money=You need %s for this trip.
+travellers.notify.goto.payment_failed=Payment failed. Try again.
+travellers.notify.goto.delivery_started_free=Alright, I'm heading to %s!
+travellers.notify.goto.delivery_started_paid=Alright, I'm heading to %s for %s.
+travellers.notify.goto.delivery_started_donate=Alright, I'm heading to %s for %s as a donation.
+
+travellers.notify.hostile.not_owner=You don't own this worker.
+travellers.notify.hostile.player_not_found=Player '%s' not found. They must have joined the server at least once.
+travellers.notify.hostile.added=Workers will attack: %s
+travellers.notify.hostile.removed=Removed enemy: %s
+
+travellers.notify.worker.arrived_home=Worker is now at home.
+travellers.notify.worker.cargo_arrived_full=I'm here with your goods. Check my pack.
+travellers.notify.worker.cargo_arrived_partial=I'm here. I couldn't sell everything, some goods are still in my pack.
+travellers.notify.worker.already_on_job=I'm already on a job. Wait for me to come back.
+travellers.notify.worker.died=Your worker has died during his periple.
+travellers.notify.worker.retaliation_target=%s set as enemy (retaliation).
+
+travellers.notify.trade.refused=The village refuses to trade with you (reputation too low or village is not trading right now).
+travellers.notify.trade.sold=Sold %s x %s for %sd, rep +%s
+travellers.notify.trade.donated=Donated %s x %s, rep +%s
+travellers.notify.trade.accepted=[%s] accepted your offer and your reputation increased.
+
+travellers.notify.battle.under_attack=Your workers are under attack near x=%s, z=%s!
+travellers.notify.battle.worker_killed=%s was killed in battle at x=%s, z=%s.
+
+travellers.dialogue.worker_farewell=I did what I had to do. Let me rest a bit.
+travellers.dialogue.travelling_with_someone=I'm travelling with someone right now. Ask me again later.
+travellers.dialogue.staying_in_village=I'm staying in %s for a bit.
+travellers.dialogue.no_destination=I don't currently have a destination.
+travellers.dialogue.heading_to=I'm actually heading to %s in the %s.

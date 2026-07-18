@@ -1,7 +1,8 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.google.common.collect.Multimap;
-import com.jubitus.travellers.TravellersModConfig;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.init.Enchantments;
 import net.minecraft.entity.EntityLivingBase;
@@ -30,7 +31,7 @@ public final class TravellerItemDamage {
 
     /** Damages the held weapon by 1, respecting Unbreaking and the Unbreakable tag. */
     public static void damageWeaponOnHit(EntityLivingBase entity) {
-        if (!TravellersModConfig.weaponDurabilityEnabled) return;
+        if (!TravellersConfig.COMBAT.weaponDurabilityEnabled) return;
         if (entity.world.isRemote) return;
         ItemStack weapon = entity.getHeldItemMainhand();
         if (weapon.isEmpty() || !weapon.isItemStackDamageable() || isUnbreakable(weapon)) return;
@@ -47,7 +48,7 @@ public final class TravellerItemDamage {
      * @param rawDamage pre-reduction damage amount
      */
     public static void damageArmorOnHit(EntityLivingBase entity, float rawDamage) {
-        if (!TravellersModConfig.armorDurabilityEnabled) return;
+        if (!TravellersConfig.COMBAT.armorDurabilityEnabled) return;
         if (entity.world.isRemote) return;
         int dmg = Math.max(1, (int) (rawDamage / 4.0F));
         for (EntityEquipmentSlot slot : ARMOR_SLOTS) {
@@ -75,8 +76,8 @@ public final class TravellerItemDamage {
     public static int computeAttackCooldownTicks(ItemStack weapon) {
         if (weapon.isEmpty()) return 24; // bare hands: fixed cooldown, ignore multiplier
 
-        if (!TravellersModConfig.weaponAttackSpeedEnabled) {
-            return TravellersModConfig.baseAttackCooldownTicks;
+        if (!TravellersConfig.COMBAT.weaponAttackSpeedEnabled) {
+            return TravellersConfig.COMBAT.baseAttackCooldownTicks;
         }
 
         Multimap<String, AttributeModifier> mods = weapon.getAttributeModifiers(EntityEquipmentSlot.MAINHAND);
@@ -84,14 +85,14 @@ public final class TravellerItemDamage {
         for (AttributeModifier mod : mods.get(SharedMonsterAttributes.ATTACK_SPEED.getName())) {
             if (mod.getOperation() == 0) speedMod += mod.getAmount(); // additive only (vanilla standard)
         }
-        if (speedMod == 0.0) return scaled(TravellersModConfig.baseAttackCooldownTicks);
+        if (speedMod == 0.0) return scaled(TravellersConfig.COMBAT.baseAttackCooldownTicks);
 
         double effectiveSpeed = 4.0 + speedMod; // 4.0 = player base attack speed
-        if (effectiveSpeed <= 0.0) return scaled(TravellersModConfig.maxAttackCooldownTicks);
+        if (effectiveSpeed <= 0.0) return scaled(TravellersConfig.COMBAT.maxAttackCooldownTicks);
 
         int ticks = scaled((int) Math.round(20.0 / effectiveSpeed));
-        return Math.max(TravellersModConfig.minAttackCooldownTicks,
-                Math.min(TravellersModConfig.maxAttackCooldownTicks, ticks));
+        return Math.max(TravellersConfig.COMBAT.minAttackCooldownTicks,
+                Math.min(TravellersConfig.COMBAT.maxAttackCooldownTicks, ticks));
     }
 
     private static boolean isUnbreakable(ItemStack stack) {
@@ -101,7 +102,7 @@ public final class TravellerItemDamage {
     }
 
     private static int scaled(int ticks) {
-        return Math.max(1, (int) Math.round(ticks * TravellersModConfig.attackCooldownMultiplier));
+        return Math.max(1, (int) Math.round(ticks * TravellersConfig.COMBAT.attackCooldownMultiplier));
     }
 
     /** Returns the effective damage after applying Unbreaking probability. */

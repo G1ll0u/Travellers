@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
@@ -30,7 +31,7 @@ public class MsgRequestEquipDests implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 List<MsgEquipDestsResponse.EquipDestInfo> dests = new ArrayList<>();
 
-                if (TravellersModConfig.controlledVillageFeatureEnabled) {
+                if (TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) {
                     for (BlockPos pos : MillControlledVillageHelper.getControlledVillageCenters(player.world, player)) {
                         String name = MillVillageIndex.nameForApprox(player.world, pos);
                         dests.add(new MsgEquipDestsResponse.EquipDestInfo(pos, true, name));

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.go;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.GuiWorldMapPanel;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
@@ -39,7 +40,7 @@ import java.util.List;
 import java.util.UUID;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
+public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
 
     private GuiButton backButton;
     private GuiButton zoomInButton, zoomOutButton, recenterButton;
@@ -295,6 +296,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
             }
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawList(int mouseX, int mouseY) {

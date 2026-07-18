@@ -1,4 +1,5 @@
 package com.jubitus.travellers.client.gui.mark;
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -13,7 +14,7 @@ import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
 
-public class GuiWorkerMarkEditor extends GuiScreen {
+public class GuiWorkerMarkEditor extends GuiScreen implements ITravellersGui {
 
     private final GuiScreen parent;
     private final EntityPlayer player;
@@ -213,6 +214,7 @@ public class GuiWorkerMarkEditor extends GuiScreen {
         if (isPointInRect(guiLeft + 142, guiTop + 90, 66, 20, mouseX, mouseY)) {
             drawHoveringText(java.util.Collections.singletonList(I18n.format("travellers.worker.mark.preview.leader_hint")), mouseX, mouseY);
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawSVBox() {

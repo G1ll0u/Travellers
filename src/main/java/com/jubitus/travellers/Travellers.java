@@ -16,6 +16,8 @@ import com.jubitus.travellers.entity.travellers.*;
 import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncServerCosts;
 import com.jubitus.travellers.utils.commands.*;
 import com.jubitus.travellers.utils.mobs.MobTargetInjector;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -62,6 +64,22 @@ public class Travellers {
     public static Travellers INSTANCE;
     private static int nextId = 0;
 
+    public static void broadcastServerCostsToAllPlayers() {
+        MinecraftServer srv = net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
+        if (srv == null) return;
+
+        MsgSyncServerCosts packet = new MsgSyncServerCosts(
+                TravellersDerivedConfig.workerHireCostDeniersServerCache,
+                TravellersDerivedConfig.recruitFeeFlatServerCache,
+                TravellersDerivedConfig.recruitFeePerBlockServerCache,
+                TravellersDerivedConfig.recruitFeePerVillageServerCache
+        );
+
+        for (net.minecraft.entity.player.EntityPlayerMP p : srv.getPlayerList().getPlayers()) {
+            TravellerFollowNet.CHANNEL.sendTo(packet, p);
+        }
+    }
+
     @Mod.EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandSpawnTraveller());
@@ -93,34 +111,21 @@ public class Travellers {
 
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
-        // Legacy .cfg is kept in .internal/ so it doesn't clutter config/travellers/.
-        // Players configure the mod via the GUI or travellers_overrides.properties.
-        File internalDir = new File(configDir, ".internal");
-        if (!internalDir.exists()) internalDir.mkdirs();
-        File configFile = new File(internalDir, "travellers_legacy.cfg");
-        // One-time migration: move old travellers.cfg to the new location
-        File oldConfigFile = new File(configDir, "travellers.cfg");
-        if (oldConfigFile.exists() && !configFile.exists()) {
-            oldConfigFile.renameTo(configFile);
-        }
-        TravellersModConfig.init(configFile, configDir);
         JubiConfig.init(
                 "travellers", "Travellers", "travellersconfig",
                 TravellersConfig.class, TravellerFollowNet.CHANNEL,
                 () -> {
-                    TravellersModConfig.syncFromTravellersConfig();
-                    TravellersModConfig.applyDerivedValues();
-                    TravellersModConfig.applyRuntimeEffects();
-                    TravellersModConfig.syncServerCachesFromConfig();
-                    TravellersModConfig.broadcastServerCostsToAllPlayers();
+                    TravellersDerivedConfig.refresh();
+                    TravellersDerivedConfig.applyRuntimeEffects();
+                    TravellersDerivedConfig.syncServerCostCachesFromConfig();
+                    broadcastServerCostsToAllPlayers();
                 },
                 configDir, 2
         );
         JubiConfig.applyOnStartup("travellers");
         JubiConfig.loadHistory("travellers");
-        TravellersModConfig.syncFromTravellersConfig();
-        TravellersModConfig.applyDerivedValues();
-        TravellersModConfig.syncServerCachesFromConfig();
+        TravellersDerivedConfig.refresh();
+        TravellersDerivedConfig.syncServerCostCachesFromConfig();
         ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
@@ -168,7 +173,7 @@ public class Travellers {
 
 
         // --- Register travellers entities if enabled in config ---
-        if (TravellersModConfig.enableTravellerEntity) {
+        if (TravellersConfig.GENERAL.enableTravellerEntity) {
 
             // Normal travellers
             EntityRegistry.registerModEntity(
@@ -232,7 +237,7 @@ public class Travellers {
             );
 
             // Raider
-            if (TravellersModConfig.enableTravellerRaider) {
+            if (TravellersConfig.GENERAL.enableTravellerRaider) {
                 EntityRegistry.registerModEntity(
                         new ResourceLocation(Tags.MOD_ID, "traveller_raider"),
                         EntityTravellerRaider.class,
@@ -243,13 +248,13 @@ public class Travellers {
                         0x3d2c1e, 0x8b2e1a
                 );
 
-                if (TravellersModConfig.RaiderWeight > 0) {
+                if (TravellersConfig.SPAWN_RAIDERS.vanillaSpawnWeight > 0) {
                     for (Biome biome : ForgeRegistries.BIOMES) {
                         EntityRegistry.addSpawn(
                                 EntityTravellerRaider.class,
-                                TravellersModConfig.RaiderWeight,
-                                TravellersModConfig.RaiderMinGroup,
-                                TravellersModConfig.RaiderMaxGroup,
+                                TravellersConfig.SPAWN_RAIDERS.vanillaSpawnWeight,
+                                TravellersConfig.SPAWN_RAIDERS.vanillaSpawnMinGroupSize,
+                                TravellersConfig.SPAWN_RAIDERS.vanillaSpawnMaxGroupSize,
                                 EnumCreatureType.CREATURE,
                                 biome
                         );
@@ -258,13 +263,13 @@ public class Travellers {
             }
 
             // Spawns for normal travellers only (merchant is special, usually no random spawns)
-            if (TravellersModConfig.TravellerWeight > 0) {
+            if (TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnWeight > 0) {
                 for (Biome biome : ForgeRegistries.BIOMES) {
                     EntityRegistry.addSpawn(
                             EntityTraveller.class,
-                            TravellersModConfig.TravellerWeight,
-                            TravellersModConfig.MinGroupSizeAtSpawn,
-                            TravellersModConfig.MaxGroupSizeAtSpawn,
+                            TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnWeight,
+                            TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnMinGroupSize,
+                            TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnMaxGroupSize,
                             EnumCreatureType.CREATURE,
                             biome
                     );
@@ -296,6 +301,10 @@ public class Travellers {
         for (WorldServer ws : server.worlds) {
             CampfireManager.get(ws).extinguishAllForWorld(ws);
         }
+
+        // Worldmap tiles are persisted off-thread (see MapPyramidPersistenceEvents); make sure
+        // any in-flight writes actually land on disk before the process exits.
+        com.jubitus.travellers.server.map.MapPyramidStore.shutdownIOAndAwait();
     }
 
     @Mod.EventHandler

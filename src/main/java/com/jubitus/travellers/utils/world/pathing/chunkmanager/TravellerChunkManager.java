@@ -1,7 +1,8 @@
 package com.jubitus.travellers.utils.world.pathing.chunkmanager;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -69,14 +70,23 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // Campsite discovery probes + camp lifecycle (budgeted, no chunk force-loading)
         com.jubitus.travellers.utils.world.camp.CampsiteManager.get(ws).tick(ws, now);
 
+        // Paced physical reset job started by "/travellersdebug camp reset", if one is running
+        com.jubitus.travellers.utils.world.camp.CampResetCoordinator.INSTANCE.tick(ws, now);
+
         // Virtual battles: encounter detection, offscreen combat sim, deferred loot
         com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(ws).tick(ws, now);
 
+        // Worldmap: continuous re-sampling of currently-loaded chunks (terrain edits, growing villages)
+        com.jubitus.travellers.server.map.MapLoadedChunkResampler.INSTANCE.tick(ws, now);
+
+        // Paced physical resweep job started by "/travellersdebug map resweep", if one is running
+        com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.tick(ws, now);
+
         // Morning tick: process barracks respawns and reconcile deleted barracks for online players
-        if (TravellersModConfig.workerRespawnInBarracks) {
+        if (TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
             long currentDay = ws.getWorldTime() / 24000L;
             long dayTime = ws.getWorldTime() % 24000L;
-            if (dayTime >= TravellersModConfig.workerRespawnMorningTime && currentDay > state.lastRespawnProcessDay) {
+            if (dayTime >= TravellersConfig.CONTROLLED_VILLAGE.workerRespawnMorningTime && currentDay > state.lastRespawnProcessDay) {
                 state.lastRespawnProcessDay = currentDay;
                 com.jubitus.travellers.utils.world.mill.BarracksSlotManager bsm =
                         com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(ws);
@@ -100,7 +110,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         batchLoadRestoredChunks(state);
 
         // expensive: recompute less often
-        int interval = Math.max(1, TravellersModConfig.chunkRecomputeIntervalTicks);
+        int interval = Math.max(1, TravellersConfig.WORKER_FORMATION.chunkRecomputeIntervalTicks);
         if ((ws.getTotalWorldTime() % interval) == 0) {
             recomputeForWorld(state);
         }
@@ -208,10 +218,10 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             }
 
             System.out.println("[Travellers] Created NORMAL ticket for dim " + ws.provider.getDimension());
-            state.ticket.setChunkListDepth(TravellersModConfig.merchantMaxForcedChunks);
+            state.ticket.setChunkListDepth(TravellersConfig.ATTRIBUTES.merchantMaxForcedChunks);
         } else {
             // Ensure depth is correct even on restored tickets
-            state.ticket.setChunkListDepth(TravellersModConfig.merchantMaxForcedChunks);
+            state.ticket.setChunkListDepth(TravellersConfig.ATTRIBUTES.merchantMaxForcedChunks);
         }
 
         // 4) Apply restored chunk forcing using the NORMAL ticket (safe)
@@ -252,7 +262,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     // Called each tick by any travellers that should chunkload (merchant, worker, etc.)
     public void onChunkloaderTick(EntityTraveller traveller, int radius) {
         if (traveller.world.isRemote) return;
-        if (!TravellersModConfig.merchantChunkloadingEnabled) return;
+        if (!TravellersConfig.ATTRIBUTES.merchantChunkloadingEnabled) return;
         if (!isChunkloader(traveller)) return; // ✅ only workers/merchants participate
 
         WorldServer ws = (WorldServer) traveller.world;
@@ -282,9 +292,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     }
 
     private void tickOffscreenHops(WorldState state) {
-        if (!TravellersModConfig.travellerOffscreenHopEnabled) return;
+        if (!TravellersConfig.OFFSCREEN.travellerOffscreenHopEnabled) return;
 
-        int hiredInterval = TravellersModConfig.travellerOffscreenHopIntervalTicks;
+        int hiredInterval = TravellersConfig.OFFSCREEN.travellerOffscreenHopIntervalTicks;
         if (hiredInterval <= 0) return;
         int nonHiredInterval = hiredInterval * NONHIRED_HOP_INTERVAL_MULT;
 
@@ -349,7 +359,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
             // 7) Perform hop (different strategies for hired vs non-hired)
             boolean ok;
-            int step = TravellersModConfig.travellerOffscreenHopStepBlocks;
+            int step = TravellersConfig.OFFSCREEN.travellerOffscreenHopStepBlocks;
 
             if (md.hiredFollower) {
                 // Hired workers: force transient chunks, always use normal step size.
@@ -755,7 +765,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             return;
         }
 
-        int maxForced = Math.max(1, TravellersModConfig.merchantMaxForcedChunks);
+        int maxForced = Math.max(1, TravellersConfig.ATTRIBUTES.merchantMaxForcedChunks);
         Set<ChunkPos> desired = new HashSet<>();
 
         for (MerchantData md : hired) {
@@ -847,7 +857,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             return;
         }
         System.out.println("[Travellers] Created ticket for dim " + state.world.provider.getDimension());
-        state.ticket.setChunkListDepth(TravellersModConfig.merchantMaxForcedChunks);
+        state.ticket.setChunkListDepth(TravellersConfig.ATTRIBUTES.merchantMaxForcedChunks);
     }
 
     @Nullable
@@ -1189,7 +1199,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
         // Respect ticket depth. Count durable + transient.
         int totalForcedByUs = state.forced.size() + state.hopForced.size();
-        if (totalForcedByUs >= TravellersModConfig.merchantMaxForcedChunks) {
+        if (totalForcedByUs >= TravellersConfig.ATTRIBUTES.merchantMaxForcedChunks) {
             return;
         }
 

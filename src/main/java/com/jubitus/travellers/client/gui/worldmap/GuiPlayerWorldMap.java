@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
@@ -26,7 +27,7 @@ import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public class GuiPlayerWorldMap extends GuiScreen
-        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver {
+        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui {
 
     private GuiButton backButton;
     private GuiButton zoomInButton, zoomOutButton, recenterButton;
@@ -113,6 +114,7 @@ public class GuiPlayerWorldMap extends GuiScreen
 
         super.drawScreen(mouseX, mouseY, partialTicks);
         drawHoverTooltip(mouseX, mouseY);
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawHoverTooltip(int mouseX, int mouseY) {

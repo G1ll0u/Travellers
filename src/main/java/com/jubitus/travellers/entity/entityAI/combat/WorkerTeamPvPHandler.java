@@ -1,14 +1,14 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -83,9 +83,7 @@ public final class WorkerTeamPvPHandler {
                             if (gp != null && gp.getName() != null) name = gp.getName();
                         }
                     }
-                    owner.sendMessage(new TextComponentString(
-                            TextFormatting.RED + name + " set as enemy (retaliation)."
-                    ));
+                    NotificationService.notify(owner, NotificationDefs.WORKER_RETALIATION_TARGET, name);
                 }
             }
 

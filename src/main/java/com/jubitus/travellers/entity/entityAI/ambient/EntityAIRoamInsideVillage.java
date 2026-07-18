@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.ambient;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.ai.EntityAIBase;
@@ -153,7 +154,7 @@ public class EntityAIRoamInsideVillage extends EntityAIBase {
 
         // Need a new local roam target?
         if (roamTarget == null || mob.getDistanceSqToCenter(roamTarget) < 2.0) {
-            int radius = Math.max(6, TravellersModConfig.VILLAGE_RADIUS - 4); // keep sane/positive
+            int radius = Math.max(6, TravellersConfig.DESTINATIONS.villageRadius - 4); // keep sane/positive
             roamTarget = pickLocalSpotInsideVillage(this.village, radius);
             mob.setRoamTarget(roamTarget);
             if (roamTarget != null) {

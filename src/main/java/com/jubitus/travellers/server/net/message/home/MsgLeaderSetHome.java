@@ -2,6 +2,8 @@ package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
@@ -70,8 +72,7 @@ public class MsgLeaderSetHome implements IMessage {
                             com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(player.world);
                     boolean alreadyHere = bsm.isAssignedTo(msg.leaderUUID, msg.pos);
                     if (!alreadyHere && bsm.getFreeSlots(ownerId, msg.pos, dim) <= 0) {
-                        player.sendMessage(new net.minecraft.util.text.TextComponentString(
-                                net.minecraft.util.text.TextFormatting.RED + "This barracks is full!"));
+                        NotificationService.notify(player, NotificationDefs.HOME_BARRACKS_FULL);
                         return;
                     }
                 }

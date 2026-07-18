@@ -1,11 +1,11 @@
 package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -40,12 +40,12 @@ public class MsgWorkerGoHome implements IMessage {
                 EntityTravellerWorker w = (EntityTravellerWorker) e;
 
                 if (!w.isHiredFollower() || w.getFollowOwnerId() == null || !w.getFollowOwnerId().equals(player.getUniqueID())) {
-                    player.sendMessage(new TextComponentString(TextFormatting.RED + "Not your worker."));
+                    NotificationService.notify(player, NotificationDefs.HOME_NOT_YOUR_WORKER);
                     return;
                 }
 
                 if (w.getAssignedHomePos() == null) {
-                    player.sendMessage(new TextComponentString(TextFormatting.RED + "No home assigned."));
+                    NotificationService.notify(player, NotificationDefs.HOME_NONE_ASSIGNED);
                     return;
                 }
 

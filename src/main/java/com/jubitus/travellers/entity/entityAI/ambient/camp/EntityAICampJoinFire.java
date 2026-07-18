@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.ambient.camp;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -53,7 +54,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
         if (mob.getTravelRecoverTicks() > 0) return false;
 
         BlockPos camp = CampfireManager.get(mob.world)
-                .nearestActive(mob.world, mob.getPosition(), TravellersModConfig.SEEK_RADIUS, /*excludeOwner*/ null, /*verifyLit*/ true);
+                .nearestActive(mob.world, mob.getPosition(), TravellersConfig.CAMP.campSeekRadius, /*excludeOwner*/ null, /*verifyLit*/ true);
         if (camp == null) return false;
 
         // Skip if we recently avoided this campcommon
@@ -64,7 +65,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
                         new AxisAlignedBB(camp).grow(8.0),
                         e -> e != null && e.isEntityAlive() && camp.equals(e.getCampfirePos()))
                 .size();
-        if (campersNow >= TravellersModConfig.MAX_JOINERS_PER_CAMP) {
+        if (campersNow >= TravellersConfig.CAMP.campMaxJoinersPerCamp) {
             mob.avoidCamp(camp, 20 * 20); // ~20s; tune as you like
             return false;
         }
@@ -101,13 +102,13 @@ public class EntityAICampJoinFire extends EntityAIBase {
                 .size();
 
         // If we haven't joined yet and it filled up, give up and avoid for a bit
-        if (mob.getCampfirePos() == null && campersNow >= TravellersModConfig.MAX_JOINERS_PER_CAMP) {
+        if (mob.getCampfirePos() == null && campersNow >= TravellersConfig.CAMP.campMaxJoinersPerCamp) {
             mob.avoidCamp(targetCamp, 20 * 15); // ~15s backoff while walking
             return false;
         }
 
         // Respect seek radius even after starting
-        if (mob.getDistanceSqToCenter(targetCamp) > (double) (TravellersModConfig.SEEK_RADIUS * TravellersModConfig.SEEK_RADIUS))
+        if (mob.getDistanceSqToCenter(targetCamp) > (double) (TravellersConfig.CAMP.campSeekRadius * TravellersConfig.CAMP.campSeekRadius))
             return false;
 
         boolean enRoute = mob.getDistanceSqToCenter(targetCamp) > 9.0;
@@ -164,7 +165,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
                             e -> e != null && e.isEntityAlive() && targetCamp.equals(e.getCampfirePos()))
                     .size();
 
-            if (campersNow >= TravellersModConfig.MAX_JOINERS_PER_CAMP) {
+            if (campersNow >= TravellersConfig.CAMP.campMaxJoinersPerCamp) {
                 mob.avoidCamp(targetCamp, 20 * 25); // backoff
                 mob.clearCamp();
                 mob.getNavigator().clearPath();
@@ -194,7 +195,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
             if (mob.travellerCamp.campSwingTimer-- <= 0) {
                 boolean did = approachAndSwingAtFire();
                 mob.travellerCamp.campSwingTimer = did
-                        ? (TravellersModConfig.CAMP_SWING_EVERY + mob.getRNG().nextInt(25))
+                        ? (TravellersConfig.CAMP.campSwingEvery + mob.getRNG().nextInt(25))
                         : (30 + mob.getRNG().nextInt(30));
             }
 
@@ -220,16 +221,16 @@ public class EntityAICampJoinFire extends EntityAIBase {
                 }
 
                 // Make the delay bigger so checks are less frequent in the first place
-                int min = TravellersModConfig.CAMP_WANDER_MIN_DELAY;
-                int max = TravellersModConfig.CAMP_WANDER_MAX_DELAY;
+                int min = TravellersConfig.CAMP.campWanderMinDelay;
+                int max = TravellersConfig.CAMP.campWanderMaxDelay;
                 campWanderCooldown = min + mob.getRNG().nextInt(max - min + 1);
             }
 
             // --- random look behaviour (fire vs other campers) ---
             if (--campLookCooldown <= 0) {
                 doRandomCampLook(targetCamp);
-                campLookCooldown = TravellersModConfig.CAMP_LOOK_MIN_DELAY
-                        + mob.getRNG().nextInt(TravellersModConfig.CAMP_LOOK_MAX_DELAY - TravellersModConfig.CAMP_LOOK_MIN_DELAY + 1);
+                campLookCooldown = TravellersConfig.CAMP.campLookMinDelay
+                        + mob.getRNG().nextInt(TravellersConfig.CAMP.campLookMaxDelay - TravellersConfig.CAMP.campLookMinDelay + 1);
             }
 
         } else {
@@ -301,7 +302,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
         for (int tries = 0; tries < 8; tries++) {
             // ring between radius 2 and CAMP_RADIUS-1 (so we never step on the fire itself)
             double minR = 2.0;
-            double maxR = Math.max(minR + 1.0, TravellersModConfig.CAMP_RADIUS - 1.0);
+            double maxR = Math.max(minR + 1.0, TravellersConfig.CAMP.campRadius - 1.0);
             double r = minR + (mob.getRNG().nextDouble() * (maxR - minR));
             double angle = mob.getRNG().nextDouble() * Math.PI * 2.0;
 
@@ -405,7 +406,7 @@ public class EntityAICampJoinFire extends EntityAIBase {
     private BlockPos pickSafeCampApproachPos(BlockPos camp) {
         for (int tries = 0; tries < 12; tries++) {
             double minR = 2.0;                         // at least 2 blocks away from center
-            double maxR = Math.max(3.0, TravellersModConfig.CAMP_RADIUS - 1.0);
+            double maxR = Math.max(3.0, TravellersConfig.CAMP.campRadius - 1.0);
             double r = minR + mob.getRNG().nextDouble() * (maxR - minR);
             double angle = mob.getRNG().nextDouble() * Math.PI * 2.0;
 

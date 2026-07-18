@@ -1,7 +1,8 @@
 package com.jubitus.travellers.entity.culture;
 
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.client.sound.RaiderVoiceIndex;
 import com.jubitus.travellers.client.sound.VoiceIndex;
@@ -283,14 +284,14 @@ public final class CultureRegistry {
 
         // Merchant keeps its original include-only whitelist behaviour (EntityTravellerMerchant is
         // slated for removal, not worth migrating to the new symmetric filter engine).
-        boolean hasMerchantFileIncludes = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_FILES.isEmpty();
-        boolean hasMerchantTagIncludes = !TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.isEmpty();
+        boolean hasMerchantFileIncludes = !TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_FILES.isEmpty();
+        boolean hasMerchantTagIncludes = !TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.isEmpty();
         boolean merchantFileMatch = hasMerchantFileIncludes &&
-                TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_FILES.contains(villagerBaseName);
+                TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_FILES.contains(villagerBaseName);
         boolean merchantTagMatch = false;
         if (hasMerchantTagIncludes) {
             for (String t : tagsInFile) {
-                if (TravellersModConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.contains(t)) {
+                if (TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.contains(t)) {
                     merchantTagMatch = true;
                     break;
                 }

@@ -1,6 +1,8 @@
 package com.jubitus.travellers.utils.commands;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.jubiconfig.JubiConfig;
+import com.jubitus.travellers.Travellers;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 public class CommandTravellerReload extends net.minecraft.command.CommandBase {
     @Override
@@ -17,7 +19,11 @@ public class CommandTravellerReload extends net.minecraft.command.CommandBase {
     public void execute(net.minecraft.server.MinecraftServer server,
                         net.minecraft.command.ICommandSender sender,
                         String[] args) throws net.minecraft.command.CommandException {
-        TravellersModConfig.reload();
+        JubiConfig.applyOnStartup("travellers");
+        TravellersDerivedConfig.refresh();
+        TravellersDerivedConfig.applyRuntimeEffects();
+        TravellersDerivedConfig.syncServerCostCachesFromConfig();
+        Travellers.broadcastServerCostsToAllPlayers();
         notifyCommandListener(sender, this, "Reloaded TravellersMod config.");
 
     }

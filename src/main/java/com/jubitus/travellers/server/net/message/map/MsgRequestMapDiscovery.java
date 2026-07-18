@@ -1,5 +1,7 @@
 package com.jubitus.travellers.server.net.message.map;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.server.map.MapDiscoverySavedData;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;

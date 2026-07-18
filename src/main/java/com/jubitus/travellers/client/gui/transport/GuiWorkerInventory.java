@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.transport;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
@@ -13,7 +14,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import java.io.IOException;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerInventory extends GuiContainer {
+public class GuiWorkerInventory extends GuiContainer implements ITravellersGui {
 
     // ── Palette de couleurs thématique (Beige / Hub) ──────────────────────────
     private static final int COL_BG       = 0xFF2A2219;
@@ -58,6 +59,7 @@ public class GuiWorkerInventory extends GuiContainer {
         this.drawDefaultBackground();
         super.drawScreen(mouseX, mouseY, partialTicks);
         this.renderHoveredToolTip(mouseX, mouseY);
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

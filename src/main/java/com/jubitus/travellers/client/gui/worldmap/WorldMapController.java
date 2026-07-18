@@ -1,13 +1,16 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
-import com.jubitus.travellers.server.map.WorldMapDiscovery;
+import com.jubitus.travellers.client.map.ClientTileCache;
+import com.jubitus.travellers.server.map.MapTileGenerator;
+import com.jubitus.travellers.server.map.TileKey;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapTiles;
 import com.jubitus.travellers.server.net.message.map.MsgWorkerMapView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 
 public class WorldMapController {
 
@@ -20,7 +23,6 @@ public class WorldMapController {
 
     private long lastViewSendMs;
     private long lastTileRequestMs;
-    private long lastDetailRequestMs;
 
     public WorldMapController(Minecraft mc, int mapX, int mapY, int mapW, int mapH,
                                String textureKey, BlockPos initialCenter) {
@@ -94,7 +96,6 @@ public class WorldMapController {
     public void draw() {
         panel.draw(mapX, mapY);
         requestTiles();
-        requestDetailTiles();
         sendView();
     }
 
@@ -112,41 +113,54 @@ public class WorldMapController {
         return panel.screenToWorld(mouseX, mouseY, mapX, mapY);
     }
 
+    /**
+     * Asks the server for exactly the tiles missing from the client cache at the current
+     * pyramid level, nearest-to-center first — replaces the old "re-request the whole
+     * viewport bbox every poll" behavior that kept resending tiles the client already had.
+     */
     private void requestTiles() {
         long now = System.currentTimeMillis();
         if (now - lastTileRequestMs < 300) return;
         lastTileRequestMs = now;
 
+        int level = panel.currentPyramidLevel();
         float bpp = panel.getZoomBlocksPerPixel();
         BlockPos c = panel.getCenter();
         int halfW = Math.round((mapW / 2) * bpp);
         int halfH = Math.round((mapH / 2) * bpp);
 
-        int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapTiles(
-                floorDiv(c.getX() - halfW, tileBlocks) - 1,
-                floorDiv(c.getX() + halfW, tileBlocks) + 1,
-                floorDiv(c.getZ() - halfH, tileBlocks) - 1,
-                floorDiv(c.getZ() + halfH, tileBlocks) + 1));
+        int tileBlocks = MapTileGenerator.TILE_PX * (1 << level);
+        int minTileX = floorDiv(c.getX() - halfW, tileBlocks) - 1;
+        int maxTileX = floorDiv(c.getX() + halfW, tileBlocks) + 1;
+        int minTileZ = floorDiv(c.getZ() - halfH, tileBlocks) - 1;
+        int maxTileZ = floorDiv(c.getZ() + halfH, tileBlocks) + 1;
+
+        int cTileX = floorDiv(c.getX(), tileBlocks);
+        int cTileZ = floorDiv(c.getZ(), tileBlocks);
+
+        List<long[]> missing = new ArrayList<>();
+        for (int tz = minTileZ; tz <= maxTileZ; tz++) {
+            for (int tx = minTileX; tx <= maxTileX; tx++) {
+                long key = TileKey.pack(tx, tz);
+                if (!ClientTileCache.has(level, key)) {
+                    missing.add(new long[]{key, distSq(tx, tz, cTileX, cTileZ)});
+                }
+            }
+        }
+        if (missing.isEmpty()) return;
+
+        missing.sort((a, b) -> Long.compare(a[1], b[1]));
+
+        int max = 64;
+        long[] keys = new long[Math.min(max, missing.size())];
+        for (int i = 0; i < keys.length; i++) keys[i] = missing.get(i)[0];
+
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapTiles(level, keys));
     }
 
-    private void requestDetailTiles() {
-        if (panel.getZoomBlocksPerPixel() > 4f) return;
-        long now = System.currentTimeMillis();
-        if (now - lastDetailRequestMs < 500) return;
-        lastDetailRequestMs = now;
-
-        float bpp = panel.getZoomBlocksPerPixel();
-        BlockPos c = panel.getCenter();
-        int halfW = Math.round((mapW / 2) * bpp);
-        int halfH = Math.round((mapH / 2) * bpp);
-
-        int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
-        TravellerFollowNet.CHANNEL.sendToServer(new com.jubitus.travellers.server.net.message.map.MsgRequestDetailTiles(
-                floorDiv(c.getX() - halfW, tileBlocks) - 1,
-                floorDiv(c.getX() + halfW, tileBlocks) + 1,
-                floorDiv(c.getZ() - halfH, tileBlocks) - 1,
-                floorDiv(c.getZ() + halfH, tileBlocks) + 1));
+    private static long distSq(int x, int z, int cx, int cz) {
+        long dx = x - cx, dz = z - cz;
+        return dx * dx + dz * dz;
     }
 
     private void sendView() {

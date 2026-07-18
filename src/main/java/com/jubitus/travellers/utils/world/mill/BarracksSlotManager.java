@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.world.mill;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -60,7 +61,7 @@ public class BarracksSlotManager extends WorldSavedData {
     public int getFreeSlots(UUID owner, BlockPos pos, int dim) {
         String key = key(dim, pos);
         BarracksRecord rec = barracks.get(key);
-        int max = Math.max(1, TravellersModConfig.barracksSlotsPerBuilding);
+        int max = Math.max(1, TravellersConfig.CONTROLLED_VILLAGE.barracksSlotsPerBuilding);
         if (rec == null || !owner.equals(rec.owner)) return max;
         return Math.max(0, max - rec.assignedWorkers.size());
     }
@@ -97,7 +98,7 @@ public class BarracksSlotManager extends WorldSavedData {
         if (rec.assignedWorkers.contains(workerUUID)) return true;
 
         // Check slot capacity
-        int max = Math.max(1, TravellersModConfig.barracksSlotsPerBuilding);
+        int max = Math.max(1, TravellersConfig.CONTROLLED_VILLAGE.barracksSlotsPerBuilding);
         if (rec.assignedWorkers.size() >= max) return false;
 
         // Remove from previous barracks if any
@@ -165,7 +166,7 @@ public class BarracksSlotManager extends WorldSavedData {
      * Called once per morning from TravellerChunkManager.
      */
     public void processRespawns(WorldServer world) {
-        if (!TravellersModConfig.workerRespawnInBarracks) return;
+        if (!TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) return;
 
         int dim = world.provider.getDimension();
         List<UUID> toProcess = new ArrayList<>();

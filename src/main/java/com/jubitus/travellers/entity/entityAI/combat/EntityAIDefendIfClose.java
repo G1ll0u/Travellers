@@ -1,6 +1,8 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -73,8 +75,8 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
     private static TravellerBlacklist defaultAggroList(EntityTraveller mob) {
         return (mob instanceof EntityTravellerRaider)
-                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
     }
 
     // Optional convenience: (mob, range, requireLOS, tickRate)
@@ -250,12 +252,12 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     private double currentTriggerRangeSq() {
         // Low health: emergency-only range, entity focuses on healing
         if (mob.isLowHealth()) {
-            double r = TravellersModConfig.lowHealthEngageRadius;
+            double r = TravellersConfig.COMBAT.lowHealthEngageRadius;
             return r * r;
         }
 
         if (mob.isCampingPassive()) {
-            double r = TravellersModConfig.anchorModeEngageRadius;
+            double r = TravellersConfig.COMBAT.anchorModeEngageRadius;
             return r * r;
         }
 
@@ -263,7 +265,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         if (mob instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) mob;
             if (w.isHiredFollower() && !w.isFollowOrderActive()) {
-                double r = TravellersModConfig.anchorModeEngageRadius;
+                double r = TravellersConfig.COMBAT.anchorModeEngageRadius;
                 return r * r;
             }
             // Followers of an idle/anchored leader inherit the same reduced range
@@ -273,7 +275,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 if (leaderEntity instanceof EntityTravellerWorker) {
                     EntityTravellerWorker leader = (EntityTravellerWorker) leaderEntity;
                     if (!leader.isFollowOrderActive()) {
-                        double r = TravellersModConfig.anchorModeEngageRadius;
+                        double r = TravellersConfig.COMBAT.anchorModeEngageRadius;
                         return r * r;
                     }
                 }
@@ -294,8 +296,8 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
     private TravellerBlacklist currentBlacklist() {
         return (mob instanceof EntityTravellerRaider)
-                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
     }
 
     // --- helpers ---

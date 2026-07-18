@@ -16,4 +16,8 @@ public final class GuiWorldMapPanelHooks {
     public static void markDirty() {
         if (lastPanel != null) lastPanel.forceDirty();
     }
+
+    public static void markDirty(int level, int tileX, int tileZ) {
+        if (lastPanel != null) lastPanel.markDirtyIfVisible(level, tileX, tileZ);
+    }
 }

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.EntityLivingBase;
@@ -53,7 +54,7 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
         if (target == null || !target.isEntityAlive()) return false;
         if (target == worker.getFollowOwner()) return false;
 
-        TravellerBlacklist blacklist = TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+        TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
         if (blacklist != null && blacklist.isBlacklisted(target)) return false;
 
         // Assist owner if:

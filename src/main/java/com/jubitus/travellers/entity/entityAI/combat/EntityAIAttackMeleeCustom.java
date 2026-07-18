@@ -1,6 +1,5 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.Entity;
@@ -44,7 +43,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         this.setMutexBits(1 | 2);
         this.extraReach = Math.max(0.0, extraReach);
 
-        double min = Math.max(0.0, TravellersModConfig.rangedMinDist);
+        double min = Math.max(0.0, TravellersConfig.COMBAT.rangedMinDist);
         double commit = Math.max(0.0, min - 0.75);
         double hold = Math.max(0.0, min - 0.25);
         this.meleeCommitSq = commit * commit;
@@ -282,8 +281,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
     private boolean shouldForgivePlayerChaseForAI(EntityCreature attacker, EntityPlayer p) {
         EntityTraveller t = (EntityTraveller) attacker;
-        boolean playerCalm = t.lastPlayerAggroAgeTicks(p) > TravellersModConfig.playerCalmForgiveTicks;
-        boolean fleeingLongEnough = (t.ticksExisted - t.combat.lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
+        boolean playerCalm = t.lastPlayerAggroAgeTicks(p) > TravellersConfig.PLAYER_AGGRO.playerCalmForgiveTicks;
+        boolean fleeingLongEnough = (t.ticksExisted - t.combat.lastLOSorCloseTick) > TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
         return playerCalm && fleeingLongEnough;
     }
 

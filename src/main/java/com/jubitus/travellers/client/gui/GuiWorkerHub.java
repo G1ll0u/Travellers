@@ -1,6 +1,7 @@
 package com.jubitus.travellers.client.gui;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.client.gui.mark.GuiColorSwatchButton;
 import com.jubitus.travellers.client.gui.mark.GuiWorkerMarkEditor;
 import com.jubitus.travellers.client.gui.worldmap.GuiPlayerWorldMap;
@@ -24,7 +25,7 @@ import java.util.UUID;
 
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerHub extends GuiScreen {
+public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
 
     private static final ResourceLocation TEX =
             new ResourceLocation("travellers", "textures/gui/worker_hub.png");
@@ -187,7 +188,7 @@ public class GuiWorkerHub extends GuiScreen {
         boolean hireEnabled = true;
 
         if (!hired) {
-            int cost = TravellersModConfig.workerHireCostDeniers_serverCache;
+            int cost = TravellersDerivedConfig.workerHireCostDeniersServerCache;
             String costStr = cost >= 0 ? MillCommonUtilities.getShortPrice(cost) : "?";
             hireLabel = I18n.format("travellers.worker.orders.hire", costStr);
         } else if (hiredByMe) {
@@ -326,6 +327,7 @@ public class GuiWorkerHub extends GuiScreen {
                     mouseY
             );
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

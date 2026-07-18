@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.mobs;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
@@ -59,15 +60,15 @@ public class TravellerIgnoreHooks {
 
         boolean raider = target instanceof EntityTravellerRaider;
         TravellerBlacklist list = raider
-                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
         return list.isBlacklisted(mob);
     }
 
     // Helper: is this mob type blacklisted to ignore Travellers?
     private static boolean isBlacklistMob(EntityLivingBase mob) {
         return mob instanceof net.minecraft.entity.monster.IMob
-                && TravellersModConfig.TRAVELLER_BLACKLIST.isBlacklisted(mob);
+                && TravellersDerivedConfig.TRAVELLER_BLACKLIST.isBlacklisted(mob);
     }
 
     /**

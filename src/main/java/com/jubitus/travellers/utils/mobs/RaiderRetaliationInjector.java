@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.mobs;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
@@ -32,7 +33,7 @@ public final class RaiderRetaliationInjector {
         if (living instanceof EntityTravellerRaider) return;
 
         // Only touch entities that are in your RAIDER_ATTACK_LIST (id, namespace, or class match)
-        if (!TravellersModConfig.RAIDER_ATTACK_LIST.isListed(living)) return;
+        if (!TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(living)) return;
 
         // Avoid double-injecting on chunk reloads
         NBTTagCompound tag = living.getEntityData();

@@ -1,6 +1,8 @@
 package com.jubitus.travellers.entity.travellers.others;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.entityAI.follow.AIDogCompanionFollow;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
@@ -62,8 +64,8 @@ public class EntityTravellerDog extends EntityWolf {
         if (owner instanceof EntityTravellerRaider) {
             // Raiders: also attack anything in the raiders list (your config)
             if (!(target instanceof EntityTraveller)) {
-                return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(target)
-                        && !TravellersModConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(target);
+                return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(target)
+                        && !TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(target);
             }
         }
         // For non-travellers targets just mirror the owner’s chosen target
@@ -332,7 +334,7 @@ public class EntityTravellerDog extends EntityWolf {
      * but never if owned by a player.
      */
     private void checkAndMaybeDespawnAtChunkEdgeDog() {
-        if (!TravellersModConfig.despawnNearUnloadedChunks) return;
+        if (!TravellersConfig.DESPAWN.despawnNearUnloadedChunks) return;
         if (this.world.isRemote) return;
         if (!(this.world instanceof WorldServer)) return;
 
@@ -350,7 +352,7 @@ public class EntityTravellerDog extends EntityWolf {
         final WorldServer ws = (WorldServer) this.world;
 
         final BlockPos p = this.getPosition();
-        final int r = Math.max(0, TravellersModConfig.despawnProbeRadiusChunks);
+        final int r = Math.max(0, TravellersConfig.DESPAWN.despawnProbeRadiusChunks);
         final int cx0 = (p.getX() >> 4) - r;
         final int cx1 = (p.getX() >> 4) + r;
         final int cz0 = (p.getZ() >> 4) - r;
@@ -372,7 +374,7 @@ public class EntityTravellerDog extends EntityWolf {
             nearUnloadTicks = 0;
         }
 
-        if (nearUnloadTicks >= TravellersModConfig.despawnEdgeGraceTicks) {
+        if (nearUnloadTicks >= TravellersConfig.DESPAWN.despawnEdgeGraceTicks) {
             // Clean fade, but only if not owned by a player.
             if (!isPlayerOwned()) {
                 this.setDead();
@@ -387,7 +389,7 @@ public class EntityTravellerDog extends EntityWolf {
      * but never if owned by a player.
      */
     private void checkAndMaybeDespawnFarFromPlayersDog() {
-        if (!TravellersModConfig.despawnWhenFarFromPlayers) return;
+        if (!TravellersConfig.DESPAWN.despawnWhenFarFromPlayers) return;
         if (this.world.isRemote) return;
         if (!(this.world instanceof WorldServer)) return;
 
@@ -406,11 +408,11 @@ public class EntityTravellerDog extends EntityWolf {
         try {
             viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance();
         } catch (Throwable t) {
-            viewChunks = TravellersModConfig.serverViewDistanceFallbackChunks;
+            viewChunks = TravellersConfig.DESPAWN.serverViewDistanceFallbackChunks;
         }
 
-        int bubbleChunks = Math.max(0, viewChunks + TravellersModConfig.farExtraChunks);
-        int bubbleBlocks = Math.max(TravellersModConfig.farMinDistanceBlocks, bubbleChunks * 16);
+        int bubbleChunks = Math.max(0, viewChunks + TravellersConfig.DESPAWN.farExtraChunks);
+        int bubbleBlocks = Math.max(TravellersConfig.DESPAWN.farMinDistanceBlocks, bubbleChunks * 16);
 
         boolean anyNear = ws.getClosestPlayer(this.posX, this.posY, this.posZ, bubbleBlocks, false) != null;
 
@@ -420,7 +422,7 @@ public class EntityTravellerDog extends EntityWolf {
             farFromPlayersTicks = 0;
         }
 
-        if (farFromPlayersTicks >= TravellersModConfig.farGraceTicks) {
+        if (farFromPlayersTicks >= TravellersConfig.DESPAWN.farGraceTicks) {
             if (!isPlayerOwned()) {
                 this.setDead(); // clean fade (no loot)
             } else {

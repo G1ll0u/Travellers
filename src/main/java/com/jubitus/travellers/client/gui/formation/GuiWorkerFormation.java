@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.formation;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.Locale;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerFormation extends GuiScreen {
+public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
 
     private final EntityPlayer player;
     private final EntityTravellerWorker worker;
@@ -329,6 +330,7 @@ public class GuiWorkerFormation extends GuiScreen {
         if (!hover.isEmpty()) {
             drawHoveringText(hover, mouseX, mouseY);
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     // ── State helpers ─────────────────────────────────────────────────────────

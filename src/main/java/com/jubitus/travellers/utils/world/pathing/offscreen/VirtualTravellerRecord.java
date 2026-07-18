@@ -61,12 +61,11 @@ public class VirtualTravellerRecord {
     // Used at materialization to decide whether Y needs surface-clamping.
     public boolean hasTraveledFar;
 
-    // Formation slot offset from the escort leader, captured at virtualization.
-    // Used by MaterializePositionResolver to restore the worker to its exact slot
-    // instead of placing it in a generic ring around the leader.
-    public boolean hasEscortSlotOffset = false;
-    public double escortSlotDx;
-    public double escortSlotDz;
+    // Stable formation slot index within the escort leader's group, assigned once by
+    // VirtualFormationSimulator (mirrors FollowFormationCoordinator's persistentOrdinals for the
+    // loaded path) and kept for the worker's lifetime. -1 = unassigned (new worker, or a record
+    // loaded from a save written before this field existed).
+    public int formationOrdinal = -1;
 
     // Entity class discriminator — determines which entity class to reconstruct at materialization.
     // "WORKER" (default), "TRAVELLER", or "RAIDER"
@@ -202,11 +201,7 @@ public class VirtualTravellerRecord {
         tag.setBoolean("TraveledFar", hasTraveledFar);
         tag.setString("Name", name != null ? name : "");
         tag.setInteger("OwnerColor", ownerColor);
-        if (hasEscortSlotOffset) {
-            tag.setBoolean("HasSlotOff", true);
-            tag.setDouble("SlotDX", escortSlotDx);
-            tag.setDouble("SlotDZ", escortSlotDz);
-        }
+        if (formationOrdinal >= 0) tag.setInteger("FormOrd", formationOrdinal);
         tag.setString("EC", entityClass);
         tag.setInteger("RI", routeIndex);
         if (health >= 0f) tag.setFloat("HP", health);
@@ -265,11 +260,7 @@ public class VirtualTravellerRecord {
         r.hasTraveledFar = tag.getBoolean("TraveledFar");
         r.name = tag.hasKey("Name") ? tag.getString("Name") : "";
         r.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;
-        r.hasEscortSlotOffset = tag.getBoolean("HasSlotOff");
-        if (r.hasEscortSlotOffset) {
-            r.escortSlotDx = tag.getDouble("SlotDX");
-            r.escortSlotDz = tag.getDouble("SlotDZ");
-        }
+        r.formationOrdinal = tag.hasKey("FormOrd") ? tag.getInteger("FormOrd") : -1;
         r.entityClass = tag.hasKey("EC") ? tag.getString("EC") : "WORKER";
         r.routeIndex = tag.hasKey("RI") ? tag.getInteger("RI") : -1;
         r.health = tag.hasKey("HP") ? tag.getFloat("HP") : -1f;

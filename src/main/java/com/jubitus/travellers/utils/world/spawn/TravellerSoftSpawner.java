@@ -1,7 +1,6 @@
 package com.jubitus.travellers.utils.world.spawn;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
@@ -72,7 +71,7 @@ public final class TravellerSoftSpawner {
         if (ws == null) return;
 
         // Merchants maintenance
-        if ((++merchantTickCounter % Math.max(1, TravellersModConfig.merchantRecheckEveryTicks)) == 0) {
+        if ((++merchantTickCounter % Math.max(1, TravellersConfig.SPAWN_WORKERS.merchantRecheckEveryTicks)) == 0) {
             ensureMerchantsForVillages(ws);
         }
 
@@ -112,7 +111,7 @@ public final class TravellerSoftSpawner {
         final int workerCap = TravellersConfig.SPAWN_WORKERS.workerLoadedCap;
         // Anti-duplication guard for villages whose Town Hall got registered more than once at nearby positions.
         java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>(loadedWorkersByVillage.keySet());
-        final int workerMinDist = Math.max(0, TravellersModConfig.workerVillageMinDistance);
+        final int workerMinDist = Math.max(0, TravellersConfig.WORKER.workerVillageMinDistance);
 
         if (totalVirtual + totalLoaded >= globalCap && (workerCap <= 0 || totalWorkers >= workerCap)) return;
 
@@ -135,13 +134,13 @@ public final class TravellerSoftSpawner {
 
             if (totalVirtual + totalLoaded < globalCap) {
                 // Use per-villager formula; min cap ensures population recovers even when chunks are unloaded (pop=0)
-                int targetTravellers = (int) Math.floor(pop * TravellersModConfig.travellerCapPerVillager);
-                targetTravellers = Math.max(targetTravellers, TravellersModConfig.travellerCapMinPerVillage);
-                targetTravellers = Math.min(targetTravellers, TravellersModConfig.travellerCapMaxPerVillage);
+                int targetTravellers = (int) Math.floor(pop * TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerVillager);
+                targetTravellers = Math.max(targetTravellers, TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage);
+                targetTravellers = Math.min(targetTravellers, TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage);
 
-                int targetRaiders = (int) Math.floor(pop * TravellersModConfig.raiderCapPerVillager);
-                targetRaiders = Math.max(targetRaiders, TravellersModConfig.raiderCapMinPerVillage);
-                targetRaiders = Math.min(targetRaiders, TravellersModConfig.raiderCapMaxPerVillage);
+                int targetRaiders = (int) Math.floor(pop * TravellersConfig.SPAWN_RAIDERS.raiderCapPerVillager);
+                targetRaiders = Math.max(targetRaiders, TravellersConfig.SPAWN_RAIDERS.raiderCapMinPerVillage);
+                targetRaiders = Math.min(targetRaiders, TravellersConfig.SPAWN_RAIDERS.raiderCapMaxPerVillage);
 
                 int virtualTravellers = mgr.countByHomeVillage(villageCenter, "TRAVELLER");
                 int loadedTravellers = countTravellersNearVillage(ws, villageCenter, 256, false);
@@ -192,8 +191,8 @@ public final class TravellerSoftSpawner {
         if (spawnsThisCycle < maxSpawnsPerCycle) {
             List<net.minecraft.util.Tuple<BlockPos, String>> loneBuildings =
                     MillVillageIndex.getAllLoneBuildingCentersWithCulture(ws);
-            int travellerPerLone = TravellersModConfig.travellerCapPerLoneBuilding;
-            int raiderPerLone = TravellersModConfig.raiderCapPerLoneBuilding;
+            int travellerPerLone = TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerLoneBuilding;
+            int raiderPerLone = TravellersConfig.SPAWN_RAIDERS.raiderCapPerLoneBuilding;
             int workerPerLone = TravellersConfig.SPAWN_WORKERS.workerCapPerLoneBuilding;
 
             for (net.minecraft.util.Tuple<BlockPos, String> lone : loneBuildings) {
@@ -303,7 +302,7 @@ public final class TravellerSoftSpawner {
 
         // Raiders must not spawn inside village perimeters
         if ("RAIDER".equals(entityClass)
-                && MillVillageIndex.isNearVillage(ws, spawnPos, TravellersModConfig.raiderMinVillageDistance)) {
+                && MillVillageIndex.isNearVillage(ws, spawnPos, TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance)) {
             return;
         }
 
@@ -485,10 +484,10 @@ public final class TravellerSoftSpawner {
      */
     private static boolean isMobFarmLikeArea(WorldServer w, BlockPos pos) {
         // Tunable knobs – consider putting in config if you want it tweakable
-        final int radius = TravellersModConfig.mobFarmCheckRadius;
-        final int minEntities = TravellersModConfig.mobFarmEntityThreshold;   // how many mobs before we call it crowded
-        final int fenceRadius = TravellersModConfig.mobFarmFenceRadius;
-        final int minFenceBlocks = TravellersModConfig.mobFarmFenceThreshold;
+        final int radius = TravellersConfig.MOB_FARM.mobFarmCheckRadius;
+        final int minEntities = TravellersConfig.MOB_FARM.mobFarmEntityThreshold;   // how many mobs before we call it crowded
+        final int fenceRadius = TravellersConfig.MOB_FARM.mobFarmFenceRadius;
+        final int minFenceBlocks = TravellersConfig.MOB_FARM.mobFarmFenceThreshold;
 
         if (!isCrowdedArea(w, pos, radius, minEntities)) return false;
         return hasFencePerimeter(w, pos, fenceRadius, minFenceBlocks);
@@ -567,10 +566,10 @@ public final class TravellerSoftSpawner {
         }
 
         int globalLoadedMerchants = merchants.size();
-        final int globalCap = TravellersModConfig.merchantLoadedCap;
+        final int globalCap = TravellersConfig.SPAWN_WORKERS.merchantLoadedCap;
         if (globalCap > 0 && globalLoadedMerchants >= globalCap) return;
 
-        int minDist = TravellersModConfig.merchantVillageMinDistance;
+        int minDist = TravellersConfig.WORKER.merchantVillageMinDistance;
         if (minDist < 0) minDist = 0;
 
         // Anchors start with villages that CURRENTLY have loaded merchants
@@ -578,7 +577,7 @@ public final class TravellerSoftSpawner {
 
         // --- NEW: only process a small batch per pass ---
         final int total = centers.size();
-        final int n = Math.min(TravellersModConfig.MERCHANT_VILLAGES_PER_PASS, total);
+        final int n = Math.min(TravellersConfig.MERCHANT.merchantVillagesPerPass, total);
 
         for (int it = 0; it < n; it++) {
             if (globalCap > 0 && globalLoadedMerchants >= globalCap) return;
@@ -764,7 +763,7 @@ public final class TravellerSoftSpawner {
 
     @Nullable
     private static IEntityLivingData createCultureSpawnDataForPos(WorldServer ws, BlockPos pos, Random rand) {
-        if (!TravellersModConfig.travellerCultureWeightedSpawn) return null;
+        if (!TravellersConfig.SPAWN.travellerCultureWeightedSpawn) return null;
 
         String cultureId = MillVillageIndex.pickCultureForTravellerSpawn(ws, pos, rand);
         if (cultureId == null || cultureId.isEmpty()) return null;

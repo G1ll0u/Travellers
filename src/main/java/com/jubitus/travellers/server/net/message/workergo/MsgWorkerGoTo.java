@@ -1,6 +1,8 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
@@ -8,8 +10,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -55,9 +55,7 @@ public class MsgWorkerGoTo implements IMessage {
 
                 // Optional: block if job active
                 if (w.isJobActive()) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "Worker is busy (job active)."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.GOTO_WORKER_BUSY);
                     return;
                 }
 
@@ -90,9 +88,7 @@ public class MsgWorkerGoTo implements IMessage {
                 // Start travel order
                 w.startGoToDestination(target, w.dimension);
 
-                player.sendMessage(new TextComponentString(
-                        TextFormatting.GREEN + "Worker is going to: " + list.get(msg.index).label
-                ));
+                NotificationService.notify(player, NotificationDefs.GOTO_GOING_TO, list.get(msg.index).label);
 
             });
 

@@ -16,10 +16,10 @@ public class TravellersConfig {
     public static final Speed SPEED = new Speed();
     public static final Combat COMBAT = new Combat();
     public static final PlayerAggro PLAYER_AGGRO = new PlayerAggro();
-    public static final Follow FOLLOW = new Follow();
     public static final WorkerFormation WORKER_FORMATION = new WorkerFormation();
     public static final Destinations DESTINATIONS = new Destinations();
     public static final Offscreen OFFSCREEN = new Offscreen();
+    public static final Materialization MATERIALIZATION = new Materialization();
     public static final Travel TRAVEL = new Travel();
     public static final Sound SOUND = new Sound();
     public static final Choir CHOIR = new Choir();
@@ -35,6 +35,7 @@ public class TravellersConfig {
     public static final Filters FILTERS = new Filters();
     public static final AggroBlacklist AGGRO_BLACKLIST = new AggroBlacklist();
     public static final AttackRules ATTACK_RULES = new AttackRules();
+    public static final Notifications NOTIFICATIONS = new Notifications();
 
     public static class General {
         @Config.Comment("Enable traveller entity (disable = no travellers spawn at all).")
@@ -54,49 +55,59 @@ public class TravellersConfig {
 
         @Config.Comment("Allow travellers to open doors.")
         public boolean enableTravellerOpenDoors = true;
+
+        @Config.Comment("Enable debug logging for follower teleport rescues.")
+        public boolean debugFollowTeleport = false;
     }
 
     public static class Rendering {
         @Config.Comment("Show name tags above travellers heads.")
         public boolean showTravellerNames = false;
 
-        @Config.Comment("How often (in ticks) the normal map tiles (64x64) are generated. Lower = faster generation, higher CPU cost. Chunk-load pregen already keeps most tiles pre-filled, so this mostly does cheap no-op scans. Default: 10 (0.5s).")
-        @Config.RangeInt(min = 1, max = 200)
-        public int mapTileGenIntervalTicks = 10;
-
-        @Config.Comment("How often (in ticks) the normal map tiles are refreshed to reflect terrain changes. Default: 10 (0.5s).")
-        @Config.RangeInt(min = 1, max = 200)
-        public int mapTileRefreshIntervalTicks = 10;
-
-        @Config.Comment("Pixels re-sampled per normal tile per refresh run. Higher = faster terrain updates, higher CPU cost. Default: 512.")
-        @Config.RangeInt(min = 16, max = 4096)
-        public int mapTileRefreshPixelsPerRun = 512;
-
-        @Config.Comment("How often (in ticks) detail map tiles (256x256, 1px=1block) are generated. Lower = faster, higher CPU cost. Chunk-load pregen already keeps most tiles pre-filled, so this mostly does cheap no-op scans. Default: 20 (1s).")
-        @Config.RangeInt(min = 1, max = 400)
-        public int mapDetailGenIntervalTicks = 20;
-
-        @Config.Comment("Max pixels filled per detail tile generation run. Higher = faster fill, higher CPU spike. Default: 4096.")
-        @Config.RangeInt(min = 64, max = 65536)
-        public int mapDetailGenPixelsPerRun = 4096;
-
-        @Config.Comment("How often (in ticks) detail tiles are refreshed to reflect terrain changes. Default: 20 (1s).")
-        @Config.RangeInt(min = 1, max = 400)
-        public int mapDetailRefreshIntervalTicks = 20;
-
-        @Config.Comment("Pixels re-sampled per detail tile per refresh run. Higher = faster terrain updates, higher CPU cost. Default: 2048.")
-        @Config.RangeInt(min = 16, max = 65536)
-        public int mapDetailRefreshPixelsPerRun = 2048;
-
-        @Config.Comment("Opportunistically fill the shared map tile cache whenever a chunk loads (player exploring, worker travel, or a world pregeneration tool). Never affects per-player fog of war.")
+        @Config.Comment("Opportunistically fill the worldmap whenever a chunk loads (player exploring, worker travel, or a world pregeneration tool). Never affects per-player fog of war.")
         public boolean mapPregenOnChunkLoadEnabled = true;
+
+        @Config.Comment("Max milliseconds per server tick spent processing chunk loads for the worldmap. Time-based (not a chunk count) so it automatically keeps up with a bulk world pregeneration tool loading many chunks at once, while staying safe for normal play. Default: 2ms.")
+        @Config.RangeInt(min = 1, max = 50)
+        public int mapChunkLoadBudgetMsPerTick = 2;
+
+        @Config.Comment("Max worldmap overview tiles rebuilt per server tick when zooming out. These are cheap (no world access, just combining already-generated data) so a low number is rarely needed. Default: 8.")
+        @Config.RangeInt(min = 1, max = 256)
+        public int mapPyramidBudgetTilesPerTick = 8;
+
+        @Config.Comment("How many currently-loaded chunks the worldmap re-checks per server tick, so terrain edits and growing villages eventually repaint. Only looks at chunks already loaded for other reasons - never keeps extra chunks loaded. Default: 4.")
+        @Config.RangeInt(min = 1, max = 64)
+        public int mapSweepChunksPerTick = 4;
+
+        @Config.Comment("How often (in ticks) the worldmap rebuilds its list of currently-loaded chunks to re-check. Default: 100 (5s).")
+        @Config.RangeInt(min = 20, max = 2000)
+        public int mapSweepRebuildIntervalTicks = 100;
+
+        @Config.Comment("How far (in blocks) a worldmap tile update is pushed to nearby players so their map redraws it. Default: 512.")
+        @Config.RangeInt(min = 64, max = 4096)
+        public int mapInvalidateNotifyRadiusBlocks = 512;
+
+        @Config.Comment("Minimum time (in milliseconds) between two worldmap tile pushes to players for the same tile, at the most detailed zoom level. Zoomed-out tiles cover a much bigger area and are pushed even less often (this value is multiplied by how zoomed out that level is). Raise this if the map still flickers; lower it for faster updates at the cost of more network traffic. Default: 1000.")
+        @Config.RangeInt(min = 100, max = 60000)
+        public int mapPushMinIntervalMs = 1000;
+
+        @Config.Comment("How many chunks per tick the '/travellersdebug map resweep' admin command processes. Higher = faster bulk correction, more server load while it runs. Default: 8.")
+        @Config.RangeInt(min = 1, max = 64)
+        public int mapResweepChunksPerTick = 8;
+
+        @Config.Comment("Log detailed worldmap generation/refresh/network activity to the console. For diagnosing worldmap bugs only - very spammy, leave off otherwise.")
+        public boolean debugMap = false;
+
+        @Config.Comment("How often (in ticks) '/travellersdebug map resweep' reports its progress to the player who ran it. Default: 200 (10s).")
+        @Config.RangeInt(min = 20, max = 2000)
+        public int mapResweepProgressIntervalTicks = 200;
 
         @Config.Comment("Reveal the entire generated worldmap to every player, bypassing per-player fog of war. Only affects visibility of tiles already present in the shared tile cache; does not force generation of unexplored areas. Turning it back off restores each player's own fog of war exactly as it was. Applies the next time a player (re)opens the map.")
         public boolean showFullMap = false;
 
-        @Config.Comment("Max chunks processed per server tick by the chunk-load map pregen. Caps CPU cost if many chunks load at once (e.g. a bulk world pregeneration tool).")
-        @Config.RangeInt(min = 1, max = 2048)
-        public int mapPregenMaxChunksPerTick = 64;
+        @Config.Comment("Max worldmap tiles kept in memory per zoom level on the client. Higher = smoother panning/zooming with less re-fetching, more client RAM used. Default: 128.")
+        @Config.RangeInt(min = 16, max = 2048)
+        public int mapClientTileCacheSizePerLevel = 128;
     }
 
     public static class EntityRenderLod {
@@ -180,6 +191,10 @@ public class TravellersConfig {
 
         @Config.Comment("If true, cultures with larger populations get more spawn weight.")
         public boolean travellerCultureWeightUseVillagePopulation = true;
+
+        @Config.Comment("Radius (blocks) within which a position must have a village to be considered a valid traveller/raider spawn point.")
+        @Config.RangeInt(min = 16, max = 4000)
+        public int villageSpawnRadius = 128;
     }
 
     public static class SpawnTravellers {
@@ -234,6 +249,18 @@ public class TravellersConfig {
         @Config.Comment("Maximum group size for traveller groups.")
         @Config.RangeInt(min = 2, max = 12)
         public int groupMaxSize = 4;
+
+        @Config.Comment("Vanilla biome EntityRegistry.addSpawn weight for travellers (0 = disabled; travellers normally only spawn via the virtual population controller).")
+        @Config.RangeInt(min = 0, max = 100)
+        public int vanillaSpawnWeight = 0;
+
+        @Config.Comment("Minimum group size for the vanilla biome spawn entry (only used if vanillaSpawnWeight > 0).")
+        @Config.RangeInt(min = 1, max = 32)
+        public int vanillaSpawnMinGroupSize = 2;
+
+        @Config.Comment("Maximum group size for the vanilla biome spawn entry (only used if vanillaSpawnWeight > 0).")
+        @Config.RangeInt(min = 1, max = 32)
+        public int vanillaSpawnMaxGroupSize = 12;
     }
 
     public static class SpawnRaiders {
@@ -287,6 +314,18 @@ public class TravellersConfig {
         @Config.Comment("Maximum group size for raider groups.")
         @Config.RangeInt(min = 2, max = 12)
         public int groupMaxSize = 5;
+
+        @Config.Comment("Vanilla biome EntityRegistry.addSpawn weight for raiders (0 = disabled; raiders normally only spawn via the virtual population controller).")
+        @Config.RangeInt(min = 0, max = 100)
+        public int vanillaSpawnWeight = 0;
+
+        @Config.Comment("Minimum group size for the vanilla biome spawn entry (only used if vanillaSpawnWeight > 0).")
+        @Config.RangeInt(min = 1, max = 32)
+        public int vanillaSpawnMinGroupSize = 2;
+
+        @Config.Comment("Maximum group size for the vanilla biome spawn entry (only used if vanillaSpawnWeight > 0).")
+        @Config.RangeInt(min = 1, max = 32)
+        public int vanillaSpawnMaxGroupSize = 8;
     }
 
     public static class SpawnWorkers {
@@ -408,10 +447,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 2048)
         public int merchantMaxForcedChunks = 256;
 
-        @Config.Comment("Only the first N merchants get chunk-loading rights.")
-        @Config.RangeInt(min = 0, max = 4096)
-        public int merchantMaxChunkloadingMerchants = 1024;
-
         @Config.Comment("Enable merchant chunk-loading.")
         public boolean merchantChunkloadingEnabled = true;
 
@@ -438,6 +473,10 @@ public class TravellersConfig {
         @Config.Comment("Global cap on total assigned worker orders across the world.")
         @Config.RangeInt(min = 1, max = 65536)
         public int workerGlobalAssignedCap = 4096;
+
+        @Config.Comment("Ticks between checks for a nearby dog to recruit as a companion.")
+        @Config.RangeInt(min = 1, max = 6000)
+        public int dogScanCooldownTicks = 5 * 20;
     }
 
     public static class Speed {
@@ -562,6 +601,26 @@ public class TravellersConfig {
         @Config.Comment("Multiplier on the final attack cooldown (1.0 = as-is, 2.0 = twice slower).")
         @Config.RangeDouble(min = 0.1, max = 10.0)
         public float attackCooldownMultiplier = 2.25f;
+
+        @Config.Comment("Threat score lost per decay tick (see threatDecayIntervalTicks).")
+        @Config.RangeInt(min = 0, max = 100)
+        public int threatDecayPerSec = 2;
+
+        @Config.Comment("Ticks between threat decay ticks (20 = once per second).")
+        @Config.RangeInt(min = 1, max = 200)
+        public int threatDecayIntervalTicks = 20;
+
+        @Config.Comment("Ticks before an unseen threat is forgotten entirely.")
+        @Config.RangeInt(min = 20, max = 12000)
+        public int threatTtlTicks = 20 * 30;
+
+        @Config.Comment("Threat score added when a traveller observes a hostile hurting an ally or player.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int threatForSeeAttack = 5;
+
+        @Config.Comment("Speed multiplier applied while swimming (3.0 = +200%).")
+        @Config.RangeDouble(min = 1.0, max = 10.0)
+        public double swimSpeedMultiplier = 3.0;
     }
 
     public static class PlayerAggro {
@@ -580,36 +639,17 @@ public class TravellersConfig {
         @Config.Comment("If player is closer than this, raiders never forgive even without hits.")
         @Config.RangeDouble(min = 1.0, max = 128.0)
         public float playerFleeKeepDistance = 24.0f;
+
+        @Config.Comment("Number of hits from a player a traveller tolerates before retaliating for real.")
+        @Config.RangeInt(min = 0, max = 20)
+        public int playerFreeHits = 3;
+
+        @Config.Comment("Ticks each free-hit grace window lasts before resetting.")
+        @Config.RangeInt(min = 1, max = 1200)
+        public int playerForgiveWindowTicks = 6 * 20;
     }
 
-    public static class Follow {
-        @Config.Comment("Detection radius (blocks) to decide to follow another traveller.")
-        @Config.RangeDouble(min = 1.0, max = 64.0)
-        public float followDefaultRange = 6.0f;
-
-        @Config.Comment("Minimum follow duration in seconds.")
-        @Config.RangeInt(min = 20, max = 20000)
-        public int followDurationMin = 60;
-
-        @Config.Comment("Maximum follow duration in seconds.")
-        @Config.RangeInt(min = 20, max = 40000)
-        public int followDurationMax = 320;
-
-        @Config.Comment("Chance (0–1) a traveller follows when meeting another.")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float followStartChance = 0.75f;
-
-        @Config.Comment("Maximum followers per group leader (0 = unlimited).")
-        @Config.RangeInt(min = 0, max = 256)
-        public int followMaxFollowersPerLeader = 4;
-
-        @Config.Comment("Base ring radius (blocks) for formation slot placement.")
-        @Config.RangeDouble(min = 0.5, max = 20.0)
-        public double followerRingMoveBaseRadius = 2.2;
-
-        @Config.Comment("Radius step between formation ring slots.")
-        @Config.RangeDouble(min = 0.05, max = 5.0)
-        public double followerRingMoveSlotStep = 0.25;
+    public static class WorkerFormation {
 
         @Config.Comment("Distance at which follower switches back from return-to-leader to normal follow.")
         @Config.RangeDouble(min = 1.0, max = 128.0)
@@ -618,9 +658,7 @@ public class TravellersConfig {
         @Config.Comment("Ticks between formation chunk recomputation.")
         @Config.RangeInt(min = 1, max = 100)
         public int chunkRecomputeIntervalTicks = 5;
-    }
 
-    public static class WorkerFormation {
         @Config.Comment("Max number of workers standing side-by-side in a formation row. Keeps big groups from spreading too wide to reach their spot.")
         @Config.RangeInt(min = 2, max = 16)
         public int maxRowWidth = 8;
@@ -688,6 +726,39 @@ public class TravellersConfig {
         @Config.Comment("How much faster workers move when they've fallen behind and need to catch up.")
         @Config.RangeDouble(min = 0.0, max = 2.0)
         public double catchUpSpeedBoost = 1.0;
+
+        @Config.Comment("Let workers steer around a cliff, ravine or water edge instead of just stopping at it when they can't get a full path this tick.")
+        public boolean steeringObstacleAvoidanceEnabled = true;
+
+        @Config.Comment("How far sideways (in degrees) a worker will look for a clear way around an obstacle before giving up.")
+        @Config.RangeDouble(min = 20.0, max = 150.0)
+        public double steeringMaxDeflectionDegrees = 70.0;
+
+        @Config.Comment("Angle (in degrees) between each direction a worker checks while steering around an obstacle.")
+        @Config.RangeDouble(min = 5.0, max = 45.0)
+        public double steeringDeflectionStepDegrees = 20.0;
+
+        @Config.Comment("Ticks between re-checking a working detour direction around an obstacle (1 = every tick).")
+        @Config.RangeInt(min = 1, max = 20)
+        public int steeringDeflectionRecheckIntervalTicks = 4;
+
+        @Config.Comment("Let a worker blocked by an obstacle follow a path a nearby groupmate just found, instead of finding its own.")
+        public boolean sharedRouteCorridorEnabled = true;
+
+        @Config.Comment("How long (in ticks, 20 = 1 second) a found path stays usable by other workers before it's considered stale.")
+        @Config.RangeInt(min = 20, max = 600)
+        public int sharedRouteCorridorTtlTicks = 100;
+
+        @Config.Comment("How far (blocks) a worker can be from a groupmate's path and still jump onto it.")
+        @Config.RangeDouble(min = 2.0, max = 16.0)
+        public double sharedRouteCorridorMaxSnapDistance = 6.0;
+
+        @Config.Comment("Let a worker that's fully blocked by an obstacle (no detour, no shared path) ask for a real route sooner instead of waiting.")
+        public boolean steeringBlockedFastEscalationEnabled = true;
+
+        @Config.Comment("How long (in ticks, 20 = 1 second) a worker can be fully blocked by an obstacle before it asks for a real route sooner.")
+        @Config.RangeInt(min = 10, max = 200)
+        public int steeringBlockedEscalationGraceTicks = 30;
     }
 
     public static class Destinations {
@@ -761,6 +832,18 @@ public class TravellersConfig {
         public int globalPopulationMaxSpawnsPerCycle = 60;
     }
 
+    public static class Materialization {
+        @Config.Comment("Stop travellers/raiders/workers from appearing inside another group's campsite shelter when they reappear near a player.")
+        public boolean avoidCampFootprints = true;
+
+        @Config.Comment("Extra safety gap (in blocks) kept around a camp shelter when pushing an unrelated entity out of it.")
+        @Config.RangeInt(min = 0, max = 5)
+        public int campFootprintMargin = 1;
+
+        @Config.Comment("Stop travellers/raiders/workers from appearing on top of tree leaves or logs when they reappear near a player.")
+        public boolean avoidTreeCanopy = true;
+    }
+
     public static class Travel {
         @Config.Comment("If true, travellers can carry torches while travelling at night.")
         public boolean travelTorchEnabled = false;
@@ -775,6 +858,18 @@ public class TravellersConfig {
 
         @Config.Comment("If true, travellers may fish while stopped near water.")
         public boolean fishWhileTravelEnabled = true;
+
+        @Config.Comment("Fallback torch cooldown (ticks) used only if travelTorchCooldownTicks is set to 0.")
+        @Config.RangeInt(min = 1, max = 72000)
+        public int travelTorchCooldownTicksDefault = 20 * 10;
+
+        @Config.Comment("Fallback 'someone else has light' radius (blocks) used only if travelTorchNearbyRadius is set to 0.")
+        @Config.RangeDouble(min = 1.0, max = 128.0)
+        public double travelTorchNearbyRadiusDefault = 10.0;
+
+        @Config.Comment("Width (blocks) of the corridor used to collect intermediate village stops along a travel route.")
+        @Config.RangeDouble(min = 8.0, max = 256.0)
+        public double corridorWidth = 64.0;
     }
 
     public static class Sound {
@@ -899,6 +994,10 @@ public class TravellersConfig {
 
         @Config.Comment("Log every sound play/stop event to the client log (for debugging CodecJOrbis errors). Disable in production.")
         public boolean soundDebugLog = false;
+
+        @Config.Comment("Ticks after spawning before a traveller can play its first ambient voice line.")
+        @Config.RangeInt(min = 0, max = 12000)
+        public int spawnAmbientDelayTicks = 12 * 20;
     }
 
     public static class Choir {
@@ -928,10 +1027,6 @@ public class TravellersConfig {
         @Config.Comment("Consecutive spread-check failures before stopping the choir.")
         @Config.RangeInt(min = 1, max = 20)
         public int choirSpreadGraceChecks = 3;
-
-        @Config.Comment("How often (ticks) the choir coordinator checks sessions.")
-        @Config.RangeInt(min = 20, max = 400)
-        public int choirTickInterval = 100;
 
         @Config.Comment("Volume multiplier for choir sounds. Also controls range: 1.0 ≈ 16 blocks, 3.0 ≈ 48 blocks.")
         @Config.RangeDouble(min = 0.1, max = 16.0)
@@ -973,6 +1068,18 @@ public class TravellersConfig {
         @Config.Comment("Per-tick chance (0–1) that a traveller starts a camp when conditions are met.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public float campStartChancePerTick = 0.0008f;
+
+        @Config.Comment("Ticks before a traveller can rejoin a camp fire after leaving one.")
+        @Config.RangeInt(min = 0, max = 72000)
+        public int campJoinCooldownTicks = 20 * 60;
+
+        @Config.Comment("Ticks between random camp-stop attempts for a single traveller.")
+        @Config.RangeInt(min = 0, max = 720000)
+        public int campRandomCooldown = 6 * 60 * 20;
+
+        @Config.Comment("Baseline ticks between animation swings while cooking/working at a camp.")
+        @Config.RangeInt(min = 1, max = 6000)
+        public int campSwingEvery = 80;
     }
 
     // New offscreen-capable camp event system (travellers + raiders). Independent from the legacy Camp class above.
@@ -1080,6 +1187,14 @@ public class TravellersConfig {
 
         @Config.Comment("If true, raiders ignore campCultureRestrictionEnabled and may join/found a raider camp of any culture.")
         public boolean raidersIgnoreCulture = true;
+
+        @Config.Comment("How many campsites '/travellersdebug camp reset' processes per tick (each one briefly loads its chunks to restore terrain). Lower = less lag on servers with many campsites, but a slower reset.")
+        @Config.RangeInt(min = 1, max = 50)
+        public int campResetCampsitesPerTick = 3;
+
+        @Config.Comment("How often (in ticks; 200 = 10 seconds) '/travellersdebug camp reset' reports its progress in chat.")
+        @Config.RangeInt(min = 20, max = 12000)
+        public int campResetProgressIntervalTicks = 200;
     }
 
     public static class BattleEvents {
@@ -1230,9 +1345,6 @@ public class TravellersConfig {
         @Config.Comment("In-game day time (0-23999) when dead workers respawn at their barracks.")
         @Config.RangeInt(min = 0, max = 23999)
         public int workerRespawnMorningTime = 1000;
-
-        @Config.Comment("If true, teenagers in controlled villages can become workers.")
-        public boolean teenagerToWorkerEnabled = false;
     }
 
     public static class Worker {
@@ -1374,6 +1486,10 @@ public class TravellersConfig {
         @Config.Comment("How many different item types a merchant can donate per village visit.")
         @Config.RangeInt(min = 0, max = 64)
         public int merchantMaxDistinctItems = 1;
+
+        @Config.Comment("Villages processed per merchant maintenance pass (0 = disabled; the merchant feature is currently unused).")
+        @Config.RangeInt(min = 0, max = 64)
+        public int merchantVillagesPerPass = 0;
     }
 
     public static class MobFarm {
@@ -1487,5 +1603,65 @@ public class TravellersConfig {
 
         @Config.Comment("Java class names friendly travellers will attack (exact or subclasses).")
         public String[] travellerAttackClassRules = new String[]{};
+    }
+
+    public static class Notifications {
+        @Config.Comment("Master switch for the on-screen notification popups. Debug/admin command output in chat is not affected by this.")
+        public boolean masterEnabled = true;
+
+        @Config.Comment("Which corner of the screen notifications appear in. Options: TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT.")
+        public String corner = "BOTTOM_RIGHT";
+
+        @Config.Comment("Horizontal distance (pixels) from the screen edge.")
+        @Config.RangeInt(min = 0, max = 500)
+        public int marginX = 8;
+
+        @Config.Comment("Vertical distance (pixels) from the screen edge.")
+        @Config.RangeInt(min = 0, max = 500)
+        public int marginY = 8;
+
+        @Config.Comment("Width (pixels) of each notification box. Long messages wrap to fit this width.")
+        @Config.RangeInt(min = 80, max = 600)
+        public int widthPixels = 220;
+
+        @Config.Comment("Text size for notifications (1.0 = normal size).")
+        @Config.RangeDouble(min = 0.5, max = 2.0)
+        public float fontScale = 0.85f;
+
+        @Config.Comment("How long (ticks) a notification stays fully visible before it starts fading out. 20 ticks = 1 second.")
+        @Config.RangeInt(min = 20, max = 2400)
+        public int displayDurationTicks = 100;
+
+        @Config.Comment("How long (ticks) the fade-in animation takes.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int fadeInTicks = 6;
+
+        @Config.Comment("How long (ticks) the fade-out animation takes.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int fadeOutTicks = 12;
+
+        @Config.Comment("Maximum number of notifications visible on screen at once. Older ones scroll off as new ones arrive.")
+        @Config.RangeInt(min = 1, max = 30)
+        public int maxVisible = 8;
+
+        @Config.Comment("Show Information notifications (general non-critical updates).")
+        public boolean showInfo = true;
+
+        @Config.Comment("Show Warning notifications (things that need your attention).")
+        public boolean showWarning = true;
+
+        @Config.Comment("Show Event notifications (battles, deliveries, recruitment results). These are also saved to your notification history.")
+        public boolean showEvent = true;
+
+        @Config.Comment("Show Error notifications (things that failed).")
+        public boolean showError = true;
+
+        @Config.Comment("Maximum number of Event notifications kept in your notification history (oldest are dropped first). Used by the notification journal screen.")
+        @Config.RangeInt(min = 10, max = 2000)
+        public int journalRetentionPerPlayer = 200;
+
+        @Config.Comment("Maximum number of notifications saved up for you while you are offline, before the oldest ones are dropped.")
+        @Config.RangeInt(min = 5, max = 200)
+        public int offlineQueueCapPerPlayer = 50;
     }
 }

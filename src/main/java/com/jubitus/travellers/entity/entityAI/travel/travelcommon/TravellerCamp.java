@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireBlock;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -55,7 +56,7 @@ public class TravellerCamp {
     }
 
     public void setCampCooldown() {
-        this.campGlobalCooldown = TravellersModConfig.CAMP_RANDOM_COOLDOWN;
+        this.campGlobalCooldown = TravellersConfig.CAMP.campRandomCooldown;
     }
 
     public boolean campOnCooldown() {
@@ -129,7 +130,7 @@ public class TravellerCamp {
     }
 
     public void setCampJoinCooldown() {
-        this.campJoinCooldown = TravellersModConfig.CAMP_JOIN_COOLDOWN_TICKS;
+        this.campJoinCooldown = TravellersConfig.CAMP.campJoinCooldownTicks;
     }
 
     public void cleanupOwnedCampfireIfAny() {

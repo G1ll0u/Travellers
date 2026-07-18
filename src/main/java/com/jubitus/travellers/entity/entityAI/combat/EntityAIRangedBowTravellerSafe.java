@@ -1,6 +1,8 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.Entity;
@@ -87,7 +89,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
                                           double meleeHandOff,
                                           boolean ghostEquipBow) {
         this.mob = owner;
-        this.blacklist = TravellersModConfig.TRAVELLER_BLACKLIST;
+        this.blacklist = TravellersDerivedConfig.TRAVELLER_BLACKLIST;
         this.minDistSq = minDist * minDist;
         this.maxDistSq = maxDist * maxDist;
         this.meleeHandOffSq = meleeHandOff * meleeHandOff;
@@ -475,9 +477,9 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // Fire
         arrow.shoot(fx, aimY, fz, ARROW_VEL, inaccuracy);
 
-        double desiredFinal = TravellersModConfig.rangedBaseDamage * TravellersModConfig.rangedDamageMultiplier;
+        double desiredFinal = TravellersConfig.COMBAT.rangedBaseDamage * TravellersConfig.COMBAT.rangedDamageMultiplier;
         if (target instanceof EntityPlayer) {
-            desiredFinal *= TravellersModConfig.travellerPlayerDamageMultiplier;
+            desiredFinal *= TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier;
         }
 
         double speed = Math.sqrt(arrow.motionX * arrow.motionX

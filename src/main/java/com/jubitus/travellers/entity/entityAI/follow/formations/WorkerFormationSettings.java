@@ -23,8 +23,8 @@ public final class WorkerFormationSettings {
 
     public WorkerFormationStyle style = WorkerFormationStyle.ADAPTIVE;
     public double followDistance = 2.5D;
-    public double spacing = 1.15D;
-    public int width = 6;
+    public double spacing = 1.0D;
+    public int width = 8;
     public int turnSmoothness = 60;
     public boolean adaptiveCave = true;
     /** How many workers are kept as close escorts near the leader regardless of formation. */

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -400,19 +401,19 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         int donationsDone = 0;
 
         // === CONFIGURABLE LIMIT ON DISTINCT ITEMS ===
-        int maxDistinctItems = TravellersModConfig.merchantMaxDistinctItems;
+        int maxDistinctItems = TravellersConfig.MERCHANT.merchantMaxDistinctItems;
         if (maxDistinctItems <= 0) {
             maxDistinctItems = 1; // safety
         }
 
         // === CONFIGURABLE FRACTION & MIN AMOUNTS ===
-        double giveFraction = TravellersModConfig.merchantGiveFraction;
+        double giveFraction = TravellersConfig.MERCHANT.merchantGiveFraction;
         if (giveFraction <= 0.0D) {
             giveFraction = 1.0D / 12.0D; // fallback safety
         }
 
-        int minBulkAmount = TravellersModConfig.merchantMinBulkAmount;
-        int minSmallAmount = TravellersModConfig.merchantMinSmallAmount;
+        int minBulkAmount = TravellersConfig.MERCHANT.merchantMinBulkAmount;
+        int minSmallAmount = TravellersConfig.MERCHANT.merchantMinSmallAmount;
         if (minBulkAmount <= 0) minBulkAmount = 1;
         if (minSmallAmount <= 0) minSmallAmount = 1;
 

@@ -1,15 +1,17 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.flooz.TravellerMoney;
 import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -56,9 +58,7 @@ public class MsgHireWorker implements IMessage {
                 // --- Case 1: already hired by THIS player -> dismiss ---
                 if (hiredByMe) {
                     worker.dismissFollower();
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "The travellers will no longer follow you."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.DISMISS_FOLLOWER);
 
                     // sync to client
                     TravellerFollowNet.CHANNEL.sendTo(
@@ -70,38 +70,30 @@ public class MsgHireWorker implements IMessage {
 
                 // --- Case 2: already hired by someone else ---
                 if (hired) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "This travellers is already hired by someone else."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.HIRE_ALREADY_HIRED_BY_OTHER);
                     return;
                 }
 
                 // --- Case 3: not hired yet -> try to hire ---
-                if (TravellersModConfig.controlledVillageFeatureEnabled
-                        && TravellersModConfig.requireControlledVillageToHire
+                if (TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
+                        && TravellersConfig.CONTROLLED_VILLAGE.requireControlledVillageToHire
                         && !MillControlledVillageHelper.isPlayerVillageChief(world, player)) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "You must be chief of a Millenaire village to hire henchmen."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.HIRE_NEEDS_VILLAGE_CHIEF);
                     return;
                 }
 
-                int costInDeniers = TravellersModConfig.workerHireCostDeniers_serverCache;
+                int costInDeniers = TravellersDerivedConfig.workerHireCostDeniersServerCache;
                 int playerMoneyBefore = TravellerMoney.countPlayerMoney(player);
 
                 if (playerMoneyBefore < costInDeniers) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "You don't have enough money (" +
-                                    MillCommonUtilities.getShortPrice(costInDeniers) + " needed)."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.HIRE_NOT_ENOUGH_MONEY,
+                            MillCommonUtilities.getShortPrice(costInDeniers));
                     TravellerMoney.syncPlayerInventory(player);
                     return;
                 }
 
                 if (!TravellerMoney.trySpendPlayerMoney(player, costInDeniers)) {
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "Hire failed: money could not be deducted."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.HIRE_PAYMENT_FAILED);
                     return;
                 }
 

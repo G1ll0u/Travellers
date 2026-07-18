@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.home;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerBarracksReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
@@ -35,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksReceiver, IWorkerMapReceiver {
+public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksReceiver, IWorkerMapReceiver, ITravellersGui {
 
     private final EntityPlayer player;
     @Nullable private final EntityTravellerWorker worker; // null in leader/global mode
@@ -243,6 +244,7 @@ public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksRecei
             this.fontRenderer.drawString(trim(dragWorker.name, 90), mouseX + 24, mouseY - 4,
                     TravellersGuiTheme.COL_TEXT_HOV);
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawBarrackList(int mouseX, int mouseY) {

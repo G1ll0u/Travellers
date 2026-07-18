@@ -1,6 +1,5 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -63,10 +62,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private double activePathGoalZ;
     private boolean hasActivePathGoal;
 
-    private int crowdCacheTicks;
-    private UUID crowdOwnerId;
-    private List<EntityTravellerWorker> crowdCache = Collections.emptyList();
-    private AxisAlignedBB crowdCacheBox = null;
+    /** Consecutive ticks the straight line to the goal has been hazard-blocked with no usable detour. */
+    private int steeringBlockedTicks;
+    private int deflectionRecheckCooldown;
+    private double cachedDeflectDirX;
+    private double cachedDeflectDirZ;
+    private boolean hasCachedDeflectDir;
 
     private static final double GOAL_REEVAL_LEADER_MOVE_SQ = 1.5D * 1.5D;
     private static final double GOAL_REEVAL_WORKER_MOVE_SQ = 1.0D * 1.0D;
@@ -211,6 +212,10 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         cachedSettleGoalX = Double.NaN;
         settledTicks = 0;
 
+        steeringBlockedTicks = 0;
+        deflectionRecheckCooldown = 0;
+        hasCachedDeflectDir = false;
+
         PathNavigate nav = worker.getNavigator();
         if (nav instanceof TravellerNavigateGround) {
             ((TravellerNavigateGround) nav).setFollowerMode(true);
@@ -260,6 +265,10 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         modeSelector.reset();
         cachedSettleGoalX = Double.NaN;
         settledTicks = 0;
+
+        steeringBlockedTicks = 0;
+        deflectionRecheckCooldown = 0;
+        hasCachedDeflectDir = false;
 
         boatController.reset();
     }
@@ -583,7 +592,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 recentPathSuccessTicks = RECENT_PATH_SUCCESS_BLOCK_TELEPORT_TICKS;
                 failedAllowedPathTicks = 0;
                 pathFailTicks = 0;
+                steeringBlockedTicks = 0;
                 markActivePathGoal(goal);
+
+                if (TravellersConfig.WORKER_FORMATION.sharedRouteCorridorEnabled) {
+                    FollowRouteCache.record(worker.world, target, worker.getNavigator().getPath());
+                }
             } else {
                 failedAllowedPathTicks += 4;
                 pathFailTicks++;
@@ -852,7 +866,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             score += front * 7.0D * slot.frontPenaltyStrength;
         }
 
-        score += localCrowdingPenalty(px, py, pz);
+        score += localCrowdingPenalty(leader, px, py, pz);
 
         if (slot.workerLeader && !slot.leaderActuallyMoving) {
             double selfDistSq = distanceSq2D(px, pz, worker.posX, worker.posZ);
@@ -865,13 +879,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         return score;
     }
 
-    private double localCrowdingPenalty(double x, double y, double z) {
-        refreshCrowdCache(x, y, z);
+    private double localCrowdingPenalty(EntityLivingBase leader, double x, double y, double z) {
+        List<EntityTravellerWorker> neighbors =
+                FollowFormationCoordinator.getCrowdNeighbors(leader, worker, x, z);
 
         double penalty = 0.0D;
         boolean caveModeNow = localMode == FollowMode.CAVE;
 
-        for (EntityTravellerWorker other : crowdCache) {
+        for (EntityTravellerWorker other : neighbors) {
             double dx = other.posX - x;
             double dz = other.posZ - z;
             double d2 = dx * dx + dz * dz;
@@ -1220,6 +1235,10 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         idleAtSlot = false;
         wakeupCooldown = 0;
+
+        steeringBlockedTicks = 0;
+        deflectionRecheckCooldown = 0;
+        hasCachedDeflectDir = false;
     }
 
     private int getPathPriority(boolean noPath,
@@ -1228,6 +1247,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                                 FollowMode mode,
                                 FollowFormationCoordinator.SlotAssignment slot) {
         double dy = followTarget == null ? 0.0D : Math.abs(worker.posY - followTarget.posY);
+
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+        if (wf.steeringBlockedFastEscalationEnabled
+                && steeringBlockedTicks >= wf.steeringBlockedEscalationGraceTicks) {
+            return 2;
+        }
 
         if (pathFailTicks >= 6) return 2;
         if (mode == FollowMode.CAVE && dy >= 6.0D) return 2;
@@ -1348,11 +1373,40 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean leaderStill = Math.abs(target.posX - target.prevPosX) < 0.05D
                 && Math.abs(target.posZ - target.prevPosZ) < 0.05D;
 
-        // No micro-corrective steering near the slot — this causes orbiting/spinning.
-        if (shouldBlockDirectSteering(goal, target)) {
+        if (isCloseEnoughToStopSteering(goal, target)) {
+            worker.getNavigator().clearPath();
+            steeringBlockedTicks = 0;
+            return;
+        }
+
+        double toGoalDx = goal.x - worker.posX;
+        double toGoalDz = goal.z - worker.posZ;
+        double toGoalDistSq = toGoalDx * toGoalDx + toGoalDz * toGoalDz;
+        double toGoalDist = Math.sqrt(toGoalDistSq);
+
+        if (toGoalDist < 1.0E-4D) {
+            worker.getNavigator().clearPath();
+            steeringBlockedTicks = 0;
+            return;
+        }
+
+        // Straight line to the goal is blocked (cliff, ravine, water bank, etc). Rather than
+        // stalling at the edge, try a local detour first, then a nearby groupmate's found path,
+        // before giving up and letting the stuck-recovery/escalation timers take over.
+        if (isHazardAhead(worker.posX, worker.posY, worker.posZ, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist)) {
+            if (tryObstacleDeflection(goal, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist, moveSpeed)) {
+                steeringBlockedTicks = 0;
+                return;
+            }
+            if (tryFollowSharedCorridor(target, moveSpeed)) {
+                steeringBlockedTicks = 0;
+                return;
+            }
+            steeringBlockedTicks++;
             worker.getNavigator().clearPath();
             return;
         }
+        steeringBlockedTicks = 0;
 
         if (idleAtSlot) {
             worker.getNavigator().clearPath();
@@ -1514,6 +1568,10 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     }
 
     private boolean isStandableFast(BlockPos feet) {
+        return TerrainStandableCache.isStandable(worker.world, feet, this::computeStandable);
+    }
+
+    private boolean computeStandable(BlockPos feet) {
         World world = worker.world;
         BlockPos down = feet.down();
         BlockPos up = feet.up();
@@ -2196,31 +2254,6 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         goalRefreshCooldown = base + stagger;
     }
 
-    private void refreshCrowdCache(double centerX, double centerY, double centerZ) {
-        if (crowdCacheTicks > 0 && crowdCacheBox != null && crowdCacheBox.contains(new Vec3d(centerX, centerY, centerZ))) {
-            crowdCacheTicks--;
-            return;
-        }
-
-        UUID ownerId = worker.getFollowOwnerId();
-        crowdOwnerId = ownerId;
-
-        AxisAlignedBB box = new AxisAlignedBB(
-                centerX - 6.0D, centerY - 3.0D, centerZ - 6.0D,
-                centerX + 6.0D, centerY + 3.0D, centerZ + 6.0D
-        );
-
-        crowdCache = worker.world.getEntitiesWithinAABB(EntityTravellerWorker.class, box, e ->
-                e != null
-                        && e != worker
-                        && !e.isDead
-                        && e.isEntityAlive()
-                        && Objects.equals(e.getFollowOwnerId(), ownerId)
-        );
-
-        crowdCacheBox = box.grow(1.0D, 0.0D, 1.0D);
-        crowdCacheTicks = 20;
-    }
     private boolean shouldReuseCurrentPath(GoalCandidate goal) {
         PathNavigate nav = worker.getNavigator();
         if (nav == null || nav.noPath()) return false;
@@ -2370,7 +2403,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         return true;
     }
 
-    private boolean shouldBlockDirectSteering(GoalCandidate goal, EntityLivingBase target) {
+    private boolean isCloseEnoughToStopSteering(GoalCandidate goal, EntityLivingBase target) {
         double dx = goal.x - worker.posX;
         double dz = goal.z - worker.posZ;
         double distSq = dx * dx + dz * dz;
@@ -2379,19 +2412,81 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 ? DIRECT_STEER_STOP_WORKER_LEADER_SQ
                 : DIRECT_STEER_STOP_NEAR_SLOT_SQ;
 
-        if (distSq <= stopSq) {
-            return true;
+        return distSq <= stopSq;
+    }
+
+    /**
+     * Tries a small fan of directions around the direct line to the goal, looking for one that
+     * isn't hazard-blocked, and steers toward a local point along it instead of the literal goal.
+     * Cheap: no pathfinding, just the same block-column hazard scan already used for the direct line.
+     */
+    private boolean tryObstacleDeflection(GoalCandidate goal, double dirX, double dirZ, double dist, double moveSpeed) {
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+        if (!wf.steeringObstacleAvoidanceEnabled) return false;
+
+        double probeDist = Math.min(dist, HAZARD_LOOKAHEAD_STEP * HAZARD_LOOKAHEAD_STEPS);
+
+        if (deflectionRecheckCooldown > 0) {
+            deflectionRecheckCooldown--;
+            if (hasCachedDeflectDir
+                    && !isHazardAhead(worker.posX, worker.posY, worker.posZ, cachedDeflectDirX, cachedDeflectDirZ, probeDist)) {
+                steerTowardLocalPoint(goal, cachedDeflectDirX, cachedDeflectDirZ, probeDist, moveSpeed);
+                return true;
+            }
         }
 
-        double dist = Math.sqrt(distSq);
-        if (dist < 1.0E-4D) {
-            return true;
+        double baseAngle = Math.atan2(dirZ, dirX);
+        double stepRad = Math.toRadians(wf.steeringDeflectionStepDegrees);
+        double maxRad = Math.toRadians(wf.steeringMaxDeflectionDegrees);
+
+        for (double offset = stepRad; offset <= maxRad + 1.0E-6D; offset += stepRad) {
+            for (int sign = -1; sign <= 1; sign += 2) {
+                double angle = baseAngle + sign * offset;
+                double ndx = Math.cos(angle);
+                double ndz = Math.sin(angle);
+
+                if (!isHazardAhead(worker.posX, worker.posY, worker.posZ, ndx, ndz, probeDist)) {
+                    cachedDeflectDirX = ndx;
+                    cachedDeflectDirZ = ndz;
+                    hasCachedDeflectDir = true;
+                    deflectionRecheckCooldown = wf.steeringDeflectionRecheckIntervalTicks;
+                    steerTowardLocalPoint(goal, ndx, ndz, probeDist, moveSpeed);
+                    return true;
+                }
+            }
         }
 
-        double dirX = dx / dist;
-        double dirZ = dz / dist;
+        hasCachedDeflectDir = false;
+        return false;
+    }
 
-        return isHazardAhead(worker.posX, worker.posY, worker.posZ, dirX, dirZ, dist);
+    private void steerTowardLocalPoint(GoalCandidate goal, double dirX, double dirZ, double probeDist, double moveSpeed) {
+        double px = worker.posX + dirX * probeDist;
+        double pz = worker.posZ + dirZ * probeDist;
+        worker.getMoveHelper().setMoveTo(px, goal.y, pz, moveSpeed);
+    }
+
+    /**
+     * Last resort before stalling: reuse a nearby groupmate's recently found real path around
+     * the same obstacle, if one exists and is still fresh.
+     */
+    private boolean tryFollowSharedCorridor(EntityLivingBase target, double moveSpeed) {
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+        if (!wf.sharedRouteCorridorEnabled) return false;
+
+        Vec3d waypoint = FollowRouteCache.findNearestUsableWaypoint(
+                worker.world,
+                target,
+                worker.posX,
+                worker.posZ,
+                wf.sharedRouteCorridorMaxSnapDistance,
+                wf.sharedRouteCorridorTtlTicks
+        );
+
+        if (waypoint == null) return false;
+
+        worker.getMoveHelper().setMoveTo(waypoint.x, waypoint.y, waypoint.z, moveSpeed);
+        return true;
     }
 
 }

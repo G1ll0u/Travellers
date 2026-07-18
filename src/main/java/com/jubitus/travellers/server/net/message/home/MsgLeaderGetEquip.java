@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
@@ -53,7 +54,7 @@ public class MsgLeaderGetEquip implements IMessage {
         if (pos == null) return false;
         UUID ownerId = player.getUniqueID();
         if (useWholeVillage) {
-            if (!TravellersModConfig.controlledVillageFeatureEnabled) return false;
+            if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
             return MillControlledVillageHelper.getControlledVillageCenters(player.world, player).contains(pos);
         }
         for (LoneBarrackRecord r : LoneBarrackManager.get(player.world).getByOwner(ownerId)) {

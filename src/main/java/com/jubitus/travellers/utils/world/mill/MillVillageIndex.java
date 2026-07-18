@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.world.mill;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
@@ -591,12 +592,12 @@ public final class MillVillageIndex {
      * - >1.0 => more villagers nearby, more travellers
      */
     public static double populationWeightAt(World world, BlockPos pos) {
-        if (!TravellersModConfig.travellerPopulationWeightEnabled) {
+        if (!TravellersConfig.SPAWN.travellerPopulationWeightEnabled) {
             return 1.0D;
         }
 
         // Find nearest *village* (not lone building) around this position
-        VillageInfo vi = findNearest2D(world, pos, TravellersModConfig.travellerPopulationWeightRadius);
+        VillageInfo vi = findNearest2D(world, pos, TravellersConfig.SPAWN.travellerPopulationWeightRadius);
         if (vi == null || !vi.isVillage) {
             return 1.0D;
         }
@@ -606,8 +607,8 @@ public final class MillVillageIndex {
             return 1.0D;
         }
 
-        double perVillager = TravellersModConfig.travellerPopulationWeightPerVillager;
-        double maxMult = TravellersModConfig.travellerPopulationWeightMaxMultiplier;
+        double perVillager = TravellersConfig.SPAWN.travellerPopulationWeightPerVillager;
+        double maxMult = TravellersConfig.SPAWN.travellerPopulationWeightMaxMultiplier;
 
         // 1.0 + villagers * perVillager, but clamped
         double mult = 1.0D + villagers * perVillager;
@@ -713,7 +714,7 @@ public final class MillVillageIndex {
      */
     @Nullable
     public static String pickCultureForTravellerSpawn(World world, BlockPos pos, java.util.Random rand) {
-        if (!TravellersModConfig.travellerCultureWeightedSpawn) {
+        if (!TravellersConfig.SPAWN.travellerCultureWeightedSpawn) {
             return null;
         }
 
@@ -722,7 +723,7 @@ public final class MillVillageIndex {
             return null;
         }
 
-        final int radius = TravellersModConfig.travellerCultureScanRadius;
+        final int radius = TravellersConfig.SPAWN.travellerCultureScanRadius;
         final long r2 = (long) radius * (long) radius;
 
         final int px = pos.getX();
@@ -751,7 +752,7 @@ public final class MillVillageIndex {
 
             // Optional: population weight (bigger village = more influence)
             double popWeight = 1.0D;
-            if (TravellersModConfig.travellerCultureWeightUseVillagePopulation) {
+            if (TravellersConfig.SPAWN.travellerCultureWeightUseVillagePopulation) {
                 int villagers = countVillagersInVillage(world, center);
                 if (villagers > 0) {
                     // Simple: 1 + villagers/10, but at least 1
@@ -811,7 +812,7 @@ public final class MillVillageIndex {
             for (Point p : wd.villagesList.pos) {
                 if (p == null) continue;
 
-                int radius = TravellersModConfig.travellerVillageInfluenceRadius;
+                int radius = TravellersConfig.SPAWN.travellerVillageInfluenceRadius;
                 if (radius <= 0) continue;
 
                 int dx = p.getiX() - px;
@@ -823,10 +824,10 @@ public final class MillVillageIndex {
                 double t = dist / (double) radius;   // 0 at center, 1 at edge
                 double base = 1.0 - t;               // linear falloff 1..0
 
-                double power = Math.max(0.01, TravellersModConfig.travellerFalloffPower);
+                double power = Math.max(0.01, TravellersConfig.SPAWN.travellerFalloffPower);
                 double falloff = Math.pow(base, power);
 
-                double typeWeight = TravellersModConfig.travellerVillageWeight;
+                double typeWeight = TravellersConfig.SPAWN.travellerVillageWeight;
                 total += falloff * typeWeight;
             }
         }
@@ -836,7 +837,7 @@ public final class MillVillageIndex {
             for (Point p : wd.loneBuildingsList.pos) {
                 if (p == null) continue;
 
-                int radius = TravellersModConfig.travellerLoneInfluenceRadius;
+                int radius = TravellersConfig.SPAWN.travellerLoneInfluenceRadius;
                 if (radius <= 0) continue;
 
                 int dx = p.getiX() - px;
@@ -848,20 +849,20 @@ public final class MillVillageIndex {
                 double t = dist / (double) radius;
                 double base = 1.0 - t;
 
-                double power = Math.max(0.01, TravellersModConfig.travellerFalloffPower);
+                double power = Math.max(0.01, TravellersConfig.SPAWN.travellerFalloffPower);
                 double falloff = Math.pow(base, power);
 
-                double typeWeight = TravellersModConfig.travellerLoneWeight;
+                double typeWeight = TravellersConfig.SPAWN.travellerLoneWeight;
                 total += falloff * typeWeight;
             }
         }
 
-        double max = TravellersModConfig.travellerMaxDensity;
+        double max = TravellersConfig.SPAWN.travellerMaxDensity;
         if (max > 0.0) total = Math.min(total, max);
 
         // If no village influence, use a small baseline so travellers can still appear
         if (total <= 0.0) {
-            return Math.max(0.0D, TravellersModConfig.travellerOutsideVillageBaseDensity);
+            return Math.max(0.0D, TravellersConfig.SPAWN.travellerOutsideVillageBaseDensity);
         }
 
         return total;
@@ -873,14 +874,14 @@ public final class MillVillageIndex {
         Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
 
         // Tunables – move to config later if you like
-        final double perVillager = TravellersModConfig.travellerCapPerVillager;
-        final int minPerVillage = TravellersModConfig.travellerCapMinPerVillage;
-        final int maxPerVillage = TravellersModConfig.travellerCapMaxPerVillage;
+        final double perVillager = TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerVillager;
+        final int minPerVillage = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage;
+        final int maxPerVillage = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage;
 
-        final int globalMin = TravellersModConfig.travellerCapGlobalMin;
-        final int globalMax = TravellersModConfig.travellerCapGlobalMax;
+        final int globalMin = TravellersConfig.SPAWN_TRAVELLERS.travellerCapGlobalMin;
+        final int globalMax = TravellersConfig.SPAWN_TRAVELLERS.travellerCapGlobalMax;
 
-        final int perLone = TravellersModConfig.travellerCapPerLoneBuilding;
+        final int perLone = TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerLoneBuilding;
 
 
         int total = 0;
@@ -911,10 +912,10 @@ public final class MillVillageIndex {
     public static int computeWorldRaiderTarget(WorldServer ws) {
         Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
 
-        final double perVillager = TravellersModConfig.raiderCapPerVillager;
-        final int minPerVillage = TravellersModConfig.raiderCapMinPerVillage;
-        final int maxPerVillage = TravellersModConfig.raiderCapMaxPerVillage;
-        final int perLone = TravellersModConfig.raiderCapPerLoneBuilding;
+        final double perVillager = TravellersConfig.SPAWN_RAIDERS.raiderCapPerVillager;
+        final int minPerVillage = TravellersConfig.SPAWN_RAIDERS.raiderCapMinPerVillage;
+        final int maxPerVillage = TravellersConfig.SPAWN_RAIDERS.raiderCapMaxPerVillage;
+        final int perLone = TravellersConfig.SPAWN_RAIDERS.raiderCapPerLoneBuilding;
 
         int total = 0;
 
@@ -932,7 +933,7 @@ public final class MillVillageIndex {
             total += wd.loneBuildingsList.pos.size() * perLone;
         }
 
-        return Math.min(total, TravellersModConfig.loadedRaiderCap);
+        return Math.min(total, TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap);
     }
 
     public static Map<VillageInfo, Integer> countVillagersPerVillage(World world) {
@@ -1003,10 +1004,10 @@ public final class MillVillageIndex {
 
         Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
 
-        final double perVillager = TravellersModConfig.travellerCapPerVillager;
-        final int minPerVillage = TravellersModConfig.travellerCapMinPerVillage;
-        final int maxPerVillage = TravellersModConfig.travellerCapMaxPerVillage;
-        final int perLone = TravellersModConfig.travellerCapPerLoneBuilding;
+        final double perVillager = TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerVillager;
+        final int minPerVillage = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage;
+        final int maxPerVillage = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage;
+        final int perLone = TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerLoneBuilding;
 
         int total = 0;
 
@@ -1051,10 +1052,10 @@ public final class MillVillageIndex {
 
         Map<VillageInfo, Integer> pops = countVillagersPerVillage(ws);
 
-        final double perVillager = TravellersModConfig.raiderCapPerVillager;
-        final int minPerVillage = TravellersModConfig.raiderCapMinPerVillage;
-        final int maxPerVillage = TravellersModConfig.raiderCapMaxPerVillage;
-        final int perLone = TravellersModConfig.raiderCapPerLoneBuilding;
+        final double perVillager = TravellersConfig.SPAWN_RAIDERS.raiderCapPerVillager;
+        final int minPerVillage = TravellersConfig.SPAWN_RAIDERS.raiderCapMinPerVillage;
+        final int maxPerVillage = TravellersConfig.SPAWN_RAIDERS.raiderCapMaxPerVillage;
+        final int perLone = TravellersConfig.SPAWN_RAIDERS.raiderCapPerLoneBuilding;
 
         int total = 0;
 
@@ -1094,12 +1095,12 @@ public final class MillVillageIndex {
     }
 
     public static int desiredMerchantsForPopulation(int villagers) {
-        if (villagers < TravellersModConfig.merchantMinPop) {
+        if (villagers < TravellersConfig.SPAWN_WORKERS.merchantMinPop) {
             return 0;
         }
-        int per = Math.max(1, TravellersModConfig.merchantPopPerMerchant); // e.g. 10
+        int per = Math.max(1, TravellersConfig.SPAWN_WORKERS.merchantPopPerMerchant); // e.g. 10
         int base = villagers / per;
-        int max = Math.max(1, TravellersModConfig.merchantMaxPerVillage);
+        int max = Math.max(1, TravellersConfig.SPAWN_WORKERS.merchantMaxPerVillage);
         if (base > max) base = max;
         return base;
     }
@@ -1223,19 +1224,19 @@ public final class MillVillageIndex {
 
     public static int desiredWorkersForPopulation(int villagers) {
         // No workers if under minimum population
-        if (villagers < TravellersModConfig.workerMinPop) {
+        if (villagers < TravellersConfig.SPAWN_WORKERS.workerMinPop) {
             return 0;
         }
 
         int workers = 1; // first worker unlocked at workerMinPop
-        int extraPop = villagers - TravellersModConfig.workerMinPop;
+        int extraPop = villagers - TravellersConfig.SPAWN_WORKERS.workerMinPop;
 
-        if (TravellersModConfig.workerPopPerWorker > 0 && extraPop > 0) {
-            workers += extraPop / TravellersModConfig.workerPopPerWorker;
+        if (TravellersConfig.SPAWN_WORKERS.workerPopPerWorker > 0 && extraPop > 0) {
+            workers += extraPop / TravellersConfig.SPAWN_WORKERS.workerPopPerWorker;
         }
 
-        if (TravellersModConfig.workerMaxPerVillage > 0) {
-            workers = Math.min(workers, TravellersModConfig.workerMaxPerVillage);
+        if (TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage > 0) {
+            workers = Math.min(workers, TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage);
         }
 
         return workers;

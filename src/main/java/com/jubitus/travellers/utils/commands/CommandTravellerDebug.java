@@ -36,7 +36,7 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug [reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|sound stress|sound rapidfire|cultures]";
+        return "/travellersdebug [reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|sound stress|sound rapidfire|cultures]";
     }
 
     @Override
@@ -52,12 +52,24 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
         if (args.length >= 1 && args[0].equalsIgnoreCase("camp")) {
-            executeCampList(sender, args);
+            executeCampList(server, sender, args);
             return;
         }
 
         if (args.length >= 1 && args[0].equalsIgnoreCase("battle")) {
             executeBattle(sender, args);
+            return;
+        }
+
+        if (args.length >= 3 && args[0].equalsIgnoreCase("map") && args[1].equalsIgnoreCase("resweep")
+                && args[2].equalsIgnoreCase("cancel")) {
+            executeMapResweepCancel(server, sender);
+            return;
+        }
+
+        if (args.length >= 2 && args[0].equalsIgnoreCase("map") && args[1].equalsIgnoreCase("resweep")) {
+            boolean allDimensions = args.length >= 3 && args[2].equalsIgnoreCase("all");
+            executeMapResweep(server, sender, allDimensions);
             return;
         }
 
@@ -214,17 +226,15 @@ public class CommandTravellerDebug extends CommandBase {
         e.setDead();
     }
 
-    // --- Reset: wipe all virtual travellers/raiders and kill loaded ones ---
+    // --- Reset: wipe all virtual travellers/raiders and kill loaded ones (camps untouched, see "camp reset") ---
 
     private void executeReset(MinecraftServer server, ICommandSender sender) {
         int virtualRemoved = 0;
         int loadedKilled = 0;
-        int campsRemoved = 0;
 
         for (WorldServer ws : server.worlds) {
             VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
             virtualRemoved += mgr.clearByClass("TRAVELLER", "RAIDER");
-            campsRemoved += com.jubitus.travellers.utils.world.camp.CampsiteManager.get(ws).clearAll(ws);
 
             for (Entity e : new java.util.ArrayList<>(ws.loadedEntityList)) {
                 if (e instanceof EntityTravellerWorker) continue;
@@ -238,9 +248,8 @@ public class CommandTravellerDebug extends CommandBase {
         sender.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "Reset complete: " +
                 TextFormatting.YELLOW + virtualRemoved + TextFormatting.GREEN + " virtual records removed, " +
-                TextFormatting.YELLOW + loadedKilled + TextFormatting.GREEN + " loaded entities killed, " +
-                TextFormatting.YELLOW + campsRemoved + TextFormatting.GREEN + " campsites cleared." +
-                TextFormatting.GRAY + " Workers untouched."));
+                TextFormatting.YELLOW + loadedKilled + TextFormatting.GREEN + " loaded entities killed." +
+                TextFormatting.GRAY + " Workers and campsites untouched (use 'camp reset' for camps)."));
     }
 
     // --- Reset workers: wipe non-hired virtual/loaded workers, hired workers are preserved ---
@@ -273,7 +282,13 @@ public class CommandTravellerDebug extends CommandBase {
 
     // --- Camp listing: show campsites near the player ---
 
-    private void executeCampList(ICommandSender sender, String[] args) {
+    private void executeCampList(MinecraftServer server, ICommandSender sender, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("reset")) {
+            boolean deleteAll = args.length >= 3 && args[2].equalsIgnoreCase("all");
+            executeCampReset(server, sender, deleteAll);
+            return;
+        }
+
         if (!(sender instanceof EntityPlayerMP)) {
             sender.sendMessage(new TextComponentString(TextFormatting.RED + "Must be run by a player."));
             return;
@@ -355,6 +370,79 @@ public class CommandTravellerDebug extends CommandBase {
             sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "  " + r.center.getX() + "," + r.center.getY()
                     + "," + r.center.getZ() + TextFormatting.GRAY + " dist=" + dist + " slots="
                     + (r.slotsComputed ? r.slots.size() : "?") ));
+        }
+    }
+
+    /**
+     * Full physical camp reset across every dimension: restores all campsite terrain to its
+     * pre-camp state (paced across ticks by {@link com.jubitus.travellers.utils.world.camp.CampResetCoordinator},
+     * no player presence required). Plain "camp reset" keeps campsite records/slots so they don't
+     * need rediscovery; "camp reset all" additionally deletes every campsite so the world starts
+     * from zero (rediscovered from scratch as chunks load again). Progress is reported to
+     * {@code sender} periodically until each dimension's job finishes.
+     */
+    private void executeCampReset(MinecraftServer server, ICommandSender sender, boolean deleteAll) {
+        int alreadyRunning = 0;
+        for (WorldServer ws : server.worlds) {
+            if (com.jubitus.travellers.utils.world.camp.CampResetCoordinator.INSTANCE.isActive(ws.provider.getDimension())) {
+                alreadyRunning++;
+                continue;
+            }
+            com.jubitus.travellers.utils.world.camp.CampResetCoordinator.INSTANCE.start(ws, sender, deleteAll);
+        }
+        if (alreadyRunning > 0) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED
+                    + "Camp reset already running in " + alreadyRunning + " dimension(s); skipped."));
+        }
+    }
+
+    /**
+     * On-demand worldmap correction for tiles {@code MapLoadedChunkResampler} can never reach
+     * automatically (nobody has visited that chunk since it was first captured, e.g. deep in a
+     * bulk-pregenerated world). Plain "map resweep" only processes the sender's current dimension;
+     * "map resweep all" processes every loaded dimension. Progress is reported to {@code sender}
+     * periodically until each dimension's job finishes.
+     */
+    private void executeMapResweep(MinecraftServer server, ICommandSender sender, boolean allDimensions) {
+        java.util.List<WorldServer> targets = new java.util.ArrayList<>();
+        if (allDimensions) {
+            targets.addAll(java.util.Arrays.asList(server.worlds));
+        } else if (sender instanceof EntityPlayerMP) {
+            targets.add(((EntityPlayerMP) sender).getServerWorld());
+        } else {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED
+                    + "Must be run by a player, or use 'map resweep all' to target every dimension."));
+            return;
+        }
+
+        int alreadyRunning = 0;
+        for (WorldServer ws : targets) {
+            if (com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.isActive(ws.provider.getDimension())) {
+                alreadyRunning++;
+                continue;
+            }
+            com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.start(ws, sender);
+        }
+        if (alreadyRunning > 0) {
+            sender.sendMessage(new TextComponentString(TextFormatting.RED
+                    + "Map resweep already running in " + alreadyRunning + " dimension(s); skipped."));
+        }
+    }
+
+    /**
+     * Stops every running "map resweep" job across every dimension, wherever it was started from
+     * (player or server console) and regardless of the sender's current dimension - there's no
+     * legitimate reason to want a bulk correction job left running once you've asked to cancel it.
+     */
+    private void executeMapResweepCancel(MinecraftServer server, ICommandSender sender) {
+        int cancelled = 0;
+        for (WorldServer ws : server.worlds) {
+            if (com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.cancel(ws.provider.getDimension(), sender)) {
+                cancelled++;
+            }
+        }
+        if (cancelled == 0) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "No map resweep running."));
         }
     }
 

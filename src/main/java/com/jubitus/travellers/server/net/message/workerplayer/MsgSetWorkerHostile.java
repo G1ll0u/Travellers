@@ -1,6 +1,8 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.utils.mobs.PlayerHostility;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
@@ -9,8 +11,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -66,7 +66,7 @@ public class MsgSetWorkerHostile implements IMessage {
                 // Only the owner can edit
                 UUID ownerId = worker.getFollowOwnerId();
                 if (ownerId == null || !ownerId.equals(sender.getUniqueID())) {
-                    sender.sendMessage(new TextComponentString(TextFormatting.RED + "You don't own this worker."));
+                    NotificationService.notify(sender, NotificationDefs.HOSTILE_NOT_OWNER);
                     return;
                 }
 
@@ -82,9 +82,7 @@ public class MsgSetWorkerHostile implements IMessage {
                 }
 
                 if (gp == null || gp.getId() == null) {
-                    sender.sendMessage(new TextComponentString(
-                            TextFormatting.RED + "Player '" + raw + "' not found. They must have joined the server at least once."
-                    ));
+                    NotificationService.notify(sender, NotificationDefs.HOSTILE_PLAYER_NOT_FOUND, raw);
                     return;
                 }
 
@@ -96,14 +94,10 @@ public class MsgSetWorkerHostile implements IMessage {
 
                 if (msg.hostile) {
                     hostility.hostilePlayers.add(targetId);
-                    sender.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "Workers will attack: " + gp.getName()
-                    ));
+                    NotificationService.notify(sender, NotificationDefs.HOSTILE_ADDED, gp.getName());
                 } else {
                     hostility.hostilePlayers.remove(targetId);
-                    sender.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "Removed enemy: " + gp.getName()
-                    ));
+                    NotificationService.notify(sender, NotificationDefs.HOSTILE_REMOVED, gp.getName());
 
                     // ALSO clear auto-retaliation local enemy from all LOADED workers of this owner
                     for (WorldServer ws : server.worlds) {

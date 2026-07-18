@@ -84,25 +84,38 @@ public final class FollowFormationCoordinator {
     }
 
     /**
-     * Captures the current slot offset from the leader for the given worker.
-     * Called at virtualization so MaterializePositionResolver can restore the
-     * worker to its formation slot on re-materialization.
-     *
-     * @param out2 receives [dx, dz] — slot offset from leader in world coords
-     * @return true if valid offset was stored in out2
+     * Returns the worker's current persistent formation ordinal (slot index), or -1 if it never
+     * had one. Called at virtualization so VirtualFormationSimulator can seed its own
+     * formationOrdinal from the same value instead of appending the worker at the back of the
+     * line the moment it goes virtual.
      */
-    public static boolean snapshotSlotOffset(UUID leaderId, int dimension, UUID workerId, double[] out2) {
+    public static int snapshotOrdinal(UUID leaderId, int dimension, UUID workerId) {
         LeaderKey key = new LeaderKey(dimension, leaderId);
         LeaderContext ctx = CONTEXTS.get(key);
-        if (ctx == null) return false;
-        SlotAssignment slot = ctx.assignments.get(workerId);
-        if (slot == null || slot.projectedGroundTarget) return false;
-        double dx = slot.leaderOffsetDx;
-        double dz = slot.leaderOffsetDz;
-        if (Math.abs(dx) < 0.05 && Math.abs(dz) < 0.05) return false; // no meaningful offset
-        out2[0] = dx;
-        out2[1] = dz;
-        return true;
+        if (ctx == null) return -1;
+        Integer ord = ctx.persistentOrdinals.get(workerId);
+        return ord != null ? ord : -1;
+    }
+
+    /**
+     * Group-mates of {@code self} (same follow-owner, following the same {@code leader}) within a
+     * few blocks of (x, z), used for crowd-avoidance scoring. Reuses the per-leader
+     * {@code registered} self-registration map (already maintained for slot assignment)
+     * via a small spatial grid rebuilt at most once per world tick, instead of each follower
+     * running its own world.getEntitiesWithinAABB() scan.
+     */
+    public static List<EntityTravellerWorker> getCrowdNeighbors(@Nullable EntityLivingBase leader,
+                                                                 EntityTravellerWorker self,
+                                                                 double x,
+                                                                 double z) {
+        if (leader == null) return Collections.emptyList();
+
+        World world = self.world;
+        LeaderKey key = new LeaderKey(world.provider.getDimension(), leader.getUniqueID());
+        LeaderContext ctx = CONTEXTS.get(key);
+        if (ctx == null) return Collections.emptyList();
+
+        return ctx.crowdNeighbors(x, z, world.getTotalWorldTime(), self);
     }
 
     public static void notifyWorkerRejoined(UUID workerId) {
@@ -200,12 +213,23 @@ public final class FollowFormationCoordinator {
         private final Map<UUID, SlotAssignment> assignments = new HashMap<>();
         private final Map<UUID, Integer> previousOrdinals = new HashMap<>();
 
+        private static final class RegisteredMember {
+            final EntityTravellerWorker worker;
+            long lastSeen;
+
+            RegisteredMember(EntityTravellerWorker worker, long lastSeen) {
+                this.worker = worker;
+                this.lastSeen = lastSeen;
+            }
+        }
+
         /**
          * Self-registration: workers register themselves in getSlot() each tick.
          * Replaces the expensive world.getEntitiesWithinAABB() scan in rebuildAssignments.
+         * One map instead of two parallel UUID-keyed maps, to halve the lookups every place
+         * that needs both the worker and its last-seen tick.
          */
-        private final Map<UUID, EntityTravellerWorker> registeredMembers = new LinkedHashMap<>();
-        private final Map<UUID, Long> memberLastSeen = new HashMap<>();
+        private final Map<UUID, RegisteredMember> registered = new LinkedHashMap<>();
 
         /**
          * Persistent ordinal registry: workers keep their slot index even between rebuild cycles.
@@ -221,29 +245,144 @@ public final class FollowFormationCoordinator {
         /** Eligible member count at last heading-update tick. -1 = never computed. */
         private int lastEligibleCount = -1;
 
+        /**
+         * Spatial bucket of registered members, rebuilt at most once per world tick.
+         * Lets many followers query nearby group-mates for crowd-avoidance scoring
+         * in O(1) instead of each running its own world.getEntitiesWithinAABB() scan.
+         * Flat array indexed directly by cell offset rather than a HashMap: with a tightly
+         * clustered group (hundreds of followers in a handful of cells), a Long-keyed HashMap
+         * treeifies its buckets because Long.hashCode() XORs the packed cx/cz halves back
+         * together, collapsing entropy for small nearby cell coordinates — array indexing has
+         * no hash step at all.
+         */
+        private static final double CROWD_CELL_SIZE = 4.0D;
+        /** Defensive cap on grid span (cells) so one far-away straggler can't blow up the array. */
+        private static final int CROWD_GRID_MAX_SPAN = 160;
+
+        private List<EntityTravellerWorker>[] crowdGridCells = emptyCrowdGrid();
+        private int crowdGridMinCx, crowdGridMinCz, crowdGridWidth, crowdGridHeight;
+        private long crowdGridTick = Long.MIN_VALUE;
+
         private LeaderContext(LeaderKey key) {
             this.key = key;
         }
 
+        @SuppressWarnings("unchecked")
+        private static List<EntityTravellerWorker>[] emptyCrowdGrid() {
+            return new List[0];
+        }
+
+        @SuppressWarnings("unchecked")
+        private void ensureCrowdGrid(long now) {
+            if (crowdGridTick == now) return;
+            crowdGridTick = now;
+
+            int minCx = Integer.MAX_VALUE, maxCx = Integer.MIN_VALUE;
+            int minCz = Integer.MAX_VALUE, maxCz = Integer.MIN_VALUE;
+            List<EntityTravellerWorker> live = new ArrayList<>(registered.size());
+
+            for (RegisteredMember m : registered.values()) {
+                EntityTravellerWorker w = m.worker;
+                if ((now - m.lastSeen) > MEMBER_EXPIRY_TICKS || w.isDead) continue;
+
+                live.add(w);
+                int cx = MathHelper.floor(w.posX / CROWD_CELL_SIZE);
+                int cz = MathHelper.floor(w.posZ / CROWD_CELL_SIZE);
+                if (cx < minCx) minCx = cx;
+                if (cx > maxCx) maxCx = cx;
+                if (cz < minCz) minCz = cz;
+                if (cz > maxCz) maxCz = cz;
+            }
+
+            if (live.isEmpty()) {
+                crowdGridWidth = 0;
+                crowdGridHeight = 0;
+                crowdGridCells = emptyCrowdGrid();
+                return;
+            }
+
+            int width = Math.min(maxCx - minCx + 1, CROWD_GRID_MAX_SPAN);
+            int height = Math.min(maxCz - minCz + 1, CROWD_GRID_MAX_SPAN);
+            crowdGridMinCx = minCx;
+            crowdGridMinCz = minCz;
+            crowdGridWidth = width;
+            crowdGridHeight = height;
+
+            List<EntityTravellerWorker>[] cells = new List[width * height];
+
+            for (EntityTravellerWorker w : live) {
+                int cx = MathHelper.floor(w.posX / CROWD_CELL_SIZE) - minCx;
+                int cz = MathHelper.floor(w.posZ / CROWD_CELL_SIZE) - minCz;
+                if (cx < 0 || cx >= width || cz < 0 || cz >= height) continue; // outside capped span
+
+                int idx = cx * height + cz;
+                List<EntityTravellerWorker> bucket = cells[idx];
+                if (bucket == null) {
+                    bucket = new ArrayList<>(4);
+                    cells[idx] = bucket;
+                }
+                bucket.add(w);
+            }
+
+            crowdGridCells = cells;
+        }
+
+        /**
+         * Group-mates within the 3x3 cells around (x, z), excluding {@code self}. No owner check
+         * needed: a worker only ever registers into this context when
+         * {@code getEffectiveFollowTarget() == leader}, which itself requires a matching
+         * follow-owner (see {@code EntityTravellerWorker.getEffectiveFollowTarget}) — every
+         * registered member of this context is guaranteed to already share the same owner.
+         */
+        List<EntityTravellerWorker> crowdNeighbors(double x, double z, long now, EntityTravellerWorker self) {
+            ensureCrowdGrid(now);
+            if (crowdGridWidth == 0) return Collections.emptyList();
+
+            int cx = MathHelper.floor(x / CROWD_CELL_SIZE) - crowdGridMinCx;
+            int cz = MathHelper.floor(z / CROWD_CELL_SIZE) - crowdGridMinCz;
+
+            List<EntityTravellerWorker> result = new ArrayList<>(8);
+            for (int dx = -1; dx <= 1; dx++) {
+                int gx = cx + dx;
+                if (gx < 0 || gx >= crowdGridWidth) continue;
+                for (int dz = -1; dz <= 1; dz++) {
+                    int gz = cz + dz;
+                    if (gz < 0 || gz >= crowdGridHeight) continue;
+
+                    List<EntityTravellerWorker> bucket = crowdGridCells[gx * crowdGridHeight + gz];
+                    if (bucket == null) continue;
+                    for (EntityTravellerWorker w : bucket) {
+                        if (w == self) continue;
+                        result.add(w);
+                    }
+                }
+            }
+            return result;
+        }
+
         void registerMember(EntityTravellerWorker worker, long now) {
-            Long lastSeen = memberLastSeen.get(worker.getUniqueID());
+            UUID id = worker.getUniqueID();
+            RegisteredMember existing = registered.get(id);
+
+            if (existing == null) {
+                registered.put(id, new RegisteredMember(worker, now));
+                return;
+            }
+
             // Worker was absent long enough to be considered gone: reset its slot so it rejoins
             // at the correct position for the current group size instead of using a stale ordinal.
-            if (lastSeen == null || (now - lastSeen) > MEMBER_EXPIRY_TICKS) {
-                persistentOrdinals.remove(worker.getUniqueID());
-                persistentFormOrdinals.remove(worker.getUniqueID());
+            if ((now - existing.lastSeen) > MEMBER_EXPIRY_TICKS) {
+                persistentOrdinals.remove(id);
+                persistentFormOrdinals.remove(id);
             }
-            registeredMembers.put(worker.getUniqueID(), worker);
-            memberLastSeen.put(worker.getUniqueID(), now);
+            existing.lastSeen = now;
         }
 
         private int countEligible(@Nullable UUID ownerId, EntityLivingBase leader, long now) {
             int count = 0;
-            for (Map.Entry<UUID, EntityTravellerWorker> e : registeredMembers.entrySet()) {
-                EntityTravellerWorker w = e.getValue();
-                Long lastSeen = memberLastSeen.get(e.getKey());
-                if (lastSeen == null || (now - lastSeen) > MEMBER_EXPIRY_TICKS || w.isDead) continue;
-                if (ownerMatches(w, ownerId) && w.getEffectiveFollowTarget() == leader)
+            for (RegisteredMember m : registered.values()) {
+                if ((now - m.lastSeen) > MEMBER_EXPIRY_TICKS || m.worker.isDead) continue;
+                if (ownerMatches(m.worker, ownerId) && m.worker.getEffectiveFollowTarget() == leader)
                     count++;
             }
             return count;
@@ -527,15 +666,13 @@ public final class FollowFormationCoordinator {
             // Build members from self-registered workers (no world AABB scan needed).
             // Workers register themselves in getSlot() every tick they are active.
             // Stale or dead entries are pruned here.
-            Iterator<Map.Entry<UUID, EntityTravellerWorker>> regIt = registeredMembers.entrySet().iterator();
+            Iterator<RegisteredMember> regIt = registered.values().iterator();
             while (regIt.hasNext()) {
-                Map.Entry<UUID, EntityTravellerWorker> e = regIt.next();
-                EntityTravellerWorker w = e.getValue();
-                Long lastSeen = memberLastSeen.get(e.getKey());
-                boolean stale = lastSeen == null || (now - lastSeen) > MEMBER_EXPIRY_TICKS;
+                RegisteredMember m = regIt.next();
+                EntityTravellerWorker w = m.worker;
+                boolean stale = (now - m.lastSeen) > MEMBER_EXPIRY_TICKS;
                 if (stale || w.isDead) {
                     regIt.remove();
-                    memberLastSeen.remove(e.getKey());
                     continue;
                 }
                 if (ownerMatches(w, ownerId) && w.getEffectiveFollowTarget() == leader) {
@@ -553,18 +690,18 @@ public final class FollowFormationCoordinator {
             assignments.clear();
             previousOrdinals.clear();
 
-            // Purge stale ordinals: workers absent from registeredMembers, OR present but no longer
+            // Purge stale ordinals: workers absent from `registered`, OR present but no longer
             // following this leader (e.g. switched to another leader or back to player). Without this,
             // a worker rejoining carries its old ordinal from a larger group and gets placed far away.
             persistentOrdinals.keySet().removeIf(uuid -> {
-                if (!registeredMembers.containsKey(uuid)) return true;
-                EntityTravellerWorker w = registeredMembers.get(uuid);
-                return w.isDead || !ownerMatches(w, ownerId) || w.getEffectiveFollowTarget() != leader;
+                RegisteredMember m = registered.get(uuid);
+                if (m == null) return true;
+                return m.worker.isDead || !ownerMatches(m.worker, ownerId) || m.worker.getEffectiveFollowTarget() != leader;
             });
             persistentFormOrdinals.keySet().removeIf(uuid -> {
-                if (!registeredMembers.containsKey(uuid)) return true;
-                EntityTravellerWorker w = registeredMembers.get(uuid);
-                return w.isDead || !ownerMatches(w, ownerId) || w.getEffectiveFollowTarget() != leader;
+                RegisteredMember m = registered.get(uuid);
+                if (m == null) return true;
+                return m.worker.isDead || !ownerMatches(m.worker, ownerId) || m.worker.getEffectiveFollowTarget() != leader;
             });
 
             int totalKnownSize = groupSize;
@@ -944,70 +1081,26 @@ public final class FollowFormationCoordinator {
                                                 UUID leaderId,
                                                 WorkerFormationSettings formationSettings,
                                                 boolean workerLeader) {
-        // Close-escort slots: first numEscorts ordinals are kept 2-3 blocks from the leader.
-        // When groupSize <= numEscorts all workers are escorts — use effective count for correct spread.
-        int numEscorts = formationSettings.numEscorts;
-        if (numEscorts > 0 && ordinal < numEscorts) {
-            int effectiveEscorts = Math.min(numEscorts, groupSize);
-            return computeEscortOffset(ordinal, effectiveEscorts, forwardX, forwardZ);
-        }
-
-        // Shift ordinal so the formation starts after the escort slots
-        int adjOrdinal   = ordinal - numEscorts;
-        int adjGroupSize = Math.max(1, groupSize - numEscorts);
-
+        // Close-escort slots, and surface formation geometry, are shared pure math (FormationGeometry)
+        // so loaded and virtual/offscreen followers can never visually disagree on formation shape.
         if (mode == FollowMode.CAVE) {
-            return computeCaveOffset(adjOrdinal, adjGroupSize, forwardX, forwardZ, profile, cfg, formationSettings);
-        }
-        return computeSurfaceOffset(
-                adjOrdinal,
-                adjGroupSize,
-                forwardX,
-                forwardZ,
-                profile,
-                mode,
-                cfg,
-                baseFollowDistance,
-                leaderId,
-                formationSettings,
-                workerLeader
-        );
-    }
-
-    /**
-     * Escort slot: places the worker close (2–3 blocks) behind the leader, slightly to the side.
-     * These workers never join the main formation geometry and are always near enough to right-click.
-     */
-    private static SlotOffset computeEscortOffset(int escortIndex, int numEscorts, double forwardX, double forwardZ) {
-        double rx = -forwardZ;
-        double rz =  forwardX;
-
-        // Spread escorts evenly across a small arc behind the leader
-        // 1 escort  → directly behind
-        // 2 escorts → behind-left and behind-right
-        double side;
-        double back = 2.5D;
-        if (numEscorts == 1) {
-            side = 0.0D;
-        } else if (numEscorts == 2) {
-            side = escortIndex == 0 ? -1.4D : 1.4D;
-        } else {
-            // Up to 4 per row; overflow goes to a second row 2 blocks further back
-            int perRow = Math.min(numEscorts, 4);
-            int row = escortIndex / perRow;
-            int col = escortIndex % perRow;
-            int rowSize = row == 0 ? Math.min(numEscorts, perRow) : (numEscorts - perRow);
-            side = rowSize <= 1 ? 0.0D : (col - (rowSize - 1) * 0.5D) * 1.4D;
-            back = 2.5D + row * 2.0D;
+            // Cave/tunnel geometry depends on world block scans (SpaceProfile) that only make sense
+            // for a loaded leader — kept here rather than in the shared geometry class.
+            int numEscortsCave = formationSettings.numEscorts;
+            if (numEscortsCave > 0 && ordinal < numEscortsCave) {
+                int effectiveEscorts = Math.min(numEscortsCave, groupSize);
+                FormationGeometry.SlotOffset off =
+                        FormationGeometry.computeEscortOffset(ordinal, effectiveEscorts, forwardX, forwardZ);
+                return new SlotOffset(off.dx, off.dz, off.preferredRadius, off.arriveRadius, off.frontPenaltyStrength);
+            }
+            int adjOrdinalCave = ordinal - numEscortsCave;
+            int adjGroupSizeCave = Math.max(1, groupSize - numEscortsCave);
+            return computeCaveOffset(adjOrdinalCave, adjGroupSizeCave, forwardX, forwardZ, profile, cfg, formationSettings);
         }
 
-        return new SlotOffset(
-                -forwardX * back + rx * side,
-                -forwardZ * back + rz * side,
-                back,
-                1.1D,
-                0.0D
-        );
+        FormationGeometry.SlotOffset off = FormationGeometry.computeSlotOffset(
+                ordinal, groupSize, forwardX, forwardZ, baseFollowDistance, leaderId, formationSettings, workerLeader);
+        return new SlotOffset(off.dx, off.dz, off.preferredRadius, off.arriveRadius, off.frontPenaltyStrength);
     }
 
     private static SlotOffset computeCaveOffset(int ordinal,
@@ -1085,166 +1178,6 @@ public final class FollowFormationCoordinator {
                 );
             }
         }
-    }
-
-    private static SlotOffset computeSurfaceOffset(int ordinal,
-                                                   int groupSize,
-                                                   double forwardX,
-                                                   double forwardZ,
-                                                   SpaceProfile profile,
-                                                   FollowMode mode,
-                                                   FollowRuntimeConfig cfg,
-                                                   double baseFollowDistance,
-                                                   UUID leaderId,
-                                                   WorkerFormationSettings settings,
-                                                   boolean workerLeader) {
-        double rx = -forwardZ;
-        double rz = forwardX;
-
-        WorkerFormationStyle style = resolveSurfaceStyle(settings.style, groupSize, workerLeader);
-
-        double spacingMul = settings.spacing;
-        double widthMul = 0.70D + settings.width * 0.20D;
-
-        // No group-size back-off: the formation distance is exactly what the GUI says,
-        // regardless of how many followers there are. Large groups simply extend further back.
-        double baseDist = Math.max(baseFollowDistance, settings.followDistance);
-
-        double ringSpacing = Math.max(1.00D, cfg.surface.ringSpacing * spacingMul);
-        double rowSpacing = Math.max(1.15D, cfg.surface.rowSpacing * spacingMul);
-        double laneSpacing = Math.max(1.05D, cfg.surface.laneSpacing * spacingMul * widthMul);
-        double stagger = cfg.surface.staggerOffset * Math.min(1.65D, 0.70D + settings.width * 0.18D);
-
-        switch (style) {
-            case LINE: {
-                // Perpendicular line: workers spread sideways (±right vector), stacked in ranks behind.
-                // Row length is capped at maxSurfaceLanes (same cap COMPACT/COLUMN already use)
-                // so very large groups grow backward (more ranks) instead of sideways past the
-                // distance workers can reliably reach a slot. Spacing (laneSpacing, below) still
-                // scales with the full width setting - only the row length is bounded.
-                int perLine = Math.max(1, Math.min(settings.width, cfg.group.maxSurfaceLanes));
-                int rank = ordinal / perLine;
-                int lineIndex = ordinal % perLine;
-
-                double alongLine = (lineIndex - (perLine - 1) * 0.5D) * laneSpacing;
-                double back = baseDist + rank * rowSpacing;
-
-                return new SlotOffset(
-                        -forwardX * back + rx * alongLine,
-                        -forwardZ * back + rz * alongLine,
-                        back,
-                        cfg.surface.arriveRadius + Math.min(0.35D, rank * 0.04D),
-                        0.70D
-                );
-            }
-
-            case COLUMN: {
-                int lanes = settings.width >= 5 ? 2 : 1;
-                int row = ordinal / lanes;
-                int lane = ordinal % lanes;
-
-                double side = lanes == 1 ? 0.0D : (lane == 0 ? -laneSpacing * 0.40D : laneSpacing * 0.40D);
-                double back = baseDist + row * rowSpacing * 0.95D;
-
-                return new SlotOffset(
-                        -forwardX * back + rx * side,
-                        -forwardZ * back + rz * side,
-                        back,
-                        cfg.surface.arriveRadius + Math.min(0.35D, row * 0.05D),
-                        0.55D
-                );
-            }
-
-            case WEDGE: {
-                int row = 0;
-                int remaining = ordinal;
-                int rowCount = 1;
-
-                while (remaining >= rowCount) {
-                    remaining -= rowCount;
-                    row++;
-                    rowCount = Math.max(2, row * 2);
-                }
-
-                double back = baseDist + row * rowSpacing;
-                double side = rowCount == 1 ? 0.0D : (remaining - (rowCount - 1) * 0.5D) * laneSpacing * 0.82D;
-
-                return new SlotOffset(
-                        -forwardX * back + rx * side,
-                        -forwardZ * back + rz * side,
-                        back,
-                        cfg.surface.arriveRadius + Math.min(0.35D, row * 0.06D),
-                        1.05D
-                );
-            }
-
-            case COMPACT:
-            default: {
-                int firstRing = Math.min(Math.max(6, settings.width * 2), Math.max(6, Math.min(10, groupSize)));
-                if (ordinal < firstRing) {
-                    double t = firstRing <= 1 ? 0.5D : (double) ordinal / (double) (firstRing - 1);
-                    double angleDeg = -135.0D + 270.0D * t;
-
-                    if (Math.abs(angleDeg) < 24.0D) {
-                        int sideSign = (((leaderId.hashCode() >> 1) + ordinal) & 1) == 0 ? -1 : 1;
-                        angleDeg = 24.0D * sideSign;
-                    }
-
-                    double angle = Math.toRadians(angleDeg);
-                    double radius = baseDist + (ordinal >= Math.max(4, firstRing / 2) ? ringSpacing * 0.75D : 0.0D);
-
-                    double back = Math.cos(angle) * radius;
-                    double side = Math.sin(angle) * radius;
-
-                    return new SlotOffset(
-                            -forwardX * back + rx * side,
-                            -forwardZ * back + rz * side,
-                            radius,
-                            cfg.surface.arriveRadius,
-                            1.10D
-                    );
-                }
-
-                int idx = ordinal - firstRing;
-                int lanes = Math.min(cfg.group.maxSurfaceLanes, Math.max(3, settings.width + 2));
-                int row = 1 + idx / lanes;
-                int col = idx % lanes;
-
-                double side = (col - (lanes - 1) * 0.5D) * laneSpacing;
-                if ((row & 1) == 1) {
-                    int sign = (((leaderId.hashCode() >> row) + col) & 1) == 0 ? -1 : 1;
-                    side += stagger * sign;
-                }
-
-                double back = baseDist + ringSpacing + rowSpacing * row;
-
-                return new SlotOffset(
-                        -forwardX * back + rx * side,
-                        -forwardZ * back + rz * side,
-                        back,
-                        cfg.surface.arriveRadius + Math.min(0.40D, row * 0.08D),
-                        0.80D
-                );
-            }
-        }
-    }
-
-    private static WorkerFormationStyle resolveSurfaceStyle(WorkerFormationStyle requested,
-                                                            int groupSize,
-                                                            boolean workerLeader) {
-        if (requested != WorkerFormationStyle.ADAPTIVE) {
-            return requested;
-        }
-
-        if (workerLeader) {
-            if (groupSize <= 6)  return WorkerFormationStyle.WEDGE;
-            if (groupSize <= 18) return WorkerFormationStyle.COLUMN;
-            return WorkerFormationStyle.LINE;
-        }
-
-        if (groupSize <= 8)  return WorkerFormationStyle.WEDGE;
-        if (groupSize <= 60) return WorkerFormationStyle.COMPACT;
-        return WorkerFormationStyle.LINE;
     }
 
     private static WorkerFormationStyle resolveCaveStyle(WorkerFormationSettings settings, SpaceProfile profile) {

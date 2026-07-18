@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.bahavior;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
@@ -15,7 +16,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerBehavior extends GuiScreen {
+public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -121,6 +122,7 @@ public class GuiWorkerBehavior extends GuiScreen {
         );
 
         super.drawScreen(mouseX, mouseY, partialTicks);
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

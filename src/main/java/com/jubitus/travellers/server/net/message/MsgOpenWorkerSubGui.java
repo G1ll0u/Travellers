@@ -8,6 +8,8 @@ import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
@@ -23,8 +25,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -114,9 +114,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case TRANSPORT:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You must hire this worker to use Transport."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_TRANSPORT);
                             return;
                         }
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
@@ -131,9 +129,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case INVENTORY:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only access the pack of a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_INVENTORY);
                             return;
                         }
                         player.openGui(
@@ -147,9 +143,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case ORDERS:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only give orders to a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_ORDERS);
                             return;
                         }
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
@@ -161,9 +155,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case BEHAVIOR:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only manage behavior of a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_BEHAVIOR);
                             return;
                         }
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
@@ -176,9 +168,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case RECRUIT:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only recruit with a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_RECRUIT);
                             return;
                         }
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
@@ -190,9 +180,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case HOME:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only manage home for a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_HOME);
                             return;
                         }
 
@@ -212,9 +200,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case GO:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only order a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_GO);
                             return;
                         }
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
@@ -226,9 +212,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case FORMATION:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only manage formation of a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_FORMATION);
                             return;
                         }
 
@@ -313,9 +297,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
                     case VILLAGE_RELATIONS:
                         if (!isHiredByPlayer(worker, player)) {
-                            player.sendMessage(new TextComponentString(
-                                    TextFormatting.RED + "You can only manage village relations of a worker you've hired."
-                            ));
+                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_VILLAGE_RELATIONS);
                             return;
                         }
                         TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);

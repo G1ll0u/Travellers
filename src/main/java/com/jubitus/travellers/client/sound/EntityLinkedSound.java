@@ -1,6 +1,5 @@
 package com.jubitus.travellers.client.sound;
 
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.client.Minecraft;
@@ -143,7 +142,7 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
     }
 
     private float currentBaseVolume() {
-        return isChoir ? baseVolume * TravellersModConfig.choirSoundVolumeMultiplier : baseVolume;
+        return isChoir ? baseVolume * TravellersConfig.CHOIR.choirSoundVolumeMultiplier : baseVolume;
     }
 
     @Override

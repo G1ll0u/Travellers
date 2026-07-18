@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
@@ -56,7 +57,7 @@ public class TravellerCombatLogic {
     public boolean isInCombat() {
         boolean base = isInCombatRaw();
         if (!base) return false;
-        if (!TravellersModConfig.travellerNoAggroOffscreen) return base;
+        if (!TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen) return base;
         return isAnyPlayerWithinViewRadius();
     }
 
@@ -101,7 +102,7 @@ public class TravellerCombatLogic {
         TravellerBlacklist blacklist = entity.getAggroBlacklist();
         if (blacklist != null && blacklist.isBlacklisted(target)) return false;
 
-        if (TravellersModConfig.travellerNoAggroOffscreen
+        if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
                 && !entity.isInPlayerViewDistance()
                 && !(target instanceof EntityPlayer)) {
             return false;
@@ -199,7 +200,7 @@ public class TravellerCombatLogic {
                         ? ((EntityLivingBase) target).getCreatureAttribute() : null);
 
         if (target instanceof EntityPlayer) {
-            damage *= TravellersModConfig.travellerPlayerDamageMultiplier;
+            damage *= TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier;
         }
         boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(entity), damage);
         if (!hit) return false;
@@ -291,15 +292,15 @@ public class TravellerCombatLogic {
     public void decayAndPruneThreats() {
         if (threatMap.isEmpty()) return;
         int now = entity.ticksExisted;
-        if (now - lastThreatDecayTick < TravellersModConfig.THREAT_DECAY_INTERVAL_TICKS) return;
+        if (now - lastThreatDecayTick < TravellersConfig.COMBAT.threatDecayIntervalTicks) return;
         lastThreatDecayTick = now;
 
         Iterator<Map.Entry<UUID, Threat>> it = threatMap.entrySet().iterator();
         while (it.hasNext()) {
             Threat t = it.next().getValue();
             int age = now - t.lastSeenTick;
-            if (age > TravellersModConfig.THREAT_TTL_TICKS) { it.remove(); continue; }
-            t.score = Math.max(0, t.score - TravellersModConfig.THREAT_DECAY_PER_SEC);
+            if (age > TravellersConfig.COMBAT.threatTtlTicks) { it.remove(); continue; }
+            t.score = Math.max(0, t.score - TravellersConfig.COMBAT.threatDecayPerSec);
             if (t.score == 0) it.remove();
         }
     }
@@ -323,9 +324,9 @@ public class TravellerCombatLogic {
             g.count = 0;
         }
         g.count++;
-        g.expiresAt = now + TravellersModConfig.PLAYER_FORGIVE_WINDOW_TICKS;
+        g.expiresAt = now + TravellersConfig.PLAYER_AGGRO.playerForgiveWindowTicks;
         playerGrace.put(id, g);
-        return g.count <= TravellersModConfig.PLAYER_FREE_HITS;
+        return g.count <= TravellersConfig.PLAYER_AGGRO.playerFreeHits;
     }
 
     public void pruneGraceHits() {
@@ -371,7 +372,7 @@ public class TravellerCombatLogic {
     private boolean isAnyPlayerWithinViewRadius() {
         if (entity.world == null) return true;
         if (entity.world.isRemote) return true;
-        double radius = TravellersModConfig.travellerOffscreenViewRadius;
+        double radius = TravellersConfig.COMBAT.travellerOffscreenViewRadius;
         if (radius <= 0.0D) return true;
         return entity.world.getClosestPlayer(entity.posX, entity.posY, entity.posZ, radius, false) != null;
     }

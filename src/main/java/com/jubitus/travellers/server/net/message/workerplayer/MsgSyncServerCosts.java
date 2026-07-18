@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -46,11 +47,11 @@ public class MsgSyncServerCosts implements IMessage {
         public IMessage onMessage(MsgSyncServerCosts msg, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
 
-                TravellersModConfig.workerHireCostDeniers_serverCache = msg.workerHireCostDeniers;
+                TravellersDerivedConfig.workerHireCostDeniersServerCache = msg.workerHireCostDeniers;
 
-                TravellersModConfig.recruitFeeFlat_serverCache = msg.recruitFeeFlat;
-                TravellersModConfig.recruitFeePerBlock_serverCache = msg.recruitFeePerBlock;
-                TravellersModConfig.recruitFeePerVillage_serverCache = msg.recruitFeePerVillage;
+                TravellersDerivedConfig.recruitFeeFlatServerCache = msg.recruitFeeFlat;
+                TravellersDerivedConfig.recruitFeePerBlockServerCache = msg.recruitFeePerBlock;
+                TravellersDerivedConfig.recruitFeePerVillageServerCache = msg.recruitFeePerVillage;
             });
             return null;
         }

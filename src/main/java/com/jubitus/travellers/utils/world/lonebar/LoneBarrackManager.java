@@ -1,6 +1,5 @@
 package com.jubitus.travellers.utils.world.lonebar;
 
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.block.Block;
@@ -175,7 +174,7 @@ public class LoneBarrackManager extends WorldSavedData {
 
     /** Process pending bed respawns for this world's dimension. Called once per morning. */
     public void processRespawns(WorldServer world) {
-        if (!TravellersModConfig.workerRespawnInBarracks) return;
+        if (!TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) return;
         int dim = world.provider.getDimension();
         List<UUID> toProcess = new ArrayList<>();
         for (PendingRespawn pr : pendingRespawns.values()) {

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.ambient;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
@@ -54,13 +55,13 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         this(
                 mob,
                 com.jubitus.travellers.config.TravellersConfig.SPEED.fishApproachSpeed,
-                TravellersModConfig.fishWaterScanRadius,
-                TravellersModConfig.fishMinTimeTicks,
-                TravellersModConfig.fishMaxTimeTicks,
-                TravellersModConfig.fishReelEveryTicks,
-                TravellersModConfig.fishCastWindupTicks,
-                TravellersModConfig.fishCooldownTicks,
-                TravellersModConfig.fishStartChancePerTick
+                TravellersConfig.FISHING.fishWaterScanRadius,
+                TravellersConfig.FISHING.fishMinTimeTicks,
+                TravellersConfig.FISHING.fishMaxTimeTicks,
+                TravellersConfig.FISHING.fishReelEveryTicks,
+                TravellersConfig.FISHING.fishCastWindupTicks,
+                TravellersConfig.FISHING.fishCooldownTicks,
+                TravellersConfig.FISHING.fishStartChancePerTick
         );
     }
 

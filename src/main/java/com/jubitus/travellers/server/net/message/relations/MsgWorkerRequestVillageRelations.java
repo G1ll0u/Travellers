@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net.message.relations;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.data.TravellerVillageRelations;
@@ -49,7 +50,7 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
 
         public static MsgWorkerVillageRelationsList buildList(WorldServer ws, EntityTravellerWorker worker, UUID playerId) {
             BlockPos workerPos = worker.getPosition();
-            int maxRadius = TravellersModConfig.workerVillageDetectRadius;
+            int maxRadius = TravellersConfig.WORKER.workerVillageDetectRadius;
             if (maxRadius <= 0) maxRadius = 2000;
 
             TravellerVillageRelations rel = TravellerVillageRelations.get(ws);

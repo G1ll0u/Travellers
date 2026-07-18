@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.bahavior.relations;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
@@ -32,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
+public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
 
     private static final int MAP_W = 200;
 
@@ -293,6 +294,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
             }
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

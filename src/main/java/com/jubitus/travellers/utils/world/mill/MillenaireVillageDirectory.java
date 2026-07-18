@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.world.mill;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import net.minecraft.util.math.BlockPos;
 
 import javax.annotation.Nullable;
@@ -162,8 +163,8 @@ public final class MillenaireVillageDirectory {
 
         for (Entry e : BY_POS.values()) {
             int radius = e.isVillage
-                    ? TravellersModConfig.travellerVillageInfluenceRadius
-                    : TravellersModConfig.travellerLoneInfluenceRadius;
+                    ? TravellersConfig.SPAWN.travellerVillageInfluenceRadius
+                    : TravellersConfig.SPAWN.travellerLoneInfluenceRadius;
 
             if (radius <= 0) continue;
 
@@ -177,17 +178,17 @@ public final class MillenaireVillageDirectory {
             double t = dist / (double) radius;  // 0 at center, 1 at edge
             double base = 1.0 - t;              // linear 0..1
 
-            double power = Math.max(0.01, TravellersModConfig.travellerFalloffPower);
+            double power = Math.max(0.01, TravellersConfig.SPAWN.travellerFalloffPower);
             double falloff = Math.pow(base, power);
 
             double typeWeight = e.isVillage
-                    ? TravellersModConfig.travellerVillageWeight
-                    : TravellersModConfig.travellerLoneWeight;
+                    ? TravellersConfig.SPAWN.travellerVillageWeight
+                    : TravellersConfig.SPAWN.travellerLoneWeight;
 
             total += falloff * typeWeight;
         }
 
-        double max = TravellersModConfig.travellerMaxDensity;
+        double max = TravellersConfig.SPAWN.travellerMaxDensity;
         if (max > 0.0) total = Math.min(total, max);
 
         return total; // 0..~travellerMaxDensity
@@ -221,9 +222,9 @@ public final class MillenaireVillageDirectory {
     public static int nearRadiusFor(BlockPos center) {
         Entry e = BY_POS.get(center);
         if (e != null && !e.isVillage) {
-            return TravellersModConfig.lonebuildingNear;   // lone building
+            return TravellersConfig.DESTINATIONS.lonebuildingNear;   // lone building
         }
-        return TravellersModConfig.villageNear;            // default to village
+        return TravellersConfig.DESTINATIONS.villageNear;            // default to village
     }
 
     public static final class Entry {

@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.net.message.leadfollow;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -94,9 +94,7 @@ public class MsgMakeWorkerLeader implements IMessage {
                         }
                     }
 
-                    player.sendMessage(new TextComponentString(
-                            TextFormatting.YELLOW + "Released " + cleared + " followers back to you."
-                    ));
+                    NotificationService.notify(player, NotificationDefs.LEADER_RELEASED_FOLLOWERS, String.valueOf(cleared));
 
                 } else {
                     // ASSIGN ALL free followers globally (NO radius)
@@ -125,13 +123,9 @@ public class MsgMakeWorkerLeader implements IMessage {
                     assigned += vwm.cmdMakeLeader(leaderId, ownerId);
 
                     if (assigned > 0) {
-                        player.sendMessage(new TextComponentString(
-                                TextFormatting.GREEN + "This worker is now leading " + assigned + " followers."
-                        ));
+                        NotificationService.notify(player, NotificationDefs.LEADER_NOW_LEADING, String.valueOf(assigned));
                     } else {
-                        player.sendMessage(new TextComponentString(
-                                TextFormatting.YELLOW + "No free direct followers to assign."
-                        ));
+                        NotificationService.notify(player, NotificationDefs.LEADER_NO_FREE_FOLLOWERS);
                     }
                 }
 

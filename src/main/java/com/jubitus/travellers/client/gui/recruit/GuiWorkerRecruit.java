@@ -1,6 +1,9 @@
 package com.jubitus.travellers.client.gui.recruit;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
 import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
@@ -24,8 +27,6 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Mouse;
@@ -38,7 +39,7 @@ import java.util.Collections;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver {
+public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -197,9 +198,9 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         }
 
         BlockPos start = player.getPosition();
-        double perBlock = TravellersModConfig.recruitFeePerBlock_serverCache;
-        int flat = TravellersModConfig.recruitFeeFlat_serverCache;
-        int perVillage = TravellersModConfig.recruitFeePerVillage_serverCache;
+        double perBlock = TravellersDerivedConfig.recruitFeePerBlockServerCache;
+        int flat = TravellersDerivedConfig.recruitFeeFlatServerCache;
+        int perVillage = TravellersDerivedConfig.recruitFeePerVillageServerCache;
         boolean hasServer = flat >= 0 && perVillage >= 0 && !Double.isNaN(perBlock);
 
         int dist = EntityTravellerWorker.computeRouteDistance2D(start, route, start);
@@ -245,11 +246,13 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         int idx = scrollOffset + (mouseY - listY) / rowH;
         if (idx < 0 || idx >= villages.size()) return;
 
-        int minD = TravellersModConfig.recruitMinVillageDistance;
+        int minD = TravellersConfig.RECRUITMENT.recruitMinVillageDistance;
         int dist = villages.get(idx).distance;
         if (dist < minD) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.RED + I18n.format("travellers.worker.recruit.too_close", minD)));
+            com.jubitus.travellers.client.notify.ClientNotificationCache.push(
+                    com.jubitus.travellers.notify.NotificationType.ERROR,
+                    I18n.format("travellers.worker.recruit.too_close", minD),
+                    Minecraft.getMinecraft().world != null ? Minecraft.getMinecraft().world.getTotalWorldTime() : 0L);
             return;
         }
 
@@ -324,6 +327,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
                 drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
             }
         }
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawVillageList(int mouseX, int mouseY) {

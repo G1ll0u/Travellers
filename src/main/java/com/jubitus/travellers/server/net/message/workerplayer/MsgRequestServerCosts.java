@@ -1,6 +1,7 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -21,10 +22,10 @@ public class MsgRequestServerCosts implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 TravellerFollowNet.CHANNEL.sendTo(
                         new MsgSyncServerCosts(
-                                TravellersModConfig.workerHireCostDeniers,
-                                TravellersModConfig.recruitFeeFlat,
-                                TravellersModConfig.recruitFeePerBlock,
-                                TravellersModConfig.recruitFeePerVillage
+                                TravellersConfig.WORKER.workerHireCostDeniers,
+                                TravellersConfig.RECRUITMENT.recruitFeeFlat,
+                                TravellersConfig.RECRUITMENT.recruitFeePerBlock,
+                                TravellersConfig.RECRUITMENT.recruitFeePerVillage
                         ),
                         player
                 );

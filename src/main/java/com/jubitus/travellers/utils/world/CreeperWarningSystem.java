@@ -1,7 +1,8 @@
 package com.jubitus.travellers.utils.world;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import net.minecraft.entity.monster.EntityCreeper;
@@ -27,7 +28,7 @@ public class CreeperWarningSystem {
     public static void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         if (event.world.isRemote) return;
-        if (!TravellersModConfig.creeperWarnEnabled) return;
+        if (!TravellersConfig.SOUND.creeperWarnEnabled) return;
         // Check once per second
         if (event.world.getTotalWorldTime() % 20 != 0) return;
 
@@ -39,15 +40,15 @@ public class CreeperWarningSystem {
     private static void checkForPlayer(World world, EntityPlayer player) {
         long now = world.getTotalWorldTime();
         Long lastWarn = lastWarnByPlayer.get(player.getEntityId());
-        if (lastWarn != null && now - lastWarn < TravellersModConfig.creeperWarnCooldownTicks) return;
+        if (lastWarn != null && now - lastWarn < TravellersConfig.SOUND.creeperWarnCooldownTicks) return;
 
-        double creeperRadius = TravellersModConfig.creeperWarnCreeperRadius;
+        double creeperRadius = TravellersConfig.SOUND.creeperWarnCreeperRadius;
         AxisAlignedBB creeperBox = player.getEntityBoundingBox().grow(creeperRadius);
         List<EntityCreeper> creepers = world.getEntitiesWithinAABB(EntityCreeper.class, creeperBox,
                 c -> !c.isDead && isOutsideFOV(player, c));
         if (creepers.isEmpty()) return;
 
-        double travRadius = TravellersModConfig.creeperWarnTravellerRadius;
+        double travRadius = TravellersConfig.SOUND.creeperWarnTravellerRadius;
         AxisAlignedBB travBox = player.getEntityBoundingBox().grow(travRadius);
         List<EntityTraveller> candidates = world.getEntitiesWithinAABB(EntityTraveller.class, travBox,
                 t -> !(t instanceof EntityTravellerRaider) && !t.isDead && !t.isVoiceLockedNow());

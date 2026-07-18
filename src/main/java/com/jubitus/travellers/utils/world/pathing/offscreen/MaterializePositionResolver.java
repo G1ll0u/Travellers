@@ -2,6 +2,7 @@ package com.jubitus.travellers.utils.world.pathing.offscreen;
 
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockLog;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -10,6 +11,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.WorldServer;
 
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.utils.world.camp.CampsiteManager;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 
 import javax.annotation.Nullable;
@@ -101,28 +104,22 @@ public final class MaterializePositionResolver {
             double[] leaderPos = findLeaderPosition(world, r.escortLeaderUUID, allRecords);
             if (leaderPos != null) {
                 // Use leader's Y so underground/building followers spawn at the right level.
+                // baseX/baseZ are left as r.posX/r.posZ (set above): VirtualFormationSimulator
+                // continuously steers the follower's simulated position toward its live formation
+                // slot every refresh, so by materialization time the follower is already
+                // approximately where it should be (or still visibly catching up, which is the
+                // point - no more snapping to a stale offset captured at virtualization).
                 referenceY = leaderPos[1];
-
-                if (r.hasEscortSlotOffset) {
-                    // Restore the worker to its exact formation slot: apply the offset that was
-                    // captured when the worker virtualized (from FollowFormationCoordinator).
-                    // This makes the group appear already in formation, with no visible re-shuffle.
-                    double candidateX = Math.floor(leaderPos[0] + r.escortSlotDx) + 0.5;
-                    double candidateZ = Math.floor(leaderPos[2] + r.escortSlotDz) + 0.5;
-                    if (chunkLoaded(world, candidateX, candidateZ)) {
-                        baseX = candidateX;
-                        baseZ = candidateZ;
-                    }
-                } else {
-                    // Slot offset not available (worker never had a slot assignment).
-                    // Fall back to a deterministic UUID ring so workers don't all stack.
-                    int[] off = followerSpreadOffset(r.uuid);
-                    double cx = baseX + off[0];
-                    double cz = baseZ + off[1];
-                    if (chunkLoaded(world, cx, cz)) {
-                        baseX = cx;
-                        baseZ = cz;
-                    }
+            } else if (!r.hasTraveledFar) {
+                // No leader position resolvable and the worker never moved far on its own either
+                // (e.g. leader itself never simulated a position yet): fall back to a deterministic
+                // UUID ring so workers don't all stack on the exact same spot.
+                int[] off = followerSpreadOffset(r.uuid);
+                double cx = baseX + off[0];
+                double cz = baseZ + off[1];
+                if (chunkLoaded(world, cx, cz)) {
+                    baseX = cx;
+                    baseZ = cz;
                 }
             }
 
@@ -145,6 +142,14 @@ public final class MaterializePositionResolver {
         // Pure metadata check, works whether or not the chunk is loaded.
         BlockPos safe = MillVillageIndex.resolveOutsideBuildings(
                 world, new BlockPos(bx, (int) referenceY, bz), 256);
+
+        // Never materialize inside another camp's occupied shelter footprint (a slot the entity
+        // doesn't itself own). Also pure metadata, no chunk loading required.
+        if (TravellersConfig.MATERIALIZATION.avoidCampFootprints) {
+            safe = CampsiteManager.get(world).resolveOutsideOccupiedSlots(
+                    world.provider.getDimension(), safe, r.campSiteId);
+        }
+
         bx = safe.getX();
         bz = safe.getZ();
         baseX = bx + 0.5;
@@ -235,10 +240,27 @@ public final class MaterializePositionResolver {
         BlockPos floor = new BlockPos(bx, y, bz);
         IBlockState st = world.getBlockState(floor);
         if (st.getBlock().isAir(st, world, floor)) return false;
+        if (TravellersConfig.MATERIALIZATION.avoidTreeCanopy && !isStableFloorMaterial(st.getMaterial())) {
+            return false;
+        }
         IBlockState s1 = world.getBlockState(floor.up());
         IBlockState s2 = world.getBlockState(floor.up(2));
         return s1.getBlock().isAir(s1, world, floor.up())
                 && s2.getBlock().isAir(s2, world, floor.up(2));
+    }
+
+    /**
+     * Rejects tree canopy and other foliage as a landing floor (a leaf block is solid enough to
+     * pass the plain air check above, so without this a materializing entity could land standing
+     * on top of a tree instead of the ground beneath it).
+     */
+    private static boolean isStableFloorMaterial(Material m) {
+        return m != Material.LEAVES
+                && m != Material.WOOD
+                && m != Material.PLANTS
+                && m != Material.VINE
+                && m != Material.CACTUS
+                && m != Material.GOURD;
     }
 
     /**

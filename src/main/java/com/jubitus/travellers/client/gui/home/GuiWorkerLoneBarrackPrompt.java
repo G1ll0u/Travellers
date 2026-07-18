@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.home;
 
+import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.formation.GuiWorkerFormationSlider;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
@@ -30,7 +31,7 @@ import java.util.Collections;
 import java.util.List;
 
 @SideOnly(Side.CLIENT)
-public class GuiWorkerLoneBarrackPrompt extends GuiScreen {
+public class GuiWorkerLoneBarrackPrompt extends GuiScreen implements ITravellersGui {
 
     private final EntityPlayer player;
     private final BlockPos center;
@@ -327,6 +328,7 @@ public class GuiWorkerLoneBarrackPrompt extends GuiScreen {
         }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
+        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     /** Draws existing barracks (semi-transparent red) and the new barrack footprint (orange) on the map. */

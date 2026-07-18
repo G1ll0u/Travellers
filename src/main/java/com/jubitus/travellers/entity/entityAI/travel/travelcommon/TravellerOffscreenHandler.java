@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.travel.travelcommon;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
@@ -24,7 +25,7 @@ public class TravellerOffscreenHandler {
 
         EntityTraveller traveller = (EntityTraveller) target;
         if (traveller.world.isRemote) return;
-        if (!TravellersModConfig.travellerNoAggroOffscreen) return;
+        if (!TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen) return;
         if (traveller.isInPlayerViewDistance()) return;
 
         EntityLivingBase attacker = event.getEntityLiving();
@@ -50,7 +51,7 @@ public class TravellerOffscreenHandler {
         if (!(event.getEntityLiving() instanceof EntityTraveller)) return;
 
         EntityTraveller traveller = (EntityTraveller) event.getEntityLiving();
-        if (!TravellersModConfig.travellerNoAggroOffscreen) return;
+        if (!TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen) return;
         if (traveller.world.isRemote) return;
         if (traveller.isInPlayerViewDistance()) return;
 
@@ -73,7 +74,7 @@ public class TravellerOffscreenHandler {
 
         // 3) Global travellerDamageScale (non-player only)
         if (!isPlayerAttack && !isTravellerAttack) {
-            float globalScale = TravellersModConfig.travellerDamageScale;
+            float globalScale = TravellersConfig.ATTRIBUTES.travellerDamageScale;
             if (globalScale != 1.0F) {
                 amount *= globalScale;
             }

@@ -1,6 +1,5 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 
 public final class FollowRuntimeConfig {
@@ -62,16 +61,16 @@ public final class FollowRuntimeConfig {
         cave.orbitTriggerTicks = 36;
 
         catchup.minUntrackedTicks = 40;
-        catchup.startDistanceTracked = Math.max(72.0D, TravellersModConfig.returnFollowSwitchDist * 1.25D);
-        catchup.startDistanceUntracked = Math.max(52.0D, TravellersModConfig.returnFollowSwitchDist * 1.20D);
-        catchup.startDistanceHidden = Math.max(32.0D, TravellersModConfig.returnFollowSwitchDist);
-        catchup.forceStartDistance = Math.max(96.0D, TravellersModConfig.returnFollowSwitchDist * 1.50D);
+        catchup.startDistanceTracked = Math.max(72.0D, TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist * 1.25D);
+        catchup.startDistanceUntracked = Math.max(52.0D, TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist * 1.20D);
+        catchup.startDistanceHidden = Math.max(32.0D, TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist);
+        catchup.forceStartDistance = Math.max(96.0D, TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist * 1.50D);
         catchup.keepLocalUndergroundDistance = 44.0D;
         catchup.verticalEmergencyGap = 14.0D;
         catchup.verticalEmergencyStartDistance = 48.0D;
         catchup.verticalEmergencyPathFailTicks = 18;
         catchup.verticalEmergencyStagnationTicks = 60;
-        catchup.stopDistanceVisible = Math.max(18.0D, TravellersModConfig.returnFollowSwitchDist * 0.90D);
+        catchup.stopDistanceVisible = Math.max(18.0D, TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist * 0.90D);
         catchup.stopDistanceCave = 14.0D;
         catchup.repathIntervalTicks = 18;
         catchup.dynamicGoalQuantizeSurface = 4;

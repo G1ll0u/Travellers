@@ -1,5 +1,7 @@
 package com.jubitus.travellers.server.net.message.home;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
@@ -55,7 +57,7 @@ public class MsgWorkerGetEquipment implements IMessage {
         if (pos == null) return false;
         java.util.UUID ownerId = player.getUniqueID();
         if (useWholeVillage) {
-            if (!com.jubitus.travellers.TravellersModConfig.controlledVillageFeatureEnabled) return false;
+            if (!com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
             return com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper
                     .getControlledVillageCenters(player.world, player).contains(pos);
         }

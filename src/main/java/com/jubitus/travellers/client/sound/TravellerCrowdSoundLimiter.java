@@ -1,6 +1,7 @@
 package com.jubitus.travellers.client.sound;
 
-import com.jubitus.travellers.TravellersModConfig;
+import com.jubitus.travellers.config.TravellersConfig;
+
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
@@ -40,7 +41,7 @@ public final class TravellerCrowdSoundLimiter {
         if (t == null || t.world == null || t.world.isRemote) return true;
         if (!t.isEntityAlive()) return false;
 
-        double strength = Math.max(0.0D, TravellersModConfig.travellerStepLimiterStrength);
+        double strength = Math.max(0.0D, TravellersConfig.SOUND.travellerStepLimiterStrength);
         if (strength <= 0.0D) {
             return true;
         }
@@ -74,7 +75,7 @@ public final class TravellerCrowdSoundLimiter {
         if (t == null || t.world == null || t.world.isRemote) return true;
         if (!t.isEntityAlive()) return false;
 
-        double strength = Math.max(0.0D, TravellersModConfig.travellerHurtLimiterStrength);
+        double strength = Math.max(0.0D, TravellersConfig.SOUND.travellerHurtLimiterStrength);
         if (strength <= 0.0D) {
             return true;
         }

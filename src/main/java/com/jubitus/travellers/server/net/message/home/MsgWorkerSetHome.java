@@ -2,6 +2,8 @@ package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
@@ -10,8 +12,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -55,7 +55,7 @@ public class MsgWorkerSetHome implements IMessage {
                 EntityTravellerWorker w = (EntityTravellerWorker) e;
 
                 if (!w.isHiredFollower() || w.getFollowOwnerId() == null || !w.getFollowOwnerId().equals(player.getUniqueID())) {
-                    player.sendMessage(new TextComponentString(TextFormatting.RED + "Not your worker."));
+                    NotificationService.notify(player, NotificationDefs.HOME_NOT_YOUR_WORKER);
                     return;
                 }
 
@@ -73,7 +73,7 @@ public class MsgWorkerSetHome implements IMessage {
         private void handleBarracksHome(MsgWorkerSetHome msg, EntityPlayerMP player, EntityTravellerWorker w) {
             Building barracks = MillControlledVillageHelper.findBarracksAtPos(player.world, player, msg.pos);
             if (barracks == null) {
-                player.sendMessage(new TextComponentString(TextFormatting.RED + "Barracks not found or not in your village."));
+                NotificationService.notify(player, NotificationDefs.HOME_BARRACKS_NOT_FOUND);
                 return;
             }
 
@@ -84,7 +84,7 @@ public class MsgWorkerSetHome implements IMessage {
             // Allow reassignment to the same barracks (idempotent)
             boolean alreadyHere = bsm.isAssignedTo(w.getUniqueID(), msg.pos);
             if (!alreadyHere && bsm.getFreeSlots(player.getUniqueID(), msg.pos, dim) <= 0) {
-                player.sendMessage(new TextComponentString(TextFormatting.RED + "This barracks is full!"));
+                NotificationService.notify(player, NotificationDefs.HOME_BARRACKS_FULL);
                 return;
             }
 
@@ -96,7 +96,7 @@ public class MsgWorkerSetHome implements IMessage {
             w.setAssignedHome(msg.pos, dim, name, TravellerHomeManager.HomeType.BARRACKS);
 
             TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
-            player.sendMessage(new TextComponentString(TextFormatting.GREEN + "Barracks assigned: " + name));
+            NotificationService.notify(player, NotificationDefs.HOME_BARRACKS_ASSIGNED, name);
         }
 
         private void handleLoneBarrackHome(MsgWorkerSetHome msg, EntityPlayerMP player, EntityTravellerWorker w) {
@@ -109,7 +109,7 @@ public class MsgWorkerSetHome implements IMessage {
                 }
             }
             if (found == null) {
-                player.sendMessage(new TextComponentString(TextFormatting.RED + "Lone barrack not found."));
+                NotificationService.notify(player, NotificationDefs.HOME_LONE_BARRACK_NOT_FOUND);
                 return;
             }
 
@@ -118,7 +118,7 @@ public class MsgWorkerSetHome implements IMessage {
             w.setAssignedHome(found.center, dim, found.name, TravellerHomeManager.HomeType.LONE_BARRACK);
 
             TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
-            player.sendMessage(new TextComponentString(TextFormatting.GREEN + "Lone Barrack assigned: " + found.name));
+            NotificationService.notify(player, NotificationDefs.HOME_LONE_BARRACK_ASSIGNED, found.name);
         }
     }
 }

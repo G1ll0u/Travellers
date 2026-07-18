@@ -1,8 +1,10 @@
 package com.jubitus.travellers.entity.travellers;
 
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+
 
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.TravellersModConfig;
 import com.jubitus.travellers.client.render.backpack.BackpackRegistry;
 import com.jubitus.travellers.client.render.backpack.IBackpackStyle;
 import com.jubitus.travellers.client.sound.ModSounds;
@@ -69,7 +71,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.EnumDifficulty;
@@ -117,8 +121,8 @@ public class EntityTraveller extends EntityCreature {
     private static final DataParameter<Float> RENDER_SCALE = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
     // ---- GAP / CLIFF handling ----
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
-    private static final int ARRIVE_IN = Math.max(8, TravellersModConfig.VILLAGE_NEAR - 4); // e.g., 28 if near=32
-    private static final int ARRIVE_OUT = TravellersModConfig.VILLAGE_NEAR + 4;              // e.g., 36
+    private static final int ARRIVE_IN = Math.max(8, TravellersConfig.DESTINATIONS.villageNear - 4); // e.g., 28 if near=32
+    private static final int ARRIVE_OUT = TravellersConfig.DESTINATIONS.villageNear + 4;              // e.g., 36
     private static final DataParameter<Boolean> AIMING_BOW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     // --- Camp sleep pose (synced for render only, never persisted to NBT: virtualization must
@@ -357,7 +361,7 @@ public class EntityTraveller extends EntityCreature {
         EntityPlayer owner = ((EntityTravellerWorker) this).getFollowOwner();
         if (owner == null || !owner.isEntityAlive()) return false;
         if (owner.getLastAttackedEntity() != target) return false;
-        return (owner.ticksExisted - owner.getLastAttackedEntityTime()) <= TravellersModConfig.playerFleeForgiveTicks;
+        return (owner.ticksExisted - owner.getLastAttackedEntityTime()) <= TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
     }
 
     @Override
@@ -382,20 +386,20 @@ public class EntityTraveller extends EntityCreature {
     public boolean getCanSpawnHere() {
         if (world.isRemote) return false;
         // Global-per-dimension loaded cap
-        int cap = TravellersModConfig.loadedTravellerCap;
+        int cap = TravellersConfig.SPAWN_TRAVELLERS.loadedTravellerCap;
         int loaded = this.world.getEntities(EntityTraveller.class, Entity::isEntityAlive).size();
         if (loaded >= cap) return false;
 
         // MUCH smaller “near a village”
         BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
-        if (!isNearAnyVillage(this.world, pos, TravellersModConfig.villageSpawnRadius)) return false;
+        if (!isNearAnyVillage(this.world, pos, TravellersConfig.SPAWN.villageSpawnRadius)) return false;
 
         // Light & ground sanity (creature-like)
         if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
 
         // Local density throttle (see next section)
         if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTraveller.class,
-                TravellersModConfig.travellerLocalCap, TravellersModConfig.travellerLocalCapRadius))
+                TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCap, TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCapRadius))
             return false;
 
         return super.getCanSpawnHere();
@@ -576,7 +580,7 @@ public class EntityTraveller extends EntityCreature {
             int x = fire.getX() + (int) Math.round(cx * 1.4);
             int z = fire.getZ() + (int) Math.round(cz * 1.4);
             BlockPos top = travelCommon.topStandable(new BlockPos(x, fire.getY(), z));
-            if (top != null && top.distanceSq(fire) <= (TravellersModConfig.CAMP_RADIUS + 2) * (TravellersModConfig.CAMP_RADIUS + 2))
+            if (top != null && top.distanceSq(fire) <= (TravellersConfig.CAMP.campRadius + 2) * (TravellersConfig.CAMP.campRadius + 2))
                 return top;
         }
         return null;
@@ -703,10 +707,10 @@ public class EntityTraveller extends EntityCreature {
         // Combat
         aiRanged = new EntityAIRangedBowTravellerSafe(
                 this,
-                TravellersModConfig.rangedMinDist,
-                TravellersModConfig.rangedMaxDist,
-                TravellersModConfig.rangedCooldown,
-                /* meleeHandOff */ Math.max(2.5D, TravellersModConfig.rangedMinDist - 1.0D),
+                TravellersConfig.COMBAT.rangedMinDist,
+                TravellersConfig.COMBAT.rangedMaxDist,
+                TravellersConfig.COMBAT.rangedCooldown,
+                /* meleeHandOff */ Math.max(2.5D, TravellersConfig.COMBAT.rangedMinDist - 1.0D),
                 /* ghostEquipBow */ true
         );
 
@@ -719,24 +723,24 @@ public class EntityTraveller extends EntityCreature {
         aiFollowGroupLeader = new EntityAIFollowGroupLeader(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
         this.tasks.addTask(5, aiFollowGroupLeader);
 
-        aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersModConfig.attackTriggerRange, true);
+        aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.attackTriggerRange, true);
 
         this.targetTasks.addTask(1, aiDefendIfClose);
 
-        this.targetTasks.addTask(2, new TravellerHurtByTarget(this, true, TravellersModConfig.helpRange));
-        autoEatTask = new EntityAIAutoEat(this, TravellersModConfig.eatHealthThreshold);
+        this.targetTasks.addTask(2, new TravellerHurtByTarget(this, true, TravellersConfig.COMBAT.helpRange));
+        autoEatTask = new EntityAIAutoEat(this, TravellersConfig.COMBAT.eatHealthThreshold);
         this.tasks.addTask(8, autoEatTask);
 
         if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
             // New camp event system: keep occupants at their slot (build is handled by the manager).
             this.tasks.addTask(6, new com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampStay(this));
-        } else if (TravellersModConfig.campsEnabled) {
+        } else if (TravellersConfig.CAMP.campsEnabled) {
             this.tasks.addTask(6, new EntityAICampPause(this));                       // leader
             this.tasks.addTask(7, new EntityAICampJoinFire(this, 0.34D)); // joiner
         }
 
         this.tasks.addTask(9, new EntityAIStopAndLookAtPlayer(this, 3.2D, 30.0F, 30.0F));
-        if (TravellersModConfig.fishWhileTravelEnabled) {
+        if (TravellersConfig.TRAVEL.fishWhileTravelEnabled) {
             this.tasks.addTask(22, new EntityAIFishWhileTravel(this));
         }
 
@@ -745,9 +749,9 @@ public class EntityTraveller extends EntityCreature {
 
         this.tasks.addTask(24, new EntityAIOpenDoor(this, true));
 
-        this.tasks.addTask(25, new EntityAIRoamInsideVillage(this, 0.34D, 3 * 20, 10 * 20, TravellersModConfig.villageRoamMinDuration * 20, TravellersModConfig.villageRoamMaxDuration * 20));// Optional: customize 2-minute duration or wordlist at runtime
+        this.tasks.addTask(25, new EntityAIRoamInsideVillage(this, 0.34D, 3 * 20, 10 * 20, TravellersConfig.DESTINATIONS.villageRoamMinDuration * 20, TravellersConfig.DESTINATIONS.villageRoamMaxDuration * 20));// Optional: customize 2-minute duration or wordlist at runtime
 
-        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersModConfig.stepBlocks);
+        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(27, aiTravel);
 
         this.tasks.addTask(28, new EntityAILookIdle(this));
@@ -760,20 +764,20 @@ public class EntityTraveller extends EntityCreature {
 
         // Generic travellers stats
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersModConfig.travellerMaxHealth);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.travellerMaxHealth);
 
         this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
                 .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
 
         this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(TravellersModConfig.travellerFollowRange);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.travellerFollowRange);
 
         // ATTACK_DAMAGE is not present by default for many entities
         if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         }
         this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                .setBaseValue(TravellersModConfig.attackDamage);
+                .setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
     }
 
     @Override
@@ -788,7 +792,7 @@ public class EntityTraveller extends EntityCreature {
             AttackTargetLimiter.leave(this, prev);
         }
         if (!world.isRemote && target != null) {
-            double r = TravellersModConfig.attackTriggerRange;
+            double r = TravellersConfig.COMBAT.attackTriggerRange;
             double d2 = this.getDistanceSq(target);
 
             if (d2 > r * r) {
@@ -811,7 +815,7 @@ public class EntityTraveller extends EntityCreature {
             return;
         }
         if (target != null) {
-            double r = TravellersModConfig.attackTriggerRange;
+            double r = TravellersConfig.COMBAT.attackTriggerRange;
             if (this.getDistanceSq(target) > r * r) {
                 // hard reject: never keep far targets
                 super.setAttackTarget(null);
@@ -840,7 +844,7 @@ public class EntityTraveller extends EntityCreature {
             }
         }
 
-        if (TravellersModConfig.travellerNoAggroOffscreen
+        if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
                 && !this.isInPlayerViewDistance()
                 && !(target instanceof EntityPlayer)) {
             rejectTarget();
@@ -849,7 +853,7 @@ public class EntityTraveller extends EntityCreature {
         }
 
         if (!this.world.isRemote
-                && TravellersModConfig.travellerNoAggroOffscreen
+                && TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
                 && !this.isInPlayerViewDistance()) {
             // Completely ignore combat targets while off-screen
             rejectTarget();
@@ -1040,7 +1044,7 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             EntityLivingBase tgt = this.getAttackTarget();
             if (tgt != null && tgt.isEntityAlive()) {
-                double maxEngage = TravellersModConfig.attackTriggerRange;
+                double maxEngage = TravellersConfig.COMBAT.attackTriggerRange;
 
                 boolean hasBow =
                         this.hasBowInBackpackPublic()
@@ -1048,11 +1052,11 @@ public class EntityTraveller extends EntityCreature {
 
 // If ranged, allow ranged max
                 if (hasBow) {
-                    maxEngage = Math.max(maxEngage, TravellersModConfig.rangedMaxDist * 1.25);
+                    maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.rangedMaxDist * 1.25);
                 }
 
 // If you use helpRange for assistance chaining, also allow that
-                maxEngage = Math.max(maxEngage, TravellersModConfig.helpRange);
+                maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.helpRange);
                 double d2 = this.getDistanceSq(tgt);
                 if (d2 > maxEngage * maxEngage) {
                     // Too far: disengage so AI can resume travelling
@@ -1110,7 +1114,7 @@ public class EntityTraveller extends EntityCreature {
             if (this.getAttackTarget() == null) {
                 EntityLivingBase rev = this.getRevengeTarget();
                 if (rev != null && rev.isEntityAlive() && !this.isIgnoring(rev)) {
-                    double r = TravellersModConfig.attackTriggerRange;
+                    double r = TravellersConfig.COMBAT.attackTriggerRange;
                     if (this.getDistanceSq(rev) <= r * r) {
                         this.trySetAttackTargetLimited(rev);
                     }
@@ -1157,7 +1161,7 @@ public class EntityTraveller extends EntityCreature {
                 // and the re-engage check above will re-lock when they return to range
             }
 
-            if (TravellersModConfig.travellerAmbient && this.ticksExisted >= nextTravelAmbientTick) {
+            if (TravellersConfig.SOUND.travellerAmbient && this.ticksExisted >= nextTravelAmbientTick) {
                 travelCommon.maybePlayTravelAmbient();
             }
             equipment.handleWeaponVisibility();
@@ -1180,7 +1184,7 @@ public class EntityTraveller extends EntityCreature {
 
             // 1) Track “still engaging” signals: LOS or being near keeps chase fresh
             boolean see = this.getEntitySenses().canSee(p);
-            double keepDist = TravellersModConfig.playerFleeKeepDistance;
+            double keepDist = TravellersConfig.PLAYER_AGGRO.playerFleeKeepDistance;
             boolean close = this.getDistanceSq(p) <= (keepDist * keepDist);
             if (see || close) {
                 combat.lastLOSorCloseTick = this.ticksExisted; // still engaged; don’t forgive
@@ -1188,7 +1192,7 @@ public class EntityTraveller extends EntityCreature {
 
             // 2) Calm player? (your earlier memory updated by the hurt event)
             boolean playerCalm =
-                    lastPlayerAggroAgeTicks(p) > TravellersModConfig.playerCalmForgiveTicks;
+                    lastPlayerAggroAgeTicks(p) > TravellersConfig.PLAYER_AGGRO.playerCalmForgiveTicks;
 
             // Optional: don’t instantly forgive right after being damaged by them
             TravellerCombatLogic.Threat th = combat.getThreat(p.getUniqueID());
@@ -1196,7 +1200,7 @@ public class EntityTraveller extends EntityCreature {
 
             // 3) Fleeing window: must be away/out of LOS for long enough
             boolean fleeingLongEnough =
-                    (this.ticksExisted - combat.lastLOSorCloseTick) > TravellersModConfig.playerFleeForgiveTicks;
+                    (this.ticksExisted - combat.lastLOSorCloseTick) > TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
 
             // 4) Assist chases (worker joining its owner against a player it was never
             // personally attacked by) must not be "forgiven" just because THIS worker was
@@ -1577,7 +1581,7 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     public IEntityLivingData onInitialSpawn(DifficultyInstance difficulty, @Nullable IEntityLivingData livingdata) {
-        this.spawnAmbientCooldownTicks = TravellersModConfig.SPAWN_AMBIENT_DELAY_TICKS + this.rand.nextInt(5 * 20);
+        this.spawnAmbientCooldownTicks = TravellersConfig.SOUND.spawnAmbientDelayTicks + this.rand.nextInt(5 * 20);
 
         livingdata = super.onInitialSpawn(difficulty, livingdata);
 
@@ -1679,18 +1683,18 @@ public class EntityTraveller extends EntityCreature {
 
         // Keep your existing “I’m following / village idle / announce heading” messages:
         if (isFollowingSomeone()) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "I'm travelling with someone right now. Ask me again later."
-            ));
+            ITextComponent travellingMsg = new TextComponentTranslation("travellers.dialogue.travelling_with_someone");
+            travellingMsg.getStyle().setColor(TextFormatting.WHITE);
+            player.sendMessage(travellingMsg);
             return true;
         }
         if (travelCommon.isVillageIdling()) {
             String stayName = travelCommon.lookupNearestVillageNameOrCoords();
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "I'm staying in " +
-                            TextFormatting.GOLD + stayName +
-                            TextFormatting.WHITE + " for a bit."
-            ));
+            ITextComponent stayNameComp = new TextComponentString(stayName)
+                    .setStyle(new Style().setColor(TextFormatting.GOLD));
+            ITextComponent stayMsg = new TextComponentTranslation("travellers.dialogue.staying_in_village", stayNameComp);
+            stayMsg.getStyle().setColor(TextFormatting.WHITE);
+            player.sendMessage(stayMsg);
             return true;
         }
 
@@ -1701,12 +1705,12 @@ public class EntityTraveller extends EntityCreature {
 
     public void scheduleNextTravelAmbient() {
         // spreads entities out and respects config
-        if (!TravellersModConfig.travellerAmbient) {
+        if (!TravellersConfig.SOUND.travellerAmbient) {
             nextTravelAmbientTick = Integer.MAX_VALUE;
             return;
         }
-        int min = Math.max(40, TravellersModConfig.travellerAmbientMinDelay);
-        int max = Math.max(min, TravellersModConfig.travellerAmbientMaxDelay);
+        int min = Math.max(40, TravellersConfig.SOUND.travellerAmbientMinDelay);
+        int max = Math.max(min, TravellersConfig.SOUND.travellerAmbientMaxDelay);
         int delta = min + this.rand.nextInt(Math.max(1, max - min + 1));
         nextTravelAmbientTick = this.ticksExisted + delta;
     }
@@ -1910,7 +1914,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     void tryPlayAttackSound() {
-        if (!TravellersModConfig.attackSoundEnabled) return;
+        if (!TravellersConfig.SOUND.attackSoundEnabled) return;
         if (world.isRemote) return;
         if (ticksExisted < attackVoiceCooldownUntilTick) return;
         if (voiceKindNow == VoiceKind.HURT && ticksExisted < voiceLockUntilTick) return;
@@ -1918,25 +1922,25 @@ public class EntityTraveller extends EntityCreature {
         long worldTime = world.getTotalWorldTime();
         long zoneKey = attackZoneKey();
         Long lastZone = ATTACK_ZONE_COOLDOWN.get(zoneKey);
-        if (lastZone != null && worldTime - lastZone < TravellersModConfig.attackSoundZoneCooldownTicks) return;
+        if (lastZone != null && worldTime - lastZone < TravellersConfig.SOUND.attackSoundZoneCooldownTicks) return;
 
         VoiceSet v = resolveVoiceSetForAttack();
         if (v == null) return;
         SoundEvent snd = v.pickAttack(this.rand, null);
         if (snd == null) return;
 
-        float vol = TravellersModConfig.attackSoundVolume;
+        float vol = TravellersConfig.SOUND.attackSoundVolume;
         float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
         int dur = 60 + rand.nextInt(40);
 
         if (playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK)) {
-            attackVoiceCooldownUntilTick = ticksExisted + TravellersModConfig.attackSoundEntityCooldownTicks;
+            attackVoiceCooldownUntilTick = ticksExisted + TravellersConfig.SOUND.attackSoundEntityCooldownTicks;
             ATTACK_ZONE_COOLDOWN.put(zoneKey, worldTime);
         }
     }
 
     public void playCreeperWarningSound() {
-        if (!TravellersModConfig.creeperWarnEnabled) return;
+        if (!TravellersConfig.SOUND.creeperWarnEnabled) return;
         if (world.isRemote) return;
 
         chooseVoicePersonalityIfNeeded();
@@ -1945,7 +1949,7 @@ public class EntityTraveller extends EntityCreature {
         SoundEvent snd = v.pickCreeper(this.rand, null);
         if (snd == null) return;
 
-        float vol = TravellersModConfig.creeperWarnVolume;
+        float vol = TravellersConfig.SOUND.creeperWarnVolume;
         float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
         int dur = 60 + rand.nextInt(40);
         playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK);
@@ -1962,38 +1966,38 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public void tryPlayKillSound() {
-        if (!TravellersModConfig.killSoundEnabled) return;
+        if (!TravellersConfig.SOUND.killSoundEnabled) return;
         if (world.isRemote || isDead) return;
         if (ticksExisted < killVoiceCooldownUntilTick) return;
 
         long worldTime = world.getTotalWorldTime();
         long zoneKey = attackZoneKey();
         Long lastZone = KILL_ZONE_COOLDOWN.get(zoneKey);
-        if (lastZone != null && worldTime - lastZone < TravellersModConfig.killSoundZoneCooldownTicks) return;
+        if (lastZone != null && worldTime - lastZone < TravellersConfig.SOUND.killSoundZoneCooldownTicks) return;
 
         VoiceSet v = resolveVoiceSetForKillDeath();
         if (v == null) return;
         SoundEvent snd = v.pickKill(this.rand, null);
         if (snd == null) return;
 
-        float vol = TravellersModConfig.killSoundVolume;
+        float vol = TravellersConfig.SOUND.killSoundVolume;
         float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
         int dur = 60 + rand.nextInt(40);
 
         if (playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK)) {
-            killVoiceCooldownUntilTick = ticksExisted + TravellersModConfig.killSoundEntityCooldownTicks;
+            killVoiceCooldownUntilTick = ticksExisted + TravellersConfig.SOUND.killSoundEntityCooldownTicks;
             KILL_ZONE_COOLDOWN.put(zoneKey, worldTime);
         }
     }
 
     void tryPlayDeathSound() {
-        if (!TravellersModConfig.deathSoundEnabled) return;
+        if (!TravellersConfig.SOUND.deathSoundEnabled) return;
         if (world.isRemote) return;
 
         long worldTime = world.getTotalWorldTime();
         long zoneKey = attackZoneKey();
         Long lastZone = DEATH_ZONE_COOLDOWN.get(zoneKey);
-        if (lastZone != null && worldTime - lastZone < TravellersModConfig.deathSoundZoneCooldownTicks) return;
+        if (lastZone != null && worldTime - lastZone < TravellersConfig.SOUND.deathSoundZoneCooldownTicks) return;
 
         chooseVoicePersonalityIfNeeded();
         VoiceSet v = resolveVoiceSetForKillDeath();
@@ -2001,7 +2005,7 @@ public class EntityTraveller extends EntityCreature {
         SoundEvent snd = v.pickDeath(this.rand, null);
         if (snd == null) return;
 
-        float vol = TravellersModConfig.deathSoundVolume;
+        float vol = TravellersConfig.SOUND.deathSoundVolume;
         float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
         int dur = 60;
 
@@ -2023,7 +2027,7 @@ public class EntityTraveller extends EntityCreature {
                 ? v.pickTalk(this.rand, ModSounds.TRAVELLER_TALK)
                 : ModSounds.TRAVELLER_TALK;
 
-        float vol = TravellersModConfig.travellerTalkVolume;
+        float vol = TravellersConfig.SOUND.travellerTalkVolume;
         float pitch = 1.0F + (this.rand.nextFloat() - 0.5F) * 0.02F;
         int dur = 40 + this.rand.nextInt(20);
 
@@ -2059,9 +2063,9 @@ public class EntityTraveller extends EntityCreature {
         // original target (whatever you stored there)
         BlockPos target = travelCommon.getTargetVillage();
         if (target == null) {
-            player.sendMessage(new TextComponentString(
-                    TextFormatting.WHITE + "I don’t currently have a destination."
-            ));
+            ITextComponent noDestMsg = new TextComponentTranslation("travellers.dialogue.no_destination");
+            noDestMsg.getStyle().setColor(TextFormatting.WHITE);
+            player.sendMessage(noDestMsg);
             return;
         }
 
@@ -2083,13 +2087,10 @@ public class EntityTraveller extends EntityCreature {
 
         String dir = cardinalDirectionTo(center); // or whatever your direction helper is
 
-        ITextComponent msg = new TextComponentString(
-                TextFormatting.WHITE + "I'm actually heading to " +
-                        TextFormatting.GOLD + name +
-                        TextFormatting.WHITE + " in the " +
-                        TextFormatting.GOLD + dir +
-                        TextFormatting.RESET + "."
-        );
+        ITextComponent nameComp = new TextComponentString(name).setStyle(new Style().setColor(TextFormatting.GOLD));
+        ITextComponent dirComp = new TextComponentString(dir).setStyle(new Style().setColor(TextFormatting.GOLD));
+        ITextComponent msg = new TextComponentTranslation("travellers.dialogue.heading_to", nameComp, dirComp);
+        msg.getStyle().setColor(TextFormatting.WHITE);
         player.sendMessage(msg);
     }
 
@@ -2328,7 +2329,7 @@ public void fall(float distance, float damageMultiplier) {
 
     @Override
     protected float getSoundVolume() {
-        return TravellersModConfig.travellerHurtVolume;
+        return TravellersConfig.SOUND.travellerHurtVolume;
     }
 
     @Override
@@ -2340,7 +2341,7 @@ public void fall(float distance, float damageMultiplier) {
     @Override
     public void travel(float strafe, float vertical, float forward) {
         if (this.isInWater()) {
-            float boost = (float) TravellersModConfig.SWIM_MULT;
+            float boost = (float) TravellersConfig.COMBAT.swimSpeedMultiplier;
             super.travel(strafe * boost, vertical, forward * boost);
         } else {
             super.travel(strafe, vertical, forward);
@@ -2380,8 +2381,8 @@ public void fall(float distance, float damageMultiplier) {
 
     public TravellerBlacklist getAggroBlacklist() {
         return (this instanceof EntityTravellerRaider)
-                ? TravellersModConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersModConfig.TRAVELLER_AGGRO_BLACKLIST;
+                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
+                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
     }
 
     public boolean shouldAttackExtraEntity(Entity e) {
@@ -2396,14 +2397,11 @@ public void fall(float distance, float damageMultiplier) {
         // First, global per-faction config
         if (this.isAggressiveToTravellers()) {
             // Raiders
-            return TravellersModConfig.RAIDER_ATTACK_LIST.isListed(e);
+            return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(e);
         } else {
             // Normal/friendly travellers
-            return TravellersModConfig.TRAVELLER_ATTACK_LIST.isListed(e);
+            return TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.isListed(e);
         }
-
-        // If you want a *truly* global list for both, you could also add:
-        // if (TravellersModConfig.GLOBAL_ATTACK_LIST.isListed(e)) return true;
 
         // Put any hard-coded extra rules here if you need them later
         // (e.g. always attack some specific boss entity)
@@ -2472,7 +2470,7 @@ public void fall(float distance, float damageMultiplier) {
     @Override
     public boolean getAlwaysRenderNameTag() {
         // Hard disable via config: no name tag, even if custom name exists.
-        if (!TravellersModConfig.showTravellerNames) {
+        if (!TravellersConfig.RENDERING.showTravellerNames) {
             return false;
         }
 
@@ -2581,17 +2579,17 @@ public void fall(float distance, float damageMultiplier) {
      */
     public void onConfigReload() {
         // 1) Attributes
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(TravellersModConfig.maxHealth);
+        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(TravellersConfig.ATTRIBUTES.travellerMaxHealth);
         if (getHealth() > getMaxHealth()) setHealth(getMaxHealth());
         getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
-        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(TravellersModConfig.followRange);
+        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(TravellersConfig.ATTRIBUTES.travellerFollowRange);
         if (getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         }
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(TravellersModConfig.attackDamage);
+        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
 
         // 2) AI tunables
-        if (aiDefendIfClose != null) aiDefendIfClose.setAssistRadius(TravellersModConfig.helpRange);
+        if (aiDefendIfClose != null) aiDefendIfClose.setAssistRadius(TravellersConfig.COMBAT.helpRange);
         if (aiTravel != null) aiTravel.setSpeed(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
         if (aiFollowGroupLeader != null) aiFollowGroupLeader.setSpeed(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
 
@@ -2780,7 +2778,7 @@ public void fall(float distance, float damageMultiplier) {
                 ? v.pickHello(this.rand, ModSounds.TRAVELLER_HELLO)
                 : ModSounds.TRAVELLER_HELLO;
 
-        float vol = TravellersModConfig.travellerTalkVolume;
+        float vol = TravellersConfig.SOUND.travellerTalkVolume;
         float pitch = 1.0F + (this.rand.nextFloat() - 0.5F) * 0.02F;
         int dur = 30 + this.rand.nextInt(20);
 
@@ -2793,7 +2791,7 @@ public void fall(float distance, float damageMultiplier) {
             dogScanCooldown--;
             return;
         }
-        dogScanCooldown = TravellersModConfig.DOG_SCAN_COOLDOWN_TICKS;
+        dogScanCooldown = TravellersConfig.ATTRIBUTES.dogScanCooldownTicks;
 
         if (this.isInCombat()) return;
         if (getDog() != null) return; // already have one
@@ -2867,11 +2865,11 @@ public void fall(float distance, float damageMultiplier) {
         try {
             viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance();
         } catch (Throwable t) {
-            viewChunks = TravellersModConfig.serverViewDistanceFallbackChunks;
+            viewChunks = TravellersConfig.DESPAWN.serverViewDistanceFallbackChunks;
         }
         // Require being close to the real edge (75% of view distance) before allowing this —
         // a mob merely stuck on terrain near a player must never vanish.
-        double minDistBlocks = Math.max(TravellersModConfig.farMinDistanceBlocks, viewChunks * 16.0 * 0.75);
+        double minDistBlocks = Math.max(TravellersConfig.DESPAWN.farMinDistanceBlocks, viewChunks * 16.0 * 0.75);
         if (ws.getClosestPlayer(this.posX, this.posY, this.posZ, minDistBlocks, false) != null) return false;
 
         if (tryVirtualize()) return true;
@@ -2933,7 +2931,7 @@ public void fall(float distance, float damageMultiplier) {
         ItemStack off = getItemStackFromSlot(EntityEquipmentSlot.OFFHAND);
 
         // === HARD GLOBAL OFF SWITCH ===
-        if (!TravellersModConfig.travelTorchEnabled) {
+        if (!TravellersConfig.TRAVEL.travelTorchEnabled) {
             // If a ghost torch is currently showing, kill it and clear cooldown
             if (!off.isEmpty() && isGhostTorch(off)) {
                 // note: call super so we don't trigger backpack logic
@@ -2951,15 +2949,15 @@ public void fall(float distance, float damageMultiplier) {
             // Don't show when idling at village or at a campfire
             if (travelCommon.isVillageIdling() || travellerCamp.getCampfirePos() != null) return;
             // Cooldown: don't re-enable immediately after we just turned it off
-            int cd = TravellersModConfig.travelTorchCooldownTicks > 0
-                    ? TravellersModConfig.travelTorchCooldownTicks
-                    : TravellersModConfig.TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT;
+            int cd = TravellersConfig.TRAVEL.travelTorchCooldownTicks > 0
+                    ? TravellersConfig.TRAVEL.travelTorchCooldownTicks
+                    : TravellersConfig.TRAVEL.travelTorchCooldownTicksDefault;
             if (travelTorchCooldown > 0) return;
 
             // If another travellers nearby already has a torch, skip
-            double rad = TravellersModConfig.travelTorchNearbyRadius > 0
-                    ? TravellersModConfig.travelTorchNearbyRadius
-                    : TravellersModConfig.TRAVEL_TORCH_NEARBY_RADIUS_DEFAULT;
+            double rad = TravellersConfig.TRAVEL.travelTorchNearbyRadius > 0
+                    ? TravellersConfig.TRAVEL.travelTorchNearbyRadius
+                    : TravellersConfig.TRAVEL.travelTorchNearbyRadiusDefault;
             if (hasNearbyTravellerTorch(rad)) return;
 
             // Only equip if offhand is empty or already ghost torch
@@ -2971,9 +2969,9 @@ public void fall(float distance, float damageMultiplier) {
             if (!off.isEmpty() && isGhostTorch(off)) {
                 setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
 
-                int cd = TravellersModConfig.travelTorchCooldownTicks > 0
-                        ? TravellersModConfig.travelTorchCooldownTicks
-                        : TravellersModConfig.TRAVEL_TORCH_COOLDOWN_TICKS_DEFAULT;
+                int cd = TravellersConfig.TRAVEL.travelTorchCooldownTicks > 0
+                        ? TravellersConfig.TRAVEL.travelTorchCooldownTicks
+                        : TravellersConfig.TRAVEL.travelTorchCooldownTicksDefault;
                 travelTorchCooldown = cd;
             }
         }
@@ -3012,7 +3010,7 @@ public void fall(float distance, float damageMultiplier) {
 
     public boolean isLowHealth() {
         float max = getMaxHealth();
-        return max > 0 && getHealth() / max < TravellersModConfig.lowHealthCombatFrac;
+        return max > 0 && getHealth() / max < TravellersConfig.COMBAT.lowHealthCombatFrac;
     }
 
     public boolean hasNearbyTravellerTorch(double radius) {
@@ -3056,10 +3054,10 @@ public void fall(float distance, float damageMultiplier) {
     private void maybeSpawnCompanionDog() {
         if (world.isRemote) return;
         if (suppressCompanionSpawn) return;                    // egg/command/etc.
-        if (!TravellersModConfig.spawnTravellerWithDog) return;
+        if (!TravellersConfig.SPAWN.spawnTravellerWithDog) return;
         if (this.dogId != null) return;                        // already has one?
 
-        double chance = TravellersModConfig.travellerDogSpawnChance; // or hard-code 0.35
+        double chance = TravellersConfig.SPAWN.travellerDogSpawnChance; // or hard-code 0.35
         if (this.rand.nextDouble() >= chance) return;
 
         WorldServer ws = (WorldServer) this.world;
@@ -3239,7 +3237,7 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     protected void clearAggroIfOffscreen() {
-        if (!TravellersModConfig.travellerNoAggroOffscreen) return;
+        if (!TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen) return;
         if (this.world.isRemote) return;
         if (this.isInPlayerViewDistance()) return;
 

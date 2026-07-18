@@ -1,7 +1,10 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
 import com.jubitus.travellers.client.map.ClientMapDiscovery;
-import com.jubitus.travellers.client.map.ClientMapTileCache;
+import com.jubitus.travellers.client.map.ClientTileCache;
+import com.jubitus.travellers.server.map.MapTileGenerator;
+import com.jubitus.travellers.server.map.PyramidDirtyPropagator;
+import com.jubitus.travellers.server.map.TileKey;
 import com.jubitus.travellers.server.map.WorldMapDiscovery;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
@@ -156,6 +159,34 @@ public class GuiWorldMapPanel {
     public void setSelectedPos(BlockPos pos) { this.selectedPos = pos; }
 
     public void forceDirty() { this.dirty = true; }
+
+    /** Pyramid level matching the current zoom: level L = 2^L blocks/pixel. */
+    public int currentPyramidLevel() {
+        int lvl = Math.round((float) (Math.log(blocksPerPixel) / Math.log(2)));
+        if (lvl < 0) lvl = 0;
+        if (lvl > PyramidDirtyPropagator.MAX_LEVEL) lvl = PyramidDirtyPropagator.MAX_LEVEL;
+        return lvl;
+    }
+
+    /**
+     * Called when a tile arrives over the network. Only forces a rebuild if the tile's world
+     * area overlaps the current view — {@link #rebuildTexture} may sample any pyramid level as
+     * a fallback (not just the current one), so any level's tile can be relevant, but only if
+     * it's actually on screen right now. Avoids a full rebuild for every tile packet regardless
+     * of whether it's even visible.
+     */
+    public void markDirtyIfVisible(int level, int tileX, int tileZ) {
+        int tileBlocks = MapTileGenerator.TILE_PX * (1 << level);
+        int wx0 = tileX * tileBlocks, wx1 = wx0 + tileBlocks;
+        int wz0 = tileZ * tileBlocks, wz1 = wz0 + tileBlocks;
+
+        float halfW = (tw / 2f) * blocksPerPixel;
+        float halfH = (th / 2f) * blocksPerPixel;
+
+        boolean intersects = wx1 >= centerX - halfW && wx0 <= centerX + halfW
+                && wz1 >= centerZ - halfH && wz0 <= centerZ + halfH;
+        if (intersects) dirty = true;
+    }
 
     /** Sets the owner color (0xRRGGBB) used to colorize player-dependent legend entries. */
     public void setLegendOwnerColor(int ownerRgb) { this.legendOwnerColor = ownerRgb & 0xFFFFFF; }
@@ -466,9 +497,10 @@ public class GuiWorldMapPanel {
     // ── Terrain texture rebuild ───────────────────────────────────────────────
 
     private void rebuildTexture() {
-        java.util.HashMap<Long, byte[]> localTileCache = new java.util.HashMap<>();
-        java.util.HashMap<Long, byte[]> localDetailCache = new java.util.HashMap<>();
-        boolean useDetail = blocksPerPixel < 4f;
+        int level = currentPyramidLevel();
+        // Memoizes tile lookups per (level, tileKey) for the duration of this one rebuild —
+        // avoids re-querying ClientTileCache per screen pixel for tiles shared across many pixels.
+        java.util.Map<Integer, java.util.HashMap<Long, byte[]>> localCache = new java.util.HashMap<>();
 
         // Build the oversized texture centered on the current centerX/Z.
         for (int py = 0; py < th; py++) {
@@ -481,63 +513,78 @@ public class GuiWorldMapPanel {
                     continue;
                 }
 
-                int cx = wx >> 4;
-                int cz = wz >> 4;
-                int tileX = floorDiv(cx, WorldMapDiscovery.CHUNKS_PER_TILE);
-                int tileZ = floorDiv(cz, WorldMapDiscovery.CHUNKS_PER_TILE);
-                long tkey = (((long) tileX) << 32) ^ (tileZ & 0xFFFFFFFFL);
+                int tone = sampleToneWithFallback(wx, wz, level, localCache);
 
-                byte[] tile = localTileCache.get(tkey);
-                if (tile == null) {
-                    tile = ClientMapTileCache.get(tkey);
-                    if (tile != null) localTileCache.put(tkey, tile);
-                }
-
-                if (tile == null || tile.length != 64 * 64) {
-                    pixels[py * tw + px] = 0xFF2A2A2A;
-                    continue;
-                }
-
-                final int tileBlocks = WorldMapDiscovery.CHUNKS_PER_TILE * 16;
-                final int step = tileBlocks / 64;
-
-                int baseX = tileX * tileBlocks;
-                int baseZ = tileZ * tileBlocks;
-                int localX = wx - baseX;
-                int localZ = wz - baseZ;
-                if (localX < 0) localX = 0;
-                if (localZ < 0) localZ = 0;
-                if (localX > tileBlocks - 1) localX = tileBlocks - 1;
-                if (localZ > tileBlocks - 1) localZ = tileBlocks - 1;
-
-                // Use detail tile (1px=1bloc) when zoomed in, fall back to normal tile for missing pixels.
-                int sx = localX / step;
-                int sz = localZ / step;
-                int tone = tile[sz * 64 + sx] & 0xFF;
-                if (useDetail) {
-                    byte[] detailTile = localDetailCache.get(tkey);
-                    if (detailTile == null) {
-                        detailTile = com.jubitus.travellers.client.map.ClientDetailTileCache.get(tkey);
-                        if (detailTile != null) localDetailCache.put(tkey, detailTile);
-                    }
-                    if (detailTile != null && detailTile.length == com.jubitus.travellers.server.map.MapTileGenerator.DETAIL_BYTES) {
-                        int detailTone = detailTile[localZ * com.jubitus.travellers.server.map.MapTileGenerator.DETAIL_PX + localX] & 0xFF;
-                        if (detailTone != 0) tone = detailTone;
-                    }
-                }
-
-                if (tone == 0) {
-                    pixels[py * tw + px] = 0xFF2A2A2A;
-                    continue;
-                }
-
-                pixels[py * tw + px] = (0xFF << 24) | toneToArgbPacked(tone);
+                pixels[py * tw + px] = (tone == 0)
+                        ? 0xFF2A2A2A
+                        : (0xFF << 24) | toneToArgbPacked(tone);
             }
         }
 
         dynTex.getTextureData();
         System.arraycopy(pixels, 0, dynTex.getTextureData(), 0, pixels.length);
         dynTex.updateDynamicTexture();
+    }
+
+    /**
+     * Samples the tone at (wx,wz) from the ideal pyramid level for the current zoom; if that
+     * tile isn't cached yet, tries progressively farther levels on both sides (coarser levels
+     * first, since they're cheaper and more likely to already be built, then finer levels down
+     * to 0 — the always-authoritative, world-sampled data) so the screen shows a
+     * correct-but-mismatched-resolution view instead of a blank/gray hole while the ideal
+     * level catches up or streams in.
+     */
+    private int sampleToneWithFallback(int wx, int wz, int startLevel,
+                                        java.util.Map<Integer, java.util.HashMap<Long, byte[]>> localCache) {
+        Integer tone = tryLevel(wx, wz, startLevel, localCache);
+        if (tone != null) return tone;
+
+        for (int d = 1; d <= PyramidDirtyPropagator.MAX_LEVEL; d++) {
+            int coarser = startLevel + d;
+            if (coarser <= PyramidDirtyPropagator.MAX_LEVEL) {
+                tone = tryLevel(wx, wz, coarser, localCache);
+                if (tone != null) return tone;
+            }
+            int finer = startLevel - d;
+            if (finer >= 0) {
+                tone = tryLevel(wx, wz, finer, localCache);
+                if (tone != null) return tone;
+            }
+        }
+        return 0;
+    }
+
+    /** Null if the tile itself isn't cached at this level; otherwise the sampled pixel (may be 0/unknown). */
+    private Integer tryLevel(int wx, int wz, int level,
+                              java.util.Map<Integer, java.util.HashMap<Long, byte[]>> localCache) {
+        int tileBlocks = MapTileGenerator.TILE_PX * (1 << level);
+        int tileX = floorDiv(wx, tileBlocks);
+        int tileZ = floorDiv(wz, tileBlocks);
+        long tkey = TileKey.pack(tileX, tileZ);
+
+        java.util.HashMap<Long, byte[]> lc = localCache.computeIfAbsent(level, k -> new java.util.HashMap<>());
+        byte[] tile;
+        if (lc.containsKey(tkey)) {
+            tile = lc.get(tkey);
+        } else {
+            tile = ClientTileCache.get(level, tkey);
+            lc.put(tkey, tile);
+        }
+        if (tile == null || tile.length != MapTileGenerator.TILE_BYTES) return null;
+
+        int baseX = tileX * tileBlocks;
+        int baseZ = tileZ * tileBlocks;
+        int localX = wx - baseX;
+        int localZ = wz - baseZ;
+        if (localX < 0) localX = 0;
+        if (localZ < 0) localZ = 0;
+        if (localX > tileBlocks - 1) localX = tileBlocks - 1;
+        if (localZ > tileBlocks - 1) localZ = tileBlocks - 1;
+
+        int step = tileBlocks / MapTileGenerator.TILE_PX; // = 2^level
+        int sx = localX / step;
+        int sz = localZ / step;
+        return tile[sz * MapTileGenerator.TILE_PX + sx] & 0xFF;
     }
 
     private boolean isTileDiscovered(int worldX, int worldZ) {
