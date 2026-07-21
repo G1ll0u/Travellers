@@ -21,8 +21,6 @@ import java.util.UUID;
 public class EntityAIFollowGroupLeader extends EntityAIBase {
 
     private static final double STOP_DIST = 3.0;
-    private static final double DIRECT_STEER_DIST = 10.0;
-
     // After this many ticks without meaningful progress, teleport near leader.
     private static final int STAGNATION_TELEPORT_TICKS = 160;
 
@@ -118,15 +116,8 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
             repathCooldown--;
             return;
         }
-
-        if (dist <= DIRECT_STEER_DIST) {
-            follower.getNavigator().clearPath();
-            follower.getMoveHelper().setMoveTo(leader.posX, leader.posY, leader.posZ, speed);
-            repathCooldown = 5;
-        } else {
-            boolean moved = follower.getNavigator().tryMoveToEntityLiving(leader, speed);
-            repathCooldown = moved ? 18 : 8;
-        }
+        boolean moved = follower.getNavigator().tryMoveToEntityLiving(leader, speed);
+        repathCooldown = moved ? 18 : 8;
     }
 
     private void tickStagnation(double distToLeader) {

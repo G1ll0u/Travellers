@@ -22,7 +22,9 @@ public class EntityAIOwnerHurtByTargetTraveller extends EntityAIBase {
     public EntityAIOwnerHurtByTargetTraveller(EntityTravellerWorker worker) {
         super();
         this.worker = worker;
-        this.setMutexBits(0);
+        // Shared mutex bit 1 (vanilla convention for target AIs) so this can't race with the
+        // other target-selector tasks and overwrite a target mid-fight — see EntityAIDefendIfClose.
+        this.setMutexBits(1);
     }
 
     @Override

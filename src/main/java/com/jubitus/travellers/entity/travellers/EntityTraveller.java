@@ -337,6 +337,10 @@ public class EntityTraveller extends EntityCreature {
     }
 
     private int retargetBoostUntilTick = 0;
+    // Reference to the last dead attack target we already armed a retarget boost for — stops
+    // onUpdate() from re-arming the boost every tick while the stale dead target is still
+    // assigned (cleanup is deliberately deferred for the whole boost window).
+    @Nullable private EntityLivingBase lastHandledDeadTarget = null;
 
     /**
      * Bypasses target-scan throttling (tick-rate gates, vanilla's random check-interval) for a
@@ -344,7 +348,7 @@ public class EntityTraveller extends EntityCreature {
      * immediately instead of waiting on the normal polling cadence.
      */
     public void requestImmediateRetarget() {
-        retargetBoostUntilTick = this.ticksExisted + 5;
+        retargetBoostUntilTick = this.ticksExisted + TravellersConfig.COMBAT.retargetBoostWindowTicks;
     }
 
     public boolean isRetargetBoosted() {
@@ -356,6 +360,26 @@ public class EntityTraveller extends EntityCreature {
      * keep an owner-assist chase alive even though the worker itself was never personally
      * attacked by that target (so the direct-aggression "calm"/"threat" signals never trip).
      */
+    /**
+     * Effective melee-slot cap for this attacker on this target: the dynamic fight-duration cap
+     * from AttackTargetLimiter, raised further for hired workers so a big formation can actually
+     * bring enough attackers to kill something without everyone getting capped at a handful.
+     * Must be used everywhere a cap decision is made for this attacker/target pair (both the
+     * initial join in setAttackTarget() and the per-tick keepAlive refresh in onUpdate()) — using
+     * a smaller cap in one of the two causes attackers that were let in under the bigger cap to
+     * get evicted again on the very next tick's refresh (observed in practice: workers landing a
+     * single hit then instantly returning to formation).
+     */
+    public int computeEffectiveAttackerCap(EntityLivingBase target) {
+        int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
+        if (this instanceof EntityTravellerWorker) {
+            int groupBonus = ((EntityTravellerWorker) this).getCachedGroupSize()
+                    / Math.max(1, TravellersConfig.COMBAT.groupSizeAttackerCapDivisor);
+            return Math.max(dynamicMax, groupBonus);
+        }
+        return dynamicMax;
+    }
+
     public boolean isOwnerStillFightingAssistTarget(EntityLivingBase target) {
         if (!(this instanceof EntityTravellerWorker)) return false;
         EntityPlayer owner = ((EntityTravellerWorker) this).getFollowOwner();
@@ -905,10 +929,7 @@ public class EntityTraveller extends EntityCreature {
 
                 int prio = AttackTargetLimiter.priorityFor(this);
                 if (!bypass) {
-                    int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
-                    int effectiveMax = (this instanceof EntityTravellerWorker)
-                            ? Math.max(dynamicMax, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
-                            : dynamicMax;
+                    int effectiveMax = computeEffectiveAttackerCap(target);
 
                     if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
                         ignoreTarget(target, 30);
@@ -945,6 +966,13 @@ public class EntityTraveller extends EntityCreature {
             // Play attack shout when freshly engaging a target
             if (target != null && prev == null) {
                 tryPlayAttackSound();
+            }
+
+            // Loaded-vs-loaded fight tracking: the offscreen scanner never sees entities that were
+            // already loaded when the fight started, so notification/journal coverage needs this hook too.
+            if (target instanceof EntityTraveller && prev != target) {
+                com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
+                        .onLoadedEngagement((net.minecraft.world.WorldServer) world, this, (EntityTraveller) target);
             }
         }
     }
@@ -1014,7 +1042,10 @@ public class EntityTraveller extends EntityCreature {
                 // Archers bypass the limiter — no slot to maintain
                 if (!shouldBypassAttackTargetLimiter(at)) {
                     int prio = AttackTargetLimiter.priorityFor(this);
-                    boolean ok = AttackTargetLimiter.keepAlive(this, at, prio);
+                    // Must use the same effective cap as the initial join in setAttackTarget() —
+                    // AttackTargetLimiter.keepAlive() alone only applies the plain default cap,
+                    // which is smaller than the group-scaled cap workers actually joined under.
+                    boolean ok = AttackTargetLimiter.tryJoin(this, at, prio, computeEffectiveAttackerCap(at));
 
                     if (!ok) {
                         // Evicted from the slot — back off briefly so we don't frantic-retry every tick
@@ -1136,13 +1167,23 @@ public class EntityTraveller extends EntityCreature {
             if (tgtNow != null && !tgtNow.isEntityAlive()) {
                 // Target just died — bypass target-scan throttling so the next enemy is
                 // picked up within a tick or two instead of waiting on the normal poll cadence.
-                requestImmediateRetarget();
+                // Only arm the boost once per death (reference identity): tgtNow stays assigned
+                // to this same dead entity for the whole boost window below (cleanup is deferred
+                // on purpose while boosted), so re-checking "did it just die" every tick would
+                // otherwise re-arm the boost forever and never let the window actually expire.
+                if (lastHandledDeadTarget != tgtNow) {
+                    lastHandledDeadTarget = tgtNow;
+                    requestImmediateRetarget();
+                }
             }
             if (tgtNow == null || !tgtNow.isEntityAlive()) {
                 EntityLivingBase rev = this.getRevengeTarget();
                 boolean revAlive = rev != null && rev.isEntityAlive();
 
-                if (!revAlive) {
+                // While the post-kill retarget boost is active, hold off on the full cleanup below
+                // so target-scan tasks (EntityAIDefendIfClose etc.) get a real chance to pick up a
+                // nearby threat before we give up and hand control back to travel/formation AI.
+                if (!revAlive && !isRetargetBoosted()) {
                     // Target truly gone (dead/despawned) and no active revenge — full cleanup
                     if (isInCombat()) {
                         setInCombat(false);
@@ -2294,7 +2335,7 @@ public void fall(float distance, float damageMultiplier) {
                     .releaseOccupant(this.getUniqueID());
             // Virtual battles: mark this pawn dead so the offscreen sim stays consistent.
             com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
-                    .onParticipantDeath(this.getUniqueID());
+                    .onParticipantDeath((net.minecraft.world.WorldServer) world, this);
         }
         tryPlayDeathSound();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {

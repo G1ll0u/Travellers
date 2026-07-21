@@ -36,7 +36,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     private double baseTriggerRange;
     private double baseTriggerRangeSq;
     private EntityLivingBase pending;
-    private double bowRangeBonusFrac = 0.0;
+    private double bowRangeBonusFrac = 0.8;
 
     // OLD SIGNATURE – used at call site
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS) {
@@ -60,7 +60,11 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         this.requireLOS = requireLOS;
         this.tickRate = Math.max(3, tickRate);
         this.tickPhase = tickPhase;
-        this.setMutexBits(0);
+        // Shared mutex bit 1 (vanilla convention for target AIs, see EntityAITarget/
+        // EntityAINearestAttackableTarget) so only one target-selector task per entity can
+        // actually claim a target the same tick - prevents two independent scans from racing
+        // and silently overwriting each other's setAttackTarget() call mid-fight.
+        this.setMutexBits(1);
 
         this.baseTriggerRange = triggerRange;                // linear
         this.baseTriggerRangeSq = triggerRange * triggerRange; // squared
@@ -124,6 +128,12 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         // keep any existing target
         EntityLivingBase current = mob.getAttackTarget();
         if (current != null && current.isEntityAlive()) return false;
+
+        // Budget the expensive AABB scan below world-wide so mass battles can't spike CPU.
+        // Boosted (just lost a target) scans get slight priority so post-kill retargeting
+        // doesn't starve behind idle scans.
+        int scanPriority = mob.isRetargetBoosted() ? 2 : 0;
+        if (!CombatTargetScanScheduler.tryAcquire(mob.world, mob.getEntityId(), scanPriority)) return false;
 
         double effRangeSq = currentTriggerRangeSq();
         double effRange = Math.sqrt(effRangeSq);

@@ -108,7 +108,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // 1) Retaliate when hurt
 // 1) Retaliate when hurt (safe custom version)
-        this.targetTasks.addTask(1, new TravellerHurtByTarget(this, true, TravellersConfig.COMBAT.helpRange));
+        this.targetTasks.addTask(1, new TravellerHurtByTarget(this, TravellersConfig.COMBAT.callForHelp, TravellersConfig.COMBAT.helpRange));
 
         // 2) Defend allies / villagers if something is close enough
         this.targetTasks.addTask(

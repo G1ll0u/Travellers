@@ -26,7 +26,7 @@ public final class FollowFormationCoordinator {
     private static final long MEMBER_EXPIRY_TICKS = 40L;
     private static final double PLAYER_MOVE_EPSILON_SQ = 0.012D * 0.012D;
     private static final double WORKER_MOVE_EPSILON_SQ = 0.060D * 0.060D;
-    private static final double ESCORT_HYSTERESIS_DIST = 2.2D;
+    private static final double ESCORT_HYSTERESIS_DIST = 1.6D;
 
 
     private static final double HEADING_REVERSE_DOT_LIMIT = -0.82D;

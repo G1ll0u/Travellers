@@ -59,6 +59,10 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
             }
         }
 
+        // Budget the scan world-wide so a mass battle with many hired workers can't spike CPU.
+        int scanPriority = boosted ? 2 : 0;
+        if (!CombatTargetScanScheduler.tryAcquire(worker.world, worker.getEntityId(), scanPriority)) return false;
+
         if (boosted) {
             for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {
                 if (super.shouldExecute()) return true;

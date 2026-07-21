@@ -1,13 +1,23 @@
 package com.jubitus.travellers.utils.world.lonebar;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -100,11 +110,122 @@ public class LoneBarrackManager extends WorldSavedData {
         if (!world.isBlockLoaded(center)) return; // never force-load chunks
         LoneBarrackRecord r = getByOwnerAndCenter(ownerUUID, center);
         if (r == null) return;
+        List<BlockPos> fresh = findBeds(world, r.center, r.halfWidth, r.halfDepth, r.halfHeight);
+        Set<BlockPos> valid = new HashSet<>(fresh);
+        List<BlockPos> lost = new ArrayList<>();
+        for (BlockPos bed : r.bedPositions) {
+            if (!valid.contains(bed)) lost.add(bed);
+        }
         r.bedPositions.clear();
-        r.bedPositions.addAll(findBeds(world, r.center, r.halfWidth, r.halfDepth, r.halfHeight));
-        Set<BlockPos> valid = new HashSet<>(r.bedPositions);
-        r.bedByWorker.values().removeIf(bed -> !valid.contains(bed));
+        r.bedPositions.addAll(fresh);
+        WorldServer ws = (world instanceof WorldServer) ? (WorldServer) world : null;
+        for (BlockPos bed : lost) {
+            pruneBedAssignment(ws, r, bed);
+        }
         markDirty();
+    }
+
+    /**
+     * Called from {@link LoneBarrackBedGuards} the instant a tracked bed is broken, so the owner is
+     * notified immediately instead of only on the next barracks-GUI open (which drives {@link #refreshBeds}).
+     */
+    public void onBedBroken(WorldServer world, BlockPos headPos) {
+        for (LoneBarrackRecord r : records) {
+            if (!r.bedPositions.remove(headPos)) continue;
+            pruneBedAssignment(world, r, headPos);
+            markDirty();
+            return; // a bed belongs to at most one barrack
+        }
+    }
+
+    /**
+     * Removes a worker's reservation of a now-missing bed, fully clears its home assignment (so it
+     * shows up as unassigned/homeless rather than still counting against the barrack's capacity),
+     * and notifies the barrack owner. Does not touch bedPositions.
+     */
+    private void pruneBedAssignment(@Nullable WorldServer world, LoneBarrackRecord r, BlockPos bed) {
+        UUID workerUUID = null;
+        for (Map.Entry<UUID, BlockPos> e : r.bedByWorker.entrySet()) {
+            if (bed.equals(e.getValue())) {
+                workerUUID = e.getKey();
+                break;
+            }
+        }
+        if (workerUUID == null) return;
+        r.bedByWorker.remove(workerUUID);
+        if (world == null || world.getMinecraftServer() == null) return;
+        clearWorkerHomeAssignment(world, workerUUID, r.center);
+        String workerName = resolveWorkerName(world, workerUUID);
+        String barrackName = (r.name == null || r.name.isEmpty()) ? "Barrack" : r.name;
+        NotificationService.notifyOffline(world.getMinecraftServer(), r.ownerUUID,
+                NotificationDefs.HOME_LONE_BARRACK_BED_DESTROYED, workerName, barrackName);
+    }
+
+    /**
+     * Clears a worker's LONE_BARRACK home assignment if it still points at {@code barrackCenter}
+     * (live entity, virtualized record, or a still-pending death respawn), so the worker becomes
+     * homeless instead of silently counting toward a barrack it no longer has a bed in.
+     */
+    private void clearWorkerHomeAssignment(WorldServer world, UUID workerUUID, BlockPos barrackCenter) {
+        Entity e = world.getEntityFromUuid(workerUUID);
+        if (e instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) e;
+            if (w.getAssignedHomeType() == TravellerHomeManager.HomeType.LONE_BARRACK
+                    && barrackCenter.equals(w.getAssignedHomePos())) {
+                w.setAssignedHome(null, 0, "", TravellerHomeManager.HomeType.LONE_BARRACK);
+                UUID ownerId = w.getFollowOwnerId();
+                EntityPlayerMP owner = ownerId != null
+                        ? world.getMinecraftServer().getPlayerList().getPlayerByUUID(ownerId) : null;
+                if (owner != null) TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), owner);
+            }
+            return;
+        }
+
+        MinecraftServer srv = world.getMinecraftServer();
+        WorldServer overworld = srv.getWorld(0);
+        if (overworld == null) return;
+        VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
+        VirtualTravellerRecord rec = vwm.getRecord(workerUUID);
+        if (rec != null && rec.entityNbt != null) {
+            EntityTravellerWorker temp = new EntityTravellerWorker(overworld);
+            temp.readFromNBT(rec.entityNbt);
+            if (temp.getAssignedHomeType() == TravellerHomeManager.HomeType.LONE_BARRACK
+                    && barrackCenter.equals(temp.getAssignedHomePos())) {
+                temp.setAssignedHome(null, 0, "", TravellerHomeManager.HomeType.LONE_BARRACK);
+                NBTTagCompound updated = new NBTTagCompound();
+                temp.writeToNBT(updated);
+                rec.entityNbt = updated;
+                vwm.markDirty();
+            }
+            return;
+        }
+
+        // Dead, awaiting respawn: no bed left to respawn into, drop the pending respawn now
+        // instead of waiting for the next morning tick to discover the same thing.
+        PendingRespawn pr = pendingRespawns.get(workerUUID);
+        if (pr != null && barrackCenter.equals(pr.center)) {
+            pendingRespawns.remove(workerUUID);
+        }
+    }
+
+    /** Best-effort display name for a worker UUID: live entity, then virtual record, then a pending respawn's saved NBT. */
+    private String resolveWorkerName(WorldServer world, UUID workerUUID) {
+        Entity e = world.getEntityFromUuid(workerUUID);
+        if (e instanceof EntityTravellerWorker && e.getName() != null && !e.getName().isEmpty()) {
+            return e.getName();
+        }
+        MinecraftServer srv = world.getMinecraftServer();
+        WorldServer overworld = srv != null ? srv.getWorld(0) : null;
+        if (overworld != null) {
+            VirtualTravellerRecord rec = VirtualTravellerManager.get(overworld).getRecord(workerUUID);
+            if (rec != null && rec.name != null && !rec.name.isEmpty()) return rec.name;
+        }
+        PendingRespawn pr = pendingRespawns.get(workerUUID);
+        if (pr != null && pr.workerNbt != null && pr.workerNbt.hasKey("CustomName")) {
+            String n = pr.workerNbt.getString("CustomName");
+            if (!n.isEmpty()) return n;
+        }
+        return "Worker";
     }
 
     /**

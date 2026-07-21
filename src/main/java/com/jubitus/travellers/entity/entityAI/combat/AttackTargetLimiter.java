@@ -18,9 +18,14 @@ import java.util.UUID;
 public final class AttackTargetLimiter {
 
     private static final Map<UUID, TargetBucket> buckets = new HashMap<>();
-    // ===== KNOBS =====
-    public static int MAX_ATTACKERS_PER_TARGET = 4;
-    public static int STALE_TICKS = 20;
+
+    private static int maxAttackersPerTarget() {
+        return TravellersConfig.COMBAT.maxAttackersPerTarget;
+    }
+
+    private static int staleTicks() {
+        return TravellersConfig.COMBAT.attackerSlotStaleTicks;
+    }
 
     // Dynamic cap thresholds
     private static final int AGE_BONUS_1_TICKS = 5 * 20;   // +1 after 5s
@@ -43,13 +48,13 @@ public final class AttackTargetLimiter {
 
     /**
      * Computes the effective attacker cap for a target, scaled by fight duration and danger.
-     * Returns MAX_ATTACKERS_PER_TARGET if the target has no bucket (fight just started).
+     * Returns maxAttackersPerTarget() if the target has no bucket (fight just started).
      */
     public static int getEffectiveMax(EntityLivingBase target, long now) {
-        if (target == null) return MAX_ATTACKERS_PER_TARGET;
+        if (target == null) return maxAttackersPerTarget();
         TargetBucket b = buckets.get(target.getUniqueID());
-        if (b == null) return MAX_ATTACKERS_PER_TARGET;
-        int cap = MAX_ATTACKERS_PER_TARGET;
+        if (b == null) return maxAttackersPerTarget();
+        int cap = maxAttackersPerTarget();
         long age = now - b.firstEngagedTick;
         if (age >= AGE_BONUS_2_TICKS) cap += 4;
         else if (age >= AGE_BONUS_1_TICKS) cap += 4;
@@ -77,17 +82,10 @@ public final class AttackTargetLimiter {
     }
 
     /**
-     * Call while you are actively attacking to keep the reservation alive. Returns false if you lost the slot.
-     */
-    public static boolean keepAlive(EntityLivingBase attacker, EntityLivingBase target, int priority) {
-        return tryJoin(attacker, target, priority, MAX_ATTACKERS_PER_TARGET);
-    }
-
-    /**
      * Try to reserve/keep a slot for attacker on this target (uses default cap).
      */
     public static boolean tryJoin(EntityLivingBase attacker, EntityLivingBase target, int priority) {
-        return tryJoin(attacker, target, priority, MAX_ATTACKERS_PER_TARGET);
+        return tryJoin(attacker, target, priority, maxAttackersPerTarget());
     }
 
     /**
@@ -187,7 +185,7 @@ public final class AttackTargetLimiter {
         while (it.hasNext()) {
             AttackEntry e = it.next().getValue();
             long age = now - e.lastSeenTick;
-            if (age > STALE_TICKS) it.remove();
+            if (age > staleTicks()) it.remove();
         }
     }
 

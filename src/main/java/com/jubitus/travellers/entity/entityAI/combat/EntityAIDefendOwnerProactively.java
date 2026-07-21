@@ -27,7 +27,9 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
         this.worker = worker;
         this.intervalTicks = Math.max(1, intervalTicks);
         this.cooldown = worker.getRNG().nextInt(Math.max(1, intervalTicks));
-        this.setMutexBits(0);
+        // Shared mutex bit 1 (vanilla convention for target AIs) so this can't race with the
+        // other target-selector tasks and overwrite a target mid-fight — see EntityAIDefendIfClose.
+        this.setMutexBits(1);
     }
 
     @Override
@@ -42,6 +44,10 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
         EntityPlayer owner = worker.getFollowOwner();
         if (owner == null || owner.isDead) return false;
+
+        // Budget the AABB scan below world-wide so mass battles can't spike CPU.
+        int scanPriority = worker.isRetargetBoosted() ? 2 : 0;
+        if (!CombatTargetScanScheduler.tryAcquire(worker.world, worker.getEntityId(), scanPriority)) return false;
 
         EntityTravellerWorker leader = worker.getEscortLeaderEntity();
 

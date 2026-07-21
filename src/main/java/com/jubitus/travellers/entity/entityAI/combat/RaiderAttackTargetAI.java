@@ -50,6 +50,11 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         // via TravellerHurtByTarget.
         if (raider.isCampingPassive()) return false;
 
+        // Budget the scan world-wide so mass battles can't spike CPU (this task's scan runs at
+        // an accelerated rate for every entity currently without a target).
+        int scanPriority = raider.isRetargetBoosted() ? 2 : 0;
+        if (!CombatTargetScanScheduler.tryAcquire(raider.world, raider.getEntityId(), scanPriority)) return false;
+
         if (raider.isRetargetBoosted()) {
             for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {
                 if (super.shouldExecute()) return true;

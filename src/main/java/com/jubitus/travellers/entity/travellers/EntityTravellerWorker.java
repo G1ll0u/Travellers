@@ -13,11 +13,14 @@ import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
 import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
+import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendOwnerProactively;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIOwnerHurtByTargetTraveller;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIOwnerHurtTargetTraveller;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIWorkerHurtByTargetTraveller;
 import com.jubitus.travellers.entity.entityAI.combat.ThrottledAttackTargetAI;
+import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
+import net.minecraft.entity.ai.EntityAITasks;
 import com.jubitus.travellers.entity.entityAI.follow.*;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIMerchantDeliverGoods;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
@@ -270,52 +273,38 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Priority 0 = highest; mutex 3 blocks all other move+look AI when freeze is active
         this.tasks.addTask(0, new com.jubitus.travellers.entity.entityAI.choir.EntityAIChoirFreeze(this));
         this.tasks.addTask(10, new EntityAIStopAndLookAtPlayer(this, 3.2D, 30.0F, 30.0F));
+        // Base EntityTraveller.initEntityAI() (run via super() above) already registered
+        // EntityAIDefendIfClose at priority 1 and TravellerHurtByTarget at priority 2 — pull
+        // them out and re-add below at their place in the worker's own priority order instead
+        // of leaving duplicate priority numbers around (used to collide with the tasks added
+        // here, making tie-break order an accident of insertion rather than a real priority).
+        EntityAIDefendIfClose inheritedDefendIfClose = null;
+        TravellerHurtByTarget inheritedHurtByTarget = null;
+        for (Object obj : this.targetTasks.taskEntries.toArray()) {
+            EntityAITasks.EntityAITaskEntry entry = (EntityAITasks.EntityAITaskEntry) obj;
+            if (entry.action instanceof EntityAIDefendIfClose) inheritedDefendIfClose = (EntityAIDefendIfClose) entry.action;
+            if (entry.action instanceof TravellerHurtByTarget) inheritedHurtByTarget = (TravellerHurtByTarget) entry.action;
+        }
+        removeTaskOfType(EntityAIDefendIfClose.class);
+        removeTaskOfType(TravellerHurtByTarget.class);
+
+        // Single, unified priority order (0 = most urgent). Every target-selector task shares
+        // the vanilla target-AI mutex bit (1), so only one of these can actually claim a target
+        // per tick — priority order below is what breaks ties deterministically.
         this.targetTasks.addTask(0, new EntityAIOwnerHurtByTargetTraveller(this));
-        this.targetTasks.addTask(1, new EntityAIOwnerHurtTargetTraveller(this));
-        this.targetTasks.addTask(2,
-                new ThrottledAttackTargetAI<>(
-                        this,
-                        EntityTraveller.class,
-                        10,
-                        true,
-                        false,
-                        t -> t != null
-                                && t.isEntityAlive()
-                                && t.isAggressiveToTravellers()   // raiders override true
-                                && !this.isAggressiveToTravellers()
-                )
-        );
+        this.targetTasks.addTask(1, new EntityAIDefendOwnerProactively(this, 20));
+        this.targetTasks.addTask(2, new EntityAIWorkerHurtByTargetTraveller(this));
+        this.targetTasks.addTask(3, new EntityAIOwnerHurtTargetTraveller(this));
+        if (inheritedDefendIfClose != null) this.targetTasks.addTask(4, inheritedDefendIfClose);
+        if (inheritedHurtByTarget != null) this.targetTasks.addTask(5, inheritedHurtByTarget);
 
-// ✅ NEW: proactive defense before owner gets hit + spreads workers across targets
-        this.targetTasks.addTask(0, new EntityAIDefendOwnerProactively(this, 20));
-
-// React if WE get hit
-// React if WE get hit (but only when retaliation is allowed)
-        this.targetTasks.addTask(3, new EntityAIWorkerHurtByTargetTraveller(this));
-
-// Target hostile-marked players (owner-defined enemy list)
-        // 4) Target ENEMY hired workers (followers) as well
-        this.targetTasks.addTask(4, new ThrottledAttackTargetAI<>(
-                this,
-                EntityTravellerWorker.class,
-                10,
-                true,
-                false,
-                other -> this.isEnemyHiredWorker(other)
-        ));
-
-
-// 5) Target hostile-marked players (owner-defined enemy list)
-        this.targetTasks.addTask(5, new ThrottledAttackTargetAI<>(
-                this,
-                EntityPlayer.class,
-                10,
-                true,
-                false,
-                p -> this.isEnemyPlayer(p)
-        ));
-
-// 6) Fallback: pick nearby IMob if nothing else is happening
+        // Single unified target scan (replaces the 5 separate ThrottledAttackTargetAI instances
+        // that used to run here, each with its own narrower predicate) — modeled on
+        // RaiderAttackTargetAI's single-predicate approach in EntityTravellerRaider. One scan,
+        // one predicate covering every case, so there's no risk of two of these racing each
+        // other and overwriting a target mid-fight, and the IMob/attack-list fallback now
+        // actually consults shouldAttackExtraEntity() (it used to silently skip listed
+        // non-IMob entities).
         this.targetTasks.addTask(6, new ThrottledAttackTargetAI<>(
                 this,
                 EntityLivingBase.class,
@@ -323,22 +312,28 @@ public class EntityTravellerWorker extends EntityTraveller {
                 true,
                 false,
                 e -> {
-                    if (e == null || e.isDead) return false;
-                    if (e == this) return false;
-                    if (isOwner(e)) return false;
-                    if (!(e instanceof net.minecraft.entity.monster.IMob)) return false;
+                    if (e == null || !e.isEntityAlive() || e.isDead) return false;
+                    if (e == this || isOwner(e)) return false;
+
+                    if (e instanceof EntityTravellerWorker) {
+                        return this.isEnemyHiredWorker((EntityTravellerWorker) e);
+                    }
+                    if (e instanceof EntityPlayer) {
+                        return this.isEnemyPlayer((EntityPlayer) e);
+                    }
+                    if (e instanceof EntityTraveller) {
+                        EntityTraveller t = (EntityTraveller) e;
+                        return t.isAggressiveToTravellers() && !this.isAggressiveToTravellers();
+                    }
+                    if (e instanceof org.millenaire.common.entity.MillVillager) {
+                        return isEnemyMillVillager((org.millenaire.common.entity.MillVillager) e);
+                    }
 
                     TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-                    return blacklist == null || !blacklist.isBlacklisted(e);
+                    if (blacklist != null && blacklist.isBlacklisted(e)) return false;
+
+                    return (e instanceof net.minecraft.entity.monster.IMob) || this.shouldAttackExtraEntity(e);
                 }
-        ));
-        this.targetTasks.addTask(7, new ThrottledAttackTargetAI<>(
-                this,
-                org.millenaire.common.entity.MillVillager.class,
-                10,
-                true,
-                false,
-                v -> v != null && v.isEntityAlive() && isEnemyMillVillager(v)
         ));
 
         // Worker travel AI (for jobs)
@@ -360,9 +355,9 @@ public class EntityTravellerWorker extends EntityTraveller {
         // NEW: follow-owner AI (companion mode)
         this.tasks.addTask(9, new EntityAIFollowOwnerTraveller(
                 this,
-                0.52F,
-                1.0F,   // start following if farther than 6 blocks
-                1.0F    // stop following once within 4 blocks
+                TravellersConfig.SPEED.movementSpeedWhileFollowingPlayer,
+                1.0F,
+                1.0F
         ));
     }
 
@@ -1594,6 +1589,11 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         if (e instanceof EntityPlayer) {
             return this.isEnemyPlayer((EntityPlayer) e);
+        }
+        // Workers get their own configurable attack list; falls back to the traveller list
+        // (super's behaviour) when no worker-specific rule was ever configured.
+        if (com.jubitus.travellers.config.TravellersDerivedConfig.WORKER_ATTACK_LIST.hasRules()) {
+            return com.jubitus.travellers.config.TravellersDerivedConfig.WORKER_ATTACK_LIST.isListed(e);
         }
         return super.shouldAttackExtraEntity(e);
     }

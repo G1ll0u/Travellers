@@ -6,10 +6,10 @@ import net.minecraft.util.math.MathHelper;
 public final class WorkerFormationSettings {
 
     public static final double MIN_FOLLOW_DISTANCE = 0.2D;
-    public static final double MAX_FOLLOW_DISTANCE = 24.0D;
+    public static final double MAX_FOLLOW_DISTANCE = 32.0D;
 
-    public static final double MIN_SPACING = 0.75D;
-    public static final double MAX_SPACING = 6.00D;
+    public static final double MIN_SPACING = 0.50D;
+    public static final double MAX_SPACING = 4.00D;
 
     public static final int MIN_WIDTH = 1;
     public static final int MAX_WIDTH = 64;

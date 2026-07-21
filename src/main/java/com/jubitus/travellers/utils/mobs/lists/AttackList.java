@@ -51,6 +51,14 @@ public class AttackList {
     }
 
     /**
+     * True if any rule was configured (id, namespace wildcard, or class) — lets a caller
+     * fall back to a different list when this one was never actually configured.
+     */
+    public boolean hasRules() {
+        return !namespaceWildcards.isEmpty() || !idSet.isEmpty() || !classSet.isEmpty();
+    }
+
+    /**
      * True if this concrete entity is listed (by ID, namespace wildcard, or class).
      */
     public boolean isListed(net.minecraft.entity.Entity e) {

@@ -6,6 +6,7 @@ public class TravellersConfig {
 
     public static final General GENERAL = new General();
     public static final Rendering RENDERING = new Rendering();
+    public static final Worldmap WORLDMAP = new Worldmap();
     public static final EntityRenderLod ENTITY_RENDER_LOD = new EntityRenderLod();
     public static final Spawn SPAWN = new Spawn();
     public static final SpawnTravellers SPAWN_TRAVELLERS = new SpawnTravellers();
@@ -63,7 +64,9 @@ public class TravellersConfig {
     public static class Rendering {
         @Config.Comment("Show name tags above travellers heads.")
         public boolean showTravellerNames = false;
+    }
 
+    public static class Worldmap {
         @Config.Comment("Opportunistically fill the worldmap whenever a chunk loads (player exploring, worker travel, or a world pregeneration tool). Never affects per-player fog of war.")
         public boolean mapPregenOnChunkLoadEnabled = true;
 
@@ -108,6 +111,58 @@ public class TravellersConfig {
         @Config.Comment("Max worldmap tiles kept in memory per zoom level on the client. Higher = smoother panning/zooming with less re-fetching, more client RAM used. Default: 128.")
         @Config.RangeInt(min = 16, max = 2048)
         public int mapClientTileCacheSizePerLevel = 128;
+
+        @Config.Comment("Show active virtual battles as markers on the worldmap.")
+        public boolean battleMarkersOnMap = true;
+
+        @Config.Comment("Initial zoom for the worldmap in the formation hub (blocks per pixel). Smaller = more zoomed in. 0.5 means 1 block per 2 pixels.")
+        @Config.RangeDouble(min = 0.0625, max = 8.0)
+        public double formationHubMapInitialBpp = 0.5;
+
+        @Config.Comment("Master switch: reveal foreign travellers/raiders/workers and battles on the player worldmap/formation hub, gated by hiredWorkerVisionRadius.")
+        public boolean foreignUnitVisionEnabled = true;
+
+        @Config.Comment("Radius (blocks) around each of a player's own alive hired units within which foreign travellers/raiders/workers and battles become visible on the map.")
+        @Config.RangeInt(min = 8, max = 512)
+        public int hiredWorkerVisionRadius = 48;
+
+        @Config.Comment("Show HP of discovered foreign entities on the map (own workers always show HP regardless of this setting).")
+        public boolean revealForeignEntityHealth = false;
+
+        @Config.Comment("Show the player marker as a directional arrow pointing where the player was looking when the map was opened, instead of a plain dot.")
+        public boolean playerMarkerDirectional = true;
+
+        @Config.Comment("Global multiplier applied on top of every marker's size below. 1.0 = unchanged.")
+        @Config.RangeDouble(min = 0.25, max = 4.0)
+        public double markerScaleGlobal = 1.0;
+
+        @Config.Comment("Size (pixels) of the player marker.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int playerMarkerSize = 4;
+
+        @Config.Comment("Size (pixels) of village and controlled-village markers.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int villageMarkerSize = 6;
+
+        @Config.Comment("Size (pixels) of home, group-leader and follower worker markers.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int workerMarkerSize = 4;
+
+        @Config.Comment("Extra pixels added on top of workerMarkerSize for the currently selected follower.")
+        @Config.RangeInt(min = 0, max = 32)
+        public int followerHighlightedSizeBonus = 3;
+
+        @Config.Comment("Size (pixels) of foreign traveller/raider/worker population markers.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int populationMarkerSize = 4;
+
+        @Config.Comment("Size (pixels) of camp firepit and camp shelter-slot markers.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int campMarkerSize = 5;
+
+        @Config.Comment("Size (pixels) of destination-cross and battle markers.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int alertMarkerSize = 8;
     }
 
     public static class EntityRenderLod {
@@ -423,6 +478,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public float travellerPlayerDamageMultiplier = 0.75f;
 
+        @Config.Comment("Multiplier on damage a hired worker deals to its own owner (melee and arrows), for example when it hits you by accident while fighting the same enemy. Set to 0 so your own workers can never hurt you.")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public float workerOwnerDamageMultiplier = 0.15f;
+
         @Config.Comment("Max health of raider travellers.")
         @Config.RangeDouble(min = 1.0, max = 1000.0)
         public float raiderMaxHealth = 20.0f;
@@ -488,6 +547,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.05, max = 2.0)
         public float movementSpeedWhileFollowing = 0.55f;
 
+        @Config.Comment("Movement speed multiplier while following.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public double movementSpeedWhileFollowingPlayer = 0.52;
+
         @Config.Comment("Movement speed multiplier during travel task.")
         @Config.RangeDouble(min = 0.05, max = 2.0)
         public float movementSpeedWhileTravel = 0.52f;
@@ -503,15 +566,20 @@ public class TravellersConfig {
         @Config.Comment("Approach speed while a traveller fishes during travel.")
         @Config.RangeDouble(min = 0.05, max = 2.0)
         public double fishApproachSpeed = 0.45;
+
     }
 
     public static class Combat {
         @Config.Comment("If true, travellers call nearby allies for help when attacked.")
         public boolean callForHelp = true;
 
+        @Config.Comment("Skip calling allies for help if the attacker already has at least this many attackers/defenders engaged - a big group that's already responding doesn't need to keep recruiting more.")
+        @Config.RangeInt(min = 1, max = 30)
+        public int callForHelpSkipIfAttackersAtLeast = 5;
+
         @Config.Comment("Max range (blocks) allies respond to a help call.")
         @Config.RangeDouble(min = 1.0, max = 128.0)
-        public float helpRange = 24.0f;
+        public float helpRange = 12.0f;
 
         @Config.Comment("Ticks after combat ends before sword is hidden.")
         @Config.RangeInt(min = 0, max = 2000)
@@ -523,7 +591,7 @@ public class TravellersConfig {
 
         @Config.Comment("Max range (blocks) travellers will attack a hostile mob.")
         @Config.RangeInt(min = 1, max = 200)
-        public int attackTriggerRange = 24;
+        public int attackTriggerRange = 16;
 
         @Config.Comment("Health fraction below which entities enter defensive mode.")
         @Config.RangeDouble(min = 0.05, max = 0.50)
@@ -544,6 +612,26 @@ public class TravellersConfig {
         @Config.Comment("Minimum ticks a melee attacker holds its slot on a target before it can be evicted by a better-placed attacker (prevents mid-chase eviction in crowded fights).")
         @Config.RangeInt(min = 0, max = 400)
         public int engagementGraceTicks = 60;
+
+        @Config.Comment("Ticks after killing an attack target during which retargeting is boosted (scans run every tick instead of waiting on their normal timer) so nearby threats are engaged without pausing.")
+        @Config.RangeInt(min = 1, max = 100)
+        public int retargetBoostWindowTicks = 15;
+
+        @Config.Comment("Max melee attackers allowed on the same target at once (bow users don't count against this).")
+        @Config.RangeInt(min = 1, max = 64)
+        public int maxAttackersPerTarget = 4;
+
+        @Config.Comment("For hired workers: the melee-attacker cap on a target is also raised to (hired group size / this number), so a big formation can bring enough attackers to actually kill something instead of everyone getting capped at a handful. Lower = more workers allowed to pile on the same target.")
+        @Config.RangeInt(min = 1, max = 50)
+        public int groupSizeAttackerCapDivisor = 5;
+
+        @Config.Comment("Ticks of inactivity before an attacker's reserved slot on a target is considered stale and freed.")
+        @Config.RangeInt(min = 5, max = 200)
+        public int attackerSlotStaleTicks = 20;
+
+        @Config.Comment("Max number of entities allowed to run a full target-acquisition scan (nearby-enemy AABB search) in the same tick, world-wide. Prevents CPU spikes during mass battles with many hired workers. Entities that miss the budget simply retry next tick.")
+        @Config.RangeInt(min = 4, max = 500)
+        public int combatTargetScanBudgetPerTick = 40;
 
         @Config.Comment("View radius (blocks) for off-screen traveller entities.")
         @Config.RangeDouble(min = 16.0, max = 1024.0)
@@ -1282,8 +1370,19 @@ public class TravellersConfig {
         @Config.Comment("Notify a worker's owner when one of their hired workers dies in a virtual battle.")
         public boolean notifyOwnerOnDeath = true;
 
-        @Config.Comment("Show active virtual battles as markers on the worldmap.")
-        public boolean battleMarkersOnMap = true;
+        @Config.Comment("Minimum number of enemies fighting your workers before you get notified. Stops tiny skirmishes from spamming you.")
+        @Config.RangeInt(min = 1, max = 64)
+        public int notifyMinEnemyCount = 2;
+
+        @Config.Comment("Enemies must outnumber your workers in the fight by at least this much (0.5 = half as many enemies as workers) before you get notified.")
+        @Config.RangeDouble(min = 0.0, max = 5.0)
+        public double notifyMinEnemyToWorkerRatio = 0.5;
+
+        @Config.Comment("If on, a worker's death always notifies you, ignoring the enemy-count/ratio thresholds above. If off, deaths use the same thresholds as the battle-start notice.")
+        public boolean notifyDeathAlwaysNotifies = true;
+
+        @Config.Comment("Also detect and notify about fights between hired workers, raiders and other players' workers while everyone involved is in a loaded area (not just offscreen virtual battles).")
+        public boolean detectLoadedEncounters = true;
 
         @Config.Comment("Virtual travellers/workers regain health offscreen after combat, mirroring the physical EntityAIAutoEat AI (raiders excluded, they don't auto-eat physically either).")
         public boolean virtualCombatHealingEnabled = true;
@@ -1412,20 +1511,6 @@ public class TravellersConfig {
         @Config.Comment("Minimum block distance between worker villages.")
         @Config.RangeInt(min = 100, max = 10000)
         public int workerVillageMinDistance = 250;
-
-        @Config.Comment("Initial zoom for the worldmap in the formation hub (blocks per pixel). Smaller = more zoomed in. 0.5 means 1 block per 2 pixels.")
-        @Config.RangeDouble(min = 0.0625, max = 8.0)
-        public double formationHubMapInitialBpp = 0.5;
-
-        @Config.Comment("Master switch: reveal foreign travellers/raiders/workers and battles on the player worldmap/formation hub, gated by hiredWorkerVisionRadius.")
-        public boolean foreignUnitVisionEnabled = true;
-
-        @Config.Comment("Radius (blocks) around each of a player's own alive hired units within which foreign travellers/raiders/workers and battles become visible on the map.")
-        @Config.RangeInt(min = 8, max = 512)
-        public int hiredWorkerVisionRadius = 48;
-
-        @Config.Comment("Show HP of discovered foreign entities on the map (own workers always show HP regardless of this setting).")
-        public boolean revealForeignEntityHealth = false;
     }
 
     public static class Recruitment {
@@ -1603,6 +1688,12 @@ public class TravellersConfig {
 
         @Config.Comment("Java class names friendly travellers will attack (exact or subclasses).")
         public String[] travellerAttackClassRules = new String[]{};
+
+        @Config.Comment("Entity IDs hired workers will treat as dangerous (exact or modid:*). Empty by default - falls back to the traveller attack list above.")
+        public String[] workerAttackIdRules = new String[]{};
+
+        @Config.Comment("Java class names hired workers will attack (exact or subclasses). Empty by default - falls back to the traveller attack list above.")
+        public String[] workerAttackClassRules = new String[]{};
     }
 
     public static class Notifications {

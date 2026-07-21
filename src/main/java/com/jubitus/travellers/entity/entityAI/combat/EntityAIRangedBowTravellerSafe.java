@@ -477,10 +477,11 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // Fire
         arrow.shoot(fx, aimY, fz, ARROW_VEL, inaccuracy);
 
+        // Player-damage scaling (including the owner-specific friendly-fire rate) is applied
+        // uniformly in TravellerFriendlyFireHandler based on whoever the arrow actually hits —
+        // "target" here is only the intended target, which can differ from the real victim
+        // (e.g. the owner standing in the shot line), so scaling it here would silently miss that case.
         double desiredFinal = TravellersConfig.COMBAT.rangedBaseDamage * TravellersConfig.COMBAT.rangedDamageMultiplier;
-        if (target instanceof EntityPlayer) {
-            desiredFinal *= TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier;
-        }
 
         double speed = Math.sqrt(arrow.motionX * arrow.motionX
                 + arrow.motionY * arrow.motionY

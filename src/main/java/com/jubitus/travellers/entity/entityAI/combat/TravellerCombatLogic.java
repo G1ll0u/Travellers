@@ -61,10 +61,21 @@ public class TravellerCombatLogic {
         return isAnyPlayerWithinViewRadius();
     }
 
+    // Grace window after being hit by a living entity, separate from vanilla's hurtResistantTime
+    // (which is also refreshed by environmental damage like fire/lava and would otherwise freeze
+    // travel/follow AI - both gate on isInCombat() - for as long as the entity keeps burning/drowning).
+    private static final int ENTITY_HIT_GRACE_TICKS = 20;
+    private int lastEntityHitTick = Integer.MIN_VALUE / 2;
+
+    /** Marks that a living entity (as opposed to environmental damage) just hit us. */
+    public void recordEntityHit() {
+        lastEntityHitTick = entity.ticksExisted;
+    }
+
     public boolean isInCombatRaw() {
         return entity.getAttackTarget() != null
                 || entity.getRevengeTarget() != null
-                || entity.hurtResistantTime > 0;
+                || (entity.ticksExisted - lastEntityHitTick) <= ENTITY_HIT_GRACE_TICKS;
     }
 
     /** Raw inCombat flag (not affected by off-screen ghost rules). */
@@ -199,9 +210,9 @@ public class TravellerCombatLogic {
                 target instanceof EntityLivingBase
                         ? ((EntityLivingBase) target).getCreatureAttribute() : null);
 
-        if (target instanceof EntityPlayer) {
-            damage *= TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier;
-        }
+        // Player-damage scaling (including the owner-specific friendly-fire rate) is applied
+        // uniformly for melee and arrows in TravellerFriendlyFireHandler, keyed off the entity
+        // actually hit rather than the intended target — see that class for why.
         boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(entity), damage);
         if (!hit) return false;
 

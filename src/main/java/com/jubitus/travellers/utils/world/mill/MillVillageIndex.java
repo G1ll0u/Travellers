@@ -387,6 +387,84 @@ public final class MillVillageIndex {
         return false;
     }
 
+    /**
+     * Planar (XZ) reserved-zone bounding boxes — Millénaire's own {@code BuildingLocation}
+     * margin-expanded box, i.e. the inter-building spacing zone Millénaire itself reserves around
+     * every building — for every building belonging to a village or lone building whose registered
+     * anchor position lies within {@code searchRadius} of [min,max]'s center. Pure in-memory
+     * metadata lookup: no chunk loading, and no dependency on what blocks a building happens to be
+     * made of (Millénaire buildings are frequently built from plain vanilla materials, not just
+     * {@code millenaire:} blocks, so a block-identity scan alone can miss them entirely).
+     */
+    public static List<int[]> collectBuildingZonesPlanar(World world, BlockPos min, BlockPos max, int searchRadius) {
+        List<int[]> zones = new ArrayList<>();
+        MillWorldData wd = getWD(world);
+        if (wd == null) return zones;
+        int cx = (min.getX() + max.getX()) / 2;
+        int cz = (min.getZ() + max.getZ()) / 2;
+        long r2 = (long) searchRadius * searchRadius;
+
+        java.util.Set<Building> anchors = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        if (wd.villagesList != null && wd.villagesList.pos != null) {
+            collectAnchorsWithinRadius(wd, wd.villagesList.pos, cx, cz, r2, anchors);
+        }
+        if (wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
+            collectAnchorsWithinRadius(wd, wd.loneBuildingsList.pos, cx, cz, r2, anchors);
+        }
+
+        for (Building anchor : anchors) {
+            addZone(zones, anchor.location);
+            for (Building b : anchor.getBuildings()) addZone(zones, b.location);
+        }
+        return zones;
+    }
+
+    private static void collectAnchorsWithinRadius(MillWorldData wd, List<Point> pts, int cx, int cz, long r2,
+                                                     java.util.Set<Building> out) {
+        for (Point p : pts) {
+            if (p == null) continue;
+            long dx = p.getiX() - cx, dz = p.getiZ() - cz;
+            if (dx * dx + dz * dz > r2) continue;
+            Building b = wd.getBuilding(p);
+            if (b != null) out.add(b);
+        }
+    }
+
+    private static void addZone(List<int[]> zones, @Nullable BuildingLocation loc) {
+        if (loc == null) return;
+        zones.add(new int[]{loc.minxMargin, loc.maxxMargin, loc.minzMargin, loc.maxzMargin});
+    }
+
+    /** True if [min,max] (planar XZ) overlaps any building's reserved zone within {@code searchRadius}. */
+    public static boolean anyBuildingZoneOverlapsPlanar(World world, BlockPos min, BlockPos max, int searchRadius) {
+        return anyZoneOverlapsPlanar(collectBuildingZonesPlanar(world, min, max, searchRadius), min, max);
+    }
+
+    /**
+     * True if [min,max] (planar XZ) overlaps any zone in an already-collected list. Callers checking
+     * several sub-areas of the same neighbourhood (e.g. every slot of one campsite) should collect
+     * once via {@link #collectBuildingZonesPlanar} for the whole area and reuse it here per sub-area,
+     * instead of re-running the (village-count-sized) collection for each one.
+     */
+    public static boolean anyZoneOverlapsPlanar(List<int[]> zones, BlockPos min, BlockPos max) {
+        for (int[] z : zones) {
+            if (zoneOverlapsPlanar(z, min, max)) return true;
+        }
+        return false;
+    }
+
+    private static boolean zoneOverlapsPlanar(int[] zone, BlockPos min, BlockPos max) {
+        return zone[0] <= max.getX() && zone[1] >= min.getX() && zone[2] <= max.getZ() && zone[3] >= min.getZ();
+    }
+
+    /** True if the planar column (x,z) falls inside any zone in {@code zones} (as returned by {@link #collectBuildingZonesPlanar}). */
+    public static boolean isPlanarInsideAnyZone(List<int[]> zones, int x, int z) {
+        for (int[] z0 : zones) {
+            if (x >= z0[0] && x <= z0[1] && z >= z0[2] && z <= z0[3]) return true;
+        }
+        return false;
+    }
+
     public static boolean hasVillageData(World world) {
         MillWorldData wd = getWD(world);
         return wd != null && wd.villagesList != null && wd.villagesList.pos != null && !wd.villagesList.pos.isEmpty();

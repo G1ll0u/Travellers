@@ -109,7 +109,15 @@ public class TravellerHurtByTarget extends EntityAITarget {
         }
         this.revengeTimerOld = this.owner.getRevengeTimer();
 
-        if (this.callForHelp && attacker != null && attacker.isEntityAlive()) {
+        // Skip recruiting more allies once enough are already engaged with this attacker —
+        // a big group that's already responding doesn't need to keep pulling in reinforcements
+        // (this used to make every single hit ripple out to a dozen more allies regardless of
+        // how many were already fighting).
+        boolean enoughAlreadyEngaged = attacker != null
+                && com.jubitus.travellers.entity.entityAI.combat.AttackTargetLimiter.getAttackerCount(attacker)
+                        >= com.jubitus.travellers.config.TravellersConfig.COMBAT.callForHelpSkipIfAttackersAtLeast;
+
+        if (this.callForHelp && attacker != null && attacker.isEntityAlive() && !enoughAlreadyEngaged) {
             double r = this.assistRadius;
             AxisAlignedBB box = new AxisAlignedBB(
                     owner.posX - r, owner.posY - 8, owner.posZ - r,

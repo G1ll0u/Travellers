@@ -238,6 +238,11 @@ public final class TravellerFollowNet {
                 com.jubitus.travellers.server.net.message.map.MsgTeleportToPos.Handler.class,
                 com.jubitus.travellers.server.net.message.map.MsgTeleportToPos.class, id++, Side.SERVER);
 
+        // Debug: spawn a virtual traveller/worker at a clicked map position
+        CHANNEL.registerMessage(
+                com.jubitus.travellers.server.net.message.map.MsgSpawnEntityAtPos.Handler.class,
+                com.jubitus.travellers.server.net.message.map.MsgSpawnEntityAtPos.class, id++, Side.SERVER);
+
         // On-screen notification toasts
         registerClientOnly(com.jubitus.travellers.server.net.message.notify.MsgShowNotification.class,
                 isClient ? new com.jubitus.travellers.server.net.message.notify.MsgShowNotification.Handler()
