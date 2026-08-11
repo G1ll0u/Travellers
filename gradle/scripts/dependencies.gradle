@@ -3,12 +3,19 @@ apply from: 'gradle/scripts/helpers.gradle'
 repositories {
     // Other repositories described by gilles:
     // CleanroomMC: https://maven.cleanroommc.com
+    // Two separate forRepository{} calls (one repo each) inside the same exclusiveContent block:
+    // the original single forRepository{} nested both maven{} blocks together, and Gradle only
+    // kept the LAST repo declared inside that one closure - every curse.maven dependency was
+    // silently resolving against cleanroommc.com only, ignoring cursemaven.com even for files
+    // that only exist there.
     exclusiveContent {
         forRepository {
             maven {
                 name 'CurseMaven'
                 url 'https://cursemaven.com'
             }
+        }
+        forRepository {
             maven {
                 url 'https://maven.cleanroommc.com'
             }
@@ -36,12 +43,12 @@ dependencies {
     runtimeOnly 'com.cleanroommc:strip-latest-forge-requirements:1.0'
     // Include OSXNarratorBlocker by gilles for the dev env, for M1+ Macs
     runtimeOnly 'com.cleanroommc:osxnarratorblocker:1.0'
-    embed files('libs/jubiconfig-1.0.4.jar')
+    embed files('libs/jubiconfig-1.2.0.jar')
     implementation files('libs/millenaire-8.1.2.jar')
     implementation files('libs/millmix-1.1.6.jar')
     implementation files('libs/DramaticTrees-1.12.2-0.13.4.jar')
     implementation files('libs/ultreia-b0.1.0.jar')
-
+    implementation "curse.maven:ancient-warfare-2-tweaked-890591:6634879"
     implementation 'mezz:jei:4.29.13'
     // Example - Dependency descriptor:
     // 'com.google.code.gson:gson:2.8.6' << group: com.google.code.gson, name:gson, version:2.8.6

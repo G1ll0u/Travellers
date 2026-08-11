@@ -44,11 +44,6 @@ public final class FollowFormationCoordinator {
         World world = follower.world;
         LeaderKey key = new LeaderKey(world.provider.getDimension(), leader.getUniqueID());
 
-        WorkerFormationScopeKey formationScope = WorkerFormationScopeResolver.resolveRuntimeScope(leader);
-        WorkerFormationSettings formationSettings = formationScope == null
-                ? WorkerFormationSettings.defaults()
-                : WorkerFormationSavedData.get(world).getSettings(formationScope);
-
         long now = world.getTotalWorldTime();
         cleanup(now);
 
@@ -57,6 +52,12 @@ public final class FollowFormationCoordinator {
             ctx = new LeaderContext(key);
             CONTEXTS.put(key, ctx);
         }
+
+        // Resolved (and copied) at most once per leader per world tick, not once per follower:
+        // with 200 followers all calling getSlot() the same tick, re-hitting WorldSavedData and
+        // allocating a fresh WorkerFormationSettings copy 200x/tick was pure waste — the settings
+        // can't meaningfully change faster than once per tick anyway.
+        WorkerFormationSettings formationSettings = ctx.resolveFormationSettings(world, leader, now);
 
         ctx.registerMember(follower, now);
         ctx.ensureFresh(world, leader, follower.getFollowOwnerId(), now, mode, cfg, baseFollowDistance, formationSettings);
@@ -204,6 +205,9 @@ public final class FollowFormationCoordinator {
         private int lastFormationSettingsHash = 0;
 
         private long lastForcedRebuildTick = Long.MIN_VALUE;
+
+        private WorkerFormationSettings cachedFormationSettings;
+        private long formationSettingsTick = Long.MIN_VALUE;
 
         private int groupSize = 1;
         private SpaceProfile profile = new SpaceProfile(false, 1.0D, 1.0D, 1, 0.0D, 1.0D);
@@ -358,6 +362,19 @@ public final class FollowFormationCoordinator {
                 }
             }
             return result;
+        }
+
+        private WorkerFormationSettings resolveFormationSettings(World world, EntityLivingBase leader, long now) {
+            if (formationSettingsTick == now && cachedFormationSettings != null) {
+                return cachedFormationSettings;
+            }
+            formationSettingsTick = now;
+
+            WorkerFormationScopeKey formationScope = WorkerFormationScopeResolver.resolveRuntimeScope(leader);
+            cachedFormationSettings = formationScope == null
+                    ? WorkerFormationSettings.defaults()
+                    : WorkerFormationSavedData.get(world).getSettings(formationScope);
+            return cachedFormationSettings;
         }
 
         void registerMember(EntityTravellerWorker worker, long now) {
@@ -969,7 +986,8 @@ public final class FollowFormationCoordinator {
         BlockPos feet = new BlockPos(leader.posX, leader.getEntityBoundingBox().minY, leader.posZ);
         boolean airborne = !leader.onGround && !leader.isInWater() && leader.motionY > -0.08D;
 
-        BlockPos top = world.getTopSolidOrLiquidBlock(new BlockPos(feet.getX(), 0, feet.getZ()));
+        BlockPos columnBase = new BlockPos(feet.getX(), 0, feet.getZ());
+        BlockPos top = FollowRecoveryHelper.topSolidOrWaterSurface(world, columnBase);
         int verticalGap = feet.getY() - top.getY();
 
         if (airborne && verticalGap >= 5 && world.canSeeSky(top)) {
@@ -980,6 +998,13 @@ public final class FollowFormationCoordinator {
                         return new GroundAnchor(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D, true);
                     }
                 }
+            }
+
+            // Flying over open water: no dry standable tile below. Anchor to the water surface
+            // itself instead of falling through to the leader's raw flight altitude, which would
+            // otherwise pull followers up into the air trying to reach them.
+            if (world.getBlockState(top).getMaterial().isLiquid()) {
+                return new GroundAnchor(top.getX() + 0.5D, top.getY(), top.getZ() + 0.5D, true);
             }
         }
 
@@ -1123,7 +1148,10 @@ public final class FollowFormationCoordinator {
 
         int maxTunnelLanes = Math.max(1, profile.suggestedTunnelLanes);
         if (settings.adaptiveCave) {
-            maxTunnelLanes = Math.min(maxTunnelLanes, settings.width >= 5 ? 2 : 1);
+            // Adaptive mode already limits lanes to what the tunnel physically fits
+            // (profile.suggestedTunnelLanes); width just lets the player additionally narrow
+            // that down, graded like every other style instead of a binary 1-vs-2 switch.
+            maxTunnelLanes = Math.min(maxTunnelLanes, Math.max(1, settings.width));
         } else {
             maxTunnelLanes = Math.min(Math.max(1, settings.width), Math.max(1, cfg.group.maxTunnelLanes));
         }
@@ -1164,7 +1192,7 @@ public final class FollowFormationCoordinator {
 
             case COLUMN:
             default: {
-                int lanes = settings.width >= 6 && maxTunnelLanes >= 2 ? 2 : 1;
+                int lanes = Math.max(1, Math.min(maxTunnelLanes, 2));
                 int row = ordinal / lanes;
                 int lane = ordinal % lanes;
                 double side = lanes == 1 ? 0.0D : (lane == 0 ? -laneSpacing * 0.42D : laneSpacing * 0.42D);

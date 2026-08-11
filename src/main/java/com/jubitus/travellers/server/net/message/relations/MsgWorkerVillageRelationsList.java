@@ -1,13 +1,10 @@
 package com.jubitus.travellers.server.net.message.relations;
 
 import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.*;
 import net.minecraftforge.fml.relauncher.Side;
@@ -18,7 +15,6 @@ import java.util.List;
 
 public class MsgWorkerVillageRelationsList implements IMessage {
 
-    public int workerId;
     public List<BlockPos> centers;
     public List<String> labels;
     public List<Integer> distances;
@@ -26,12 +22,10 @@ public class MsgWorkerVillageRelationsList implements IMessage {
 
     public MsgWorkerVillageRelationsList() {}
 
-    public MsgWorkerVillageRelationsList(int workerId,
-                                         List<BlockPos> centers,
+    public MsgWorkerVillageRelationsList(List<BlockPos> centers,
                                          List<String> labels,
                                          List<Integer> distances,
                                          List<Boolean> enemies) {
-        this.workerId = workerId;
         this.centers = centers;
         this.labels = labels;
         this.distances = distances;
@@ -40,7 +34,6 @@ public class MsgWorkerVillageRelationsList implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        workerId = buf.readInt();
         int count = buf.readInt();
 
         centers = new ArrayList<>(count);
@@ -63,7 +56,6 @@ public class MsgWorkerVillageRelationsList implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
-        buf.writeInt(workerId);
         int count = centers == null ? 0 : centers.size();
         buf.writeInt(count);
 
@@ -88,11 +80,7 @@ public class MsgWorkerVillageRelationsList implements IMessage {
         @SideOnly(Side.CLIENT)
         private void handle(MsgWorkerVillageRelationsList msg) {
             Minecraft mc = Minecraft.getMinecraft();
-            World world = mc.world;
-            if (world == null) return;
-
-            Entity e = world.getEntityByID(msg.workerId);
-            if (!(e instanceof EntityTravellerWorker)) return;
+            if (mc.world == null) return;
 
             GuiScreen screen = mc.currentScreen;
             if (screen instanceof GuiWorkerVillageRelations) {

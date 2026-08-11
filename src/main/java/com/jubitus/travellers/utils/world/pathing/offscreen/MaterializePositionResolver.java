@@ -1,17 +1,21 @@
 package com.jubitus.travellers.utils.world.pathing.offscreen;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.WorldServer;
+import net.minecraftforge.fluids.IFluidBlock;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.utils.world.camp.CampsiteManager;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 
@@ -30,10 +34,11 @@ import java.util.UUID;
  * - Escort followers without a slot offset (new/unassigned workers) fall back to
  *   a deterministic UUID ring around the leader so they don't all stack.
  * - The leader's Y is always used as the vertical reference for escort followers,
- *   ensuring they appear at the same level (cave, building, surface) as the group.
+ *   ensuring they appear at the same level (building or surface) as the group.
  * - Solo workers that traveled far get a random spread.
- * - Y is resolved against loaded-chunk terrain, searching outward from the
- *   reference Y so underground workers stay underground.
+ * - Travel is surface-only, so an entity that MOVED is surface-clamped (its frozen
+ *   offscreen Y is stale). One that stayed put keeps its frozen Y so it reappears
+ *   exactly where it was, including inside a roofed structure.
  */
 public final class MaterializePositionResolver {
 
@@ -71,6 +76,16 @@ public final class MaterializePositionResolver {
         double baseZ = Math.floor(r.posZ) + 0.5;
         double referenceY = r.posY;
 
+        // Travel/travel-AI is surface-only: no entity is ever legitimately underground. Offscreen the Y
+        // is frozen (never simulated) while XZ can drift far, so once an entity has wandered its stale
+        // referenceY no longer matches the terrain below it and the floor search can drop it into a cave
+        // (possibly next to lava). Surface-clamp anything that actually MOVED. An entity that stayed put
+        // keeps a valid frozen Y and must reappear exactly where it was — the one case that isn't the
+        // open surface is a stationary entity inside a roofed structure (building / barracks bed), which
+        // a blind surface-clamp would push onto the roof.
+        boolean preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize
+                && r.hasTraveledFar;
+
         // Mid-battle pawn: appear exactly where the battle sim placed it — no formation slot,
         // ring spread or building avoidance (the fight is where it is). Y is still resolved.
         if (r.battleId != null) {
@@ -78,7 +93,7 @@ public final class MaterializePositionResolver {
             int bbz = (int) Math.floor(baseZ);
             double y = referenceY;
             if (world.getChunkProvider().chunkExists(bbx >> 4, bbz >> 4)) {
-                y = findSafeFloorY(world, bbx, bbz, referenceY);
+                y = findSafeFloorY(world, bbx, bbz, referenceY, preferSurface);
                 y = ensureNotInSolid(world, bbx, y, bbz);
             }
             return new ResolvedPosition(baseX, y, baseZ);
@@ -89,11 +104,22 @@ public final class MaterializePositionResolver {
         if (r.groupLeaderUUID != null) {
             double[] leaderPos = findLeaderPosition(world, r.groupLeaderUUID, allRecords);
             if (leaderPos != null) {
-                referenceY = leaderPos[1];
                 int[] off = followerSpreadOffset(r.uuid);
                 double cx = Math.floor(leaderPos[0] + off[0]) + 0.5;
                 double cz = Math.floor(leaderPos[2] + off[1]) + 0.5;
                 if (chunkLoaded(world, cx, cz)) {
+                    // If the ring column is still close to where the follower itself was last standing
+                    // (stationary leader: the ring hasn't moved since virtualize), that raw frozen Y is an
+                    // accurate reference for that exact spot - including inside a building - so keep it
+                    // and skip the clamp. Only when the ring has drifted away from the follower's own
+                    // column (leader moved) is the follower's frozen Y for the WRONG column and must be
+                    // replaced with the leader's Y and surface-clamped, same stale-Y trap as elsewhere.
+                    double ddx = cx - baseX;
+                    double ddz = cz - baseZ;
+                    if (ddx * ddx + ddz * ddz > 4.0 * 4.0) {
+                        referenceY = leaderPos[1];
+                        preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize;
+                    }
                     baseX = cx;
                     baseZ = cz;
                 }
@@ -103,13 +129,35 @@ public final class MaterializePositionResolver {
         if (r.escortLeaderUUID != null) {
             double[] leaderPos = findLeaderPosition(world, r.escortLeaderUUID, allRecords);
             if (leaderPos != null) {
-                // Use leader's Y so underground/building followers spawn at the right level.
-                // baseX/baseZ are left as r.posX/r.posZ (set above): VirtualFormationSimulator
-                // continuously steers the follower's simulated position toward its live formation
-                // slot every refresh, so by materialization time the follower is already
-                // approximately where it should be (or still visibly catching up, which is the
-                // point - no more snapping to a stale offset captured at virtualization).
-                referenceY = leaderPos[1];
+                // Normally VirtualFormationSimulator has already steered the follower's simulated
+                // position to (or close to) its live formation slot by materialization time, so using
+                // the raw r.posX/r.posZ is fine. But a follower can also materialize while still
+                // meaningfully displaced from its slot - most commonly right after a virtual battle
+                // scattered it - in which case spawning at the raw position drops it far from the
+                // group it's supposed to defend/be defended by. Prefer the goal (the slot itself)
+                // whenever it's known and far enough from the raw position to matter.
+                if (r.goal != null) {
+                    double gx = r.goal.getX() + 0.5;
+                    double gz = r.goal.getZ() + 0.5;
+                    double ddx = gx - baseX;
+                    double ddz = gz - baseZ;
+                    if (ddx * ddx + ddz * ddz > 4.0 * 4.0 && chunkLoaded(world, gx, gz)) {
+                        baseX = gx;
+                        baseZ = gz;
+                        // The follower's own frozen Y was recorded at its OLD (raw) column, which we
+                        // just abandoned in favor of the goal/slot column - it no longer describes the
+                        // ground under the new XZ, so it can't seed a down-first search there (the same
+                        // stale-Y trap as a far-travelled solo entity). Use the leader's Y as the search
+                        // seed instead, but resolve it the same surface-first way a moved entity gets.
+                        referenceY = leaderPos[1];
+                        preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize;
+                    }
+                    // Else: still at (or very near) its own raw column - the follower's own frozen Y
+                    // (referenceY, untouched) is the accurate reference for that exact spot, and the
+                    // leader's Y must NOT be substituted in - a leader a few blocks away can sit over
+                    // different local terrain, and seeding the down-first search with a mismatched Y is
+                    // exactly what let stationary followers drop into a cave under their own column.
+                }
             } else if (!r.hasTraveledFar) {
                 // No leader position resolvable and the worker never moved far on its own either
                 // (e.g. leader itself never simulated a position yet): fall back to a deterministic
@@ -157,7 +205,7 @@ public final class MaterializePositionResolver {
 
         double spawnY = referenceY;
         if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
-            spawnY = findSafeFloorY(world, bx, bz, referenceY);
+            spawnY = findSafeFloorY(world, bx, bz, referenceY, preferSurface);
             spawnY = ensureNotInSolid(world, bx, spawnY, bz);
         }
 
@@ -205,14 +253,29 @@ public final class MaterializePositionResolver {
     // Y resolution — public so barracks managers can reuse them
     // -------------------------------------------------------------------------
 
-    /**
-     * Finds a safe Y (entity feet) at (bx, bz), searching outward from referenceY.
-     * Goes down first at each offset to preserve underground positions
-     * (cave workers stay underground instead of being pushed to the surface).
-     */
     public static double findSafeFloorY(WorldServer world, int bx, int bz, double referenceY) {
+        return findSafeFloorY(world, bx, bz, referenceY, false);
+    }
+
+    /**
+     * Finds a safe Y (entity feet) at (bx, bz).
+     * <p>
+     * When {@code preferSurface} is false: searches outward from referenceY, going down first at each
+     * offset. Used for a stationary entity whose frozen Y is still valid, so it reappears exactly where
+     * it was — including inside a roofed structure (building / barracks bed) it must not be lifted out of.
+     * <p>
+     * When {@code preferSurface} is true: resolves against the actual surface (top-down, skipping
+     * foliage) and ignores referenceY entirely — this is what stops a far-wandered entity whose frozen
+     * offscreen Y no longer matches the terrain from dropping into a cave below (possibly next to lava).
+     */
+    public static double findSafeFloorY(WorldServer world, int bx, int bz, double referenceY, boolean preferSurface) {
         int refY = (int) Math.floor(referenceY);
         int maxY = world.getActualHeight() - 3;
+
+        if (preferSurface) {
+            double surf = findSurfaceFloorY(world, bx, bz, maxY);
+            if (!Double.isNaN(surf)) return surf;
+        }
 
         for (int offset = 0; offset <= 32; offset++) {
             int yDown = refY - offset;
@@ -224,6 +287,14 @@ public final class MaterializePositionResolver {
         }
 
         // Last resort: top-down scan skipping foliage
+        double surf = findSurfaceFloorY(world, bx, bz, maxY);
+        if (!Double.isNaN(surf)) return surf;
+
+        return referenceY;
+    }
+
+    /** Top-down scan for the highest safe floor at (bx, bz), skipping tree foliage. NaN if none. */
+    private static double findSurfaceFloorY(WorldServer world, int bx, int bz, int maxY) {
         for (int y = maxY; y > 1; y--) {
             BlockPos pos = new BlockPos(bx, y, bz);
             IBlockState state = world.getBlockState(pos);
@@ -232,8 +303,7 @@ public final class MaterializePositionResolver {
             if (state.getBlock().isAir(state, world, pos)) continue;
             if (isSafeFloor(world, bx, y, bz)) return y + 1.0;
         }
-
-        return referenceY;
+        return Double.NaN;
     }
 
     private static boolean isSafeFloor(WorldServer world, int bx, int y, int bz) {
@@ -243,10 +313,24 @@ public final class MaterializePositionResolver {
         if (TravellersConfig.MATERIALIZATION.avoidTreeCanopy && !isStableFloorMaterial(st.getMaterial())) {
             return false;
         }
+        // A liquid block reads as "not air" and would otherwise pass as a floor with air above it -
+        // an entity resolved to stand there has nothing solid underneath and drops straight in
+        // (fatal on lava). Mirrors CampTerrainValidator.isCellNatural's hazard gate.
+        if (TravellersConfig.MATERIALIZATION.avoidHazardLiquids && isHazardBlock(st.getBlock(), st)) {
+            return false;
+        }
         IBlockState s1 = world.getBlockState(floor.up());
         IBlockState s2 = world.getBlockState(floor.up(2));
         return s1.getBlock().isAir(s1, world, floor.up())
                 && s2.getBlock().isAir(s2, world, floor.up(2));
+    }
+
+    /** Liquids (vanilla or modded) and any block registry-name-listed as a camp terrain hazard. */
+    private static boolean isHazardBlock(Block b, IBlockState st) {
+        if (st.getMaterial().isLiquid() || b instanceof IFluidBlock) return true;
+        ResourceLocation blockId = b.getRegistryName();
+        return blockId != null && TravellersDerivedConfig.CAMP_TERRAIN_HAZARD_BLACKLIST
+                .contains(blockId.toString().toLowerCase(java.util.Locale.ROOT));
     }
 
     /**

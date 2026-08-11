@@ -2,38 +2,31 @@ package com.jubitus.travellers.utils.mobs;
 
 import com.google.common.base.Optional;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.world.data.PlayerEnemyRelations;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nullable;
 import java.util.*;
 
+/**
+ * Player-vs-player hostility for a hired worker's owner.
+ * The "declared" list is account-wide (see PlayerEnemyRelations) — every worker of the same
+ * owner shares it automatically, no per-worker/per-leader mirroring needed.
+ * localHostilePlayers stays per-worker: transient auto-retaliation, not the declared-war list.
+ */
 public class PlayerHostility {
     private final EntityTravellerWorker w;
 
     // --- retaliation engagement (server-only runtime memory) ---
     private final java.util.Map<UUID, Long> engagedOwnersUntil = new java.util.HashMap<>();
 
-    // --- follower mirroring (server) ---
-    private int mirrorCooldown = 0;
-
-
-    // Source of truth ici
-    public final Set<UUID> hostilePlayers = new HashSet<>();
-    private final List<String> hostileNamesClient = new ArrayList<>();
-
     // Per-worker local hostiles (auto-retaliation); does NOT sync to escorts
     public final Set<UUID> localHostilePlayers = new HashSet<>();
 
-
     public PlayerHostility(EntityTravellerWorker worker) {
         this.w = worker;
-    }
-
-    public Set<UUID> getHostilePlayers() {
-        return hostilePlayers;
     }
 
     public boolean isPlayerMarkedHostile(@Nullable EntityPlayer p) {
@@ -41,54 +34,26 @@ public class PlayerHostility {
         return isOwnerEffectivelyHostile(p.getUniqueID());
     }
 
-
-    public void addHostilePlayer(@Nullable UUID id) {
-        if (id == null) return;
-        hostilePlayers.add(id);
-    }
-
     public void removeHostilePlayer(@Nullable UUID id) {
-        if (id == null) return;
-        hostilePlayers.remove(id);
+        setHostile(id, false);
     }
 
-    public void setHostile(UUID target, boolean hostile) {
+    public void setHostile(@Nullable UUID target, boolean hostile) {
         if (target == null) return;
-        if (hostile) hostilePlayers.add(target);
-        else hostilePlayers.remove(target);
-    }
+        UUID myOwner = w.getFollowOwnerId();
+        if (myOwner == null) return;
+        if (!(w.world instanceof WorldServer)) return;
 
+        PlayerEnemyRelations.get(w.world).setHostile(myOwner, target, hostile);
+    }
 
     public Set<UUID> getEffectiveHostilePlayers() {
-        // Effective = declared (leader/self) + local
-        Set<UUID> out = new HashSet<>();
-        EntityTravellerWorker leader = getGroupLeaderOrSelf();
-        if (leader != null && leader != w) out.addAll(leader.getHostility().hostilePlayers);
-        else out.addAll(hostilePlayers);
-
+        Set<UUID> out = new HashSet<>(declaredHostilePlayers());
         out.addAll(localHostilePlayers);
         return out;
     }
 
-    public List<String> getHostileNamesClient() {
-        return hostileNamesClient;
-    }
-
-    public void setHostileNamesClient(List<String> names) {
-        hostileNamesClient.clear();
-        hostileNamesClient.addAll(names);
-    }
-
     // ----------------------------------------------------------------
-
-    public EntityTravellerWorker getHostileListOwner() {
-        UUID leaderId = getEscortLeaderUUID();
-        if (leaderId != null) {
-            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
-            if (leader != null && !leader.isDead) return leader;
-        }
-        return w;
-    }
 
     @Nullable
     public UUID getEscortLeaderUUID() {
@@ -104,82 +69,15 @@ public class PlayerHostility {
         return (e instanceof EntityTravellerWorker) ? (EntityTravellerWorker) e : null;
     }
 
-    public EntityTravellerWorker getGroupLeaderOrSelf() {
-        UUID leaderId = getEscortLeaderUUID();
-        if (leaderId != null) {
-            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
-            if (leader != null && !leader.isDead) {
-                return leader;
-            }
-        }
-        // IMPORTANT: do NOT clear escortLeader here. Let worker tick logic decide.
-        return w;
-    }
-
-
-
-    public void syncHostileListToEscorts() {
-        if (w.world.isRemote) return;
-        if (!(w.world instanceof WorldServer)) return;
-
-        MinecraftServer server = ((WorldServer) w.world).getMinecraftServer();
-        if (server == null) return;
-
-        UUID ownerId = w.getFollowOwnerId();
-        if (ownerId == null) return;
-
-        UUID leaderId = w.getUniqueID();
-        Set<UUID> src = new HashSet<>(hostilePlayers);
-
-        for (WorldServer ws : server.worlds) {
-            List<EntityTravellerWorker> escorts = ws.getEntities(EntityTravellerWorker.class, other ->
-                    other != null
-                            && other.isEntityAlive()
-                            && other.isHiredFollower()
-                            && Objects.equals(other.getFollowOwnerId(), ownerId)
-                            && leaderId.equals(other.getEscortLeaderUUID())
-            );
-
-            for (EntityTravellerWorker other : escorts) {
-                PlayerHostility h = other.getHostility();
-                h.hostilePlayers.clear();
-                h.hostilePlayers.addAll(src);
-            }
-        }
-    }
     public void tickServer() {
         if (w.world.isRemote) return;
-
-        // Mirror leader hostile list into local set so we persist it if leader unloads/dies
-        tickMirrorLeaderHostiles();
-
-        // Expire retaliation engagements
         cleanupEngagements();
     }
 
-    private void tickMirrorLeaderHostiles() {
-        // Only followers need mirroring
-        if (!w.isHiredFollower()) return;
-
-        UUID leaderId = getEscortLeaderUUID();
-        if (leaderId == null) return;
-
-        // every ~2s
-        if (--mirrorCooldown > 0) return;
-        mirrorCooldown = 40;
-
-        EntityTravellerWorker leader = resolveEscortLeader(leaderId);
-        if (leader == null || leader.isDead) return;
-
-        // must be same owner to be meaningful
-        if (!java.util.Objects.equals(leader.getFollowOwnerId(), w.getFollowOwnerId())) return;
-
-        // Copy leader list into our local list (this is the persistence trick)
-        java.util.Set<UUID> src = leader.getHostility().hostilePlayers;
-        if (!hostilePlayers.equals(src)) {
-            hostilePlayers.clear();
-            hostilePlayers.addAll(src);
-        }
+    private Set<UUID> declaredHostilePlayers() {
+        UUID myOwner = w.getFollowOwnerId();
+        if (myOwner == null || !(w.world instanceof WorldServer)) return Collections.emptySet();
+        return PlayerEnemyRelations.get(w.world).getHostiles(myOwner);
     }
 
     // Engage enemy owner for N ticks (retaliation window)
@@ -216,6 +114,7 @@ public class PlayerHostility {
             if (e.getValue() == null || e.getValue() <= now) it.remove();
         }
     }
+
     public boolean addLocalHostile(@Nullable UUID id) {
         if (id == null) return false;
         return localHostilePlayers.add(id);
@@ -226,15 +125,10 @@ public class PlayerHostility {
         return localHostilePlayers.remove(id);
     }
 
-    // "Declared war" (manual list) — does NOT include localHostilePlayers
+    // "Declared war" (account-wide list) — does NOT include localHostilePlayers
     public boolean isOwnerDeclaredHostile(@Nullable UUID ownerId) {
         if (ownerId == null) return false;
-
-        EntityTravellerWorker leader = getGroupLeaderOrSelf();
-        if (leader != null && leader != w) {
-            return leader.getHostility().hostilePlayers.contains(ownerId);
-        }
-        return hostilePlayers.contains(ownerId);
+        return declaredHostilePlayers().contains(ownerId);
     }
 
     // Used for targeting — declared OR local
@@ -243,15 +137,9 @@ public class PlayerHostility {
         return isOwnerDeclaredHostile(ownerId) || localHostilePlayers.contains(ownerId);
     }
 
-    // GUI display: union of declared + local for THIS worker
+    // GUI display: union of declared + local for THIS worker's owner
     public Set<UUID> getHostilesForGui() {
-        Set<UUID> out = new HashSet<>();
-        // declared list source (leader if present, else self)
-        EntityTravellerWorker leader = getGroupLeaderOrSelf();
-        if (leader != null && leader != w) out.addAll(leader.getHostility().hostilePlayers);
-        else out.addAll(hostilePlayers);
-
-        // plus local
+        Set<UUID> out = new HashSet<>(declaredHostilePlayers());
         out.addAll(localHostilePlayers);
         return out;
     }

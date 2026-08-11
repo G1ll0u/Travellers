@@ -1,10 +1,8 @@
 package com.jubitus.travellers.server.net.message.relations;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.data.TravellerVillageRelations;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
@@ -14,14 +12,12 @@ import java.util.UUID;
 
 public class MsgSetVillageEnemy implements IMessage {
 
-    private int workerId;
     private int x, y, z;
     private boolean enemy;
 
     public MsgSetVillageEnemy() {}
 
-    public MsgSetVillageEnemy(int workerId, BlockPos center, boolean enemy) {
-        this.workerId = workerId;
+    public MsgSetVillageEnemy(BlockPos center, boolean enemy) {
         this.x = center.getX();
         this.y = center.getY();
         this.z = center.getZ();
@@ -30,7 +26,6 @@ public class MsgSetVillageEnemy implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        workerId = buf.readInt();
         x = buf.readInt();
         y = buf.readInt();
         z = buf.readInt();
@@ -39,7 +34,6 @@ public class MsgSetVillageEnemy implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
-        buf.writeInt(workerId);
         buf.writeInt(x);
         buf.writeInt(y);
         buf.writeInt(z);
@@ -56,13 +50,6 @@ public class MsgSetVillageEnemy implements IMessage {
 
         private void handle(MsgSetVillageEnemy msg, EntityPlayerMP player) {
             WorldServer ws = player.getServerWorld();
-            Entity e = ws.getEntityByID(msg.workerId);
-            if (!(e instanceof EntityTravellerWorker)) return;
-
-            EntityTravellerWorker worker = (EntityTravellerWorker) e;
-
-            if (worker.getDistanceSq(player) > 64.0D) return;
-            if (worker.isHiredFollower() && !player.getUniqueID().equals(worker.getFollowOwnerId())) return;
 
             UUID pid = player.getUniqueID();
             BlockPos center = new BlockPos(msg.x, msg.y, msg.z);
@@ -72,7 +59,7 @@ public class MsgSetVillageEnemy implements IMessage {
 
             // send refreshed list to client
             MsgWorkerVillageRelationsList reply =
-                    MsgWorkerRequestVillageRelations.Handler.buildList(ws, worker, pid);
+                    MsgWorkerRequestVillageRelations.Handler.buildList(ws, player.getPosition(), pid);
             TravellerFollowNet.sendToPlayer(player, reply);
         }
     }

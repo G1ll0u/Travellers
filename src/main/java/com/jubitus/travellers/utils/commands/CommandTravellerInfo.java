@@ -89,12 +89,12 @@ public class CommandTravellerInfo extends CommandBase {
         int worldTravellerTarget = MillVillageIndex.computeWorldTravellerTarget(ws);
         int worldRaiderTarget = MillVillageIndex.computeWorldRaiderTarget(ws);
 
-        msg(sender, String.format("§fTravellers: §a%d§f loaded + §e%d§f virtual = §a%d§f / target §e%d§f / hard cap §c%d",
-                loadedTravellers, virtualTravellers, loadedTravellers + virtualTravellers,
-                worldTravellerTarget, TravellersConfig.SPAWN_TRAVELLERS.loadedTravellerCap));
-        msg(sender, String.format("§fRaiders:    §a%d§f loaded + §e%d§f virtual = §a%d§f / target §e%d§f / hard cap §c%d",
-                loadedRaiders, virtualRaiders, loadedRaiders + virtualRaiders,
-                worldRaiderTarget, TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap));
+        msg(sender, String.format("§fTravellers: §a%d§f loaded + §e%d§f virtual = §a%d§f / target §e%d§f",
+                loadedTravellers, virtualTravellers, loadedTravellers + virtualTravellers, worldTravellerTarget));
+        msg(sender, String.format("§fRaiders:    §a%d§f loaded + §e%d§f virtual = §a%d§f / target §e%d§f",
+                loadedRaiders, virtualRaiders, loadedRaiders + virtualRaiders, worldRaiderTarget));
+        msg(sender, String.format("§7  shared hard cap (travellers+raiders combined): §c%d",
+                TravellersConfig.OFFSCREEN.globalPopulationCap));
 
         // Village/lone breakdown for targets
         Map<MillVillageIndex.VillageInfo, Integer> pops = MillVillageIndex.countVillagersPerVillage(ws);
@@ -151,20 +151,7 @@ public class CommandTravellerInfo extends CommandBase {
                 TravellersConfig.SPAWN_RAIDERS.raiderRegionalRadius, raidRegColor, raidRegionalCount, raidRegionalCap));
 
         // --------------------------------------------------
-        // 5) Local Cap
-        // --------------------------------------------------
-        int localCap = TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCap;
-        int localRadius = TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCapRadius;
-        AxisAlignedBB box = new AxisAlignedBB(
-                pos.getX() - localRadius, pos.getY() - 32, pos.getZ() - localRadius,
-                pos.getX() + localRadius, pos.getY() + 32, pos.getZ() + localRadius);
-        int localCount = ws.getEntitiesWithinAABB(EntityTraveller.class, box, e -> e.isEntityAlive()).size();
-        String localColor = localCount >= localCap ? "§c" : "§a";
-        msg(sender, String.format("§fLocal (%dm r): %s%d§f / §e%d§f cap",
-                localRadius, localColor, localCount, localCap));
-
-        // --------------------------------------------------
-        // 6) Nearby Settlements breakdown
+        // 5) Nearby Settlements breakdown
         // --------------------------------------------------
         msg(sender, "§b--- Nearby Settlements (within " + TravellersConfig.SPAWN_TRAVELLERS.travellerRegionalRadius + "m) ---");
 

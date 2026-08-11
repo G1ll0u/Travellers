@@ -1,5 +1,6 @@
 package com.jubitus.travellers.utils.world.pathing;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -7,17 +8,23 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 
+import javax.annotation.Nullable;
+
 /**
  * Detects jumpable gaps ahead of an entity. Results are cached in a fixed-size
  * open-addressing table keyed by (blockPos, direction, tick bucket) so that
  * many entities moving through the same gap share a single scan result.
+ *
+ * The landing column is found geometrically: starting from the narrowest jump and widening,
+ * a candidate landing is only accepted once solid ground genuinely resumes near the entity's
+ * own standing height (see {@link TravellersConfig.GapJump#landingHeightTolerance}). A floor
+ * found partway across the gap (e.g. the flat bottom of a trench) is never mistaken for the far
+ * rim, no matter how shallow the gap is - it simply isn't close enough to the entity's own
+ * height yet, so the scan keeps widening past it.
  */
 public final class GapJumpEvaluator {
 
     private GapJumpEvaluator() {}
-
-    // Entity can jump over gaps up to this many blocks wide at the same or lower Y.
-    public static final int MAX_GAP = 3;
 
     // How long a cache entry stays valid (in world ticks).
     private static final int CACHE_TTL = 16;
@@ -44,8 +51,21 @@ public final class GapJumpEvaluator {
     public static GapJumpResult evaluate(IBlockAccess world, long worldTime,
                                           int cx, int cy, int cz,
                                           double dirX, double dirZ) {
-        int dx = quantize(dirX);
-        int dz = quantize(dirZ);
+        // Cardinal-only on purpose: a genuinely diagonal jump's real (ballistic, non-grid-aligned)
+        // flight path can clip a block corner that a grid-based obstruction scan along a single
+        // diagonal line never samples, since neither of the two flanking columns is ever checked -
+        // this is what caused a jump to "look clear" here but hit an obstacle mid-flight and drop
+        // the entity into the gap it was trying to clear. Snapping to the dominant axis (never
+        // both dx and dz nonzero) keeps every jump's approach and landing on a single straight
+        // grid line, where the existing obstruction scan is exact.
+        int dx, dz;
+        if (Math.abs(dirX) >= Math.abs(dirZ)) {
+            dx = dirX > 0.0D ? 1 : (dirX < 0.0D ? -1 : 0);
+            dz = 0;
+        } else {
+            dz = dirZ > 0.0D ? 1 : -1;
+            dx = 0;
+        }
         if (dx == 0 && dz == 0) return GapJumpResult.NONE;
 
         int dir9 = (dx + 1) * 3 + (dz + 1);
@@ -69,75 +89,100 @@ public final class GapJumpEvaluator {
         // Entity must stand on something solid.
         if (!isSolid(world, cx, cy - 1, cz)) return GapJumpResult.NONE;
 
-        // Immediate step ahead must have no solid floor (otherwise it is passable terrain).
+        // Immediate step ahead must have no solid floor (otherwise it is passable terrain, not a gap).
         if (isSolid(world, cx + dx, cy - 1, cz + dz)) return GapJumpResult.NONE;
 
-        // Also reject if entity would just walk into a solid wall (the gap is actually a wall).
+        // Reject if the entity would just walk into a solid wall (the "gap" is actually a wall).
         if (isSolid(world, cx + dx, cy, cz + dz) || isSolid(world, cx + dx, cy + 1, cz + dz)) {
             return GapJumpResult.NONE;
         }
 
-        // Classify the first gap column: skip step-downs; only allow wide jumps over real hazards.
-        boolean gapDangerous = false;
-        boolean gapFoundFloor = false;
-        boolean gapStepDown = false;
+        // Classify the very first gap column: a plain 1-block step-down (solid floor exactly one
+        // block below current level, nothing hazardous above it) is walked normally, never jumped.
+        boolean firstColHazardMaterial = false;
+        int firstColFloorY = Integer.MIN_VALUE;
         BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
-        for (int scanY = cy - 1; scanY >= cy - 5; scanY--) {
+        for (int scanY = cy - 1; scanY >= cy - 6; scanY--) {
             scanPos.setPos(cx + dx, scanY, cz + dz);
             Material m = world.getBlockState(scanPos).getMaterial();
             if (m == Material.LAVA || m == Material.WATER || m == Material.FIRE) {
-                gapDangerous = true;
+                firstColHazardMaterial = true;
                 break;
             }
             if (m.isSolid()) {
-                gapFoundFloor = true;
-                gapStepDown = (scanY == cy - 2); // floor 1 block below = simple step-down
+                firstColFloorY = scanY;
                 break;
             }
         }
-        if (!gapFoundFloor && !gapDangerous) gapDangerous = true; // void counts as dangerous
-        if (gapStepDown) return GapJumpResult.NONE;
+        if (firstColFloorY == cy - 2) return GapJumpResult.NONE; // simple step-down, just walk it
 
-        // Try landing spots from closest to furthest (prefer shortest jump).
-        for (int gapW = 1; gapW <= MAX_GAP; gapW++) {
-            // Non-dangerous gap (narrow ditch): only allow 1-wide jump to avoid unnecessary detour.
-            if (!gapDangerous && gapW > 1) continue;
-            int lx = cx + dx * (gapW + 1);
-            int lz = cz + dz * (gapW + 1);
+        // A genuine hazard: immediately dangerous material, or no floor found in the deep scan (void).
+        boolean firstColIsHazard = firstColHazardMaterial || firstColFloorY == Integer.MIN_VALUE;
 
-            // Find a solid floor block at the landing column (scan a few blocks up and down).
-            int floorY = findFloorBlock(world, lx, cy + 1, lz, cy - 5);
-            if (floorY == Integer.MIN_VALUE) continue;
+        int maxGap = TravellersConfig.GAP_JUMP.maxGapWidth;
+        int tolerance = TravellersConfig.GAP_JUMP.landingHeightTolerance;
 
-            // Height delta relative to entity's current floor block.
-            int delta = floorY - (cy - 1);
-            if (delta > 1)  continue; // landing is more than 1 block higher — can't jump there
-            if (delta < -5) continue; // landing is too deep — dangerous fall
+        // Pass 1: widen the jump until solid ground resumes close to the entity's own standing
+        // height. This alone correctly clears a trench/ditch/pond of any depth as long as it is
+        // narrower than maxGap - the far rim, not the gap's own floor, is what gets picked.
+        GapJumpResult primary = findLanding(world, cx, cy, cz, dx, dz, maxGap, tolerance, tolerance);
+        if (primary != null) return primary;
 
-            // The landing column must have headroom (feet + 1 block of clearance for 2-tall entity).
-            int feetY = floorY + 1;
-            if (isSolid(world, lx, feetY, lz) || isSolid(world, lx, feetY + 1, lz)) continue;
+        // Pass 2: only for a confirmed hazard with no near-height landing available - accept a
+        // farther-below landing (a real chasm/lake crossing). Pass 1 already claimed every
+        // near-height column, so this can never land back inside the same gap it's crossing.
+        if (firstColIsHazard) {
+            int maxFall = TravellersConfig.GAP_JUMP.maxHazardFallTolerance;
+            GapJumpResult fallback = findLanding(world, cx, cy, cz, dx, dz, maxGap, 1, maxFall);
+            if (fallback != null) return fallback;
+        }
 
-            // All gap columns (steps 1..gapW) must truly be open at cy-1 (no floor at entity's
-            // current height). This prevents treating a staircase as a gap.
-            boolean gapClear = true;
-            for (int s = 2; s <= gapW; s++) {
-                if (isSolid(world, cx + dx * s, cy - 1, cz + dz * s)) {
-                    gapClear = false;
+        // Gap confirmed but no reachable/safe landing within range.
+        return GapJumpResult.UNJUMPABLE;
+    }
+
+    /**
+     * Scans landing columns from gapW=1..maxGap (closest first) for the first one whose height
+     * delta relative to the entity's own floor falls within [-maxFallDelta, maxRiseDelta].
+     * Returns null if none qualifies (caller may retry with a looser band, or give up).
+     */
+    @Nullable
+    private static GapJumpResult findLanding(IBlockAccess world, int cx, int cy, int cz, int dx, int dz,
+                                              int maxGap, int maxRiseDelta, int maxFallDelta) {
+        for (int gapW = 1; gapW <= maxGap; gapW++) {
+            // The whole span the entity flies over (columns 1..gapW) needs clear headroom, or it
+            // would jump straight into a wall/ceiling placed partway across the gap. Once one
+            // column is obstructed, every wider jump crosses it too - no point trying wider.
+            boolean obstructed = false;
+            for (int s = 1; s <= gapW; s++) {
+                if (isSolid(world, cx + dx * s, cy, cz + dz * s) || isSolid(world, cx + dx * s, cy + 1, cz + dz * s)) {
+                    obstructed = true;
                     break;
                 }
             }
-            if (!gapClear) continue;
+            if (obstructed) break;
+
+            int lx = cx + dx * (gapW + 1);
+            int lz = cz + dz * (gapW + 1);
+
+            int floorY = findFloorBlock(world, lx, cy + 1, lz, cy - 6);
+            if (floorY == Integer.MIN_VALUE) continue; // no floor within reach at this width - try wider
+
+            int delta = floorY - (cy - 1);
+            if (delta > maxRiseDelta) continue;
+            if (delta < -maxFallDelta) continue;
+
+            // The landing column must have headroom (feet + 1 block of clearance for a 2-tall entity).
+            int feetY = floorY + 1;
+            if (isSolid(world, lx, feetY, lz) || isSolid(world, lx, feetY + 1, lz)) continue;
 
             // Reject hazardous landing.
             if (isHazard(world, lx, feetY, lz) || isHazard(world, lx, floorY, lz)) continue;
 
             double landSurfY = surfaceTop(world, lx, floorY, lz);
-            return GapJumpResult.jumpable(lx + 0.5, landSurfY, lz + 0.5, gapW);
+            return GapJumpResult.jumpable(lx + 0.5, landSurfY, lz + 0.5, gapW, lx, feetY, lz);
         }
-
-        // Gap confirmed but no reachable landing.
-        return GapJumpResult.UNJUMPABLE;
+        return null;
     }
 
     // ----- block helpers -----
@@ -172,11 +217,6 @@ public final class GapJumpEvaluator {
     }
 
     // ----- cache internals -----
-
-    /** Converts a continuous direction component to -1, 0, or +1. */
-    private static int quantize(double d) {
-        return (int) Math.signum(Math.round(d * 2.0));
-    }
 
     private static long packKey(int cx, int cy, int cz, int dir9) {
         return ((long) (cx & 0x1FFFFF)) << 42

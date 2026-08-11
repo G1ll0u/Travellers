@@ -135,7 +135,7 @@ public class GuiWorkerLoneBarrackPrompt extends GuiScreen implements ITravellers
         mapController = new WorldMapController(
             Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
             "lone_barrack_prompt_map", center);
-        mapController.panel.addMarker(WorldMapMarkerFactory.player(center, player.getName(), 0xFFFFFF));
+        mapController.panel.addMarker(WorldMapMarkerFactory.player(center, player.getName(), 0xFFFFFF, player.rotationYaw));
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
     }
@@ -279,7 +279,7 @@ public class GuiWorkerLoneBarrackPrompt extends GuiScreen implements ITravellers
         if (mapController != null) {
             TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
             mapController.panel.clearMarkers();
-            mapController.panel.addMarker(WorldMapMarkerFactory.player(center, player.getName(), 0xFFFFFF));
+            mapController.panel.addMarker(WorldMapMarkerFactory.player(center, player.getName(), 0xFFFFFF, player.rotationYaw));
             mapController.draw();
             drawFootprintOverlays();
         }

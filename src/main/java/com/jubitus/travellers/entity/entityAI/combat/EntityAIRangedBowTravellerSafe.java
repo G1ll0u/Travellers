@@ -28,13 +28,18 @@ import java.util.List;
 /**
  * Safety-first ranged AI for 1.12.2 travellers, with vertical aim, enforced facing, and strafing.
  * <p>
- * Features:
- * - Runs only if the travellers has a bow (in hand or backpack; will ghost-equip for visuals).
- * - Min/max range gates; hands off to melee when too close; drops target when too far.
- * - Always faces target while aiming (overrides travel-facing while in combat).
- * - Proper vertical aim; uses target eye/mid height and vanilla bow power mapping.
- * - Strafes left/right while aiming, with occasional backstep when too close.
- * - Holds fire if a Traveller or blacklisted entity is along the shot line.
+ * Behaviour, in order of priority each tick:
+ * - The bow is drawn (real vanilla setActiveHand state, via {@link EntityTraveller#setAimingBow}) for
+ * the entire time this AI is running, LOS or not - so a shot can go out the instant LOS returns and
+ * so third-party mods that react to "using an item" (ambient bow-pull sounds, the bow's own string
+ * texture) see the traveller as actually drawing, not just posing.
+ * - With LOS: kite to hold a preferred distance band between min/max range, sidestepping around a
+ * friendly that's blocking the shot line rather than just waiting it out.
+ * - Without LOS: reposition toward the target faster than normal (a short grace period first, to
+ * avoid twitchy repathing on brief flicker), still fully drawn and ready.
+ * <p>
+ * Min/max range gates hand-off to melee (too close) or target drop (too far) - both stay outside
+ * this class, driven by {@link EntityTraveller#getAttackTarget()} range checks elsewhere.
  */
 public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
@@ -44,16 +49,21 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private static final float INACC_NEAR = 1.5F;    // close-range spread
     private static final float INACC_FAR = 3.1F;    // long-range spread
     private static final double LEAD_FACTOR = 0.85;  // 0.7–1.0; how hard to lead target
-    private static final int STEADY_TICKS = 1;     // stop strafing right before shot
-    private static final int LOS_REACQUIRE_DELAY = 6; // start peeking sooner
-    private static final double APPROACH_SPEED = 0.34D; // when relocating for LOS
+    private static final int LOS_REACQUIRE_GRACE_TICKS = 6; // brief hold-still before committing to reposition
+    private static final double APPROACH_SPEED = 0.34D; // base speed when relocating for LOS
+    private static final int REPATH_INTERVAL_TICKS = 10; // throttle blind-repositioning pathfinding calls
+    private static final int BLOCK_CHECK_INTERVAL_TICKS = 3; // throttle the ally-in-the-way entity scan
+    private static final int AIM_SETTLE_MIN_TICKS = 3;
+    private static final int AIM_SETTLE_MAX_TICKS = 6;
     // Lead tuning
     private static final double LEAD_GAIN_LATERAL = 1.18; // 1.10–1.25: sideways runners
     private static final double LEAD_GAIN_RADIAL = 1.06; // 1.00–1.10: toward/away bias
     private static final double RELEASE_LATENCY_TICKS = 2.0; // add ~2 ticks to time-of-flight
-    private static final int LEAD_ITERS = 3; // 2→3 helps convergence for long shotsc
+    private static final int LEAD_ITERS = 3; // 2→3 helps convergence for long shots
     private final EntityTraveller mob;
     private final TravellerBlacklist blacklist;
+    private final double minDist;
+    private final double maxDist;
     private final double minDistSq;
     private final double maxDistSq;
     private final double meleeHandOffSq; // slightly > minDistSq recommended
@@ -63,12 +73,9 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private final int strafeMinTicks = 14;
     private final int strafeMaxTicks = 28;
     private final float strafeInput = 0.25f;      // [-1..1] input strength
-    private final double strafeAbsSpeed = 0.26D; // absolute cap while strafing (≈ skeleton pace)
     private final int backstepInterval = 30;     // try at most once every 1.5s
     private final float backstepSpeed = 0.22f;   // gentle backward slide
     private final boolean ghostEquipBow;
-    private final float strafingFactor = 0.90f;
-    private final double strafeAbsCeil = 0.26D;
     private int coolDown;
     private int aimWarmup;
     private int strafeDir = 1;     // +1 right, -1 left
@@ -76,6 +83,11 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private int backstepTicker = 0;
     private int steadyTicksLeft = 0;
     private int noLOSTicks = 0;
+    private int repathCooldown = 0;
+    private boolean wasSeeing = false;
+    // Cached result of the last blocking-ally scan (see #tickShotBlocked)
+    private int blockCheckCooldown = 0;
+    private int blockedSidestepDir = 0; // 0 = clear, else the direction to sidestep to clear the shot
     @Nullable
     private java.util.UUID lastTargetId = null;
     private double lastVX = 0, lastVY = 0, lastVZ = 0;
@@ -90,6 +102,8 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
                                           boolean ghostEquipBow) {
         this.mob = owner;
         this.blacklist = TravellersDerivedConfig.TRAVELLER_BLACKLIST;
+        this.minDist = minDist;
+        this.maxDist = maxDist;
         this.minDistSq = minDist * minDist;
         this.maxDistSq = maxDist * maxDist;
         this.meleeHandOffSq = meleeHandOff * meleeHandOff;
@@ -114,7 +128,8 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             return false;
         }
         return !(d2 < meleeHandOffSq); // melee owns close range
-// <-- do NOT require LOS here
+        // <-- do NOT require LOS here: an archer should keep closing/repositioning toward a target
+        // it can't currently see, not give up the moment LOS blips.
     }
 
     @Override
@@ -123,28 +138,33 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         if (tgt == null || !tgt.isEntityAlive()) return false;
         double d2 = mob.getDistanceSq(tgt);
         if (d2 > maxDistSq) return false;
-        return !(d2 < meleeHandOffSq);// <-- likewise, don’t require LOS
+        return !(d2 < meleeHandOffSq); // likewise, don't require LOS
     }
 
     @Override
     public void startExecuting() {
         steadyTicksLeft = 0;
-        aimWarmup = 3 + mob.getRNG().nextInt(4); // 3–6 ticks instead of 8–13
+        aimWarmup = randBetween(AIM_SETTLE_MIN_TICKS, AIM_SETTLE_MAX_TICKS);
         strafeDir = mob.getRNG().nextBoolean() ? 1 : -1;
         strafeTicks = randBetween(strafeMinTicks, strafeMaxTicks);
         backstepTicker = 0;
+        noLOSTicks = 0;
+        repathCooldown = 0;
+        blockCheckCooldown = 0;
+        blockedSidestepDir = 0;
+        wasSeeing = false;
 
-        mob.getNavigator().clearPath(); // we’ll handle micro-movement
+        mob.getNavigator().clearPath(); // we'll handle micro-movement
         ensureBowInHand();
         mob.setAimingBow(true);
-        mob.setSprinting(false);                 // <-- add: no sprint while entering ranged
+        mob.setSprinting(false);
         mob.delaySwordHideVisual();
     }
 
     @Override
     public void resetTask() {
         mob.setAimingBow(false);
-        mob.setSprinting(false);                 // <-- add
+        mob.setSprinting(false);
         // put away ghost bow if needed
         ItemStack hand = mob.getHeldItemMainhand();
         if (!hand.isEmpty() && hand.getItem() instanceof ItemBow && isGhostBow(hand)) {
@@ -158,43 +178,55 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         EntityLivingBase tgt = mob.getAttackTarget();
         if (tgt == null) return;
 
+        // Bow stays drawn for the whole time this AI runs, LOS or not - see class javadoc.
+        ensureBowInHand();
+        if (!mob.isAimingBow()) mob.setAimingBow(true);
+
+        // Readiness (cooldown) isn't gated on LOS: an archer that's been blind for a while but had
+        // its cadence timer run out can fire the instant it sees the target again, no extra wait.
+        if (coolDown > 0) coolDown--;
+
         boolean see = mob.getEntitySenses().canSee(tgt);
         double d2 = mob.getDistanceSq(tgt);
         double d = Math.sqrt(d2);
 
         if (see) {
             noLOSTicks = 0;
-            // Aiming / strafing mode (your existing code)
+            if (!wasSeeing) {
+                // Just regained LOS: give the aim a short beat to settle before firing.
+                aimWarmup = Math.max(aimWarmup, randBetween(AIM_SETTLE_MIN_TICKS, AIM_SETTLE_MAX_TICKS));
+            }
+            wasSeeing = true;
+
             mob.setSprinting(false);
             hardFaceTarget(tgt, 48.0F, 36.0F, 75.0F);
-            ensureBowInHand();
-            if (!mob.isAimingBow()) mob.setAimingBow(true);
-            applyStrafeMovement(d, tgt);
 
-            if (hasBlockingEntityAlongShot(tgt)) {
-                return;
+            boolean blocked = tickShotBlocked(tgt);
+            applyKitingMovement(d, blocked);
+
+            if (blocked) {
+                return; // movement above is already biased toward clearing the shot line
             }
             if (aimWarmup > 0) {
                 aimWarmup--;
                 return;
             }
             if (coolDown > 0) {
-                coolDown--;
                 return;
             }
-            if (!mob.getEntitySenses().canSee(tgt)) return;
             if (d2 < minDistSq || d2 > maxDistSq) return;
-// after computing d2/d and confirming LOS/range
+
             boolean targetMoving = Math.abs(tgt.posX - tgt.prevPosX) + Math.abs(tgt.posZ - tgt.prevPosZ) > 0.02;
 
-// Only steady briefly if stationary AND already in the sweet band.
-// Outside the band, keep moving; inside, 1-tick micro-settle.
-            double minOk = Math.sqrt(minDistSq) * 1.02;
-            double maxOk = Math.sqrt(maxDistSq) * 0.98;
+            // Only steady briefly if stationary AND already in the preferred band.
+            // Outside the band, keep moving; inside, 1-tick micro-settle for a cleaner shot.
+            double preferred = preferredDistance();
+            double band = (maxDist - minDist) * 0.15;
+            boolean inBand = d >= preferred - band && d <= preferred + band;
 
-            if (!targetMoving && d >= minOk && d <= maxOk) {
+            if (!targetMoving && inBand) {
                 if (steadyTicksLeft <= 0) {
-                    steadyTicksLeft = STEADY_TICKS; // now 1
+                    steadyTicksLeft = 1;
                     mob.getMoveHelper().strafe(0f, 0f);
                     return;
                 } else {
@@ -204,55 +236,33 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
                 steadyTicksLeft = 0; // no steady while closing or target moving
             }
 
-
             performShot(tgt, d);
             coolDown = shootIntervalTicks;
-
             return;
         }
 
-        // --- REACQUIRE MODE (no LOS) ---
-        if (++noLOSTicks >= LOS_REACQUIRE_DELAY) {
-            // Stop aiming & put the bow away visually so the run looks natural
-            if (mob.isAimingBow()) mob.setAimingBow(false);
-            ItemStack hand = mob.getHeldItemMainhand();
-            if (!hand.isEmpty() && hand.getItem() instanceof ItemBow && isGhostBow(hand)) {
-                mob.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-            }
+        // --- NO LOS ---
+        wasSeeing = false;
+        noLOSTicks++;
+        hardFaceTarget(tgt, 32.0F, 22.0F, 75.0F);
 
-            // Try walking toward a small "peek" offset around the target
-            // (slightly to the side so we don’t path straight into them)
-            double side = (mob.getRNG().nextBoolean() ? +1 : -1);
-            double ox = (tgt.posX - mob.posX);
-            double oz = (tgt.posZ - mob.posZ);
-            double len = Math.sqrt(ox * ox + oz * oz);
-            if (len > 1e-4) {
-                ox /= len;
-                oz /= len;
-            } // normalize
-            // perpendicular offset ~1.5 blocks
-            double px = tgt.posX + (-oz * 1.5 * side);
-            double pz = tgt.posZ + (ox * 1.5 * side);
-            BlockPos peek = new BlockPos(px, tgt.posY, pz);
-
-            // If very far, just path to target; if near, path to peek
-            if (d > Math.sqrt(maxDistSq) * 0.9) {
-                mob.getNavigator().tryMoveToEntityLiving(tgt, APPROACH_SPEED);
-            } else {
-                mob.getNavigator().tryMoveToXYZ(peek.getX() + 0.5D, peek.getY(), peek.getZ() + 0.5D, APPROACH_SPEED);
-            }
-            // keep turning toward last known area for nice head behavior
-            hardFaceTarget(tgt, 32.0F, 22.0F, 75.0F);
-            float yawErr = Math.abs(MathHelper.wrapDegrees(mob.rotationYawHead - mob.renderYawOffset));
-            float pitchErr = Math.abs(mob.rotationPitch);
-            if (yawErr > 14.0F || pitchErr > 12.0F) {
-                steadyTicksLeft = Math.max(steadyTicksLeft, 2); // give it a breath if aim just swung a lot
-            }
-        } else {
-            // Short grace: hold still briefly to see if target reappears
+        if (noLOSTicks < LOS_REACQUIRE_GRACE_TICKS) {
+            // Short grace: hold still briefly (foliage flicker, a door swinging shut, etc.) rather
+            // than immediately committing to a reposition.
             mob.getNavigator().clearPath();
             mob.getMoveHelper().strafe(0, 0);
+            return;
         }
+
+        repositionForLOS(tgt, d);
+    }
+
+    /**
+     * Preferred standing distance from the target: a configurable point between min and max range,
+     * rather than hugging either edge.
+     */
+    private double preferredDistance() {
+        return minDist + (maxDist - minDist) * MathHelper.clamp(TravellersConfig.COMBAT.rangedPreferredDistFactor, 0.0f, 1.0f);
     }
 
     /**
@@ -296,54 +306,119 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         if (diff > headLimit) mob.rotationYawHead = mob.renderYawOffset + headLimit;
     }
 
-    private void applyStrafeMovement(double dist, EntityLivingBase tgt) {
+    /**
+     * Holds the preferred distance band while circling the target, and sidesteps to clear a blocked
+     * shot line instead of just freezing.
+     */
+    private void applyKitingMovement(double dist, boolean blocked) {
+        float forward;
+        float sideways;
 
-        // Flip strafe direction periodically
-        if (--strafeTicks <= 0) {
-            strafeTicks = randBetween(strafeMinTicks, strafeMaxTicks);
-            strafeDir = -strafeDir;
-        }
-
-        // Backstep gently when a bit too close (but not close enough for melee handoff)
-        if (++backstepTicker >= backstepInterval) {
-            backstepTicker = 0;
-            if (dist * dist < (minDistSq * 1.08)) {
-                // small backwards nudge
-                mob.getMoveHelper().strafe(-backstepSpeed, 0.0F);
-                return;
+        if (blocked) {
+            // Commit to whichever side clears the shot fastest (see #findBlockingSidestepDir) instead
+            // of the usual periodic left/right flip, and move with more urgency.
+            if (blockedSidestepDir != 0) strafeDir = blockedSidestepDir;
+            forward = 0.0f;
+            sideways = strafeInput * (float) strafeDir * TravellersConfig.COMBAT.rangedBlockedSidestepSpeedMultiplier;
+        } else {
+            // Flip strafe direction periodically
+            if (--strafeTicks <= 0) {
+                strafeTicks = randBetween(strafeMinTicks, strafeMaxTicks);
+                strafeDir = -strafeDir;
             }
+
+            // Backstep gently when a bit too close (but not close enough for melee handoff)
+            if (++backstepTicker >= backstepInterval) {
+                backstepTicker = 0;
+                if (dist < minDist * 1.08) {
+                    mob.getMoveHelper().strafe(-backstepSpeed, 0.0F);
+                    setAimMoveSpeed(1.0f);
+                    return;
+                }
+            }
+
+            double preferred = preferredDistance();
+            double tolerance = (maxDist - minDist) * 0.1;
+            forward = 0.12f; // tiny forward bias to avoid dead stops
+            if (dist > preferred + tolerance) forward = 0.28f;       // drift back in before hitting max range
+            else if (dist < preferred - tolerance) forward = -0.18f; // ease off before hitting min range
+
+            sideways = strafeInput * (float) strafeDir;
         }
 
-        // Circle around: small forward to keep moving + lateral strafe
-        float forward = 0.12f; // tiny forward bias to avoid dead stops
-        float sideways = strafeInput * (float) strafeDir;
-
-        // If we’re drifting out of ideal band, bias forward/back
-        double min = Math.sqrt(minDistSq) * 1.05;
-        double max = Math.sqrt(maxDistSq) * 0.95;
-        if (dist < min) forward = -0.18f;    // back away a bit
-        else if (dist > max) forward = 0.28f; // advance to get back in range
-
-        // Apply and clamp speed so they don’t sprint while circling
         mob.getMoveHelper().strafe(forward, sideways);
+        setAimMoveSpeed(blocked ? TravellersConfig.COMBAT.rangedBlockedSidestepSpeedMultiplier : 1.0f);
+    }
 
-// scale relative to base walk; keep strafing under walk pace
+    private void setAimMoveSpeed(float multiplier) {
         double base = mob.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-        float strafingFactor = 0.90f;                  // 90% of walk while aiming
-        float aimMove = (float) (base * strafingFactor);
-
-// optional absolute ceiling, in case some mods bump base a lot
-        double absCeil = 0.26D;
+        float aimMove = (float) (base * 0.90f * multiplier);
+        double absCeil = 0.26D * multiplier;
         if (aimMove > absCeil) aimMove = (float) absCeil;
-
         mob.setAIMoveSpeed(aimMove);
     }
 
-    private boolean hasBlockingEntityAlongShot(EntityLivingBase target) {
+    /**
+     * Reposition toward the target while blind, faster than the normal aiming pace, without ever
+     * lowering the bow. Repathing is throttled (rather than reissued every tick) since a blind
+     * archer's target point barely changes tick to tick and pathfinding isn't free at 100+ scale.
+     */
+    private void repositionForLOS(EntityLivingBase tgt, double d) {
+        mob.setSprinting(false);
+
+        if (repathCooldown > 0) {
+            repathCooldown--;
+            return;
+        }
+        repathCooldown = REPATH_INTERVAL_TICKS;
+
+        double speed = APPROACH_SPEED * TravellersConfig.COMBAT.rangedNoLosSpeedMultiplier;
+
+        if (d > maxDist * 0.9) {
+            mob.getNavigator().tryMoveToEntityLiving(tgt, speed);
+            return;
+        }
+
+        // Peek to a side of the target rather than walking straight into it.
+        double side = (mob.getRNG().nextBoolean() ? +1 : -1);
+        double ox = tgt.posX - mob.posX;
+        double oz = tgt.posZ - mob.posZ;
+        double len = Math.sqrt(ox * ox + oz * oz);
+        if (len > 1e-4) {
+            ox /= len;
+            oz /= len;
+        }
+        double px = tgt.posX + (-oz * 1.5 * side);
+        double pz = tgt.posZ + (ox * 1.5 * side);
+        BlockPos peek = new BlockPos(px, tgt.posY, pz);
+        mob.getNavigator().tryMoveToXYZ(peek.getX() + 0.5D, peek.getY(), peek.getZ() + 0.5D, speed);
+    }
+
+    /**
+     * Throttled wrapper around {@link #findBlockingSidestepDir}: the ally-in-the-way scan is an
+     * entity AABB query, cheap once but not worth repeating every single tick for every archer.
+     */
+    private boolean tickShotBlocked(EntityLivingBase target) {
+        if (blockCheckCooldown > 0) {
+            blockCheckCooldown--;
+            return blockedSidestepDir != 0;
+        }
+        blockCheckCooldown = BLOCK_CHECK_INTERVAL_TICKS;
+        blockedSidestepDir = findBlockingSidestepDir(target);
+        return blockedSidestepDir != 0;
+    }
+
+    /**
+     * Scans for a protected ally (traveller or blacklisted entity) standing in the shot line.
+     *
+     * @return 0 if clear, otherwise the strafe direction (+1/-1) that widens the angle away from the
+     * blocker fastest.
+     */
+    private int findBlockingSidestepDir(EntityLivingBase target) {
         Vec3d from = new Vec3d(mob.posX, mob.posY + mob.getEyeHeight(), mob.posZ);
         Vec3d to = new Vec3d(target.posX, target.posY + target.getEyeHeight() * 0.5, target.posZ);
 
-        if (from.squareDistanceTo(to) < 1.0E-6D) return false;
+        if (from.squareDistanceTo(to) < 1.0E-6D) return 0;
 
         // Broad phase: bigger swept volume
         AxisAlignedBB swept = new AxisAlignedBB(
@@ -352,7 +427,12 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         ).grow(1.2D, 0.6D, 1.2D); // wider and taller than before
 
         List<Entity> list = mob.world.getEntitiesWithinAABBExcludingEntity(mob, swept);
-        if (list.isEmpty()) return false;
+        if (list.isEmpty()) return 0;
+
+        double dx = to.x - from.x, dz = to.z - from.z;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        double lx = (len > 1e-6) ? -dz / len : 0.0;
+        double lz = (len > 1e-6) ? dx / len : 0.0;
 
         for (Entity e : list) {
             if (!e.isEntityAlive() || e == target) continue;
@@ -369,10 +449,14 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
             // Does our shot segment intersect this grown AABB?
             if (bb.calculateIntercept(from, to) != null) {
-                return true;
+                // Which side of the shot line the blocker sits on; step to the opposite side to
+                // widen the angle away from it as fast as possible.
+                double ex = e.posX - from.x, ez = e.posZ - from.z;
+                double lateral = ex * lx + ez * lz;
+                return lateral >= 0 ? -1 : 1;
             }
         }
-        return false;
+        return 0;
     }
 
     private void performShot(EntityLivingBase target, double distance) {
@@ -481,7 +565,11 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // uniformly in TravellerFriendlyFireHandler based on whoever the arrow actually hits —
         // "target" here is only the intended target, which can differ from the real victim
         // (e.g. the owner standing in the shot line), so scaling it here would silently miss that case.
-        double desiredFinal = TravellersConfig.COMBAT.rangedBaseDamage * TravellersConfig.COMBAT.rangedDamageMultiplier;
+        int powerLevel = net.minecraft.enchantment.EnchantmentHelper.getEnchantmentLevel(
+                net.minecraft.init.Enchantments.POWER, resolveActualBow());
+        double desiredFinal = (TravellersConfig.COMBAT.rangedBaseDamage
+                + powerLevel * TravellersConfig.COMBAT.rangedPowerDamagePerLevel)
+                * TravellersConfig.COMBAT.rangedDamageMultiplier;
 
         double speed = Math.sqrt(arrow.motionX * arrow.motionX
                 + arrow.motionY * arrow.motionY
@@ -491,7 +579,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
         arrow.setDamage(desiredFinal / speed);
 
-// Also kill crit randomness (optional but recommended for “consistent”)
+        // Also kill crit randomness (optional but recommended for "consistent")
         arrow.setIsCritical(false);
 
 
@@ -527,6 +615,12 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         lastVZ = vz;
         lastVelTick = mob.ticksExisted;
         return new Vec3d(vx, vy, vz);
+    }
+
+    private ItemStack resolveActualBow() {
+        ItemStack hand = mob.getHeldItemMainhand();
+        if (!hand.isEmpty() && hand.getItem() instanceof ItemBow && !isGhostBow(hand)) return hand;
+        return mob.findBowInBackpackPublic();
     }
 
     private boolean isGhostBow(ItemStack s) {

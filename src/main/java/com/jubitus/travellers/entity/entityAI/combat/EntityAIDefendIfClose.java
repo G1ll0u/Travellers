@@ -139,17 +139,34 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         double effRange = Math.sqrt(effRangeSq);
 
         AxisAlignedBB aabb;
+        // Only set for a hired follower with a live owner - used below to widen the vertical
+        // cave filter for anything already actively attacking that owner (e.g. an archer on a
+        // wall/tower well above ground, common around AW2 towns - a tight vertical band is
+        // right for filtering out unrelated stuff in an adjacent cave, wrong for an attacker
+        // that's already engaged).
+        EntityPlayer scanOwner = null;
 
         if (mob instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) mob;
             if (w.isHiredFollower()) {
                 EntityPlayer owner = w.getFollowOwner();
                 if (owner != null && owner.isEntityAlive()) {
+                    scanOwner = owner;
+                    // Union of a box around the owner AND a box around this worker's own
+                    // position - the owner-only box used to be the whole thing, which meant a
+                    // worker standing far from the owner (routine in a large spread-out
+                    // formation) had zero defensive awareness of its own surroundings: a threat
+                    // attacking that worker directly, or standing right next to it, was only
+                    // ever noticed once it also got within range of the owner. Only the one
+                    // worker actually hit (via its own hurt-by-target reaction) would react;
+                    // every other nearby worker in the same formation stayed idle.
                     AxisAlignedBB obb = owner.getEntityBoundingBox();
-                    aabb = new AxisAlignedBB(
-                            obb.minX - effRange, obb.minY - 1.5, obb.minZ - effRange,
-                            obb.maxX + effRange, obb.maxY + 1.5, obb.maxZ + effRange
+                    AxisAlignedBB ownerBox = new AxisAlignedBB(
+                            obb.minX - effRange, obb.minY - effRange, obb.minZ - effRange,
+                            obb.maxX + effRange, obb.maxY + effRange, obb.maxZ + effRange
                     );
+                    AxisAlignedBB selfBox = mob.getEntityBoundingBox().grow(effRange, effRange, effRange);
+                    aabb = ownerBox.union(selfBox);
                 } else {
                     // fallback: use the worker
                     AxisAlignedBB bb = mob.getEntityBoundingBox();
@@ -176,16 +193,24 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
         List<EntityLivingBase> list = mob.world.getEntitiesWithinAABB(
                 EntityLivingBase.class, aabb,
-                e -> e != null && e.isEntityAlive() && (
-                        e instanceof net.minecraft.entity.monster.IMob
-                                // NEW: LavaCow IAggressive via reflection
-                                || TravellerHostilityHelper.isLavaCowAggressive(e)
-                                // cross-faction travellers
-                                || (e instanceof EntityTraveller
-                                && (((EntityTraveller) e).isAggressiveToTravellers() ^ mob.isAggressiveToTravellers()))
-                                // your custom extra config
-                                || mob.shouldAttackExtraEntity(e)
-                )
+                e -> {
+                    if (e == null || !e.isEntityAlive()) return false;
+                    boolean included = e instanceof net.minecraft.entity.monster.IMob
+                            // NEW: LavaCow IAggressive via reflection
+                            || TravellerHostilityHelper.isLavaCowAggressive(e)
+                            // cross-faction travellers
+                            || (e instanceof EntityTraveller
+                            && (((EntityTraveller) e).isAggressiveToTravellers() ^ mob.isAggressiveToTravellers()))
+                            // your custom extra config
+                            || mob.shouldAttackExtraEntity(e);
+                    if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
+                            && com.jubitus.travellers.utils.mobs.compat.AncientWarfare2Compat.isFactionNpc(e)) {
+                        net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                                "[Travellers/AW2] %s AABB predicate for %s#%s = %b (in scan box)",
+                                mob.getName(), e.getName(), e.getUniqueID(), included);
+                    }
+                    return included;
+                }
         );
         if (list.isEmpty()) return false;
 
@@ -205,20 +230,50 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         TravellerBlacklist bl = currentBlacklist();
 
         for (EntityLivingBase e : list) {
-            if (bl != null && bl.isBlacklisted(e)) continue;
-            if (e.isInvisible()) continue;
+            // AW2 diagnostic trace - only for AW2 faction NPC candidates, logs why each one was
+            // accepted/rejected by this scan. TravellersConfig.COMPAT.ancientWarfare2DebugLog.
+            boolean awDebug = TravellersConfig.COMPAT.ancientWarfare2DebugLog
+                    && com.jubitus.travellers.utils.mobs.compat.AncientWarfare2Compat.isFactionNpc(e);
+            if (awDebug) {
+                net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                        "[Travellers/AW2] %s scanning candidate %s#%s (in raw list)",
+                        mob.getName(), e.getName(), e.getUniqueID());
+            }
+
+            if (bl != null && bl.isBlacklisted(e)) {
+                if (awDebug) logAwSkip(mob, e, "blacklisted");
+                continue;
+            }
+            if (e.isInvisible()) {
+                if (awDebug) logAwSkip(mob, e, "invisible");
+                continue;
+            }
 
             double d2 = mob.getDistanceSq(e);
             boolean see = mob.getEntitySenses().canSee(e);
 
+            // Is this entity already actively attacking me or my owner? Never filtered out by
+            // the vertical cave check below - see scanOwner's comment above.
+            net.minecraft.entity.EntityLivingBase currentTarget =
+                    (e instanceof net.minecraft.entity.EntityLiving) ? ((net.minecraft.entity.EntityLiving) e).getAttackTarget() : null;
+            boolean threatening = currentTarget == mob || e.getRevengeTarget() == mob
+                    || (scanOwner != null && (currentTarget == scanOwner || e.getRevengeTarget() == scanOwner));
+
             // Ignore large vertical separations (caves below/above)
             double dy = e.posY - mob.posY;
-            if (Math.abs(dy) > 5.0D) continue;
+            if (!threatening && Math.abs(dy) > 5.0D) {
+                if (awDebug) logAwSkip(mob, e, "vertical separation dy=" + dy);
+                continue;
+            }
 
             if (requireLOS && !see) {
                 if (d2 <= CLOSE_NO_LOS_RANGE_SQ) {
-                    if (!hasShortPathTo(e)) continue;
+                    if (!hasShortPathTo(e)) {
+                        if (awDebug) logAwSkip(mob, e, "no LOS, no short path (close range)");
+                        continue;
+                    }
                 } else {
+                    if (awDebug) logAwSkip(mob, e, "no LOS, too far for close-range path check, d2=" + d2);
                     continue;
                 }
             }
@@ -226,7 +281,15 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             boolean emergency = mob.shouldBypassAttackTargetLimiter(e);
 
             // Skip targets the worker already tried and was blocked on — unless it's an emergency
-            if (!emergency && mob.isIgnoring(e)) continue;
+            if (!emergency && mob.isIgnoring(e)) {
+                if (awDebug) logAwSkip(mob, e, "isIgnoring (previously blocked/backed off)");
+                continue;
+            }
+            if (awDebug) {
+                net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                        "[Travellers/AW2] %s candidate %s#%s passed all filters (emergency=%b, d2=%.1f)",
+                        mob.getName(), e.getName(), e.getUniqueID(), emergency, d2);
+            }
 
             if (emergency) {
                 if (!bestWasEmergency || d2 < bestScore) {
@@ -256,7 +319,17 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         if (pick == null) return false;
         this.pending = pick;
         this.pendingEmergency = mob.shouldBypassAttackTargetLimiter(pick);
+        if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
+                && com.jubitus.travellers.utils.mobs.compat.AncientWarfare2Compat.isFactionNpc(pick)) {
+            net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                    "[Travellers/AW2] %s picked %s#%s as pending target", mob.getName(), pick.getName(), pick.getUniqueID());
+        }
         return true;
+    }
+
+    private static void logAwSkip(EntityTraveller mob, EntityLivingBase e, String reason) {
+        net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                "[Travellers/AW2] %s rejected candidate %s#%s: %s", mob.getName(), e.getName(), e.getUniqueID(), reason);
     }
 
     private double currentTriggerRangeSq() {

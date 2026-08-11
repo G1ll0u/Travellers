@@ -3,6 +3,8 @@ package com.jubitus.travellers.entity.entityAI.follow;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.world.pathing.GapJumpEvaluator;
+import com.jubitus.travellers.utils.world.pathing.GapJumpResult;
 import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -41,9 +43,6 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private static final int HAZARD_LOOKAHEAD_STEPS = 3;
     private static final double HAZARD_LOOKAHEAD_STEP = 0.85D;
     private static final int EDGE_DANGER_DEPTH = 2;
-
-    private static final double PATH_REUSE_GOAL_DELTA_SQ = 2.0D * 2.0D;
-    private static final double PATH_REUSE_WORKER_TO_GOAL_MAX_SQ = 12.0D * 12.0D;
 
     /**
      * If the new ideal slot is within this distance of the current goal, keep the current goal
@@ -89,7 +88,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private final float startDist;
     private final float stopDist;
 
-    private final BoatController boatController = new BoatController();
+    private final FollowBoatController boatController;
     private final FollowModeSelector modeSelector;
 
     private EntityLivingBase followTarget;
@@ -122,6 +121,21 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private double lastProgressZ;
     private boolean hasProgressAnchor;
 
+    /**
+     * Best (smallest) squared distance-to-goal seen since the anchor was last reset. Stagnation is
+     * judged against this rather than raw per-tick movement - see {@link #tickStuckSignals}.
+     */
+    private double bestGoalDistSq = Double.MAX_VALUE;
+    private static final double PROGRESS_EPSILON_SQ = 0.3D * 0.3D;
+
+    /**
+     * Whether the worker made real progress toward its goal on the most recent
+     * {@link #tickStuckSignals} pass. Used by {@link #applyNonPathSteering} to decide whether an
+     * obstacle deflection is actually working, as opposed to merely being possible - see its own
+     * comment for why "a hazard-free direction exists" alone is not a safe signal to reset on.
+     */
+    private boolean progressedTowardGoalLastTick = true;
+
     private int orbitTicks;
     private double lastOrbitAngle;
     private boolean hasOrbitAngle;
@@ -140,12 +154,24 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private int modeTicks = 0;
     private GoalCandidate currentGoal;
 
+    /**
+     * Identity of the entity {@link #followTarget} resolved to on the previous tick. The task never
+     * calls startExecuting()/resetTask() when the effective follow target switches mid-execution
+     * (shouldContinueExecuting() stays true throughout — see getEffectiveFollowTarget()), so without
+     * this, stagnation/recovery counters accumulated while following the OLD target (e.g. real
+     * jostling in a crowd of 40 workers around the player) survive into the new target and can fire
+     * a spurious FollowRecoveryHelper teleport within a tick or two of a leader reassignment, using
+     * stale state that was never actually earned against the new target.
+     */
+    private UUID lastFollowTargetUUID;
+
     public EntityAIFollowOwnerTraveller(EntityTravellerWorker worker, double speed, float startDist, float stopDist) {
         this.worker = worker;
         this.baseSpeed = speed;
         this.startDist = startDist;
         this.stopDist = stopDist;
         this.modeSelector = new FollowModeSelector(worker);
+        this.boatController = new FollowBoatController(worker, speed);
         this.setMutexBits(3);
     }
 
@@ -204,6 +230,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         activePathTicks = 0;
         recoveryCooldown = 0;
         hasProgressAnchor = false;
+        progressedTowardGoalLastTick = true;
 
         orbitTicks = 0;
         hasOrbitAngle = false;
@@ -215,6 +242,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         steeringBlockedTicks = 0;
         deflectionRecheckCooldown = 0;
         hasCachedDeflectDir = false;
+
+        lastFollowTargetUUID = null;
 
         PathNavigate nav = worker.getNavigator();
         if (nav instanceof TravellerNavigateGround) {
@@ -258,6 +287,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         activePathTicks = 0;
         recoveryCooldown = 0;
         hasProgressAnchor = false;
+        progressedTowardGoalLastTick = true;
 
         orbitTicks = 0;
         hasOrbitAngle = false;
@@ -270,11 +300,22 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         deflectionRecheckCooldown = 0;
         hasCachedDeflectDir = false;
 
+        lastFollowTargetUUID = null;
+
         boatController.reset();
     }
 
     @Override
     public void updateTask() {
+        // Don't interfere with an active gap jump - let physics carry the entity, same guard
+        // EntityAITravel uses. Without this, applyNonPathSteering's per-tick moveHelper.setMoveTo
+        // toward the (different) formation goal fights the ballistic motionX/Z the jump set up,
+        // which is what made jumps consistently land short once steering became the default path.
+        PathNavigate navCheck = worker.getNavigator();
+        if (navCheck instanceof TravellerNavigateGround && ((TravellerNavigateGround) navCheck).isGapJumping()) {
+            return;
+        }
+
         EntityLivingBase target = worker.getEffectiveFollowTarget();
         if (!isValidTarget(target)) {
             resetTask();
@@ -282,6 +323,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         this.followTarget = target;
+
+        UUID targetUUID = target.getUniqueID();
+        if (lastFollowTargetUUID != null && !lastFollowTargetUUID.equals(targetUUID)) {
+            onFollowTargetChanged();
+        }
+        lastFollowTargetUUID = targetUUID;
 
         if (boatController.tick(target)) {
             return;
@@ -562,6 +609,26 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean noPath = worker.getNavigator().noPath();
         boolean canReusePath = shouldReuseCurrentPath(goal);
 
+        double distToLeader = horizontalDistanceTo(target);
+        double distToGoal = Math.sqrt(distGoalSq);
+        double moveSpeed = computeMoveSpeed(target, slot, distToLeader, distToGoal, mode, airborneLeader);
+
+        // Prefer cheap direct steering over a full A* search - most of the time a follower's slot
+        // is reachable in a straight line (open ground, or a gap it can now jump), and steering
+        // already handles both at a fraction of pathfinding's cost. Only escalate to a real path
+        // once steering has reported being stuck for several ticks in a row (steeringBlockedTicks,
+        // raised by applyNonPathSteering itself when its own obstacle-deflection and
+        // shared-corridor fallback both fail) - a single bad tick doesn't trigger it, so the two
+        // modes don't flip-flop. A worker already on a real path (noPath() false) skips this and
+        // falls through to the existing cooldown/reuse logic below instead, so a path already in
+        // progress is followed through to completion - crossing whatever obstacle needed it in
+        // the first place never stops or stutters mid-way.
+        if (noPath && steeringBlockedTicks < TravellersConfig.WORKER_FORMATION.steeringStuckTicksBeforePathfind) {
+            applyNonPathSteering(goal, target, moveSpeed, airborneLeader, mode);
+            worker.setSprinting(false);
+            return;
+        }
+
         if (canReusePath && repathCooldown > 0) {
             return;
         }
@@ -570,10 +637,6 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             return;
         }
 
-        double distToLeader = horizontalDistanceTo(target);
-        double distToGoal = Math.sqrt(distGoalSq);
-
-        double moveSpeed = computeMoveSpeed(target, slot, distToLeader, distToGoal, mode, airborneLeader);
         int priority = getPathPriority(noPath, distToGoal, distToLeader, mode, slot);
 
         PathScheduler.AcquireResult acquire =
@@ -602,6 +665,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 failedAllowedPathTicks += 4;
                 pathFailTicks++;
                 hasActivePathGoal = false;
+                // The A* search itself found no route this tick (e.g. this follower's own lateral
+                // offset doesn't line up with a valid crossing, or the search budget ran out on a
+                // detour) - fall back to direct steering instead of leaving the entity with no
+                // active goal at all. This is what actually jumps the gap for a follower whose
+                // pathfind attempt failed: applyNonPathSteering's own isJumpableGapAhead check
+                // takes over from here. Without this, a follower in this exact situation just sat
+                // idle with stale motion while the rest of a large group pushed it toward the edge.
+                applyNonPathSteering(goal, target, moveSpeed, airborneLeader, mode);
             }
         } else {
             if (PathScheduler.wasSchedulerDenial(acquire)) {
@@ -655,14 +726,20 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             int szi = MathHelper.floor(idealZ);
             BlockPos slotCol = new BlockPos(sxi, 0, szi);
             if (worker.world.isBlockLoaded(slotCol)) {
-                idealY = worker.world.getTopSolidOrLiquidBlock(slotCol).getY();
+                idealY = FollowRecoveryHelper.topSolidOrWaterSurface(worker.world, slotCol).getY();
             }
         }
 
         int horizontal = mode == FollowMode.CAVE ? cfg.cave.goalSearchHorizontal : cfg.surface.goalSearchHorizontal;
         int vertical = airborneLeader ? 2 : (mode == FollowMode.CAVE ? cfg.cave.goalSearchVertical : cfg.surface.goalSearchVertical);
 
-        BlockPos best = findBestStandableGoal(target, slot, idealX, idealY, idealZ, horizontal, vertical, mode, airborneLeader);
+        // While the leader is actually swimming, the goal search must be allowed to land in open
+        // water too - otherwise a follower's slot always resolves back to the nearest dry ground,
+        // which is what stranded a whole formation on the bank while the leader swam a wide river:
+        // the goal simply never moved off the shore for the search to walk toward.
+        boolean waterIsSafe = isLeaderSwimming(target);
+
+        BlockPos best = findBestStandableGoal(target, slot, idealX, idealY, idealZ, horizontal, vertical, mode, airborneLeader, waterIsSafe);
         GoalCandidate candidate = best != null
                 ? new GoalCandidate(best.getX() + 0.5D, best.getY(), best.getZ() + 0.5D)
                 : new GoalCandidate(idealX, idealY, idealZ);
@@ -734,7 +811,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                                            int horizontalRange,
                                            int verticalRange,
                                            FollowMode mode,
-                                           boolean airborneLeader) {
+                                           boolean airborneLeader,
+                                           boolean waterIsSafe) {
         World world = worker.world;
         int xi = MathHelper.floor(idealX);
         int zi = MathHelper.floor(idealZ);
@@ -746,7 +824,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (mode != FollowMode.CAVE && !airborneLeader) {
             BlockPos slotColumn = new BlockPos(xi, 0, zi);
             if (world.isBlockLoaded(slotColumn)) {
-                y0 = MathHelper.clamp(world.getTopSolidOrLiquidBlock(slotColumn).getY(), 2, world.getActualHeight() - 3);
+                y0 = MathHelper.clamp(FollowRecoveryHelper.topSolidOrWaterSurface(world, slotColumn).getY(), 2, world.getActualHeight() - 3);
             } else {
                 y0 = MathHelper.clamp(MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
             }
@@ -761,7 +839,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 ? new BlockPos(stickyGoalX, stickyGoalY, stickyGoalZ)
                 : null;
 
-        if (stickyFeet != null && isStandableFast(stickyFeet)) {
+        if (stickyFeet != null && isStandableOrSwimmable(stickyFeet, waterIsSafe)) {
             if (mode != FollowMode.CAVE || !world.canSeeSky(stickyFeet)) {
                 best = stickyFeet;
                 bestScore = scoreStandableCandidate(leader, slot, stickyFeet, idealX, idealZ, mode, airborneLeader, false);
@@ -769,7 +847,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         BlockPos selfFeet = new BlockPos(worker.posX, worker.getEntityBoundingBox().minY, worker.posZ);
-        if (isStandableFast(selfFeet)) {
+        if (isStandableOrSwimmable(selfFeet, waterIsSafe)) {
             if (mode != FollowMode.CAVE || !world.canSeeSky(selfFeet)) {
                 double score = scoreStandableCandidate(leader, slot, selfFeet, idealX, idealZ, mode, airborneLeader, true);
                 if (score < bestScore) {
@@ -788,7 +866,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         for (int[] off : ring) {
             BlockPos pos = new BlockPos(xi + off[0], y0, zi + off[1]);
-            BlockPos grounded = findLocalGroundFast(pos);
+            BlockPos grounded = findLocalGroundFast(pos, waterIsSafe);
             if (grounded == null) continue;
             if (mode == FollowMode.CAVE && world.canSeeSky(grounded)) continue;
 
@@ -809,7 +887,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                     if (Math.abs(dx) != r && Math.abs(dz) != r) continue;
 
                     BlockPos pos = new BlockPos(xi + dx, y0, zi + dz);
-                    BlockPos grounded = findLocalGroundFast(pos);
+                    BlockPos grounded = findLocalGroundFast(pos, waterIsSafe);
                     if (grounded == null) continue;
                     if (Math.abs(grounded.getY() - y0) > verticalRange) continue;
                     if (mode == FollowMode.CAVE && world.canSeeSky(grounded)) continue;
@@ -926,15 +1004,20 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
     @Nullable
     private BlockPos findLocalGroundFast(BlockPos feet) {
-        if (isStandableFast(feet)) return feet;
+        return findLocalGroundFast(feet, false);
+    }
+
+    @Nullable
+    private BlockPos findLocalGroundFast(BlockPos feet, boolean waterIsSafe) {
+        if (isStandableOrSwimmable(feet, waterIsSafe)) return feet;
         BlockPos up1 = feet.up();
-        if (isStandableFast(up1)) return up1;
+        if (isStandableOrSwimmable(up1, waterIsSafe)) return up1;
         BlockPos down1 = feet.down();
-        if (isStandableFast(down1)) return down1;
+        if (isStandableOrSwimmable(down1, waterIsSafe)) return down1;
         BlockPos up2 = up1.up();
-        if (isStandableFast(up2)) return up2;
+        if (isStandableOrSwimmable(up2, waterIsSafe)) return up2;
         BlockPos down2 = down1.down();
-        if (isStandableFast(down2)) return down2;
+        if (isStandableOrSwimmable(down2, waterIsSafe)) return down2;
         return null;
     }
 
@@ -964,24 +1047,33 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (hasPath) activePathTicks++;
         else if (activePathTicks > 0) activePathTicks--;
 
+        double goalDistSq = distanceSq(worker.posX, worker.posY, worker.posZ, goal.x, goal.y, goal.z);
+
         if (!hasProgressAnchor) {
             lastProgressX = worker.posX;
             lastProgressY = worker.posY;
             lastProgressZ = worker.posZ;
+            bestGoalDistSq = goalDistSq;
             hasProgressAnchor = true;
             stagnationTicks = 0;
+            progressedTowardGoalLastTick = true;
             return;
         }
 
-        double moveDx = worker.posX - lastProgressX;
-        double moveDy = worker.posY - lastProgressY;
-        double moveDz = worker.posZ - lastProgressZ;
-        double movedSq = moveDx * moveDx + moveDy * moveDy + moveDz * moveDz;
-
-        double goalDistSq = distanceSq(worker.posX, worker.posY, worker.posZ, goal.x, goal.y, goal.z);
         boolean tryingToMove = !idleAtSlot && (hasPath || goalDistSq > 4.0D * 4.0D);
 
-        if (tryingToMove && movedSq < 0.40D * 0.40D) {
+        // Stagnation is judged by PROGRESS toward the goal, not raw per-tick movement. A worker
+        // jammed against several others in a crowded pit gets physically jostled by ordinary
+        // Minecraft entity collision every tick - that alone used to look like "moving" and reset
+        // this counter forever, so a pile of stuck workers never tripped the pit-escape rescue
+        // below even though none of them were actually getting anywhere.
+        boolean progressed = goalDistSq < bestGoalDistSq - PROGRESS_EPSILON_SQ;
+        if (progressed) {
+            bestGoalDistSq = goalDistSq;
+        }
+        progressedTowardGoalLastTick = progressed;
+
+        if (tryingToMove && !progressed) {
             stagnationTicks++;
         } else if (stagnationTicks > 0) {
             stagnationTicks = Math.max(0, stagnationTicks - 2);
@@ -1036,14 +1128,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (currentGoal == null) return false;
         if (recoveryCooldown > 0) return false;
 
-        // Pit rescue: worker has no path at all and has been stagnating.
+        // Pit rescue: worker has no path at all and has made no progress toward its goal.
         // Bypasses the scheduler/recentPath guards that would block a stuck worker indefinitely.
         if (schedulerDeniedTicks <= 0 || recentPathSuccessTicks <= 0) {
             boolean pitStuck =
                     worker.getNavigator().noPath()
-                            && stagnationTicks >= 120     // 6s without movement
-                            && pathFailTicks >= 20        // repeated path failures
-                            && failedAllowedPathTicks >= 40;
+                            && stagnationTicks >= cfg.rescue.pitStagnationTicks
+                            && pathFailTicks >= cfg.rescue.pitPathFailTicks
+                            && failedAllowedPathTicks >= cfg.rescue.pitFailedAllowedPathTicks;
 
             if (pitStuck) {
                 FollowRecoveryHelper.TeleportCandidate candidate =
@@ -1052,7 +1144,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                                 target,
                                 currentGoal.x,
                                 currentGoal.y,
-                                currentGoal.z
+                                currentGoal.z,
+                                cfg.rescue.pitStepDistance
                         );
 
                 if (candidate != null) {
@@ -1217,6 +1310,49 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         return other != null && Objects.equals(worker.getFollowOwnerId(), other.getFollowOwnerId());
     }
 
+    /**
+     * The worker's effective follow target switched entity (e.g. WorkerGroupService assigned it to a
+     * new leader, or its old leader's follow order was cleared) while this AI task kept running
+     * uninterrupted. Treats it like a fresh start against the new target: every stagnation/recovery
+     * counter earned against the OLD target is wiped so the next few ticks judge progress purely
+     * against the new one, instead of a lucky/unlucky streak from before the switch immediately
+     * triggering (or suppressing) a teleport rescue that has nothing to do with the new target.
+     */
+    private void onFollowTargetChanged() {
+        pathFailTicks = 0;
+        failedAllowedPathTicks = 0;
+        stagnationTicks = 0;
+        activePathTicks = 0;
+        recentPathSuccessTicks = 0;
+        schedulerDeniedTicks = 0;
+        hasProgressAnchor = false;
+        progressedTowardGoalLastTick = true;
+        orbitTicks = 0;
+        hasOrbitAngle = false;
+
+        repathCooldown = 0;
+        hasGoal = false;
+        hasStickyGoal = false;
+        hasActivePathGoal = false;
+        hasGoalEvalAnchor = false;
+        currentGoal = null;
+        settledTicks = 0;
+        cachedSettleGoalX = Double.NaN;
+
+        idleAtSlot = false;
+        wakeupCooldown = 0;
+
+        steeringBlockedTicks = 0;
+        deflectionRecheckCooldown = 0;
+        hasCachedDeflectDir = false;
+
+        // Small grace window before the teleport-rescue heuristics can fire again, so ordinary
+        // pathfinding gets a fair first attempt at reaching the new target before anything escalates.
+        recoveryCooldown = Math.max(recoveryCooldown, FollowRuntimeConfig.get().rescue.cooldownTicks);
+
+        worker.getNavigator().clearPath();
+    }
+
     private void onTeleportRecovery(FollowRuntimeConfig cfg) {
         pathFailTicks = 0;
         failedAllowedPathTicks = 0;
@@ -1229,6 +1365,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         recentPathSuccessTicks = 0;
         schedulerDeniedTicks = 0;
         hasProgressAnchor = false;
+        progressedTowardGoalLastTick = true;
         orbitTicks = 0;
         hasOrbitAngle = false;
         hasActivePathGoal = false;
@@ -1264,7 +1401,20 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (noPath && distToLeader >= 10.0D) return 1;
         if (slot.tunnelStrength >= 0.45D && distToGoal > 3.0D) return 1;
 
+        if (isLeaderMovingFast(wf, slot)) return Math.max(0, wf.fastLeaderMinPriority);
         return 0;
+    }
+
+    // Escorts already re-path every 2-3 ticks regardless of speed (getRepathInterval), so this
+    // only matters for formation followers, whose slots are farther out and see bigger per-tick
+    // goal shifts while the leader moves fast (sprinting player, or a worker leader traveling) —
+    // covers both, unlike checking EntityPlayer.isSprinting() alone.
+    private boolean isLeaderMovingFast(TravellersConfig.WorkerFormation wf,
+                                       FollowFormationCoordinator.SlotAssignment slot) {
+        return wf.fastLeaderPriorityBoostEnabled
+                && !slot.isEscort
+                && slot.leaderActuallyMoving
+                && slot.leaderSpeed >= wf.fastLeaderSpeedThreshold;
     }
 
     private int getDeniedRetryCooldown(PathScheduler.AcquireResult acquire,
@@ -1311,6 +1461,11 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         else if (priority == 1) base = Math.max(5, base - 1);
 
         if (!pathSucceeded) base = Math.max(4, base - 1);
+
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+        if (isLeaderMovingFast(wf, slot)) {
+            base = Math.min(base, wf.fastLeaderRepathIntervalCapTicks);
+        }
 
         return base + Math.abs((worker.getEntityId() * 13) % 3);
     }
@@ -1373,6 +1528,10 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         boolean leaderStill = Math.abs(target.posX - target.prevPosX) < 0.05D
                 && Math.abs(target.posZ - target.prevPosZ) < 0.05D;
 
+        // The leader itself is swimming (not just standing at a shore) — water ahead is the
+        // expected medium to cross, not an obstacle to steer away from.
+        boolean waterIsSafe = isLeaderSwimming(target);
+
         if (isCloseEnoughToStopSteering(goal, target)) {
             worker.getNavigator().clearPath();
             steeringBlockedTicks = 0;
@@ -1393,15 +1552,34 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         // Straight line to the goal is blocked (cliff, ravine, water bank, etc). Rather than
         // stalling at the edge, try a local detour first, then a nearby groupmate's found path,
         // before giving up and letting the stuck-recovery/escalation timers take over.
-        if (isHazardAhead(worker.posX, worker.posY, worker.posZ, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist)) {
-            if (tryObstacleDeflection(goal, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist, moveSpeed)) {
-                steeringBlockedTicks = 0;
+        //
+        // A hazard that is actually a jumpable gap must NOT be deflected around or stalled at:
+        // keep steering straight toward it instead, so the follower closes the remaining
+        // distance to the edge and the reactive gap-jump below (and every tick via
+        // TravellerNavigateGround) fires once it's actually close enough. Without this check,
+        // isHazardAhead's early-warning lookahead flags the gap well before the entity is close
+        // enough for GapJumpEvaluator's own edge-adjacent check to confirm it — so the deflection
+        // logic used to run first every time, routing followers around/away from a gap they could
+        // have simply jumped, and in a crowded group that's what kept shoving followers off the
+        // edge into it instead. Only a genuinely unjumpable hazard (too wide, lava, no safe
+        // landing) still falls through to deflection/corridor-follow/stop.
+        if (isHazardAhead(worker.posX, worker.posY, worker.posZ, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist, waterIsSafe)
+                && !isJumpableGapAhead(worker.posX, worker.posY, worker.posZ, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist)) {
+            boolean handled = tryObstacleDeflection(goal, toGoalDx / toGoalDist, toGoalDz / toGoalDist, toGoalDist, moveSpeed, waterIsSafe)
+                    || tryFollowSharedCorridor(target, moveSpeed);
+
+            if (handled) {
+                // A hazard-free direction existing is not proof it's actually useful - along a
+                // riverbank/cliff edge, deflection can keep finding a direction that merely runs
+                // parallel to the obstacle forever, never making real headway. Only treat that as
+                // "handled" (reset the escalation counter) when it's also produced real progress
+                // toward the goal; otherwise keep counting so a genuinely stuck follower still
+                // escalates to real pathfinding (the only thing that can actually route across
+                // water/around the obstacle) instead of oscillating at the edge indefinitely.
+                steeringBlockedTicks = progressedTowardGoalLastTick ? 0 : steeringBlockedTicks + 1;
                 return;
             }
-            if (tryFollowSharedCorridor(target, moveSpeed)) {
-                steeringBlockedTicks = 0;
-                return;
-            }
+
             steeringBlockedTicks++;
             worker.getNavigator().clearPath();
             return;
@@ -1419,7 +1597,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         BlockPos steerFeet = new BlockPos(goal.x, goal.y, goal.z);
-        if (isHazardousStandPos(steerFeet)) {
+        if (isHazardousStandPos(steerFeet, waterIsSafe)) {
             worker.getNavigator().clearPath();
             return;
         }
@@ -1469,8 +1647,19 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
     private boolean tryGapJump(double goalX, double goalZ, double speed) {
         PathNavigate nav = worker.getNavigator();
-        if (nav instanceof TravellerNavigateGround) {
-            return ((TravellerNavigateGround) nav).offerGapJump(goalX, goalZ, speed);
+        if (!(nav instanceof TravellerNavigateGround)) return false;
+
+        TravellerNavigateGround groundNav = (TravellerNavigateGround) nav;
+        if (groundNav.offerGapJump(goalX, goalZ, speed)) return true;
+
+        // A jump is fully validated and ready to fire, only withheld by its own cooldown - hold
+        // in place (report "handled" so every caller's own setMoveTo fallback is skipped) instead
+        // of walking toward a goal across the gap, which on a small landing (a narrow pillar, a
+        // tight obstacle course) would step the worker clean off the edge and into the gap it
+        // hasn't been allowed to jump yet.
+        if (groundNav.isJumpPendingCooldown(goalX, goalZ)) {
+            worker.getMoveHelper().setMoveTo(worker.posX, worker.posY, worker.posZ, 0.0D);
+            return true;
         }
         return false;
     }
@@ -1587,12 +1776,60 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (shape != BlockFaceShape.SOLID) return false;
 
         IBlockState atFeet = world.getBlockState(feet);
+        IBlockState atHead = world.getBlockState(up);
+
+        // Water is Material.isReplaceable() == true (same as air) — without this explicit check
+        // a solid floor sitting under a water column reads as "standable", sending goals/steering
+        // toward positions the worker would suffocate at. Same fix as FollowRecoveryHelper.isStandable.
+        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
+
         if (!(atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(world, feet) == null)) {
             return false;
         }
 
-        IBlockState atHead = world.getBlockState(up);
         return atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(world, up) == null;
+    }
+
+    /**
+     * Same "can a worker occupy this column" question as {@link #isStandableFast}, but also
+     * accepts an open-water column when {@code waterIsSafe} is true (the leader is itself
+     * swimming). Without this, the goal search behind {@link #findBestStandableGoal} can never
+     * place a slot in open water - every candidate in a lake/river fails the dry-land-only check,
+     * so a follower's goal always resolves back to the nearest shore even while its leader swims
+     * on, stranding the whole formation at the water's edge instead of following across.
+     */
+    private boolean isStandableOrSwimmable(BlockPos feet, boolean waterIsSafe) {
+        if (isStandableFast(feet)) return true;
+        return waterIsSafe && isSwimmableFast(feet);
+    }
+
+    /**
+     * Not routed through {@link TerrainStandableCache} - that cache is keyed on block position
+     * alone and shared world-wide for the tick, but "is this water column OK" depends on whether
+     * THIS follower's leader is swimming, which can differ between two formations in the same
+     * tick. Only reached while a leader is actually swimming, so it isn't a hot path.
+     */
+    private boolean isSwimmableFast(BlockPos feet) {
+        World world = worker.world;
+        BlockPos up = feet.up();
+        if (!isBlockLoadedNoForce(feet) || !isBlockLoadedNoForce(up)) return false;
+
+        IBlockState atFeet = world.getBlockState(feet);
+        if (!isVanillaWater(atFeet)) return false;
+
+        IBlockState atHead = world.getBlockState(up);
+        return atHead.getMaterial().isReplaceable() || atHead.getMaterial().isLiquid()
+                || atHead.getCollisionBoundingBox(world, up) == null;
+    }
+
+    /**
+     * True while the given follow target is actually swimming (in water, not riding a boat) -
+     * the shared condition for treating open water as a legitimate follow medium instead of an
+     * obstacle, both for goal placement and for steering (see the local {@code waterIsSafe} in
+     * {@link #applyNonPathSteering}).
+     */
+    private boolean isLeaderSwimming(EntityLivingBase target) {
+        return target.isInWater() && !(target.isRiding() && target.getRidingEntity() instanceof EntityBoat);
     }
 
     private double distanceSq(double ax, double ay, double az, double bx, double by, double bz) {
@@ -1635,494 +1872,6 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
     }
 
-
-    private final class BoatController {
-
-        private static final int BOAT_MAX_PASSENGERS = 2;
-        private static final double BOARD_RADIUS = 2.5D;
-        private static final double BOARD_RADIUS_SQ = BOARD_RADIUS * BOARD_RADIUS;
-        private static final double SEARCH_RADIUS = 12.0D;
-        private static final int SPAWN_COOLDOWN_TICKS = 30;
-        private static final double BOAT_SLOT_DISTANCE = 4.0D;
-        private static final double BOAT_LANE_OFFSET = 1.25D;
-        private static final double BOAT_STOP_RADIUS_SQ = 1.2D * 1.2D;
-        private static final double OWN_BOAT_PREFER_DIST = 10.0D;
-        private static final double WATER_COMMIT_DIST = 18.0D;
-
-        private static final int STRANDED_TIMEOUT_TICKS = 60;
-
-        private int boatSpawnCooldown;
-        private int boatRepathCooldown;
-        // Stagger: delay before a follower starts the boat-boarding sequence.
-        // Set when the leader first boards a boat so all 100 workers don't fire at once.
-        private int boatActivationDelay;
-        private boolean leaderWasInBoat;
-        private int strandedTicks;
-        private double lastBoatX, lastBoatZ;
-
-        void reset() {
-            boatSpawnCooldown = 0;
-            boatRepathCooldown = 0;
-            boatActivationDelay = 0;
-            leaderWasInBoat = false;
-            strandedTicks = 0;
-            lastBoatX = Double.NaN;
-            lastBoatZ = Double.NaN;
-        }
-
-        boolean shouldHandle(EntityLivingBase target) {
-            if (target == null) return false;
-            if (target.isRiding() && target.getRidingEntity() instanceof EntityBoat) return true;
-            return worker.isRiding() && worker.getRidingEntity() instanceof EntityBoat;
-        }
-
-        boolean tick(EntityLivingBase target) {
-            if (boatSpawnCooldown > 0) boatSpawnCooldown--;
-            if (boatRepathCooldown > 0) boatRepathCooldown--;
-
-            boolean leaderInBoat = target.isRiding() && target.getRidingEntity() instanceof EntityBoat;
-
-            // When the leader JUST boarded a boat, stagger each follower's reaction
-            // so 100 workers don't all scan + pathfind in the same tick.
-            if (leaderInBoat && !leaderWasInBoat) {
-                // Workers already in water get a tiny delay; others spread over ~4 seconds.
-                int maxDelay = worker.isInWater() ? 10 : 80;
-                boatActivationDelay = 5 + Math.abs(worker.getEntityId() * 13) % maxDelay;
-            }
-            leaderWasInBoat = leaderInBoat;
-
-            if (boatActivationDelay > 0) {
-                boatActivationDelay--;
-                // Return false: let the normal follow AI handle this tick (worker keeps walking).
-                return false;
-            }
-
-            EntityBoat targetBoat = leaderInBoat
-                    ? (EntityBoat) target.getRidingEntity()
-                    : null;
-
-            EntityBoat myBoat = worker.isRiding() && worker.getRidingEntity() instanceof EntityBoat
-                    ? (EntityBoat) worker.getRidingEntity()
-                    : null;
-
-            if (targetBoat == null) {
-                if (myBoat == null) return false;
-                return handleBoatWithoutTargetBoat(target, myBoat);
-            }
-
-            if (myBoat == targetBoat) {
-                worker.getNavigator().clearPath();
-                worker.setSprinting(false);
-                return true;
-            }
-
-            if (myBoat != null) {
-                return steerOwnBoat(target, targetBoat, myBoat);
-            }
-
-            // Throttle the expensive boarding logic (AABB scan + 16×16 water scan + pathfind).
-            if (boatRepathCooldown > 0) {
-                return true;
-            }
-
-            return boardOrCreateBoatImmediately(target, targetBoat);
-        }
-
-        private boolean handleBoatWithoutTargetBoat(EntityLivingBase target, EntityBoat myBoat) {
-            if (!(myBoat instanceof EntityTravellerBoat)) {
-                worker.dismountRidingEntity();
-                worker.getNavigator().clearPath();
-                return false;
-            }
-
-            // If the boat is no longer on water (beached), dismount immediately.
-            if (!isBoatOnWater(myBoat)) {
-                BlockPos beachPos = new BlockPos(
-                        MathHelper.floor(myBoat.posX),
-                        MathHelper.floor(myBoat.posY),
-                        MathHelper.floor(myBoat.posZ)
-                );
-                if (!tryDismountNear(beachPos, 3)) {
-                    worker.dismountRidingEntity();
-                }
-                killOwnedBoat(myBoat);
-                return false;
-            }
-
-            // Shore check: if dry land is reachable from the boat, dismount there
-            // immediately regardless of how far the leader is.
-            // Guard: verify the spot is truly above water (findDrySpotNear can return
-            // underwater positions via getTopSolidOrLiquidBlock on rivers).
-            BlockPos shoreSpot = findDrySpotNear(
-                    new BlockPos(MathHelper.floor(myBoat.posX), MathHelper.floor(myBoat.posY), MathHelper.floor(myBoat.posZ)),
-                    4
-            );
-            if (shoreSpot != null && !worker.world.getBlockState(shoreSpot).getMaterial().isLiquid()) {
-                worker.dismountRidingEntity();
-                worker.setLocationAndAngles(
-                        shoreSpot.getX() + 0.5D, shoreSpot.getY(), shoreSpot.getZ() + 0.5D,
-                        worker.rotationYaw, worker.rotationPitch
-                );
-                worker.motionX = 0.0D;
-                worker.motionY = 0.0D;
-                worker.motionZ = 0.0D;
-                worker.getNavigator().clearPath();
-                worker.setSprinting(false);
-                killOwnedBoat(myBoat);
-                return false;
-            }
-
-            double distSq = myBoat.getDistanceSq(target);
-
-            // Fallback: near the leader on dry ground.
-            if (!target.isInWater() && distSq <= 9.0D * 9.0D) {
-                if (tryDismountNear(target.getPosition(), 4)) {
-                    killOwnedBoat(myBoat);
-                    return false;
-                }
-            }
-
-            if (target.isInWater() && distSq <= 9.0D * 9.0D) {
-                worker.dismountRidingEntity();
-                worker.setLocationAndAngles(target.posX, target.posY + 0.1D, target.posZ, worker.rotationYaw, worker.rotationPitch);
-                worker.motionX = 0.0D;
-                worker.motionY = 0.0D;
-                worker.motionZ = 0.0D;
-                killOwnedBoat(myBoat);
-                return false;
-            }
-
-            // Leader is on land but boat isn't progressing — force dismount after timeout.
-            double dx = myBoat.posX - lastBoatX;
-            double dz = myBoat.posZ - lastBoatZ;
-            boolean boatMoved = Double.isNaN(lastBoatX) || (dx * dx + dz * dz) > 0.04D;
-            lastBoatX = myBoat.posX;
-            lastBoatZ = myBoat.posZ;
-            if (boatMoved) {
-                strandedTicks = 0;
-            } else {
-                strandedTicks++;
-            }
-            if (strandedTicks >= STRANDED_TIMEOUT_TICKS) {
-                strandedTicks = 0;
-                worker.dismountRidingEntity();
-                killOwnedBoat(myBoat);
-                return false;
-            }
-
-            steerBoatTowards(myBoat, target.posX, target.posZ, 0.55D);
-            worker.getNavigator().clearPath();
-            return true;
-        }
-
-        private boolean boardOrCreateBoatImmediately(EntityLivingBase target, EntityBoat targetBoat) {
-            EntityBoat nearbyBoat = findNearbyFreeBoat();
-            if (nearbyBoat != null) {
-                moveToBoatAndBoard(nearbyBoat, baseSpeed);
-                boatRepathCooldown = 25;
-                return true;
-            }
-
-            if (!worker.isInWater()) {
-                BlockPos waterEntry = findNearestWaterEntry(target);
-                if (waterEntry != null) {
-                    worker.getNavigator().tryMoveToXYZ(
-                            waterEntry.getX() + 0.5D,
-                            waterEntry.getY(),
-                            waterEntry.getZ() + 0.5D,
-                            Math.max(baseSpeed, 0.55D)
-                    );
-                    boatRepathCooldown = 30;
-                    return true;
-                }
-            }
-
-            if (boatSpawnCooldown <= 0 && trySpawnFollowerBoatNearWater(target)) {
-                boatSpawnCooldown = SPAWN_COOLDOWN_TICKS;
-                boatRepathCooldown = 25;
-                return true;
-            }
-
-            double distSqToTargetBoat = worker.getDistanceSq(targetBoat);
-            if (distSqToTargetBoat <= OWN_BOAT_PREFER_DIST * OWN_BOAT_PREFER_DIST
-                    && targetBoat.getPassengers().size() < BOAT_MAX_PASSENGERS) {
-                moveToBoatAndBoard(targetBoat, baseSpeed);
-                boatRepathCooldown = 25;
-                return true;
-            }
-
-            worker.getNavigator().tryMoveToXYZ(targetBoat.posX, targetBoat.posY, targetBoat.posZ, Math.max(baseSpeed, 0.55D));
-            boatRepathCooldown = 30;
-            return true;
-        }
-
-        @Nullable
-        private BlockPos findNearestWaterEntry(EntityLivingBase target) {
-            BlockPos center = new BlockPos(worker.posX, worker.posY, worker.posZ);
-            BlockPos best = null;
-            double bestScore = Double.MAX_VALUE;
-
-            for (int dx = -8; dx <= 8; dx++) {
-                for (int dz = -8; dz <= 8; dz++) {
-                    BlockPos p = new BlockPos(center.getX() + dx, center.getY(), center.getZ() + dz);
-                    if (!worker.world.isBlockLoaded(p)) continue;
-
-                    IBlockState feet = worker.world.getBlockState(p);
-                    IBlockState above = worker.world.getBlockState(p.up());
-                    if (!isVanillaWater(feet)) continue;
-                    if (!(above.getMaterial().isReplaceable() || above.getCollisionBoundingBox(worker.world, p.up()) == null)) continue;
-
-                    double distWorkerSq = p.distanceSq(center);
-                    if (distWorkerSq > WATER_COMMIT_DIST * WATER_COMMIT_DIST) continue;
-
-                    double distTargetSq = p.distanceSq(new BlockPos(target.posX, target.posY, target.posZ));
-                    double score = distWorkerSq + distTargetSq * 0.35D;
-
-                    if (score < bestScore) {
-                        bestScore = score;
-                        best = p.up();
-                    }
-                }
-            }
-
-            return best;
-        }
-
-        private void moveToBoatAndBoard(EntityBoat boat, double speed) {
-            double distSq = worker.getDistanceSq(boat);
-
-            if (distSq <= BOARD_RADIUS_SQ) {
-                BlockPos pos = new BlockPos(boat.posX, boat.posY, boat.posZ);
-                if (worker.world.isBlockLoaded(pos)) {
-                    worker.startRiding(boat, true);
-                    worker.getNavigator().clearPath();
-                    worker.setSprinting(false);
-                }
-                return;
-            }
-
-            boatRepathCooldown = 6;
-            worker.getNavigator().tryMoveToEntityLiving(boat, Math.max(speed, 0.55D));
-        }
-
-        private boolean steerOwnBoat(EntityLivingBase target, EntityBoat targetBoat, EntityBoat myBoat) {
-            if (myBoat.getControllingPassenger() != worker) {
-                worker.getNavigator().clearPath();
-                worker.setSprinting(false);
-                return true;
-            }
-
-            Vec3d forward = getDirectionFromMotionOrYaw(targetBoat.motionX, targetBoat.motionZ, targetBoat.rotationYaw);
-            Vec3d right = new Vec3d(-forward.z, 0.0D, forward.x);
-
-            int side = (worker.getUniqueID().hashCode() & 1) == 0 ? -1 : 1;
-
-            double slotX = targetBoat.posX - forward.x * BOAT_SLOT_DISTANCE + right.x * BOAT_LANE_OFFSET * side;
-            double slotZ = targetBoat.posZ - forward.z * BOAT_SLOT_DISTANCE + right.z * BOAT_LANE_OFFSET * side;
-
-            double dx = myBoat.posX - slotX;
-            double dz = myBoat.posZ - slotZ;
-            double slotDistSq = dx * dx + dz * dz;
-
-            if (slotDistSq <= BOAT_STOP_RADIUS_SQ) {
-                myBoat.motionX *= 0.75D;
-                myBoat.motionZ *= 0.75D;
-                worker.getNavigator().clearPath();
-                return true;
-            }
-
-            double speed = MathHelper.clamp(baseSpeed * com.jubitus.travellers.config.TravellersConfig.SPEED.followerBoatConvoySpeed, 0.25D, 0.9D);
-            steerBoatTowards(myBoat, slotX, slotZ, speed);
-            worker.getNavigator().clearPath();
-
-            if (!target.isRiding() && !target.isInWater() && myBoat.getDistanceSq(target) <= 10.0D * 10.0D) {
-                if (tryDismountNear(target.getPosition(), 4)) {
-                    killOwnedBoat(myBoat);
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private void steerBoatTowards(EntityBoat boat, double targetX, double targetZ, double speed) {
-            double dx = targetX - boat.posX;
-            double dz = targetZ - boat.posZ;
-            double distSq = dx * dx + dz * dz;
-
-            if (distSq < 0.05D) {
-                boat.motionX = 0.0D;
-                boat.motionZ = 0.0D;
-                return;
-            }
-
-            double dist = Math.sqrt(distSq);
-            dx /= dist;
-            dz /= dist;
-
-            boat.motionX = dx * speed;
-            boat.motionZ = dz * speed;
-
-            float yaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
-            boat.rotationYaw = yaw;
-            boat.prevRotationYaw = yaw;
-
-            worker.rotationYaw = yaw;
-            worker.rotationYawHead = yaw;
-            worker.renderYawOffset = yaw;
-        }
-
-        @Nullable
-        private EntityBoat findNearbyFreeBoat() {
-            AxisAlignedBB box = worker.getEntityBoundingBox().grow(SEARCH_RADIUS, 4.0D, SEARCH_RADIUS);
-            List<EntityBoat> boats = worker.world.getEntitiesWithinAABB(EntityBoat.class, box, boat ->
-                    boat != null
-                            && !boat.isDead
-                            && boat.getPassengers().size() < BOAT_MAX_PASSENGERS
-                            && isBoatOnWater(boat)
-            );
-
-            EntityBoat best = null;
-            double bestDistSq = Double.MAX_VALUE;
-
-            for (EntityBoat boat : boats) {
-                double distSq = worker.getDistanceSq(boat);
-                if (distSq < bestDistSq) {
-                    bestDistSq = distSq;
-                    best = boat;
-                }
-            }
-
-            return best;
-        }
-
-        private boolean trySpawnFollowerBoatNearWater(EntityLivingBase target) {
-            if (worker.world.isRemote) return false;
-
-            BlockPos spawnPos = findWaterSurfaceNear(new BlockPos(worker.posX, worker.posY, worker.posZ), 5);
-            if (spawnPos == null) return false;
-
-            double dx = target.posX - worker.posX;
-            double dz = target.posZ - worker.posZ;
-            double lenSq = dx * dx + dz * dz;
-
-            if (lenSq < 1.0E-6D) {
-                dx = 0.0D;
-                dz = 1.0D;
-            } else {
-                double len = Math.sqrt(lenSq);
-                dx /= len;
-                dz /= len;
-            }
-
-            double x = spawnPos.getX() + 0.5D;
-            double y = spawnPos.getY();
-            double z = spawnPos.getZ() + 0.5D;
-
-            EntityTravellerBoat boat = new EntityTravellerBoat(worker.world, x, y, z);
-            float yaw = (float) (Math.atan2(dz, dx) * 180.0D / Math.PI) - 90.0F;
-            boat.setLocationAndAngles(x, y, z, yaw, boat.rotationPitch);
-            boat.rotationYaw = yaw;
-            boat.prevRotationYaw = yaw;
-
-            worker.world.spawnEntity(boat);
-            worker.setLocationAndAngles(x, y + 0.1D, z, worker.rotationYaw, worker.rotationPitch);
-            worker.startRiding(boat, true);
-            worker.getNavigator().clearPath();
-            worker.setSprinting(false);
-            return true;
-        }
-
-        private boolean tryDismountNear(BlockPos center, int radius) {
-            BlockPos best = findDrySpotNear(center, radius);
-            if (best == null) return false;
-
-            worker.dismountRidingEntity();
-            worker.setLocationAndAngles(best.getX() + 0.5D, best.getY(), best.getZ() + 0.5D, worker.rotationYaw, worker.rotationPitch);
-            worker.motionX = 0.0D;
-            worker.motionY = 0.0D;
-            worker.motionZ = 0.0D;
-            worker.getNavigator().clearPath();
-            worker.setSprinting(false);
-            return true;
-        }
-
-        private void killOwnedBoat(EntityBoat boat) {
-            if (!(boat instanceof EntityTravellerBoat)) return;
-            if (boat.isDead || boat.world.isRemote) return;
-            boat.setDead();
-        }
-
-        private boolean isBoatOnWater(EntityBoat boat) {
-            BlockPos pos = new BlockPos(MathHelper.floor(boat.posX), MathHelper.floor(boat.posY - 0.2D), MathHelper.floor(boat.posZ));
-            if (!worker.world.isBlockLoaded(pos)) return false;
-
-            IBlockState feet = worker.world.getBlockState(pos);
-            IBlockState below = worker.world.getBlockState(pos.down());
-            return isVanillaWater(feet) || isVanillaWater(below);
-        }
-
-        @Nullable
-        private BlockPos findWaterSurfaceNear(BlockPos center, int radius) {
-            BlockPos best = null;
-            double bestDistSq = Double.MAX_VALUE;
-
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    BlockPos pos = new BlockPos(center.getX() + dx, center.getY(), center.getZ() + dz);
-                    if (!worker.world.isBlockLoaded(pos)) continue;
-
-                    IBlockState state = worker.world.getBlockState(pos);
-                    if (!isVanillaWater(state)) continue;
-                    if (!worker.world.isAirBlock(pos.up())) continue;
-
-                    double distSq = pos.distanceSq(center);
-                    if (distSq < bestDistSq) {
-                        bestDistSq = distSq;
-                        best = pos.up();
-                    }
-                }
-            }
-
-            return best;
-        }
-
-        @Nullable
-        private BlockPos findDrySpotNear(BlockPos center, int radius) {
-            BlockPos best = null;
-            double bestDistSq = Double.MAX_VALUE;
-
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    BlockPos column = new BlockPos(center.getX() + dx, 0, center.getZ() + dz);
-                    if (!worker.world.isBlockLoaded(column)) continue;
-
-                    BlockPos top = worker.world.getTopSolidOrLiquidBlock(column);
-                    if (!isStandableFast(top)) continue;
-
-                    double distSq = top.distanceSq(center);
-                    if (distSq < bestDistSq) {
-                        bestDistSq = distSq;
-                        best = top;
-                    }
-                }
-            }
-
-            return best;
-        }
-
-        private Vec3d getDirectionFromMotionOrYaw(double motionX, double motionZ, float yaw) {
-            double motionSq = motionX * motionX + motionZ * motionZ;
-            if (motionSq > 1.0E-4D) {
-                double len = Math.sqrt(motionSq);
-                return new Vec3d(motionX / len, 0.0D, motionZ / len);
-            }
-
-            double yawRad = Math.toRadians(yaw);
-            return new Vec3d(-Math.sin(yawRad), 0.0D, Math.cos(yawRad));
-        }
-    }
-
     private void onFollowModeChanged(FollowMode oldMode, FollowMode newMode, FollowRuntimeConfig cfg) {
         if (oldMode == newMode) return;
 
@@ -2151,6 +1900,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             }
             schedulerDeniedTicks = 0;
             hasProgressAnchor = false;
+        progressedTowardGoalLastTick = true;
         }
     }
     private boolean shouldReevaluateGoal(EntityLivingBase target,
@@ -2259,12 +2009,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (nav == null || nav.noPath()) return false;
         if (!hasActivePathGoal) return false;
 
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+
         double goalShiftSq = distanceSq(
                 goal.x, goal.y, goal.z,
                 activePathGoalX, activePathGoalY, activePathGoalZ
         );
 
-        if (goalShiftSq > PATH_REUSE_GOAL_DELTA_SQ) {
+        if (goalShiftSq > wf.pathReuseGoalShiftMaxBlocks * wf.pathReuseGoalShiftMaxBlocks) {
             return false;
         }
 
@@ -2273,7 +2025,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 goal.x, goal.y, goal.z
         );
 
-        return workerToGoalSq <= PATH_REUSE_WORKER_TO_GOAL_MAX_SQ;
+        return workerToGoalSq <= wf.pathReuseWorkerToGoalMaxBlocks * wf.pathReuseWorkerToGoalMaxBlocks;
     }
 
     private void markActivePathGoal(GoalCandidate goal) {
@@ -2283,7 +2035,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         hasActivePathGoal = true;
     }
 
-    private boolean isHazardousStandPos(BlockPos feet) {
+    private boolean isHazardousStandPos(BlockPos feet, boolean waterIsSafe) {
         World world = worker.world;
         if (!world.isBlockLoaded(feet) || !world.isBlockLoaded(feet.down()) || !world.isBlockLoaded(feet.up())) {
             return true;
@@ -2297,21 +2049,22 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         Block belowBlock = below.getBlock();
 
         if (at.getMaterial() == Material.LAVA || below.getMaterial() == Material.LAVA) return true;
-        if (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER) return true;
+        if (!waterIsSafe && (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER)) return true;
         if (atBlock == Blocks.FIRE || belowBlock == Blocks.FIRE) return true;
 
         if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) return true;
         if (!(up.getMaterial().isReplaceable() || up.getCollisionBoundingBox(world, feet.up()) == null)) return true;
 
-        if (below.getMaterial().isLiquid()) return true;
-        if (below.getCollisionBoundingBox(world, feet.down()) == null) return true;
+        if (!waterIsSafe && below.getMaterial().isLiquid()) return true;
+        if (below.getCollisionBoundingBox(world, feet.down()) == null && !below.getMaterial().isLiquid()) return true;
 
-        if (isDropOrUnsafeEdge(feet, EDGE_DANGER_DEPTH)) return true;
+        if (isDropOrUnsafeEdge(feet, EDGE_DANGER_DEPTH, waterIsSafe)) return true;
 
         return false;
     }
 
-    private boolean isHazardAhead(double startX, double startY, double startZ, double dirX, double dirZ, double maxDist) {
+    private boolean isHazardAhead(double startX, double startY, double startZ, double dirX, double dirZ,
+                                  double maxDist, boolean waterIsSafe) {
         World world = worker.world;
 
         int steps = Math.min(HAZARD_LOOKAHEAD_STEPS, Math.max(1, (int) Math.ceil(maxDist / HAZARD_LOOKAHEAD_STEP)));
@@ -2323,7 +2076,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             double sz = startZ + dirZ * t;
 
             BlockPos feet = new BlockPos(sx, sampleY, sz);
-            if (isHazardousApproachPos(feet)) {
+            if (isHazardousApproachPos(feet, waterIsSafe)) {
                 return true;
             }
         }
@@ -2331,7 +2084,36 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         return false;
     }
 
-    private boolean isHazardousApproachPos(BlockPos feet) {
+    /**
+     * Same lookahead cadence as {@link #isHazardAhead}, but asks GapJumpEvaluator whether a real
+     * jump would clear the ground ahead once the entity actually reaches it, instead of just
+     * flagging "hazard, avoid". GapJumpEvaluator itself only evaluates from directly at the edge
+     * (its cx is "the current column"), so this walks the same sample points forward and asks
+     * "if I were standing here, would this be a jumpable gap" for each — using the entity's
+     * current Y throughout, the same flat-approach assumption isHazardAhead already makes with
+     * its own fixed sampleY.
+     */
+    private boolean isJumpableGapAhead(double startX, double startY, double startZ,
+                                       double dirX, double dirZ, double maxDist) {
+        World world = worker.world;
+        long worldTime = world.getTotalWorldTime();
+        int cy = MathHelper.floor(startY + 0.5D);
+
+        int steps = Math.min(HAZARD_LOOKAHEAD_STEPS, Math.max(1, (int) Math.ceil(maxDist / HAZARD_LOOKAHEAD_STEP)));
+        for (int i = 1; i <= steps; i++) {
+            double t = i * HAZARD_LOOKAHEAD_STEP;
+            int cx = MathHelper.floor(startX + dirX * t);
+            int cz = MathHelper.floor(startZ + dirZ * t);
+
+            GapJumpResult gap = GapJumpEvaluator.evaluate(world, worldTime, cx, cy, cz, dirX, dirZ);
+            if (gap.type == GapJumpResult.Type.JUMPABLE) return true;
+            if (gap.type == GapJumpResult.Type.UNJUMPABLE) return false; // real gap, can't clear it
+            // NONE: no gap at this sample point yet (still solid ground) - keep scanning forward
+        }
+        return false;
+    }
+
+    private boolean isHazardousApproachPos(BlockPos feet, boolean waterIsSafe) {
         World world = worker.world;
 
         if (!world.isBlockLoaded(feet) || !world.isBlockLoaded(feet.down()) || !world.isBlockLoaded(feet.up())) {
@@ -2348,33 +2130,34 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (at.getMaterial() == Material.LAVA || below.getMaterial() == Material.LAVA) return true;
         if (atBlock == Blocks.FIRE || belowBlock == Blocks.FIRE) return true;
 
-        // Water is considered hazardous here to avoid turning back too late at the edge.
-        if (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER) return true;
+        // Water is hazardous to a dry-land follower (avoid wandering into a lake for no reason),
+        // but not to one already trailing a swimming leader — it needs to enter water to keep up.
+        if (!waterIsSafe && (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER)) return true;
 
         if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) {
             // Allow 1-block step-ups (climbable slope). If the position one block up is walkable
             // and not a drop, this is just terrain rising — not a real navigation hazard.
-            if (!isClimbableStepUp(world, feet)) return true;
+            if (!isClimbableStepUp(world, feet, waterIsSafe)) return true;
         }
 
         if (!(up.getMaterial().isReplaceable() || up.getCollisionBoundingBox(world, feet.up()) == null)) return true;
 
-        if (isDropOrUnsafeEdge(feet, EDGE_DANGER_DEPTH)) return true;
+        if (isDropOrUnsafeEdge(feet, EDGE_DANGER_DEPTH, waterIsSafe)) return true;
 
         return false;
     }
 
-    private boolean isClimbableStepUp(World world, BlockPos feet) {
+    private boolean isClimbableStepUp(World world, BlockPos feet, boolean waterIsSafe) {
         BlockPos feetUp = feet.up();
         if (!world.isBlockLoaded(feetUp) || !world.isBlockLoaded(feetUp.up())) return false;
         IBlockState atUp = world.getBlockState(feetUp);
         IBlockState headUp = world.getBlockState(feetUp.up());
         boolean feetUpClear = atUp.getMaterial().isReplaceable() || atUp.getCollisionBoundingBox(world, feetUp) == null;
         boolean headUpClear = headUp.getMaterial().isReplaceable() || headUp.getCollisionBoundingBox(world, feetUp.up()) == null;
-        return feetUpClear && headUpClear && !isDropOrUnsafeEdge(feetUp, EDGE_DANGER_DEPTH);
+        return feetUpClear && headUpClear && !isDropOrUnsafeEdge(feetUp, EDGE_DANGER_DEPTH, waterIsSafe);
     }
 
-    private boolean isDropOrUnsafeEdge(BlockPos feet, int maxDepth) {
+    private boolean isDropOrUnsafeEdge(BlockPos feet, int maxDepth, boolean waterIsSafe) {
         World world = worker.world;
 
         for (int d = 1; d <= maxDepth; d++) {
@@ -2386,7 +2169,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             IBlockState state = world.getBlockState(check);
             Block block = state.getBlock();
 
-            if (state.getMaterial() == Material.LAVA || state.getMaterial() == Material.WATER) {
+            if (state.getMaterial() == Material.LAVA) {
                 return true;
             }
 
@@ -2394,8 +2177,18 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 return true;
             }
 
+            if (!waterIsSafe && state.getMaterial() == Material.WATER) {
+                return true;
+            }
+
             BlockFaceShape shape = state.getBlockFaceShape(world, check, EnumFacing.UP);
             if (shape == BlockFaceShape.SOLID && !state.getMaterial().isLiquid()) {
+                return false;
+            }
+
+            // Open water below a swimming follower's step is the normal medium, not a drop —
+            // there is no "floor" concept to require while already swimming.
+            if (waterIsSafe && state.getMaterial().isLiquid()) {
                 return false;
             }
         }
@@ -2420,7 +2213,8 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
      * isn't hazard-blocked, and steers toward a local point along it instead of the literal goal.
      * Cheap: no pathfinding, just the same block-column hazard scan already used for the direct line.
      */
-    private boolean tryObstacleDeflection(GoalCandidate goal, double dirX, double dirZ, double dist, double moveSpeed) {
+    private boolean tryObstacleDeflection(GoalCandidate goal, double dirX, double dirZ, double dist,
+                                          double moveSpeed, boolean waterIsSafe) {
         TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
         if (!wf.steeringObstacleAvoidanceEnabled) return false;
 
@@ -2429,7 +2223,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (deflectionRecheckCooldown > 0) {
             deflectionRecheckCooldown--;
             if (hasCachedDeflectDir
-                    && !isHazardAhead(worker.posX, worker.posY, worker.posZ, cachedDeflectDirX, cachedDeflectDirZ, probeDist)) {
+                    && !isHazardAhead(worker.posX, worker.posY, worker.posZ, cachedDeflectDirX, cachedDeflectDirZ, probeDist, waterIsSafe)) {
                 steerTowardLocalPoint(goal, cachedDeflectDirX, cachedDeflectDirZ, probeDist, moveSpeed);
                 return true;
             }
@@ -2445,7 +2239,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 double ndx = Math.cos(angle);
                 double ndz = Math.sin(angle);
 
-                if (!isHazardAhead(worker.posX, worker.posY, worker.posZ, ndx, ndz, probeDist)) {
+                if (!isHazardAhead(worker.posX, worker.posY, worker.posZ, ndx, ndz, probeDist, waterIsSafe)) {
                     cachedDeflectDirX = ndx;
                     cachedDeflectDirZ = ndz;
                     hasCachedDeflectDir = true;

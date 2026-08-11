@@ -10,6 +10,10 @@ public final class TravellerAppearance {
     /** From the villager txt's baseheight= field; Millenaire default is 1.0 when absent. */
     public final float baseHeight;
 
+    /** From the same villager txt's defaultweapon=/startingInv= fields, if any were present. */
+    @Nullable
+    public VillagerEquipmentProfile equipmentProfile;
+
     public TravellerAppearance(ResourceLocation baseTexture) {
         this(baseTexture, 1.0f);
     }

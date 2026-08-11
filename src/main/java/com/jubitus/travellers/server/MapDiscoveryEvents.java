@@ -1,8 +1,8 @@
 package com.jubitus.travellers.server;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.server.map.TileKey;
-import com.jubitus.travellers.server.map.WorldMapDiscovery;
+import com.jubitus.travellers.server.map.pyramid.TileKey;
+import com.jubitus.travellers.server.map.pyramid.WorldMapDiscovery;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgMapDiscoverTile;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -50,8 +50,8 @@ public class MapDiscoveryEvents {
         int playerTileX = TileKey.floorDiv(cx, chunksPerTile);
         int playerTileZ = TileKey.floorDiv(cz, chunksPerTile);
 
-        com.jubitus.travellers.server.map.MapDiscoverySavedData saved =
-                com.jubitus.travellers.server.map.MapDiscoverySavedData.get(world);
+        com.jubitus.travellers.server.map.pyramid.MapDiscoverySavedData saved =
+                com.jubitus.travellers.server.map.pyramid.MapDiscoverySavedData.get(world);
         Set<Long> discovered = saved.getTiles(id);
 
         boolean anyNew = false;

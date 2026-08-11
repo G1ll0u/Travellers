@@ -30,12 +30,23 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private static final String DATA_NAME = "TravellersVirtualWorkers";
 
-    // Walking speed: blocks/second * seconds/tick
-    private static final double VIRTUAL_SPEED_BPT = 4.3 / 20.0;
+    // Walking speed: blocks/second * seconds/tick, tuned against the default
+    // TravellersConfig.SPEED.movementSpeed (0.52) baseline below.
+    private static final double VIRTUAL_SPEED_BPT_BASELINE = 4.3 / 20.0;
+    private static final double MOVEMENT_SPEED_BASELINE = 0.52;
 
     // Ticks to advance per simulation step (run every N ticks)
     private static final int SIM_INTERVAL = 20;
-    private static final double SIM_STEP = VIRTUAL_SPEED_BPT * SIM_INTERVAL;
+
+    /**
+     * Live virtual-sim step distance, scaled to the current TravellersConfig.SPEED.movementSpeed
+     * so a config change affects offscreen (virtual) travellers the same tick it affects loaded
+     * ones, instead of a value frozen at startup.
+     */
+    private static double currentSimStep() {
+        double ratio = TravellersConfig.SPEED.movementSpeed / MOVEMENT_SPEED_BASELINE;
+        return VIRTUAL_SPEED_BPT_BASELINE * SIM_INTERVAL * ratio;
+    }
 
     // After player-triggered materialization, block re-virtualization for this many ticks
     private static final int MATERIALIZE_GRACE_TICKS = 60;
@@ -133,6 +144,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     private static final float YAW_SMOOTHING_BLEND = 0.35F;
 
     private void advanceVirtual() {
+        double simStep = currentSimStep();
         for (VirtualTravellerRecord r : records.values()) {
             if (r.battleId != null) continue; // battle sim owns movement
             if (r.goal == null) continue;
@@ -140,7 +152,21 @@ public class VirtualTravellerManager extends WorldSavedData {
             double dz = r.goal.getZ() + 0.5 - r.posZ;
             double dist = Math.sqrt(dx * dx + dz * dz);
             if (dist < 0.5) continue;
-            double step = Math.min(SIM_STEP, dist);
+            // Escort followers left far behind their slot (typically scattered by a virtual battle)
+            // close the gap faster than the normal walk speed instead of trudging back at the same
+            // pace they'd use for routine formation adjustments.
+            double stepCap;
+            if (r.escortLeaderUUID != null && dist > TravellersConfig.WORKER_FORMATION.virtualRegroupTriggerDistance) {
+                stepCap = simStep * TravellersConfig.WORKER_FORMATION.virtualRegroupSpeedMultiplier;
+            } else if (r.groupLeaderUUID != null && dist > TravellersConfig.GROUP_FOLLOW.catchUpTriggerDistance) {
+                // Traveller/raider group follower falling behind (leader materialized and walked off,
+                // or scattered by a battle): mirrors the loaded EntityAIFollowGroupLeader catch-up boost
+                // so the same "falls behind -> speeds up" behavior holds whether loaded or virtual.
+                stepCap = simStep * TravellersConfig.GROUP_FOLLOW.catchUpSpeedMultiplier;
+            } else {
+                stepCap = simStep;
+            }
+            double step = Math.min(stepCap, dist);
             r.posX += (dx / dist) * step;
             r.posZ += (dz / dist) * step;
             float targetYaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
@@ -276,33 +302,50 @@ public class VirtualTravellerManager extends WorldSavedData {
         return true;
     }
 
+    /**
+     * Recomputes {@code r.goal} immediately instead of waiting for the next periodic
+     * {@link #refreshAllGoals} pass (up to {@link #GOAL_REFRESH_INTERVAL} ticks away). Used right
+     * after a virtual battle ends so a scattered escort follower/leader's formation goal is correct
+     * the instant combat resolves, rather than materializing at (or continuing to walk from) a stale
+     * pre-battle or mid-battle position.
+     */
+    public void forceRefreshGoal(WorldServer world, VirtualTravellerRecord r, long now) {
+        if (r.dimension != world.provider.getDimension()) return;
+        refreshGoal(world, r, now);
+    }
+
     private void refreshGoal(WorldServer world, VirtualTravellerRecord r, long now) {
         // Non-worker travellers/raiders: advance through route, replan at end
         if (!"WORKER".equals(r.entityClass)) {
             // Camp lifecycle takes priority: halt at the slot while camping, or claim a passing campsite.
             if (handleCamp(world, r)) return;
-            // Group follower: track leader's virtual position, offset by the same deterministic
-            // ring the materializer uses, so the group marches as a loose pack (not a stack).
+            // Group follower: track leader's position (virtual or, once it has materialized, loaded),
+            // offset by the same deterministic ring the materializer uses, so the group marches as a
+            // loose pack (not a stack) regardless of which side of the group has materialized.
             if (r.groupLeaderUUID != null) {
                 VirtualTravellerRecord leaderRec = records.get(r.groupLeaderUUID);
+                int[] off = MaterializePositionResolver.followerSpreadOffset(r.uuid);
                 if (leaderRec != null) {
-                    int[] off = MaterializePositionResolver.followerSpreadOffset(r.uuid);
                     r.goal = new BlockPos((int) leaderRec.posX + off[0], (int) leaderRec.posY,
                             (int) leaderRec.posZ + off[1]);
-                } else {
-                    // Leader materialized: followers keep their current goal until they also materialize
-                    Entity liveLeader = world.getEntityFromUuid(r.groupLeaderUUID);
-                    if (liveLeader != null && !liveLeader.isDead) {
-                        r.goal = liveLeader.getPosition();
-                    }
+                    return;
                 }
-                return;
+                Entity liveLeader = world.getEntityFromUuid(r.groupLeaderUUID);
+                if (liveLeader != null && !liveLeader.isDead) {
+                    r.goal = new BlockPos((int) liveLeader.posX + off[0], (int) liveLeader.posY,
+                            (int) liveLeader.posZ + off[1]);
+                    return;
+                }
+                // Leader is gone entirely (dead, not virtual, not loaded): stop chasing a ghost and
+                // resume independent travel toward the group's last shared destination.
+                r.groupLeaderUUID = null;
             }
             // Leader or solo: advance through route, replan at end
             if (r.goal != null) {
                 double dx = r.goal.getX() + 0.5 - r.posX;
                 double dz = r.goal.getZ() + 0.5 - r.posZ;
-                if (dx * dx + dz * dz < SIM_STEP * SIM_STEP) {
+                double simStep = currentSimStep();
+                if (dx * dx + dz * dz < simStep * simStep) {
                     r.routeIndex++;
                 }
             }
@@ -319,39 +362,11 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (TravellersConfig.CAMP_EVENTS.workersCanCamp && !r.isHiredFollower
                 && "IDLE".equals(r.workerMode) && handleCamp(world, r)) return;
 
-        // Escort follower: track leader (virtual or live) — highest priority after catchup
-        if (r.escortLeaderUUID != null) {
-            VirtualTravellerRecord leaderRec = records.get(r.escortLeaderUUID);
-            if (leaderRec != null) {
-                // Idle/anchored leader: keep followers stationary at their own virtualized positions.
-                if (!leaderRec.followOrderActive && !leaderRec.goOrderActive) {
-                    r.goal = null;
-                    return;
-                }
-                // Formation-shaped marching: a live, heading-aware slot from the shared geometry
-                // (same math the loaded FollowFormationCoordinator path uses), so the group keeps
-                // its shape and actually walks toward a settings change instead of snapping to it.
-                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
-                        leaderRec.posX, leaderRec.posY, leaderRec.posZ, true, now);
-                return;
-            }
-            Entity leader = world.getEntityFromUuid(r.escortLeaderUUID);
-            if (leader instanceof com.jubitus.travellers.entity.travellers.EntityTravellerWorker) {
-                com.jubitus.travellers.entity.travellers.EntityTravellerWorker liveLeader =
-                        (com.jubitus.travellers.entity.travellers.EntityTravellerWorker) leader;
-                if (!liveLeader.isFollowOrderActive() && !liveLeader.isGoOrderActive()) {
-                    r.goal = null;
-                    return;
-                }
-            }
-            if (leader != null && !leader.isDead) {
-                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
-                        leader.posX, leader.posY, leader.posZ, true, now);
-                return;
-            }
-            // Leader gone: clear so we fall through to owner-follow below
-            r.escortLeaderUUID = null;
-        }
+        // Goal precedence below mirrors the loaded getVirtualGoal() exactly - catchup, active mission,
+        // go order, THEN escort slot, THEN follow-owner - so a worker resolves the same goal whether it
+        // is loaded or virtual. In particular a follower that also carries a mission or a Go order obeys
+        // that (as it does while loaded) instead of the escort branch silently overriding it, which used
+        // to differ between the two sides.
 
         // Catchup: always track live target
         if (r.isCatchupMode && r.catchupTargetUUID != null) {
@@ -373,6 +388,33 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Active mission or go order: goal is fixed at virtualization, do not override
         if (!"IDLE".equals(r.workerMode)) return;
         if (r.goOrderActive) return;
+
+        // Escort follower: ALWAYS hold a live formation slot around the leader (virtual or loaded),
+        // whether the leader is moving or anchored/idle. Recomputing every refresh - not just when
+        // r.goal is null - is what keeps the follower pinned to its slot even when its goal was seeded
+        // elsewhere at virtualization: getVirtualGoal() falls back to the OWNER's position for any
+        // hired follower and does not know about the escort leader, so an idle leader's followers would
+        // otherwise hold that stale owner-directed goal and walk all the way to the player (the exact
+        // "my group's followers all travelled to me" bug). A stationary leader yields a stationary
+        // slot, so this is never "chasing a target that isn't moving".
+        if (r.escortLeaderUUID != null && r.followOrderActive) {
+            VirtualTravellerRecord leaderRec = records.get(r.escortLeaderUUID);
+            if (leaderRec != null) {
+                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
+                        leaderRec.posX, leaderRec.posY, leaderRec.posZ, true, now);
+                return;
+            }
+            Entity leader = world.getEntityFromUuid(r.escortLeaderUUID);
+            if (leader != null && !leader.isDead) {
+                VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
+                        leader.posX, leader.posY, leader.posZ, true, now);
+                return;
+            }
+            // Leader is neither a virtual record nor loaded in this dimension (truly gone): clear the
+            // escort link and fall through to owner-follow below.
+            r.escortLeaderUUID = null;
+        }
+
         // Hired follower with no active mission and follow ON: hold a live formation slot
         // relative to the owner, same shared geometry as the escort-leader case above.
         if (r.isHiredFollower && r.followOwnerUUID != null && r.followOrderActive) {
@@ -697,39 +739,58 @@ public class VirtualTravellerManager extends WorldSavedData {
     // Player-triggered materialization
     // -------------------------------------------------------------------------
 
+    /**
+     * Materialize/virtualize used to be a pure "distance to nearest player" check approximating the
+     * view distance. It is now driven by whether the unit's actual ground chunk is loaded - by any
+     * player's view distance OR force-loaded by this or another mod (a Millenaire village, a chunk
+     * loader item, etc.) - so a worker sent far away on a Go order appears the instant it walks onto
+     * chunks someone else is keeping loaded, exactly as if a player had walked up to it. Both
+     * directions share {@link #isChunkNeeded} as the single source of truth so there is never a case
+     * where "should this be real" disagrees depending on which side is asking.
+     */
     private void checkPlayerMaterialize(WorldServer world, long now) {
         if (records.isEmpty()) return;
+        int dim = world.provider.getDimension();
 
-        int viewChunks = world.getMinecraftServer().getPlayerList().getViewDistance();
-        // Materialize one chunk inside the view distance so the player doesn't see pop-in
-        double matDistBlocks = (viewChunks - 1) * 16.0;
-
-        List<EntityPlayerMP> players = getPlayersInDim(world);
-        if (players.isEmpty()) return;
+        com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket>
+                forced = snapshotForcedChunks(world);
+        int stableTicks = TravellersConfig.MATERIALIZATION.materializeChunkStableTicks;
 
         List<UUID> toMaterialize = null;
 
         for (VirtualTravellerRecord r : records.values()) {
-            if (r.dimension != world.provider.getDimension()) continue;
-            // Each follower materializes independently when it enters the player's view distance.
-            // Once real, it uses tickVirtualLeaderFollow() to walk toward its virtual leader.
-            for (EntityPlayerMP p : players) {
-                double dx = r.posX - p.posX;
-                double dz = r.posZ - p.posZ;
-                if (dx * dx + dz * dz <= matDistBlocks * matDistBlocks) {
-                    if (toMaterialize == null) toMaterialize = new ArrayList<>();
-                    toMaterialize.add(r.uuid);
-                    break;
-                }
+            if (r.dimension != dim) continue;
+            int cx = ((int) Math.floor(r.posX)) >> 4;
+            int cz = ((int) Math.floor(r.posZ)) >> 4;
+
+            if (!isChunkNeeded(world, cx, cz, forced)) {
+                materializeWatch.remove(r.uuid);
+                continue;
+            }
+
+            long chunkKey = net.minecraft.util.math.ChunkPos.asLong(cx, cz);
+            ChunkWatch w = materializeWatch.get(r.uuid);
+            if (w == null || w.chunkKey != chunkKey) {
+                materializeWatch.put(r.uuid, new ChunkWatch(chunkKey, now));
+                continue;
+            }
+            if (now - w.sinceTick >= stableTicks) {
+                if (toMaterialize == null) toMaterialize = new ArrayList<>();
+                toMaterialize.add(r.uuid);
             }
         }
 
         if (toMaterialize != null) {
             for (UUID id : toMaterialize) {
+                materializeWatch.remove(id);
                 VirtualTravellerRecord r = records.remove(id);
                 if (r != null) materializeEntity(world, r, now, false);
             }
         }
+
+        // Bound growth: drop watch entries for records that no longer exist (materialized elsewhere,
+        // removed, dead) instead of letting them accumulate for the life of the server.
+        if (!materializeWatch.isEmpty()) materializeWatch.keySet().retainAll(records.keySet());
     }
 
     // -------------------------------------------------------------------------
@@ -737,10 +798,9 @@ public class VirtualTravellerManager extends WorldSavedData {
     // -------------------------------------------------------------------------
 
     private void checkVirtualize(WorldServer world, long now) {
-        int viewChunks = world.getMinecraftServer().getPlayerList().getViewDistance();
-        double virtDistBlocks = viewChunks * 16.0;
-
-        List<EntityPlayerMP> players = getPlayersInDim(world);
+        com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket>
+                forced = snapshotForcedChunks(world);
+        int unneededTicks = TravellersConfig.MATERIALIZATION.virtualizeChunkUnneededTicks;
 
         // Snapshot entity list to avoid ConcurrentModificationException
         List<EntityTravellerWorker> workers = new ArrayList<>();
@@ -754,24 +814,112 @@ public class VirtualTravellerManager extends WorldSavedData {
         com.jubitus.travellers.utils.world.battle.VirtualBattleManager battleMgr =
                 com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world);
 
+        Set<UUID> stillLoaded = new HashSet<>();
+
         for (EntityTravellerWorker worker : workers) {
-            if (graceUntil.containsKey(worker.getUniqueID())) continue;
-            if (!canVirtualizeMaybeBattling(worker, battleMgr)) continue;
-            if (isPlayerNear(worker.posX, worker.posZ, players, virtDistBlocks)) continue;
+            UUID id = worker.getUniqueID();
+            stillLoaded.add(id);
+            if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
+            if (!canVirtualizeMaybeBattling(worker, battleMgr)) { virtualizeWatch.remove(id); continue; }
+            if (!tickUnneededWatch(id, worker.chunkCoordX, worker.chunkCoordZ, world, forced, now, unneededTicks)) continue;
             virtualizeWorker(world, worker, now);
         }
 
         for (EntityTraveller entity : travellers) {
-            if (graceUntil.containsKey(entity.getUniqueID())) continue;
+            UUID id = entity.getUniqueID();
+            stillLoaded.add(id);
+            if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
             // Unlike workers, travellers/raiders can proximity-acquire a passive player as attackTarget
             // (RaiderAttackTargetAI) and stay "in combat" (travellerNoAggroOffscreen) for as long as that
-            // player is nearby. Distance-based virtualization must ignore that state entirely, or a raider
-            // idling at the view-distance edge near a stationary player would never leave the world.
-            if (!entity.canVirtualizeIgnoringCombat()) continue;
-            if (isPlayerNear(entity.posX, entity.posZ, players, virtDistBlocks)) continue;
+            // player is nearby. Virtualization eligibility must ignore that state entirely, or a raider
+            // idling near a stationary player it's eyeing would never leave the world.
+            if (!entity.canVirtualizeIgnoringCombat()) { virtualizeWatch.remove(id); continue; }
+            if (!tickUnneededWatch(id, entity.chunkCoordX, entity.chunkCoordZ, world, forced, now, unneededTicks)) continue;
             virtualizeTraveller(world, entity, now);
         }
+
+        if (!virtualizeWatch.isEmpty()) virtualizeWatch.keySet().retainAll(stillLoaded);
     }
+
+    /**
+     * Tracks how long a loaded unit's own chunk has been continuously unneeded. Returns true once the
+     * debounce window has elapsed (caller should virtualize immediately after).
+     */
+    private boolean tickUnneededWatch(UUID id, int chunkX, int chunkZ, WorldServer world,
+            com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> forced,
+            long now, int unneededTicks) {
+        if (isChunkNeeded(world, chunkX, chunkZ, forced)) {
+            virtualizeWatch.remove(id);
+            return false;
+        }
+        Long since = virtualizeWatch.get(id);
+        if (since == null) {
+            virtualizeWatch.put(id, now);
+            return false;
+        }
+        if (now - since < unneededTicks) return false;
+        virtualizeWatch.remove(id);
+        return true;
+    }
+
+    /** True if nothing currently requires this chunk to stay loaded: no player watching it, no force-load ticket (ours or another mod's). This is the single source of truth for both materialize and virtualize. */
+    public static boolean isChunkNeeded(WorldServer world, int chunkX, int chunkZ,
+            @Nullable com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> forced) {
+        if (world.getPlayerChunkMap().contains(chunkX, chunkZ)) return true;
+        return forced != null && forced.containsKey(new net.minecraft.util.math.ChunkPos(chunkX, chunkZ));
+    }
+
+    @Nullable
+    private static com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> snapshotForcedChunks(WorldServer world) {
+        try {
+            return net.minecraftforge.common.ForgeChunkManager.getPersistentChunksFor(world);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    // Per-dimension, per-tick cache of the forced-chunks snapshot so callers outside this class's own
+    // tick pass (e.g. EntityTraveller's per-entity AI, called once per loaded traveller per tick) can
+    // reuse the same "is my chunk needed" answer this class computes for materialize/virtualize, without
+    // each of potentially hundreds of entities independently rebuilding the ForgeChunkManager snapshot
+    // every tick.
+    private static final Map<Integer, Long> isNeededCacheTick = new HashMap<>();
+    private static final Map<Integer, com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket>> isNeededCacheValue = new HashMap<>();
+
+    /**
+     * Same predicate as {@link #isChunkNeeded}, for callers that don't already have a forced-chunks
+     * snapshot handy. This is the single source of truth other systems (travel AI "am I being watched
+     * closely enough to act" checks) should defer to instead of approximating their own distance-based
+     * notion of "tracked", so a unit's eligibility to act never disagrees with its eligibility to exist
+     * as a physical entity in the first place.
+     */
+    public static boolean isChunkNeededNow(WorldServer world, int chunkX, int chunkZ) {
+        int dim = world.provider.getDimension();
+        long now = world.getTotalWorldTime();
+        Long cachedTick = isNeededCacheTick.get(dim);
+        com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> forced;
+        if (cachedTick != null && cachedTick == now) {
+            forced = isNeededCacheValue.get(dim);
+        } else {
+            forced = snapshotForcedChunks(world);
+            isNeededCacheTick.put(dim, now);
+            isNeededCacheValue.put(dim, forced);
+        }
+        return isChunkNeeded(world, chunkX, chunkZ, forced);
+    }
+
+    /** Tracks how long a virtual record's chunk has been continuously needed, for the materialize debounce. */
+    private static final class ChunkWatch {
+        final long chunkKey;
+        final long sinceTick;
+        ChunkWatch(long chunkKey, long sinceTick) {
+            this.chunkKey = chunkKey;
+            this.sinceTick = sinceTick;
+        }
+    }
+
+    private final Map<UUID, ChunkWatch> materializeWatch = new HashMap<>();
+    private final Map<UUID, Long> virtualizeWatch = new HashMap<>();
 
     /** Battle participants may re-virtualize mid-combat (the sim takes over); others keep the combat gate. */
     private static boolean canVirtualizeMaybeBattling(
@@ -795,34 +943,41 @@ public class VirtualTravellerManager extends WorldSavedData {
      * escort leader). Called once, immediately after readFromNBT in materializeWorker.
      */
     private static void applyRecordStateToWorker(VirtualTravellerRecord r, EntityTravellerWorker worker) {
-        // Escort leader may have changed (merge command)
+        // Escort leader may have changed while virtual (create/assign/merge/come-back commands).
         if (!java.util.Objects.equals(r.escortLeaderUUID, worker.getEscortLeaderUUID())) {
             worker.setEscortLeaderUUID(r.escortLeaderUUID);
         }
 
-        boolean recFollow = r.followOrderActive;
-        boolean recGoOrder = r.goOrderActive;
-
-        if (recFollow && !recGoOrder) {
-            // Follow re-enabled (e.g., "come back"): cancel any active go order + travel route.
-            if (worker.isGoOrderActive()) {
-                worker.cancelGoOrderAndTravel();
-            }
-            if (!worker.isFollowOrderActive()) {
-                worker.setFollowOrderActive(true);
-            }
-        } else if (recGoOrder && r.goal != null) {
-            // Go order active with a potentially updated target (new destination issued while virtual).
-            if (!r.goal.equals(worker.getGoOrderTargetPos())) {
+        if (r.goOrderActive && r.goal != null) {
+            // Go order active (possibly a destination issued while virtual): (re)issue it.
+            // startGoToDestination rebuilds the travel route from scratch, so any stale route baked into
+            // the frozen NBT is overwritten here.
+            if (!worker.isGoOrderActive() || !r.goal.equals(worker.getGoOrderTargetPos())) {
                 worker.startGoToDestination(r.goal, r.dimension);
             }
-        } else if (!recGoOrder && worker.isGoOrderActive()) {
-            // Go order was cancelled (follow is also off here, implied by previous branches).
-            worker.cancelGoOrderAndTravel();
+            return;
         }
+
+        // No go order in the record. A mission (workerMode != IDLE) or a non-hired roaming worker drives
+        // its own travel from its mode, so leave that restored travel state intact - only drop a stale go
+        // order the frozen NBT may still carry and re-enable follow if the record wants it.
+        if (!"IDLE".equals(r.workerMode) || !r.isHiredFollower) {
+            if (worker.isGoOrderActive()) worker.cancelGoOrderAndTravel();
+            if (r.followOrderActive && !worker.isFollowOrderActive()) worker.setFollowOrderActive(true);
+            return;
+        }
+
+        // Hired + IDLE + no go order = following the owner/escort leader, or anchored in place. In every
+        // such case the worker must NOT keep a stale travel route/target from the frozen NBT, or the
+        // travel AI walks it off to that old location on materialize (the "just-promoted leader heads back
+        // toward its old group / old location, oscillating at the view border" bug). cancelGoOrderAndTravel
+        // clears the go order AND the leftover route/targetVillage/readyToDepart; follow/anchor then drive
+        // movement from the record's followOrderActive.
+        worker.cancelGoOrderAndTravel();
+        worker.setFollowOrderActive(r.followOrderActive);
     }
 
-    private void virtualizeWorker(WorldServer world, EntityTravellerWorker worker, long now) {
+    public void virtualizeWorker(WorldServer world, EntityTravellerWorker worker, long now) {
         NBTTagCompound entityNbt = new NBTTagCompound();
         worker.writeToNBT(entityNbt); // full NBT: name, culture, voice, equipment, etc.
 
@@ -860,6 +1015,18 @@ public class VirtualTravellerManager extends WorldSavedData {
         BlockPos initialGoal = worker.getVirtualGoal();
         r.goal = initialGoal;
         r.health = worker.getHealth();
+
+        // getVirtualGoal()'s escort/follow-owner branches deliberately seed the raw leader/owner
+        // position with no formation offset applied (see its own comment) - by design that's only
+        // meant to survive until the next scheduled refreshGoal pass, up to GOAL_REFRESH_INTERVAL
+        // (20) ticks away, refines it into the real slot. In that window advanceVirtual already walks
+        // r.posX/r.posZ toward the unrefined raw target, and a materialize check can land while it's
+        // still there - which is what made an escort follower "teleport" onto its worker leader's
+        // exact tile on its next materialize. Refine immediately so no tick ever observes the raw
+        // seed as anything other than a resolved formation slot.
+        if (r.escortLeaderUUID != null || (r.isHiredFollower && r.followOwnerUUID != null && r.followOrderActive)) {
+            refreshGoal(world, r, now);
+        }
 
         // Non-hired workers camp exactly like travellers; re-derive occupation from the campsite.
         if (TravellersConfig.CAMP_EVENTS.workersCanCamp && !r.isHiredFollower) {
@@ -917,16 +1084,30 @@ public class VirtualTravellerManager extends WorldSavedData {
 
         r.entityClass = entity instanceof EntityTravellerRaider ? "RAIDER" : "TRAVELLER";
         r.groupLeaderUUID = entity.getGroupLeaderUUID();
+        // The entity's own home identity is authoritative — TravellerSoftSpawner's population
+        // accounting reads r.homeVillage directly, so this must stay in sync with it. Deliberately
+        // NEVER overwritten by a "nearest village" proximity guess below: a traveller virtualizing
+        // far from home (the normal case — that's the whole point of travelling) must keep counting
+        // toward the village that actually spawned it, not get silently "adopted" by whichever
+        // village it happens to be nearest to at this exact moment. An earlier version of this method
+        // did exactly that unconditionally, re-labelling every traveller's home on every virtualize —
+        // which fed the same undercounting/over-spawn bug this field was added to fix in the first
+        // place (see population-overshoot fix notes), just one layer deeper.
+        r.homeVillage = entity.getHomeVillage();
 
         deriveCampOccupation(world, entity.getUniqueID(), now, r);
 
-        // Assign home village so runVirtualPopulationTopUp doesn't over-spawn for this village.
-        // Use the entity's origin village if available, otherwise the nearest known village.
-        com.jubitus.travellers.utils.world.mill.MillVillageIndex.VillageInfo nearest =
-                com.jubitus.travellers.utils.world.mill.MillVillageIndex.findNearest2D(
-                        world, entity.getPosition(), 3000);
-        if (nearest != null) {
-            r.homeVillage = new BlockPos(nearest.center.getX(), 0, nearest.center.getZ());
+        // Fallback only: an entity that never got a home identity at all (a save from before this
+        // field existed) approximates one via nearest village, once, and the assignment is made
+        // sticky on the entity itself so it doesn't need to keep guessing on every future virtualize.
+        if (r.homeVillage == null) {
+            com.jubitus.travellers.utils.world.mill.MillVillageIndex.VillageInfo nearest =
+                    com.jubitus.travellers.utils.world.mill.MillVillageIndex.findNearest2D(
+                            world, entity.getPosition(), 3000);
+            if (nearest != null) {
+                r.homeVillage = new BlockPos(nearest.center.getX(), 0, nearest.center.getZ());
+                entity.setHomeVillage(r.homeVillage);
+            }
         }
 
         // Capture active travel route from TravelCommon
@@ -1040,6 +1221,10 @@ public class VirtualTravellerManager extends WorldSavedData {
                     ? new EntityTravellerRaider(world)
                     : new EntityTraveller(world);
             entity.readFromNBT(r.entityNbt);
+            // Attributes (max health, speed, ...) were frozen in NBT at virtualization time — re-apply
+            // whatever the live config says now, so a config change made while offscreen isn't only
+            // visible after the next full applyRuntimeEffects() pass.
+            entity.onConfigReload();
             entity.setUniqueId(r.uuid);
             entity.setPositionAndRotation(pos.x, pos.y, pos.z, r.rotYaw, 0.0f);
             entity.motionX = 0;
@@ -1048,6 +1233,9 @@ public class VirtualTravellerManager extends WorldSavedData {
             // Unconditional: entityNbt may still carry a stale (e.g. dead-leader) UUID that r.groupLeaderUUID
             // has since cleared (see VirtualBattleManager.endBattle) — always overwrite, null included.
             entity.setGroupLeaderUUID(r.groupLeaderUUID);
+            // Same unconditional-overwrite reasoning: the record is authoritative for population
+            // accounting (TravellerSoftSpawner), entityNbt is just a frozen snapshot.
+            entity.setHomeVillage(r.homeVillage);
             if (campStand != null) {
                 // Camping: stay put at the slot. Real camp behaviour (build/sleep/wander) is AI (P4).
                 entity.setReadyToDepart(false);
@@ -1080,6 +1268,9 @@ public class VirtualTravellerManager extends WorldSavedData {
 
             EntityTravellerWorker worker = new EntityTravellerWorker(world);
             worker.readFromNBT(r.entityNbt);
+            // See the traveller/raider branch above: re-sync attributes to the live config now,
+            // rather than leaving whatever was frozen in NBT at virtualization time.
+            worker.onConfigReload();
             worker.setUniqueId(r.uuid);
             worker.setPositionAndRotation(pos.x, pos.y, pos.z, r.rotYaw, 0.0f);
             worker.motionX = 0;
@@ -1207,110 +1398,10 @@ public class VirtualTravellerManager extends WorldSavedData {
         return removed;
     }
 
-    public void cmdGroupComeBack(UUID leaderUUID, UUID ownerUUID) {
-        for (VirtualTravellerRecord r : records.values()) {
-            if (r.followOwnerUUID == null || !r.followOwnerUUID.equals(ownerUUID)) continue;
-            if (leaderUUID.equals(r.escortLeaderUUID)) {
-                r.escortLeaderUUID = null;
-                r.followOrderActive = true;
-                r.goOrderActive = false;
-            }
-        }
-        VirtualTravellerRecord leader = records.get(leaderUUID);
-        if (leader != null && ownerUUID.equals(leader.followOwnerUUID)) {
-            leader.escortLeaderUUID = null;
-            leader.followOrderActive = true;
-            leader.goOrderActive = false;
-        }
-        markDirty();
-    }
-
-    public void cmdLeaderGoTo(UUID leaderUUID, UUID ownerUUID, BlockPos target) {
-        VirtualTravellerRecord r = records.get(leaderUUID);
-        if (r == null) return;
-        if (!ownerUUID.equals(r.followOwnerUUID)) return;
-        r.goOrderActive = true;
-        r.followOrderActive = false;
-        r.goal = target;
-        markDirty();
-    }
-
-    public void cmdGroupMerge(UUID sourceLeaderUUID, UUID targetLeaderUUID, UUID ownerUUID) {
-        for (VirtualTravellerRecord r : records.values()) {
-            if (r.followOwnerUUID == null || !r.followOwnerUUID.equals(ownerUUID)) continue;
-            if (sourceLeaderUUID.equals(r.escortLeaderUUID)) {
-                r.escortLeaderUUID = targetLeaderUUID;
-                r.followOrderActive = true;
-            }
-        }
-        VirtualTravellerRecord src = records.get(sourceLeaderUUID);
-        if (src != null && ownerUUID.equals(src.followOwnerUUID)) {
-            src.escortLeaderUUID = targetLeaderUUID;
-            src.followOrderActive = true;
-            src.goOrderActive = false;
-        }
-        markDirty();
-    }
-
-    public int cmdMakeLeader(UUID leaderUUID, UUID ownerUUID) {
-        int assigned = 0;
-        for (VirtualTravellerRecord r : records.values()) {
-            if (!r.isHiredFollower) continue;
-            if (r.followOwnerUUID == null || !r.followOwnerUUID.equals(ownerUUID)) continue;
-            if (r.uuid.equals(leaderUUID)) continue;
-            if (r.escortLeaderUUID != null) continue;
-            if (!r.followOrderActive) continue;
-            if (!"IDLE".equals(r.workerMode)) continue;
-            r.escortLeaderUUID = leaderUUID;
-            assigned++;
-        }
-        if (assigned > 0) markDirty();
-        return assigned;
-    }
-
-    public List<FormationLeaderInfo> buildLeaderList(UUID ownerUUID, double playerX, double playerZ,
-                                                      WorldServer world) {
-        List<FormationLeaderInfo> result = new ArrayList<>();
-
-        java.util.Set<UUID> virtualLeaders = new java.util.HashSet<>();
-        for (VirtualTravellerRecord r : records.values()) {
-            if (!ownerUUID.equals(r.followOwnerUUID)) continue;
-            if (r.escortLeaderUUID != null) virtualLeaders.add(r.escortLeaderUUID);
-        }
-
-        for (UUID leaderId : virtualLeaders) {
-            VirtualTravellerRecord leaderRec = records.get(leaderId);
-            if (leaderRec == null) continue;
-            if (!ownerUUID.equals(leaderRec.followOwnerUUID)) continue;
-
-            int count = 0;
-            for (VirtualTravellerRecord r : records.values()) {
-                if (ownerUUID.equals(r.followOwnerUUID) && leaderId.equals(r.escortLeaderUUID)) count++;
-            }
-            for (net.minecraft.entity.Entity e : world.loadedEntityList) {
-                if (e instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    if (!e.isDead && w.isHiredFollower() && ownerUUID.equals(w.getFollowOwnerId())
-                            && leaderId.equals(w.getEscortLeaderUUID())) {
-                        count++;
-                    }
-                }
-            }
-
-            String name = leaderRec.entityNbt.hasKey("CustomName")
-                    ? leaderRec.entityNbt.getString("CustomName")
-                    : "Henchman";
-            FormationLeaderInfo vInfo = new FormationLeaderInfo(leaderId, name, count,
-                    leaderRec.posX, leaderRec.posZ, false, true);
-            vInfo.cultureId = leaderRec.entityNbt.hasKey("CultureId") ? leaderRec.entityNbt.getString("CultureId") : "";
-            vInfo.textureIndex = leaderRec.entityNbt.hasKey("TextureIdx") ? leaderRec.entityNbt.getInteger("TextureIdx") : 0;
-            vInfo.ownerColor = leaderRec.ownerColor;
-            vInfo.entityId = -1;
-            result.add(vInfo);
-        }
-
-        return result;
-    }
+    // Group / leader reassignment (create, assign, come back, merge, make-leader, go-to) and the Hub
+    // leader-list build all live in com.jubitus.travellers.server.group.WorkerGroupService now, so
+    // the loaded and virtual sides are handled by one shared path. The old cmd*/buildLeaderList
+    // helpers were removed with that centralization.
 
     public Iterable<VirtualTravellerRecord> getRecordsView() {
         return records.values();
@@ -1364,25 +1455,6 @@ public class VirtualTravellerManager extends WorldSavedData {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
-
-    private static List<EntityPlayerMP> getPlayersInDim(WorldServer world) {
-        List<EntityPlayerMP> list = new ArrayList<>();
-        for (EntityPlayerMP p : world.getMinecraftServer().getPlayerList().getPlayers()) {
-            if (p.world == world) list.add(p);
-        }
-        return list;
-    }
-
-    private static boolean isPlayerNear(double px, double pz,
-                                        List<EntityPlayerMP> players, double maxDist) {
-        double maxD2 = maxDist * maxDist;
-        for (EntityPlayerMP p : players) {
-            double dx = px - p.posX;
-            double dz = pz - p.posZ;
-            if (dx * dx + dz * dz <= maxD2) return true;
-        }
-        return false;
-    }
 
     // -------------------------------------------------------------------------
     // Persistence

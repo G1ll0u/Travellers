@@ -24,7 +24,7 @@ public class SafeCodecJOrbis extends CodecJOrbis {
     @Override
     public boolean initialize(URL url) {
         try {
-            return super.initialize(TravellerSoundCache.redirect(url));
+            return super.initialize(url);
         } catch (Throwable t) {
             LOG.warn("[SafeCodec] initialize failed for {}: {}", url, t.toString());
             return false;

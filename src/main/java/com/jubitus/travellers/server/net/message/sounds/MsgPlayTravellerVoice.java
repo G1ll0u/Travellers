@@ -1,9 +1,12 @@
 package com.jubitus.travellers.server.net.message.sounds;
 
+import com.jubitus.travellers.client.sound.EntityLinkedSound;
 import com.jubitus.travellers.client.sound.TravellerVoiceClientBus;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvent;
@@ -12,6 +15,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import net.minecraftforge.fml.common.registry.ForgeRegistries;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class MsgPlayTravellerVoice implements IMessage {
     public int entityId;
@@ -61,6 +66,8 @@ public class MsgPlayTravellerVoice implements IMessage {
     }
 
     public static class Handler implements IMessageHandler<MsgPlayTravellerVoice, IMessage> {
+        private static final Logger LOGGER = LogManager.getLogger("TravellerSound");
+
         @Override
         public IMessage onMessage(MsgPlayTravellerVoice msg, MessageContext ctx) {
             Minecraft mc = Minecraft.getMinecraft();
@@ -74,8 +81,28 @@ public class MsgPlayTravellerVoice implements IMessage {
                     boolean isChoir = msg.soundKey.contains(".choir.");
                     TravellerVoiceClientBus.play((EntityTraveller) e, evt, msg.vol, msg.pitch, isChoir);
                 } else {
-                    // Entity already removed (e.g. death) — play at the last known position.
-                    w.playSound(null, msg.x, msg.y, msg.z, evt, SoundCategory.NEUTRAL, msg.vol, msg.pitch);
+                    // Entity already removed client-side by the time this arrived (e.g. a death
+                    // sound whose speaker got cleaned up first) — play a plain one-shot at the
+                    // last known position. Unlike TravellerVoiceClientBus.play(), this is a fire-
+                    // and-forget vanilla sound with no per-tick correction afterward, so it must
+                    // apply the same distance falloff itself, up front, instead of relying on
+                    // engine/SoundPhysics attenuation alone — otherwise a mod-side one-time volume
+                    // multiplier (e.g. SoundPhysics's) has nothing to correct it against later and
+                    // it can play far louder than intended for however far away the player is.
+                    EntityPlayer player = mc.player;
+                    double maxDist = TravellersConfig.SOUND.voiceMaxDistance;
+                    if (player != null) {
+                        float dist = (float) player.getDistance(msg.x, msg.y, msg.z);
+                        if (TravellersConfig.SOUND.soundDebugLog) {
+                            LOGGER.info("[SoundBus] FALLBACK (entity gone) event={} dist={}", msg.soundKey, (int) dist);
+                        }
+                        if (dist > maxDist) return;
+                        float gain = EntityLinkedSound.computeDistanceGain(dist);
+                        if (gain <= 0.0f) return;
+                        w.playSound(null, msg.x, msg.y, msg.z, evt, SoundCategory.NEUTRAL, msg.vol * gain, msg.pitch);
+                    } else {
+                        w.playSound(null, msg.x, msg.y, msg.z, evt, SoundCategory.NEUTRAL, msg.vol, msg.pitch);
+                    }
                 }
             });
 

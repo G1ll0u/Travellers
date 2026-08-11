@@ -1,5 +1,6 @@
 {
   "package": "com.jubitus.travellers.mixins",
+  "plugin": "com.jubitus.travellers.mixins.TravellersMixinConfigPlugin",
   "required": true,
   "refmap": "mixins.travellers.refmap.json",
   "target": "@env(DEFAULT)",
@@ -10,7 +11,8 @@
     "MixinBuildingResManagerAccessor",
     "MixinBlockPathSlab",
     "MixinMillVillagerFriendlyTraveller",
-    "MixinSummon"
+    "MixinSummon",
+    "MixinNpcFactionHostility"
   ],
   "server": [],
   "client": [

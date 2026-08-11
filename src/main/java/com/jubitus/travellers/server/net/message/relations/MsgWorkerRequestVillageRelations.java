@@ -2,12 +2,10 @@ package com.jubitus.travellers.server.net.message.relations;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.utils.world.data.TravellerVillageRelations;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
@@ -15,41 +13,30 @@ import net.minecraftforge.fml.common.network.simpleimpl.*;
 
 import java.util.*;
 
+/** Client -> server: "send me my account-wide village-enemy relations" (GuiWorkerVillageRelations on open). */
 public class MsgWorkerRequestVillageRelations implements IMessage {
 
-    private int workerId;
-
     public MsgWorkerRequestVillageRelations() {}
-    public MsgWorkerRequestVillageRelations(int workerId) { this.workerId = workerId; }
 
-    @Override public void fromBytes(ByteBuf buf) { this.workerId = buf.readInt(); }
-    @Override public void toBytes(ByteBuf buf) { buf.writeInt(workerId); }
+    @Override public void fromBytes(ByteBuf buf) { }
+    @Override public void toBytes(ByteBuf buf) { }
 
     public static class Handler implements IMessageHandler<MsgWorkerRequestVillageRelations, IMessage> {
         @Override
         public IMessage onMessage(MsgWorkerRequestVillageRelations msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
-            player.getServerWorld().addScheduledTask(() -> handle(msg, player));
+            player.getServerWorld().addScheduledTask(() -> handle(player));
             return null;
         }
 
-        private void handle(MsgWorkerRequestVillageRelations msg, EntityPlayerMP player) {
+        private void handle(EntityPlayerMP player) {
             WorldServer ws = player.getServerWorld();
-            Entity e = ws.getEntityByID(msg.workerId);
-            if (!(e instanceof EntityTravellerWorker)) return;
 
-            EntityTravellerWorker worker = (EntityTravellerWorker) e;
-
-            // must be near + owner (recommended security)
-            if (worker.getDistanceSq(player) > 64.0D) return;
-            if (worker.isHiredFollower() && !player.getUniqueID().equals(worker.getFollowOwnerId())) return;
-
-            MsgWorkerVillageRelationsList reply = buildList(ws, worker, player.getUniqueID());
+            MsgWorkerVillageRelationsList reply = buildList(ws, player.getPosition(), player.getUniqueID());
             TravellerFollowNet.sendToPlayer(player, reply);
         }
 
-        public static MsgWorkerVillageRelationsList buildList(WorldServer ws, EntityTravellerWorker worker, UUID playerId) {
-            BlockPos workerPos = worker.getPosition();
+        public static MsgWorkerVillageRelationsList buildList(WorldServer ws, BlockPos fromPos, UUID playerId) {
             int maxRadius = TravellersConfig.WORKER.workerVillageDetectRadius;
             if (maxRadius <= 0) maxRadius = 2000;
 
@@ -67,8 +54,8 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
                 MillVillageIndex.VillageInfo vi = entry.getKey();
                 BlockPos center = vi.center;
 
-                double dx = center.getX() + 0.5D - workerPos.getX();
-                double dz = center.getZ() + 0.5D - workerPos.getZ();
+                double dx = center.getX() + 0.5D - fromPos.getX();
+                double dz = center.getZ() + 0.5D - fromPos.getZ();
                 int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
                 if (dist > maxRadius) continue;
 
@@ -104,7 +91,7 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
                 se.add(enemies.get(i));
             }
 
-            return new MsgWorkerVillageRelationsList(worker.getEntityId(), sc, sl, sd, se);
+            return new MsgWorkerVillageRelationsList(sc, sl, sd, se);
         }
     }
 }

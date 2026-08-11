@@ -102,9 +102,8 @@ public class VirtualTravellerRecord {
     // movement, job arrivals and camp claims are all suspended.
     @Nullable public UUID battleId;
 
-    // Transient caches derived from entityNbt (never persisted)
+    // Transient cache derived from entityNbt (never persisted)
     private transient com.jubitus.travellers.utils.world.battle.VirtualCombatProfile combatProfile;
-    private transient java.util.Set<UUID> declaredHostileOwners;
 
     // Transient: world-tick when this worker last performed a virtual donation. Not persisted.
     public long lastDonationTick = 0L;
@@ -121,7 +120,6 @@ public class VirtualTravellerRecord {
     /** Invalidates transient caches after entityNbt is rewritten (virtual missions, equip swaps). */
     public void invalidateNbtCaches() {
         combatProfile = null;
-        declaredHostileOwners = null;
     }
 
     /** Current health, resolving unknown (-1) from entityNbt or the profile max. */
@@ -133,20 +131,10 @@ public class VirtualTravellerRecord {
         return health;
     }
 
-    /** Owner UUIDs this hired worker's group has declared hostile (parsed from entityNbt). */
-    public java.util.Set<UUID> getDeclaredHostileOwners() {
-        if (declaredHostileOwners == null) {
-            java.util.Set<UUID> set = new java.util.HashSet<>();
-            if (entityNbt != null && entityNbt.hasKey("HostilePlayers", 9)) {
-                NBTTagList list = entityNbt.getTagList("HostilePlayers", 10);
-                for (int i = 0; i < list.tagCount(); i++) {
-                    NBTTagCompound c = list.getCompoundTagAt(i);
-                    if (c.hasUniqueId("Player")) set.add(c.getUniqueId("Player"));
-                }
-            }
-            declaredHostileOwners = set;
-        }
-        return declaredHostileOwners;
+    /** Owner UUIDs this hired worker's owner has declared hostile (account-wide, see PlayerEnemyRelations). */
+    public java.util.Set<UUID> getDeclaredHostileOwners(net.minecraft.world.WorldServer world) {
+        if (followOwnerUUID == null) return java.util.Collections.emptySet();
+        return com.jubitus.travellers.utils.world.data.PlayerEnemyRelations.get(world).getHostiles(followOwnerUUID);
     }
 
     public VirtualTravellerRecord(UUID uuid, double posX, double posY, double posZ, float rotYaw,

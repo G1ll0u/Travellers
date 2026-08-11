@@ -44,6 +44,8 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
     private GuiButton barracksButton;
     private GuiColorSwatchButton markButton;
 
+    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
+
     private int xSize = 176;
     private int ySize = 142;
     private int guiLeft;
@@ -168,6 +170,10 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
                 14,
                 14
         ));
+
+        tooltips.set(transportButton, "travellers.worker.hub.transport.tooltip");
+        tooltips.set(formationButton, "travellers.worker.hub.formation.tooltip");
+        tooltips.set(barracksButton, "travellers.worker.hub.barracks.tooltip");
 
         refreshButtonStates();
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestServerCosts());
@@ -327,6 +333,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
                     mouseY
             );
         }
+        tooltips.render(mouseX, mouseY, this.width, this.height);
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 

@@ -2,13 +2,15 @@ package com.jubitus.travellers.client.gui.bahavior.relations;
 
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
@@ -19,37 +21,43 @@ import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
-import net.minecraftforge.fml.client.GuiScrollingList;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Mouse;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/** Edits the player's account-wide village relations. {@code worker}, when present, is only
+ * used for map-centering/home-marker richness — never required for correctness. */
 @SideOnly(Side.CLIENT)
 public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
 
     private static final int MAP_W = 200;
 
-    private final EntityTravellerWorker worker;
     private final EntityPlayer player;
+    @Nullable private final EntityTravellerWorker worker;
+    @Nullable private final GuiScreen returnTo;
 
     private GuiButton toggleEnemy;
     private GuiButton back;
-
-    private VillageList listWidget;
 
     private List<BlockPos> centers = new ArrayList<>();
     private List<String> labels = new ArrayList<>();
     private List<Integer> distances = new ArrayList<>();
     private List<Boolean> enemies = new ArrayList<>();
     private int selected = -1;
+    private int scrollOffset = 0;
+
+    private int listX, listY, listW, listH;
+    private final int rowH = 12;
 
     private final int xSize = 176;
     private final int ySize = 156;
@@ -60,11 +68,19 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
     private WorldMapController mapController;
     private final List<MsgWorkerGoList.Entry> homeEntries = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
 
     public GuiWorkerVillageRelations(EntityPlayer player, EntityTravellerWorker worker) {
+        this(player, worker, null);
+    }
+
+    public GuiWorkerVillageRelations(EntityPlayer player, @Nullable EntityTravellerWorker worker, @Nullable GuiScreen returnTo) {
         this.player = player;
         this.worker = worker;
+        this.returnTo = returnTo;
+    }
+
+    private BlockPos referencePos() {
+        return worker != null ? worker.getPosition() : player.getPosition();
     }
 
     @Override
@@ -85,10 +101,10 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 1, centerX - 60, this.guiTop + 132, 120, 20,
                 I18n.format("travellers.gui.back", "Back")));
 
-        this.listWidget = new VillageList(
-                Minecraft.getMinecraft(), 160, 80,
-                this.guiTop + 22, this.guiTop + 102,
-                this.guiLeft + 8, 14, this.width, this.height);
+        this.listX = this.guiLeft + 8;
+        this.listY = this.guiTop + 24;
+        this.listW = 160;
+        this.listH = 78;
 
         this.toggleEnemy.enabled = false;
 
@@ -97,12 +113,14 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         int mapY = this.guiTop;
         mapController = new WorldMapController(
                 Minecraft.getMinecraft(), mapX, mapY, MAP_W, ySize,
-                "travellers_village_relations_map", worker.getPosition());
+                "travellers_village_relations_map", referencePos());
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillageRelations(this.worker.getEntityId()));
+        if (worker != null) {
+            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
+        }
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillageRelations());
     }
 
     @Override
@@ -133,7 +151,6 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         for (MsgMapWorkersUpdate.Entry e : list) {
             if (e.dim != myDim) continue;
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
         rebuildMapMarkers();
     }
@@ -148,6 +165,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         this.enemies   = enemies  != null ? enemies  : new ArrayList<>();
 
         if (this.selected >= this.centers.size()) this.selected = -1;
+        clampScroll();
         if (this.toggleEnemy != null)
             this.toggleEnemy.enabled = this.selected >= 0 && this.selected < this.centers.size();
 
@@ -189,7 +207,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         }
 
         mapController.panel.addMarker(WorldMapMarkerFactory.player(
-                player.getPosition(), player.getName(), playerOwnerColor));
+                player.getPosition(), player.getName(), ClientOwnerVisualsCache.getColor(), player.rotationYaw));
     }
 
     private void onVillageSelected(int index) {
@@ -199,25 +217,45 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         rebuildMapMarkers();
     }
 
+    // ── List helpers ──────────────────────────────────────────────────────────
+
+    private boolean isMouseOverList(int mouseX, int mouseY) {
+        return mouseX >= listX && mouseX < listX + listW
+                && mouseY >= listY && mouseY < listY + listH;
+    }
+
+    private int getVisibleRows() { return Math.max(1, listH / rowH); }
+    private int getMaxScroll()   { return Math.max(0, centers.size() - getVisibleRows()); }
+
+    private void clampScroll() {
+        if (scrollOffset < 0) scrollOffset = 0;
+        int max = getMaxScroll();
+        if (scrollOffset > max) scrollOffset = max;
+    }
+
+    private void toggleAt(int index) {
+        if (index < 0 || index >= centers.size()) return;
+        boolean newEnemy = !enemies.get(index);
+        enemies.set(index, newEnemy);
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgSetVillageEnemy(centers.get(index), newEnemy));
+        rebuildMapMarkers();
+    }
+
     // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == this.toggleEnemy) {
-            if (this.selected >= 0 && this.selected < this.centers.size()) {
-                boolean newEnemy = !this.enemies.get(this.selected);
-                // Optimistic update
-                this.enemies.set(this.selected, newEnemy);
-                TravellerFollowNet.CHANNEL.sendToServer(
-                        new MsgSetVillageEnemy(this.worker.getEntityId(), this.centers.get(this.selected), newEnemy));
-                rebuildMapMarkers();
-            }
+            toggleAt(this.selected);
             return;
         }
 
         if (button == this.back) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(this.worker.getEntityId(), MsgOpenWorkerSubGui.Type.BEHAVIOR));
+            if (returnTo != null) {
+                mc.displayGuiScreen(returnTo);
+            } else {
+                mc.displayGuiScreen(new GuiWorkerBehavior(player, worker, null));
+            }
             return;
         }
 
@@ -233,8 +271,9 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
 
         if (wheel != 0 && mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
-        } else if (this.listWidget != null) {
-            this.listWidget.handleMouseInput(mouseX, mouseY);
+        } else if (wheel != 0 && isMouseOverList(mouseX, mouseY)) {
+            scrollOffset += wheel > 0 ? -1 : 1;
+            clampScroll();
         }
     }
 
@@ -245,6 +284,16 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
             return;
         }
         super.mouseClicked(mouseX, mouseY, mouseButton);
+
+        if (mouseButton != 0 || centers.isEmpty()) return;
+        if (!isMouseOverList(mouseX, mouseY)) return;
+
+        int idx = scrollOffset + (mouseY - listY) / rowH;
+        if (idx < 0 || idx >= centers.size()) return;
+
+        selected = idx;
+        toggleEnemy.enabled = true;
+        onVillageSelected(idx);
     }
 
     @Override
@@ -274,14 +323,14 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
             mapController.draw();
         }
 
-        if (this.listWidget != null) this.listWidget.drawScreen(mouseX, mouseY, partialTicks);
-
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.village_relations.title", "Village relations"),
-                this.guiLeft + 8, this.guiTop + 6, 0xFFFFFF);
+                this.guiLeft + 8, this.guiTop + 6, TravellersGuiTheme.COL_TEXT);
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.village_relations.hint", "Select a village, then toggle enemy."),
-                this.guiLeft + 8, this.guiTop + 16, 0xC0C0C0);
+                this.guiLeft + 8, this.guiTop + 16, TravellersGuiTheme.COL_TEXT_DIM);
+
+        drawVillageList(mouseX, mouseY);
 
         if (this.toggleEnemy != null)
             this.toggleEnemy.enabled = this.selected >= 0 && this.selected < this.centers.size();
@@ -291,57 +340,51 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         if (mapController != null) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty()) {
-                drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
             }
         }
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
-    @Override
-    public boolean doesGuiPauseGame() { return false; }
+    private void drawVillageList(int mouseX, int mouseY) {
+        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
 
-    // ── Inner list widget ─────────────────────────────────────────────────────
+        clampScroll();
+        int rowsToDraw = Math.min(getVisibleRows(), centers.size() - scrollOffset);
+        for (int i = 0; i < rowsToDraw; i++) {
+            int rowTop    = listY + i * rowH;
+            int rowBottom = rowTop + rowH;
+            boolean hovered = mouseX >= listX && mouseX < listX + listW
+                    && mouseY >= rowTop && mouseY < rowBottom;
+            int globalIdx = scrollOffset + i;
+            boolean isSel = globalIdx == selected;
+            boolean isEnemy = enemies != null && globalIdx < enemies.size() && enemies.get(globalIdx);
 
-    private class VillageList extends GuiScrollingList {
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, isSel);
 
-        VillageList(Minecraft client, int width, int height, int top, int bottom, int left,
-                    int entryHeight, int screenWidth, int screenHeight) {
-            super(client, width, height, top, bottom, left, entryHeight, screenWidth, screenHeight);
+            String label = labels.get(globalIdx);
+            float scale = 0.85F;
+
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
+            GlStateManager.scale(scale, scale, 1.0F);
+
+            int maxUnscaledWidth = (int) ((this.listW - 6) / scale);
+            String trimmed = this.fontRenderer.trimStringToWidth(label, maxUnscaledWidth);
+
+            int textColor = isEnemy ? TravellersGuiTheme.COL_CANNOT
+                    : (hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
+            this.fontRenderer.drawString(trimmed, 0, 0, textColor);
+            GlStateManager.popMatrix();
         }
 
-        @Override
-        protected int getSize() { return labels == null ? 0 : labels.size(); }
-
-        @Override
-        protected void elementClicked(int index, boolean doubleClick) {
-            selected = index;
-            if (toggleEnemy != null)
-                toggleEnemy.enabled = selected >= 0 && selected < centers.size();
-            onVillageSelected(index);
-
-            if (doubleClick && index >= 0 && index < centers.size()) {
-                boolean newEnemy = !enemies.get(index);
-                enemies.set(index, newEnemy);
-                TravellerFollowNet.CHANNEL.sendToServer(
-                        new MsgSetVillageEnemy(worker.getEntityId(), centers.get(index), newEnemy));
-                rebuildMapMarkers();
-            }
-        }
-
-        @Override
-        protected boolean isSelected(int index) { return index == selected; }
-
-        @Override
-        protected void drawBackground() {}
-
-        @Override
-        protected void drawSlot(int slotIdx, int entryRight, int slotTop, int slotBuffer,
-                                net.minecraft.client.renderer.Tessellator tess) {
-            if (slotIdx < 0 || slotIdx >= labels.size()) return;
-            String s = labels.get(slotIdx);
-            boolean enemy = enemies != null && slotIdx < enemies.size() && enemies.get(slotIdx);
-            int color = enemy ? 0xCC4444 : (slotIdx == selected ? 0xFFFF99 : 0xFFFFFF);
-            GuiWorkerVillageRelations.this.fontRenderer.drawString(s, this.left + 2, slotTop + 2, color);
+        if (centers.isEmpty()) {
+            this.fontRenderer.drawString(
+                    I18n.format("travellers.worker.village_relations.none_known", "No known villages nearby yet."),
+                    listX, listY + 2, TravellersGuiTheme.COL_TEXT_DIM);
         }
     }
+
+    @Override
+    public boolean doesGuiPauseGame() { return false; }
 }

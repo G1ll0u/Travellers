@@ -1,5 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.follow.formations;
 
+import com.jubitus.travellers.config.TravellersConfig;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,7 +58,7 @@ public final class WorkerFormationPreviewLayout {
     private static void buildCompact(List<Point> out, WorkerFormationSettings s, int count) {
         double dist = s.followDistance * 10.0D;
         double spacing = s.spacing * 10.0D;
-        int width = Math.max(2, s.width + 2);
+        int width = Math.max(2, Math.min(s.width, TravellersConfig.WORKER_FORMATION.maxRowWidth) + 2);
 
         int i = 0;
         int row = 0;
@@ -91,12 +93,13 @@ public final class WorkerFormationPreviewLayout {
     private static void buildColumn(List<Point> out, WorkerFormationSettings s, int count) {
         double dist = s.followDistance * 10.0D;
         double spacing = s.spacing * 9.0D;
-        int lanes = s.width >= 5 ? 2 : 1;
+        // Mirror coordinator: lanes = width, capped at the same server safety limit.
+        int lanes = Math.max(1, Math.min(s.width, TravellersConfig.WORKER_FORMATION.maxRowWidth));
 
         for (int i = 0; i < count; i++) {
             int row = i / lanes;
             int lane = i % lanes;
-            double side = lanes == 1 ? 0.0D : (lane == 0 ? -spacing * 0.35D : spacing * 0.35D);
+            double side = lanes == 1 ? 0.0D : (lane - (lanes - 1) * 0.5D) * spacing * 0.6D;
             double back = dist + row * spacing;
             out.add(new Point((int) Math.round(side), (int) Math.round(back)));
         }
@@ -105,11 +108,13 @@ public final class WorkerFormationPreviewLayout {
     private static void buildWedge(List<Point> out, WorkerFormationSettings s, int count) {
         double dist = s.followDistance * 10.0D;
         double spacing = s.spacing * 9.5D;
+        // Mirror coordinator: row growth caps at width, capped at the same server safety limit.
+        int capWidth = Math.max(1, Math.min(s.width, TravellersConfig.WORKER_FORMATION.maxRowWidth));
 
         int i = 0;
         int row = 0;
         while (i < count) {
-            int rowCount = row == 0 ? 1 : row * 2;
+            int rowCount = row == 0 ? 1 : Math.min(Math.max(2, row * 2), capWidth);
             double back = dist + row * spacing;
 
             for (int c = 0; c < rowCount && i < count; c++, i++) {

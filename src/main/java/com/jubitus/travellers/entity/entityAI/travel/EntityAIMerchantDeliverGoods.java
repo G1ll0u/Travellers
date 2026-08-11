@@ -15,9 +15,10 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.FMLLog;
+import org.apache.logging.log4j.Level;
 import org.millenaire.common.forge.BuildingChunkLoader;
 import org.millenaire.common.item.InvItem;
-import org.millenaire.common.utilities.MillLog;
 import org.millenaire.common.utilities.Point;
 import org.millenaire.common.village.Building;
 import org.millenaire.common.world.MillWorldData;
@@ -390,13 +391,17 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
         }
 
         if (reqMap.isEmpty()) {
-            MillLog.major(townHall, "[Traveller] merchant " + travellerName +
-                    " found no construction or wall requirements at " + townHall.getPos());
+            if (TravellersConfig.MERCHANT.merchantDebugLog) {
+                FMLLog.log(Level.INFO, "[Traveller] merchant " + travellerName +
+                        " found no construction or wall requirements at " + townHall.getPos());
+            }
             return;
         }
 
-        MillLog.major(townHall, "[Traveller] merchant " + travellerName +
-                " checking construction + wall needs at " + townHall.getPos());
+        if (TravellersConfig.MERCHANT.merchantDebugLog) {
+            FMLLog.log(Level.INFO, "[Traveller] merchant " + travellerName +
+                    " checking construction + wall needs at " + townHall.getPos());
+        }
 
         int donationsDone = 0;
 
@@ -450,15 +455,17 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
             if (stored > 0) {
                 donationsDone++;
 
-                String line = TravellerMillHelper.formatDonationLine(
-                        ii, totalReq, inVillage, missing, stored);
-                MillLog.major(townHall,
-                        "[Traveller] merchant " + travellerName + " donated: " + line);
+                if (TravellersConfig.MERCHANT.merchantDebugLog) {
+                    String line = TravellerMillHelper.formatDonationLine(
+                            ii, totalReq, inVillage, missing, stored);
+                    FMLLog.log(Level.INFO,
+                            "[Traveller] merchant " + travellerName + " donated: " + line);
+                }
             }
         }
 
-        if (donationsDone == 0) {
-            MillLog.major(townHall, "[Traveller] merchant " + travellerName +
+        if (donationsDone == 0 && TravellersConfig.MERCHANT.merchantDebugLog) {
+            FMLLog.log(Level.INFO, "[Traveller] merchant " + travellerName +
                     " found requirements but nothing missing enough to donate.");
         }
     }
@@ -486,8 +493,10 @@ public class EntityAIMerchantDeliverGoods extends EntityAIBase {
 
         // Optional simple log throttling per AI instance
         if (buggedVillageLogCooldown <= 0) {
-            MillLog.major(owner, "[Travellers] Skipping bugged village at " +
-                    center + " : " + reason);
+            if (TravellersConfig.MERCHANT.merchantDebugLog) {
+                FMLLog.log(Level.WARN, "[Travellers] Skipping bugged village at " +
+                        center + " : " + reason);
+            }
             buggedVillageLogCooldown = BUGGED_LOG_THROTTLE_TICKS;
         }
         tc.markVillageBad(center);

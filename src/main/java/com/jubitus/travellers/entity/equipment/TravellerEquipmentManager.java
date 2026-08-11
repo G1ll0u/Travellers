@@ -4,7 +4,11 @@ import com.jubitus.travellers.config.TravellersConfig;
 
 import com.google.common.collect.Multimap;
 import com.jubitus.travellers.entity.culture.CultureDef;
+import com.jubitus.travellers.entity.culture.TravellerAppearance;
+import com.jubitus.travellers.entity.culture.VillagerEquipmentProfile;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -60,7 +64,7 @@ public class TravellerEquipmentManager {
      * Scores a melee weapon. Higher = better.
      * Accounts for base damage, material tier, Sharpness enchant, and remaining durability.
      */
-    public double scoreWeapon(ItemStack s) {
+    public static double scoreWeapon(ItemStack s) {
         if (s.isEmpty()) return Double.NEGATIVE_INFINITY;
 
         double baseDmg;
@@ -90,7 +94,7 @@ public class TravellerEquipmentManager {
      * Scores an armor piece for the given slot. Higher = better.
      * Accounts for armor value, toughness, Protection enchant, and remaining durability.
      */
-    public double scoreArmor(ItemStack s, EntityEquipmentSlot slot) {
+    public static double scoreArmor(ItemStack s, EntityEquipmentSlot slot) {
         if (s.isEmpty()) return Double.NEGATIVE_INFINITY;
 
         Multimap<String, AttributeModifier> a = s.getAttributeModifiers(slot);
@@ -111,7 +115,7 @@ public class TravellerEquipmentManager {
     // -------------------------------------------------------------------------
 
     /** True for swords and other melee weapons (tool-class "sword" or high attack damage). */
-    public boolean isWeapon(ItemStack s) {
+    public static boolean isWeapon(ItemStack s) {
         if (s.isEmpty()) return false;
         Item it = s.getItem();
         if (it instanceof ItemSword) return true;
@@ -133,8 +137,40 @@ public class TravellerEquipmentManager {
     }
 
     /** True for any ItemBow. */
-    public boolean isBow(ItemStack s) {
+    public static boolean isBow(ItemStack s) {
         return !s.isEmpty() && s.getItem() instanceof ItemBow;
+    }
+
+    /**
+     * True for a wood- or gold-material sword — below the minimum acceptable spawn tier (stone).
+     * Excluded from both the random weapon draw and villager-file defaultweapon=/startingInv=
+     * picks, since travellers venture into a dangerous world and should never be reduced to these.
+     */
+    public static boolean isBelowWeaponFloor(ItemStack s) {
+        if (s.isEmpty() || !(s.getItem() instanceof ItemSword)) return false;
+        String mat = ((ItemSword) s.getItem()).getToolMaterialName();
+        return "WOOD".equals(mat) || "GOLD".equals(mat);
+    }
+
+    /**
+     * True for gold-tier tools, weapons or armor (weak material, excluded from every spawn pool —
+     * separate from {@link #isBelowWeaponFloor} since that one is sword-specific and also excludes
+     * wood). Uses material-enum identity rather than {@code ArmorMaterial.getName()}, which is
+     * client-only ({@code @SideOnly(CLIENT)}) and would crash if called on a dedicated server.
+     */
+    public static boolean isGoldTier(ItemStack s) {
+        if (s.isEmpty()) return false;
+        Item item = s.getItem();
+        if (item instanceof ItemSword) {
+            return "GOLD".equals(((ItemSword) item).getToolMaterialName());
+        }
+        if (item instanceof ItemTool) {
+            return "GOLD".equals(((ItemTool) item).getToolMaterialName());
+        }
+        if (item instanceof ItemArmor) {
+            return ((ItemArmor) item).getArmorMaterial() == ItemArmor.ArmorMaterial.GOLD;
+        }
+        return false;
     }
 
     /** True when s is a valid armor piece for the given slot. */
@@ -289,25 +325,113 @@ public class TravellerEquipmentManager {
     // -------------------------------------------------------------------------
 
     /**
-     * Equips the traveller at spawn based on culture loot tables.
-     * Weapons go into the inventory handler; armor goes directly to entity slots.
-     * Call from {@code onInitialSpawn} after the culture is set.
+     * Equips the traveller at spawn based on culture loot tables, overlaid with the specific
+     * villager file's defaultweapon=/startingInv= (via {@code entity.getActiveAppearance()}) when
+     * present. Weapons go into the inventory handler or mainhand; armor goes directly to entity slots.
+     * Call from {@code onInitialSpawn} after the culture and appearance are set.
      */
     public void initSpawnEquipment(CultureDef c, Random r) {
         if (entity.world.isRemote || c == null) return;
 
-        ItemStack meleeOrTool = c.randomMeleeOrTool(r);
-        if (!meleeOrTool.isEmpty()) entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
+        CultureDef.WeightProfile weightProfile = entity instanceof EntityTravellerRaider ? CultureDef.WeightProfile.RAIDER
+                : entity instanceof EntityTravellerWorker ? CultureDef.WeightProfile.WORKER
+                : CultureDef.WeightProfile.TRAVELLER;
 
-        if (r.nextFloat() < 0.20f) {
-            ItemStack bow = c.randomBow(r);
-            if (!bow.isEmpty()) entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
+        VillagerEquipmentProfile profile = null;
+        TravellerAppearance appearance = entity.getActiveAppearance();
+        if (appearance != null) profile = appearance.equipmentProfile;
+
+        EnumSet<EntityEquipmentSlot> slotsFromProfile = EnumSet.noneOf(EntityEquipmentSlot.class);
+        boolean weaponFromProfile = false;
+
+        if (profile != null) {
+            weaponFromProfile = equipProfileWeapon(profile, r);
+
+            for (ItemStack stack : profile.startingInv) {
+                EntityEquipmentSlot armorSlot = armorSlotOf(stack);
+                if (armorSlot != null) {
+                    entity.setItemStackToSlot(armorSlot, stack.copy());
+                    slotsFromProfile.add(armorSlot);
+                } else if (isWeapon(stack) || isBow(stack)) {
+                    // Already handled by equipProfileWeapon; extra weapons in startingInv are ignored.
+                } else if (entity instanceof EntityTravellerWorker) {
+                    ItemHandlerHelper.insertItemStacked(entity.inventory, stack.copy(), false);
+                }
+                // Travellers/raiders have no accessible backpack: non-equipable extras are ignored.
+            }
         }
 
-        trySpawnArmor(c, r, EntityEquipmentSlot.HEAD, 0.15f);
-        trySpawnArmor(c, r, EntityEquipmentSlot.CHEST, 0.10f);
-        trySpawnArmor(c, r, EntityEquipmentSlot.LEGS, 0.08f);
-        trySpawnArmor(c, r, EntityEquipmentSlot.FEET, 0.12f);
+        if (!weaponFromProfile) {
+            if (r.nextFloat() < TravellersConfig.EQUIPMENT.bowChance) {
+                ItemStack bow = c.randomBow(r);
+                if (!bow.isEmpty()) entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, bow);
+            }
+            if (entity.getHeldItemMainhand().isEmpty()) {
+                ItemStack meleeOrTool = c.randomMeleeOrTool(r, weightProfile);
+                if (!meleeOrTool.isEmpty()) entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, meleeOrTool);
+            }
+        }
+
+        float armorMultiplier = weightProfile == CultureDef.WeightProfile.RAIDER ? TravellersConfig.EQUIPMENT.raiderArmorChanceMultiplier
+                : weightProfile == CultureDef.WeightProfile.WORKER ? TravellersConfig.EQUIPMENT.workerArmorChanceMultiplier
+                : 1.0f;
+        if (!slotsFromProfile.contains(EntityEquipmentSlot.HEAD))
+            trySpawnArmor(c, r, EntityEquipmentSlot.HEAD, TravellersConfig.EQUIPMENT.armorChanceHead * armorMultiplier, weightProfile);
+        if (!slotsFromProfile.contains(EntityEquipmentSlot.CHEST))
+            trySpawnArmor(c, r, EntityEquipmentSlot.CHEST, TravellersConfig.EQUIPMENT.armorChanceChest * armorMultiplier, weightProfile);
+        if (!slotsFromProfile.contains(EntityEquipmentSlot.LEGS))
+            trySpawnArmor(c, r, EntityEquipmentSlot.LEGS, TravellersConfig.EQUIPMENT.armorChanceLegs * armorMultiplier, weightProfile);
+        if (!slotsFromProfile.contains(EntityEquipmentSlot.FEET))
+            trySpawnArmor(c, r, EntityEquipmentSlot.FEET, TravellersConfig.EQUIPMENT.armorChanceFeet * armorMultiplier, weightProfile);
+
+        // Every traveller comes from a village and should have something to defend itself with —
+        // never leave the mainhand empty for lack of pool data (bow-only cultures, sparse configs, etc).
+        if (entity.getHeldItemMainhand().isEmpty()) {
+            ItemStack fallback = c.randomMeleeOrTool(r, weightProfile);
+            if (fallback.isEmpty()) fallback = c.randomBow(r);
+            if (fallback.isEmpty()) fallback = new ItemStack(Items.STONE_SWORD);
+            entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, fallback);
+        }
+    }
+
+    /**
+     * Equips defaultweapon=/a weapon found in startingInv= to the mainhand, per the villager file's
+     * profile — gated through {@link #isWeapon}/{@link #isBow} first, since Millenaire's own
+     * defaultweapon= is often just a peaceful profession's day-to-day tool (e.g. a carpenter's
+     * woodaxe), used there purely as a last-resort combat fallback rather than "this villager's
+     * real weapon". When both a valid defaultweapon and a valid startingInv weapon are present,
+     * one is picked at random between the two — neither is treated as strictly authoritative.
+     * Returns true if a weapon (or bow) was equipped from the profile.
+     */
+    private boolean equipProfileWeapon(VillagerEquipmentProfile profile, Random r) {
+        ItemStack fromDefault = profile.defaultWeapon;
+        if ((!isWeapon(fromDefault) && !isBow(fromDefault)) || isBelowWeaponFloor(fromDefault)) {
+            fromDefault = ItemStack.EMPTY;
+        }
+
+        ItemStack fromInv = ItemStack.EMPTY;
+        for (ItemStack stack : profile.startingInv) {
+            if ((isWeapon(stack) || isBow(stack)) && !isBelowWeaponFloor(stack)) { fromInv = stack; break; }
+        }
+
+        ItemStack chosen;
+        if (!fromDefault.isEmpty() && !fromInv.isEmpty()) {
+            chosen = r.nextBoolean() ? fromDefault : fromInv;
+        } else if (!fromDefault.isEmpty()) {
+            chosen = fromDefault;
+        } else {
+            chosen = fromInv;
+        }
+
+        if (chosen.isEmpty()) return false;
+        entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, chosen.copy());
+        return true;
+    }
+
+    @Nullable
+    private EntityEquipmentSlot armorSlotOf(ItemStack stack) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof ItemArmor)) return null;
+        return ((ItemArmor) stack.getItem()).armorType;
     }
 
     // -------------------------------------------------------------------------
@@ -508,7 +632,11 @@ public class TravellerEquipmentManager {
         if (entity.isAimingBow()) return;
         if (entity.world.isRemote) return;
 
-        if (entity.combat.getInCombatFlag()) {
+        // Raiders must stay visibly armed even outside combat, so players can tell them apart from
+        // travellers/workers on sight rather than only after being attacked.
+        boolean neverSheathe = entity instanceof EntityTravellerRaider;
+
+        if (entity.combat.getInCombatFlag() || neverSheathe) {
             swordHideTicks = TravellersConfig.COMBAT.swordHideDelay;
             ItemStack best = findBestWeaponInInventory();
             if (!best.isEmpty()) {
@@ -596,9 +724,9 @@ public class TravellerEquipmentManager {
     // Private helpers
     // -------------------------------------------------------------------------
 
-    private void trySpawnArmor(CultureDef c, Random r, EntityEquipmentSlot slot, float chance) {
+    private void trySpawnArmor(CultureDef c, Random r, EntityEquipmentSlot slot, float chance, CultureDef.WeightProfile profile) {
         if (r.nextFloat() < chance) {
-            ItemStack piece = c.randomArmorForSlot(slot, r);
+            ItemStack piece = c.randomArmorForSlot(slot, r, profile);
             if (!piece.isEmpty()) entity.setItemStackToSlot(slot, piece);
         }
     }
@@ -654,14 +782,14 @@ public class TravellerEquipmentManager {
         return !s.isEmpty() && s.hasTagCompound() && s.getTagCompound().getBoolean(tag);
     }
 
-    private double durabilityBias(ItemStack s) {
+    private static double durabilityBias(ItemStack s) {
         if (!s.isItemStackDamageable()) return 0.0;
         int max = s.getMaxDamage();
         int left = Math.max(0, max - s.getItemDamage());
         return Math.min(0.9, (left / (double) max) * 0.5);
     }
 
-    private double getMainHandAttackDamage(ItemStack s) {
+    private static double getMainHandAttackDamage(ItemStack s) {
         Multimap<String, AttributeModifier> map = s.getAttributeModifiers(EntityEquipmentSlot.MAINHAND);
         double sum = 0.0;
         for (AttributeModifier m : map.get(SharedMonsterAttributes.ATTACK_DAMAGE.getName())) {
@@ -670,7 +798,7 @@ public class TravellerEquipmentManager {
         return sum;
     }
 
-    private double sumAttr(Multimap<String, AttributeModifier> map, String attrName) {
+    private static double sumAttr(Multimap<String, AttributeModifier> map, String attrName) {
         double sum = 0.0;
         for (AttributeModifier mod : map.get(attrName)) {
             if (mod.getOperation() == 0) sum += mod.getAmount();

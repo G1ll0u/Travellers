@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.map;
 
-import com.jubitus.travellers.server.map.WorkerMapStream;
+import com.jubitus.travellers.server.map.stream.WorkerMapStream;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

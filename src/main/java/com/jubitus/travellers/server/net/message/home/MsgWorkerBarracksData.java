@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.client.gui.worldmap.IWorkerBarracksReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiver;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;

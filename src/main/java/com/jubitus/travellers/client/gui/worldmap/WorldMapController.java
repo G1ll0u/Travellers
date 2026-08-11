@@ -1,8 +1,8 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
 import com.jubitus.travellers.client.map.ClientTileCache;
-import com.jubitus.travellers.server.map.MapTileGenerator;
-import com.jubitus.travellers.server.map.TileKey;
+import com.jubitus.travellers.server.map.pyramid.MapTileGenerator;
+import com.jubitus.travellers.server.map.pyramid.TileKey;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapTiles;
 import com.jubitus.travellers.server.net.message.map.MsgWorkerMapView;

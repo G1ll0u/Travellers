@@ -1,14 +1,16 @@
 package com.jubitus.travellers.client.gui.transport;
 
+import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.client.gui.ITravellersGui;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
@@ -56,6 +58,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     private GuiButton donateButton;
     private GuiButton backButton;
 
+    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
+
     private int lastCost = 0;
     private boolean costValid = false;
     private int validatedVillageIdx = -1;
@@ -69,7 +73,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     private WorldMapController mapController;
     private final List<MsgWorkerGoList.Entry> poiEntries = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
 
     public GuiWorker(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorker(player.inventory, worker));
@@ -118,6 +121,9 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         this.donateButton = this.addButton(new GuiButton(
                 2, listX + buttonWidth + buttonGapX, buttonsTop + buttonHeight + buttonGapY,
                 buttonWidth, buttonHeight, I18n.format("travellers.worker.donate", "Donate")));
+
+        tooltips.set(sendButton, "travellers.worker.send.tooltip");
+        tooltips.set(donateButton, "travellers.worker.donate.tooltip");
 
         villages.clear();
         scrollOffset = 0;
@@ -169,7 +175,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         for (MsgMapWorkersUpdate.Entry e : list) {
             if (e.dim != myDim) continue;
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
         rebuildMapMarkers();
     }
@@ -185,7 +190,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
         mapController.panel.clearMarkers();
         WorldMapContentPopulator.populate(
-                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, highlighted);
+                mapController.panel, poiEntries, workerEntries, player,
+                ClientOwnerVisualsCache.getColor(), highlighted);
     }
 
     @Override
@@ -216,9 +222,10 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         if (mapController != null) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty()) {
-                drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+                drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
             }
         }
+        tooltips.render(mouseX, mouseY, this.width, this.height);
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 

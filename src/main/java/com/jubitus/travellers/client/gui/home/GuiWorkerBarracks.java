@@ -1,15 +1,16 @@
 package com.jubitus.travellers.client.gui.home;
 
 import com.jubitus.travellers.client.gui.ITravellersGui;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerBarracksReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.home.MsgAssignWorkerBarrack;
@@ -56,7 +57,6 @@ public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksRecei
 
     private WorldMapController mapController;
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
 
     private GuiButton backBtn;
     private GuiButton zoomInBtn, zoomOutBtn, recenterBtn;
@@ -164,7 +164,6 @@ public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksRecei
         for (MsgMapWorkersUpdate.Entry e : list) {
             if (e.dim != myDim) continue;
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
         if (mapController != null) rebuildMarkers();
     }
@@ -188,16 +187,17 @@ public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksRecei
     private void rebuildMarkers() {
         if (mapController == null) return;
         mapController.panel.clearMarkers();
+        int ownerColor = ClientOwnerVisualsCache.getColor();
         for (int i = 0; i < barracks.size(); i++) {
             MsgWorkerBarracksData.BarrackEntry b = barracks.get(i);
             if (i == selectedBarrack) {
                 mapController.panel.addMarker(WorldMapMarkerFactory.villageHighlighted(b.center, b.name));
             } else {
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(b.center, b.name, playerOwnerColor));
+                mapController.panel.addMarker(WorldMapMarkerFactory.home(b.center, b.name, ownerColor));
             }
         }
         WorldMapContentPopulator.populate(mapController.panel,
-                Collections.emptyList(), workerEntries, player, playerOwnerColor);
+                Collections.emptyList(), workerEntries, player, ownerColor);
     }
 
     @Override
@@ -234,7 +234,7 @@ public class GuiWorkerBarracks extends GuiScreen implements IWorkerBarracksRecei
         if (mapController != null) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty())
-                drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
         }
 
         // dragged worker ghost under the cursor

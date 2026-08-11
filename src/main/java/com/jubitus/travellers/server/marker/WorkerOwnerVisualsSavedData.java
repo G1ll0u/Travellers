@@ -2,6 +2,8 @@ package com.jubitus.travellers.server.marker;
 
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.server.MinecraftServer;
@@ -20,8 +22,8 @@ import java.util.UUID;
 public class WorkerOwnerVisualsSavedData extends WorldSavedData {
 
     public static final String DATA_NAME = "travellers_worker_owner_visuals";
-    public static final int DEFAULT_COLOR = 0x3FA7FF;
-    public static final String DEFAULT_STYLE = "plain";
+    public static final int DEFAULT_COLOR = OwnerVisualsDefaults.DEFAULT_COLOR;
+    public static final String DEFAULT_STYLE = OwnerVisualsDefaults.DEFAULT_STYLE;
 
     private final Map<UUID, Entry> entries = new HashMap<>();
 
@@ -64,7 +66,8 @@ public class WorkerOwnerVisualsSavedData extends WorldSavedData {
         markDirty();
     }
 
-    public static void applyToLoadedWorkers(MinecraftServer server, UUID ownerId, int color, String styleId) {
+    /** Pushes a newly-saved mark onto every one of the owner's hired workers, loaded or virtual, so neither ever shows a stale color. */
+    public static void applyToWorkers(MinecraftServer server, UUID ownerId, int color, String styleId) {
         String safeStyle = WorkerMarkStyle.byId(styleId).id;
         int safeColor = color & 0xFFFFFF;
 
@@ -79,6 +82,18 @@ public class WorkerOwnerVisualsSavedData extends WorldSavedData {
             for (EntityTravellerWorker worker : workers) {
                 worker.setOwnerVisuals(safeColor, safeStyle);
             }
+        }
+
+        VirtualTravellerManager vwm = VirtualTravellerManager.get(server.worlds[0]);
+        boolean changed = false;
+        for (VirtualTravellerRecord r : vwm.getRecordsView()) {
+            if (r.isHiredFollower && ownerId.equals(r.followOwnerUUID) && r.ownerColor != safeColor) {
+                r.ownerColor = safeColor;
+                changed = true;
+            }
+        }
+        if (changed) {
+            vwm.markDirty();
         }
     }
 

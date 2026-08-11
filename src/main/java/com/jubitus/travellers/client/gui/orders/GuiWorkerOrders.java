@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.orders;
 
+import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -39,6 +40,8 @@ public class GuiWorkerOrders extends GuiScreen implements ITravellersGui {
     private GuiButton goButton;
     private GuiButton choirButton;
     private GuiButton backButton;
+
+    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
 
     private int xSize = 176;
     private int ySize = 166;
@@ -129,6 +132,11 @@ public class GuiWorkerOrders extends GuiScreen implements ITravellersGui {
                 I18n.format("travellers.gui.back")
         ));
 
+        tooltips.set(followButton, "travellers.worker.orders.follow.tooltip");
+        tooltips.set(followPlayerButton, "travellers.worker.orders.follow_player.tooltip");
+        tooltips.set(leaderButton, "travellers.worker.orders.make_leader.tooltip");
+        tooltips.set(choirButton, "travellers.worker.orders.choir.tooltip");
+
         refreshButtonStates();
     }
 
@@ -136,7 +144,10 @@ public class GuiWorkerOrders extends GuiScreen implements ITravellersGui {
         boolean hired = worker.isHiredFollower();
         UUID ownerId = worker.getFollowOwnerId();
         boolean hiredByMe = hired && ownerId != null && ownerId.equals(player.getUniqueID());
-        int leaderCount = worker.getLeaderFollowerCount();
+        // Authoritative (loaded + virtual) count, kept fresh by MsgSyncLeaderFollowerCount — not
+        // getLeaderFollowerCount(), which only counts loaded followers and used to make this button
+        // display a shrinking number as this leader's followers virtualize out of range.
+        int leaderCount = worker.getDisplayLeaderFollowerCount();
 
         this.goButton.visible = hiredByMe;
         this.goButton.enabled = hiredByMe;
@@ -255,6 +266,7 @@ public class GuiWorkerOrders extends GuiScreen implements ITravellersGui {
         drawOrdersTitle();
 
         super.drawScreen(mouseX, mouseY, partialTicks);
+        tooltips.render(mouseX, mouseY, this.width, this.height);
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 

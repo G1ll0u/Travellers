@@ -146,7 +146,6 @@ public class Travellers {
 
         // Client-only stuff
         if (event.getSide().isClient()) {
-            com.jubitus.travellers.client.sound.TravellerSoundCache.preload();
             MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.client.sound.SoundCodecHooks.class);
             ClientProxy.registerRenderers();
             FormationHubKeyHandler formationKeyHandler = new FormationHubKeyHandler();
@@ -247,34 +246,10 @@ public class Travellers {
                         128, 1, true,
                         0x3d2c1e, 0x8b2e1a
                 );
-
-                if (TravellersConfig.SPAWN_RAIDERS.vanillaSpawnWeight > 0) {
-                    for (Biome biome : ForgeRegistries.BIOMES) {
-                        EntityRegistry.addSpawn(
-                                EntityTravellerRaider.class,
-                                TravellersConfig.SPAWN_RAIDERS.vanillaSpawnWeight,
-                                TravellersConfig.SPAWN_RAIDERS.vanillaSpawnMinGroupSize,
-                                TravellersConfig.SPAWN_RAIDERS.vanillaSpawnMaxGroupSize,
-                                EnumCreatureType.CREATURE,
-                                biome
-                        );
-                    }
-                }
             }
 
-            // Spawns for normal travellers only (merchant is special, usually no random spawns)
-            if (TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnWeight > 0) {
-                for (Biome biome : ForgeRegistries.BIOMES) {
-                    EntityRegistry.addSpawn(
-                            EntityTraveller.class,
-                            TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnWeight,
-                            TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnMinGroupSize,
-                            TravellersConfig.SPAWN_TRAVELLERS.vanillaSpawnMaxGroupSize,
-                            EnumCreatureType.CREATURE,
-                            biome
-                    );
-                }
-            }
+            // Note: travellers/raiders/workers no longer register a vanilla biome spawn entry — they
+            // spawn exclusively through the virtual population controller (TravellerSoftSpawner).
 
         } else {
             System.out.println("[Travellers] Traveller entity disabled in config.");
@@ -304,7 +279,7 @@ public class Travellers {
 
         // Worldmap tiles are persisted off-thread (see MapPyramidPersistenceEvents); make sure
         // any in-flight writes actually land on disk before the process exits.
-        com.jubitus.travellers.server.map.MapPyramidStore.shutdownIOAndAwait();
+        com.jubitus.travellers.server.map.pyramid.MapPyramidStore.shutdownIOAndAwait();
     }
 
     @Mod.EventHandler

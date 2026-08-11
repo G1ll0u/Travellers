@@ -2,8 +2,13 @@ package com.jubitus.travellers.client.gui.worldmap;
 
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IBattleMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IForeignUnitMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
@@ -41,9 +46,8 @@ public class GuiPlayerWorldMap extends GuiScreen
 
     private final List<MsgWorkerGoList.Entry> poiEntries  = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private final List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
-    private final List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
+    private final List<com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
+    private final List<com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
 
     public GuiPlayerWorldMap(EntityPlayer player, int contextWorkerId) {
         this.player = player;
@@ -193,20 +197,19 @@ public class GuiPlayerWorldMap extends GuiScreen
         workerEntries.clear();
         for (MsgMapWorkersUpdate.Entry e : list) {
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
         rebuildMarkers();
     }
 
     @Override
-    public void receiveBattles(List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> entries) {
+    public void receiveBattles(List<com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.Entry> entries) {
         battleEntries.clear();
         if (entries != null) battleEntries.addAll(entries);
         rebuildMarkers();
     }
 
     @Override
-    public void receiveForeignUnits(List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> entries) {
+    public void receiveForeignUnits(List<com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.Entry> entries) {
         foreignEntries.clear();
         if (entries != null) foreignEntries.addAll(entries);
         rebuildMarkers();
@@ -216,10 +219,10 @@ public class GuiPlayerWorldMap extends GuiScreen
         if (mapController == null) return;
         mapController.panel.clearMarkers();
         WorldMapContentPopulator.populate(
-                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor);
+                mapController.panel, poiEntries, workerEntries, player, ClientOwnerVisualsCache.getColor());
         int myDim = Minecraft.getMinecraft().world.provider.getDimension();
         WorldMapContentPopulator.populateForeignUnits(mapController.panel, foreignEntries, myDim);
-        for (com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry e : battleEntries) {
+        for (com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.Entry e : battleEntries) {
             if (e.dim != myDim) continue;
             mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
         }

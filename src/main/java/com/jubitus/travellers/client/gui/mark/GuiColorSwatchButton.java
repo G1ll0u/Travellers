@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.mark;
 
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 
@@ -21,14 +22,13 @@ public class GuiColorSwatchButton extends GuiButton {
 
         this.hovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
 
-        int border = this.enabled ? 0xFFAAAAAA : 0xFF666666;
-        int fill = 0xFF000000 | color;
+        int fill = this.enabled ? (0xFF000000 | color) : 0xFF555555;
 
-        drawRect(this.x, this.y, this.x + this.width, this.y + this.height, border);
+        TravellersGuiTheme.drawBorder(this.x, this.y, this.width, this.height);
         drawRect(this.x + 1, this.y + 1, this.x + this.width - 1, this.y + this.height - 1, fill);
 
         if (this.hovered) {
-            drawRect(this.x + 2, this.y + 2, this.x + this.width - 2, this.y + this.height - 2, 0x22FFFFFF);
+            drawRect(this.x + 2, this.y + 2, this.x + this.width - 2, this.y + this.height - 2, TravellersGuiTheme.COL_ROW_HOVER);
         }
     }
 }

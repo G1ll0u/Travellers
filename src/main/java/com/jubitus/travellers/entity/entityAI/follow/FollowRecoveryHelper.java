@@ -151,7 +151,7 @@ public final class FollowRecoveryHelper {
                                                           double maxLeaderDistance) {
         return findBestSpotNear(
                 worker,
-                leader,
+                leader.posX, leader.posY, leader.posZ,
                 leader.posX,
                 leader.posY,
                 leader.posZ,
@@ -160,6 +160,41 @@ public final class FollowRecoveryHelper {
                 minLeaderDistance,
                 maxLeaderDistance,
                 10.0D
+        );
+    }
+
+    /**
+     * Same escape search as {@link #findPitEscapeTeleport}, for a worker whose escort leader is
+     * currently VIRTUAL (offscreen) - there's no loaded {@link EntityLivingBase} to read a position
+     * from, so the leader's coordinates are passed directly instead.
+     */
+    @Nullable
+    public static TeleportCandidate findPitEscapeTeleportRaw(
+            EntityTravellerWorker worker,
+            double leaderX, double leaderY, double leaderZ,
+            double goalX, double goalY, double goalZ,
+            double maxStep) {
+
+        double dx = goalX - worker.posX;
+        double dy = goalY - worker.posY;
+        double dz = goalZ - worker.posZ;
+        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < 0.5D) return null;
+
+        double step = Math.min(maxStep, dist);
+        double anchorX = worker.posX + (dx / dist) * step;
+        double anchorY = worker.posY + (dy / dist) * step;
+        double anchorZ = worker.posZ + (dz / dist) * step;
+
+        return findBestSpotNear(
+                worker,
+                leaderX, leaderY, leaderZ,
+                anchorX, anchorY, anchorZ,
+                4,
+                false,
+                0.0D,
+                256.0D,
+                step + 5.0D
         );
     }
 
@@ -190,7 +225,7 @@ public final class FollowRecoveryHelper {
 
         return findBestSpotNear(
                 worker,
-                leader,
+                leader.posX, leader.posY, leader.posZ,
                 anchorX,
                 anchorY,
                 anchorZ,
@@ -202,9 +237,16 @@ public final class FollowRecoveryHelper {
         );
     }
 
+    /**
+     * Leader position is passed as raw coordinates (not an {@link EntityLivingBase}) purely for
+     * scoring/distance-filtering purposes - it's only ever read as X/Y/Z, so a virtual (offscreen)
+     * leader's last known position works exactly as well as a loaded entity's.
+     */
     @Nullable
     private static TeleportCandidate findBestSpotNear(EntityTravellerWorker worker,
-                                                      EntityLivingBase leader,
+                                                      double leaderX,
+                                                      double leaderY,
+                                                      double leaderZ,
                                                       double centerX,
                                                       double centerY,
                                                       double centerZ,
@@ -233,9 +275,9 @@ public final class FollowRecoveryHelper {
                     double py = pos.getY();
                     double pz = pos.getZ() + 0.5D;
 
-                    double dlx = px - leader.posX;
-                    double dly = py - leader.posY;
-                    double dlz = pz - leader.posZ;
+                    double dlx = px - leaderX;
+                    double dly = py - leaderY;
+                    double dlz = pz - leaderZ;
                     double distToLeader = Math.sqrt(dlx * dlx + dly * dly + dlz * dlz);
                     if (distToLeader < minLeaderDistance || distToLeader > maxLeaderDistance) continue;
 
@@ -247,7 +289,7 @@ public final class FollowRecoveryHelper {
 
                     double score = 0.0D;
                     score += distFromWorker * 1.20D;
-                    score += Math.abs(py - leader.posY) * 1.55D;
+                    score += Math.abs(py - leaderY) * 1.55D;
                     score += distToLeader * 0.45D;
                     if (world.canSeeSky(pos)) score += 18.0D;
 
@@ -274,12 +316,43 @@ public final class FollowRecoveryHelper {
         IBlockState atFeet = world.getBlockState(feet);
         IBlockState atHead = world.getBlockState(feet.up());
 
+        // Water is Material.isReplaceable() == true (same as air), so without this explicit
+        // check a solid floor sitting under a water column (a seabed, a submerged ledge) reads
+        // as "standable" here — this is what let teleport rescue land workers underwater to
+        // suffocate. isWorkerRescueFeetSpot below already guards against this; this method didn't.
+        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
+
         boolean freeFeet = atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(world, feet) == null;
         boolean freeHead = atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(world, feet.up()) == null;
         if (!freeFeet || !freeHead) return false;
 
         BlockFaceShape shape = below.getBlockFaceShape(world, feet.down(), EnumFacing.UP);
         return shape == BlockFaceShape.SOLID;
+    }
+
+    /**
+     * Water-aware replacement for {@code World.getTopSolidOrLiquidBlock}. Despite its name, the
+     * vanilla method passes straight through liquid columns (Material.WATER.blocksMovement() is
+     * false) and returns a position near the seabed, not the water surface — see
+     * CampsiteManager.groundColumn for another place that hit this and worked around it by
+     * rejecting water columns outright. Followers can't do that (they need a swim-to goal over
+     * open water), so this instead rescans from above to find the column's true top when vanilla's
+     * result turns out to be a liquid block. Dry-land columns are returned unchanged.
+     */
+    public static BlockPos topSolidOrWaterSurface(World world, BlockPos columnBase) {
+        BlockPos top = world.getTopSolidOrLiquidBlock(columnBase);
+        if (!world.getBlockState(top).getMaterial().isLiquid()) {
+            return top;
+        }
+
+        int scanFrom = Math.min(world.getActualHeight() - 1, world.getSeaLevel() + 32);
+        for (int y = scanFrom; y > top.getY(); y--) {
+            BlockPos p = new BlockPos(columnBase.getX(), y, columnBase.getZ());
+            if (!world.isAirBlock(p)) {
+                return p;
+            }
+        }
+        return top;
     }
 
     /**
@@ -291,32 +364,9 @@ public final class FollowRecoveryHelper {
     public static TeleportCandidate findPitEscapeTeleport(
             EntityTravellerWorker worker,
             EntityLivingBase leader,
-            double goalX, double goalY, double goalZ) {
-
-        double dx = goalX - worker.posX;
-        double dy = goalY - worker.posY;
-        double dz = goalZ - worker.posZ;
-        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (dist < 0.5D) return null;
-
-        double step = Math.min(5.0D, dist);
-        double anchorX = worker.posX + (dx / dist) * step;
-        double anchorY = worker.posY + (dy / dist) * step;
-        double anchorZ = worker.posZ + (dz / dist) * step;
-
-        // Generous max-worker-distance so we can escape a deep pit.
-        return findBestSpotNear(
-                worker,
-                leader,
-                anchorX,
-                anchorY,
-                anchorZ,
-                4,
-                false,
-                0.0D,
-                256.0D,
-                step + 5.0D
-        );
+            double goalX, double goalY, double goalZ,
+            double maxStep) {
+        return findPitEscapeTeleportRaw(worker, leader.posX, leader.posY, leader.posZ, goalX, goalY, goalZ, maxStep);
     }
 
     /**
@@ -331,7 +381,7 @@ public final class FollowRecoveryHelper {
                                                                double minLeaderDistance) {
         return findBestSpotNear(
                 worker,
-                leader,
+                leader.posX, leader.posY, leader.posZ,
                 leader.posX,
                 leader.posY,
                 leader.posZ,

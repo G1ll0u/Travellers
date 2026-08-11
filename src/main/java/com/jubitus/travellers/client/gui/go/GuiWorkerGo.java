@@ -1,16 +1,18 @@
 package com.jubitus.travellers.client.gui.go;
 
+import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.GuiWorldMapPanel;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
@@ -51,6 +53,8 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private boolean showEquipDialog = false;
     private GuiButton equipStayButton, equipReturnButton, equipCancelButton;
 
+    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
+
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
 
@@ -73,7 +77,6 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private BlockPos selectedMapPos = null;
 
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
 
     private int guiLeft, guiTop;
 
@@ -177,6 +180,10 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         showEquipDialog = false;
         applyEquipDialogVisibility();
 
+        tooltips.set(getEquipButton, "travellers.worker.barracks.get_equip.tooltip");
+        tooltips.set(equipStayButton, "travellers.worker.barracks.equip_stay.tooltip");
+        tooltips.set(equipReturnButton, "travellers.worker.barracks.equip_return.tooltip");
+
         rows.clear();
         scrollOffset = 0;
         selectedIndex = -1;
@@ -216,14 +223,13 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         for (MsgMapWorkersUpdate.Entry e : list) {
             if (e.dim != myDim) continue;
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
         rebuildMarkers();
     }
 
     private void rebuildMarkers() {
         if (mapController == null) return;
-        int workerColor = worker != null ? worker.getOwnerMarkColor() : playerOwnerColor;
+        int workerColor = worker != null ? worker.getOwnerMarkColor() : ClientOwnerVisualsCache.getColor();
 
         // Convert rows to GoList entries for the populator
         java.util.List<MsgWorkerGoList.Entry> pois = new java.util.ArrayList<>();
@@ -293,9 +299,10 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         if (mapController != null) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty()) {
-                drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
             }
         }
+        tooltips.render(mouseX, mouseY, this.width, this.height);
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 

@@ -106,9 +106,7 @@ public class MsgOpenClientWorkerGui implements IMessage {
 
                     case BEHAVIOR: {
                         Entity e = world.getEntityByID(msg.entityId);
-                        if (e instanceof EntityTravellerWorker) {
-                            mc.displayGuiScreen(new GuiWorkerBehavior(player, (EntityTravellerWorker) e));
-                        }
+                        mc.displayGuiScreen(new GuiWorkerBehavior(player, e instanceof EntityTravellerWorker ? (EntityTravellerWorker) e : null, null));
                         return;
                     }
 

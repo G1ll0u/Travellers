@@ -1,10 +1,16 @@
 package com.jubitus.travellers.entity.culture;
 
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.entity.equipment.TravellerEquipmentManager;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.*;
 import net.minecraft.util.ResourceLocation;
 
 public final class CultureDef {
+
+    /** Which of TravellersConfig.Equipment's rarity-weight triples to draw spawn gear from. */
+    public enum WeightProfile { TRAVELLER, RAIDER, WORKER }
+
     public final String id;
     public final String displayName;
     private final java.util.List<TravellerAppearance> travellerLooks = new java.util.ArrayList<>();
@@ -133,42 +139,44 @@ public final class CultureDef {
 
 
     /**
-     * Weapon or tool (melee-ish); excludes bows & armor, and excludes 'foreigntrade' goods
+     * A real melee weapon (sword-like; never a plain tool like an axe/pickaxe/hoe — those are
+     * excluded so they never compete with actual weapons for the mainhand slot at spawn) picked
+     * with quality-rarity weighting (see {@link #pickWeightedByQuality}). Falls back to any tool
+     * only if the culture genuinely has no sword-like item at all, so an entity is never left
+     * completely unarmed for lack of data.
      */
-    public ItemStack randomMeleeOrTool(java.util.Random r) {
-        java.util.List<ItemStack> pool = collectNonForeignItems(stack -> {
+    public ItemStack randomMeleeOrTool(java.util.Random r, WeightProfile profile) {
+        java.util.List<ItemStack> swords = collectItems(stack -> {
             Item item = stack.getItem();
-            if (item instanceof ItemBow) return false;
-            if (item instanceof ItemArmor) return false;
-            if (item instanceof ItemSword) return true;
-            return item instanceof ItemTool;
+            if (item instanceof ItemBow || item instanceof ItemArmor) return false;
+            if (TravellerEquipmentManager.isBelowWeaponFloor(stack)) return false;
+            return TravellerEquipmentManager.isWeapon(stack);
         });
-        return pickRandom(pool, r);
+        if (!swords.isEmpty()) {
+            return pickWeightedByQuality(swords, r, TravellerEquipmentManager::scoreWeapon, profile);
+        }
+
+        java.util.List<ItemStack> tools = collectItems(stack -> {
+            Item item = stack.getItem();
+            if (item instanceof ItemBow || item instanceof ItemArmor || !(item instanceof ItemTool)) return false;
+            return !TravellerEquipmentManager.isGoldTier(stack);
+        });
+        return pickRandom(tools, r);
     }
 
-    private java.util.List<ItemStack> collectNonForeignItems(java.util.function.Predicate<ItemStack> pred) {
+    private java.util.List<ItemStack> collectItems(java.util.function.Predicate<ItemStack> pred) {
         java.util.List<ItemStack> out = new java.util.ArrayList<>();
-        for (java.util.Map.Entry<String, java.util.List<ItemStack>> e : itemsByCategory.entrySet()) {
-            String category = e.getKey();
-            // SKIP foreigntrade entirely
-            if (category != null && category.equalsIgnoreCase("foreigntrade")) {
-                continue;
-            }
-
-            java.util.List<ItemStack> list = e.getValue();
+        for (java.util.List<ItemStack> list : itemsByCategory.values()) {
             if (list == null) continue;
-
             for (ItemStack s : list) {
                 if (s == null || s.isEmpty()) continue;
-                if (pred.test(s)) {
-                    out.add(s);
-                }
+                if (pred.test(s)) out.add(s);
             }
         }
         return out;
     }
 
-    // --- PUBLIC: culture-aware equipment picks (NON-foreigntrade only) ---
+    // --- PUBLIC: culture-aware equipment picks ---
 
     private ItemStack pickRandom(java.util.List<ItemStack> list, java.util.Random r) {
         if (list == null || list.isEmpty()) return ItemStack.EMPTY;
@@ -176,10 +184,95 @@ public final class CultureDef {
     }
 
     /**
-     * Any bow-like item from culture, excluding 'foreigntrade'
+     * Picks an item from the pool with a rarity-tier weighting instead of a flat uniform draw:
+     * items are ranked by {@code scorer}, split into common/good/rare buckets by rank, then a
+     * bucket is rolled using the configured weights (see {@link TravellersConfig.Equipment})
+     * before picking uniformly within that bucket. This keeps the top-tier gear rare while still
+     * guaranteeing the "common" bucket is drawn from the whole culture pool (steel/leather/etc.
+     * included) rather than whatever happened to survive an old category exclusion.
      */
+    private ItemStack pickWeightedByQuality(java.util.List<ItemStack> pool, java.util.Random r,
+                                             java.util.function.ToDoubleFunction<ItemStack> scorer,
+                                             WeightProfile profile) {
+        if (pool.isEmpty()) return ItemStack.EMPTY;
+
+        java.util.List<ItemStack> signature = filterCultureSignature(pool);
+        java.util.List<ItemStack> effectivePool = (!signature.isEmpty()
+                && r.nextFloat() < TravellersConfig.EQUIPMENT.cultureSignaturePreferenceChance)
+                ? signature : pool;
+
+        if (effectivePool.size() == 1 || !TravellersConfig.EQUIPMENT.rarityWeightingEnabled) {
+            return pickRandom(effectivePool, r);
+        }
+
+        java.util.List<ItemStack> sorted = new java.util.ArrayList<>(effectivePool);
+        sorted.sort(java.util.Comparator.comparingDouble(scorer));
+
+        int n = sorted.size();
+        int rareStart = Math.max(0, n - Math.max(1, (int) Math.ceil(n * 0.15)));
+        int goodStart = Math.max(0, n - Math.max(1, (int) Math.ceil(n * 0.50)));
+        if (goodStart > rareStart) goodStart = rareStart;
+
+        java.util.List<ItemStack> rareBucket = sorted.subList(rareStart, n);
+        java.util.List<ItemStack> goodBucket = sorted.subList(goodStart, rareStart);
+        java.util.List<ItemStack> commonBucket = sorted.subList(0, goodStart);
+
+        int commonWeight; int goodWeight; int rareWeight;
+        switch (profile) {
+            case RAIDER:
+                commonWeight = TravellersConfig.EQUIPMENT.raiderCommonWeight;
+                goodWeight = TravellersConfig.EQUIPMENT.raiderGoodWeight;
+                rareWeight = TravellersConfig.EQUIPMENT.raiderRareWeight;
+                break;
+            case WORKER:
+                commonWeight = TravellersConfig.EQUIPMENT.workerCommonWeight;
+                goodWeight = TravellersConfig.EQUIPMENT.workerGoodWeight;
+                rareWeight = TravellersConfig.EQUIPMENT.workerRareWeight;
+                break;
+            default:
+                commonWeight = TravellersConfig.EQUIPMENT.commonWeight;
+                goodWeight = TravellersConfig.EQUIPMENT.goodWeight;
+                rareWeight = TravellersConfig.EQUIPMENT.rareWeight;
+        }
+        int total = Math.max(1, commonWeight + goodWeight + rareWeight);
+        int roll = r.nextInt(total);
+
+        java.util.List<ItemStack> chosenBucket;
+        if (roll < rareWeight && !rareBucket.isEmpty()) {
+            chosenBucket = rareBucket;
+        } else if (roll < rareWeight + goodWeight && !goodBucket.isEmpty()) {
+            chosenBucket = goodBucket;
+        } else if (!commonBucket.isEmpty()) {
+            chosenBucket = commonBucket;
+        } else if (!goodBucket.isEmpty()) {
+            chosenBucket = goodBucket;
+        } else {
+            chosenBucket = rareBucket;
+        }
+
+        return chosenBucket.get(r.nextInt(chosenBucket.size())).copy();
+    }
+
+    /**
+     * Items whose registry name identifies them as this culture's own signature gear
+     * (e.g. "millenaire:normanBroadsword" for the "norman" culture), as opposed to a generic
+     * item (vanilla swords/armor, or another culture's) also present in this culture's item pool.
+     */
+    private java.util.List<ItemStack> filterCultureSignature(java.util.List<ItemStack> pool) {
+        String idLower = id.toLowerCase(java.util.Locale.ROOT);
+        java.util.List<ItemStack> out = new java.util.ArrayList<>();
+        for (ItemStack s : pool) {
+            ResourceLocation rl = s.getItem().getRegistryName();
+            if (rl != null && rl.getPath().toLowerCase(java.util.Locale.ROOT).contains(idLower)) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    /** Any bow-like item from culture. */
     public ItemStack randomBow(java.util.Random r) {
-        java.util.List<ItemStack> pool = collectNonForeignItems(stack -> {
+        java.util.List<ItemStack> pool = collectItems(stack -> {
             Item item = stack.getItem();
             if (item instanceof ItemBow) return true;
             if (item.getRegistryName() != null) {
@@ -191,27 +284,25 @@ public final class CultureDef {
         return pickRandom(pool, r);
     }
 
-    /**
-     * Any armor piece (any slot), excluding 'foreigntrade'
-     */
-    public ItemStack randomArmor(java.util.Random r) {
-        java.util.List<ItemStack> pool = collectNonForeignItems(stack -> stack.getItem() instanceof ItemArmor);
-        return pickRandom(pool, r);
+    /** Any armor piece (any slot), quality-rarity weighted. Gold-tier armor is never picked. */
+    public ItemStack randomArmor(java.util.Random r, WeightProfile profile) {
+        java.util.List<ItemStack> pool = collectItems(stack -> stack.getItem() instanceof ItemArmor
+                && !TravellerEquipmentManager.isGoldTier(stack));
+        return pickWeightedByQuality(pool, r, s -> TravellerEquipmentManager.scoreArmor(s, ((ItemArmor) s.getItem()).armorType), profile);
     }
 
-    /**
-     * Armor piece for a specific slot, excluding 'foreigntrade'
-     */
-    public ItemStack randomArmorForSlot(EntityEquipmentSlot slot, java.util.Random r) {
+    /** Armor piece for a specific slot, quality-rarity weighted. Gold-tier armor is never picked. */
+    public ItemStack randomArmorForSlot(EntityEquipmentSlot slot, java.util.Random r, WeightProfile profile) {
         if (slot == null || !slot.getSlotType().equals(EntityEquipmentSlot.Type.ARMOR)) {
             return ItemStack.EMPTY;
         }
-        java.util.List<ItemStack> pool = collectNonForeignItems(stack -> {
+        java.util.List<ItemStack> pool = collectItems(stack -> {
             if (!(stack.getItem() instanceof ItemArmor)) return false;
+            if (TravellerEquipmentManager.isGoldTier(stack)) return false;
             ItemArmor armor = (ItemArmor) stack.getItem();
             return armor.armorType == slot;
         });
-        return pickRandom(pool, r);
+        return pickWeightedByQuality(pool, r, s -> TravellerEquipmentManager.scoreArmor(s, slot), profile);
     }
 
     // randomTradeGood(...) can KEEP using foreigntrade if you want:

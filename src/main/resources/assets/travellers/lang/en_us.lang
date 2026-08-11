@@ -10,9 +10,12 @@ travellers.worker.cost=Travel cost: %s
 travellers.worker.cost_unknown=Travel cost: (validate)
 travellers.worker.validate=Validate
 travellers.worker.donate=Donate
+travellers.worker.send.tooltip=Sell the cargo to this village for money and reputation.
+travellers.worker.donate.tooltip=Give the cargo to this village for free. Earns more reputation, but no money.
 
 travellers.worker.hub.title=Traveller Options
 travellers.worker.hub.transport=Transport
+travellers.worker.hub.transport.tooltip=Send this henchman to a village to sell or donate its cargo.
 travellers.worker.hub.follow=Orders
 travellers.worker.follow.title=Follower Options
 travellers.worker.orders.hire=Hire (%s)
@@ -24,26 +27,33 @@ travellers.worker.follow.not_enough_money=You don't have enough money.
 travellers.worker.follow.hired_by_other=This traveller is already hired by someone else.
 travellers.worker.hub.inventory=Inventory
 travellers.worker.orders.make_leader=Lead
+travellers.worker.orders.make_leader.tooltip=Turn this henchman into a group leader. Your followers will follow him.
 travellers.worker.orders.follow_on=Follow: ON
 travellers.worker.orders.follow_off=Follow: OFF
+travellers.worker.orders.follow.tooltip=Toggle whether this henchman actively follows its leader or you.
 travellers.worker.inventory.title=Henchman inventory
 travellers.worker.orders.recruit=Go recruit
 travellers.worker.orders.follow_player=Follow me
 travellers.worker.orders.following_player=Follow me
+travellers.worker.orders.follow_player.tooltip=Stop following its escort leader and follow you directly instead.
 travellers.worker.orders.title=Orders
 travellers.worker.hub.behavior=Behavior
 travellers.worker.hub.map=Map
 travellers.worker.hub.barracks=Barracks
+travellers.worker.hub.barracks.tooltip=Open barracks menu where you can assign a barrack to each worker.
 
 travellers.worker.barracks.list=Barracks
 travellers.worker.barracks.unassigned=Unassigned Henchmen
 travellers.worker.barracks.selected=Selected Barrack Henchmen
-travellers.worker.barracks.dragdrop=Drag & drop to assign/unassign
+travellers.worker.barracks.dragdrop=Select a barrack and drag & drop to assign/unassign henchmen
 travellers.worker.barracks.delete=Delete Barrack
 travellers.worker.barracks.get_equip=Get Equipment
+travellers.worker.barracks.get_equip.tooltip=Send this henchman to fetch better gear from a village or barrack.
 travellers.worker.barracks.equip_title=Choose mission:
 travellers.worker.barracks.equip_stay=Equip and Stay
+travellers.worker.barracks.equip_stay.tooltip=Fetch new equipment, then stay there instead of coming back.
 travellers.worker.barracks.equip_return=Equip and Return
+travellers.worker.barracks.equip_return.tooltip=Fetch new equipment, then come back to its previous spot.
 travellers.worker.barracks.full=This barrack is full (one Henchman per bed).
 
 travellers.gui.back=Back
@@ -61,8 +71,8 @@ travellers.map.center=Center
 travellers.map.teleport=Teleport
 travellers.map.teleport.active=Click map...
 travellers.map.spawn_traveller=Spawn traveller
-travellers.map.spawn_worker=Spawn worker
-travellers.map.spawn_raider=Spawn raider
+travellers.map.spawn_worker=Spawn henchmen
+travellers.map.spawn_raider=Spawn raiders
 travellers.map.spawn.active=Click map...
 travellers.map.chunks.legend.loaded_normal=Loaded chunks (normal)
 travellers.map.chunks.legend.loaded_merchants=Chunks loaded by travellers Henchmen
@@ -81,6 +91,7 @@ travellers.worker.enemies.count=Enemies: %s
 travellers.worker.village_relations.title=Village relations
 travellers.worker.village_relations.hint=Select a village, then toggle enemy.
 travellers.worker.village_relations.toggle_enemy=Toggle enemy
+travellers.worker.village_relations.none_known=No known villages nearby yet.
 
 travellers.home_name_prompt.title=Name of your home
 travellers.home_name_prompt.subtitle=You can assign it to hired Henchmen and send them here, more to come.
@@ -95,14 +106,16 @@ travellers.worker.orders.go_home_no_home=Go to barrack (none)
 travellers.worker.orders.leader_count=Leader (%s)
 travellers.worker.orders.choir_start=Sing a Song
 travellers.worker.orders.choir_stop=Stop Singing
+travellers.worker.orders.choir.tooltip=Have this henchman sing along with other nearby singing henchmen (WIP ONLY 1 SONG FOR NORMANS)
 
 travellers.worker.recruit.start=Recruit
 travellers.worker.recruit.fee=Fee: %s
 travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
 
-travellers.worker.home_list.empty=No barracks assigned.
+travellers.worker.home_list.empty=No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.
 
 travellers.worker.hub.formation=Formations
+travellers.worker.hub.formation.tooltip=Manage your henchmen groups and formation settings.
 
 travellers.worker.formation.title=Formation & Groups
 travellers.worker.formation.preview=Radar Preview
@@ -161,19 +174,31 @@ travellers.worker.formation.hub_title=Formation & Groups
 travellers.worker.formation.orders_tab=Leader Orders
 travellers.worker.formation.you=You
 travellers.worker.formation.go=Go to...
+travellers.worker.formation.go.tooltip=Send this leader and its whole group to a chosen destination.
 travellers.worker.formation.come_back=Come Back
+travellers.worker.formation.come_back.tooltip=Dismiss the selected henchmen back to you.
 travellers.worker.formation.merge=Merge with...
+travellers.worker.formation.merge.tooltip=Members of this group (leader included) become followers of the group or yourself.
+travellers.worker.formation.follower_merge.tooltip=Move the selected henchmen into an existing leader's group.
 travellers.worker.formation.merge_cancel=Cancel Merge
 travellers.worker.formation.merge_hint=Click a group to merge into
 travellers.worker.formation.set_home=Barracks
 travellers.worker.formation.group=Create Group
-travellers.worker.formation.followers_selected=%s workers selected
+travellers.worker.formation.group.tooltip=Group the selected henchmen together under a new leader.
+travellers.worker.formation.followers_selected=%s henchmen selected
 travellers.worker.formation.assign_hint=Click a leader to assign the selected followers
 travellers.worker.formation.go_pick_hint=Click on the map to set destination
 travellers.worker.formation.go_pick_cancel=Esc to cancel
 travellers.worker.formation.go_cancel=Cancel
 travellers.worker.formation.get_equip=Get Equipment...
+travellers.worker.formation.get_equip.tooltip=Send this leader and its group to fetch better gear.
 travellers.worker.formation.equip_pick_hint=Click a village or barrack on the map
+travellers.worker.formation.follow=Follow...
+travellers.worker.formation.follow.tooltip=Make this leader march behind another group or you, keeping its own group intact.
+travellers.worker.formation.follow_hint=Click a group or "You" for this group to follow
+travellers.worker.formation.follow_on=Follow: ON
+travellers.worker.formation.follow_off=Follow: OFF
+travellers.worker.formation.follow_toggle.tooltip=Turn following you on or off. When off, this leader stays anchored in place.
 
 travellers.worker.home_list.delete=Delete
 travellers.worker.home_list.get_equip=Get Equipment
@@ -215,7 +240,20 @@ travellers.map.legend.camp_slot=Camp shelter
 # Population map
 travellers.map.population.traveller=Travellers: %d (%d loaded, %d virtual)
 travellers.map.population.raider=Raiders: %d (%d loaded, %d virtual)
-travellers.map.population.worker=Workers: %d (%d loaded, %d virtual)
+travellers.map.population.worker=Henchmen: %d (%d loaded, %d virtual)
+
+# Henchman/unit hover tooltips
+travellers.map.worker.unnamed=Henchman #%d
+travellers.map.worker.unknown=Somebody
+travellers.map.worker.hp=§c♥§r %d/%d
+travellers.map.worker.in_battle=In battle!
+travellers.map.worker.following=Following: %s
+travellers.map.worker.status.transport=On a transport job
+travellers.map.worker.status.returning=Returning home
+travellers.map.worker.status.recruiting=On a recruit job
+travellers.map.worker.status.get_equipment=Fetching equipment
+travellers.map.worker.status.going_home=Going home
+travellers.map.worker.status.going_to=Heading to a destination
 
 # On-screen notifications
 travellers.notify.hire.success=Hired!
@@ -225,32 +263,32 @@ travellers.notify.hire.not_enough_money=You don't have enough money (%s needed).
 travellers.notify.hire.payment_failed=Hire failed: money could not be deducted.
 travellers.notify.hire.dismissed=The travellers will no longer follow you.
 
-travellers.notify.recruit.not_your_worker=You don't control this worker.
+travellers.notify.recruit.not_your_worker=You don't control this henchman.
 travellers.notify.recruit.busy=I'm busy right now.
 travellers.notify.recruit.no_villages_in_range=No villages in range to recruit from.
 travellers.notify.recruit.not_enough_fee=Recruit fee: %s (you have %s)
 travellers.notify.recruit.route_not_enough_fee=Recruit fee: %s
 travellers.notify.recruit.payment_failed=Recruit fee payment failed. Try again.
 travellers.notify.recruit.mission_started=Recruit mission started. Fee paid: %s
-travellers.notify.recruit.workers_recruited=Recruited %s workers at %s.
+travellers.notify.recruit.henchmen_recruited=Recruited %s henchmen at %s.
 travellers.notify.recruit.mission_completed=Recruit mission completed.
 travellers.notify.recruit.village_too_close=That village is too close to recruit from. Minimum distance: %sm
 
-travellers.notify.worker.not_hired_transport=You must hire this worker to use Transport.
-travellers.notify.worker.not_hired_inventory=You can only access the pack of a worker you've hired.
-travellers.notify.worker.not_hired_orders=You can only give orders to a worker you've hired.
-travellers.notify.worker.not_hired_behavior=You can only manage behavior of a worker you've hired.
-travellers.notify.worker.not_hired_recruit=You can only recruit with a worker you've hired.
-travellers.notify.worker.not_hired_home=You can only manage home for a worker you've hired.
-travellers.notify.worker.not_hired_go=You can only order a worker you've hired.
-travellers.notify.worker.not_hired_formation=You can only manage formation of a worker you've hired.
-travellers.notify.worker.not_hired_village_relations=You can only manage village relations of a worker you've hired.
+travellers.notify.worker.not_hired_transport=You must hire this henchman to use Transport.
+travellers.notify.worker.not_hired_inventory=You can only access the pack of a henchman you've hired.
+travellers.notify.worker.not_hired_orders=You can only give orders to a henchman you've hired.
+travellers.notify.worker.not_hired_behavior=You can only manage behavior of a henchman you've hired.
+travellers.notify.worker.not_hired_recruit=You can only recruit with a henchman you've hired.
+travellers.notify.worker.not_hired_home=You can only manage home for a henchman you've hired.
+travellers.notify.worker.not_hired_go=You can only order a henchman you've hired.
+travellers.notify.worker.not_hired_formation=You can only manage formation of a henchman you've hired.
+travellers.notify.worker.not_hired_village_relations=You can only manage village relations of a henchman you've hired.
 
 travellers.notify.leader.released_followers=Released %s followers back to you.
-travellers.notify.leader.now_leading=This worker is now leading %s followers.
+travellers.notify.leader.now_leading=This henchman is now leading %s followers.
 travellers.notify.leader.no_free_followers=No free direct followers to assign.
 
-travellers.notify.home.not_your_worker=Not your worker.
+travellers.notify.home.not_your_worker=Not your henchman.
 travellers.notify.home.none_assigned=No home assigned.
 travellers.notify.home.barracks_not_found=Barracks not found or not in your village.
 travellers.notify.home.barracks_full=This barracks is full!
@@ -259,25 +297,27 @@ travellers.notify.home.lone_barrack_not_found=Lone barrack not found.
 travellers.notify.home.lone_barrack_assigned=Lone Barrack assigned: %s
 travellers.notify.home.lone_barrack_bed_destroyed=%s's bed at "%s" was destroyed. Assign it a new bed.
 
-travellers.notify.goto.worker_busy=Worker is busy (job active).
-travellers.notify.goto.going_to=Worker is going to: %s
-travellers.notify.goto.going_to_pos=Worker is going to selected map position.
+travellers.notify.order.worker_busy=This henchman is on a task and can't take new orders right now.
+travellers.notify.order.some_busy_skipped=%s henchmen were on a task and left alone.
+travellers.notify.goto.going_to=Henchman is going to: %s
+travellers.notify.goto.going_to_pos=Henchman is going to selected map position.
 travellers.notify.goto.not_enough_money=You need %s for this trip.
 travellers.notify.goto.payment_failed=Payment failed. Try again.
 travellers.notify.goto.delivery_started_free=Alright, I'm heading to %s!
 travellers.notify.goto.delivery_started_paid=Alright, I'm heading to %s for %s.
 travellers.notify.goto.delivery_started_donate=Alright, I'm heading to %s for %s as a donation.
 
-travellers.notify.hostile.not_owner=You don't own this worker.
+travellers.notify.hostile.not_owner=You don't own this henchman.
 travellers.notify.hostile.player_not_found=Player '%s' not found. They must have joined the server at least once.
-travellers.notify.hostile.added=Workers will attack: %s
+travellers.notify.hostile.added=Henchmen will attack: %s
 travellers.notify.hostile.removed=Removed enemy: %s
+travellers.notify.hostile.war_declared_on_you=%s attacked your henchmen - you are now at war with them.
 
-travellers.notify.worker.arrived_home=Worker is now at home.
+travellers.notify.worker.arrived_home=Henchman is now at home.
 travellers.notify.worker.cargo_arrived_full=I'm here with your goods. Check my pack.
 travellers.notify.worker.cargo_arrived_partial=I'm here. I couldn't sell everything, some goods are still in my pack.
 travellers.notify.worker.already_on_job=I'm already on a job. Wait for me to come back.
-travellers.notify.worker.died=Your worker has died during his periple.
+travellers.notify.worker.died=Your henchman has died during his periple.
 travellers.notify.worker.retaliation_target=%s set as enemy (retaliation).
 
 travellers.notify.trade.refused=The village refuses to trade with you (reputation too low or village is not trading right now).
@@ -285,8 +325,19 @@ travellers.notify.trade.sold=Sold %s x %s for %sd, rep +%s
 travellers.notify.trade.donated=Donated %s x %s, rep +%s
 travellers.notify.trade.accepted=[%s] accepted your offer and your reputation increased.
 
-travellers.notify.battle.under_attack=Your workers are under attack near x=%s, z=%s!
-travellers.notify.battle.worker_killed=%s was killed in battle at x=%s, z=%s.
+travellers.notify.battle.under_attack=Your henchmen are under attack
+travellers.notify.battle.worker_killed=%s was killed in battle
+travellers.notify.location_suffix=%sm to the %s
+
+travellers.gui.history.loading=Loading history...
+travellers.gui.history.empty=No events yet.
+travellers.gui.history.time.just_now=just now
+travellers.gui.history.time.minutes_ago=%sm ago
+travellers.gui.history.time.hours_ago=%sh ago
+travellers.gui.history.time.days_ago=%sd ago
+travellers.gui.history.battle_tooltip.casualty_died=%s died
+travellers.gui.history.battle_tooltip.casualty_hurt=%s survived (%s HP left)
+travellers.gui.history.battle_tooltip.attackers=Attackers:
 
 travellers.dialogue.worker_farewell=I did what I had to do. Let me rest a bit.
 travellers.dialogue.travelling_with_someone=I'm travelling with someone right now. Ask me again later.

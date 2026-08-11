@@ -55,7 +55,7 @@ public final class TravellerVoiceClientBus {
         if (LIVE.size() >= cap) {
             String evtKey = evt.getRegistryName() != null ? evt.getRegistryName().getPath() : "";
             boolean newIsAmbient = evtKey.contains("ambient");
-            if (!evictFarthestAmbient(mc)) {
+            if (!evictFarthestAmbient()) {
                 // No ambient to evict: skip if new sound is also ambient
                 if (newIsAmbient) {
                     if (TravellersConfig.SOUND.soundDebugLog) {
@@ -64,7 +64,7 @@ public final class TravellerVoiceClientBus {
                     return;
                 }
                 // Non-ambient (choir, talk, hurt): evict the farthest sound of any kind
-                evictFarthestAny(mc);
+                evictFarthestAny();
             }
         }
 
@@ -97,7 +97,7 @@ public final class TravellerVoiceClientBus {
 
 
     // Returns true if an ambient sound was found and evicted.
-    private static boolean evictFarthestAmbient(Minecraft mc) {
+    private static boolean evictFarthestAmbient() {
         EntityLinkedSound farthest = null;
         double farthestDist = -1;
         for (EntityLinkedSound s : LIVE.values()) {
@@ -110,12 +110,14 @@ public final class TravellerVoiceClientBus {
             LOGGER.info("[SoundBus] EVICT ambient entity={} dist={}", farthest.getEntityId(), (int) Math.sqrt(farthestDist));
         }
         LIVE.remove(farthest.getEntityId());
-        mc.getSoundHandler().stopSound(farthest);
+        // Fade out instead of an immediate stopSound(): the engine keeps ticking this
+        // instance (it's no longer tracked in LIVE) until its own fade completes and
+        // isDonePlaying() flips, which is when vanilla's SoundManager actually stops it.
         farthest.stopNow();
         return true;
     }
 
-    private static void evictFarthestAny(Minecraft mc) {
+    private static void evictFarthestAny() {
         EntityLinkedSound farthest = null;
         double farthestDist = -1;
         for (EntityLinkedSound s : LIVE.values()) {
@@ -128,20 +130,19 @@ public final class TravellerVoiceClientBus {
             LOGGER.info("[SoundBus] EVICT any entity={} dist={}", farthest.getEntityId(), (int) Math.sqrt(farthestDist));
         }
         LIVE.remove(farthest.getEntityId());
-        mc.getSoundHandler().stopSound(farthest);
         farthest.stopNow();
     }
 
     public static void stopIfAny(int entityId) {
-        Minecraft mc = Minecraft.getMinecraft();
-        if (mc == null || mc.getSoundHandler() == null) return;
-
         EntityLinkedSound old = LIVE.remove(entityId);
         if (old != null) {
             if (TravellersConfig.SOUND.soundDebugLog) {
                 LOGGER.info("[SoundBus] STOP entity={} sound={}", entityId, old.getSoundLocation());
             }
-            mc.getSoundHandler().stopSound(old);
+            // Fade out rather than stopSound()-ing it immediately: an instant stop here
+            // is what caused sounds to cut without any apparent reason (every replacement,
+            // e.g. a new voice line pre-empting an old one, or an interruption on hit,
+            // went through this path).
             old.stopNow();
         }
     }

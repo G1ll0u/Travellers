@@ -55,9 +55,7 @@ public class ClientGuiHandler extends CommonGuiHandler {
 
         if (id == TravellersGuiIds.WORKER_BEHAVIOR) {
             Entity e = world.getEntityByID(x);
-            return (e instanceof EntityTravellerWorker)
-                    ? new GuiWorkerBehavior(player, (EntityTravellerWorker) e)
-                    : null;
+            return new GuiWorkerBehavior(player, e instanceof EntityTravellerWorker ? (EntityTravellerWorker) e : null, null);
         }
         if (id == TravellersGuiIds.LONE_BARRACK_PROMPT) {
             return new GuiWorkerLoneBarrackPrompt(player, new BlockPos(x, y, z));

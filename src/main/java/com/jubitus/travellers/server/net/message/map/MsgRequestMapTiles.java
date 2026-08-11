@@ -1,11 +1,11 @@
 package com.jubitus.travellers.server.net.message.map;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.server.map.MapDiscoverySavedData;
-import com.jubitus.travellers.server.map.MapPyramidStore;
-import com.jubitus.travellers.server.map.MapTileGenerator;
-import com.jubitus.travellers.server.map.TileKey;
-import com.jubitus.travellers.server.map.WorldMapDiscovery;
+import com.jubitus.travellers.server.map.pyramid.MapDiscoverySavedData;
+import com.jubitus.travellers.server.map.pyramid.MapPyramidStore;
+import com.jubitus.travellers.server.map.pyramid.MapTileGenerator;
+import com.jubitus.travellers.server.map.pyramid.TileKey;
+import com.jubitus.travellers.server.map.pyramid.WorldMapDiscovery;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -51,12 +51,12 @@ public class MsgRequestMapTiles implements IMessage {
         @Override
         public IMessage onMessage(MsgRequestMapTiles msg, MessageContext ctx) {
             EntityPlayerMP p = ctx.getServerHandler().player;
-            int level = Math.max(0, Math.min(msg.level, com.jubitus.travellers.server.map.PyramidDirtyPropagator.MAX_LEVEL));
+            int level = Math.max(0, Math.min(msg.level, com.jubitus.travellers.server.map.pyramid.PyramidDirtyPropagator.MAX_LEVEL));
             long[] keys = msg.tileKeys;
 
             p.getServerWorld().addScheduledTask(() -> {
                 Set<Long> discovered = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
-                boolean fullMap = TravellersConfig.RENDERING.showFullMap;
+                boolean fullMap = TravellersConfig.WORLDMAP.showFullMap;
 
                 MapPyramidStore store = MapPyramidStore.get(p.world, level);
 
@@ -91,13 +91,13 @@ public class MsgRequestMapTiles implements IMessage {
                         store.put(key, data);
                     }
                     if (level == 0 && changed) {
-                        com.jubitus.travellers.server.map.PyramidDirtyPropagator.markParentDirty(
+                        com.jubitus.travellers.server.map.pyramid.PyramidDirtyPropagator.markParentDirty(
                                 p.world.provider.getDimension(), 0, tx, tz);
                     }
 
                     if (!had && level > 0) continue; // don't push still-empty derived tiles
 
-                    byte[] compressed = com.jubitus.travellers.server.map.TileCompression.deflate(data);
+                    byte[] compressed = com.jubitus.travellers.server.map.pyramid.TileCompression.deflate(data);
                     TravellerFollowNet.CHANNEL.sendTo(new MsgMapTileData(level, tx, tz, compressed), p);
                     sent++;
                 }

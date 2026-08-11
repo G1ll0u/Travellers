@@ -1,19 +1,12 @@
 package com.jubitus.travellers.server.net.message.group;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
+import com.jubitus.travellers.server.group.WorkerGroupService;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 public class MsgGroupComeBack implements IMessage {
@@ -56,44 +49,7 @@ public class MsgGroupComeBack implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 if (!msg.hasLeader) return;
                 UUID leaderUUID = new UUID(msg.uuidMost, msg.uuidLeast);
-                UUID ownerId = player.getUniqueID();
-                MinecraftServer server = player.getServer();
-                if (server == null) return;
-
-                WorldServer overworld = server.worlds[0];
-                VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
-
-                List<EntityTravellerWorker> toUpdate = new ArrayList<>();
-                for (WorldServer ws : server.worlds) {
-                    ws.getEntities(EntityTravellerWorker.class, w ->
-                            w != null && !w.isDead && w.isHiredFollower()
-                                    && Objects.equals(w.getFollowOwnerId(), ownerId)
-                                    && leaderUUID.equals(w.getEscortLeaderUUID())
-                    ).forEach(toUpdate::add);
-                }
-                for (EntityTravellerWorker w : toUpdate) {
-                    w.clearEscortLeader();
-                    w.setFollowOrderActive(true);
-                    w.getNavigator().clearPath();
-                }
-
-                EntityTravellerWorker leaderEntity = null;
-                for (WorldServer ws : server.worlds) {
-                    Entity e = ws.getEntityFromUuid(leaderUUID);
-                    if (e instanceof EntityTravellerWorker && !e.isDead) {
-                        leaderEntity = (EntityTravellerWorker) e;
-                        break;
-                    }
-                }
-                if (leaderEntity != null
-                        && leaderEntity.isHiredFollower()
-                        && Objects.equals(leaderEntity.getFollowOwnerId(), ownerId)) {
-                    leaderEntity.clearEscortLeader();
-                    leaderEntity.setFollowOrderActive(true);
-                    leaderEntity.getNavigator().clearPath();
-                }
-
-                vwm.cmdGroupComeBack(leaderUUID, ownerId);
+                WorkerGroupService.comeBackGroup(player, leaderUUID);
             });
             return null;
         }

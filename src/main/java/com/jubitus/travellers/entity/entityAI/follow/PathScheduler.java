@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.world.World;
 
@@ -10,14 +11,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class PathScheduler {
-
-    public static int GLOBAL_MAX_PATHS_PER_TICK = 160;
-
-    public static double OWNER_PATHS_PER_SECOND = 120.0;
-    public static double OWNER_MAX_BURST = 20.0;
-
-    public static int OWNER_STATE_EXPIRE_TICKS = 20 * 30;
-    public static int FOLLOWER_STATE_EXPIRE_TICKS = 20 * 12;
 
     private static final Map<UUID, OwnerBucket> buckets = new HashMap<>();
 
@@ -55,7 +48,7 @@ public final class PathScheduler {
         beginTick(now);
         cleanup(now);
 
-        if (globalUsed >= GLOBAL_MAX_PATHS_PER_TICK) {
+        if (globalUsed >= TravellersConfig.WORKER_FORMATION.pathSchedulerGlobalMaxPathsPerTick) {
             return AcquireResult.DENIED_GLOBAL_LIMIT;
         }
 
@@ -64,12 +57,12 @@ public final class PathScheduler {
         if (bucket == null) {
             bucket = new OwnerBucket();
             bucket.tick = now;
-            bucket.tokens = OWNER_MAX_BURST;
+            bucket.tokens = TravellersConfig.WORKER_FORMATION.pathSchedulerOwnerMaxBurst;
             bucket.lastSeenTick = now;
             buckets.put(ownerId, bucket);
         }
 
-        refill(bucket, now);
+        refill(bucket, now, groupSize);
         bucket.lastSeenTick = now;
 
         FollowerState follower = bucket.followers.get(followerEntityId);
@@ -126,14 +119,24 @@ public final class PathScheduler {
         }
     }
 
-    private static void refill(OwnerBucket bucket, long now) {
+    private static void refill(OwnerBucket bucket, long now, int groupSize) {
         long dt = now - bucket.tick;
         if (dt <= 0) {
             return;
         }
 
-        double refillPerTick = OWNER_PATHS_PER_SECOND / 20.0D;
-        bucket.tokens = Math.min(OWNER_MAX_BURST, bucket.tokens + dt * refillPerTick);
+        // Budget scales with active formation size: the per-request cost already grows with
+        // groupSize (computeBaseCost), but a static refill rate/burst would otherwise mean a
+        // 100+ worker group shares the exact same throughput as a group of 2. Bonus is capped
+        // per-owner (pathSchedulerOwnerBonusGroupSizeCap) — the global per-tick cap is what
+        // actually protects server performance when several owners each run large groups.
+        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
+        int bonusFollowers = Math.min(Math.max(0, groupSize), wf.pathSchedulerOwnerBonusGroupSizeCap);
+        double ratePerSecond = wf.pathSchedulerOwnerPathsPerSecond + wf.pathSchedulerOwnerPerFollowerBonus * bonusFollowers;
+        double maxBurst = wf.pathSchedulerOwnerMaxBurst + wf.pathSchedulerOwnerBurstPerFollowerBonus * bonusFollowers;
+
+        double refillPerTick = ratePerSecond / 20.0D;
+        bucket.tokens = Math.min(maxBurst, bucket.tokens + dt * refillPerTick);
         bucket.tick = now;
     }
 
@@ -211,7 +214,7 @@ public final class PathScheduler {
             Map.Entry<UUID, OwnerBucket> entry = ownerIt.next();
             OwnerBucket bucket = entry.getValue();
 
-            if ((now - bucket.lastSeenTick) > OWNER_STATE_EXPIRE_TICKS) {
+            if ((now - bucket.lastSeenTick) > TravellersConfig.WORKER_FORMATION.pathSchedulerOwnerStateExpireTicks) {
                 ownerIt.remove();
                 continue;
             }
@@ -219,7 +222,7 @@ public final class PathScheduler {
             Iterator<Map.Entry<Integer, FollowerState>> followerIt = bucket.followers.entrySet().iterator();
             while (followerIt.hasNext()) {
                 Map.Entry<Integer, FollowerState> f = followerIt.next();
-                if ((now - f.getValue().lastSeenTick) > FOLLOWER_STATE_EXPIRE_TICKS) {
+                if ((now - f.getValue().lastSeenTick) > TravellersConfig.WORKER_FORMATION.pathSchedulerFollowerStateExpireTicks) {
                     followerIt.remove();
                 }
             }

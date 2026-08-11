@@ -1,14 +1,22 @@
 package com.jubitus.travellers.client.gui.formation;
 
+import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.client.gui.ITravellersGui;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
+import com.jubitus.travellers.client.notify.ClientJournalCache;
+import com.jubitus.travellers.client.notify.LocationFormat;
+import com.jubitus.travellers.notify.BattleSummary;
+import com.jubitus.travellers.notify.JournalEntry;
+import com.jubitus.travellers.notify.NotificationType;
+import com.jubitus.travellers.server.net.message.notify.MsgRequestJournalHistory;
 import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.home.WorkerHeadRenderer;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IBattleMapReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IForeignUnitMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IBattleMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IForeignUnitMapReceiver;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
@@ -17,8 +25,8 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
@@ -26,8 +34,10 @@ import com.jubitus.travellers.server.net.message.formations.MsgRequestFormationH
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationByScope;
 import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
 import com.jubitus.travellers.server.net.message.group.MsgGroupCreate;
+import com.jubitus.travellers.server.net.message.group.MsgGroupFollow;
 import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
 import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
+import com.jubitus.travellers.server.net.message.group.MsgToggleLeaderFollow;
 import com.jubitus.travellers.server.net.message.home.MsgEquipDestsResponse;
 import com.jubitus.travellers.server.net.message.home.MsgLeaderGetEquip;
 import com.jubitus.travellers.server.net.message.home.MsgRequestEquipDests;
@@ -86,14 +96,27 @@ public class GuiWorkerFormationHub extends GuiScreen
     // ── GUI geometry ──────────────────────────────────────────────────────────
     private int guiLeft, guiTop, effW, effH;
     private int listX, listY, listH;
+    // Height of just the leaders-list rows/panel; the bottom of the left column holds the general
+    // buttons (Barracks / Behavior), so this is shorter than the shared panel height listH.
+    private int leaderRowsH;
+    private static final int GEN_BTN_AREA_H = 52;
     private int ordersX, ordersW;
     private int mapAreaX, mapAreaY, mapAreaH, mapW;
     private int rightX, rightW;
     private int contentY, bottomY;
 
+    // ── History panel ─────────────────────────────────────────────────────────
+    private int historyY, historyH;
+    private int historyScroll = 0;
+    private boolean historyPinnedToBottom = true;
+    private int lastHistoryCount = -1;
+
     // ── State ─────────────────────────────────────────────────────────────────
     private int listScroll = 0;
     private boolean mergeMode = false;
+    // While mergeMode is active this selects the action: true = "Follow..." (convoy, keep group),
+    // false = "Merge..." (dissolve into target). Both reuse the same target-picking overlay.
+    private boolean followInsteadOfMerge = false;
     private boolean assignFollowersMode = false;
     private SelectionMode selectionMode = SelectionMode.NONE;
     private List<UUID> mapSelectedFollowers = Collections.emptyList();
@@ -125,9 +148,8 @@ public class GuiWorkerFormationHub extends GuiScreen
     private WorldMapController mapController;
     private final List<MsgWorkerGoList.Entry> poiEntries = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private final List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
-    private final List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
+    private final List<com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
+    private final List<com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
 
     // ── Widgets ───────────────────────────────────────────────────────────────
     private GuiWorkerFormationSlider escortsSlider;
@@ -141,7 +163,8 @@ public class GuiWorkerFormationHub extends GuiScreen
     private GuiButton backButton;
     // Leader orders
     private GuiButton goButton;
-    private GuiButton comeBackButton;
+    private GuiButton followButton;       // convoy target picker (formerly "Come Back")
+    private GuiButton followToggleButton; // Follow: ON / OFF toggle for the selected leader
     private GuiButton mergeButton;
     private GuiButton mergeCancelButton;
     // Follower orders
@@ -154,6 +177,8 @@ public class GuiWorkerFormationHub extends GuiScreen
     // Go / equip destination picking
     private GuiButton cancelGoButton;
     private GuiButton getEquipButton;
+
+    private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
 
     // ── Sync ──────────────────────────────────────────────────────────────────
     private long lastSendMs = 0L;
@@ -195,9 +220,8 @@ public class GuiWorkerFormationHub extends GuiScreen
         buttonList.clear();
 
         effW = Math.min(X_SIZE, width - 4);
-        effH = Math.min(Y_SIZE, height - 4);
-        guiLeft = (width  - effW) / 2;
-        guiTop  = Math.max(2, (height - effH) / 2);
+        guiLeft = (width - effW) / 2;
+        layoutHistoryPanel();
 
         contentY = guiTop + 22;
         bottomY  = guiTop + effH - 24;
@@ -206,6 +230,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         listX = guiLeft + 6;
         listY = contentY;
         listH = effH - 44;
+        leaderRowsH = listH - GEN_BTN_AREA_H;
 
         // Orders panel
         ordersX = listX + LIST_W + 4;
@@ -265,22 +290,39 @@ public class GuiWorkerFormationHub extends GuiScreen
         int obY = contentY + 2;
 
         // Leader orders
-        goButton          = addButton(new GuiButton(30, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.go")));
-        comeBackButton    = addButton(new GuiButton(31, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
-        mergeButton       = addButton(new GuiButton(32, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
-        mergeCancelButton = addButton(new GuiButton(33, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
-        cancelGoButton    = addButton(new GuiButton(34, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.go_cancel")));
-        getEquipButton    = addButton(new GuiButton(40, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.get_equip")));
+        goButton           = addButton(new GuiButton(30, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.go")));
+        followButton       = addButton(new GuiButton(31, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.follow")));
+        followToggleButton = addButton(new GuiButton(41, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.follow_on")));
+        mergeButton        = addButton(new GuiButton(32, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.merge")));
+        getEquipButton     = addButton(new GuiButton(40, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.get_equip")));
+        // Overlay cancels get their OWN row (obY+120), never reused by any trigger button. Sharing a
+        // slot with a trigger button is unsafe: vanilla's button-click loop doesn't stop at the first
+        // match, it keeps testing every remaining button against LIVE state - so a trigger button whose
+        // own handler calls refreshButtons() (e.g. Get Equipment revealing Cancel) can reveal a button
+        // at the exact same spot still under the cursor, which then also fires in the same click and
+        // immediately undoes what the trigger just did (this was the actual "Get Equipment does
+        // nothing, but the click sound plays twice" bug: both buttons fired on one click).
+        mergeCancelButton  = addButton(new GuiButton(33, obX, obY + 120, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
+        cancelGoButton     = addButton(new GuiButton(34, obX, obY + 120, obW, 20, I18n.format("travellers.worker.formation.go_cancel")));
 
         // Follower orders
         groupButton            = addButton(new GuiButton(35, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.group", "Group")));
         followerComeBackButton = addButton(new GuiButton(38, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
         followerMergeButton    = addButton(new GuiButton(39, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
 
-        // General buttons (always visible, below orders; shifted down to make room for getEquipButton)
-        int genY = contentY + 129;
-        barracksButton = addButton(new GuiButton(36, obX, genY,      obW, 20, I18n.format("travellers.worker.hub.barracks")));
-        behaviorButton = addButton(new GuiButton(37, obX, genY + 24, obW, 20, I18n.format("travellers.worker.hub.behavior")));
+        tooltips.set(goButton, "travellers.worker.formation.go.tooltip");
+        tooltips.set(followButton, "travellers.worker.formation.follow.tooltip");
+        tooltips.set(followToggleButton, "travellers.worker.formation.follow_toggle.tooltip");
+        tooltips.set(mergeButton, "travellers.worker.formation.merge.tooltip");
+        tooltips.set(getEquipButton, "travellers.worker.formation.get_equip.tooltip");
+        tooltips.set(groupButton, "travellers.worker.formation.group.tooltip");
+        tooltips.set(followerComeBackButton, "travellers.worker.formation.come_back.tooltip");
+        tooltips.set(followerMergeButton, "travellers.worker.formation.follower_merge.tooltip");
+
+        // General buttons — bottom of the leaders-list column, freeing the orders column for orders.
+        int genLeftY = listY + leaderRowsH + 4;
+        barracksButton = addButton(new GuiButton(36, listX, genLeftY,      LIST_W, 20, I18n.format("travellers.worker.hub.barracks")));
+        behaviorButton = addButton(new GuiButton(37, listX, genLeftY + 24, LIST_W, 20, I18n.format("travellers.worker.hub.behavior")));
 
         // ── Back button ───────────────────────────────────────────────────────
         backButton = addButton(new GuiButton(99, guiLeft + effW - 70, bottomY, 60, 20,
@@ -291,14 +333,45 @@ public class GuiWorkerFormationHub extends GuiScreen
         mapController = new WorldMapController(
                 Minecraft.getMinecraft(), mapAreaX, mapAreaY, mapW, mapAreaH,
                 "travellers_formation_hub_map", initialCenter);
-        mapController.panel.setZoomBlocksPerPixel((float) TravellersConfig.WORKER.formationHubMapInitialBpp);
+        mapController.panel.setZoomBlocksPerPixel((float) TravellersConfig.WORLDMAP.formationHubMapInitialBpp);
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
         TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(
                 representativeEntityId >= 0 ? representativeEntityId : -1));
 
+        historyPinnedToBottom = true;
+        historyScroll = Integer.MAX_VALUE;
+        lastHistoryCount = -1;
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestJournalHistory());
+
         refreshButtons();
+    }
+
+    /** Reserves a sibling rectangle for the history panel (ABOVE/BELOW the main formation panel)
+     * and centers the combined block, without touching the main panel's own internal layout math. */
+    private void layoutHistoryPanel() {
+        int gap = 4;
+        int availH = height - 4;
+        int mainH = Math.min(Y_SIZE, availH);
+        int desiredHistoryH = TravellersConfig.NOTIFICATIONS.historyPanelEnabled
+                ? TravellersConfig.NOTIFICATIONS.historyPanelHeight : 0;
+
+        int histH = Math.max(0, Math.min(desiredHistoryH, availH - mainH - (desiredHistoryH > 0 ? gap : 0)));
+        int totalH = mainH + (histH > 0 ? histH + gap : 0);
+
+        effH = mainH;
+        historyH = histH;
+
+        int blockTop = Math.max(2, (height - totalH) / 2);
+        boolean below = !"ABOVE".equalsIgnoreCase(TravellersConfig.NOTIFICATIONS.historyPanelPosition);
+        if (historyH > 0 && !below) {
+            historyY = blockTop;
+            guiTop = blockTop + historyH + gap;
+        } else {
+            guiTop = blockTop;
+            historyY = guiTop + mainH + gap;
+        }
     }
 
     @Override
@@ -316,6 +389,17 @@ public class GuiWorkerFormationHub extends GuiScreen
     // ── Public refresh (called by MsgOpenFormationHubGui when hub is already open) ──
 
     public void updateLeaders(List<FormationLeaderInfo> newLeaders, Map<String, WorkerFormationSettings> newSettings) {
+        // Remember the currently-selected leader by identity, not by index - the list is re-sorted by
+        // distance to the player every rebuild, so a bare index would silently point at a different
+        // leader after a refresh (very visible now that the list refreshes periodically).
+        UUID prevSelectedUuid = null;
+        boolean prevSelectedPlayer = false;
+        if (selectedIndex >= 0 && selectedIndex < leaders.size()) {
+            FormationLeaderInfo sel = leaders.get(selectedIndex);
+            prevSelectedPlayer = sel.isPlayer;
+            prevSelectedUuid = sel.uuid;
+        }
+
         leaders.clear();
         leaders.addAll(newLeaders);
         settingsByScope.clear();
@@ -338,14 +422,32 @@ public class GuiWorkerFormationHub extends GuiScreen
             pendingSelectFromFollowers = Collections.emptySet();
         }
 
-        // Normal refresh: clamp selectedIndex, keep mode
-        if (selectedIndex >= leaders.size()) selectedIndex = leaders.isEmpty() ? 0 : leaders.size() - 1;
+        // Re-locate the previously-selected leader by identity so the selection stays put across a
+        // re-sort; fall back to a clamped index if it's gone (materialized elsewhere, disbanded, ...).
+        int relocated = -1;
+        for (int i = 0; i < leaders.size(); i++) {
+            FormationLeaderInfo info = leaders.get(i);
+            if (prevSelectedPlayer && info.isPlayer) { relocated = i; break; }
+            if (prevSelectedUuid != null && prevSelectedUuid.equals(info.uuid)) { relocated = i; break; }
+        }
+        boolean selectionChanged;
+        if (relocated >= 0) {
+            selectionChanged = false; // same leader still selected (its list index may have moved)
+            selectedIndex = relocated;
+        } else {
+            selectionChanged = true; // previously-selected leader is gone
+            if (selectedIndex >= leaders.size()) selectedIndex = leaders.isEmpty() ? 0 : leaders.size() - 1;
+        }
+
         if (!leaders.isEmpty()) {
             if (selectionMode == SelectionMode.NONE) selectionMode = SelectionMode.LEADER;
         } else {
             selectionMode = SelectionMode.NONE;
         }
-        applySelection();
+        // Only run the full selection apply (which re-centers the map and re-pushes slider values)
+        // when the selected leader actually changed - otherwise a periodic list refresh would yank the
+        // map center and reset sliders the player may be adjusting every second.
+        if (selectionChanged || currentSettings == null) applySelection();
         refreshButtons();
     }
 
@@ -355,7 +457,27 @@ public class GuiWorkerFormationHub extends GuiScreen
     public void updateScreen() {
         super.updateScreen();
         flushPendingSync(false);
+
+        int count = ClientJournalCache.entries().size();
+        if (count != lastHistoryCount) {
+            lastHistoryCount = count;
+            if (historyPinnedToBottom) historyScroll = Integer.MAX_VALUE;
+        }
+
+        // Keep the leader list live: periodically re-request it so a leader that materializes (or a
+        // group that changes) while the Hub sits open is reflected without reopening. Server rebuilds
+        // it authoritatively and the client updates in place (updateLeaders preserves selection).
+        // Gated to a calm state so it can never disrupt an in-progress merge/assign/pick interaction.
+        if (++leaderListRefreshTicks >= LEADER_LIST_REFRESH_INTERVAL_TICKS) {
+            leaderListRefreshTicks = 0;
+            boolean idle = !mergeMode && !assignFollowersMode && !goPickingMode && !equipPickingMode
+                    && mapSelectedFollowers.isEmpty();
+            if (idle) TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+        }
     }
+
+    private int leaderListRefreshTicks = 0;
+    private static final int LEADER_LIST_REFRESH_INTERVAL_TICKS = 20;
 
     // ── Drawing ───────────────────────────────────────────────────────────────
 
@@ -408,8 +530,10 @@ public class GuiWorkerFormationHub extends GuiScreen
         } else if (mergeMode) {
             int hintY = bottomY + 6;
             int hintMaxX = guiLeft + effW - 74;
+            String hintKey = followInsteadOfMerge
+                    ? "travellers.worker.formation.follow_hint" : "travellers.worker.formation.merge_hint";
             drawCenteredString(fontRenderer,
-                    I18n.format("travellers.worker.formation.merge_hint") + "  "
+                    I18n.format(hintKey) + "  "
                     + TextFormatting.GRAY + I18n.format("travellers.worker.formation.merge_cancel"),
                     guiLeft + hintMaxX / 2, hintY, 0xFFFFE060);
         } else if (assignFollowersMode) {
@@ -420,6 +544,8 @@ public class GuiWorkerFormationHub extends GuiScreen
                     + TextFormatting.GRAY + I18n.format("travellers.worker.formation.go_pick_cancel"),
                     guiLeft + hintMaxX / 2, hintY, 0xFF60FFB0);
         }
+
+        drawHistoryPanel(mouseX, mouseY);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -458,9 +584,19 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (mapController != null && !mapDragSelecting) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty()) {
-                drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+                drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
             }
         }
+
+        // History panel battle tooltip
+        if (TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled) {
+            JournalEntry hovered = getHistoryEntryAt(mouseX, mouseY);
+            if (hovered != null && hovered.battleSummary != null) {
+                drawHoveringText(buildBattleTooltip(hovered.battleSummary), mouseX, mouseY);
+            }
+        }
+
+        tooltips.render(mouseX, mouseY, this.width, this.height);
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
@@ -496,10 +632,10 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     private void drawLeaderList(int mouseX, int mouseY) {
-        drawRect(listX - 1, listY - 1, listX + LIST_W + 1, listY + listH + 1, COL_PANEL);
+        drawRect(listX - 1, listY - 1, listX + LIST_W + 1, listY + leaderRowsH + 1, COL_PANEL);
 
         clampScroll();
-        int visibleRows = listH / ROW_H;
+        int visibleRows = leaderRowsH / ROW_H;
 
         for (int i = 0; i < visibleRows; i++) {
             int idx = listScroll + i;
@@ -549,8 +685,159 @@ public class GuiWorkerFormationHub extends GuiScreen
 
         if (listScroll > 0)
             fontRenderer.drawString("▲", listX + LIST_W - 10, listY + 1, COL_TEXT_DIM);
-        if (listScroll + (listH / ROW_H) < leaders.size())
-            fontRenderer.drawString("▼", listX + LIST_W - 10, listY + listH - 9, COL_TEXT_DIM);
+        if (listScroll + (leaderRowsH / ROW_H) < leaders.size())
+            fontRenderer.drawString("▼", listX + LIST_W - 10, listY + leaderRowsH - 9, COL_TEXT_DIM);
+    }
+
+    // ── History panel ─────────────────────────────────────────────────────────
+
+    private void drawHistoryPanel(int mouseX, int mouseY) {
+        if (historyH <= 0) return;
+        int x = guiLeft, y = historyY, w = effW, h = historyH;
+        TravellersGuiTheme.drawInnerPanel(x, y, w, h);
+
+        int pad = 3;
+        int innerX = x + pad;
+        int innerY = y + pad;
+        int innerW = w - pad * 2;
+        int innerH = h - pad * 2;
+
+        if (!ClientJournalCache.isLoaded()) {
+            fontRenderer.drawString(I18n.format("travellers.gui.history.loading"), innerX, innerY, COL_TEXT_DIM);
+            return;
+        }
+
+        List<JournalEntry> entries = ClientJournalCache.entries();
+        if (entries.isEmpty()) {
+            fontRenderer.drawString(I18n.format("travellers.gui.history.empty"), innerX, innerY, COL_TEXT_DIM);
+            return;
+        }
+
+        float fontScale = TravellersConfig.NOTIFICATIONS.historyPanelFontScale;
+        int rowH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
+        int visibleRows = historyVisibleRows();
+        clampHistoryScroll(entries.size(), visibleRows);
+
+        long worldTime = mc.world != null ? mc.world.getTotalWorldTime() : 0L;
+        boolean showBattleIcon = TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled;
+
+        for (int i = 0; i < visibleRows; i++) {
+            int idx = historyScroll + i;
+            if (idx < 0 || idx >= entries.size()) break;
+            JournalEntry entry = entries.get(idx);
+
+            int rowTop = innerY + i * rowH;
+            boolean hovered = mouseX >= innerX && mouseX < innerX + innerW
+                    && mouseY >= rowTop && mouseY < rowTop + rowH;
+            TravellersGuiTheme.drawListRow(innerX, rowTop, innerW, rowH, hovered, false);
+
+            drawRect(innerX + 1, rowTop + rowH / 2 - 2, innerX + 5, rowTop + rowH / 2 + 2, entry.type.color);
+
+            boolean hasBattle = showBattleIcon && entry.battleSummary != null;
+            int iconW = hasBattle ? 10 : 0;
+
+            String text;
+            try {
+                text = I18n.format(entry.i18nKey, (Object[]) entry.args);
+            } catch (Exception ex) {
+                text = entry.i18nKey;
+            }
+            if (entry.battleSummary != null) {
+                String suffix = LocationFormat.describe(entry.battleSummary.location, entry.battleSummary.dimension);
+                if (suffix != null) text = text + ", " + suffix;
+            }
+            String timeAgo = formatTimeAgo(worldTime - entry.worldTime);
+            String full = TextFormatting.GRAY + "[" + timeAgo + "] " + TextFormatting.RESET + text;
+
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(innerX + 8, rowTop + (rowH - fontRenderer.FONT_HEIGHT * fontScale) / 2f, 0f);
+            GlStateManager.scale(fontScale, fontScale, 1f);
+            int textMaxW = Math.max(10, (int) ((innerW - 8 - iconW) / fontScale) - 4);
+            fontRenderer.drawString(fontRenderer.trimStringToWidth(full, textMaxW), 0, 0, COL_TEXT);
+            GlStateManager.popMatrix();
+
+            if (hasBattle) {
+                fontRenderer.drawString("⚔", innerX + innerW - 10, rowTop + (rowH - fontRenderer.FONT_HEIGHT) / 2, 0xFFCCCCCC);
+            }
+        }
+
+        if (historyScroll > 0)
+            fontRenderer.drawString("▲", innerX + innerW - 10, innerY + 1, COL_TEXT_DIM);
+        if (historyScroll + visibleRows < entries.size())
+            fontRenderer.drawString("▼", innerX + innerW - 10, innerY + innerH - 9, COL_TEXT_DIM);
+    }
+
+    private int historyVisibleRows() {
+        if (historyH <= 0) return 0;
+        int pad = 3;
+        int innerH = historyH - pad * 2;
+        int rowH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
+        return Math.max(1, innerH / rowH);
+    }
+
+    private void clampHistoryScroll(int total, int visibleRows) {
+        int max = Math.max(0, total - visibleRows);
+        if (historyScroll > max) historyScroll = max;
+        if (historyScroll < 0) historyScroll = 0;
+        historyPinnedToBottom = historyScroll >= max;
+    }
+
+    private String formatTimeAgo(long deltaTicks) {
+        if (deltaTicks < 0) deltaTicks = 0;
+        long seconds = deltaTicks / 20;
+        if (seconds < 60) return I18n.format("travellers.gui.history.time.just_now");
+        long minutes = seconds / 60;
+        if (minutes < 60) return I18n.format("travellers.gui.history.time.minutes_ago", minutes);
+        long hours = minutes / 60;
+        if (hours < 24) return I18n.format("travellers.gui.history.time.hours_ago", hours);
+        long days = hours / 24;
+        return I18n.format("travellers.gui.history.time.days_ago", days);
+    }
+
+    private JournalEntry getHistoryEntryAt(int mouseX, int mouseY) {
+        if (historyH <= 0) return null;
+        int pad = 3;
+        int innerX = guiLeft + pad;
+        int innerY = historyY + pad;
+        int innerW = effW - pad * 2;
+        int rowH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
+        if (mouseX < innerX || mouseX >= innerX + innerW || mouseY < innerY) return null;
+
+        int i = (mouseY - innerY) / rowH;
+        int visibleRows = historyVisibleRows();
+        if (i < 0 || i >= visibleRows) return null;
+
+        List<JournalEntry> entries = ClientJournalCache.entries();
+        int idx = historyScroll + i;
+        if (idx < 0 || idx >= entries.size()) return null;
+        return entries.get(idx);
+    }
+
+    /** Centers the worldmap on the clicked event's location. Only entries carrying a
+     * BattleSummary have a known location today (battle events); other event types are silently
+     * ignored until they gain their own location data. */
+    private void handleHistoryRowClick(int mouseX, int mouseY) {
+        JournalEntry entry = getHistoryEntryAt(mouseX, mouseY);
+        if (entry == null || entry.battleSummary == null || mapController == null) return;
+        mapController.setCenter(entry.battleSummary.location);
+    }
+
+    private List<String> buildBattleTooltip(BattleSummary bs) {
+        List<String> lines = new ArrayList<>();
+        String location = LocationFormat.describe(bs.location, bs.dimension);
+        if (location != null) lines.add(location);
+        for (BattleSummary.CasualtyEntry c : bs.ownWorkerCasualties) {
+            lines.add(c.died
+                    ? I18n.format("travellers.gui.history.battle_tooltip.casualty_died", c.name)
+                    : I18n.format("travellers.gui.history.battle_tooltip.casualty_hurt", c.name, (int) c.healthAfter));
+        }
+        if (!bs.attackerDescriptions.isEmpty()) {
+            lines.add(I18n.format("travellers.gui.history.battle_tooltip.attackers"));
+            for (String desc : bs.attackerDescriptions) {
+                lines.add("- " + desc);
+            }
+        }
+        return lines;
     }
 
     private void drawModeOverlay() {
@@ -569,12 +856,13 @@ public class GuiWorkerFormationHub extends GuiScreen
     private void rebuildMapMarkers() {
         if (mapController == null) return;
         mapController.panel.clearMarkers();
+        int ownerColor = ClientOwnerVisualsCache.getColor();
         WorldMapContentPopulator.populate(
-                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, null);
+                mapController.panel, poiEntries, workerEntries, player, ownerColor, null);
 
         int myDim = Minecraft.getMinecraft().world.provider.getDimension();
         WorldMapContentPopulator.populateForeignUnits(mapController.panel, foreignEntries, myDim);
-        for (com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry e : battleEntries) {
+        for (com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.Entry e : battleEntries) {
             if (e.dim != myDim) continue;
             mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
         }
@@ -585,8 +873,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             if (!sel.isPlayer && sel.uuid != null) {
                 for (MsgMapWorkersUpdate.Entry e : workerEntries) {
                     if (e.isLeader && sel.uuid.equals(e.uuid) && e.pos != null) {
-                        String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker#" + e.entityId;
-                        mapController.panel.addMarker(WorldMapMarkerFactory.leaderHighlighted(e.pos, name));
+                        mapController.panel.addMarker(WorldMapMarkerFactory.leaderHighlighted(
+                                e.pos, WorldMapContentPopulator.workerLabel(e)));
                         break;
                     }
                 }
@@ -595,8 +883,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             Set<UUID> selSet = new HashSet<>(mapSelectedFollowers);
             for (MsgMapWorkersUpdate.Entry e : workerEntries) {
                 if (!e.isLeader && e.uuid != null && selSet.contains(e.uuid) && e.pos != null) {
-                    String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker#" + e.entityId;
-                    mapController.panel.addMarker(WorldMapMarkerFactory.followerHighlighted(e.pos, name, e.ownerColor));
+                    mapController.panel.addMarker(WorldMapMarkerFactory.followerHighlighted(
+                            e.pos, WorldMapContentPopulator.workerLabel(e), e.ownerColor));
                 }
             }
         }
@@ -606,9 +894,9 @@ public class GuiWorkerFormationHub extends GuiScreen
             for (MsgEquipDestsResponse.EquipDestInfo d : equipDests) {
                 if (d.pos == null) continue;
                 if (d.useWholeVillage) {
-                    mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(d.pos, d.name, playerOwnerColor));
+                    mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(d.pos, d.name, ownerColor));
                 } else {
-                    mapController.panel.addMarker(WorldMapMarkerFactory.home(d.pos, d.name, playerOwnerColor));
+                    mapController.panel.addMarker(WorldMapMarkerFactory.home(d.pos, d.name, ownerColor));
                 }
             }
         }
@@ -631,20 +919,19 @@ public class GuiWorkerFormationHub extends GuiScreen
         for (MsgMapWorkersUpdate.Entry e : list) {
             if (e.dim != myDim) continue;
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
     }
 
     // ── IBattleMapReceiver / IForeignUnitMapReceiver ─────────────────────────────
 
     @Override
-    public void receiveBattles(List<com.jubitus.travellers.server.map.MsgMapBattleUpdate.Entry> entries) {
+    public void receiveBattles(List<com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.Entry> entries) {
         battleEntries.clear();
         if (entries != null) battleEntries.addAll(entries);
     }
 
     @Override
-    public void receiveForeignUnits(List<com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.Entry> entries) {
+    public void receiveForeignUnits(List<com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.Entry> entries) {
         foreignEntries.clear();
         if (entries != null) foreignEntries.addAll(entries);
     }
@@ -691,7 +978,8 @@ public class GuiWorkerFormationHub extends GuiScreen
 
         if (button == getEquipButton)         { handleGetEquipButton();        return; }
         if (button == goButton)               { handleGoButton();              return; }
-        if (button == comeBackButton)         { handleComeBack();              return; }
+        if (button == followButton)           { enterFollowMode();             return; }
+        if (button == followToggleButton)     { handleFollowToggle();          return; }
         if (button == mergeButton)            { enterMergeMode();              return; }
         if (button == mergeCancelButton)      { exitMergeMode();               return; }
         if (button == groupButton)            { handleGroupButton();           return; }
@@ -721,6 +1009,13 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        // Click on a history row → center the worldmap on that event's location, if known
+        if (mouseButton == 0 && historyH > 0 && mouseX >= guiLeft && mouseX < guiLeft + effW
+                && mouseY >= historyY && mouseY < historyY + historyH) {
+            handleHistoryRowClick(mouseX, mouseY);
+            return;
+        }
+
         // Right-click on map → pan
         if (mapController != null && mouseButton == 1 && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.onMouseClick(mouseX, mouseY, mouseButton);
@@ -757,13 +1052,13 @@ public class GuiWorkerFormationHub extends GuiScreen
 
         // Click on leaders list
         if (mouseButton == 0 && mouseX >= listX && mouseX < listX + LIST_W
-                && mouseY >= listY && mouseY < listY + listH) {
+                && mouseY >= listY && mouseY < listY + leaderRowsH) {
             int idx = listScroll + (mouseY - listY) / ROW_H;
             if (idx >= 0 && idx < leaders.size()) {
                 if (assignFollowersMode) {
                     if (!leaders.get(idx).isPlayer) performFollowerAssign(idx);
                 } else if (mergeMode) {
-                    if (idx != selectedIndex) performMerge(idx);
+                    if (idx != selectedIndex) performTargetPick(idx);
                 } else {
                     selectLeaderByIndex(idx);
                 }
@@ -841,11 +1136,15 @@ public class GuiWorkerFormationHub extends GuiScreen
         int mouseX = org.lwjgl.input.Mouse.getEventX() * width  / mc.displayWidth;
         int mouseY = height - org.lwjgl.input.Mouse.getEventY() * height / mc.displayHeight - 1;
 
-        if (mouseX >= listX && mouseX < listX + LIST_W && mouseY >= listY && mouseY < listY + listH) {
+        if (mouseX >= listX && mouseX < listX + LIST_W && mouseY >= listY && mouseY < listY + leaderRowsH) {
             listScroll += wheel > 0 ? -1 : 1;
             clampScroll();
         } else if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
+        } else if (historyH > 0 && mouseX >= guiLeft && mouseX < guiLeft + effW
+                && mouseY >= historyY && mouseY < historyY + historyH) {
+            historyScroll += wheel > 0 ? -1 : 1;
+            clampHistoryScroll(ClientJournalCache.entries().size(), historyVisibleRows());
         }
     }
 
@@ -932,10 +1231,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             return;
         }
 
-        // Nothing found — cancel selection
-        selectionMode = SelectionMode.NONE;
-        mapSelectedFollowers = Collections.emptyList();
-        refreshButtons();
+        // Nothing found — fall back to the player ("You") selection, without moving the map.
+        selectPlayerNoRecenter();
     }
 
     private void handleMapMergeClick(int mouseX, int mouseY) {
@@ -962,7 +1259,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (closest != null && closest.uuid != null) {
             for (int i = 0; i < leaders.size(); i++) {
                 if (closest.uuid.equals(leaders.get(i).uuid) && i != selectedIndex) {
-                    performMerge(i);
+                    performTargetPick(i);
                     return;
                 }
             }
@@ -1047,9 +1344,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         }
 
         if (leaderUUIDs.isEmpty() && followerUUIDs.isEmpty()) {
-            selectionMode = SelectionMode.NONE;
-            mapSelectedFollowers = Collections.emptyList();
-            refreshButtons();
+            selectPlayerNoRecenter();
             return;
         }
 
@@ -1087,6 +1382,10 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     private void applySelection() {
+        applySelection(true);
+    }
+
+    private void applySelection(boolean recenter) {
         if (leaders.isEmpty()) {
             currentSettings = WorkerFormationSettings.defaults();
             selectedScope = null;
@@ -1098,9 +1397,29 @@ public class GuiWorkerFormationHub extends GuiScreen
         currentSettings = getSettingsForScope(selectedScope);
         pushSettingsToSliders();
 
-        if (mapController != null) {
+        if (recenter && mapController != null) {
             mapController.setCenter(findCurrentLeaderPos(info));
         }
+    }
+
+    /** Selects the player ("You") row without recentering the map — the stable resting state used
+     * when the player clicks empty space (mirrors the state the Hub opens in). */
+    private void selectPlayerNoRecenter() {
+        int playerIdx = -1;
+        for (int i = 0; i < leaders.size(); i++) {
+            if (leaders.get(i).isPlayer) { playerIdx = i; break; }
+        }
+        if (playerIdx < 0) { // no player row (shouldn't happen) — just clear selection state
+            selectionMode = SelectionMode.NONE;
+            mapSelectedFollowers = Collections.emptyList();
+            refreshButtons();
+            return;
+        }
+        selectedIndex = playerIdx;
+        selectionMode = SelectionMode.LEADER;
+        mapSelectedFollowers = Collections.emptyList();
+        applySelection(false);
+        refreshButtons();
     }
 
     private BlockPos findCurrentLeaderPos(FormationLeaderInfo info) {
@@ -1135,11 +1454,50 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (selectedIndex >= leaders.size()) return;
         if (leaders.get(selectedIndex).isPlayer) return;
         mergeMode = true;
+        followInsteadOfMerge = false;
+        refreshButtons();
+    }
+
+    /** Same target-picking overlay as merge, but the chosen target is followed (convoy) not merged into. */
+    private void enterFollowMode() {
+        if (selectedIndex >= leaders.size()) return;
+        if (leaders.get(selectedIndex).isPlayer) return;
+        mergeMode = true;
+        followInsteadOfMerge = true;
         refreshButtons();
     }
 
     private void exitMergeMode() {
         mergeMode = false;
+        followInsteadOfMerge = false;
+        refreshButtons();
+    }
+
+    /** Routes a picked target to merge (dissolve) or follow (convoy) depending on the active mode. */
+    private void performTargetPick(int targetIdx) {
+        if (followInsteadOfMerge) performFollow(targetIdx);
+        else performMerge(targetIdx);
+    }
+
+    private void performFollow(int targetIdx) {
+        if (targetIdx < 0 || targetIdx >= leaders.size() || selectedIndex >= leaders.size()) { exitMergeMode(); return; }
+        FormationLeaderInfo source = leaders.get(selectedIndex);
+        FormationLeaderInfo target = leaders.get(targetIdx);
+        if (source.isPlayer || targetIdx == selectedIndex) { exitMergeMode(); return; }
+
+        UUID targetUUID = target.isPlayer ? null : target.uuid;
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupFollow(source.uuid, targetUUID));
+        // The group stays intact and stays selected; the authoritative Hub push refreshes the list.
+        exitMergeMode();
+    }
+
+    private void handleFollowToggle() {
+        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
+        FormationLeaderInfo sel = leaders.get(selectedIndex);
+        if (sel.isPlayer || sel.uuid == null) return;
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgToggleLeaderFollow(sel.uuid));
+        // Optimistic label flip; the server push corrects it within ~1 tick if refused (busy).
+        sel.followActive = !sel.followActive;
         refreshButtons();
     }
 
@@ -1200,8 +1558,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         selectedIndex = targetIdx;
         applySelection();
         refreshButtons();
-
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+        // No explicit hub re-request: the server epilogue pushes an authoritative live update.
     }
 
     // ── Actions ───────────────────────────────────────────────────────────────
@@ -1249,28 +1606,6 @@ public class GuiWorkerFormationHub extends GuiScreen
         refreshButtons();
     }
 
-    private void handleComeBack() {
-        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
-        FormationLeaderInfo sel = leaders.get(selectedIndex);
-        if (sel.isPlayer) return;
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupComeBack(sel.uuid));
-
-        int count = sel.followerCount + 1;
-        leaders.remove(selectedIndex);
-        if (!leaders.isEmpty()) {
-            for (int i = 0; i < leaders.size(); i++) {
-                if (leaders.get(i).isPlayer) {
-                    leaders.get(i).followerCount += count;
-                    selectedIndex = i;
-                    break;
-                }
-            }
-            if (selectedIndex >= leaders.size()) selectedIndex = leaders.size() - 1;
-            applySelection();
-        }
-        refreshButtons();
-    }
-
     private void handleGroupButton() {
         if (selectionMode != SelectionMode.FOLLOWERS || mapSelectedFollowers.isEmpty()) return;
         // Save UUIDs before clearing — used to auto-select the new leader when updateLeaders() arrives
@@ -1279,7 +1614,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         mapSelectedFollowers = Collections.emptyList();
         selectionMode = SelectionMode.NONE;
         refreshButtons();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+        // No explicit hub re-request: the server epilogue pushes an authoritative live update.
     }
 
     private void handleFollowerComeBack() {
@@ -1295,12 +1630,9 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     private void handleBehaviorButton() {
-        if (selectionMode != SelectionMode.LEADER || selectedIndex >= leaders.size()) return;
-        FormationLeaderInfo sel = leaders.get(selectedIndex);
-        if (sel.isPlayer || sel.entityId < 0) return;
-        Entity e = mc.world.getEntityByID(sel.entityId);
-        if (!(e instanceof EntityTravellerWorker)) return;
-        mc.displayGuiScreen(new GuiWorkerBehavior(player, (EntityTravellerWorker) e, this));
+        // Player enemies / village relations are account-wide, not tied to any one worker or
+        // group — so no leader selection is required, and this works for virtual leaders too.
+        mc.displayGuiScreen(new GuiWorkerBehavior(player, this));
     }
 
     // ── Settings sync ─────────────────────────────────────────────────────────
@@ -1349,28 +1681,44 @@ public class GuiWorkerFormationHub extends GuiScreen
         // Leader orders
         boolean showLeaderOrders = isLeaderMode;
         boolean anyPickingMode = goPickingMode || equipPickingMode;
-        if (goButton       != null) { goButton.visible = showLeaderOrders; goButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode; }
-        if (comeBackButton != null) { comeBackButton.visible = showLeaderOrders; comeBackButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode; }
-        if (mergeButton    != null) { mergeButton.visible = showLeaderOrders; mergeButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode && leaders.size() > 1; }
-        if (getEquipButton != null) { getEquipButton.visible = showLeaderOrders && !isPlayer && !anyPickingMode; getEquipButton.enabled = showLeaderOrders && !isPlayer && !anyPickingMode; }
+        boolean selBusy = sel != null && sel.busy;
+        boolean leaderOrderEnabled = showLeaderOrders && !isPlayer && !anyPickingMode && !selBusy;
+        if (goButton           != null) { goButton.visible = showLeaderOrders; goButton.enabled = leaderOrderEnabled; }
+        if (followButton       != null) { followButton.visible = showLeaderOrders; followButton.enabled = leaderOrderEnabled; }
+        if (followToggleButton != null) {
+            followToggleButton.visible = showLeaderOrders;
+            followToggleButton.enabled = leaderOrderEnabled;
+            boolean on = sel != null && sel.followActive;
+            followToggleButton.displayString = I18n.format(on
+                    ? "travellers.worker.formation.follow_on" : "travellers.worker.formation.follow_off");
+        }
+        if (mergeButton    != null) { mergeButton.visible = showLeaderOrders; mergeButton.enabled = leaderOrderEnabled; }
+        // visible only tracks anyPickingMode (not selBusy) so it greys out like its siblings instead of
+        // vanishing when busy - it still hides during picking so cancelGoButton can take its slot.
+        if (getEquipButton != null) {
+            getEquipButton.visible = showLeaderOrders && !isPlayer && !anyPickingMode;
+            getEquipButton.enabled = leaderOrderEnabled;
+        }
 
         // Follower orders
         boolean hasFollowers = !mapSelectedFollowers.isEmpty();
-        boolean moreThanOneLeader = leaders.stream().filter(l -> !l.isPlayer).count() > 0;
+        boolean anyWorkerLeaderExists = leaders.stream().anyMatch(l -> !l.isPlayer);
         if (groupButton             != null) { groupButton.visible = isFollowerMode; groupButton.enabled = isFollowerMode && mapSelectedFollowers.size() >= 2; }
         if (followerComeBackButton  != null) { followerComeBackButton.visible = isFollowerMode; followerComeBackButton.enabled = isFollowerMode && hasFollowers; }
-        if (followerMergeButton     != null) { followerMergeButton.visible = isFollowerMode; followerMergeButton.enabled = isFollowerMode && hasFollowers && moreThanOneLeader; }
+        if (followerMergeButton     != null) { followerMergeButton.visible = isFollowerMode; followerMergeButton.enabled = isFollowerMode && hasFollowers && anyWorkerLeaderExists; }
 
         // Merge / go-cancel
         if (mergeCancelButton != null) mergeCancelButton.visible = mergeMode;
         if (cancelGoButton    != null) cancelGoButton.visible = anyPickingMode && !mergeMode && !assignFollowersMode;
         if (backButton        != null) backButton.visible = !mergeMode && !assignFollowersMode;
 
-        // General buttons
-        if (barracksButton != null) { barracksButton.visible = !mergeMode && !assignFollowersMode; barracksButton.enabled = !anyPickingMode; }
+        // General buttons (left column, below the leaders list — always shown; disabled mid-interaction)
+        boolean generalEnabled = !anyPickingMode && !mergeMode && !assignFollowersMode;
+        if (barracksButton != null) { barracksButton.visible = true; barracksButton.enabled = generalEnabled; }
         if (behaviorButton != null) {
-            behaviorButton.visible = !mergeMode && !assignFollowersMode;
-            behaviorButton.enabled = !anyPickingMode && isLeaderMode && sel != null && !isPlayer && sel.entityId >= 0;
+            // Account-wide settings — no leader selection needed, works for virtual leaders too.
+            behaviorButton.visible = true;
+            behaviorButton.enabled = generalEnabled;
         }
 
         // Update style/cave labels
@@ -1401,7 +1749,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     private void clampScroll() {
-        int vis = listH / ROW_H;
+        int vis = leaderRowsH / ROW_H;
         int max = Math.max(0, leaders.size() - vis);
         if (listScroll < 0) listScroll = 0;
         if (listScroll > max) listScroll = max;

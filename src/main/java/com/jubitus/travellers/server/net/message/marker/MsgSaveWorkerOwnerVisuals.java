@@ -2,6 +2,7 @@ package com.jubitus.travellers.server.net.message.marker;
 
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData;
+import com.jubitus.travellers.server.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -43,12 +44,13 @@ public class MsgSaveWorkerOwnerVisuals implements IMessage {
 
                 WorkerOwnerVisualsSavedData data = WorkerOwnerVisualsSavedData.get(player.world);
                 data.setFor(player.getUniqueID(), safeColor, safeStyle);
-                WorkerOwnerVisualsSavedData.applyToLoadedWorkers(
+                WorkerOwnerVisualsSavedData.applyToWorkers(
                         player.getServer(),
                         player.getUniqueID(),
                         safeColor,
                         safeStyle
                 );
+                TravellerFollowNet.sendToPlayer(player, new MsgOwnerVisualsSync(safeColor, safeStyle));
 
                 player.sendStatusMessage(
                         new TextComponentTranslation("travellers.worker.mark.saved"),

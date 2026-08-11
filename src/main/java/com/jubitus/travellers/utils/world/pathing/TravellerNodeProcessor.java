@@ -1,5 +1,6 @@
 package com.jubitus.travellers.utils.world.pathing;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.utils.world.MPBIntegration;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLilyPad;
@@ -179,6 +180,50 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             }
         }
 
+        // 6) gap-jump candidates: lets the planner itself route across a jumpable gap (a wide
+        // trench, a pond) instead of only ever detouring around one, or only reacting to a jump
+        // opportunistically while blindly walking toward some other waypoint. Each candidate is
+        // the exact landing GapJumpEvaluator would compute for that direction — when the entity
+        // later walks the resulting path, TravellerNavigateGround's existing reactive gap-jump
+        // fires naturally once it nears the edge, since its target is already that same landing.
+        if (TravellersConfig.GAP_JUMP.pathfinderAware && this.entity != null && w < options.length - 4) {
+            w = addGapJumpCandidates(options, w, current, target, maxDistance);
+        }
+
+        return w;
+    }
+
+    private static final int[][] CARDINAL_DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+    private int addGapJumpCandidates(PathPoint[] options, int w, PathPoint current, PathPoint target, float maxDistance) {
+        boolean debug = TravellersConfig.GAP_JUMP.debugGapJump;
+        long worldTime = this.entity.world.getTotalWorldTime();
+        for (int[] d : CARDINAL_DIRS) {
+            GapJumpResult gap = GapJumpEvaluator.evaluate(
+                    this.blockaccess, worldTime, current.x, current.y, current.z, d[0], d[1]);
+            if (gap.type != GapJumpResult.Type.JUMPABLE) continue;
+
+            PathPoint p = this.openPoint(gap.landCellX, gap.landCellY, gap.landCellZ);
+            if (p.visited || p.distanceTo(target) >= maxDistance) {
+                if (debug) {
+                    net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                            "[Travellers/GapJump] node search: candidate at %d,%d,%d from %d,%d,%d REJECTED (visited=%b distToTarget=%.1f maxDist=%.1f)",
+                            gap.landCellX, gap.landCellY, gap.landCellZ, current.x, current.y, current.z,
+                            p.visited, p.distanceTo(target), maxDistance);
+                }
+                continue;
+            }
+
+            p.nodeType = PathNodeType.WALKABLE;
+            p.costMalus = Math.max(p.costMalus, (float) TravellersConfig.GAP_JUMP.pathfinderJumpCostMalus);
+            options[w++] = p;
+
+            if (debug) {
+                net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                        "[Travellers/GapJump] node search: candidate at %d,%d,%d from %d,%d,%d ADDED (gapWidth=%d)",
+                        gap.landCellX, gap.landCellY, gap.landCellZ, current.x, current.y, current.z, gap.gapWidth);
+            }
+        }
         return w;
     }
 

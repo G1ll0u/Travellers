@@ -53,9 +53,9 @@ public class MsgWorkerGoTo implements IMessage {
                     return;
                 }
 
-                // Optional: block if job active
-                if (w.isJobActive()) {
-                    NotificationService.notify(player, NotificationDefs.GOTO_WORKER_BUSY);
+                // A worker busy on a mission can't take a Go order (loaded + virtual share this rule).
+                if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(w)) {
+                    NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
                     return;
                 }
 

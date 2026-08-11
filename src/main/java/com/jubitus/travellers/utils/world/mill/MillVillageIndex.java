@@ -956,9 +956,6 @@ public final class MillVillageIndex {
         final int minPerVillage = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMinPerVillage;
         final int maxPerVillage = TravellersConfig.SPAWN_TRAVELLERS.travellerCapMaxPerVillage;
 
-        final int globalMin = TravellersConfig.SPAWN_TRAVELLERS.travellerCapGlobalMin;
-        final int globalMax = TravellersConfig.SPAWN_TRAVELLERS.travellerCapGlobalMax;
-
         final int perLone = TravellersConfig.SPAWN_TRAVELLERS.travellerCapPerLoneBuilding;
 
 
@@ -980,9 +977,6 @@ public final class MillVillageIndex {
         if (wd != null && wd.loneBuildingsList != null && wd.loneBuildingsList.pos != null) {
             total += wd.loneBuildingsList.pos.size() * perLone;
         }
-
-        if (total < globalMin) total = globalMin;
-        if (total > globalMax) total = globalMax;
 
         return total;
     }
@@ -1011,7 +1005,7 @@ public final class MillVillageIndex {
             total += wd.loneBuildingsList.pos.size() * perLone;
         }
 
-        return Math.min(total, TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap);
+        return total;
     }
 
     public static Map<VillageInfo, Integer> countVillagersPerVillage(World world) {

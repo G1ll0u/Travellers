@@ -1,17 +1,14 @@
 ## Travellers
 
-**Travellers** is a Millénaire-focused immersion mod that brings the world outside village borders to life. Instead of keeping Millénaire NPCs confined to their settlements, Travellers introduces roaming people who **move between villages and react to what happens along the way**. You'll naturally encounter them while exploring the world.
-
-Basically, Travellers was just a mod aiming to add roaming travellers that travel between villages. But the more I worked on, the more ideas I got and added.
+**Travellers** is a mod for Minecraft 1.12.2 that adds travellers outside village borders. Instead of keeping Millénaire NPCs confined to their settlements, Travellers introduces roaming people who **move between villages and react to what happens along the way**. You'll naturally encounter them while exploring the world.
+Basically, Travellers was just a mod aiming to add roaming travellers that travel between villages. But the more it evolved, the more ideas I got and added.
 
 **REQUIRES MILLENAIRE 8.1.2 + MIXINBOOTER TO WORK**
 
 ### Millenaire integration
 
-Travellers are not generic wanderers. They are designed to **blend into Millénaire's cultures and addons**:
-
-* Their **culture is determined by where they spawn** and the surrounding Millénaire villages.
-* They use **Millénaire (and addons) textures and data stucture (culture txts)**.
+Travellers are not generic wanderers. They are designed to **blend into Millénaire's cultures and addons system**
+You'll see norman, japanese, inuits, byzantines travelling the world.
 
 ### Custom voice lines
 Travellers have voices and voice personalities ! 
@@ -24,8 +21,6 @@ Travellers also have different voice personalities !
 
 **I search for people with good microphones to help me make voicelines, don't hesitate to tell me if you want to add voices for a culture and I'll tell you how and judge your mic quality**
 It can even be simply be a new voice personality to a culture that already has voicelines.
-
-**Full compat with Sound Physics :D**
 
 ### Songs ?!
 Travellers also are singers !
@@ -42,24 +37,15 @@ Travellers are built to handle real travel rather than scripted wandering:
 
 ### Real population system
 
-All travellers, raiders and henchmen are virtualized when unloaded. Meaning their movement is simulated when they are outside view distance.
+All travellers, raiders and henchmen are virtualized when unloaded. Meaning their movement is simulated when their chunk isn't loaded.
 Meaning every traveller is unique and moves in the world.
+
+They appear (materialize) and disappear (turn virtual) based on whether the ground chunk they're standing on is actually loaded — by your own view distance, or by anything else keeping it loaded (another player, a Millénaire village, a chunk loader). A henchman sent far away on a "go" order will pop into existence the moment it reaches a loaded village, even while you're nowhere near it. Tunable in config (`Materialization` category: `materializeChunkStableTicks` / `virtualizeChunkUnneededTicks` — how long a chunk must stay loaded/unloaded before they appear/disappear, to avoid flicker from very brief chunk loads).
 
 ### Raiders
 
 The mod also adds a hostile variant:
-
 * **Raider** (`travellers:traveller_raider`) travels like a Traveller, but **attacks players and Millénaire villagers**.
-
-### Camps
-
-Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild, away from villages. Watch closely and you'll see a traveller actually **build its shelter block by block**, swinging its arm as it goes, before finally lighting the campfire. On uneven ground it first **banks up a foundation by hand, using blocks matching the local terrain** — sand in a desert, clay on a mesa, whatever the biome (or terrain mod) provides. When it's time to leave, it **tears the shelter back down** the same way — and then **repairs the ground by hand too**, putting the original terrain back block by block before walking off. The last one to leave puts out the fire.
-
-If a whole camp gets wiped out (raiders happen...), the abandoned campfire **burns out on its own** after a few minutes, leaving a cold firepit and half-built ruins behind until another group moves in and relights it.
-
-Camps only ever settle on **natural terrain** — they will never flatten your house, a village, or any other structure, even one built on a camp spot long after the camp was scouted.
-
-This all keeps happening even when you're not there to watch — camps quietly progress in the background and pick up right where they left off (mid-build, mid-teardown, whatever) the next time you wander back.
 
 ### Virtual battles
 
@@ -71,27 +57,40 @@ Walk into a battle and it seamlessly turns physical around you — same fighters
 
 Your worldmap and formation hub also have a fog of war: foreign travellers, raiders, other players' henchmen, and battles only show up once one of your own henchmen gets close enough (a configurable vision radius) — no more seeing every fight on the server from your armchair. Other players' hired henchmen show up tinted in their owner's color, and their HP stays hidden unless you turn that on in the config.
 
+
+### Camps (WIP)
+
+Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild.
+
+If a whole camp gets wiped out (raiders happen...), the abandoned campfire **burns out on its own** after a few minutes, leaving a cold firepit and half-built ruins behind until another group moves in and relights it.
+
+This all keeps happening even when you're not there to watch — camps quietly progress in the background and pick up right where they left off (mid-build, mid-teardown, whatever) the next time you wander back.
+
+
 ---
 
 ## Henchmen
 
 This mod also adds **Henchmen**: recruitable NPCs that turn travel into gameplay. They spawn in established villages (population threshold configurable) and behave like autonomous couriers when not hired, travelling to villages bringing a small portion of needed goods for building and wall constructions (even for unloaded villages).
-Henchmen travel from villages to villages **even virtually**, they travel even when the entity is unloaded and use a "virtualization mode" that simulates its movement.
+Henchmen travel from villages to villages **even virtually**, they travel even when the entity is unloaded and use the "virtualization mode" that simulates its movement and behavior on unloaded chunks.
 That means every henchman is unique and really moves from villages to villages even when unloaded.
 
 Once hired with Millénaire deniers, Henchmen become **your long-distance team**, built to operate even when you are far away.
 
-### What Henchmen can do
+### What Henchmen can do when hired
 
 * **Follow you reliably** even when you go far from them
-* **Be organized into multiple groups** by assigning **leaders**, making large crews manageable
-* **Use formations** — assign formation styles and tweak spacing via the Formation Hub
+They use the virtualization system to move on unloaded chunks
+* **Be organized into multiple groups** by assigning **leaders**, making large crews manageable.
+Open formations menu with the `H` key (by default)
+* **Use formations** — assign formation styles and tweak spacing via the Formation Hub; a group always keeps a tight formation for its current size, closing ranks automatically when it loses members
 * **Run recruitment missions** to visit villages and bring back additional Henchmen (with configurable costs, distance limits, and spawn ranges)
 * **Sell or donate items to Millénaire villages** as if you did it yourself
 * **Travel extremely far**, including to destinations in **unloaded areas** — they do not require the target village to be actively loaded to sell or donate
 * **Be set as enemies** with specific villages or players; hired Henchmen inherit their leader's enemy player list
+Note that henchmen are better fighters than millagers, leading to non-fair village destruction.
 * **Have a world map** showing all your Henchmen and their positions at a glance
-* **Have an assigned Barracks** — a place for them to respawn and take equipment from chests
+* **Have an assigned Barracks** — a place for them to respawn and take equipment from chests when ordered
 
 ### Barracks
 
@@ -111,44 +110,44 @@ This mechanic is subject to evolve.
 * Go to **Orders > Go...** and select a position
 * The Henchman (and their followers if they are a leader) will travel to that position
 
+> A Henchman already busy on a task (transporting goods, recruiting, or fetching equipment) won't accept a new order — Go, Get Equipment, or being grouped/regrouped — until it finishes. You'll get a short notice, and if you were grouping several at once the busy ones are simply left on their task while the rest are grouped.
+
 **Attack a village**
 * Right-click a hired Henchman
 * Go to **Behavior > Village relations**
 * Toggle the target village as enemy
 * Use the **Go** menu to send them to attack
-Ensure the village is loaded.
+**Ensure the village is loaded.**
 
 **Transport goods**
 * Right-click a hired Henchman
 * Go to **Transport**
 * Give items → select a village → click Validate → click Sell or Donate
-''
-The Henchman will travel to the village, complete the transaction, and return.
+
+The Henchman will travel to the village, complete the transaction, and return to you.
 
 **Manage groups and formations** *(default key: **H**)*
 * Press **H** in-game (or right-click a Henchman and open the **Formation Hub**) to open the hub
 * The hub shows a world map with all your Henchmen marked and a list of current leaders
-* Select Henchmen directly on the map by click-dragging a rectangle; hold **Shift** to add to the selection
+* Select Henchmen directly on the map by click-dragging a rectangle; hold **Shift** to select only followers / add to existing selection
 * Create a group from your selection — the best-equipped Henchman in the selection becomes the leader automatically
 * Adjust formation style and spacing with the sliders on the right
-* Give orders to the group leaders
+* Give orders to the group leaders: send them somewhere (**Go to…**), have a whole group **Follow…** another leader or you while keeping its own formation (a convoy), toggle a group's **Follow: ON/OFF** to make it follow you or hold position, **Merge…** one group into another (merge into yourself to dismiss it), or fetch equipment
+* A scrollable **event history** panel (recruits, trades, arrivals, battles...) is shown above/below the hub — click a battle entry to center the map on it
 
 **World map**
 * A standalone world map (showing your Henchmen) can be opened with a key you assign yourself in **Options > Controls** under the Travellers category — no key is bound by default.
 
-Henchmen don't pathfind when out of view. Performance impact is kept to a minimum.
 
 ### Potential incompatibilities
 
-* **Optifine's `Smooth World` option** may cause Henchmen to get stuck at loaded chunk borders
+* **Optifine's `Smooth World` option** may cause Henchmen to get stuck at loaded chunk borders in singleplayer.
+If you get any travellers stuck at view distance border, try disabling Optifine `Smooth World`
 
 ### Special compatibilities
 - Compatibility with **Ultreïa**, my mod that generates real paths between villages
 Travellers will navigate using the Ultreïa path network.
 - Compatibility with **SoundPhysics**
-
-
-
 
 ---
 
@@ -164,16 +163,6 @@ All mod values are configurable without restarting:
 
 ---
 
-### Known problems
-
-Travellers may sometimes cause these logs to appear :
-```
-[minecraft/SoundManager]: Error in class 'SourceLWJGL OpenAL'
-[minecraft/SoundManager]: Channel null in method 'stop'
-```
-
-You can ignore it.
-
 ## Big thanks
 
 **@Aidan** from the Millénaire Discord for beta testing and finding lots of bugs!
@@ -184,11 +173,14 @@ Joshy is this guy that complains
 
 **@Shwartz** from the Millénaire Discord for the Huari, Japanese, and Norman (default) backpack models!
 
-## AI Disclosure
-
+## AI agents Disclosure
 Yeah my friend Claude Code helped me doing this project in 1 year instead of never even trying doing it.
 You can freely screenshot this part and tell people it's AI slop.
 
 ## AI Art disclosure
 
-No AI generated art has been used in this mod. Every resource, from audio to textures are hand-made.
+NO GEN AI HAS BEEN USED FOR ART OR ANYTHING ELSE, ALL PIECES OF ART FROM THIS MOD BELONGS TO ME, @Shwartz from Millénaire Discord and Millénaire base assets.
+Every resource, from audio to textures are hand-made with love.
+
+## Problem reporting
+Do not hesitate to report issues in GitHub issues

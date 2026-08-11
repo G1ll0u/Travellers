@@ -15,13 +15,13 @@ import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.entity.entityAI.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
+import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowGroupLeader;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
-import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
@@ -48,7 +48,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
     public EntityTravellerRaider(World worldIn) {
         super(worldIn);
-        // Raiders shouldn't talk/sing or follow, but can reuse swimming/route logic etc.
+        // Raiders shouldn't talk/sing, but can reuse swimming/route/group-follow logic etc.
         this.enablePersistence(); // optional: set false if you want normal hostile despawn behavior
         // Slightly higher base speed/HP if you want them scarier
         this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(
@@ -72,31 +72,9 @@ public class EntityTravellerRaider extends EntityTraveller {
         return block <= rand.nextInt(8);
     }    // No friendly chat
 
-    // Hostile spawn rules (if keeping EntityCreature). If you extend EntityMob you get these for free.
-    @Override
-    public boolean getCanSpawnHere() {
-        if (world.isRemote) return false;
-        if (world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
-
-        // HARD cap for loaded raiders
-        int cap = TravellersConfig.SPAWN_RAIDERS.loadedRaiderCap;
-        int loaded = this.world.getEntities(EntityTravellerRaider.class, Entity::isEntityAlive).size();
-        if (loaded >= cap) return false;
-
-        BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
-
-        // Must be near a Millénaire village
-        if (!isNearAnyVillage(this.world, pos, TravellersConfig.SPAWN.villageSpawnRadius)) return false;
-
-        // Local density
-        if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTravellerRaider.class,
-                TravellersConfig.SPAWN_RAIDERS.raiderLocalCap, TravellersConfig.SPAWN_RAIDERS.raiderLocalCapRadius)) return false;
-
-        // Ground sanity similar to vanilla
-        if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
-
-        return super.getCanSpawnHere();
-    }
+    // getCanSpawnHere() override removed — raiders no longer register a vanilla biome spawn entry,
+    // they spawn exclusively through the virtual population controller (TravellerSoftSpawner), which
+    // never calls this. See CLAUDE.md / Travellers.java preInit for the removal.
 
     @Override
     protected void initEntityAI() {
@@ -166,8 +144,14 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // Melee combat
         double meleeSpeed = com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking;
-        aiMelee = new EntityAIAttackMeleeCustom(this, meleeSpeed, true, 0.65D);
+        aiMelee = new EntityAIAttackMeleeCustom(this, meleeSpeed, true, TravellersConfig.COMBAT.raiderExtraMeleeReach);
         this.tasks.addTask(5, aiMelee);
+
+        // Follow a group leader (raider groups, same mechanism as travellers - see EntityTraveller).
+        // Must run before EntityAICampStay below so its "yield while leader camps" check actually
+        // takes effect (see EntityAIFollowGroupLeader's own shouldExecute comment).
+        aiFollowGroupLeader = new EntityAIFollowGroupLeader(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
+        this.tasks.addTask(4, aiFollowGroupLeader);
 
         // === CAMP / GROUP BEHAVIOR ===========================================================
 
@@ -391,10 +375,8 @@ public class EntityTravellerRaider extends EntityTraveller {
         boolean tookDamage = super.attackEntityFrom(source, amount);
         if (!tookDamage || world.isRemote) return tookDamage;
 
-        TravellerFollowNet.CHANNEL.sendToAllAround(
-                new MsgStopTravellerVoice(this),
-                new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
-        beginVoiceLock(20, VoiceKind.HURT);
+        // No explicit voice-stop needed here: playHurtSound() (called by super.attackEntityFrom
+        // above) already crossfades out whatever voice line was playing when it plays the hurt bark.
 
         Entity src = source.getTrueSource();
 

@@ -3,6 +3,7 @@ package com.jubitus.travellers.entity.entityAI.combat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
+import com.jubitus.travellers.utils.world.data.PlayerEnemyRelations;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -47,9 +48,24 @@ public final class WorkerTeamPvPHandler {
             if (p.isCreative() || p.isSpectator()) return;
         }
 
+        if (!(victim.world instanceof WorldServer)) return;
+        WorldServer ws = (WorldServer) victim.world;
+
         // --- Critical constraint: defender engages ONLY if attacker declared war ---
-        if (!attackerDeclaredWar(attacker, attackerOwner, victimOwner, victim)) {
+        if (!PlayerEnemyRelations.get(ws).isHostile(attackerOwner, victimOwner)) {
             return;
+        }
+
+        // First blood under a declared, one-sided war: from now on the victim's side is at war
+        // too, in all circumstances — not just the workers/area involved in this one hit. This is
+        // the "betrayal" moment, so notify the victim even if they're offline right now.
+        boolean victimNowAtWar = PlayerEnemyRelations.get(ws).setHostile(victimOwner, attackerOwner, true);
+        if (victimNowAtWar) {
+            MinecraftServer srv = ws.getMinecraftServer();
+            if (srv != null) {
+                NotificationService.notifyEventOffline(srv, victimOwner, NotificationDefs.WAR_DECLARED_ON_YOU,
+                        null, resolveName(ws, attackerOwner));
+            }
         }
 
         // Engage all nearby workers of victimOwner and set target
@@ -75,15 +91,7 @@ public final class WorkerTeamPvPHandler {
 
                 EntityPlayer owner = victim.world.getPlayerEntityByUUID(victimOwner);
                 if (owner != null) {
-                    String name = attackerOwner.toString();
-                    if (victim.world instanceof WorldServer) {
-                        MinecraftServer srv = ((WorldServer) victim.world).getMinecraftServer();
-                        if (srv != null) {
-                            GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(attackerOwner);
-                            if (gp != null && gp.getName() != null) name = gp.getName();
-                        }
-                    }
-                    NotificationService.notify(owner, NotificationDefs.WORKER_RETALIATION_TARGET, name);
+                    NotificationService.notify(owner, NotificationDefs.WORKER_RETALIATION_TARGET, resolveName(ws, attackerOwner));
                 }
             }
 
@@ -101,43 +109,12 @@ public final class WorkerTeamPvPHandler {
         }
     }
 
-    private static boolean attackerDeclaredWar(EntityLivingBase attacker, UUID attackerOwner, UUID victimOwner, EntityLivingBase victim) {
-        // If attacker is a worker: just read its declared hostile list
-        if (attacker instanceof EntityTravellerWorker) {
-            EntityTravellerWorker aw = (EntityTravellerWorker) attacker;
-            return aw.getEffectiveHostilePlayers().contains(victimOwner);
+    private static String resolveName(WorldServer ws, UUID playerId) {
+        MinecraftServer srv = ws.getMinecraftServer();
+        if (srv != null) {
+            GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(playerId);
+            if (gp != null && gp.getName() != null) return gp.getName();
         }
-
-        // If attacker is a player: check nearby attacker-owned workers for declaration
-        if (attacker instanceof EntityPlayer) {
-            EntityPlayer ap = (EntityPlayer) attacker;
-
-            AxisAlignedBB nearAttacker = ap.getEntityBoundingBox().grow(EntityTravellerWorker.PVP_DECLARE_CHECK_RADIUS, 16.0D, EntityTravellerWorker.PVP_DECLARE_CHECK_RADIUS);
-            List<EntityTravellerWorker> near = ap.world.getEntitiesWithinAABB(
-                    EntityTravellerWorker.class,
-                    nearAttacker,
-                    w -> w != null
-                            && w.isEntityAlive()
-                            && w.isHiredFollower()
-                            && attackerOwner.equals(w.getFollowOwnerId())
-                            && w.getEffectiveHostilePlayers().contains(victimOwner)
-            );
-            if (!near.isEmpty()) return true;
-
-            // also check near victim (projectiles / distance)
-            AxisAlignedBB nearVictim = victim.getEntityBoundingBox().grow(EntityTravellerWorker.PVP_DECLARE_CHECK_RADIUS, 16.0D, EntityTravellerWorker.PVP_DECLARE_CHECK_RADIUS);
-            List<EntityTravellerWorker> near2 = victim.world.getEntitiesWithinAABB(
-                    EntityTravellerWorker.class,
-                    nearVictim,
-                    w -> w != null
-                            && w.isEntityAlive()
-                            && w.isHiredFollower()
-                            && attackerOwner.equals(w.getFollowOwnerId())
-                            && w.getEffectiveHostilePlayers().contains(victimOwner)
-            );
-            return !near2.isEmpty();
-        }
-
-        return false;
+        return playerId.toString();
     }
 }

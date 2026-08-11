@@ -35,17 +35,21 @@ import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerCamp;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
+import com.jubitus.travellers.utils.mobs.compat.AncientWarfare2Compat;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
 import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.utils.world.pathing.GapJumpEvaluator;
+import com.jubitus.travellers.utils.world.pathing.GapJumpResult;
 import com.jubitus.travellers.utils.world.pathing.TravellerNavigateGround;
-import com.jubitus.travellers.utils.world.spawn.SpawnThrottles;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockHorizontal;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.*;
@@ -54,6 +58,7 @@ import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.init.Blocks;
 import net.minecraft.init.SoundEvents;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.*;
@@ -86,6 +91,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.fluids.IFluidBlock;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
@@ -93,6 +99,7 @@ import org.millenaire.common.block.IBlockPath;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -175,6 +182,20 @@ public class EntityTraveller extends EntityCreature {
 
     // UUID of the group leader this entity follows (null = leader or solo)
     @Nullable private UUID groupLeaderUUID;
+    // Which village/lone building this traveller/raider "belongs to" for population accounting —
+    // mirrors EntityTravellerWorker.homeVillageCenter. Deliberately never used for AI/steering, only
+    // so TravellerSoftSpawner can tell a village's spawned population apart from a neighbour's once
+    // it has wandered off and materialized far from home (see population-overshoot fix, 2026-08-05).
+    @Nullable private BlockPos homeVillage;
+
+    @Nullable
+    public BlockPos getHomeVillage() {
+        return this.homeVillage;
+    }
+
+    public void setHomeVillage(@Nullable BlockPos pos) {
+        this.homeVillage = pos;
+    }
     int spawnAmbientCooldownTicks = 0;                       // counts down server-side
     // server-side only
     private int trackingPlayers = 0;
@@ -406,28 +427,9 @@ public class EntityTraveller extends EntityCreature {
         return base;
     }
 
-    @Override
-    public boolean getCanSpawnHere() {
-        if (world.isRemote) return false;
-        // Global-per-dimension loaded cap
-        int cap = TravellersConfig.SPAWN_TRAVELLERS.loadedTravellerCap;
-        int loaded = this.world.getEntities(EntityTraveller.class, Entity::isEntityAlive).size();
-        if (loaded >= cap) return false;
-
-        // MUCH smaller “near a village”
-        BlockPos pos = new BlockPos(this.posX, this.posY, this.posZ);
-        if (!isNearAnyVillage(this.world, pos, TravellersConfig.SPAWN.villageSpawnRadius)) return false;
-
-        // Light & ground sanity (creature-like)
-        if (!world.getBlockState(pos.down()).isOpaqueCube()) return false;
-
-        // Local density throttle (see next section)
-        if (!SpawnThrottles.underLocalCap(this.world, pos, EntityTraveller.class,
-                TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCap, TravellersConfig.SPAWN_TRAVELLERS.travellerLocalCapRadius))
-            return false;
-
-        return super.getCanSpawnHere();
-    }
+    // getCanSpawnHere() override removed — travellers no longer register a vanilla biome spawn entry,
+    // they spawn exclusively through the virtual population controller (TravellerSoftSpawner), which
+    // never calls this. See CLAUDE.md / Travellers.java preInit for the removal.
 
     @Override
     public boolean isWithinHomeDistanceCurrentPosition() {
@@ -741,7 +743,7 @@ public class EntityTraveller extends EntityCreature {
         this.tasks.addTask(3, aiRanged);
 
 
-        aiMelee = new EntityAIAttackMeleeCustom(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking, true, 0.30);
+        aiMelee = new EntityAIAttackMeleeCustom(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking, true, 0.00);
         this.tasks.addTask(4, aiMelee);
 
         aiFollowGroupLeader = new EntityAIFollowGroupLeader(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
@@ -932,12 +934,25 @@ public class EntityTraveller extends EntityCreature {
                     int effectiveMax = computeEffectiveAttackerCap(target);
 
                     if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
+                        if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
+                                && AncientWarfare2Compat.isFactionNpc(target)) {
+                            net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                                    "[Travellers/AW2] %s FAILED to join attacker slot on %s#%s (cap=%d, current=%d)",
+                                    this.getName(), target.getName(), target.getUniqueID(),
+                                    effectiveMax, AttackTargetLimiter.getAttackerCount(target));
+                        }
                         ignoreTarget(target, 30);
                         startWatchingFight(target, 60);
                         if (this.getRevengeTarget() == target) this.setRevengeTarget(null);
                         setInCombat(false);
                         getNavigator().clearPath();
                         return;
+                    } else if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
+                            && AncientWarfare2Compat.isFactionNpc(target)) {
+                        net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                                "[Travellers/AW2] %s joined attacker slot on %s#%s (cap=%d, now=%d)",
+                                this.getName(), target.getName(), target.getUniqueID(),
+                                effectiveMax, AttackTargetLimiter.getAttackerCount(target));
                     }
                 } else {
                     // Bypass (revenge / emergency): register an unlimited slot so keepAlive
@@ -1348,6 +1363,11 @@ public class EntityTraveller extends EntityCreature {
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, getVoicePersonalityId());
             if (groupLeaderUUID != null) compound.setUniqueId("GroupLeaderUUID", groupLeaderUUID);
+            if (homeVillage != null) {
+                compound.setInteger("HomeVillageX", homeVillage.getX());
+                compound.setInteger("HomeVillageY", homeVillage.getY());
+                compound.setInteger("HomeVillageZ", homeVillage.getZ());
+            }
 
             NBTTagList lst = new NBTTagList();
             for (BlockPos p : travelCommon.route) {
@@ -1443,6 +1463,14 @@ public class EntityTraveller extends EntityCreature {
         travelCommon.setReadyToDepart(compound.getBoolean("ReadyToDepart"));
         travelCommon.setDepartCooldownTicks(compound.getInteger("DepartCooldown"));
         groupLeaderUUID = compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null;
+        if (compound.hasKey("HomeVillageX")) {
+            homeVillage = new BlockPos(
+                    compound.getInteger("HomeVillageX"),
+                    compound.getInteger("HomeVillageY"),
+                    compound.getInteger("HomeVillageZ"));
+        } else {
+            homeVillage = null;
+        }
     }
 
     @Override
@@ -1469,6 +1497,8 @@ public class EntityTraveller extends EntityCreature {
             if (spawnAmbientCooldownTicks > 0) spawnAmbientCooldownTicks--;
             if (travellerCamp.campGlobalCooldown > 0) travellerCamp.campGlobalCooldown--;
             if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
+
+            tickHazardRepulsion();
         }
 
         super.onLivingUpdate();
@@ -1674,7 +1704,13 @@ public class EntityTraveller extends EntityCreature {
         }
 
         if (!world.isRemote) {
-            equipment.initSpawnEquipment(c, this.rand);
+            // Raiders/workers re-roll their texture index against their own appearance pool right
+            // after this method returns (their pool differs from the plain traveller pool used
+            // above), then call initSpawnEquipment themselves — calling it here too would read
+            // equipment tied to the wrong (pre-reroll) appearance and be immediately redone anyway.
+            if (!(this instanceof EntityTravellerRaider) && !(this instanceof EntityTravellerWorker)) {
+                equipment.initSpawnEquipment(c, this.rand);
+            }
 
             // 3) Seed ambient window if needed
             if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
@@ -1710,8 +1746,9 @@ public class EntityTraveller extends EntityCreature {
 
         speakCooldown = 20; // ~1s between barks
         doInteractSwing(hand);
-
-        // ✅ Only greet/chat when NOT in combat
+        if (this.isInCombat()) {
+            return false;
+        }
         if (!this.isInCombat()) {
             // Choose hello vs talk
             if (shouldHelloFor(player)) {
@@ -1721,7 +1758,6 @@ public class EntityTraveller extends EntityCreature {
                 playTalkSound();          // normal chatter
             }
         }
-
         // Keep your existing “I’m following / village idle / announce heading” messages:
         if (isFollowingSomeone()) {
             ITextComponent travellingMsg = new TextComponentTranslation("travellers.dialogue.travelling_with_someone");
@@ -1789,8 +1825,26 @@ public class EntityTraveller extends EntityCreature {
         return this.dataManager.get(AIMING_BOW);
     }
 
+    /**
+     * Also drives vanilla's real "using an item" state (setActiveHand/resetActiveHand) whenever a
+     * bow is held, not just our own render-pose flag. This is what makes third-party ambient-sound
+     * mods (e.g. Dynamic Surroundings) and the bow item's own string-pull texture react correctly -
+     * both key off EntityLivingBase.isHandActive()/LivingEntityUseItemEvent, which a private flag
+     * alone is invisible to. Safe for a non-player entity: ItemBow's release logic (arrow creation)
+     * is guarded by "instanceof EntityPlayer" and its use duration is a fixed 72000 ticks, so nothing
+     * auto-fires or auto-completes from just holding the state.
+     */
     public void setAimingBow(boolean v) {
-        if (!world.isRemote) this.dataManager.set(AIMING_BOW, v);
+        if (world.isRemote) return;
+        this.dataManager.set(AIMING_BOW, v);
+        if (v) {
+            ItemStack hand = getHeldItemMainhand();
+            if (!hand.isEmpty() && hand.getItem() instanceof ItemBow && !isHandActive()) {
+                setActiveHand(EnumHand.MAIN_HAND);
+            }
+        } else if (isHandActive() && getActiveItemStack().getItem() instanceof ItemBow) {
+            resetActiveHand();
+        }
     }
 
     public boolean isCampingPassive() {
@@ -1896,6 +1950,214 @@ public class EntityTraveller extends EntityCreature {
         // against the mob's own bounding box must never suffocate the builder.
         if (isSleepingInBed() || campingPassive) return false;
         return super.isEntityInsideOpaqueBlock();
+    }
+
+    /** Every entity re-checks its own hazard scan on a different tick, spreading the cost. */
+    private static final int HAZARD_TICK_BUCKETS = 4;
+
+    /**
+     * Continuous, cheap safety nudge away from lava/fire/configured hazard blocks and away from
+     * deep drops/void, applied to every traveller/raider/worker every tick regardless of which AI
+     * task (if any) currently has movement control - idle, travelling, following, camping,
+     * fighting. A crowded group jostles its own members via ordinary entity collision every tick,
+     * which alone is enough to shove one sideways over an edge before any reactive AI even gets a
+     * chance to run; this is a background bias against exactly that, not a hard wall - it's a
+     * small motionX/Z nudge, easily overridden by real movement (a deliberate gap-jump, a
+     * deliberate lava/water crossing, a player pushing hard and sustained).
+     */
+    private void tickHazardRepulsion() {
+        if (world.isRemote || isDead) return;
+        if (!TravellersConfig.HAZARD_SAFETY.enabled) return;
+        if (isRiding() || isSleepingInBed() || campingPassive) return;
+
+        PathNavigate nav = this.getNavigator();
+        if (nav instanceof TravellerNavigateGround && ((TravellerNavigateGround) nav).isGapJumping()) return;
+
+        // Staggered like the follow AI's own heavy-update cadence - the scan itself is cheap per
+        // entity, but this now runs for every traveller/raider/worker in the world, not just
+        // hired formation followers, so spreading the cost across ticks matters at scale.
+        if (Math.floorMod(this.ticksExisted, HAZARD_TICK_BUCKETS) != Math.floorMod(this.getEntityId(), HAZARD_TICK_BUCKETS)) {
+            return;
+        }
+
+        TravellersConfig.HazardSafety cfg = TravellersConfig.HAZARD_SAFETY;
+        double radius = cfg.scanRadius;
+        BlockPos feet = new BlockPos(this.posX, this.getEntityBoundingBox().minY, this.posZ);
+        int r = MathHelper.ceil(radius);
+
+        // If a valid jump is available in the direction the entity is currently moving, don't let
+        // the cliff-type push fight that approach (hazard-material push stays - it's already weak
+        // enough not to meaningfully fight a deliberate lava-gap jump, same as before this change).
+        double moveLenSq = motionX * motionX + motionZ * motionZ;
+        boolean hasJumpAhead = false;
+        double jumpDirX = 0.0D, jumpDirZ = 0.0D;
+        if (moveLenSq > 1.0E-4D) {
+            double moveLen = Math.sqrt(moveLenSq);
+            jumpDirX = motionX / moveLen;
+            jumpDirZ = motionZ / moveLen;
+            GapJumpResult gap = GapJumpEvaluator.evaluate(world, world.getTotalWorldTime(),
+                    feet.getX(), feet.getY(), feet.getZ(), jumpDirX, jumpDirZ);
+            hasJumpAhead = gap.type == GapJumpResult.Type.JUMPABLE;
+        }
+
+        // Whether the entity's OWN column is already the danger (shoved past the edge, not just
+        // near it). The edge-repulsion loop below only ever pushes AWAY from a neighbor column, so
+        // once the entity is centered on the hazard itself there is no "away from self" direction
+        // left to push along - it silently stopped resisting right when it mattered most and just
+        // fell in. Handled separately below: search for the nearest safe neighbor and push TOWARD
+        // it instead, at full strength.
+        boolean selfHazardMaterial = isHazardMaterialColumn(feet);
+        boolean selfCliffDanger = !selfHazardMaterial
+                && computeCliffDropDepth(feet, cfg.cliffMaxScanDepth) >= cfg.cliffMinDropDepth;
+        boolean selfDangerous = selfHazardMaterial || selfCliffDanger;
+
+        double pushX = 0.0D;
+        double pushZ = 0.0D;
+
+        double bestSafeDistSq = Double.MAX_VALUE;
+        double bestSafeDirX = 0.0D;
+        double bestSafeDirZ = 0.0D;
+        boolean hasSafeDir = false;
+
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                boolean isSelf = dx == 0 && dz == 0;
+                BlockPos col = feet.add(dx, 0, dz);
+
+                double colX = col.getX() + 0.5D;
+                double colZ = col.getZ() + 0.5D;
+                double awayX = this.posX - colX;
+                double awayZ = this.posZ - colZ;
+                double distSq = awayX * awayX + awayZ * awayZ;
+                if (distSq > radius * radius) continue;
+
+                boolean hazardMat = isSelf ? selfHazardMaterial : isHazardMaterialColumn(col);
+                boolean waterCol = !hazardMat && isWaterColumn(col);
+                boolean cliffDanger = !hazardMat && !waterCol
+                        && computeCliffDropDepth(col, cfg.cliffMaxScanDepth) >= cfg.cliffMinDropDepth;
+
+                if (selfDangerous && !isSelf && !hazardMat && !cliffDanger && distSq < bestSafeDistSq) {
+                    bestSafeDistSq = distSq;
+                    double dist0 = Math.sqrt(Math.max(distSq, 1.0E-4D));
+                    bestSafeDirX = -awayX / dist0;
+                    bestSafeDirZ = -awayZ / dist0;
+                    hasSafeDir = true;
+                }
+
+                if (isSelf) continue; // no "away from self" direction for the edge-repulsion pass below
+
+                double dist = Math.sqrt(Math.max(distSq, 1.0E-4D));
+                double falloff = 1.0D - dist / radius;
+
+                double t;
+                boolean cliffType = false;
+
+                if (hazardMat) {
+                    t = cfg.hazardStrength * falloff;
+                } else if (waterCol) {
+                    t = cfg.waterStrength * falloff;
+                } else if (cliffDanger) {
+                    int depth = computeCliffDropDepth(col, cfg.cliffMaxScanDepth);
+                    int span = Math.max(1, cfg.cliffMaxScanDepth - cfg.cliffMinDropDepth);
+                    double factor = Math.min(1.0D, (depth - cfg.cliffMinDropDepth) / (double) span);
+                    t = cfg.cliffStrength * factor * falloff;
+                    cliffType = true;
+                } else {
+                    continue;
+                }
+
+                if (t <= 0.0D) continue;
+
+                if (cliffType && hasJumpAhead) {
+                    double toColX = colX - this.posX;
+                    double toColZ = colZ - this.posZ;
+                    double toColLen = Math.sqrt(toColX * toColX + toColZ * toColZ);
+                    if (toColLen > 1.0E-4D
+                            && (toColX / toColLen) * jumpDirX + (toColZ / toColLen) * jumpDirZ > 0.3D) {
+                        continue; // roughly ahead in the direction of a validated jump - don't resist it
+                    }
+                }
+
+                pushX += (awayX / dist) * t;
+                pushZ += (awayZ / dist) * t;
+            }
+        }
+
+        if (this.getAttackTarget() != null || this.getRevengeTarget() != null) {
+            pushX *= cfg.combatRepulsionFactor;
+            pushZ *= cfg.combatRepulsionFactor;
+        }
+
+        // Emergency push is deliberately NOT reduced by the combat factor above - standing on the
+        // hazard itself is worse than a moment's hesitation approaching an enemy near a ledge.
+        if (selfDangerous && hasSafeDir) {
+            double strength = selfHazardMaterial ? cfg.hazardStrength : cfg.cliffStrength;
+            pushX += bestSafeDirX * strength;
+            pushZ += bestSafeDirZ * strength;
+        }
+
+        if (pushX == 0.0D && pushZ == 0.0D) return;
+
+        this.motionX += pushX;
+        this.motionZ += pushZ;
+
+        if (cfg.debugHazardRepulsion && (Math.abs(pushX) + Math.abs(pushZ)) > 0.002D) {
+            net.minecraftforge.fml.common.FMLLog.log(
+                    org.apache.logging.log4j.Level.INFO,
+                    "[Travellers/HazardRepulsion] %s#%d at %.1f,%.1f,%.1f push=(%.4f,%.4f) selfDangerous=%b",
+                    this.getClass().getSimpleName(), this.getEntityId(), this.posX, this.posY, this.posZ,
+                    pushX, pushZ, selfDangerous);
+        }
+    }
+
+    /** Column hazard check: any non-water liquid (lava, modded), fire, cactus, or configured hazard blacklist entry, at the column's own level or one below. */
+    private boolean isHazardMaterialColumn(BlockPos col) {
+        for (int dy = 0; dy >= -1; dy--) {
+            BlockPos p = col.up(dy);
+            if (!world.isBlockLoaded(p)) continue;
+            IBlockState state = world.getBlockState(p);
+            Block b = state.getBlock();
+            Material mat = state.getMaterial();
+
+            if (mat.isLiquid() && mat != Material.WATER) return true;
+            if (b instanceof IFluidBlock && mat != Material.WATER) return true;
+            if (b == Blocks.FIRE || b == Blocks.CACTUS) return true;
+
+            ResourceLocation rl = b.getRegistryName();
+            if (rl != null && TravellersDerivedConfig.CAMP_TERRAIN_HAZARD_BLACKLIST
+                    .contains(rl.toString().toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Water is a legitimate crossing medium (fording, swimming after a leader) - kept a separate, much weaker case than real hazards. */
+    private boolean isWaterColumn(BlockPos col) {
+        for (int dy = 0; dy >= -1; dy--) {
+            BlockPos p = col.up(dy);
+            if (!world.isBlockLoaded(p)) continue;
+            if (world.getBlockState(p).getMaterial() == Material.WATER) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Scans straight down from the entity's own feet level at the neighbor column, returning how
+     * many blocks below that level the first solid floor is found (0 = flush with the entity's own
+     * footing, no drop). No floor within {@code maxDepth} is treated as bottomless/void and clamped
+     * to {@code maxDepth}. A liquid encountered along the way returns -1 (handled separately by the
+     * hazard/water column checks, never treated as a "cliff").
+     */
+    private int computeCliffDropDepth(BlockPos colAtFeetLevel, int maxDepth) {
+        for (int d = 0; d <= maxDepth; d++) {
+            BlockPos p = colAtFeetLevel.down(d);
+            if (!world.isBlockLoaded(p)) return maxDepth; // unloaded ahead: be conservative
+            IBlockState state = world.getBlockState(p);
+            if (state.getMaterial().isLiquid()) return -1;
+            if (state.getBlockFaceShape(world, p, EnumFacing.UP) == BlockFaceShape.SOLID) return d;
+        }
+        return maxDepth;
     }
 
     /**
@@ -2216,12 +2478,12 @@ public class EntityTraveller extends EntityCreature {
                     new MsgChoirSingerMute(getEntityId(), 8000),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             // Don't touch voiceLockUntilTick so the coordinator keeps the session alive.
-        } else {
-            TravellerFollowNet.CHANNEL.sendToAllAround(
-                    new MsgStopTravellerVoice(this),
-                    new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
-            beginVoiceLock(20, VoiceKind.HURT);
         }
+        // Non-choir case: no explicit stop here anymore. playHurtSound() (called by
+        // super.attackEntityFrom above) already crossfades out whatever voice line was
+        // playing when it plays the hurt bark. If the hurt bark itself was throttled by
+        // TravellerCrowdSoundLimiter (dense battle) there's nothing to interrupt with,
+        // so the prior sound is deliberately left alone rather than cut to silence.
 
         Entity src = source.getTrueSource();
 
@@ -2335,7 +2597,7 @@ public void fall(float distance, float damageMultiplier) {
                     .releaseOccupant(this.getUniqueID());
             // Virtual battles: mark this pawn dead so the offscreen sim stays consistent.
             com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
-                    .onParticipantDeath((net.minecraft.world.WorldServer) world, this);
+                    .onParticipantDeath((net.minecraft.world.WorldServer) world, this, cause);
         }
         tryPlayDeathSound();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
@@ -2361,7 +2623,7 @@ public void fall(float distance, float damageMultiplier) {
     @javax.annotation.Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
         if (this.ticksExisted < hurtSoundCooldownUntilTick) return null;
-        hurtSoundCooldownUntilTick = this.ticksExisted + 15; // max ~1.3 hurt sounds/sec per entity
+        hurtSoundCooldownUntilTick = this.ticksExisted + TravellersConfig.SOUND.hurtSoundEntityCooldownTicks;
         VoiceSet v = getActiveTravellerVoiceSet();
         SoundEvent hurt = (v != null) ? v.pickHurt(this.rand, ModSounds.TRAVELLER_HURT) : ModSounds.TRAVELLER_HURT;
         return hurt;
@@ -2441,7 +2703,8 @@ public void fall(float distance, float damageMultiplier) {
             return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(e);
         } else {
             // Normal/friendly travellers
-            return TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.isListed(e);
+            if (TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.isListed(e)) return true;
+            return checkAncientWarfare2Hostility(e);
         }
 
         // Put any hard-coded extra rules here if you need them later
@@ -2451,6 +2714,26 @@ public void fall(float distance, float damageMultiplier) {
     // Default: friendlies are NOT aggressive to other travellers.
     public boolean isAggressiveToTravellers() {
         return false;
+    }
+
+    /**
+     * Ancient Warfare 2: reputation-aware, not a blanket class list. A hired follower mirrors
+     * its owner's actual standing with that faction (revenge + persisted reputation - exactly
+     * what the owner would see themselves); see AncientWarfare2Compat. All AW2 types are
+     * handled purely via reflection inside that class - never referenced here directly - so
+     * this class stays loadable with AW2 absent.
+     * <p>
+     * Shared with {@code EntityTravellerWorker.shouldAttackExtraEntity}'s own override, which
+     * must call this itself rather than relying on falling through to this base method - a
+     * worker-specific attack list used to silently skip this check entirely otherwise.
+     */
+    public boolean checkAncientWarfare2Hostility(Entity e) {
+        EntityPlayer effectiveOwner = null;
+        if (this instanceof EntityTravellerWorker) {
+            EntityTravellerWorker worker = (EntityTravellerWorker) this;
+            if (worker.isHiredFollower()) effectiveOwner = worker.getFollowOwner();
+        }
+        return AncientWarfare2Compat.isHostile(e, effectiveOwner);
     }
 
     public void cleanupOwnedCampfireIfAny() {
@@ -2522,7 +2805,10 @@ public void fall(float distance, float damageMultiplier) {
 
     @Override
     public SoundCategory getSoundCategory() {
-        return SoundCategory.VOICE;
+        // NEUTRAL (not VOICE): travellers are creatures, not player speech — this is
+        // the slider players actually expect to control their volume with ("Friendly
+        // Creatures" in the vanilla sound options), same category vanilla villagers use.
+        return SoundCategory.NEUTRAL;
     }
 
     @SideOnly(Side.CLIENT)
@@ -2743,10 +3029,17 @@ public void fall(float distance, float damageMultiplier) {
         // proximity-acquired target (e.g. a raider eyeing a stationary far-away player) must still
         // be able to leave the world instead of getting stuck forever at the view-distance border.
         if (!canVirtualizeIgnoringCombat()) return false;
+        net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) world;
         com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager mgr =
-                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.get(
-                        (net.minecraft.world.WorldServer) world);
-        mgr.virtualizeTraveller((net.minecraft.world.WorldServer) world, this, world.getTotalWorldTime());
+                com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.get(ws);
+        // Workers carry hire/mission/escort state that virtualizeTraveller() doesn't know how to
+        // capture (it only writes the plain traveller/raider fields) - they must go through the
+        // worker-specific virtualize path or that state is silently dropped.
+        if (this instanceof EntityTravellerWorker) {
+            mgr.virtualizeWorker(ws, (EntityTravellerWorker) this, world.getTotalWorldTime());
+        } else {
+            mgr.virtualizeTraveller(ws, this, world.getTotalWorldTime());
+        }
         return true;
     }
 
@@ -2774,11 +3067,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public boolean isVoiceLockedNow() {
         return this.ticksExisted < voiceLockUntilTick;
-    }
-
-    void beginVoiceLock(int durationTicks, VoiceKind kind) {
-        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
-        voiceKindNow = kind;
     }
 
     // Called by server when client signals a choir sound finished (natural end or pause desync).
@@ -2890,28 +3178,37 @@ public void fall(float distance, float damageMultiplier) {
      * failed to find any loaded destination to teleport/detour to — a precise signal that the
      * mob is pinned against the edge of the loaded/view area (rather than merely stuck on
      * terrain), since every rescue candidate ahead lives in a chunk that {@code isAreaLoaded}
-     * refuses to path or teleport into. Distance-gated so this can never fire near a player:
-     * only allowed once the mob is already past most of the server's view distance from every
-     * player, mirroring the same "never force-load chunks" contract as the rescue calls that
-     * led here. Workers are excluded — they rely on TravellerChunkManager to keep their route
-     * loaded and must never virtualize this way.
+     * refuses to path or teleport into. Trap: gating this on the mob's OWN chunk via
+     * {@code isChunkNeededNow} (an earlier version of this fix) is wrong and never fires right at
+     * a player's own view-distance edge specifically - the mob's own position, by construction,
+     * stays inside the player-watched view-distance square (hence "needed") for its entire walk up
+     * to the boundary, only ever becoming "not needed" once genuinely past it, which it can never
+     * physically reach on foot (that region isn't loaded). It happened to still work near a
+     * village/other force-loaded pocket only because those tickets are typically patchy (only the
+     * building footprint, not a uniform square), so a mob could stand in a gap between forced
+     * chunks well before reaching the visual edge - a coincidence of chunk-loading topology, not a
+     * sound rule. The real signal that this mob is genuinely blocked is already the caller's own
+     * exhaustive multi-directional search (computeNextWaypointOrHandleBlocked / the stall backstop
+     * both try every direction, including sideways/behind, before giving up) - nothing here needs
+     * to re-derive that from chunk state. Only a small, fixed (not view-distance-scaled) sanity
+     * distance is kept, purely to stop a pathologically tiny view-distance setting from popping a
+     * mob out right in front of someone. This is how a physical traveller/raider/worker walking
+     * toward an unloaded area hands off to the offscreen simulation instead of getting stuck pacing
+     * at the edge forever - workers used to be excluded here and rely on TravellerChunkManager
+     * force-loading their own chunk instead, but that self-loading is gone (it fought
+     * materialize/virtualize now being driven by real chunk-loaded state, see
+     * VirtualTravellerManager), so workers go through this exact same path as travellers/raiders.
      */
     public boolean tryVirtualizeStuckAtEdge() {
-        if (this instanceof EntityTravellerMerchant || this instanceof EntityTravellerWorker) return false;
+        if (this instanceof EntityTravellerMerchant) return false;
         if (this.world.isRemote || !(this.world instanceof WorldServer)) return false;
         if (this.isAutoEating() || this.isHandActive()) return false;
 
         final WorldServer ws = (WorldServer) this.world;
-        int viewChunks;
-        try {
-            viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance();
-        } catch (Throwable t) {
-            viewChunks = TravellersConfig.DESPAWN.serverViewDistanceFallbackChunks;
+        double minDist = TravellersConfig.TRAVEL.edgeStuckMinPlayerDistance;
+        if (minDist > 0 && ws.getClosestPlayer(this.posX, this.posY, this.posZ, minDist, false) != null) {
+            return false;
         }
-        // Require being close to the real edge (75% of view distance) before allowing this —
-        // a mob merely stuck on terrain near a player must never vanish.
-        double minDistBlocks = Math.max(TravellersConfig.DESPAWN.farMinDistanceBlocks, viewChunks * 16.0 * 0.75);
-        if (ws.getClosestPlayer(this.posX, this.posY, this.posZ, minDistBlocks, false) != null) return false;
 
         if (tryVirtualize()) return true;
 
@@ -3256,25 +3553,25 @@ public void fall(float distance, float damageMultiplier) {
         return isInPlayerViewDistanceApprox();
     }
 
+    /**
+     * "Is this entity's own ground chunk currently loaded for a real reason" - deliberately the exact
+     * same {@link com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager#isChunkNeededNow}
+     * predicate that decides materialize/virtualize eligibility, not an independent distance
+     * approximation. Used to be its own "is a player roughly within view distance" circle check, which
+     * could disagree with the chunk-loaded predicate above (e.g. near the corners of the loaded square,
+     * or once a chunk is kept loaded by something other than raw player distance) - callers of this
+     * method (the travel AI's "don't bother pathfinding, nobody could be watching" bail-out chief among
+     * them) would then freeze a unit that was, by the other predicate, still fully physical and meant to
+     * be acting normally.
+     */
     public boolean isInPlayerViewDistanceApprox() {
         if (world == null) return true;
         if (world.isRemote) return true;
-
         if (!(world instanceof net.minecraft.world.WorldServer)) return true;
         net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) world;
-
-        int viewChunks;
-        try {
-            viewChunks = ws.getMinecraftServer().getPlayerList().getViewDistance(); // server setting
-        } catch (Throwable t) {
-            viewChunks = 8; // fallback
-        }
-
-        // Add a small safety margin so you don't flap at the border
-        int radiusBlocks = (viewChunks + 1) * 16;
-
-        // true = some player is within the range where they'd normally be tracking
-        return ws.getClosestPlayer(this.posX, this.posY, this.posZ, radiusBlocks, false) != null;
+        int cx = net.minecraft.util.math.MathHelper.floor(posX) >> 4;
+        int cz = net.minecraft.util.math.MathHelper.floor(posZ) >> 4;
+        return com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.isChunkNeededNow(ws, cx, cz);
     }
 
     protected void clearAggroIfOffscreen() {
@@ -3353,18 +3650,16 @@ public void fall(float distance, float damageMultiplier) {
         if (this instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) this;
 
-            // Hired: backpack UNIQUEMENT quand il "voyage"
+            // Hired: backpack UNIQUEMENT quand il "voyage" en mission
             if (w.isHiredFollower()) {
 
                 // Missions / déplacements réels
-                if (w.isCatchupTravel()) return false;      // catchup quand trop loin
-                if (w.isGoingHome()) return true;          // go home
-                if (w.isGoOrderActive()) return true;      // go order
-                if (w.isReturnUsingFollow()) return true;
-                if (w.isWaitingForPickup()) return true;
+                if (w.isCatchupTravel()) return false;       // catchup quand trop loin: jamais
+                if (w.isGoingHome()) return true;           // go home
+                if (w.isGoOrderActive()) return true;       // GuiWorkerGo: go order / get equipment
 
-                // Cas "travel AI" autonome, mais surtout PAS quand il est hired
-                return w.isUsingTravelAI() && !w.isHiredFollower();
+                // Tout autre transport (follow normal, formation d'escorte...) : sac caché
+                return w.isOnRecruitMission() || w.isOnDeliveryMission();
             }
         }
 
@@ -3456,19 +3751,24 @@ public void fall(float distance, float damageMultiplier) {
 
     @Override
     protected void playHurtSound(DamageSource source) {
+        if (world.isRemote) return;
+
         Entity trueSrc = (source == null) ? null : source.getTrueSource();
         Entity immediateSrc = (source == null) ? null : source.getImmediateSource();
+        boolean playerCaused = trueSrc instanceof EntityPlayer || immediateSrc instanceof EntityPlayer;
 
-        if (trueSrc instanceof EntityPlayer || immediateSrc instanceof EntityPlayer) {
-            super.playHurtSound(source);
+        if (!playerCaused && !TravellerCrowdSoundLimiter.allowHurt(this)) {
             return;
         }
 
-        if (!TravellerCrowdSoundLimiter.allowHurt(this)) {
-            return;
-        }
+        // Routed through the voice bus (instead of a plain vanilla one-shot) so hurt barks
+        // get the same distance falloff/fade as talk/attack/kill/death, and so it naturally
+        // interrupts (crossfades out) whatever voice line was playing when the hit landed.
+        SoundEvent hurt = getHurtSound(source);
+        if (hurt == null) return;
 
-        super.playHurtSound(source);
+        int dur = 20 + rand.nextInt(10);
+        playVoiceMoving(hurt, getSoundVolume(), getSoundPitch(), dur, true, VoiceKind.HURT);
     }
 
     /**

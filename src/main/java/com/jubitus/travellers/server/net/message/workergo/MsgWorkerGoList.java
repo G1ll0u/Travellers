@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
-import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;

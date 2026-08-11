@@ -2,10 +2,10 @@ package com.jubitus.travellers.client.gui.worldmap;
 
 import com.jubitus.travellers.client.map.ClientMapDiscovery;
 import com.jubitus.travellers.client.map.ClientTileCache;
-import com.jubitus.travellers.server.map.MapTileGenerator;
-import com.jubitus.travellers.server.map.PyramidDirtyPropagator;
-import com.jubitus.travellers.server.map.TileKey;
-import com.jubitus.travellers.server.map.WorldMapDiscovery;
+import com.jubitus.travellers.server.map.pyramid.MapTileGenerator;
+import com.jubitus.travellers.server.map.pyramid.PyramidDirtyPropagator;
+import com.jubitus.travellers.server.map.pyramid.TileKey;
+import com.jubitus.travellers.server.map.pyramid.WorldMapDiscovery;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -32,13 +32,6 @@ public class GuiWorldMapPanel {
         public static float waterLift = 0.17f;
     }
     // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Global marker size multiplier — increase to make all markers larger.
-     * Effective scale = max(MARKER_SCALE, round(1 / blocksPerPixel)) so that
-     * markers never appear smaller than 1 detail pixel (1 block) on screen.
-     */
-    public static int MARKER_SCALE = 1;
 
     // ── Marker textures ───────────────────────────────────────────────────────
     /** Source PNG resolution — display size is set independently via getMarkerBaseSize(). */
@@ -75,16 +68,21 @@ public class GuiWorldMapPanel {
 
         public final BlockPos pos;
         public final int argb;
-        public final int size;
         public final MarkerType type;
         public final String label;
+        /** Rotation in degrees, only meaningful for directional marker types (currently PLAYER). */
+        public final float angleDeg;
 
-        public Marker(BlockPos pos, int argb, int size, MarkerType type, String label) {
+        public Marker(BlockPos pos, int argb, MarkerType type, String label) {
+            this(pos, argb, type, label, 0f);
+        }
+
+        public Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg) {
             this.pos = pos;
             this.argb = argb;
-            this.size = size;
             this.type = type;
             this.label = label;
+            this.angleDeg = angleDeg;
         }
     }
 
@@ -296,7 +294,9 @@ public class GuiWorldMapPanel {
     };
 
     private void drawMarkers(int mapX, int mapY) {
-        int scale = Math.max(MARKER_SCALE, Math.round(1f / blocksPerPixel));
+        float zoomFloor = Math.max(1f, Math.round(1f / blocksPerPixel));
+        float scale = zoomFloor * (float) com.jubitus.travellers.config.TravellersConfig.WORLDMAP.markerScaleGlobal;
+        boolean directional = com.jubitus.travellers.config.TravellersConfig.WORLDMAP.playerMarkerDirectional;
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         for (Marker.MarkerType pass : DRAW_ORDER) {
@@ -304,7 +304,17 @@ public class GuiWorldMapPanel {
                 if (m.type != pass) continue;
                 int sx = worldToScreenX(m.pos.getX(), mapX);
                 int sy = worldToScreenY(m.pos.getZ(), mapY);
-                drawMarkerPng(getMarkerTexture(m.type), sx, sy, m.argb, getMarkerBaseSize(m.type) * scale);
+                int size = Math.round(getMarkerBaseSize(m.type) * scale);
+                if (m.type == Marker.MarkerType.PLAYER && directional) {
+                    GlStateManager.pushMatrix();
+                    GlStateManager.translate(sx, sy, 0f);
+                    // Base texture points north (up); yaw 0 = facing south (down on screen).
+                    GlStateManager.rotate(m.angleDeg + 180f, 0f, 0f, 1f);
+                    drawMarkerPng(getMarkerTexture(m.type), 0, 0, m.argb, size);
+                    GlStateManager.popMatrix();
+                } else {
+                    drawMarkerPng(getMarkerTexture(m.type), sx, sy, m.argb, size);
+                }
             }
         }
         GlStateManager.color(1f, 1f, 1f, 1f);
@@ -330,24 +340,26 @@ public class GuiWorldMapPanel {
         }
     }
 
-    /** Base display size in screen pixels — independent of PNG resolution. */
+    /** Base display size in screen pixels, from config — independent of PNG resolution. */
     private static int getMarkerBaseSize(Marker.MarkerType type) {
+        com.jubitus.travellers.config.TravellersConfig.Worldmap cfg =
+                com.jubitus.travellers.config.TravellersConfig.WORLDMAP;
         switch (type) {
-            case PLAYER:             return 4;
+            case PLAYER:             return cfg.playerMarkerSize;
             case VILLAGE:
-            case CONTROLLED_VILLAGE: return 6;
+            case CONTROLLED_VILLAGE: return cfg.villageMarkerSize;
             case HOME:
-            case LEADER:             return 4;
-            case FOLLOWER:           return 4;
-            case FOLLOWER_HIGHLIGHTED: return 7;
-            case DESTINATION_CROSS:  return 8;
+            case LEADER:
+            case FOLLOWER:           return cfg.workerMarkerSize;
+            case FOLLOWER_HIGHLIGHTED: return cfg.workerMarkerSize + cfg.followerHighlightedSizeBonus;
+            case DESTINATION_CROSS:
+            case BATTLE:             return cfg.alertMarkerSize;
             case POP_TRAVELLER:
             case POP_RAIDER:
-            case POP_WORKER:         return 4;
-            case CAMP_FIREPIT:       return 5;
-            case CAMP_SLOT:          return 4;
-            case BATTLE:             return 8;
-            default:                 return 4;
+            case POP_WORKER:         return cfg.populationMarkerSize;
+            case CAMP_FIREPIT:
+            case CAMP_SLOT:          return cfg.campMarkerSize;
+            default:                 return cfg.workerMarkerSize;
         }
     }
 

@@ -2,8 +2,8 @@ package com.jubitus.travellers.client.gui.bahavior;
 
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestPlayerHostileList;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSetWorkerHostile;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -15,12 +15,16 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
+/** Edits the player's account-wide declared-enemy list (see PlayerEnemyRelations). */
 @SideOnly(Side.CLIENT)
 public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
     private final GuiScreen parent;
     private final EntityPlayer player;
-    private final EntityTravellerWorker worker;
+
+    private final List<String> names = new ArrayList<>();
 
     private GuiTextField nameField;
     private GuiButton addButton;
@@ -34,10 +38,14 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
     // optional: click a name to fill field
     private int hoveredRow = -1;
 
-    public GuiWorkerEnemies(GuiScreen parent, EntityPlayer player, EntityTravellerWorker worker) {
+    public GuiWorkerEnemies(GuiScreen parent, EntityPlayer player) {
         this.parent = parent;
         this.player = player;
-        this.worker = worker;
+    }
+
+    public void receiveHostileNames(List<String> names) {
+        this.names.clear();
+        if (names != null) this.names.addAll(names);
     }
 
     @Override
@@ -88,7 +96,6 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
 
         // click row to copy name into field
         if (mouseButton == 0) {
-            java.util.List<String> names = worker.getHostileNamesClient();
             int idx = getRowIndexAt(mouseX, mouseY);
             if (idx >= 0 && idx < names.size()) {
                 this.nameField.setText(names.get(idx));
@@ -101,12 +108,12 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
         String name = nameField.getText().trim();
 
         if (button == addButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(worker.getEntityId(), name, true));
+            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(name, true));
             nameField.setText("");
             return;
         }
         if (button == removeButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(worker.getEntityId(), name, false));
+            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(name, false));
             nameField.setText("");
             return;
         }
@@ -156,6 +163,8 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
         this.listH = 120;
         this.listX = cx + 120;        // push to the right of your center controls
         this.listY = cy - 60;         // vertically aligned
+
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestPlayerHostileList());
     }
 
     @Override
@@ -174,9 +183,6 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
     }
 
     private void drawEnemyList(int mouseX, int mouseY) {
-        java.util.List<String> names = worker.getHostileNamesClient();
-        if (names == null) names = java.util.Collections.emptyList();
-
         TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
         TravellersGuiTheme.drawTitle(this.fontRenderer,
                 I18n.format("travellers.worker.enemies.count", names.size()),

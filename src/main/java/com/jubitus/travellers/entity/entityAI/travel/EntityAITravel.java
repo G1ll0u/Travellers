@@ -91,6 +91,9 @@ public class EntityAITravel extends EntityAIBase {
     private boolean moveWindowInit = false;
     // --- Progress stall (XZ distance-to-target not improving) ---
     private int noProgressTicks = 0;
+    // Consecutive ticks the direct "ground toward destination is loaded" probe has failed.
+    private int forwardBlockedTicks = 0;
+    private static final int FORWARD_BLOCKED_GRACE_TICKS = 20; // 1s - just enough to ignore a one-tick chunk-boundary flicker
     private double progressCheckpointSq = Double.MAX_VALUE;
     private int lastPathIndex = -1;
     private int pathNoAdvanceTicks = 0;
@@ -283,6 +286,13 @@ public class EntityAITravel extends EntityAIBase {
 
     @Override
     public boolean shouldExecute() {
+        // A traveller/raider group follower is steered entirely by EntityAIFollowGroupLeader (which
+        // also tracks a still-virtual leader, see its own header comment) - it must never independently
+        // travel toward its own copied destination, or it silently locks the movement mutex away from
+        // the follow AI the first time it starts before the leader is resolvable (see project memory
+        // on group materialization).
+        if (mob.getGroupLeaderUUID() != null) return false;
+
         boolean catchup = (mob instanceof EntityTravellerWorker) && ((EntityTravellerWorker) mob).isCatchupTravel();
 
 
@@ -315,6 +325,7 @@ public class EntityAITravel extends EntityAIBase {
 
     @Override
     public boolean shouldContinueExecuting() {
+        if (mob.getGroupLeaderUUID() != null) return false;
         if (mob.isInCombat() || mob.isAutoEating() || mob.isHandActive()) return false;
 
         boolean catchup = (mob instanceof EntityTravellerWorker) && ((EntityTravellerWorker) mob).isCatchupTravel();
@@ -502,7 +513,8 @@ public class EntityAITravel extends EntityAIBase {
 
         if (!liveTarget.equals(targetVillage)) {
             retarget(liveTarget);
-            currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
+            currentWaypoint = computeNextWaypointOrHandleBlocked();
+            if (mob.isDead) return;
             mob.setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
@@ -516,6 +528,41 @@ public class EntityAITravel extends EntityAIBase {
             return;
         }
 
+        // -----------------------------------------
+        // Direct "is the ground toward my destination even loaded" probe.
+        // -----------------------------------------
+        // The most reliable signal for being genuinely blocked by an unloaded chunk, and the one the
+        // other stuck-detection layers below don't actually measure: whether the chunk a short
+        // distance ahead, straight toward the destination, is loaded. computeNextWaypointOrHandleBlocked
+        // (only reacts to computeNextWaypointToward returning null) and the stall backstop (only reacts
+        // to no measured distance-to-destination improvement) both looked reliable on paper but neither
+        // reliably fires here: right at the edge, loaded space still exists on every side except toward
+        // the destination, so the waypoint search's own sideways-detour/tiny-random-reseed fallback
+        // tiers keep finding *some* nearby candidate (never returning null) and the mob keeps making
+        // small, real, non-zero moves in essentially random directions - occasionally even a hair closer
+        // to the destination by pure chance - which resets noMoveTicks/noProgressTicks often enough that
+        // neither ever reliably reaches its threshold. This check bypasses all of that by looking
+        // straight at the one fact that actually matters, not inferring it from AI side effects.
+        if (!mob.world.isRemote) {
+            BlockPos from = mob.getPosition();
+            double fdx = targetVillage.getX() - from.getX();
+            double fdz = targetVillage.getZ() - from.getZ();
+            double fDistSq = fdx * fdx + fdz * fdz;
+            if (fDistSq >= 1.0) {
+                double fDist = Math.sqrt(fDistSq);
+                double fnx = fdx / fDist;
+                double fnz = fdz / fDist;
+                int probeDist = (int) Math.max(16, Math.min(32, fDist));
+                BlockPos probe = from.add((int) Math.round(fnx * probeDist), 0, (int) Math.round(fnz * probeDist));
+                if (!isAreaLoaded(probe, 1)) {
+                    if (++forwardBlockedTicks >= FORWARD_BLOCKED_GRACE_TICKS && mob.tryVirtualizeStuckAtEdge()) {
+                        return;
+                    }
+                } else {
+                    forwardBlockedTicks = 0;
+                }
+            }
+        }
 
         // -----------------------------------------
         // Boat handling (keep it simple: steer + dismount when hit shore)
@@ -619,11 +666,24 @@ public class EntityAITravel extends EntityAIBase {
         wasInWater = inWaterNow;
 
 
+        // A previously-valid waypoint can go stale if its chunk stopped being loaded/needed after it
+        // was picked but before the mob reached it (e.g. it was only transiently loaded, or a player
+        // walked away) - the navigator would otherwise just silently fail against it forever, only
+        // recovering several seconds later via the slow stall-based escalation. Drop it immediately so
+        // the block below recomputes through the fast computeNextWaypointOrHandleBlocked() path instead
+        // of waiting for that.
+        if (currentWaypoint != null && !isAreaLoaded(currentWaypoint, 1)) {
+            currentWaypoint = null;
+            mob.setCurrentWaypoint(null);
+            clearNav();
+        }
+
         // -----------------------------------------
         // Ensure we always have a waypoint
         // -----------------------------------------
         if (currentWaypoint == null) {
-            currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
+            currentWaypoint = computeNextWaypointOrHandleBlocked();
+            if (mob.isDead) return;
             mob.setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
@@ -648,7 +708,8 @@ public class EntityAITravel extends EntityAIBase {
         // Road waypoints use XZ-only distance: the road block Y may not match terrain Y, and
         // requiring 3D closeness would stall the entity if it passes overhead or underfoot.
         if (currentWaypoint != null && isRoadWaypointReached(currentWaypoint)) {
-            currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
+            currentWaypoint = computeNextWaypointOrHandleBlocked();
+            if (mob.isDead) return;
             mob.setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
@@ -781,6 +842,18 @@ public class EntityAITravel extends EntityAIBase {
 
         // "stuck pressure" comes from either not moving OR not progressing
         int stall = Math.max(noMoveTicks, noProgressTicks);
+
+        // Backstop, independent of the detour/teleport-rescue cycle below: that cycle can keep
+        // resetting its own failure streak forever if a detour finds *some* loaded spot nearby
+        // without ever actually making progress (the common shape right at the edge of loaded
+        // chunks - lots of room to shuffle around inside the loaded pocket, none of it useful).
+        // A mob making no real progress for a long stretch, already far from every player, hands
+        // off to virtualization directly - tryVirtualizeStuckAtEdge() itself refuses to fire near a
+        // player, so this is a no-op everywhere except a genuinely stuck, far-away mob.
+        if (!mob.world.isRemote && stall >= TravellersConfig.TRAVEL.edgeStuckVirtualizeGraceTicks
+                && mob.tryVirtualizeStuckAtEdge()) {
+            return;
+        }
 
 // If we are stalling, increment stuckTicks faster (optional but effective)
         if (stall > 0) {
@@ -983,6 +1056,8 @@ public class EntityAITravel extends EntityAIBase {
         stuckActionCooldown = 0;
         stuckTpCooldown = 0;
         noProgressTicks = 0;
+        consecutiveNoWaypoint = 0;
+        forwardBlockedTicks = 0;
 
         lastMovePos = mob.getPositionVector();
         noMoveTicks = 0;
@@ -1160,6 +1235,12 @@ public class EntityAITravel extends EntityAIBase {
         if (clamped) followRangeAttr.setBaseValue(safeRange);
         boolean ok = mob.getNavigator().tryMoveToXYZ(waypoint.getX() + 0.5, waypoint.getY(), waypoint.getZ() + 0.5, speed);
         if (clamped) followRangeAttr.setBaseValue(fullRange);
+        if (com.jubitus.travellers.config.TravellersConfig.GAP_JUMP.debugGapJump) {
+            net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                    "[Travellers/GapJump] %s#%d: navigateTo waypoint %d,%d,%d from %.2f,%.2f,%.2f -> pathfind %s",
+                    mob.getName(), mob.getEntityId(), waypoint.getX(), waypoint.getY(), waypoint.getZ(),
+                    mob.posX, mob.posY, mob.posZ, ok ? "OK" : "FAILED (noPath)");
+        }
         return ok;
     }
 
@@ -1168,6 +1249,37 @@ public class EntityAITravel extends EntityAIBase {
      * Does not force-load anything. Returns null if no safe waypoint is found.
      * Now tries straight toward the target first, then small symmetric detours.
      */
+    // Consecutive normal-progression waypoint computations (not boat mode, not the "arrived" case -
+    // arrival is already handled before any of these call sites run) that found no candidate at all in
+    // any direction. This is a much faster signal than the stall-based backstop above: an unloaded
+    // chunk immediately ahead is detected the moment the route tries to advance into it, not several
+    // seconds later once movement has visibly stalled.
+    private int consecutiveNoWaypoint = 0;
+    private static final int NO_WAYPOINT_VIRTUALIZE_THRESHOLD = 2;
+
+    /**
+     * Wraps {@link #computeNextWaypointToward} for the normal route-advance call sites (waypoint
+     * reached, retarget, no waypoint yet). If it genuinely can't find any loaded/navigable candidate in
+     * any direction, twice in a row, hands off to the offscreen simulation immediately instead of
+     * leaving the mob to bump around near the edge until the slower stall backstop kicks in.
+     * {@code tryVirtualizeStuckAtEdge()} itself still refuses to fire near a player, so this can never
+     * make a unit vanish while someone is watching - by construction an unloaded chunk can only be
+     * reached once already past every player's view distance in that direction. Callers must check
+     * {@code mob.isDead} immediately after calling this and bail out if true.
+     */
+    @Nullable
+    private BlockPos computeNextWaypointOrHandleBlocked() {
+        BlockPos wp = computeNextWaypointToward(targetVillage, stepBlocks);
+        if (wp != null) {
+            consecutiveNoWaypoint = 0;
+            return wp;
+        }
+        if (!mob.world.isRemote && ++consecutiveNoWaypoint >= NO_WAYPOINT_VIRTUALIZE_THRESHOLD) {
+            mob.tryVirtualizeStuckAtEdge();
+        }
+        return null;
+    }
+
     private BlockPos computeNextWaypointToward(BlockPos dest, int baseStepIgnored) {
         if (dest == null) return null;
 
@@ -1263,12 +1375,12 @@ public class EntityAITravel extends EntityAIBase {
         // --- MPB road-following via pre-planned leg route ---
         // Catchup workers chase a moving owner goal: never route them through roads.
         // Raiders ignore the road network unless explicitly enabled in config.
-        boolean catchupTravel = mob instanceof EntityTravellerWorker
-                && ((EntityTravellerWorker) mob).isCatchupTravel();
+        boolean hiredWorker = mob instanceof EntityTravellerWorker
+                && ((EntityTravellerWorker) mob).hiredFollower;
         boolean raiderRoadAllowed = !(mob instanceof com.jubitus.travellers.entity.travellers.EntityTravellerRaider)
                 || com.jubitus.travellers.config.TravellersConfig.SPAWN_RAIDERS.raidersUseUltreiaPaths;
         if (com.jubitus.travellers.utils.world.MPBIntegration.PRESENT
-                && !catchupTravel
+                && !hiredWorker
                 && raiderRoadAllowed
                 && roadBlockedTicks <= 0
                 && mob.world instanceof WorldServer) {

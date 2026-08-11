@@ -4,14 +4,15 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.client.gui.ITravellersGui;
+import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.IWorkerMapReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
@@ -61,7 +62,6 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
     private WorldMapController mapController;
     private final List<MsgWorkerGoList.Entry> poiEntries = new ArrayList<>();
     private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private int playerOwnerColor = 0xFFFFFF;
 
     public GuiWorkerRecruit(EntityPlayer player, EntityTravellerWorker worker) {
         this.player = player;
@@ -149,7 +149,6 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         for (MsgMapWorkersUpdate.Entry e : list) {
             if (e.dim != myDim) continue;
             workerEntries.add(e);
-            if (playerOwnerColor == 0xFFFFFF && e.ownerColor != 0) playerOwnerColor = e.ownerColor;
         }
         rebuildMapMarkers();
     }
@@ -167,7 +166,8 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         }
 
         WorldMapContentPopulator.populate(
-                mapController.panel, poiEntries, workerEntries, player, playerOwnerColor, highlighted);
+                mapController.panel, poiEntries, workerEntries, player,
+                ClientOwnerVisualsCache.getColor(), highlighted);
     }
 
     // ── List helpers ──────────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         if (mapController != null) {
             String label = mapController.getTooltip(mouseX, mouseY);
             if (label != null && !label.isEmpty()) {
-                drawHoveringText(Collections.singletonList(label), mouseX, mouseY);
+                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
             }
         }
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));

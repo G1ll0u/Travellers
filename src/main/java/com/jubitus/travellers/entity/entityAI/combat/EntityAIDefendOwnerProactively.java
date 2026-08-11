@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
@@ -51,20 +52,29 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
         EntityTravellerWorker leader = worker.getEscortLeaderEntity();
 
-        double r = 12.0D;
-        AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, 4.0D, r);
+        // Vertical grow matches the horizontal radius (not a tight ±4/5 band like before) -
+        // ranged attackers are routinely well above/below the owner (AW2 town walls/towers,
+        // ledges, etc.), and the per-candidate dy filter below only applies to entities that
+        // AREN'T already actively attacking, so this can't start chasing things through a
+        // ceiling/floor - see the threateningLeadership bypass.
+        double r = TravellersConfig.COMBAT.defendOwnerProactiveRadius;
+        AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, r, r);
         if (leader != null && leader.isEntityAlive()) {
-            box = box.union(leader.getEntityBoundingBox().grow(r, 4.0D, r));
+            box = box.union(leader.getEntityBoundingBox().grow(r, r, r));
         }
 
         List<EntityLivingBase> list = worker.world.getEntitiesWithinAABB(
                 EntityLivingBase.class, box,
                 e -> {
-                    if (e == null || !e.isEntityAlive()) return false;
+                    if (e == null || !e.isEntityAlive() || e == worker) return false;
                     if (e instanceof net.minecraft.entity.monster.IMob) return true;
                     if (e instanceof EntityPlayer) return worker.isEnemyPlayer((EntityPlayer) e);
                     if (e instanceof EntityTravellerWorker) return worker.isEnemyHiredWorker((EntityTravellerWorker) e);
-                    return false;
+                    // Attack-list entries and enemy-village Millénaire villagers (declared via
+                    // the Behavior GUI) — without this, the closest escorts (this task's whole
+                    // point) could never react to those two categories, only IMobs/players,
+                    // leaving them standing in formation while other workers fought.
+                    return worker.shouldAttackExtraEntity(e);
                 }
         );
 
@@ -85,15 +95,9 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
                 if (e instanceof EntityTravellerWorker && !worker.isEnemyHiredWorker((EntityTravellerWorker) e)) continue;
             }
 
-            // Skip enemies in caves above/below (adjacent cave problem)
-            double dy = e.posY - owner.posY;
-            if (Math.abs(dy) > 5.0D) continue;
-
-            // Require either the worker or the owner to have line of sight
-            boolean canSee = worker.getEntitySenses().canSee(e);
-            if (!canSee) continue;
-
-            // Is this entity actively threatening the owner or leader?
+            // Is this entity actively threatening the owner or leader? Computed before the
+            // cave filter below on purpose - an entity that's already attacking must never be
+            // filtered out by it (see that filter's own comment).
             boolean threateningLeadership = false;
             if (e instanceof EntityLiving) {
                 EntityLiving el = (EntityLiving) e;
@@ -103,6 +107,16 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
             if (e.getRevengeTarget() == owner || (leader != null && e.getRevengeTarget() == leader)) {
                 threateningLeadership = true;
             }
+
+            // Skip enemies in caves above/below (adjacent cave problem) - but never an entity
+            // that's already actively attacking leadership (e.g. a ranged attacker on a wall or
+            // tower well above the owner, not remotely a "different cave" situation).
+            double dy = e.posY - owner.posY;
+            if (!threateningLeadership && Math.abs(dy) > 5.0D) continue;
+
+            // Require either the worker or the owner to have line of sight
+            boolean canSee = worker.getEntitySenses().canSee(e);
+            if (!canSee) continue;
 
             // Skip targets the worker was already blocked on, unless they're actively attacking leadership
             if (!threateningLeadership && worker.isIgnoring(e)) continue;

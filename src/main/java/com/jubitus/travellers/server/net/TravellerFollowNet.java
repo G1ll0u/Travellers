@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.net;
 
-import com.jubitus.travellers.server.map.MsgMapCampUpdate;
-import com.jubitus.travellers.server.map.MsgMapPopulationUpdate;
-import com.jubitus.travellers.server.map.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.MsgOpenPopulationMap;
-import com.jubitus.travellers.server.map.MsgSubscribeCampMap;
-import com.jubitus.travellers.server.map.MsgSubscribePopulationMap;
-import com.jubitus.travellers.server.map.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.server.map.stream.MsgMapCampUpdate;
+import com.jubitus.travellers.server.map.stream.MsgMapPopulationUpdate;
+import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
+import com.jubitus.travellers.server.map.stream.MsgOpenPopulationMap;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeCampMap;
+import com.jubitus.travellers.server.map.stream.MsgSubscribePopulationMap;
+import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgRequestFormationHub;
@@ -15,8 +15,10 @@ import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationBy
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateWorkerFormationSettings;
 import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
 import com.jubitus.travellers.server.net.message.group.MsgGroupCreate;
+import com.jubitus.travellers.server.net.message.group.MsgGroupFollow;
 import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
 import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
+import com.jubitus.travellers.server.net.message.group.MsgToggleLeaderFollow;
 import com.jubitus.travellers.server.net.message.home.*;
 import com.jubitus.travellers.server.net.message.home.MsgCreateLoneBarrack;
 import com.jubitus.travellers.server.net.message.home.MsgDeleteLoneBarrack;
@@ -24,9 +26,11 @@ import com.jubitus.travellers.server.net.message.home.MsgLoneBarrackResult;
 import com.jubitus.travellers.server.net.message.home.MsgOpenLoneBarrackPrompt;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgClearEscortLeader;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgMakeWorkerLeader;
+import com.jubitus.travellers.server.net.message.leadfollow.MsgSyncLeaderFollowerCount;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgToggleFollow;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgToggleWorkerFollow;
 import com.jubitus.travellers.server.net.message.map.*;
+import com.jubitus.travellers.server.net.message.marker.MsgOwnerVisualsSync;
 import com.jubitus.travellers.server.net.message.marker.MsgSaveWorkerOwnerVisuals;
 import com.jubitus.travellers.server.net.message.workergo.*;
 import com.jubitus.travellers.server.net.message.workerplayer.*;
@@ -79,11 +83,17 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgHireWorker.Handler.class, MsgHireWorker.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgToggleWorkerFollow.Handler.class, MsgToggleWorkerFollow.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgMakeWorkerLeader.Handler.class, MsgMakeWorkerLeader.class, id++, Side.SERVER);
+        registerClientOnly(MsgSyncLeaderFollowerCount.class,
+                isClient ? new MsgSyncLeaderFollowerCount.Handler() : new MsgSyncLeaderFollowerCount.NoopHandler());
         CHANNEL.registerMessage(MsgRecruitWorkers.Handler.class, MsgRecruitWorkers.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgRecruitStartSelectedVillages.Handler.class,
                 MsgRecruitStartSelectedVillages.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgClearEscortLeader.Handler.class, MsgClearEscortLeader.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgSetWorkerHostile.Handler.class, MsgSetWorkerHostile.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(
+                com.jubitus.travellers.server.net.message.workerplayer.MsgRequestPlayerHostileList.Handler.class,
+                com.jubitus.travellers.server.net.message.workerplayer.MsgRequestPlayerHostileList.class,
+                id++, Side.SERVER);
         CHANNEL.registerMessage(MsgOpenWorkerSubGui.Handler.class,
                 MsgOpenWorkerSubGui.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerSetHome.Handler.class, MsgWorkerSetHome.class, id++, Side.SERVER);
@@ -125,6 +135,8 @@ public final class TravellerFollowNet {
                 id++,
                 Side.SERVER
         );
+        registerClientOnly(MsgOwnerVisualsSync.class,
+                isClient ? new MsgOwnerVisualsSync.Handler() : new MsgOwnerVisualsSync.NoopHandler());
         CHANNEL.registerMessage(MsgRequestMapDiscovery.Handler.class,
                 MsgRequestMapDiscovery.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgRequestServerCosts.Handler.class, MsgRequestServerCosts.class, id++, Side.SERVER);
@@ -194,6 +206,8 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgGroupComeBack.Handler.class, MsgGroupComeBack.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgGroupCreate.Handler.class, MsgGroupCreate.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgGroupMerge.Handler.class, MsgGroupMerge.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgGroupFollow.Handler.class, MsgGroupFollow.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgToggleLeaderFollow.Handler.class, MsgToggleLeaderFollow.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgLeaderGoTo.Handler.class, MsgLeaderGoTo.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgUpdateFormationByScope.Handler.class, MsgUpdateFormationByScope.class, id++, Side.SERVER);
         registerClientOnly(MsgOpenFormationHubGui.class,
@@ -224,14 +238,14 @@ public final class TravellerFollowNet {
                 isClient ? new MsgMapCampUpdate.ClientHandler() : new MsgMapCampUpdate.NoopHandler());
 
         // Virtual battle markers (subscription piggybacks on MsgSubscribePopulationMap)
-        registerClientOnly(com.jubitus.travellers.server.map.MsgMapBattleUpdate.class,
-                isClient ? new com.jubitus.travellers.server.map.MsgMapBattleUpdate.ClientHandler()
-                         : new com.jubitus.travellers.server.map.MsgMapBattleUpdate.NoopHandler());
+        registerClientOnly(com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.class,
+                isClient ? new com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.ClientHandler()
+                         : new com.jubitus.travellers.server.map.stream.MsgMapBattleUpdate.NoopHandler());
 
         // Foreign (not-my-own) unit vision markers (subscription piggybacks on MsgSubscribeWorkerMap)
-        registerClientOnly(com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.class,
-                isClient ? new com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.ClientHandler()
-                         : new com.jubitus.travellers.server.map.MsgMapForeignUnitsUpdate.NoopHandler());
+        registerClientOnly(com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.class,
+                isClient ? new com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.ClientHandler()
+                         : new com.jubitus.travellers.server.map.stream.MsgMapForeignUnitsUpdate.NoopHandler());
 
         // Debug: teleport player to a clicked map position
         CHANNEL.registerMessage(
@@ -247,6 +261,17 @@ public final class TravellerFollowNet {
         registerClientOnly(com.jubitus.travellers.server.net.message.notify.MsgShowNotification.class,
                 isClient ? new com.jubitus.travellers.server.net.message.notify.MsgShowNotification.Handler()
                          : new com.jubitus.travellers.server.net.message.notify.MsgShowNotification.NoopHandler());
+
+        // Notification history panel (GuiWorkerFormationHub)
+        CHANNEL.registerMessage(
+                com.jubitus.travellers.server.net.message.notify.MsgRequestJournalHistory.Handler.class,
+                com.jubitus.travellers.server.net.message.notify.MsgRequestJournalHistory.class, id++, Side.SERVER);
+        registerClientOnly(com.jubitus.travellers.server.net.message.notify.MsgJournalHistoryData.class,
+                isClient ? new com.jubitus.travellers.server.net.message.notify.MsgJournalHistoryData.ClientHandler()
+                         : new com.jubitus.travellers.server.net.message.notify.MsgJournalHistoryData.NoopHandler());
+        registerClientOnly(com.jubitus.travellers.server.net.message.notify.MsgJournalEntryAdded.class,
+                isClient ? new com.jubitus.travellers.server.net.message.notify.MsgJournalEntryAdded.ClientHandler()
+                         : new com.jubitus.travellers.server.net.message.notify.MsgJournalEntryAdded.NoopHandler());
     }
 
 

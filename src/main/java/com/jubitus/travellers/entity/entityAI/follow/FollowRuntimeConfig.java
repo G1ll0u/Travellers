@@ -37,7 +37,10 @@ public final class FollowRuntimeConfig {
         surface.laneSpacing = wf.laneSpacing;
         surface.staggerOffset = 0.47D;
         surface.arriveRadius = wf.arriveRadius;
-        surface.verticalTolerance = 12.8D;
+        // Was a hardcoded 12.8 - far too generous for the "arrived at slot" check: a worker that
+        // fell into a pit below its slot (correct X/Z, wildly wrong Y) used to be judged "arrived"
+        // and go idle instead of trying to escape. See CLAUDE.md pit-rescue notes.
+        surface.verticalTolerance = wf.formationSettleVerticalTolerance;
         surface.goalSearchHorizontal = 3;
         surface.goalSearchVertical = 10;
         surface.enterModeTicks = 0;
@@ -101,6 +104,12 @@ public final class FollowRuntimeConfig {
         rescue.caveRequireSamePocketStagnationTicks = 220;
         rescue.caveEmergencyVerticalOnlyMinGap = 2.0D;
         rescue.caveEmergencyOnlyMinStagnationTicks = 260;
+
+        rescue.pitStagnationTicks = wf.pitRescueStagnationTicks;
+        rescue.pitPathFailTicks = wf.pitRescuePathFailTicks;
+        rescue.pitFailedAllowedPathTicks = wf.pitRescuePathFailTicks * 2;
+        rescue.pitStepDistance = wf.pitRescueStepDistance;
+        rescue.virtualLeaderPitRescueTicks = wf.virtualLeaderPitRescueTicks;
     }
 
     public static final class Group {
@@ -187,5 +196,11 @@ public final class FollowRuntimeConfig {
         public int caveRequireSamePocketStagnationTicks;
         public double caveEmergencyVerticalOnlyMinGap;
         public int caveEmergencyOnlyMinStagnationTicks;
+
+        public int pitStagnationTicks;
+        public int pitPathFailTicks;
+        public int pitFailedAllowedPathTicks;
+        public double pitStepDistance;
+        public int virtualLeaderPitRescueTicks;
     }
 }

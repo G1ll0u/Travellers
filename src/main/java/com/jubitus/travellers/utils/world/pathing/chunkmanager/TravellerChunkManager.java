@@ -77,10 +77,10 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(ws).tick(ws, now);
 
         // Worldmap: continuous re-sampling of currently-loaded chunks (terrain edits, growing villages)
-        com.jubitus.travellers.server.map.MapLoadedChunkResampler.INSTANCE.tick(ws, now);
+        com.jubitus.travellers.server.map.pyramid.MapLoadedChunkResampler.INSTANCE.tick(ws, now);
 
         // Paced physical resweep job started by "/travellersdebug map resweep", if one is running
-        com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.tick(ws, now);
+        com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.tick(ws, now);
 
         // Morning tick: process barracks respawns and reconcile deleted barracks for online players
         if (TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {

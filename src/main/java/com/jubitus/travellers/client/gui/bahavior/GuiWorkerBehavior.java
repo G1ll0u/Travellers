@@ -1,12 +1,13 @@
 package com.jubitus.travellers.client.gui.bahavior;
 
 import com.jubitus.travellers.client.gui.ITravellersGui;
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
+import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.relauncher.Side;
@@ -15,11 +16,16 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import javax.annotation.Nullable;
 import java.io.IOException;
 
+/**
+ * Entry point for the account-wide behavior settings (declared player enemies, village
+ * relations). Neither sub-screen needs a specific worker anymore — {@code worker} is kept only
+ * so the "Back" button can return to that worker's Hub when this was opened from one.
+ */
 @SideOnly(Side.CLIENT)
 public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
 
-    private final EntityTravellerWorker worker;
     private final EntityPlayer player;
+    @Nullable private final EntityTravellerWorker worker;
     @Nullable private final GuiScreen returnTo;
 
     private GuiButton villageRelationsButton;
@@ -31,11 +37,11 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
     private int guiLeft;
     private int guiTop;
 
-    public GuiWorkerBehavior(EntityPlayer player, EntityTravellerWorker worker) {
-        this(player, worker, null);
+    public GuiWorkerBehavior(EntityPlayer player, @Nullable GuiScreen returnTo) {
+        this(player, null, returnTo);
     }
 
-    public GuiWorkerBehavior(EntityPlayer player, EntityTravellerWorker worker, @Nullable GuiScreen returnTo) {
+    public GuiWorkerBehavior(EntityPlayer player, @Nullable EntityTravellerWorker worker, @Nullable GuiScreen returnTo) {
         this.player = player;
         this.worker = worker;
         this.returnTo = returnTo;
@@ -82,25 +88,25 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == this.enemiesButton) {
-            this.mc.displayGuiScreen(new GuiWorkerEnemies(this, this.player, this.worker));
+            this.mc.displayGuiScreen(new GuiWorkerEnemies(this, this.player));
             return;
         }
 
         if (button == this.backButton) {
             if (returnTo != null) {
                 mc.displayGuiScreen(returnTo);
-            } else {
+            } else if (worker != null) {
                 TravellerFollowNet.CHANNEL.sendToServer(
-                        new MsgOpenWorkerSubGui(this.worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB)
+                        new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB)
                 );
+            } else {
+                mc.displayGuiScreen(null);
             }
             return;
         }
 
         if (button == this.villageRelationsButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(this.worker.getEntityId(), MsgOpenWorkerSubGui.Type.VILLAGE_RELATIONS)
-            );
+            this.mc.displayGuiScreen(new GuiWorkerVillageRelations(this.player, this.worker, this));
             return;
         }
 
@@ -111,14 +117,13 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
 
-        drawRect(this.guiLeft, this.guiTop, this.guiLeft + this.xSize, this.guiTop + this.ySize, 0xCC000000);
-        drawRect(this.guiLeft + 2, this.guiTop + 2, this.guiLeft + this.xSize - 2, this.guiTop + this.ySize - 2, 0xFF202020);
+        TravellersGuiTheme.drawPanel(this.guiLeft, this.guiTop, this.xSize, this.ySize);
 
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.behavior.title", "Behavior"),
                 this.guiLeft + 8,
                 this.guiTop + 6,
-                0xFFFFFF
+                TravellersGuiTheme.COL_TEXT
         );
 
         super.drawScreen(mouseX, mouseY, partialTicks);

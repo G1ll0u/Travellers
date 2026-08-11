@@ -25,10 +25,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
+import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.Event;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import org.apache.logging.log4j.Level;
 import org.millenaire.common.utilities.Point;
 import org.millenaire.common.village.Building;
 import org.millenaire.common.world.MillWorldData;
@@ -95,7 +97,6 @@ public final class TravellerSoftSpawner {
         VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
 
         int totalVirtual = mgr.getTotalCount();
-        int totalLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size();
         int globalCap = TravellersConfig.OFFSCREEN.globalPopulationCap;
 
         // Workers have their own budget so tuning traveller/raider population never starves workers or vice versa.
@@ -112,6 +113,37 @@ public final class TravellerSoftSpawner {
         // Anti-duplication guard for villages whose Town Hall got registered more than once at nearby positions.
         java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>(loadedWorkersByVillage.keySet());
         final int workerMinDist = Math.max(0, TravellersConfig.WORKER.workerVillageMinDistance);
+
+        // globalPopulationCap governs travellers + raiders only (see its config comment) — workers and
+        // merchants have their own separate budgets (workerLoadedCap / merchantLoadedCap) and must not
+        // be counted against this one, or a village heavy on workers throttles unrelated traveller/raider growth.
+        int loadedMerchants = ws.getEntities(EntityTravellerMerchant.class, net.minecraft.entity.Entity::isEntityAlive).size();
+        int totalLoaded = ws.getEntities(EntityTraveller.class, net.minecraft.entity.Entity::isEntityAlive).size()
+                - loadedWorkersList.size() - loadedMerchants;
+
+        // Same identity-based accounting as workers above (home village, not proximity to it) — a
+        // traveller/raider is meant to roam far from home and can materialize anywhere along its
+        // route. Counting "loaded population" by proximity to the village instead used to undercount
+        // any traveller that had wandered off and wasn't near its home village anymore, making the
+        // controller think population was missing and spawn more forever (see 2026-08-05 fix notes).
+        List<EntityTraveller> loadedTravellerList = ws.getEntities(EntityTraveller.class, e -> e.isEntityAlive()
+                && !(e instanceof EntityTravellerWorker) && !(e instanceof EntityTravellerMerchant)
+                && !(e instanceof EntityTravellerRaider));
+        Map<BlockPos, Integer> loadedTravellersByVillage = new java.util.HashMap<>();
+        for (EntityTraveller t : loadedTravellerList) {
+            BlockPos home = t.getHomeVillage();
+            if (home == null) continue;
+            loadedTravellersByVillage.merge(new BlockPos(home.getX(), 0, home.getZ()), 1, Integer::sum);
+        }
+
+        List<EntityTravellerRaider> loadedRaiderList =
+                ws.getEntities(EntityTravellerRaider.class, net.minecraft.entity.Entity::isEntityAlive);
+        Map<BlockPos, Integer> loadedRaidersByVillage = new java.util.HashMap<>();
+        for (EntityTravellerRaider r0 : loadedRaiderList) {
+            BlockPos home = r0.getHomeVillage();
+            if (home == null) continue;
+            loadedRaidersByVillage.merge(new BlockPos(home.getX(), 0, home.getZ()), 1, Integer::sum);
+        }
 
         if (totalVirtual + totalLoaded >= globalCap && (workerCap <= 0 || totalWorkers >= workerCap)) return;
 
@@ -130,6 +162,7 @@ public final class TravellerSoftSpawner {
             int pop = entry.getValue();
 
             BlockPos villageCenter = vi.center;
+            BlockPos villageKey = new BlockPos(villageCenter.getX(), 0, villageCenter.getZ());
             String cultureId = vi.cultureKey != null && !vi.cultureKey.isEmpty() ? vi.cultureKey : null;
 
             if (totalVirtual + totalLoaded < globalCap) {
@@ -143,24 +176,52 @@ public final class TravellerSoftSpawner {
                 targetRaiders = Math.min(targetRaiders, TravellersConfig.SPAWN_RAIDERS.raiderCapMaxPerVillage);
 
                 int virtualTravellers = mgr.countByHomeVillage(villageCenter, "TRAVELLER");
-                int loadedTravellers = countTravellersNearVillage(ws, villageCenter, 256, false);
+                int loadedTravellers = loadedTravellersByVillage.getOrDefault(villageKey, 0);
                 int needTravellers = targetTravellers - virtualTravellers - loadedTravellers;
 
                 int virtualRaiders = mgr.countByHomeVillage(villageCenter, "RAIDER");
-                int loadedRaiders = countTravellersNearVillage(ws, villageCenter, 256, true);
+                int loadedRaiders = loadedRaidersByVillage.getOrDefault(villageKey, 0);
                 int needRaiders = targetRaiders - virtualRaiders - loadedRaiders;
 
-                for (int i = 0; i < needTravellers && spawnsThisCycle < maxSpawnsPerCycle
-                        && totalVirtual + totalLoaded < globalCap; i++) {
-                    spawnVirtualTraveller(ws, mgr, villageCenter, "TRAVELLER", cultureId);
-                    spawnsThisCycle++;
-                    totalVirtual++;
+                int spawnedTravellers = 0;
+                int travellerAttempts = 0;
+                int maxTravellerAttempts = attemptBudget(needTravellers);
+                while (spawnedTravellers < needTravellers && spawnsThisCycle < maxSpawnsPerCycle
+                        && totalVirtual + totalLoaded < globalCap && travellerAttempts < maxTravellerAttempts) {
+                    travellerAttempts++;
+                    // May add more than 1 record at once (group leader + followers) — count the real total,
+                    // not just this call, or group spawns silently bypass every budget/cap check above.
+                    // The remaining-need argument also caps the group's own size (see rollGroupSize).
+                    int added = spawnVirtualTraveller(ws, mgr, villageCenter, "TRAVELLER", cultureId,
+                            needTravellers - spawnedTravellers);
+                    if (added <= 0) continue; // this roll failed (e.g. no valid destination) — try another roll
+                    spawnedTravellers += added;
+                    spawnsThisCycle += added;
+                    totalVirtual += added;
                 }
-                for (int i = 0; i < needRaiders && spawnsThisCycle < maxSpawnsPerCycle
-                        && totalVirtual + totalLoaded < globalCap; i++) {
-                    spawnVirtualTraveller(ws, mgr, villageCenter, "RAIDER", cultureId);
-                    spawnsThisCycle++;
-                    totalVirtual++;
+                int spawnedRaiders = 0;
+                int raiderAttempts = 0;
+                int maxRaiderAttempts = attemptBudget(needRaiders);
+                while (spawnedRaiders < needRaiders && spawnsThisCycle < maxSpawnsPerCycle
+                        && totalVirtual + totalLoaded < globalCap && raiderAttempts < maxRaiderAttempts) {
+                    raiderAttempts++;
+                    // Raiders are frequently vetoed for landing too close to a village (random per roll) —
+                    // must retry with a fresh random roll rather than give up on the first veto, or raiders
+                    // can go long stretches without spawning at all whenever villages sit close together.
+                    int added = spawnVirtualTraveller(ws, mgr, villageCenter, "RAIDER", cultureId,
+                            needRaiders - spawnedRaiders);
+                    if (added <= 0) continue;
+                    spawnedRaiders += added;
+                    spawnsThisCycle += added;
+                    totalVirtual += added;
+                }
+
+                if (TravellersConfig.OFFSCREEN.populationDebugLog) {
+                    FMLLog.log(Level.INFO,
+                            "[Travellers/Population] village=%s pop=%d | travellers: target=%d have=%d need=%d spawned=%d attempts=%d/%d | raiders: target=%d have=%d need=%d spawned=%d attempts=%d/%d",
+                            vi.name, pop,
+                            targetTravellers, virtualTravellers + loadedTravellers, needTravellers, spawnedTravellers, travellerAttempts, maxTravellerAttempts,
+                            targetRaiders, virtualRaiders + loadedRaiders, needRaiders, spawnedRaiders, raiderAttempts, maxRaiderAttempts);
                 }
             }
 
@@ -176,9 +237,16 @@ public final class TravellerSoftSpawner {
                     if (haveWorkers > 0) workerAnchors.add(workerKey);
 
                     int needWorkers = targetWorkers - haveWorkers;
-                    for (int i = 0; i < needWorkers && spawnsThisCycle < maxSpawnsPerCycle
-                            && (workerCap <= 0 || totalWorkers < workerCap); i++) {
-                        spawnVirtualWorker(ws, mgr, workerKey, cultureId);
+                    int spawnedWorkers = 0;
+                    int workerAttempts = 0;
+                    int maxWorkerAttempts = attemptBudget(needWorkers);
+                    while (spawnedWorkers < needWorkers && spawnsThisCycle < maxSpawnsPerCycle
+                            && (workerCap <= 0 || totalWorkers < workerCap) && workerAttempts < maxWorkerAttempts) {
+                        workerAttempts++;
+                        // May fail a roll (e.g. landed too close to a player) — retry with a fresh roll
+                        // rather than give up, same reasoning as the traveller/raider loops above.
+                        if (!spawnVirtualWorker(ws, mgr, workerKey, cultureId)) continue;
+                        spawnedWorkers++;
                         spawnsThisCycle++;
                         totalWorkers++;
                         workerAnchors.add(workerKey);
@@ -199,33 +267,53 @@ public final class TravellerSoftSpawner {
                 if (spawnsThisCycle >= maxSpawnsPerCycle) break;
 
                 BlockPos loneCenter = lone.getFirst();
+                BlockPos loneKey = new BlockPos(loneCenter.getX(), 0, loneCenter.getZ());
                 String loneCulture = lone.getSecond();
 
                 if (totalVirtual + totalLoaded < globalCap) {
                     int need = travellerPerLone - mgr.countByHomeVillage(loneCenter, "TRAVELLER")
-                            - countTravellersNearVillage(ws, loneCenter, 128, false);
-                    for (int i = 0; i < need && spawnsThisCycle < maxSpawnsPerCycle
-                            && totalVirtual + totalLoaded < globalCap; i++) {
-                        spawnVirtualTraveller(ws, mgr, loneCenter, "TRAVELLER", loneCulture);
-                        spawnsThisCycle++;
-                        totalVirtual++;
+                            - loadedTravellersByVillage.getOrDefault(loneKey, 0);
+                    int spawnedLoneTravellers = 0;
+                    int loneTravellerAttempts = 0;
+                    int maxLoneTravellerAttempts = attemptBudget(need);
+                    while (spawnedLoneTravellers < need && spawnsThisCycle < maxSpawnsPerCycle
+                            && totalVirtual + totalLoaded < globalCap && loneTravellerAttempts < maxLoneTravellerAttempts) {
+                        loneTravellerAttempts++;
+                        int added = spawnVirtualTraveller(ws, mgr, loneCenter, "TRAVELLER", loneCulture,
+                                need - spawnedLoneTravellers);
+                        if (added <= 0) continue;
+                        spawnedLoneTravellers += added;
+                        spawnsThisCycle += added;
+                        totalVirtual += added;
                     }
 
                     int needR = raiderPerLone - mgr.countByHomeVillage(loneCenter, "RAIDER")
-                            - countTravellersNearVillage(ws, loneCenter, 128, true);
-                    for (int i = 0; i < needR && spawnsThisCycle < maxSpawnsPerCycle
-                            && totalVirtual + totalLoaded < globalCap; i++) {
-                        spawnVirtualTraveller(ws, mgr, loneCenter, "RAIDER", loneCulture);
-                        spawnsThisCycle++;
-                        totalVirtual++;
+                            - loadedRaidersByVillage.getOrDefault(loneKey, 0);
+                    int spawnedLoneRaiders = 0;
+                    int loneRaiderAttempts = 0;
+                    int maxLoneRaiderAttempts = attemptBudget(needR);
+                    while (spawnedLoneRaiders < needR && spawnsThisCycle < maxSpawnsPerCycle
+                            && totalVirtual + totalLoaded < globalCap && loneRaiderAttempts < maxLoneRaiderAttempts) {
+                        loneRaiderAttempts++;
+                        int added = spawnVirtualTraveller(ws, mgr, loneCenter, "RAIDER", loneCulture,
+                                needR - spawnedLoneRaiders);
+                        if (added <= 0) continue;
+                        spawnedLoneRaiders += added;
+                        spawnsThisCycle += added;
+                        totalVirtual += added;
                     }
                 }
 
                 if (workerPerLone > 0 && (workerCap <= 0 || totalWorkers < workerCap)) {
                     int needW = workerPerLone - mgr.countByHomeVillage(loneCenter, "WORKER");
-                    for (int i = 0; i < needW && spawnsThisCycle < maxSpawnsPerCycle
-                            && (workerCap <= 0 || totalWorkers < workerCap); i++) {
-                        spawnVirtualWorker(ws, mgr, loneCenter, loneCulture);
+                    int spawnedLoneWorkers = 0;
+                    int loneWorkerAttempts = 0;
+                    int maxLoneWorkerAttempts = attemptBudget(needW);
+                    while (spawnedLoneWorkers < needW && spawnsThisCycle < maxSpawnsPerCycle
+                            && (workerCap <= 0 || totalWorkers < workerCap) && loneWorkerAttempts < maxLoneWorkerAttempts) {
+                        loneWorkerAttempts++;
+                        if (!spawnVirtualWorker(ws, mgr, loneCenter, loneCulture)) continue;
+                        spawnedLoneWorkers++;
                         spawnsThisCycle++;
                         totalWorkers++;
                     }
@@ -234,40 +322,69 @@ public final class TravellerSoftSpawner {
         }
     }
 
-    /** Count real (loaded) travellers or raiders near a village center within given radius. */
-    private static int countTravellersNearVillage(WorldServer ws, BlockPos center, int radius, boolean raidersOnly) {
-        AxisAlignedBB box = new AxisAlignedBB(
-                center.getX() - radius, 0, center.getZ() - radius,
-                center.getX() + radius, ws.getActualHeight(), center.getZ() + radius);
-        if (raidersOnly) {
-            return ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box,
-                    net.minecraft.entity.Entity::isEntityAlive).size();
-        } else {
-            int total = ws.getEntitiesWithinAABB(EntityTraveller.class, box,
-                    net.minecraft.entity.Entity::isEntityAlive).size();
-            // Subtract workers and raiders (we only want plain travellers)
-            total -= ws.getEntitiesWithinAABB(EntityTravellerWorker.class, box,
-                    net.minecraft.entity.Entity::isEntityAlive).size();
-            total -= ws.getEntitiesWithinAABB(EntityTravellerRaider.class, box,
-                    net.minecraft.entity.Entity::isEntityAlive).size();
-            return Math.max(0, total);
-        }
+    /**
+     * How many spawn rolls to allow for a given "need" count before giving up for this cycle.
+     * A single roll can fail for reasons that are worth retrying with a fresh random roll (e.g. a raider
+     * landing too close to a village) — a bounded multiple of the need gives it several fresh chances
+     * without ever risking a runaway loop when a roll can never succeed (e.g. only one settlement exists).
+     */
+    private static int attemptBudget(int need) {
+        return Math.max(4, need * 4);
     }
+
+    /**
+     * Picks a random index within [loFrac, hiFrac) of a route's length — shared "spawn already on your
+     * way" logic used by travellers/raiders (a wide window across their whole journey) and workers
+     * (a narrow window near home) alike, so nothing spawns clumped exactly at either endpoint.
+     * Falls back to index 0 if the route is too short for the requested window.
+     */
+    private static int pickDispersedIndex(Random rand, int routeSize, float loFrac, float hiFrac) {
+        if (routeSize <= 1) return 0;
+        int lo = (int) (routeSize * loFrac);
+        int hi = (int) (routeSize * hiFrac);
+        if (hi <= lo) hi = Math.min(routeSize, lo + 1);
+        if (lo >= hi) return 0;
+        return lo + rand.nextInt(hi - lo);
+    }
+
+    /**
+     * True if pos is within any online player's view distance in this dimension. Used to stop a
+     * traveller/raider/worker from ever spawning right in front of a player — e.g. the moment a
+     * player's own movement triggers a new village/lone building to generate, its population must
+     * not immediately materialize in their face; it should appear already dispersed, out of sight,
+     * exactly like the rest of the world's population does.
+     */
+    private static boolean isNearAnyPlayer(WorldServer ws, BlockPos pos) {
+        double radius = ws.getMinecraftServer().getPlayerList().getViewDistance() * 16.0;
+        double r2 = radius * radius;
+        for (EntityPlayer p : ws.playerEntities) {
+            double dx = p.posX - pos.getX();
+            double dz = p.posZ - pos.getZ();
+            if (dx * dx + dz * dz <= r2) return true;
+        }
+        return false;
+    }
+
 
     /**
      * Creates VirtualTravellerRecords for a traveller or raider (and optional group followers).
      * The leader spawns at a random mid-route point; followers share the same route and track the leader.
      * No world entity is created.
+     *
+     * @return the total number of records actually created (1 leader + any group followers), or 0 if
+     *         nothing was spawned — callers must add this to their spawn/population counters themselves,
+     *         since a single call can add an entire group at once.
      */
-    private static void spawnVirtualTraveller(WorldServer ws, VirtualTravellerManager mgr,
-                                              BlockPos homeVillage, String entityClass, @Nullable String cultureId) {
+    private static int spawnVirtualTraveller(WorldServer ws, VirtualTravellerManager mgr,
+                                              BlockPos homeVillage, String entityClass, @Nullable String cultureId,
+                                              int remainingNeed) {
         List<BlockPos> allCenters = MillVillageIndex.getAllSettlementCenters(ws);
-        if (allCenters.size() < 2) return;
+        if (allCenters.size() < 2) return 0;
 
         // Pick a random destination different from home
         List<BlockPos> candidates = new ArrayList<>(allCenters);
         candidates.removeIf(c -> c.getX() == homeVillage.getX() && c.getZ() == homeVillage.getZ());
-        if (candidates.isEmpty()) return;
+        if (candidates.isEmpty()) return 0;
         BlockPos dest = candidates.get(ws.rand.nextInt(candidates.size()));
 
         // Build the full route from home to destination
@@ -290,11 +407,7 @@ public final class TravellerSoftSpawner {
 
         // Pick a random waypoint in the middle 20-80% of the route as the spawn point.
         // This places the entity somewhere between two villages rather than at a village center.
-        int routeSize = fullRoute.size();
-        int lo = routeSize / 5;
-        int hi = (routeSize * 4) / 5;
-        if (lo >= hi) lo = 0;
-        int spawnIdx = (lo >= hi) ? lo : lo + ws.rand.nextInt(hi - lo);
+        int spawnIdx = pickDispersedIndex(ws.rand, fullRoute.size(), 0.2f, 0.8f);
         BlockPos spawnWaypoint = fullRoute.get(spawnIdx);
 
         // Resolve Y: use real terrain surface if chunk is loaded, otherwise keep waypoint Y or use 64
@@ -303,7 +416,25 @@ public final class TravellerSoftSpawner {
         // Raiders must not spawn inside village perimeters
         if ("RAIDER".equals(entityClass)
                 && MillVillageIndex.isNearVillage(ws, spawnPos, TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance)) {
-            return;
+            if (TravellersConfig.OFFSCREEN.populationDebugLog) {
+                FMLLog.log(Level.INFO,
+                        "[Travellers/Population] raider spawn vetoed at %s (within %d blocks of a village)",
+                        spawnPos, TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance);
+            }
+            return 0;
+        }
+
+        // Never spawn within a player's view distance — most commonly hit right when a player's own
+        // movement triggers a brand new village/lone building to generate: without this, the population
+        // controller could immediately place (and therefore instantly materialize) a traveller/raider
+        // right in front of them instead of appearing already dispersed like the rest of the world.
+        if (isNearAnyPlayer(ws, spawnPos)) {
+            if (TravellersConfig.OFFSCREEN.populationDebugLog) {
+                FMLLog.log(Level.INFO,
+                        "[Travellers/Population] %s spawn vetoed at %s (within a player's view distance)",
+                        entityClass, spawnPos);
+            }
+            return 0;
         }
 
         // Build un-spawned temp entity to populate NBT (culture, name, equipment)
@@ -311,6 +442,10 @@ public final class TravellerSoftSpawner {
                 ? new EntityTravellerRaider(ws)
                 : new EntityTraveller(ws);
         tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+        BlockPos homeKey = new BlockPos(homeVillage.getX(), 0, homeVillage.getZ());
+        // Baked into entityNbt below so a materialized entity keeps its home identity — this is what
+        // lets the population controller count it correctly once it has wandered away (see fix notes).
+        tempEntity.setHomeVillage(homeKey);
         net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
                 ? new EntityTraveller.SpawnData(cultureId) : null;
         tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
@@ -326,10 +461,10 @@ public final class TravellerSoftSpawner {
                 entityNbt
         );
         r.entityClass = entityClass;
-        r.homeVillage = new BlockPos(homeVillage.getX(), 0, homeVillage.getZ());
+        r.homeVillage = homeKey;
 
         // Route = remaining waypoints from spawnIdx onward
-        r.travelRoute = new ArrayList<>(fullRoute.subList(spawnIdx, routeSize));
+        r.travelRoute = new ArrayList<>(fullRoute.subList(spawnIdx, fullRoute.size()));
         r.routeIndex = 0;
         r.goal = r.travelRoute.isEmpty() ? dest : r.travelRoute.get(0);
 
@@ -337,13 +472,21 @@ public final class TravellerSoftSpawner {
         mgr.addRecord(r);
 
         // Roll for group followers — same culture as the leader, same route
-        int groupSize = rollGroupSize(ws.rand, entityClass);
+        int groupSize = rollGroupSize(ws.rand, entityClass, remainingNeed);
         for (int i = 1; i < groupSize; i++) {
             spawnVirtualFollower(ws, mgr, r, entityClass, cultureId, spawnPos);
         }
+        return groupSize;
     }
 
-    private static int rollGroupSize(java.util.Random rand, String entityClass) {
+    /**
+     * @param remainingNeed how many more of this type the village actually still needs. A group's size
+     *                       is capped to this — a village that only needs 2 more travellers must never
+     *                       get an 8-person group just because that's within the configured global max;
+     *                       the overshoot from a single group spawn should never dwarf the village's own
+     *                       target. Pass a large number (e.g. Integer.MAX_VALUE) to disable the cap.
+     */
+    private static int rollGroupSize(java.util.Random rand, String entityClass, int remainingNeed) {
         boolean isTraveller = "TRAVELLER".equals(entityClass);
         int chance = isTraveller
                 ? TravellersConfig.SPAWN_TRAVELLERS.groupSpawnChance
@@ -355,6 +498,8 @@ public final class TravellerSoftSpawner {
         int max = isTraveller
                 ? TravellersConfig.SPAWN_TRAVELLERS.groupMaxSize
                 : TravellersConfig.SPAWN_RAIDERS.groupMaxSize;
+        max = Math.min(max, Math.max(1, remainingNeed));
+        if (min > max) return 1; // not enough room left for even the smallest configured group
         if (min >= max) return min;
         return min + rand.nextInt(max - min + 1);
     }
@@ -366,6 +511,7 @@ public final class TravellerSoftSpawner {
                 ? new EntityTravellerRaider(ws)
                 : new EntityTraveller(ws);
         tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+        tempEntity.setHomeVillage(leader.homeVillage);
         net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
                 ? new EntityTraveller.SpawnData(cultureId) : null;
         tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
@@ -395,21 +541,48 @@ public final class TravellerSoftSpawner {
      * Creates a VirtualTravellerRecord for a worker at its home village, with a route already
      * planned so materialization behaves exactly like a freshly spawned worker. No world entity
      * is created.
+     *
+     * @return true if a record was created, false if this roll failed (e.g. landed too close to a
+     *         player) — callers should retry with a fresh roll rather than treat this as permanent.
      */
-    private static void spawnVirtualWorker(WorldServer ws, VirtualTravellerManager mgr,
-                                           BlockPos homeVillage, @Nullable String cultureId) {
-        BlockPos spawnPos = resolveVirtualSpawnY(ws, homeVillage);
+    private static boolean spawnVirtualWorker(WorldServer ws, VirtualTravellerManager mgr,
+                                              BlockPos homeVillage, @Nullable String cultureId) {
+        BlockPos homePos = resolveVirtualSpawnY(ws, homeVillage);
 
         EntityTravellerWorker tempEntity = new EntityTravellerWorker(ws);
         tempEntity.setHomeVillage(homeVillage);
-        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+        tempEntity.setPosition(homePos.getX() + 0.5, homePos.getY(), homePos.getZ() + 0.5);
 
         TravelCommon tc = tempEntity.getTravelCommon();
         tc.updateNearestVillage();
         tc.ensureRoutePlanned();
-        if (tc.route.isEmpty()) return; // not enough destinations to travel
+        if (tc.route.isEmpty()) return false; // not enough destinations to travel
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);
+
+        // Disperse the spawn point along the start of the worker's own route instead of dropping it
+        // right on the village center — a freshly discovered village otherwise shows its whole
+        // workforce standing in one clump. Mirrors the traveller/raider mid-route dispersal above,
+        // but keeps a narrower, config-driven window so workers still appear close to home.
+        List<BlockPos> homeAndRoute = new ArrayList<>(tc.route.size() + 1);
+        homeAndRoute.add(homeVillage);
+        homeAndRoute.addAll(tc.route);
+        float maxFrac = TravellersConfig.SPAWN_WORKERS.workerSpawnDisperseMaxPercent / 100f;
+        int spawnIdx = pickDispersedIndex(ws.rand, homeAndRoute.size(), 0f, maxFrac);
+        BlockPos spawnPos = resolveVirtualSpawnY(ws, homeAndRoute.get(spawnIdx));
+
+        // Never spawn (and therefore instantly materialize) a worker right in front of a player —
+        // same reasoning as the traveller/raider check in spawnVirtualTraveller().
+        if (isNearAnyPlayer(ws, spawnPos)) {
+            if (TravellersConfig.OFFSCREEN.populationDebugLog) {
+                FMLLog.log(Level.INFO,
+                        "[Travellers/Population] WORKER spawn vetoed at %s (within a player's view distance)",
+                        spawnPos);
+            }
+            return false;
+        }
+
+        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
 
         net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
                 ? new EntityTraveller.SpawnData(cultureId) : null;
@@ -435,6 +608,7 @@ public final class TravellerSoftSpawner {
         r.goal = tempEntity.getVirtualGoal();
         r.virtualizedTick = ws.getTotalWorldTime();
         mgr.addRecord(r);
+        return true;
     }
 
     /** Returns a spawn position for a virtual entity: real surface Y if chunk is loaded, waypoint Y or 64 otherwise. */

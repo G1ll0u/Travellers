@@ -217,6 +217,9 @@ public final class CultureRegistry {
         String firstNameListId = null;
         String familyNameListId = null;
 
+        // From startingInv=/defaultweapon=, attached to every appearance built from this file.
+        VillagerEquipmentProfile equipmentProfile = new VillagerEquipmentProfile();
+
         // Normalized filename (without .txt) used by VillagerFilterRules file matching.
         String villagerBaseName = txt.getName().toLowerCase(Locale.ROOT);
         if (villagerBaseName.endsWith(".txt")) {
@@ -271,6 +274,31 @@ public final class CultureRegistry {
                     } catch (NumberFormatException ignored) {
                         // keep default 1.0
                     }
+
+                } else if ("startinginv".equalsIgnoreCase(key)) {
+                    // startingInv=<itemKey>,<count>
+                    String[] parts = value.split(",");
+                    if (parts.length >= 2) {
+                        String itemKey = parts[0].trim();
+                        int count;
+                        try {
+                            count = Integer.parseInt(parts[1].trim());
+                        } catch (NumberFormatException e) {
+                            count = 1;
+                        }
+                        ItemStack base = MILLENAIRE_ITEMS.get(itemKey.toLowerCase(Locale.ROOT));
+                        if (base != null && !base.isEmpty() && count > 0) {
+                            ItemStack stack = base.copy();
+                            stack.setCount(count);
+                            equipmentProfile.startingInv.add(stack);
+                        }
+                    }
+
+                } else if ("defaultweapon".equalsIgnoreCase(key)) {
+                    ItemStack base = MILLENAIRE_ITEMS.get(value.trim().toLowerCase(Locale.ROOT));
+                    if (base != null && !base.isEmpty()) {
+                        equipmentProfile.defaultWeapon = base.copy();
+                    }
                 }
             }
         } catch (Exception e) {
@@ -315,6 +343,7 @@ public final class CultureRegistry {
             }
 
             TravellerAppearance app = new TravellerAppearance(base, baseHeight);
+            if (!equipmentProfile.isEmpty()) app.equipmentProfile = equipmentProfile;
 
             for (String c : clothesTextures) {
                 ResourceLocation cl = normalizeMillenaireTexture(c);

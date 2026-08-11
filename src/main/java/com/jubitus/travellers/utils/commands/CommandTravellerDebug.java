@@ -417,11 +417,11 @@ public class CommandTravellerDebug extends CommandBase {
 
         int alreadyRunning = 0;
         for (WorldServer ws : targets) {
-            if (com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.isActive(ws.provider.getDimension())) {
+            if (com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.isActive(ws.provider.getDimension())) {
                 alreadyRunning++;
                 continue;
             }
-            com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.start(ws, sender);
+            com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.start(ws, sender);
         }
         if (alreadyRunning > 0) {
             sender.sendMessage(new TextComponentString(TextFormatting.RED
@@ -437,7 +437,7 @@ public class CommandTravellerDebug extends CommandBase {
     private void executeMapResweepCancel(MinecraftServer server, ICommandSender sender) {
         int cancelled = 0;
         for (WorldServer ws : server.worlds) {
-            if (com.jubitus.travellers.server.map.MapResweepCoordinator.INSTANCE.cancel(ws.provider.getDimension(), sender)) {
+            if (com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.cancel(ws.provider.getDimension(), sender)) {
                 cancelled++;
             }
         }

@@ -23,6 +23,9 @@ public class MsgOpenFormationHubGui implements IMessage {
 
     private int representativeEntityId;
     private boolean standalone;
+    // When true the client only refreshes an already-open Hub in place and never opens one - used
+    // by WorkerGroupService's post-operation push so it can't reopen a Hub the player just closed.
+    private boolean updateOnly;
     private NBTTagCompound initialScopeTag;
     private NBTTagCompound leadersWrapper;   // contains NBTTagList "L"
     private NBTTagCompound settingsWrapper;  // contains NBTTagList "S"
@@ -33,7 +36,7 @@ public class MsgOpenFormationHubGui implements IMessage {
                                    WorkerFormationScopeKey initialScope,
                                    List<FormationLeaderInfo> leaders,
                                    Map<String, WorkerFormationSettings> settingsByScope) {
-        this(representativeEntityId, false, initialScope, leaders, settingsByScope);
+        this(representativeEntityId, false, false, initialScope, leaders, settingsByScope);
     }
 
     public MsgOpenFormationHubGui(int representativeEntityId,
@@ -41,8 +44,18 @@ public class MsgOpenFormationHubGui implements IMessage {
                                    WorkerFormationScopeKey initialScope,
                                    List<FormationLeaderInfo> leaders,
                                    Map<String, WorkerFormationSettings> settingsByScope) {
+        this(representativeEntityId, standalone, false, initialScope, leaders, settingsByScope);
+    }
+
+    public MsgOpenFormationHubGui(int representativeEntityId,
+                                   boolean standalone,
+                                   boolean updateOnly,
+                                   WorkerFormationScopeKey initialScope,
+                                   List<FormationLeaderInfo> leaders,
+                                   Map<String, WorkerFormationSettings> settingsByScope) {
         this.representativeEntityId = representativeEntityId;
         this.standalone = standalone;
+        this.updateOnly = updateOnly;
         this.initialScopeTag = initialScope.toNbt();
 
         NBTTagList lList = new NBTTagList();
@@ -65,6 +78,7 @@ public class MsgOpenFormationHubGui implements IMessage {
     public void fromBytes(ByteBuf buf) {
         representativeEntityId = buf.readInt();
         standalone       = buf.readBoolean();
+        updateOnly       = buf.readBoolean();
         initialScopeTag  = ByteBufUtils.readTag(buf);
         leadersWrapper   = ByteBufUtils.readTag(buf);
         settingsWrapper  = ByteBufUtils.readTag(buf);
@@ -74,6 +88,7 @@ public class MsgOpenFormationHubGui implements IMessage {
     public void toBytes(ByteBuf buf) {
         buf.writeInt(representativeEntityId);
         buf.writeBoolean(standalone);
+        buf.writeBoolean(updateOnly);
         ByteBufUtils.writeTag(buf, initialScopeTag);
         ByteBufUtils.writeTag(buf, leadersWrapper  != null ? leadersWrapper  : new NBTTagCompound());
         ByteBufUtils.writeTag(buf, settingsWrapper != null ? settingsWrapper : new NBTTagCompound());
@@ -109,7 +124,7 @@ public class MsgOpenFormationHubGui implements IMessage {
                     // Update leaders in place — avoids flicker and re-init when refreshing after group changes
                     ((com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub) current)
                             .updateLeaders(leaders, settingsByScope);
-                } else {
+                } else if (!msg.updateOnly) {
                     Minecraft.getMinecraft().displayGuiScreen(
                             new com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub(
                                     Minecraft.getMinecraft().player,

@@ -242,7 +242,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         double wX = bb.maxX - bb.minX;
         double wZ = bb.maxZ - bb.minZ;
         double targetRadius = 0.5D * Math.max(wX, wZ);
-        double myReach = (this.attacker.width * 0.5D) + 0.7D;
+        double myReach = (this.attacker.width * 0.5D) + TravellersConfig.COMBAT.meleeReachBonus;
         double total = targetRadius + myReach + this.extraReach;
         return total * total;
     }

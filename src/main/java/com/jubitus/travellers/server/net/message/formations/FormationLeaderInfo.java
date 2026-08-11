@@ -11,6 +11,12 @@ public final class FormationLeaderInfo {
     public double posX, posZ;
     public boolean isPlayer;
     public boolean isVirtual;
+    // True when this leader currently moves with the player/its target (follow ON or escorting
+    // another leader); false when it is anchored in place. Drives the "Follow: ON/OFF" toggle label.
+    public boolean followActive;
+    // True when this leader is busy on a mission (transport/sale/recruit/get-equipment) and so can't
+    // receive orders — drives client-side greying of the leader-order buttons.
+    public boolean busy;
 
     // Display data for the leader list
     public String cultureId = "";
@@ -41,6 +47,8 @@ public final class FormationLeaderInfo {
         tag.setDouble("PZ", posZ);
         tag.setBoolean("IsPlayer", isPlayer);
         tag.setBoolean("IsVirtual", isVirtual);
+        tag.setBoolean("FollowActive", followActive);
+        tag.setBoolean("Busy", busy);
         tag.setString("CultureId", cultureId);
         tag.setInteger("TextureIndex", textureIndex);
         tag.setInteger("OwnerColor", ownerColor);
@@ -57,6 +65,8 @@ public final class FormationLeaderInfo {
         info.posZ = tag.getDouble("PZ");
         info.isPlayer = tag.getBoolean("IsPlayer");
         info.isVirtual = tag.getBoolean("IsVirtual");
+        info.followActive = tag.getBoolean("FollowActive");
+        info.busy = tag.getBoolean("Busy");
         info.cultureId = tag.hasKey("CultureId") ? tag.getString("CultureId") : "";
         info.textureIndex = tag.hasKey("TextureIndex") ? tag.getInteger("TextureIndex") : 0;
         info.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.mark;
 import com.jubitus.travellers.client.gui.ITravellersGui;
+import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
@@ -197,17 +198,16 @@ public class GuiWorkerMarkEditor extends GuiScreen implements ITravellersGui {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
 
-        Gui.drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, 0xEE202020);
-        Gui.drawRect(guiLeft + 1, guiTop + 1, guiLeft + xSize - 1, guiTop + ySize - 1, 0xEE2C2C2C);
+        TravellersGuiTheme.drawPanel(guiLeft, guiTop, xSize, ySize);
 
-        this.drawString(fontRenderer, I18n.format("travellers.worker.mark.title"), guiLeft + 12, guiTop + 10, 0xFFFFFF);
+        TravellersGuiTheme.drawTitle(fontRenderer, I18n.format("travellers.worker.mark.title"), guiLeft + 12, guiTop + 10);
 
         drawSVBox();
         drawHueBar();
         drawPreview();
 
-        this.drawString(fontRenderer, I18n.format("travellers.worker.mark.style"), guiLeft + 142, guiTop + 18, 0xFFFFFF);
-        this.drawCenteredString(fontRenderer, I18n.format(getCurrentStyle().i18nKey), guiLeft + 190, guiTop + 37, 0xFFFFFF);
+        this.drawString(fontRenderer, I18n.format("travellers.worker.mark.style"), guiLeft + 142, guiTop + 18, TravellersGuiTheme.COL_TEXT);
+        this.drawCenteredString(fontRenderer, I18n.format(getCurrentStyle().i18nKey), guiLeft + 190, guiTop + 37, TravellersGuiTheme.COL_TEXT);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -248,16 +248,16 @@ public class GuiWorkerMarkEditor extends GuiScreen implements ITravellersGui {
         int color = getCurrentColor();
         int argb = 0xFF000000 | color;
 
-        drawString(fontRenderer, I18n.format("travellers.worker.mark.preview"), guiLeft + 142, guiTop + 96, 0xFFFFFF);
+        drawString(fontRenderer, I18n.format("travellers.worker.mark.preview"), guiLeft + 142, guiTop + 96, TravellersGuiTheme.COL_TEXT);
 
-        Gui.drawRect(guiLeft + 142, guiTop + 110, guiLeft + 172, guiTop + 130, 0xFF111111);
+        TravellersGuiTheme.drawInnerPanel(guiLeft + 142, guiTop + 110, 30, 20);
         drawMarkTexture(getCurrentStyle().followerTexture, guiLeft + 143, guiTop + 111, 28, 18, argb);
 
-        Gui.drawRect(guiLeft + 178, guiTop + 110, guiLeft + 208, guiTop + 130, 0xFF111111);
+        TravellersGuiTheme.drawInnerPanel(guiLeft + 178, guiTop + 110, 30, 20);
         drawMarkTexture(getCurrentStyle().leaderTexture, guiLeft + 179, guiTop + 111, 28, 18, argb);
 
-        drawCenteredString(fontRenderer, I18n.format("travellers.worker.mark.preview.follower"), guiLeft + 157, guiTop + 132, 0xCFCFCF);
-        drawCenteredString(fontRenderer, I18n.format("travellers.worker.mark.preview.leader"), guiLeft + 193, guiTop + 132, 0xCFCFCF);
+        drawCenteredString(fontRenderer, I18n.format("travellers.worker.mark.preview.follower"), guiLeft + 157, guiTop + 132, TravellersGuiTheme.COL_TEXT_DIM);
+        drawCenteredString(fontRenderer, I18n.format("travellers.worker.mark.preview.leader"), guiLeft + 193, guiTop + 132, TravellersGuiTheme.COL_TEXT_DIM);
     }
 
     private void drawMarkTexture(ResourceLocation texture, int x, int y, int w, int h, int argb) {

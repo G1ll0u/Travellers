@@ -1,6 +1,6 @@
 package com.jubitus.travellers.utils.commands;
 
-import com.jubitus.travellers.server.map.MsgOpenPopulationMap;
+import com.jubitus.travellers.server.map.stream.MsgOpenPopulationMap;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import net.minecraft.entity.player.EntityPlayerMP;
 

@@ -2,7 +2,7 @@ package com.jubitus.travellers.server.net.message.map;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.server.map.MapDiscoverySavedData;
+import com.jubitus.travellers.server.map.pyramid.MapDiscoverySavedData;
 import com.jubitus.travellers.server.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -25,7 +25,7 @@ public class MsgRequestMapDiscovery implements IMessage {
             p.getServerWorld().addScheduledTask(() -> {
                 // récupère les tiles découvertes du joueur (mémoire serveur)
                 Set<Long> tiles = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
-                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.RENDERING.showFullMap;
+                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.WORLDMAP.showFullMap;
                 TravellerFollowNet.CHANNEL.sendTo(new MsgMapDiscoverySync(tiles, fullMap), p);
             });
             return null;

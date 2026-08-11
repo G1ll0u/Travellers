@@ -10,57 +10,57 @@ public final class WorldMapMarkerFactory {
 
     private WorldMapMarkerFactory() {}
 
-    public static GuiWorldMapPanel.Marker player(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), 3,
-                GuiWorldMapPanel.Marker.MarkerType.PLAYER, name);
+    public static GuiWorldMapPanel.Marker player(BlockPos pos, String name, int ownerRgb, float yawDeg) {
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
+                GuiWorldMapPanel.Marker.MarkerType.PLAYER, name, yawDeg);
     }
 
     public static GuiWorldMapPanel.Marker leader(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), 3,
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
                 GuiWorldMapPanel.Marker.MarkerType.LEADER, name);
     }
 
     public static GuiWorldMapPanel.Marker follower(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), 2,
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
                 GuiWorldMapPanel.Marker.MarkerType.FOLLOWER, name);
     }
 
     public static GuiWorldMapPanel.Marker village(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, COLOR_VILLAGE, 2,
+        return new GuiWorldMapPanel.Marker(pos, COLOR_VILLAGE,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
     }
 
     public static GuiWorldMapPanel.Marker home(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, COLOR_HOME, 3,
+        return new GuiWorldMapPanel.Marker(pos, COLOR_HOME,
                 GuiWorldMapPanel.Marker.MarkerType.HOME, name);
     }
 
     public static GuiWorldMapPanel.Marker home(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), 3,
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
                 GuiWorldMapPanel.Marker.MarkerType.HOME, name);
     }
 
     public static GuiWorldMapPanel.Marker controlledVillage(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), 2,
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
                 GuiWorldMapPanel.Marker.MarkerType.CONTROLLED_VILLAGE, name);
     }
 
     public static GuiWorldMapPanel.Marker villageHighlighted(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFFD060, 3,
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFFD060,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
     }
 
     public static GuiWorldMapPanel.Marker destinationCross(BlockPos pos) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFF4444, 3,
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFF4444,
                 GuiWorldMapPanel.Marker.MarkerType.DESTINATION_CROSS, null);
     }
 
     /**
-     * Selected follower: drawn larger (7px vs 4px) with boosted saturation and lightness.
-     * Tweak vivify() constants to adjust the highlight strength.
+     * Selected follower: drawn larger (workerMarkerSize + followerHighlightedSizeBonus) with
+     * boosted saturation and lightness. Tweak vivify() constants to adjust the highlight strength.
      */
     public static GuiWorldMapPanel.Marker followerHighlighted(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFF000000 | vivify(ownerRgb & 0xFFFFFF), 2,
+        return new GuiWorldMapPanel.Marker(pos, 0xFF000000 | vivify(ownerRgb & 0xFFFFFF),
                 GuiWorldMapPanel.Marker.MarkerType.FOLLOWER_HIGHLIGHTED, name);
     }
 
@@ -117,17 +117,17 @@ public final class WorldMapMarkerFactory {
     }
 
     public static GuiWorldMapPanel.Marker leaderHighlighted(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFFEE44, 3,
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFFEE44,
                 GuiWorldMapPanel.Marker.MarkerType.LEADER, name);
     }
 
     public static GuiWorldMapPanel.Marker villageEnemy(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFCC3333, 2,
+        return new GuiWorldMapPanel.Marker(pos, 0xFFCC3333,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
     }
 
     public static GuiWorldMapPanel.Marker villageEnemyHighlighted(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFF6644, 3,
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFF6644,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
     }
 
@@ -155,23 +155,23 @@ public final class WorldMapMarkerFactory {
     private static final int LOADED_ALPHA  = 0xFF000000;
 
     public static GuiWorldMapPanel.Marker populationTraveller(BlockPos pos, boolean virtual, String label) {
-        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_TRAVELLER, 4,
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_TRAVELLER,
                 GuiWorldMapPanel.Marker.MarkerType.POP_TRAVELLER, label);
     }
 
     public static GuiWorldMapPanel.Marker populationRaider(BlockPos pos, boolean virtual, String label) {
-        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_RAIDER, 4,
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_RAIDER,
                 GuiWorldMapPanel.Marker.MarkerType.POP_RAIDER, label);
     }
 
     public static GuiWorldMapPanel.Marker populationWorker(BlockPos pos, boolean virtual, String label) {
-        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_WORKER, 4,
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_WORKER,
                 GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);
     }
 
     /** Foreign hired worker discovered via vision: owner-tinted instead of the generic worker blue. */
     public static GuiWorldMapPanel.Marker foreignHiredWorker(BlockPos pos, boolean virtual, int ownerRgb, String label) {
-        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | (ownerRgb & 0xFFFFFF), 4,
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | (ownerRgb & 0xFFFFFF),
                 GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);
     }
 
@@ -188,7 +188,7 @@ public final class WorldMapMarkerFactory {
     public static GuiWorldMapPanel.Marker campFirepit(BlockPos pos, boolean built, boolean lit, String label) {
         int rgb = lit ? COLOR_CAMP_FIREPIT_LIT : COLOR_CAMP_FIREPIT_UNLIT;
         int alpha = built ? LOADED_ALPHA : VIRTUAL_ALPHA;
-        return new GuiWorldMapPanel.Marker(pos, alpha | rgb, 5,
+        return new GuiWorldMapPanel.Marker(pos, alpha | rgb,
                 GuiWorldMapPanel.Marker.MarkerType.CAMP_FIREPIT, label);
     }
 
@@ -197,7 +197,7 @@ public final class WorldMapMarkerFactory {
      * loaded entity (opaque) or virtualized (translucent) — same loaded/virtual convention as the
      * population markers, letting virtual/physical mismatches jump out visually.
      */
-    public static GuiWorldMapPanel.Marker campSlot(BlockPos pos, com.jubitus.travellers.server.map.MsgMapCampUpdate.SlotState state,
+    public static GuiWorldMapPanel.Marker campSlot(BlockPos pos, com.jubitus.travellers.server.map.stream.MsgMapCampUpdate.SlotState state,
                                                      boolean occupantVirtual, String label) {
         int rgb;
         switch (state) {
@@ -207,16 +207,16 @@ public final class WorldMapMarkerFactory {
             case TEARING_DOWN:  rgb = COLOR_CAMP_SLOT_TEARING_DOWN; break;
             default:            rgb = COLOR_CAMP_SLOT_EMPTY; break;
         }
-        boolean hasOccupant = state != com.jubitus.travellers.server.map.MsgMapCampUpdate.SlotState.EMPTY
-                && state != com.jubitus.travellers.server.map.MsgMapCampUpdate.SlotState.DISABLED;
+        boolean hasOccupant = state != com.jubitus.travellers.server.map.stream.MsgMapCampUpdate.SlotState.EMPTY
+                && state != com.jubitus.travellers.server.map.stream.MsgMapCampUpdate.SlotState.DISABLED;
         int alpha = (hasOccupant && occupantVirtual) ? VIRTUAL_ALPHA : LOADED_ALPHA;
-        return new GuiWorldMapPanel.Marker(pos, alpha | rgb, 4,
+        return new GuiWorldMapPanel.Marker(pos, alpha | rgb,
                 GuiWorldMapPanel.Marker.MarkerType.CAMP_SLOT, label);
     }
 
     /** Active virtual battle: pulsing-red cross, always opaque (battles are always "live"). */
     public static GuiWorldMapPanel.Marker battle(BlockPos pos, String label) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFF3030, 6,
+        return new GuiWorldMapPanel.Marker(pos, 0xFFFF3030,
                 GuiWorldMapPanel.Marker.MarkerType.BATTLE, label);
     }
 

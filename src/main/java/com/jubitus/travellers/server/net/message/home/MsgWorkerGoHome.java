@@ -49,6 +49,12 @@ public class MsgWorkerGoHome implements IMessage {
                     return;
                 }
 
+                // A worker busy on a mission can't be sent home until it finishes.
+                if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(w)) {
+                    NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+                    return;
+                }
+
 // Hard-disable follow so the Follow AI can’t keep running
                 w.setFollowOrderActive(false);
                 w.setReturnUsingFollow(false);    // critical with your current AI gates
