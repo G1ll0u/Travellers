@@ -5,27 +5,18 @@ public class TravellerHomeManager {
     private TravellerHomeManager() {}
 
     public enum HomeType {
-        BARRACKS,    // Millenaire custom barracks building
-        LONE_BARRACK; // player-created standalone barrack
+        LONE_BARRACK; // player-created standalone barrack — the only home type
 
         /**
          * Stable serialized int, independent of enum ordinal.
-         * Old saves used 0=CHEST (removed), 1=BARRACKS, 2=LONE_BARRACK.
+         * Old saves used 0=CHEST and 1=BARRACKS, both removed.
          */
         public int toNbt() {
-            switch (this) {
-                case BARRACKS: return 1;
-                case LONE_BARRACK: return 2;
-                default: return 2;
-            }
+            return 2;
         }
 
         public static HomeType fromNbt(int o) {
-            switch (o) {
-                case 1: return BARRACKS;
-                case 2: return LONE_BARRACK;
-                default: return LONE_BARRACK; // 0 was legacy CHEST — no home
-            }
+            return LONE_BARRACK;
         }
 
         /** @deprecated use {@link #fromNbt(int)} */

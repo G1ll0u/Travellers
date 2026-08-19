@@ -27,6 +27,26 @@ public final class TravellersGuiTheme {
     public static final int COL_AFFORD  = 0x00FF00;
     public static final int COL_CANNOT  = 0xFF5555;
 
+    // ── Buttons ───────────────────────────────────────────────────────────────
+    public static final int COL_BTN_BG          = 0xFF2A2219;
+    public static final int COL_BTN_BG_HOVER    = 0xFF382D21;
+    public static final int COL_BTN_BG_OFF      = 0xFF221C15;
+    public static final int COL_BTN_BORDER_OFF  = 0xFF3A3128;
+    public static final int COL_BTN_TEXT_OFF    = 0xFF6B5B4A;
+
+    /** Toggle in its "on" state. */
+    public static final int COL_ACTIVE          = 0xFF7FBF6A;
+
+    /** Destructive actions (unhire, delete...). */
+    public static final int COL_DANGER_TEXT     = 0xFFE0806E;
+    public static final int COL_DANGER_TEXT_HOV = 0xFFFF9E88;
+    public static final int COL_DANGER_BORDER   = 0xFF6B3A2E;
+    public static final int COL_DANGER_BORDER_HOV = 0xFFA8543F;
+
+    // ── Menu-tree links ───────────────────────────────────────────────────────
+    public static final int COL_LINK      = 0xFF685747;
+    public static final int COL_LINK_OPEN = 0xFFFFCC88;
+
     private TravellersGuiTheme() {}
 
     // ── Rendering helpers ─────────────────────────────────────────────────────
@@ -83,5 +103,39 @@ public final class TravellersGuiTheme {
     /** Draws a title string in the main text color. */
     public static void drawTitle(FontRenderer fr, String text, int x, int y) {
         fr.drawString(text, x, y, COL_TEXT);
+    }
+
+    /** Draws a string centered on x, in the main text color. */
+    public static void drawCenteredText(FontRenderer fr, String text, int centerX, int y, int color) {
+        fr.drawString(text, centerX - fr.getStringWidth(text) / 2, y, color);
+    }
+
+    /** Draws a 1px vertical line in the given color. */
+    public static void drawVLine(int x, int y1, int y2, int color) {
+        if (y2 < y1) { int t = y1; y1 = y2; y2 = t; }
+        Gui.drawRect(x, y1, x + 1, y2, color);
+    }
+
+    /** Draws a 1px horizontal line in the given color. */
+    public static void drawHLine(int x1, int x2, int y, int color) {
+        if (x2 < x1) { int t = x1; x1 = x2; x2 = t; }
+        Gui.drawRect(x1, y, x2, y + 1, color);
+    }
+
+    /**
+     * Draws the box of a themed button: fill + 1px border.
+     * The caller draws the label; this only paints the frame so non-GuiButton widgets
+     * (color swatches, sliders...) can share the exact same look.
+     */
+    public static void drawButtonBox(int x, int y, int w, int h, int fill, int border) {
+        Gui.drawRect(x, y, x + w, y + h, fill);
+        drawBorder(x, y, w, h, border);
+    }
+
+    /** Trims a label to fit maxWidth, appending a dot when it had to be cut. */
+    public static String trimLabel(FontRenderer fr, String text, int maxWidth) {
+        if (fr.getStringWidth(text) <= maxWidth) return text;
+        String cut = fr.trimStringToWidth(text, Math.max(0, maxWidth - fr.getStringWidth(".")));
+        return cut + ".";
     }
 }

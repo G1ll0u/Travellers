@@ -4,22 +4,31 @@ import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.entity.entityAI.flight.ElytraCapability;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.utils.debug.trace.TraceChannel;
+import com.jubitus.travellers.utils.debug.trace.TraceSession;
+import com.jubitus.travellers.utils.debug.trace.TravellerTracer;
 import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.Items;
+import net.minecraft.inventory.EntityEquipmentSlot;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.items.ItemHandlerHelper;
 
 import javax.annotation.Nullable;
 import java.io.*;
@@ -36,7 +45,93 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug [reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|sound stress|sound rapidfire|cultures]";
+        return "/travellersdebug [reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|elytra [distance]|elytra give [radius] [rockets]|elytra status|mount give|mount ride|mount lead|mount hitch|bow status|sound stress|sound rapidfire|cultures]";
+    }
+
+    /**
+     * Full tab-completion over the whole command tree. Worth the table below rather than only
+     * completing the first word: most of these subcommands are things you reach for exactly when
+     * something is going wrong in front of you, and stopping to remember the exact spelling of
+     * "resweep" or which of start/stop/list a tool uses is friction at the worst possible moment.
+     * Live traveller names are offered for the trace commands, so an individual can be picked out of
+     * a crowd by name instead of by aiming at it.
+     */
+    @Override
+    public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args,
+                                          @Nullable net.minecraft.util.math.BlockPos targetPos) {
+        if (args.length == 1) {
+            return getListOfStringsMatchingLastWord(args, "trace", "mount", "elytra", "camp", "battle",
+                    "map", "reset", "bow", "sound", "cultures");
+        }
+
+        String root = args[0].toLowerCase();
+        if (args.length == 2) {
+            switch (root) {
+                case "trace":
+                    return getListOfStringsMatchingLastWord(args, "start", "stop", "list", "channels");
+                case "mount":
+                    return getListOfStringsMatchingLastWord(args, "give", "ride", "lead", "hitch");
+                case "elytra":
+                    return getListOfStringsMatchingLastWord(args, "give", "status");
+                case "camp":
+                    return getListOfStringsMatchingLastWord(args, "here", "recompute", "join", "leave", "reset");
+                case "battle":
+                    return getListOfStringsMatchingLastWord(args, "list", "info", "end", "spawnfight", "loot");
+                case "map":
+                    return getListOfStringsMatchingLastWord(args, "resweep");
+                case "reset":
+                    return getListOfStringsMatchingLastWord(args, "workers");
+                case "bow":
+                    return getListOfStringsMatchingLastWord(args, "status");
+                case "sound":
+                    return getListOfStringsMatchingLastWord(args, "stress", "rapidfire");
+                default:
+                    return java.util.Collections.emptyList();
+            }
+        }
+
+        String sub = args[1].toLowerCase();
+        if (args.length == 3) {
+            if (root.equals("trace") && sub.equals("channels")) {
+                return getListOfStringsMatchingLastWord(args, traceChannelSuggestions());
+            }
+            if (root.equals("trace") && sub.equals("stop")) {
+                List<String> names = nearbyTravellerNames(sender);
+                names.add(0, "all");
+                return getListOfStringsMatchingLastWord(args, names);
+            }
+            if (root.equals("trace") && sub.equals("start")) {
+                return getListOfStringsMatchingLastWord(args, nearbyTravellerNames(sender));
+            }
+            if (root.equals("map") && sub.equals("resweep")) {
+                return getListOfStringsMatchingLastWord(args, "all", "cancel");
+            }
+            if (root.equals("camp") && sub.equals("reset")) {
+                return getListOfStringsMatchingLastWord(args, "all");
+            }
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    /** Channel names plus "all", and the current selection with one more appended - so building a
+     * comma-separated list by tabbing works instead of only ever offering a single name. */
+    private List<String> traceChannelSuggestions() {
+        List<String> out = new java.util.ArrayList<>();
+        out.add("all");
+        for (TraceChannel c : TraceChannel.values()) out.add(c.lower());
+        return out;
+    }
+
+    private List<String> nearbyTravellerNames(ICommandSender sender) {
+        List<String> names = new java.util.ArrayList<>();
+        if (!(sender instanceof EntityPlayerMP)) return names;
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(64.0D), t -> t != null && t.isEntityAlive())) {
+            String name = t.getName();
+            if (!names.contains(name)) names.add(name);
+        }
+        return names;
     }
 
     @Override
@@ -70,6 +165,26 @@ public class CommandTravellerDebug extends CommandBase {
         if (args.length >= 2 && args[0].equalsIgnoreCase("map") && args[1].equalsIgnoreCase("resweep")) {
             boolean allDimensions = args.length >= 3 && args[2].equalsIgnoreCase("all");
             executeMapResweep(server, sender, allDimensions);
+            return;
+        }
+
+        if (args.length >= 1 && args[0].equalsIgnoreCase("elytra")) {
+            executeElytraDebug(sender, args);
+            return;
+        }
+
+        if (args.length >= 1 && args[0].equalsIgnoreCase("trace")) {
+            executeTrace(sender, args);
+            return;
+        }
+
+        if (args.length >= 1 && args[0].equalsIgnoreCase("mount")) {
+            executeMountDebug(sender, args);
+            return;
+        }
+
+        if (args.length >= 1 && args[0].equalsIgnoreCase("bow")) {
+            executeBowStatus(sender);
             return;
         }
 
@@ -266,8 +381,6 @@ public class CommandTravellerDebug extends CommandBase {
                 if (!(e instanceof EntityTravellerWorker) || e.isDead) continue;
                 EntityTravellerWorker worker = (EntityTravellerWorker) e;
                 if (worker.isHiredFollower()) continue;
-                com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager.INSTANCE
-                        .untrackChunkloader(worker);
                 worker.setDead();
                 loadedKilled++;
             }
@@ -443,6 +556,369 @@ public class CommandTravellerDebug extends CommandBase {
         }
         if (cancelled == 0) {
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "No map resweep running."));
+        }
+    }
+
+    // --- Elytra flight test ---
+
+    /**
+     * {@code /travellersdebug elytra [distance]} - equips the nearest traveller with an elytra if it
+     * has none and launches it toward a point {@code distance} blocks along the player's line of
+     * sight. Stand on a cliff, look across the valley, run it.
+     */
+    private void executeElytraDebug(ICommandSender sender, String[] args) throws CommandException {
+        if (!(sender instanceof EntityPlayerMP)) {
+            throw new CommandException("Must be run by a player.");
+        }
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+
+        String sub = args.length >= 2 ? args[1].toLowerCase() : "";
+        if (sub.equals("give")) {
+            executeElytraGive(sender, player, args);
+            return;
+        }
+        if (sub.equals("status")) {
+            executeElytraStatus(sender, player);
+            return;
+        }
+
+        double distance = args.length >= 2 ? parseDouble(args[1], 8.0D, 512.0D) : 96.0D;
+
+        EntityTraveller closest = null;
+        double bestSq = Double.MAX_VALUE;
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(48.0D, 32.0D, 48.0D),
+                t -> t != null && t.isEntityAlive())) {
+            double dSq = t.getDistanceSq(player);
+            if (dSq < bestSq) {
+                bestSq = dSq;
+                closest = t;
+            }
+        }
+
+        if (closest == null) {
+            throw new CommandException("No traveller within 48 blocks.");
+        }
+
+        if (!ElytraCapability.hasUsableElytra(closest)) {
+            closest.setItemStackToSlot(EntityEquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
+            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "Equipped an elytra on " + closest.getName() + "."));
+        }
+
+        Vec3d look = player.getLookVec();
+        Vec3d destination = new Vec3d(
+                closest.posX + look.x * distance,
+                closest.posY + look.y * distance,
+                closest.posZ + look.z * distance);
+
+        if (closest.elytraFlight.requestTakeoff(destination)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + closest.getName()
+                    + " taking off toward " + (int) destination.x + "/" + (int) destination.y + "/" + (int) destination.z + "."));
+        } else {
+            String why = !com.jubitus.travellers.config.TravellersConfig.ELYTRA.enabled ? "elytra flight disabled in config"
+                    : closest.elytraFlight.isActive() ? "already flying"
+                    : closest.elytraFlight.isOnCooldown() ? "still on landing cooldown"
+                    : closest.getAttackTarget() != null || closest.isInCombat() ? "in combat"
+                    : "not in a state where it can fly";
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "Takeoff refused: " + why + "."));
+        }
+    }
+
+    /**
+     * Equip nearby travellers and leave them alone, so their own takeoff decisions can be watched.
+     * "rockets" (in either argument position) also tops up every hired worker's personal inventory
+     * with a stack of fireworks, for testing {@code ElytraRocketBoost} without having to hand them out
+     * one by one.
+     */
+    private void executeElytraGive(ICommandSender sender, EntityPlayerMP player, String[] args) throws CommandException {
+        boolean giveRockets = false;
+        Double radiusArg = null;
+        for (int i = 2; i < args.length; i++) {
+            if (args[i].equalsIgnoreCase("rockets")) {
+                giveRockets = true;
+            } else if (radiusArg == null) {
+                radiusArg = parseDouble(args[i], 4.0D, 256.0D);
+            }
+        }
+        double radius = radiusArg != null ? radiusArg : 48.0D;
+
+        int equipped = 0;
+        int stocked = 0;
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(radius, 64.0D, radius),
+                e -> e != null && e.isEntityAlive())) {
+            if (!ElytraCapability.hasUsableElytra(t)) {
+                t.setItemStackToSlot(EntityEquipmentSlot.CHEST, new ItemStack(Items.ELYTRA));
+                equipped++;
+            }
+
+            if (giveRockets && t instanceof EntityTravellerWorker) {
+                EntityTravellerWorker worker = (EntityTravellerWorker) t;
+                if (worker.isHiredFollower()) {
+                    ItemStack remainder = ItemHandlerHelper.insertItemStacked(
+                            worker.getPersonalInventory(), new ItemStack(Items.FIREWORKS, 64), false);
+                    if (remainder.getCount() < 64) stocked++;
+                }
+            }
+        }
+
+        StringBuilder message = new StringBuilder(TextFormatting.GREEN.toString()).append("Equipped ").append(equipped)
+                .append(" traveller(s) within ").append((int) radius).append(" blocks.");
+        if (giveRockets) {
+            message.append(" Gave fireworks to ").append(stocked).append(" hired worker(s).");
+        }
+        message.append(" They will glide on their own when the terrain suits it.");
+
+        sender.sendMessage(new TextComponentString(message.toString()));
+    }
+
+    // --- Mount test ---
+
+    /**
+     * {@code /travellersdebug mount give|ride|lead|hitch} - bonds a fresh horse to the nearest traveller within 32
+     * blocks, for testing mounted pathfinding without waiting on a natural spawn roll.
+     */
+    /**
+     * {@code /travellersdebug trace start|stop|list|channels} - per-entity movement tracing.
+     * "start" with no name picks whichever traveller the player is looking at, falling back to the
+     * nearest one, since pointing at the individual misbehaving is the natural gesture when several
+     * are in view.
+     */
+    private void executeTrace(ICommandSender sender, String[] args) throws CommandException {
+        String sub = args.length >= 2 ? args[1].toLowerCase() : "list";
+
+        if (sub.equals("channels")) {
+            if (args.length < 3) {
+                sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "Channels: "
+                        + TraceChannel.join(TravellerTracer.getDefaultChannels())));
+                return;
+            }
+            java.util.EnumSet<TraceChannel> parsed = TraceChannel.parse(args[2]);
+            if (parsed == null) throw new CommandException("Unknown channel in: " + args[2]);
+            TravellerTracer.setDefaultChannels(parsed);
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Trace channels: "
+                    + TraceChannel.join(parsed)));
+            return;
+        }
+
+        if (sub.equals("list")) {
+            if (TravellerTracer.sessions().isEmpty()) {
+                sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "No trace running."));
+                return;
+            }
+            for (TraceSession s : TravellerTracer.sessions()) {
+                sender.sendMessage(new TextComponentString(TextFormatting.AQUA + s.entityName
+                        + TextFormatting.GRAY + (s.automatic ? " (auto) " : " (manual) ") + s.getFile().getName()));
+            }
+            return;
+        }
+
+        if (sub.equals("stop")) {
+            MinecraftServer server = sender.getServer();
+            if (args.length >= 3 && args[2].equalsIgnoreCase("all")) {
+                List<String> summaries = TravellerTracer.stopAll(server, "stopped by command");
+                if (summaries.isEmpty()) throw new CommandException("No trace running.");
+                for (String s : summaries) sendSummary(sender, s);
+                return;
+            }
+            EntityTraveller target = resolveTraceTarget(sender, args, 2);
+            String summary = TravellerTracer.stop(server, target.getUniqueID(), "stopped by command");
+            if (summary == null) throw new CommandException(target.getName() + " is not being traced.");
+            sendSummary(sender, summary);
+            return;
+        }
+
+        if (!sub.equals("start")) {
+            throw new CommandException("Usage: /travellersdebug trace start|stop|list|channels");
+        }
+
+        EntityTraveller target = resolveTraceTarget(sender, args, 2);
+        TraceSession session = TravellerTracer.start(target, TravellerTracer.getDefaultChannels());
+        if (session == null) {
+            throw new CommandException("Already tracing " + target.getName() + " (or the file could not be created).");
+        }
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Tracing " + target.getName()
+                + TextFormatting.GRAY + " -> logs/travellers-trace/" + session.getFile().getName()));
+    }
+
+    private void sendSummary(ICommandSender sender, String summary) {
+        for (String line : summary.split("\n")) {
+            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + line));
+        }
+    }
+
+    /**
+     * The traveller a trace command applies to: an explicit name if given, else whichever one the
+     * player is looking at, else the nearest. Looking at one is checked first because "that one, the
+     * one misbehaving" is the whole point when a dozen are milling around.
+     */
+    private EntityTraveller resolveTraceTarget(ICommandSender sender, String[] args, int nameIndex)
+            throws CommandException {
+        if (!(sender instanceof EntityPlayerMP)) throw new CommandException("Must be run by a player.");
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+
+        List<EntityTraveller> nearby = player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(64.0D), t -> t != null && t.isEntityAlive());
+        if (nearby.isEmpty()) throw new CommandException("No traveller within 64 blocks.");
+
+        if (args.length > nameIndex) {
+            String wanted = args[nameIndex];
+            for (EntityTraveller t : nearby) {
+                if (t.getName().equalsIgnoreCase(wanted)) return t;
+            }
+            for (EntityTraveller t : nearby) {
+                if (t.getName().toLowerCase().startsWith(wanted.toLowerCase())) return t;
+            }
+            throw new CommandException("No traveller named '" + wanted + "' within 64 blocks.");
+        }
+
+        Vec3d eye = player.getPositionEyes(1.0F);
+        Vec3d look = player.getLook(1.0F);
+        EntityTraveller bestLooked = null;
+        double bestLookedDist = Double.MAX_VALUE;
+        EntityTraveller nearest = null;
+        double nearestSq = Double.MAX_VALUE;
+
+        for (EntityTraveller t : nearby) {
+            double dSq = t.getDistanceSq(player);
+            if (dSq < nearestSq) {
+                nearestSq = dSq;
+                nearest = t;
+            }
+            // Generous inflation: a traveller several dozen blocks off only needs to be roughly under
+            // the crosshair for the intent to be unambiguous.
+            AxisAlignedBB box = t.getEntityBoundingBox().grow(0.6D);
+            net.minecraft.util.math.RayTraceResult hit = box.calculateIntercept(eye, eye.add(look.scale(64.0D)));
+            if (hit != null && Math.sqrt(dSq) < bestLookedDist) {
+                bestLookedDist = Math.sqrt(dSq);
+                bestLooked = t;
+            }
+        }
+        return bestLooked != null ? bestLooked : nearest;
+    }
+
+    private void executeMountDebug(ICommandSender sender, String[] args) throws CommandException {
+        if (!(sender instanceof EntityPlayerMP)) {
+            throw new CommandException("Must be run by a player.");
+        }
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+
+        String sub = args.length >= 2 ? args[1].toLowerCase() : "";
+        if (!sub.equals("give") && !sub.equals("ride") && !sub.equals("lead") && !sub.equals("hitch")) {
+            throw new CommandException("Usage: /travellersdebug mount give|ride|lead|hitch");
+        }
+
+        EntityTraveller closest = null;
+        double bestSq = Double.MAX_VALUE;
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(32.0D, 32.0D, 32.0D),
+                t -> t != null && t.isEntityAlive())) {
+            double dSq = t.getDistanceSq(player);
+            if (dSq < bestSq) {
+                bestSq = dSq;
+                closest = t;
+            }
+        }
+
+        if (closest == null) {
+            throw new CommandException("No traveller within 32 blocks.");
+        }
+
+        // Mode switches: the same entry point the AI tasks use, so testing a mode by hand exercises
+        // exactly the code path the game will.
+        if (!sub.equals("give")) {
+            if (closest.getMountUUID() == null) {
+                throw new CommandException(closest.getName() + " has no bonded mount.");
+            }
+            com.jubitus.travellers.entity.entityAI.travel.mount.MountMode mode =
+                    sub.equals("ride") ? com.jubitus.travellers.entity.entityAI.travel.mount.MountMode.MOUNTED
+                            : sub.equals("lead") ? com.jubitus.travellers.entity.entityAI.travel.mount.MountMode.LED
+                            : com.jubitus.travellers.entity.entityAI.travel.mount.MountMode.HITCHED;
+            com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport.setMountMode(closest, mode);
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN
+                    + closest.getName() + " mount mode -> " + mode.name()));
+            return;
+        }
+
+        if (closest.getMountUUID() != null) {
+            throw new CommandException(closest.getName() + " already has a bonded mount.");
+        }
+
+        if (com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport.bondNewMount(closest)) {
+            sender.sendMessage(new TextComponentString(TextFormatting.GREEN
+                    + "Bonded a horse to " + closest.getName() + "."));
+        } else {
+            String why = !com.jubitus.travellers.config.TravellersConfig.MOUNTS.enabled
+                    ? "mounts disabled in config" : "could not spawn the horse (no room?)";
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "Failed: " + why + "."));
+        }
+    }
+
+    /** Flight state of every elytra wearer nearby - who is flying, who is on cooldown, who is walking. */
+    /**
+     * Ground-truth dump of the vanilla bow-draw state (isHandActive/activeItemStack/getItemInUseCount)
+     * for every nearby traveller currently running the ranged AI - diagnostic for the "bow item never
+     * visually shows pulled/nocked" issue. Server-authoritative values only: if these read correctly
+     * here but the client still shows a resting bow, the bug is client-side (sync/render), not in our
+     * AI; if they read wrong here, it's in our own tick logic.
+     */
+    private void executeBowStatus(ICommandSender sender) throws CommandException {
+        if (!(sender instanceof EntityPlayerMP)) {
+            throw new CommandException("Must be run by a player.");
+        }
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+
+        int listed = 0;
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(48.0D, 32.0D, 48.0D),
+                t -> t != null && t.isEntityAlive() && t.isAimingBow())) {
+
+            ItemStack active = t.getActiveItemStack();
+            ItemStack mainhand = t.getHeldItemMainhand();
+            int inUse = t.getItemInUseCount();
+            float pull = active.isEmpty() ? -1f : (active.getMaxItemUseDuration() - inUse) / 20.0f;
+
+            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + t.getName()
+                    + TextFormatting.WHITE + " isHandActive=" + t.isHandActive()
+                    + " activeHand=" + t.getActiveHand()
+                    + " primaryHand=" + t.getPrimaryHand()));
+            sender.sendMessage(new TextComponentString(TextFormatting.DARK_GRAY + "  active="
+                    + (active.isEmpty() ? "EMPTY" : active.getItem().getRegistryName())
+                    + " inUseCount=" + inUse + " pull=" + pull
+                    + " ghost=" + t.equipment.isGhostBow(active)));
+            sender.sendMessage(new TextComponentString(TextFormatting.DARK_GRAY + "  mainhand="
+                    + (mainhand.isEmpty() ? "EMPTY" : mainhand.getItem().getRegistryName())
+                    + " sameRefAsActive=" + (mainhand == active)
+                    + " ghost=" + t.equipment.isGhostBow(mainhand)));
+            listed++;
+        }
+
+        if (listed == 0) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW
+                    + "No traveller within 48 blocks is currently aiming a bow."));
+        }
+    }
+
+    private void executeElytraStatus(ICommandSender sender, EntityPlayerMP player) {
+        int listed = 0;
+        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class,
+                player.getEntityBoundingBox().grow(96.0D, 96.0D, 96.0D),
+                t -> t != null && t.isEntityAlive() && ElytraCapability.hasUsableElytra(t))) {
+
+            String state = t.elytraFlight.getState().name();
+            if (t.elytraFlight.isOnCooldown() && !t.elytraFlight.isActive()) state += " (cooldown)";
+            Vec3d flightTarget = t.elytraFlight.getTarget();
+
+            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + t.getName()
+                    + TextFormatting.WHITE + " " + state
+                    + TextFormatting.DARK_GRAY + " at " + (int) t.posX + "/" + (int) t.posY + "/" + (int) t.posZ
+                    + (flightTarget == null ? "" : " -> " + (int) flightTarget.x + "/" + (int) flightTarget.y + "/" + (int) flightTarget.z)));
+            listed++;
+        }
+
+        if (listed == 0) {
+            sender.sendMessage(new TextComponentString(TextFormatting.YELLOW
+                    + "No elytra-wearing travellers within 96 blocks. Use '/travellersdebug elytra give' first."));
         }
     }
 

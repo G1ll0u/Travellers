@@ -156,10 +156,9 @@ public class GuiWorkerFormationHub extends GuiScreen
     private GuiWorkerFormationSlider followDistSlider;
     private GuiWorkerFormationSlider spacingSlider;
     private GuiWorkerFormationSlider widthSlider;
-    private GuiWorkerFormationSlider turnSlider;
 
     private GuiButton styleButton;
-    private GuiButton caveButton;
+    private GuiButton attitudeButton;
     private GuiButton backButton;
     // Leader orders
     private GuiButton goButton;
@@ -242,46 +241,42 @@ public class GuiWorkerFormationHub extends GuiScreen
         mapAreaH = effH - 44;
 
         // Sliders (rightmost) — map shrinks first so the slider panel keeps its full width
-        int budget = effW - (6 + LIST_W + 4 + ordersW + 4 + 4 + 8);
+        int panelGap = 8; // regular gap between the map and the right-side button/slider column
+        int budget = effW - (6 + LIST_W + 4 + ordersW + 4 + panelGap + panelGap);
         rightW = Math.max(80, Math.min(134, budget - 80));
         mapW   = Math.max(80, budget - rightW);
-        rightX = mapAreaX + mapW + 4;
+        rightX = mapAreaX + mapW + panelGap;
 
-        // ── Sliders ───────────────────────────────────────────────────────────
+        // ── Right column: style/attitude buttons then sliders, all evenly spaced ───
+        int rowGap = 30;
         int rowY = contentY;
         styleButton = addButton(new GuiButton(1, rightX, rowY, rightW, 20, ""));
-        rowY += 26;
-        caveButton  = addButton(new GuiButton(2, rightX, rowY, rightW, 20, ""));
-        rowY += 30;
+        rowY += rowGap;
+        attitudeButton = addButton(new GuiButton(2, rightX, rowY, rightW, 20, ""));
+        rowY += rowGap;
 
         escortsSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.escorts",
                 WorkerFormationSettings.MIN_ESCORTS, WorkerFormationSettings.MAX_ESCORTS,
                 1.0D, currentSettings != null ? currentSettings.numEscorts : 0,
                 v -> Integer.toString((int) Math.round(v)));
-        rowY += 34;
+        rowY += rowGap;
         followDistSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.follow_distance",
                 WorkerFormationSettings.MIN_FOLLOW_DISTANCE, WorkerFormationSettings.MAX_FOLLOW_DISTANCE,
                 0.5D, currentSettings != null ? currentSettings.followDistance : 8.0,
                 v -> formatDouble(v));
-        rowY += 34;
+        rowY += rowGap;
         spacingSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.spacing",
                 WorkerFormationSettings.MIN_SPACING, WorkerFormationSettings.MAX_SPACING,
                 0.25D, currentSettings != null ? currentSettings.spacing : 1.0,
                 v -> formatDouble(v));
-        rowY += 34;
+        rowY += rowGap;
         widthSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
                 "travellers.worker.formation.width",
                 WorkerFormationSettings.MIN_WIDTH, WorkerFormationSettings.MAX_WIDTH,
                 1.0D, currentSettings != null ? currentSettings.width : 4,
-                v -> Integer.toString((int) Math.round(v)));
-        rowY += 34;
-        turnSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
-                "travellers.worker.formation.turn",
-                WorkerFormationSettings.MIN_TURN_SMOOTHNESS, WorkerFormationSettings.MAX_TURN_SMOOTHNESS,
-                5.0D, currentSettings != null ? currentSettings.turnSmoothness : 40,
                 v -> Integer.toString((int) Math.round(v)));
 
         // ── Orders buttons ────────────────────────────────────────────────────
@@ -310,6 +305,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         followerComeBackButton = addButton(new GuiButton(38, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
         followerMergeButton    = addButton(new GuiButton(39, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
 
+        tooltips.set(attitudeButton, "travellers.worker.formation.attitude.tooltip");
         tooltips.set(goButton, "travellers.worker.formation.go.tooltip");
         tooltips.set(followButton, "travellers.worker.formation.follow.tooltip");
         tooltips.set(followToggleButton, "travellers.worker.formation.follow_toggle.tooltip");
@@ -577,7 +573,6 @@ public class GuiWorkerFormationHub extends GuiScreen
             followDistSlider.draw(mc, mouseX, mouseY);
             spacingSlider.draw(mc, mouseX, mouseY);
             widthSlider.draw(mc, mouseX, mouseY);
-            turnSlider.draw(mc, mouseX, mouseY);
         }
 
         // Map tooltip
@@ -971,8 +966,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             if (currentSettings != null) { currentSettings.style = currentSettings.style.next(); onSettingsChanged(true); }
             return;
         }
-        if (button == caveButton) {
-            if (currentSettings != null) { currentSettings.adaptiveCave = !currentSettings.adaptiveCave; onSettingsChanged(true); }
+        if (button == attitudeButton) {
+            if (currentSettings != null) { currentSettings.attitude = currentSettings.attitude.next(); onSettingsChanged(true); }
             return;
         }
 
@@ -1072,7 +1067,6 @@ public class GuiWorkerFormationHub extends GuiScreen
             if (followDistSlider.mousePressed(mouseX, mouseY, mouseButton)) consumed = true;
             if (spacingSlider.mousePressed(mouseX, mouseY, mouseButton))    consumed = true;
             if (widthSlider.mousePressed(mouseX, mouseY, mouseButton))      consumed = true;
-            if (turnSlider.mousePressed(mouseX, mouseY, mouseButton))       consumed = true;
             if (consumed) { pullSliders(); onSettingsChanged(false); return; }
         }
 
@@ -1097,7 +1091,6 @@ public class GuiWorkerFormationHub extends GuiScreen
         changed |= followDistSlider.mouseDragged(mouseX, mouseY);
         changed |= spacingSlider.mouseDragged(mouseX, mouseY);
         changed |= widthSlider.mouseDragged(mouseX, mouseY);
-        changed |= turnSlider.mouseDragged(mouseX, mouseY);
         if (changed) { pullSliders(); onSettingsChanged(false); }
     }
 
@@ -1124,7 +1117,6 @@ public class GuiWorkerFormationHub extends GuiScreen
         changed |= followDistSlider.mouseReleased(state);
         changed |= spacingSlider.mouseReleased(state);
         changed |= widthSlider.mouseReleased(state);
-        changed |= turnSlider.mouseReleased(state);
         if (changed) { pullSliders(); onSettingsChanged(false); flushPendingSync(true); }
     }
 
@@ -1445,7 +1437,6 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (followDistSlider != null) followDistSlider.setValue(currentSettings.followDistance);
         if (spacingSlider    != null) spacingSlider.setValue(currentSettings.spacing);
         if (widthSlider      != null) widthSlider.setValue(currentSettings.width);
-        if (turnSlider       != null) turnSlider.setValue(currentSettings.turnSmoothness);
     }
 
     // ── Merge logic ───────────────────────────────────────────────────────────
@@ -1661,7 +1652,6 @@ public class GuiWorkerFormationHub extends GuiScreen
         currentSettings.followDistance = followDistSlider.getValue();
         currentSettings.spacing        = spacingSlider.getValue();
         currentSettings.width          = (int) Math.round(widthSlider.getValue());
-        currentSettings.turnSmoothness = (int) Math.round(turnSlider.getValue());
         currentSettings.clamp();
     }
 
@@ -1675,8 +1665,8 @@ public class GuiWorkerFormationHub extends GuiScreen
         boolean isFollowerMode = selectionMode == SelectionMode.FOLLOWERS && !mergeMode && !assignFollowersMode;
 
         // Formation sliders & style buttons
-        if (styleButton != null) { styleButton.visible = !mergeMode && !assignFollowersMode; }
-        if (caveButton  != null) { caveButton.visible  = !mergeMode && !assignFollowersMode; }
+        if (styleButton    != null) { styleButton.visible    = !mergeMode && !assignFollowersMode; }
+        if (attitudeButton != null) { attitudeButton.visible = !mergeMode && !assignFollowersMode; }
 
         // Leader orders
         boolean showLeaderOrders = isLeaderMode;
@@ -1727,10 +1717,10 @@ public class GuiWorkerFormationHub extends GuiScreen
                 styleButton.displayString = I18n.format("travellers.worker.formation.style") + ": "
                         + I18n.format("travellers.worker.formation.style."
                         + currentSettings.style.name().toLowerCase(Locale.ROOT));
-            if (caveButton != null)
-                caveButton.displayString = currentSettings.adaptiveCave
-                        ? I18n.format("travellers.worker.formation.cave.on")
-                        : I18n.format("travellers.worker.formation.cave.off");
+            if (attitudeButton != null)
+                attitudeButton.displayString = I18n.format("travellers.worker.formation.attitude") + ": "
+                        + I18n.format("travellers.worker.formation.attitude."
+                        + currentSettings.attitude.name().toLowerCase(Locale.ROOT));
         }
     }
 

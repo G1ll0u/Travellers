@@ -56,10 +56,10 @@ public class VirtualTravellerRecord {
     public double virtualizedPosY;
     public double virtualizedPosZ;
 
-    // Set to true only when the worker has traveled more than 16 blocks from its virtualization point.
-    // Formation-adjustment moves (a few blocks toward the leader) do not count.
-    // Used at materialization to decide whether Y needs surface-clamping.
-    public boolean hasTraveledFar;
+    // Last world tick the offscreen simulation actually moved this record. Memory-only on purpose:
+    // after a restart every record reads as "has not moved", which is the conservative answer for
+    // the anchored-formation hold below (a group nobody has moved stays exactly where it was left).
+    public long lastVirtualMoveTick = Long.MIN_VALUE;
 
     // Stable formation slot index within the escort leader's group, assigned once by
     // VirtualFormationSimulator (mirrors FollowFormationCoordinator's persistentOrdinals for the
@@ -79,6 +79,24 @@ public class VirtualTravellerRecord {
 
     // Non-null for traveller/raider group followers: UUID of the group leader they must track.
     @Nullable public UUID groupLeaderUUID;
+
+    // Rolled once at spawn (group-atomic for traveller/raider groups: the leader rolls, every
+    // follower copies its result). Consumed at materialization to bond a real horse via
+    // TravellerMountSupport.bondNewMount — materialize never re-rolls, so a group stays uniformly
+    // mounted or on-foot no matter when each member happens to materialize. Also drives the offscreen
+    // speed bonus (advanceVirtual) once the record has actually gone virtual while mounted.
+    public boolean mounted;
+
+    // Full NBT of the bonded horse, captured when a mounted entity virtualizes (the horse itself is
+    // removed from the world - not left behind, not despawned as an ordinary horse). Non-null only
+    // after that has happened at least once; materialize reconstructs the exact same horse (same
+    // UUID, same tame/saddle/attributes/age/color) from this instead of bonding a fresh one.
+    @Nullable public NBTTagCompound mountNbt;
+
+    // Whether the rider was in the saddle, leading its horse or leaving it hitched when it went
+    // virtual (MountMode.name()), so materialize puts the pair back exactly as the player last saw
+    // them instead of always dropping the rider into the saddle.
+    @Nullable public String mountMode;
 
     // Camp occupation cache (P3). The campsite occupant is the source of truth; these are re-derived
     // on virtualize. When set, the entity halts its route and sits at its slot.
@@ -186,7 +204,6 @@ public class VirtualTravellerRecord {
         tag.setDouble("VPX", virtualizedPosX);
         tag.setDouble("VPY", virtualizedPosY);
         tag.setDouble("VPZ", virtualizedPosZ);
-        tag.setBoolean("TraveledFar", hasTraveledFar);
         tag.setString("Name", name != null ? name : "");
         tag.setInteger("OwnerColor", ownerColor);
         if (formationOrdinal >= 0) tag.setInteger("FormOrd", formationOrdinal);
@@ -196,6 +213,9 @@ public class VirtualTravellerRecord {
         if (recoveringToFull) tag.setBoolean("RecFull", true);
         if (battleId != null) tag.setString("BattleId", battleId.toString());
         if (groupLeaderUUID != null) tag.setString("GroupLeader", groupLeaderUUID.toString());
+        if (mounted) tag.setBoolean("Mounted", true);
+        if (mountNbt != null) tag.setTag("MountData", mountNbt);
+        if (mountMode != null) tag.setString("MountMode", mountMode);
         if (campSiteId != null) {
             tag.setString("CampSite", campSiteId.toString());
             tag.setInteger("CampSlot", campSlotIndex);
@@ -245,7 +265,6 @@ public class VirtualTravellerRecord {
         r.virtualizedPosX = tag.hasKey("VPX") ? tag.getDouble("VPX") : px;
         r.virtualizedPosY = tag.hasKey("VPY") ? tag.getDouble("VPY") : py;
         r.virtualizedPosZ = tag.hasKey("VPZ") ? tag.getDouble("VPZ") : pz;
-        r.hasTraveledFar = tag.getBoolean("TraveledFar");
         r.name = tag.hasKey("Name") ? tag.getString("Name") : "";
         r.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;
         r.formationOrdinal = tag.hasKey("FormOrd") ? tag.getInteger("FormOrd") : -1;
@@ -255,6 +274,9 @@ public class VirtualTravellerRecord {
         r.recoveringToFull = tag.getBoolean("RecFull");
         if (tag.hasKey("BattleId")) r.battleId = UUID.fromString(tag.getString("BattleId"));
         if (tag.hasKey("GroupLeader")) r.groupLeaderUUID = UUID.fromString(tag.getString("GroupLeader"));
+        r.mounted = tag.getBoolean("Mounted");
+        if (tag.hasKey("MountData")) r.mountNbt = tag.getCompoundTag("MountData");
+        if (tag.hasKey("MountMode")) r.mountMode = tag.getString("MountMode");
         if (tag.hasKey("CampSite")) {
             r.campSiteId = UUID.fromString(tag.getString("CampSite"));
             r.campSlotIndex = tag.getInteger("CampSlot");

@@ -528,7 +528,7 @@ public class TravelCommon {
         float headTurn = water ? 30.0F : 60.0F;
         float headLimit = 75.0F;
 
-        owner.rotationYaw = EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn);
+        owner.setBodyYaw(EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn));
         owner.renderYawOffset = EntityTraveller.rotlerp(owner.renderYawOffset, owner.rotationYaw, bodyTurn);
         owner.rotationYawHead = EntityTraveller.rotlerp(owner.rotationYawHead, owner.renderYawOffset, headTurn);
 

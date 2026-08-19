@@ -87,7 +87,6 @@ public class MsgOpenWorkerSubGui implements IMessage {
 
     public enum Type {
         TRANSPORT,
-        ORDERS,
         RECRUIT,
         INVENTORY,
         BEHAVIOR,
@@ -141,21 +140,6 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         );
                         return;
 
-                    case ORDERS:
-                        if (!isHiredByPlayer(worker, player)) {
-                            NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_ORDERS);
-                            return;
-                        }
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
-                                new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.ORDERS),
-                                player
-                        );
-                        // Authoritative (loaded + virtual) follower count for the "Lead" button label -
-                        // the synced LEADER_FOLLOWER_COUNT_DM is loaded-only by design (drives local AI).
-                        WorkerGroupService.syncLeaderFollowerCount(player, worker.getUniqueID());
-                        return;
-
                     case BEHAVIOR:
                         if (!isHiredByPlayer(worker, player)) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_BEHAVIOR);
@@ -194,10 +178,14 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case HUB:
+                        // The hub shows the hire state and the "Lead" follower count itself, so both
+                        // have to be authoritative before it opens.
+                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
                         TravellerFollowNet.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.HUB),
                                 player
                         );
+                        WorkerGroupService.syncLeaderFollowerCount(player, worker.getUniqueID());
                         return;
 
                     case GO:

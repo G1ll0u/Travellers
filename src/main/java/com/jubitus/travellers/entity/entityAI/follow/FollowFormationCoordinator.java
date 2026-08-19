@@ -186,6 +186,12 @@ public final class FollowFormationCoordinator {
 
         private double stableDirX = 0.0D;
         private double stableDirZ = 1.0D;
+        // Where the windowed heading logic below wants stableDir to end up. stableDir itself is
+        // never snapped straight to this - it's slewed toward it a little every tick (see
+        // slewStableDirTowardTarget) so a heading change plays out as a smooth turn instead of the
+        // whole group's formation snapping sideways in one instant when a window closes.
+        private double targetDirX = 0.0D;
+        private double targetDirZ = 1.0D;
         private double leaderSpeed = 0.0D;
         private boolean leaderActuallyMoving = false;
 
@@ -507,23 +513,23 @@ public final class FollowFormationCoordinator {
             double headingBlendMax;
             switch (style) {
                 case COMPACT:
-                    // Needs a bit more distance to commit — formation is less sensitive to heading
-                    minAccDist      = workerLeader ? 3.0D : 4.5D;
+                    // Needs a bit more distance to commit — formation is less sensitive to heading.
+                    // Player minAccDist is calibrated below normal walk-speed accumulation over
+                    // maxAccumTicks (~3.9 blocks at 4.3 blocks/s over 18 ticks) - it used to sit
+                    // above that (4.5), which meant a player walking at normal speed never reached
+                    // haveAccumulatedHeading and always fell through to the much weaker "drift
+                    // nudge" fallback below, so the formation only ever re-oriented once the group
+                    // fell behind and the leader "overshot" it (see minAccDist comments on the
+                    // other cases for the same reasoning).
+                    minAccDist      = workerLeader ? 3.0D : 2.2D;
                     minAngleRad     = Math.toRadians(12.0D);
                     maxAccumTicks   = 18;
                     headingBlendMin = 0.12D;
                     headingBlendMax = 0.32D;
                     break;
-                case COLUMN:
-                    minAccDist      = workerLeader ? 3.0D : 4.5D;
-                    minAngleRad     = Math.toRadians(12.0D);
-                    maxAccumTicks   = 12;
-                    headingBlendMin = 0.14D;
-                    headingBlendMax = 0.45D;
-                    break;
                 case LINE:
-                    // LINE rotation is dramatic (all workers move sideways) so needs clear direction
-                    minAccDist      = workerLeader ? 3.0D : 4.5D;
+                    // LINE rotation is dramatic (all workers move sideways) so needs clear direction.
+                    minAccDist      = workerLeader ? 3.0D : 1.5D;
                     minAngleRad     = Math.toRadians(10.0D);
                     maxAccumTicks   = 10;
                     headingBlendMin = 0.20D;
@@ -531,15 +537,17 @@ public final class FollowFormationCoordinator {
                     break;
                 case WEDGE:
                     // Small group — respond more quickly to leader turns
-                    minAccDist      = workerLeader ? 2.5D : 3.5D;
+                    minAccDist      = workerLeader ? 2.5D : 1.2D;
                     minAngleRad     = Math.toRadians(8.0D);
                     maxAccumTicks   = 8;
                     headingBlendMin = 0.22D;
                     headingBlendMax = 0.62D;
                     break;
+                case COLUMN: // unreachable as a persisted style (WorkerFormationSettings.clamp migrates
+                             // it to LINE), kept only so the switch stays exhaustive-by-intent
                 case ADAPTIVE:
                 default:
-                    minAccDist      = workerLeader ? 2.5D : 3.5D;
+                    minAccDist      = workerLeader ? 2.5D : 1.8D;
                     minAngleRad     = Math.toRadians(8.0D);
                     maxAccumTicks   = 12;
                     headingBlendMin = 0.18D;
@@ -549,7 +557,13 @@ public final class FollowFormationCoordinator {
             boolean haveAccumulatedHeading = accDistSq >= (minAccDist * minAccDist);
             boolean forceWindowClose = headingAccumTicks >= maxAccumTicks;
 
+            // Below, only targetDirX/Z (where the heading is headed) is ever touched - stableDirX/Z
+            // (what everything else actually reads) is slewed toward it a fixed small step per tick
+            // at the bottom of this method, regardless of which branch below ran this tick. That's
+            // what turns a window's heading decision into a smooth multi-tick turn instead of the
+            // whole formation snapping sideways the instant a window closes.
             if (!haveAccumulatedHeading && !forceWindowClose) {
+                slewStableDirTowardTarget(workerLeader);
                 return;
             }
 
@@ -561,22 +575,23 @@ public final class FollowFormationCoordinator {
                     double len = Math.sqrt(accDistSq);
                     double nx = accDx / len;
                     double nz = accDz / len;
-                    double dot = stableDirX * nx + stableDirZ * nz;
+                    double dot = targetDirX * nx + targetDirZ * nz;
                     // Only nudge if we're not going backwards (dot > -0.4)
                     if (dot > -0.4D) {
                         double nudge = 0.05D + (dot > 0.6D ? 0.03D : 0.0D); // stronger nudge when already aligned
-                        double newDirX = stableDirX + nx * nudge;
-                        double newDirZ = stableDirZ + nz * nudge;
+                        double newDirX = targetDirX + nx * nudge;
+                        double newDirZ = targetDirZ + nz * nudge;
                         double norm = Math.sqrt(newDirX * newDirX + newDirZ * newDirZ);
                         if (norm > 1.0E-6D) {
-                            stableDirX = newDirX / norm;
-                            stableDirZ = newDirZ / norm;
+                            targetDirX = newDirX / norm;
+                            targetDirZ = newDirZ / norm;
                         }
                     }
                 }
                 headingAnchorX = leader.posX;
                 headingAnchorZ = leader.posZ;
                 headingAccumTicks = 0;
+                slewStableDirTowardTarget(workerLeader);
                 return;
             }
 
@@ -584,7 +599,7 @@ public final class FollowFormationCoordinator {
             double nx = accDx / len;
             double nz = accDz / len;
 
-            double currentAngle = Math.atan2(stableDirZ, stableDirX);
+            double currentAngle = Math.atan2(targetDirZ, targetDirX);
             double targetAngle = Math.atan2(nz, nx);
             double delta = wrapToPi(targetAngle - currentAngle);
             double absDelta = Math.abs(delta);
@@ -594,13 +609,14 @@ public final class FollowFormationCoordinator {
                 headingAnchorX = leader.posX;
                 headingAnchorZ = leader.posZ;
                 headingAccumTicks = 0;
+                slewStableDirTowardTarget(workerLeader);
                 return;
             }
 
-            double dot = stableDirX * nx + stableDirZ * nz;
+            double dot = targetDirX * nx + targetDirZ * nz;
             if (dot <= HEADING_REVERSE_DOT_LIMIT) {
-                double leftDot = stableDirX * (-nz) + stableDirZ * nx;
-                double rightDot = stableDirX * nz + stableDirZ * (-nx);
+                double leftDot = targetDirX * (-nz) + targetDirZ * nx;
+                double rightDot = targetDirX * nz + targetDirZ * (-nx);
                 if (leftDot >= rightDot) {
                     targetAngle = currentAngle + (Math.PI * 0.5D);
                 } else {
@@ -613,22 +629,38 @@ public final class FollowFormationCoordinator {
             double blend = computeHeadingBlend(absDelta, formationSettings, workerLeader, len, headingAccumTicks, headingBlendMin, headingBlendMax);
             double newAngle = currentAngle + delta * blend;
 
-            stableDirX = Math.cos(newAngle);
-            stableDirZ = Math.sin(newAngle);
+            targetDirX = Math.cos(newAngle);
+            targetDirZ = Math.sin(newAngle);
 
-            double sl = Math.sqrt(stableDirX * stableDirX + stableDirZ * stableDirZ);
+            double sl = Math.sqrt(targetDirX * targetDirX + targetDirZ * targetDirZ);
             if (sl > 1.0E-6D) {
-                stableDirX /= sl;
-                stableDirZ /= sl;
+                targetDirX /= sl;
+                targetDirZ /= sl;
             } else {
-                stableDirX = nx;
-                stableDirZ = nz;
+                targetDirX = nx;
+                targetDirZ = nz;
             }
 
             lastMeaningfulHeadingSpeed = len / Math.max(1.0D, headingAccumTicks);
             headingAnchorX = leader.posX;
             headingAnchorZ = leader.posZ;
             headingAccumTicks = 0;
+            slewStableDirTowardTarget(workerLeader);
+        }
+
+        /** Rate-limited per-tick turn of stableDir toward targetDir - see the field comment on
+         * targetDirX for why this exists (smooth turning instead of per-window snapping). */
+        private void slewStableDirTowardTarget(boolean workerLeader) {
+            double maxStepRad = Math.toRadians(workerLeader ? 3.0D : 6.0D);
+
+            double curAngle = Math.atan2(stableDirZ, stableDirX);
+            double tgtAngle = Math.atan2(targetDirZ, targetDirX);
+            double delta = wrapToPi(tgtAngle - curAngle);
+            double step = MathHelper.clamp(delta, -maxStepRad, maxStepRad);
+            double newAngle = curAngle + step;
+
+            stableDirX = Math.cos(newAngle);
+            stableDirZ = Math.sin(newAngle);
         }
 
         private double computeHeadingBlend(double absDelta,
@@ -1125,7 +1157,10 @@ public final class FollowFormationCoordinator {
 
         FormationGeometry.SlotOffset off = FormationGeometry.computeSlotOffset(
                 ordinal, groupSize, forwardX, forwardZ, baseFollowDistance, leaderId, formationSettings, workerLeader);
-        return new SlotOffset(off.dx, off.dz, off.preferredRadius, off.arriveRadius, off.frontPenaltyStrength);
+        // Higher player cohesion lets followers fill in beside/ahead of the leader instead of being
+        // pushed strictly behind it - see WorkerFormationSettings.playerCohesion.
+        double frontPenalty = off.frontPenaltyStrength * (1.0D - 0.6D * formationSettings.playerCohesion);
+        return new SlotOffset(off.dx, off.dz, off.preferredRadius, off.arriveRadius, frontPenalty);
     }
 
     private static SlotOffset computeCaveOffset(int ordinal,

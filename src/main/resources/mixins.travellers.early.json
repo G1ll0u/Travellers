@@ -4,7 +4,9 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "mixins.travellers.refmap.json",
   "mixins": [
-    "MixinOwnedMobFriendlyTraveller"
+    "MixinOwnedMobFriendlyTraveller",
+    "MixinEntityLiving",
+    "MixinAbstractHorse"
   ],
   "client": [
     "MixinLayerHeldItem"

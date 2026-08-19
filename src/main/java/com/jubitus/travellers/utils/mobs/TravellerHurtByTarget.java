@@ -1,12 +1,12 @@
 package com.jubitus.travellers.utils.mobs;
 
+import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAITarget;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.world.EnumDifficulty;
 
 import java.util.List;
 
@@ -144,7 +144,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 if (ally == owner) continue;
                 if (!ally.isEntityAlive()) continue;
                 if (attacker instanceof EntityTraveller) continue;
-                if (ally.world.getDifficulty() == EnumDifficulty.PEACEFUL) continue;
+                if (TravellersDerivedConfig.isPeacefulBlocked(ally.world)) continue;
 
                 // Only same-faction allies respond to calls for help.
                 // Raiders recruit only raiders; friendly travellers recruit only friendly travellers/workers.

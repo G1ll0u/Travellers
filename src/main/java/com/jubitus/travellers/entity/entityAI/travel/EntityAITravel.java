@@ -2,7 +2,11 @@ package com.jubitus.travellers.entity.entityAI.travel;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
+import com.jubitus.travellers.entity.entityAI.flight.ElytraCapability;
+import com.jubitus.travellers.entity.entityAI.flight.ElytraOpportunityScanner;
 import com.jubitus.travellers.entity.entityAI.follow.FollowRuntimeConfig;
+import com.jubitus.travellers.entity.entityAI.travel.mount.MountMode;
+import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
@@ -19,6 +23,7 @@ import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.pathfinding.Path;
 import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.util.EnumFacing;
@@ -91,9 +96,6 @@ public class EntityAITravel extends EntityAIBase {
     private boolean moveWindowInit = false;
     // --- Progress stall (XZ distance-to-target not improving) ---
     private int noProgressTicks = 0;
-    // Consecutive ticks the direct "ground toward destination is loaded" probe has failed.
-    private int forwardBlockedTicks = 0;
-    private static final int FORWARD_BLOCKED_GRACE_TICKS = 20; // 1s - just enough to ignore a one-tick chunk-boundary flicker
     private double progressCheckpointSq = Double.MAX_VALUE;
     private int lastPathIndex = -1;
     private int pathNoAdvanceTicks = 0;
@@ -424,6 +426,8 @@ public class EntityAITravel extends EntityAIBase {
 
         wasInWater = mob.isInWater();
         boatRetryCooldown = 0;
+        // The reason to be in the air was to get somewhere this task no longer owns - come down.
+        mob.elytraFlight.abortToLanding();
 
         this.currentWaypoint = null;
         mob.setCurrentWaypoint(null);
@@ -478,6 +482,15 @@ public class EntityAITravel extends EntityAIBase {
                 lastSchedulerDenyTick = mob.ticksExisted;
                 return;
             }
+        }
+
+        // -----------------------------------------
+        // Elytra flight owns movement outright while it lasts. The controller is ticked from
+        // EntityTraveller.travel(), not from here, so this branch only has to stay out of its way -
+        // every stuck/stall/repath measurement below assumes a walking entity on a path.
+        // -----------------------------------------
+        if (mob.elytraFlight.isActive()) {
+            return;
         }
 
         // -----------------------------------------
@@ -543,26 +556,18 @@ public class EntityAITravel extends EntityAIBase {
         // to the destination by pure chance - which resets noMoveTicks/noProgressTicks often enough that
         // neither ever reliably reaches its threshold. This check bypasses all of that by looking
         // straight at the one fact that actually matters, not inferring it from AI side effects.
-        if (!mob.world.isRemote) {
-            BlockPos from = mob.getPosition();
-            double fdx = targetVillage.getX() - from.getX();
-            double fdz = targetVillage.getZ() - from.getZ();
-            double fDistSq = fdx * fdx + fdz * fdz;
-            if (fDistSq >= 1.0) {
-                double fDist = Math.sqrt(fDistSq);
-                double fnx = fdx / fDist;
-                double fnz = fdz / fDist;
-                int probeDist = (int) Math.max(16, Math.min(32, fDist));
-                BlockPos probe = from.add((int) Math.round(fnx * probeDist), 0, (int) Math.round(fnz * probeDist));
-                if (!isAreaLoaded(probe, 1)) {
-                    if (++forwardBlockedTicks >= FORWARD_BLOCKED_GRACE_TICKS && mob.tryVirtualizeStuckAtEdge()) {
-                        return;
-                    }
-                } else {
-                    forwardBlockedTicks = 0;
-                }
-            }
-        }
+        // Lives on the entity (EntityTraveller.tickEdgeVirtualizeProbe) so that units the travel AI
+        // does not drive - followers, escorts, Go orders - get the exact same treatment instead of
+        // only ever leaving via an actual chunk unload.
+        if (mob.tickEdgeVirtualizeProbe(targetVillage)) return;
+
+        // -----------------------------------------
+        // Elytra: is the ground ahead worth gliding over? Ordered after the arrival and edge checks
+        // so we never take off on top of the destination or toward unloaded terrain. The cheap gates
+        // (config, elytra worn, state) come before the budgeted terrain scan, and almost nobody wears
+        // an elytra, so this costs a field read for the entire rest of the world's population.
+        // -----------------------------------------
+        if (tryTakeOff()) return;
 
         // -----------------------------------------
         // Boat handling (keep it simple: steer + dismount when hit shore)
@@ -875,7 +880,14 @@ public class EntityAITravel extends EntityAIBase {
 // force a detour earlier (works around 1.12.2 "path but stuck" issues).
         if (!mob.world.isRemote) {
             boolean hasPath = (mob.getNavigator().getPath() != null) && !mob.getNavigator().noPath();
-            if (hasPath && noMoveTicks >= NO_MOVE_TRIGGER && stuckActionCooldown == 0) {
+            // Stop re-arming once the entity is genuinely pinned. This branch and the teleport rescue
+            // below both wait on stuckActionCooldown reaching 0, and this one runs first - so as long
+            // as it keeps firing it re-arms the cooldown every time and the rescue never gets a single
+            // tick to run. A log showed the result: 104 seconds hard against a tree, detouring on
+            // loop, and not one rescue attempt. Past the hard-pin threshold the detour has already
+            // demonstrably failed, so it stands aside and lets the escalation continue.
+            if (hasPath && noMoveTicks >= NO_MOVE_TRIGGER && stuckActionCooldown == 0
+                    && noMoveTicks < HARD_PIN_TP_TICKS) {
                 clearNav();
                 tryDetourWide();
                 pushPathToWaypoint(true);
@@ -929,8 +941,21 @@ public class EntityAITravel extends EntityAIBase {
                 if (!hardPinned && detourGraceTicks > 0) return;
 
                 if (stuckTpCooldown == 0) {
+                    if (TravellersConfig.MOUNTS.debugMounts && mob.isMountedOnBondedMount()) {
+                        net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                                "[Travellers/Mounts] %s stuck-rescue firing (noMoveTicks=%d, pathNoAdvanceTicks=%d, noProgressTicks=%d) at %s",
+                                mob.getName(), noMoveTicks, pathNoAdvanceTicks, noProgressTicks, mob.getPosition());
+                    }
+                    com.jubitus.travellers.utils.debug.trace.TravellerTracer.incident(mob, "stuck",
+                            "rescue firing noMove=" + noMoveTicks + " pathNoAdvance=" + pathNoAdvanceTicks
+                                    + " noProgress=" + noProgressTicks);
+                    // One hop, not two. The surface rescue only answers "I am buried"; when it has
+                    // nothing to offer, the step toward the village takes over. Chaining both fired a
+                    // ~12-block double jump in a single tick for no added benefit.
                     boolean rescued = teleportToSurfaceRescue(5, 6);
-                    rescued |= teleportToward(targetVillage, TP_STEP_BLOCKS);
+                    if (!rescued) rescued = teleportToward(targetVillage, TP_STEP_BLOCKS);
+                    com.jubitus.travellers.utils.debug.trace.TravellerTracer.event(mob, "stuck",
+                            "rescue result=" + (rescued ? "moved" : "failed"));
 
                     if (rescued) {
                         stuckRescueFailStreak = 0;
@@ -989,6 +1014,27 @@ public class EntityAITravel extends EntityAIBase {
         mob.getNavigator().clearPath();
         lastPathIndex = -1;
         pathNoAdvanceTicks = 0;
+    }
+
+    /**
+     * Consider gliding this leg instead of walking it. Returns true when a flight started, in which
+     * case this tick belongs to the flight controller.
+     */
+    private boolean tryTakeOff() {
+        if (!TravellersConfig.ELYTRA.enabled || !TravellersConfig.ELYTRA.autoTakeoff) return false;
+        if (isInBoat() || mob.elytraFlight.isOnCooldown()) return false;
+        if (!ElytraCapability.canTakeOff(mob)) return false;
+        if (!ElytraOpportunityScanner.tryAcquire(mob.world, mob.getEntityId())) return false;
+
+        Vec3d glide = ElytraOpportunityScanner.findGlideTarget(mob, targetVillage);
+        if (glide == null) return false;
+
+        if (!mob.elytraFlight.requestTakeoff(glide)) return false;
+
+        this.currentWaypoint = null;
+        mob.setCurrentWaypoint(null);
+        clearNav();
+        return true;
     }
 
     @Nullable
@@ -1057,7 +1103,6 @@ public class EntityAITravel extends EntityAIBase {
         stuckTpCooldown = 0;
         noProgressTicks = 0;
         consecutiveNoWaypoint = 0;
-        forwardBlockedTicks = 0;
 
         lastMovePos = mob.getPositionVector();
         noMoveTicks = 0;
@@ -2185,10 +2230,17 @@ public class EntityAITravel extends EntityAIBase {
             return false;
         }
 
+        // A mounted rider is about to be silently dismounted by startRiding below (vanilla only ever
+        // holds one vehicle at a time). Switching to LED first means the horse stays in the world and
+        // is simply towed across on its leash, swimming behind the boat, rather than vanishing for the
+        // length of the crossing.
+        MountMode mountModeBeforeBoat = mob.getMountMode();
+        TravellerMountSupport.setMountMode(mob, MountMode.LED);
+
         if (!mob.startRiding(boat, true)) {
-            // If mounting fails for any reason, remove the boat too
             boat.setDead();
             boatRetryCooldown = BOAT_RETRY_CD;
+            TravellerMountSupport.setMountMode(mob, mountModeBeforeBoat);
             return false;
         }
 
@@ -2204,6 +2256,18 @@ public class EntityAITravel extends EntityAIBase {
 
         if (r instanceof EntityTravellerBoat) {
             ((EntityTravellerBoat) r).requestKill(); // NOT setDead()
+        }
+
+        // Symmetric counterpart to tryEnterBoat: this is the single point every boat leg ends at
+        // (arrival, stuck timeout, path reset...), so asking for the saddle back here covers all of
+        // them without a matching call at each dismountAndDeleteBoat() call site.
+        TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
+
+        // Older saves only: a crossing that began before mounts were towed rather than captured.
+        NBTTagCompound pendingMount = mob.getPendingMountNbt();
+        if (pendingMount != null) {
+            mob.setPendingMountNbt(null);
+            TravellerMountSupport.restoreMount(mob, pendingMount);
         }
     }
 
@@ -2734,9 +2798,13 @@ public class EntityAITravel extends EntityAIBase {
 
                 BlockPos top = w.getTopSolidOrLiquidBlock(probe);
 
-                if (top.getY() < minY) continue;
-
+                // The rise must be measured on the spot actually landed on, not on the raw column
+                // top: getTopSolidOrLiquidBlock returns the crown of a tree, and adjustTreeTopToGround
+                // then walks back down to the forest floor. Tested before that adjustment, every
+                // wooded tile passes a "6 blocks higher" filter it does not remotely satisfy, which
+                // turned this from "dig me out, I'm buried" into an arbitrary hop under any canopy.
                 BlockPos feet = adjustTreeTopToGround(top);
+                if (feet.getY() < minY) continue;
                 if (!isStandable(feet)) continue;
                 boolean okSupport = isNaturalGroundSupport(feet.down());
                 if (!okSupport && stuckStage >= 2) {

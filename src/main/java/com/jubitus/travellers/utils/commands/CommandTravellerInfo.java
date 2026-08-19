@@ -116,11 +116,11 @@ public class CommandTravellerInfo extends CommandBase {
                 ? TravellersConfig.SPAWN_WORKERS.workerLoadedCap
                 : TravellersConfig.ATTRIBUTES.workerGlobalAssignedCap;
 
-        msg(sender, String.format("§fWorkers: §a%d§f loaded + §a%d§f virtual = §a%d§f / §e%d§f cap  (min pop §a%d§f, §a%d§f pop/worker, max §a%d§f/village)",
+        msg(sender, String.format("§fWorkers: §a%d§f loaded + §a%d§f virtual = §a%d§f / §e%d§f cap  (%.2f per villager, min §a%d§f, max §a%d§f/village)",
                 loadedWorkers, virtualWorkers, loadedWorkers + virtualWorkers, globalWorkerCap,
-                TravellersConfig.SPAWN_WORKERS.workerMinPop,
-                TravellersConfig.SPAWN_WORKERS.workerPopPerWorker,
-                TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage));
+                TravellersConfig.SPAWN_WORKERS.workerCapPerVillager,
+                TravellersConfig.SPAWN_WORKERS.workerCapMinPerVillage,
+                TravellersConfig.SPAWN_WORKERS.workerCapMaxPerVillage));
         msg(sender, String.format("§fMerchants: §a%d§f loaded / §e%d§f cap  (min pop §a%d§f, §a%d§f pop/merchant, max §a%d§f/village)",
                 loadedMerchants, TravellersConfig.SPAWN_WORKERS.merchantLoadedCap,
                 TravellersConfig.SPAWN_WORKERS.merchantMinPop,

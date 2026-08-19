@@ -51,10 +51,9 @@ public class TravellerChunkSnapshot {
         int centerChunkX = center.getX() >> 4;
         int centerChunkZ = center.getZ() >> 4;
 
-        TravellerChunkManager.WorldState state = TravellerChunkManager.INSTANCE.getWorldState(world);
-        Set<ChunkPos> merchantForced = (state != null)
-                ? new HashSet<>(state.forced)
-                : java.util.Collections.emptySet();
+        // This mod no longer force-loads any chunk (see TravellerChunkManager), so every loaded chunk
+        // shown here is loaded by someone else: a player's view distance, Millenaire, another mod.
+        Set<ChunkPos> merchantForced = java.util.Collections.emptySet();
 
         // Collect loaded chunks
         Set<ChunkPos> normal = new HashSet<>();

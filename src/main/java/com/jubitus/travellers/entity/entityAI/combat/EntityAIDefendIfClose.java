@@ -14,7 +14,6 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.pathfinding.Path;
 import net.minecraft.pathfinding.PathPoint;
 import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.world.EnumDifficulty;
 
 import java.util.List;
 import java.util.UUID;
@@ -108,7 +107,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     @Override
     public boolean shouldExecute() {
         if (mob.world.isRemote) return false;
-        if (mob.world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
+        if (TravellersDerivedConfig.isPeacefulBlocked(mob.world)) return false;
         if (mob.isAutoEating()) return false;
 // staggered (dynamic scan rate)
         int effectiveTickRate = tickRate;

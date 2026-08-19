@@ -38,7 +38,6 @@ import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
@@ -213,10 +212,9 @@ public class EntityTravellerRaider extends EntityTraveller {
         return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(other);
     }
 
-    // Don’t mute combat for creative players; still avoid aggro if you prefer:
     @Override
     public void setAttackTarget(@Nullable EntityLivingBase target) {
-        if (world != null && world.getDifficulty() == EnumDifficulty.PEACEFUL) {
+        if (world != null && TravellersDerivedConfig.isPeacefulBlocked(world)) {
             super.setAttackTarget(null);
             setInCombat(false);
             return;
@@ -398,15 +396,7 @@ public class EntityTravellerRaider extends EntityTraveller {
             // cross-faction -> allowed to retaliate
         }
 
-
-        if (world.getDifficulty() != EnumDifficulty.PEACEFUL) {
-            if (autoEatTask != null) autoEatTask.cancel();
-            setInCombat(true);
-            if (src instanceof EntityLivingBase) {
-                combat.rememberThreat((EntityLivingBase) src, TravellerCombatLogic.THREAT_FOR_HIT);
-                this.setAttackTarget((EntityLivingBase) src);
-            }
-        }
+        // Peaceful gating for this retaliation happens inside setAttackTarget() itself.
         if (src instanceof EntityLivingBase) {
             EntityLivingBase livingSrc = (EntityLivingBase) src;
 

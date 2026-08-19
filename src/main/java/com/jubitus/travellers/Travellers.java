@@ -4,7 +4,6 @@ import com.jubitus.travellers.client.input.FormationHubKeyHandler;
 import com.jubitus.travellers.client.input.WorldMapKeyHandler;
 import com.jubitus.travellers.client.render.ClientProxy;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
@@ -55,7 +54,7 @@ import static com.jubitus.travellers.utils.world.mill.VillageDataLoader.loadVill
 
 @Mod(modid = Tags.MOD_ID, name = Tags.MOD_NAME, version = Tags.VERSION,
         dependencies = "required-after:millenaire",
-        guiFactory = "com.jubitus.travellers.client.TravellersGuiFactory")
+        guiFactory = "com.jubitus.travellers.shadow.jubiconfig.factory.ModGuiFactory")
 public class Travellers {
     public static final SimpleNetworkWrapper NETWORK =
             NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
@@ -99,7 +98,7 @@ public class Travellers {
         event.registerServerCommand(new CommandVillageNeeds());
         event.registerServerCommand(new TravellerCommandChunks());
         event.registerServerCommand(new CommandSummonWorkers());
-        event.registerServerCommand(new CommandModConfig("travellers"));
+        event.registerServerCommand(new CommandModConfig());
     }
 
     @Mod.EventHandler
@@ -111,7 +110,7 @@ public class Travellers {
 
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
-        JubiConfig.init(
+        JubiConfig.register(
                 "travellers", "Travellers", "travellersconfig",
                 TravellersConfig.class, TravellerFollowNet.CHANNEL,
                 () -> {
@@ -120,10 +119,10 @@ public class Travellers {
                     TravellersDerivedConfig.syncServerCostCachesFromConfig();
                     broadcastServerCostsToAllPlayers();
                 },
-                configDir, 2
+                configDir
         );
-        JubiConfig.applyOnStartup("travellers");
-        JubiConfig.loadHistory("travellers");
+        JubiConfig.applyOnStartup();
+        JubiConfig.loadHistory();
         TravellersDerivedConfig.refresh();
         TravellersDerivedConfig.syncServerCostCachesFromConfig();
         ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
@@ -136,6 +135,10 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(MobTargetInjector.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
         MinecraftForge.EVENT_BUS.register(new com.jubitus.travellers.utils.world.camp.CampsiteDiscoveryHandler());
+        // Virtualizes travellers/raiders/workers the instant their chunk unloads (the mirror of
+        // VirtualTravellerManager materializing them when a chunk loads).
+        MinecraftForge.EVENT_BUS.register(
+                com.jubitus.travellers.utils.world.pathing.offscreen.ChunkUnloadVirtualizeHandler.class);
 
 
         if (event.getSide().isClient()) {
@@ -147,6 +150,7 @@ public class Travellers {
         // Client-only stuff
         if (event.getSide().isClient()) {
             MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.client.sound.SoundCodecHooks.class);
+            MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.client.gui.hub.WorkerHubNavState.class);
             ClientProxy.registerRenderers();
             FormationHubKeyHandler formationKeyHandler = new FormationHubKeyHandler();
             FormationHubKeyHandler.register();
@@ -210,19 +214,6 @@ public class Travellers {
                     0xEAE8B4,                                   // egg primary colour (optional)
                     0x480607                                    // egg secondary colour (optional)
             );
-            // Dog
-            EntityRegistry.registerModEntity(
-                    new ResourceLocation(Tags.MOD_ID, "traveller_dog"),
-                    EntityTravellerDog.class,
-                    Tags.MOD_ID + ".traveller_dog",
-                    3,
-                    this,
-                    128,
-                    1,
-                    true,
-                    0x6A4E3B, 0xC7A67A
-            );
-
             // Boat
             EntityRegistry.registerModEntity(
                     new ResourceLocation(Tags.MOD_ID, "traveller_boat"),
@@ -271,6 +262,9 @@ public class Travellers {
         MinecraftServer server = net.minecraftforge.fml.common.FMLCommonHandler
                 .instance()
                 .getMinecraftServerInstance();
+        // Every open trace has to be closed here, or it never gets its summary written.
+        com.jubitus.travellers.utils.debug.trace.TravellerTracer.shutdown(server);
+
         if (server == null) return;
 
         for (WorldServer ws : server.worlds) {

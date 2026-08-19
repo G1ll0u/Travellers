@@ -330,35 +330,9 @@ public final class MillVillageIndex {
     }
 
     /**
-     * True if the position is within {@code radiusBlocks} of any **village** Town Hall.
-     * Lone buildings are ignored.
-     */
-    public static boolean isNearVillage(World world, BlockPos pos, int radiusBlocks) {
-        MillWorldData wd = getWD(world);
-        if (wd == null || wd.villagesList == null || wd.villagesList.pos == null) return false;
-
-        final long r2 = (long) radiusBlocks * (long) radiusBlocks;
-
-        // 1) 3D check against saved Town Hall positions
-        for (Point p : wd.villagesList.pos) {
-            long dx = p.getiX() - pos.getX();
-            long dy = p.getiY() - pos.getY();
-            long dz = p.getiZ() - pos.getZ();
-            if (dx * dx + dy * dy + dz * dz <= r2) return true;
-        }
-
-        // 2) 2D fallback (Y in Millénaire data can differ a lot)
-        for (Point p : wd.villagesList.pos) {
-            long dx = p.getiX() - pos.getX();
-            long dz = p.getiZ() - pos.getZ();
-            if (dx * dx + dz * dz <= r2) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Variant that treats **either** a village TH or a lone building as “near”.
-     * Use if you want travellers to also appear near lone buildings.
+     * True if the position is within {@code radiusBlocks} of ANY known settlement, village or lone
+     * building alike. Used to keep spawn points from landing on top of a settlement that isn't
+     * necessarily the one they belong to.
      */
     public static boolean isNearAnySettlement(World world, BlockPos pos, int radiusBlocks) {
         MillWorldData wd = getWD(world);
@@ -1294,23 +1268,14 @@ public final class MillVillageIndex {
         return candidate;
     }
 
+    /**
+     * Same per-villager/min/max formula as {@code SPAWN_TRAVELLERS}/{@code SPAWN_RAIDERS}, so all
+     * three population-controlled types size themselves consistently.
+     */
     public static int desiredWorkersForPopulation(int villagers) {
-        // No workers if under minimum population
-        if (villagers < TravellersConfig.SPAWN_WORKERS.workerMinPop) {
-            return 0;
-        }
-
-        int workers = 1; // first worker unlocked at workerMinPop
-        int extraPop = villagers - TravellersConfig.SPAWN_WORKERS.workerMinPop;
-
-        if (TravellersConfig.SPAWN_WORKERS.workerPopPerWorker > 0 && extraPop > 0) {
-            workers += extraPop / TravellersConfig.SPAWN_WORKERS.workerPopPerWorker;
-        }
-
-        if (TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage > 0) {
-            workers = Math.min(workers, TravellersConfig.SPAWN_WORKERS.workerMaxPerVillage);
-        }
-
+        int workers = (int) Math.floor(villagers * TravellersConfig.SPAWN_WORKERS.workerCapPerVillager);
+        workers = Math.max(workers, TravellersConfig.SPAWN_WORKERS.workerCapMinPerVillage);
+        workers = Math.min(workers, TravellersConfig.SPAWN_WORKERS.workerCapMaxPerVillage);
         return workers;
     }
 

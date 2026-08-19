@@ -13,7 +13,6 @@ public class TravellersConfig {
     public static final SpawnRaiders SPAWN_RAIDERS = new SpawnRaiders();
     public static final SpawnWorkers SPAWN_WORKERS = new SpawnWorkers();
     public static final GroupFollow GROUP_FOLLOW = new GroupFollow();
-    public static final Despawn DESPAWN = new Despawn();
     public static final Attributes ATTRIBUTES = new Attributes();
     public static final Speed SPEED = new Speed();
     public static final Combat COMBAT = new Combat();
@@ -25,6 +24,8 @@ public class TravellersConfig {
     public static final Materialization MATERIALIZATION = new Materialization();
     public static final Travel TRAVEL = new Travel();
     public static final GapJump GAP_JUMP = new GapJump();
+    public static final Mounts MOUNTS = new Mounts();
+    public static final Elytra ELYTRA = new Elytra();
     public static final HazardSafety HAZARD_SAFETY = new HazardSafety();
     public static final Sound SOUND = new Sound();
     public static final Choir CHOIR = new Choir();
@@ -42,7 +43,36 @@ public class TravellersConfig {
     public static final AttackRules ATTACK_RULES = new AttackRules();
     public static final Notifications NOTIFICATIONS = new Notifications();
     public static final GuiTooltips GUI_TOOLTIPS = new GuiTooltips();
+    public static final WorkerHub WORKER_HUB = new WorkerHub();
     public static final Compat COMPAT = new Compat();
+    public static final Trace TRACE = new Trace();
+
+    public static class Trace {
+        @Config.Comment("Record what an individual traveller is doing, tick by tick, into its own file under logs/travellers-trace. Use /travellersdebug trace to pick one.")
+        public boolean enabled = true;
+
+        @Config.Comment("Start recording on its own when a traveller gets stuck, so a problem that only happens to a few of them is captured even when you are not watching.")
+        public boolean autoCapture = true;
+
+        @Config.Comment("How long to keep recording after an automatic capture starts, in seconds.")
+        @Config.RangeInt(min = 5, max = 600)
+        public int autoCaptureSeconds = 30;
+
+        @Config.Comment("How many automatic recordings may run at the same time. Keeps one bad spot from filling the folder.")
+        @Config.RangeInt(min = 1, max = 20)
+        public int autoCaptureMaxConcurrent = 3;
+
+        @Config.Comment("How long a traveller must be trying to move without getting anywhere before it counts as stuck, in seconds.")
+        @Config.RangeDouble(min = 0.5, max = 30.0)
+        public double incidentStallSeconds = 2.0;
+
+        @Config.Comment("Record one line every this many ticks. 1 gives the most detail and the biggest files.")
+        @Config.RangeInt(min = 1, max = 20)
+        public int sampleEveryTicks = 1;
+
+        @Config.Comment("Show a live panel on screen with what the traced travellers are doing.")
+        public boolean showHud = true;
+    }
 
     public static class General {
         @Config.Comment("Enable traveller entity (disable = no travellers spawn at all).")
@@ -196,13 +226,6 @@ public class TravellersConfig {
     }
 
     public static class Spawn {
-        @Config.Comment("If true, travellers may spawn with a dog companion.")
-        public boolean spawnTravellerWithDog = false;
-
-        @Config.Comment("Chance (0.0–1.0) that a traveller spawns with a dog companion.")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float travellerDogSpawnChance = 0.0085f;
-
         @Config.Comment("Enable culture-weighted spawning (cultures near spawn get higher weight).")
         public boolean travellerCultureWeightedSpawn = true;
 
@@ -259,6 +282,10 @@ public class TravellersConfig {
 
         @Config.Comment("If true, cultures with larger populations get more spawn weight.")
         public boolean travellerCultureWeightUseVillagePopulation = true;
+
+        @Config.Comment("Minimum distance (blocks) a fresh traveller/raider/worker spawn point must keep from ANY known settlement (village or lone building), not just the one it belongs to. Keeps population from ever appearing to spring up right next to a settlement the player just discovered.")
+        @Config.RangeInt(min = 0, max = 2000)
+        public int spawnSettlementAvoidanceRadius = 150;
     }
 
     public static class SpawnTravellers {
@@ -282,6 +309,14 @@ public class TravellersConfig {
         @Config.RangeInt(min = 128, max = 8000)
         public int travellerRegionalRadius = 1200;
 
+        @Config.Comment("Minimum distance (blocks) from its home village/lone building a freshly spawned traveller can appear.")
+        @Config.RangeInt(min = 0, max = 2000)
+        public int travellerSpawnMinDistanceFromHome = 150;
+
+        @Config.Comment("Maximum distance (blocks) from its home village/lone building a freshly spawned traveller can appear. Should roughly match how far apart settlements are in the world, so population looks disseminated instead of clumped near home.")
+        @Config.RangeInt(min = 0, max = 3000)
+        public int travellerSpawnMaxDistanceFromHome = 600;
+
         @Config.Comment("Chance (0-100) that a newly spawned traveller brings a small travelling group with them instead of being alone.")
         @Config.RangeInt(min = 0, max = 100)
         public int groupSpawnChance = 50;
@@ -296,9 +331,13 @@ public class TravellersConfig {
     }
 
     public static class SpawnRaiders {
-        @Config.Comment("Minimum distance (blocks) from any village where a raider is allowed to appear. Keeps raiders from popping up right on top of a settlement.")
-        @Config.RangeInt(min = 16, max = 512)
-        public int raiderMinVillageDistance = 128;
+        @Config.Comment("Minimum distance (blocks) from its home village/lone building a freshly spawned raider can appear.")
+        @Config.RangeInt(min = 0, max = 2000)
+        public int raiderSpawnMinDistanceFromHome = 150;
+
+        @Config.Comment("Maximum distance (blocks) from its home village/lone building a freshly spawned raider can appear. Should roughly match how far apart settlements are in the world, so raiders look disseminated instead of camped right outside the settlement they harass.")
+        @Config.RangeInt(min = 0, max = 3000)
+        public int raiderSpawnMaxDistanceFromHome = 600;
 
         @Config.Comment("How many raiders a village should attract per villager it has. Example: 0.2 means 1 raider for every 5 villagers.")
         @Config.RangeDouble(min = 0.01, max = 10.0)
@@ -337,17 +376,17 @@ public class TravellersConfig {
     }
 
     public static class SpawnWorkers {
-        @Config.Comment("Minimum Millenaire population before a village can have any workers.")
-        @Config.RangeInt(min = 0, max = 1024)
-        public int workerMinPop = 3;
+        @Config.Comment("How many workers a village should have per villager it has. Same formula as travellers/raiders. Example: 0.1 means 1 worker for every 10 villagers.")
+        @Config.RangeDouble(min = 0.01, max = 10.0)
+        public float workerCapPerVillager = 0.25f;
 
-        @Config.Comment("Extra population required per additional worker beyond the first.")
-        @Config.RangeInt(min = 1, max = 1024)
-        public int workerPopPerWorker = 3;
+        @Config.Comment("Every village always gets at least this many workers, even a brand new one with no population yet.")
+        @Config.RangeInt(min = 0, max = 32)
+        public int workerCapMinPerVillage = 1;
 
-        @Config.Comment("Maximum workers assigned to a single village.")
-        @Config.RangeInt(min = 0, max = 16)
-        public int workerMaxPerVillage = 8;
+        @Config.Comment("No single village will ever get more workers than this, no matter how big it grows.")
+        @Config.RangeInt(min = 0, max = 32)
+        public int workerCapMaxPerVillage = 8;
 
         @Config.Comment("Workers the global population controller spawns per lone building.")
         @Config.RangeInt(min = 0, max = 4)
@@ -357,9 +396,13 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 2048)
         public int workerLoadedCap = 1024;
 
-        @Config.Comment("A freshly spawned worker appears somewhere on their way out of the village instead of standing right on top of it, so discovering a village doesn't show its whole workforce bunched together. This sets how far along their route they can appear, as a percentage of the way to their first destination (0 = right at the village, 100 = as far as a travelling worker ever appears).")
-        @Config.RangeInt(min = 0, max = 100)
-        public int workerSpawnDisperseMaxPercent = 40;
+        @Config.Comment("Minimum distance (blocks) from its home village/lone building a freshly spawned worker can appear.")
+        @Config.RangeInt(min = 0, max = 2000)
+        public int workerSpawnMinDistanceFromHome = 150;
+
+        @Config.Comment("Maximum distance (blocks) from its home village/lone building a freshly spawned worker can appear. Same dissemination ring as travellers/raiders, so a discovered village doesn't show its whole workforce bunched together.")
+        @Config.RangeInt(min = 0, max = 3000)
+        public int workerSpawnMaxDistanceFromHome = 600;
 
         @Config.Comment("Max concurrently loaded merchants in this world (0 = no limit).")
         @Config.RangeInt(min = 0, max = 1024)
@@ -415,7 +458,7 @@ public class TravellersConfig {
 
         @Config.Comment("How long (ticks) to wait before retrying pathfinding after a failed attempt.")
         @Config.RangeInt(min = 2, max = 40)
-        public int repathTicksFailed = 6;
+        public int repathTicksFailed = 7;
 
         @Config.Comment("How long (ticks) a follower can be stuck making no progress before it teleports partway toward the group. 160 = about 8 seconds.")
         @Config.RangeInt(min = 20, max = 1200)
@@ -438,39 +481,16 @@ public class TravellersConfig {
         public double catchupStepDistance = 24.0;
     }
 
-    public static class Despawn {
-        @Config.Comment("Despawn entities near the edge of loaded chunks after a grace period.")
-        public boolean despawnNearUnloadedChunks = true;
-
-        @Config.Comment("Despawn entities far beyond any player's view radius.")
-        public boolean despawnWhenFarFromPlayers = true;
-
-        @Config.Comment("Unused — kept for config compatibility only.")
-        @Config.RangeInt(min = 0, max = 16)
-        public int farExtraChunks = 2;
-
-        @Config.Comment("How long (ticks) an entity must remain outside view distance before despawning.")
-        @Config.RangeInt(min = 0, max = 120000)
-        public int farGraceTicks = 300;
-
-        @Config.Comment("Hard minimum distance (blocks) for the far-despawn check.")
-        @Config.RangeInt(min = 16, max = 1024)
-        public int farMinDistanceBlocks = 128;
-
-        @Config.Comment("Fallback server view distance (chunks) used when real value is unavailable.")
-        @Config.RangeInt(min = 2, max = 32)
-        public int serverViewDistanceFallbackChunks = 8;
-
-        @Config.Comment("Probe radius in chunks for edge despawn. 4 = triggers at chunk 5+ from player (80 blocks at view=8). Capped at viewDistance/2 at runtime.")
-        @Config.RangeInt(min = 1, max = 8)
-        public int despawnProbeRadiusChunks = 4;
-
-        @Config.Comment("Ticks near chunk edge before the entity fades out. Counter decays (not resets) when entity re-enters the safe zone.")
-        @Config.RangeInt(min = 0, max = 1200)
-        public int despawnEdgeGraceTicks = 40;
-    }
 
     public static class Attributes {
+        @Config.Comment("Height of a traveller's hitbox, for a normal-sized one. Short and tall travellers get a hitbox scaled from this. Raise it if hits seem to pass through their head.")
+        @Config.RangeDouble(min = 0.5, max = 4.0)
+        public float hitboxHeight = 2.05f;
+
+        @Config.Comment("Width of a traveller's hitbox, for a normal-sized one. Keep it below 1 block, or travellers will refuse to walk through doors and narrow streets.")
+        @Config.RangeDouble(min = 0.2, max = 0.95)
+        public float hitboxWidth = 0.7f;
+
         @Config.Comment("Max health of generic travellers.")
         @Config.RangeDouble(min = 1.0, max = 1000.0)
         public float travellerMaxHealth = 25.0f;
@@ -511,17 +531,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 128)
         public int merchantStepBlocks = 16;
 
-        @Config.Comment("Chunk radius to keep loaded around a merchant.")
-        @Config.RangeInt(min = 1, max = 10)
-        public int merchantChunkRadius = 1;
-
-        @Config.Comment("Hard cap on forced chunks per world for merchants.")
-        @Config.RangeInt(min = 1, max = 2048)
-        public int merchantMaxForcedChunks = 256;
-
-        @Config.Comment("Enable merchant chunk-loading.")
-        public boolean merchantChunkloadingEnabled = true;
-
         @Config.Comment("Max health of worker travellers.")
         @Config.RangeDouble(min = 1.0, max = 1000.0)
         public double workerMaxHealth = 25.0;
@@ -542,10 +551,6 @@ public class TravellersConfig {
         @Config.Comment("Global cap on total assigned worker orders across the world.")
         @Config.RangeInt(min = 1, max = 65536)
         public int workerGlobalAssignedCap = 4096;
-
-        @Config.Comment("Ticks between checks for a nearby dog to recruit as a companion.")
-        @Config.RangeInt(min = 1, max = 6000)
-        public int dogScanCooldownTicks = 5 * 20;
     }
 
     public static class Speed {
@@ -580,6 +585,9 @@ public class TravellersConfig {
     }
 
     public static class Combat {
+        @Config.Comment("If true, travellers/raiders/workers fight normally even on Peaceful difficulty, instead of disengaging and refusing to attack.")
+        public boolean ignorePeaceful = false;
+
         @Config.Comment("If true, travellers call nearby allies for help when attacked.")
         public boolean callForHelp = true;
 
@@ -654,10 +662,6 @@ public class TravellersConfig {
         @Config.Comment("Max number of entities allowed to run a full target-acquisition scan (nearby-enemy AABB search) in the same tick, world-wide. Prevents CPU spikes during mass battles with many hired workers. Entities that miss the budget simply retry next tick.")
         @Config.RangeInt(min = 4, max = 500)
         public int combatTargetScanBudgetPerTick = 40;
-
-        @Config.Comment("View radius (blocks) for off-screen traveller entities.")
-        @Config.RangeDouble(min = 16.0, max = 1024.0)
-        public double travellerOffscreenViewRadius = 256.0;
 
         @Config.Comment("Base view boost radius (blocks).")
         @Config.RangeDouble(min = 0.0, max = 512.0)
@@ -747,6 +751,18 @@ public class TravellersConfig {
         @Config.Comment("Speed multiplier applied while swimming (3.0 = +200%).")
         @Config.RangeDouble(min = 1.0, max = 10.0)
         public double swimSpeedMultiplier = 3.0;
+
+        @Config.Comment("For hired worker groups set to the 'Defend' attitude: max distance (blocks) from the group's leader/owner a worker will chase an attack target. Beyond this it holds back and waits for the fight to come closer.")
+        @Config.RangeDouble(min = 2.0, max = 64.0)
+        public double defendTetherRadius = 14.0;
+
+        @Config.Comment("For hired worker groups set to the 'Hold Position' attitude: max distance (blocks) from a worker's own spot in formation it will step out to strike a target that got too close, before returning to formation.")
+        @Config.RangeDouble(min = 1.0, max = 16.0)
+        public double holdBreakRadius = 4.0;
+
+        @Config.Comment("Radius (blocks) around a hired worker's owner/leader that it checks for a closer, more urgent threat when picking a target to attack - so escorts guard the player instead of always chasing whatever is nearest to themselves.")
+        @Config.RangeDouble(min = 0.0, max = 48.0)
+        public double escortOwnerPriorityRadius = 12.0;
     }
 
     public static class Equipment {
@@ -820,6 +836,18 @@ public class TravellersConfig {
         @Config.Comment("Chance to prefer a culture's own signature gear (e.g. Norman broadsword/plate for Normans) over generic items when both are available at spawn.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public float cultureSignaturePreferenceChance = 0.70f;
+
+        @Config.Comment("Chance for each equipped armor piece or held weapon to drop when a traveller/raider dies (also used by virtual battle loot). Hired workers always drop everything and ignore this.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public float equipmentDropChance = 0.085f;
+
+        @Config.Comment("Chance for each backpack item to drop when a traveller/raider dies (also used by virtual battle loot), up to backpackMaxDrops.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public float backpackDropChance = 0.30f;
+
+        @Config.Comment("Max number of backpack items dropped when a traveller/raider dies (also used by virtual battle loot).")
+        @Config.RangeInt(min = 0, max = 27)
+        public int backpackMaxDrops = 2;
     }
 
     public static class PlayerAggro {
@@ -853,10 +881,6 @@ public class TravellersConfig {
         @Config.Comment("Distance at which follower switches back from return-to-leader to normal follow.")
         @Config.RangeDouble(min = 1.0, max = 128.0)
         public double returnFollowSwitchDist = 12.0;
-
-        @Config.Comment("Ticks between formation chunk recomputation.")
-        @Config.RangeInt(min = 1, max = 100)
-        public int chunkRecomputeIntervalTicks = 5;
 
         @Config.Comment("Max number of workers standing side-by-side in a formation row. Keeps big groups from spreading too wide to reach their spot.")
         @Config.RangeInt(min = 2, max = 16)
@@ -948,6 +972,14 @@ public class TravellersConfig {
         @Config.Comment("How much faster an offscreen worker walks back to its formation spot once it's far enough away to trigger the speed-up above.")
         @Config.RangeDouble(min = 1.0, max = 4.0)
         public double virtualRegroupSpeedMultiplier = 1.25;
+
+        @Config.Comment("How long (in ticks, 20 = 1 second) a group leader must stand still before its offscreen followers stop shuffling into formation and just stay where you left them. This is what keeps a group parked inside a house from spreading out through the walls while you are away.")
+        @Config.RangeInt(min = 0, max = 1200)
+        public int anchoredHoldDelayTicks = 60;
+
+        @Config.Comment("How far (blocks) an offscreen follower may be from a standing leader and still simply stay put. Beyond this it is considered lost (scattered by a fight, leader moved away) and walks back into formation.")
+        @Config.RangeDouble(min = 4.0, max = 64.0)
+        public double anchoredHoldRadius = 24.0;
 
         @Config.Comment("Let workers steer around a cliff, ravine or water edge instead of just stopping at it when they can't get a full path this tick.")
         public boolean steeringObstacleAvoidanceEnabled = true;
@@ -1085,13 +1117,6 @@ public class TravellersConfig {
     }
 
     public static class Offscreen {
-        @Config.Comment("Enable off-screen hop (periodic teleport along path when out of view).")
-        public boolean travellerOffscreenHopEnabled = true;
-
-        @Config.Comment("Ticks between off-screen hops.")
-        @Config.RangeInt(min = 0, max = 72000)
-        public int travellerOffscreenHopIntervalTicks = 140;
-
         @Config.Comment("Teleport distance (blocks) per off-screen hop.")
         @Config.RangeInt(min = 0, max = 1000)
         public int travellerOffscreenHopStepBlocks = 24;
@@ -1143,17 +1168,29 @@ public class TravellersConfig {
         @Config.Comment("Stop travellers/raiders/workers from appearing on top of tree leaves or logs when they reappear near a player.")
         public boolean avoidTreeCanopy = true;
 
+        @Config.Comment("When a traveller/raider/worker would reappear on a roof or another man-made surface, how far around it (in blocks) to look for natural ground to put it on instead. 0 turns the search off.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int naturalGroundSearchRadius = 8;
+
         @Config.Comment("Stop travellers/raiders/workers from appearing on top of lava, water, or other hazardous liquids when they reappear near a player.")
         public boolean avoidHazardLiquids = true;
+
+        @Config.Comment("When someone you left inside a building would reappear well above the floor it was standing on (typically pushed up onto the roof by a wall in the way), how far around it (in blocks) to look for free space back on its own floor. 0 turns the search off.")
+        @Config.RangeInt(min = 0, max = 16)
+        public int sameLevelSearchRadius = 6;
 
         @Config.Comment("When a traveller/raider/worker has wandered away from where it went out of view, make it reappear on the surface instead of dropping into a cave (sometimes next to lava). Anyone that did NOT move reappears exactly where it was, whether that was underground, in a building, or on the surface.")
         public boolean surfaceClampOnMaterialize = true;
 
-        @Config.Comment("Travellers/raiders/workers now appear and disappear based on whether the ground chunk under them is actually loaded (by any player's view distance, or force-loaded by this or another mod) rather than raw distance to a player. This is how many ticks a chunk must stay continuously loaded before an offscreen unit reappears there. Prevents a brief, incidental chunk load (e.g. a background map/camp task) from popping a unit in and out.")
+        @Config.Comment("Travellers/raiders/workers appear and disappear based on whether the chunk they stand on is loaded, whatever the reason it is loaded (your view distance, a Millenaire village, another mod's chunk loader). This is how many ticks a chunk must stay loaded before an offscreen unit reappears there. Prevents a brief, incidental chunk load from popping a unit in and straight back out.")
         @Config.RangeInt(min = 0, max = 1200)
         public int materializeChunkStableTicks = 40;
 
-        @Config.Comment("How many ticks a real traveller/raider/worker's chunk must stay continuously unneeded (nobody watching it, nothing force-loading it) before it turns back into an offscreen unit. Prevents a one-tick loading hiccup from popping a unit out and back in.")
+        @Config.Comment("After a traveller/raider/worker turns into an offscreen unit, how long (ticks) before it is allowed to reappear. Stops the ones that go offscreen because the ground ahead of them is not loaded - while the ground they stand on still is - from popping straight back in and walking the same two steps over and over. Give it enough time to walk clear of the loaded area (a chunk is 16 blocks wide).")
+        @Config.RangeInt(min = 0, max = 1200)
+        public int rematerializeGraceTicks = 100;
+
+        @Config.Comment("Safety net, rarely used: how many ticks a real traveller/raider/worker must stand outside loaded chunks before it turns back into an offscreen unit. Units normally turn offscreen the moment their chunk unloads, which is instant; this only catches one that walked past the edge under its own power.")
         @Config.RangeInt(min = 0, max = 1200)
         public int virtualizeChunkUnneededTicks = 40;
     }
@@ -1192,6 +1229,10 @@ public class TravellersConfig {
         @Config.Comment("Minimum distance (blocks) from every player required before a traveller/raider/worker that is genuinely blocked (nothing loaded in any direction it tried) is allowed to turn virtual. Small on purpose - it only exists to stop this from happening right in front of someone on a very small view distance setting. Set to 0 to remove the check entirely.")
         @Config.RangeInt(min = 0, max = 256)
         public int edgeStuckMinPlayerDistance = 24;
+
+        @Config.Comment("How long (ticks) a traveller/raider/worker keeps facing ground that is not loaded before it gives up walking and continues its journey offscreen instead. This is what stops them from gathering along the edge of the loaded area. Low on purpose: it only needs to be long enough to ignore a brief flicker as chunks load in. Higher = they linger at the edge longer before vanishing.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int edgeAheadUnloadedGraceTicks = 20;
     }
 
     public static class GapJump {
@@ -1244,6 +1285,268 @@ public class TravellersConfig {
 
         @Config.Comment("Log every gap-jump decision (why one was attempted, skipped, or refused) to the server log. Very spammy - only for diagnosing jump problems.")
         public boolean debugGapJump = false;
+    }
+
+    public static class Mounts {
+        @Config.Comment("Travellers, raiders and workers can ride a horse for their travels. Master switch for the whole feature.")
+        public boolean enabled = true;
+
+        @Config.Comment("Chance (%) that a traveller bonds with a horse companion. Interim mechanic - a GUI to hand-assign mounts to hired workers is planned for later.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int travellerMountChancePercent = 12;
+
+        @Config.Comment("Chance (%) that a raider bonds with a horse companion.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int raiderMountChancePercent = 10;
+
+        @Config.Comment("Chance (%) that a hired worker bonds with a horse companion.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int workerMountChancePercent = 8;
+
+        @Config.Comment("A bonded mount belongs to its rider - players can't tame, feed, or ride it away. Turn off to make them normal, stealable horses.")
+        public boolean preventPlayerTheft = true;
+
+        @Config.Comment("Ticks after a mounted jump before another one can fire. Keeps a bumpy multi-gap crossing from triggering a jump every single tick.")
+        @Config.RangeInt(min = 0, max = 60)
+        public int mountedJumpCooldownTicks = 10;
+
+        @Config.Comment("How far down (in blocks) a mounted rider sits into the saddle, scaled by their own height roll. Matches the value vanilla uses for a mounted player - raise it (toward 0) if they look sunk into the horse's back, lower it if they look like they're floating above it.")
+        @Config.RangeDouble(min = -1.0, max = 0.0)
+        public double mountedSeatYOffset = -0.35;
+
+        @Config.Comment("Log every mounted jump decision to the server log. Very spammy - only for diagnosing mounted pathfinding problems.")
+        public boolean debugMounts = false;
+
+        @Config.Comment("How much faster a mounted traveller/raider/worker covers ground while offscreen (simulated, not actually loaded), compared to walking. 1.0 = no bonus.")
+        @Config.RangeDouble(min = 1.0, max = 3.0)
+        public double mountedVirtualSpeedMultiplier = 1.6;
+
+        @Config.Comment("How much faster a mounted traveller/raider/worker moves while actually loaded in the world, compared to walking. A bonded horse's own speed is set from this (not left at its random vanilla roll), so mounting is always a real, visible upgrade - a proper gallop, not a shuffle. 1.0 = no bonus.")
+        @Config.RangeDouble(min = 1.0, max = 3.0)
+        public double mountedGroundSpeedMultiplier = 1.8;
+
+        @Config.Comment("How many ticks a mounted traveller/raider/worker takes to accelerate from a walk up to full mounted speed after starting to move (and to settle back down after stopping). Higher = a more gradual, natural warm-up from trot to gallop; lower = snappier.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int mountedAccelerationTicks = 30;
+
+        @Config.Comment("How far a rider must still have to go before its horse breaks into a full gallop. Short moves - a follower stepping back into formation, someone shuffling into place on arrival - stay at a walk instead. Lower = they gallop more eagerly.")
+        @Config.RangeDouble(min = 3.0, max = 64.0)
+        public double mountedFullSpeedDistance = 14.0;
+
+        @Config.Comment("A bonded horse ignores damage from anything its rider wouldn't itself fight (other hired workers, neutral villagers, its own rider, stray non-hostile hits). Damage from an actual enemy of the rider still applies normally.")
+        public boolean mountImmuneToFriendlyDamage = true;
+
+        @Config.Comment("A bonded horse takes no damage from cactus, matching its rider's own immunity - without this a horse can die to a hazard its rider was never at risk from.")
+        public boolean mountImmuneToCactus = true;
+
+        @Config.Comment("A rider keeps its horse for life: if the horse ever goes missing without dying (removed by another mod, lost with a broken chunk), it comes back next to its rider instead of being gone for good.")
+        public boolean restoreLostMounts = true;
+
+        @Config.Comment("How far (in blocks) a horse being led on a leash can trail behind its rider before it is brought back to them. Keep it generous - the horse is pulled along by the leash well before this.")
+        @Config.RangeInt(min = 8, max = 128)
+        public int leadMaxDistance = 32;
+
+        @Config.Comment("How close (in blocks) a rider must be to its horse to climb back into the saddle.")
+        @Config.RangeDouble(min = 1.0, max = 16.0)
+        public double remountDistance = 3.5;
+
+        @Config.Comment("How long a rider tries to walk back to its horse before the horse simply comes to them. Only a safety net for a horse stuck somewhere it can't walk out of.")
+        @Config.RangeInt(min = 40, max = 2400)
+        public int remountTimeoutTicks = 300;
+
+        @Config.Comment("Travellers get off their horse and leave it at the edge of a village while they wander its streets, instead of riding through the alleys.")
+        public boolean hitchMountInVillages = true;
+    }
+
+    public static class Elytra {
+        @Config.Comment("Travellers, raiders and workers wearing an Elytra can glide with it - off a cliff, across a canyon or a river. They can only glide downwards, exactly like a player without fireworks, so they still walk most of the time.")
+        public boolean enabled = true;
+
+        @Config.Comment("Hired workers always have a firework to use when they need one to catch up, without spending anything from their own inventory. Turn on if you don't want to keep them stocked with rockets.")
+        public boolean infiniteRockets = false;
+
+        @Config.Comment("Elytra worn by travellers, raiders and workers never wears out or breaks from flying.")
+        public boolean ignoreElytraDurability = false;
+
+        @Config.Comment("Hired workers can fly alongside you without actually wearing an Elytra, as long as whoever they're escorting is currently flying. They still need a real one to take off on their own while travelling solo.")
+        public boolean noElytraNeededForHenchmen = false;
+
+        @Config.Comment("Every traveller, raider and worker is treated as if it always has a usable Elytra equipped, whether it's wearing one or not - overrides the setting above too.")
+        public boolean noElytraNeededAtAll = false;
+
+        @Config.Comment("Let them give themselves a running jump to get airborne. Without this they can only start gliding by stepping off a real drop, which almost never lines up on its own.")
+        public boolean assistedLaunch = true;
+
+        @Config.Comment("How fast they turn on the spot to face their destination before jumping, in degrees per tick. Lower looks more deliberate, higher gets them into the air sooner.")
+        @Config.RangeDouble(min = 2.0, max = 45.0)
+        public double alignTurnPerTick = 12.0;
+
+        @Config.Comment("How hard the running jump throws them upwards. Higher means an easier takeoff from flat ground, but it looks less natural.")
+        @Config.RangeDouble(min = 0.3, max = 1.2)
+        public double launchVerticalBoost = 0.62;
+
+        @Config.Comment("How hard the running jump throws them forwards, so they get moving fast enough for the wings to bite.")
+        @Config.RangeDouble(min = 0.0, max = 1.5)
+        public double launchForwardBoost = 0.55;
+
+        @Config.Comment("How many blocks forward they travel per block of height lost while gliding. Higher means they stay in the air longer and can cross wider gaps.")
+        @Config.RangeDouble(min = 2.0, max = 10.0)
+        public double glideRatio = 5.0;
+
+        @Config.Comment("Steepest nose-down angle used while gliding, in degrees. Higher means faster, steeper dives when they have height to spare.")
+        @Config.RangeDouble(min = 5.0, max = 80.0)
+        public double maxDivePitch = 40.0;
+
+        @Config.Comment("Steepest nose-up angle used to stretch a glide when they are running out of height, in degrees. Too much and they stall and drop.")
+        @Config.RangeDouble(min = 0.0, max = 25.0)
+        public double maxClimbPitch = 8.0;
+
+        @Config.Comment("How fast they can change their nose angle while flying, in degrees per tick. Low values give smooth, gradual dives and pull-ups; high values let them snap between angles, which looks twitchy.")
+        @Config.RangeDouble(min = 1.0, max = 30.0)
+        public double maxPitchChangePerTick = 8.0;
+
+        @Config.Comment("How fast they can turn while flying, in degrees per tick. Low values give wide, natural banking turns; high values let them turn on a coin.")
+        @Config.RangeDouble(min = 1.0, max = 20.0)
+        public double maxTurnPerTick = 5.0;
+
+        @Config.Comment("How close to their destination (blocks) they start pulling up to bleed off speed before landing.")
+        @Config.RangeDouble(min = 2.0, max = 40.0)
+        public double flareDistance = 14.0;
+
+        @Config.Comment("How close to the ground (blocks) they start pulling up to land, wherever they are.")
+        @Config.RangeDouble(min = 1.0, max = 20.0)
+        public double flareHeight = 5.0;
+
+        @Config.Comment("How far ahead (blocks) they look for terrain in the way while flying, so they climb over or steer around it instead of smacking into it.")
+        @Config.RangeDouble(min = 2.0, max = 32.0)
+        public double lookAheadDistance = 12.0;
+
+        @Config.Comment("How often (in ticks) that look-ahead check runs. Higher is cheaper but they react more slowly.")
+        @Config.RangeInt(min = 1, max = 20)
+        public int lookAheadIntervalTicks = 4;
+
+        @Config.Comment("Longest a single flight can last, in ticks. A safety net so a flight that goes wrong always ends in a landing instead of carrying on forever.")
+        @Config.RangeInt(min = 100, max = 6000)
+        public int maxFlightTicks = 1200;
+
+        @Config.Comment("How long (in ticks) after landing before they may take off again.")
+        @Config.RangeInt(min = 0, max = 2000)
+        public int landingCooldownTicks = 100;
+
+        @Config.Comment("Cancel fall damage when a glide ends in a proper landing. Turn off if you want a botched landing to hurt.")
+        public boolean preventLandingFallDamage = true;
+
+        @Config.Comment("Followers wearing an Elytra take off with whoever they are following when that person starts gliding, and do their best to keep up. Without fireworks they cannot climb, so an escort that gets left behind lands and runs after you as usual.")
+        public boolean followTargetFlight = true;
+
+        @Config.Comment("Hired workers escorting you may light a firework rocket to keep up when you climb away from them, taken from their own inventory. Give them rockets and they will use them; give them none and they simply glide.")
+        public boolean workerFireworkBoost = true;
+
+        @Config.Comment("Shortest gap (in ticks) between two rockets from the same worker.")
+        @Config.RangeInt(min = 10, max = 200)
+        public int fireworkBoostIntervalTicks = 30;
+
+        @Config.Comment("Most rockets a worker will spend on a single flight, however far behind they fall.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int maxFireworksPerFlight = 4;
+
+        @Config.Comment("How steeply followers are allowed to point while catching up to someone well above them, in degrees - far beyond the normal unpowered glide climb angle above. A rocket's push follows the direction they're looking, so this is what lets a boosted rocket pull them upward toward you instead of mostly sideways.")
+        @Config.RangeDouble(min = 20.0, max = 89.0)
+        public double steepClimbMaxPitch = 75.0;
+
+        @Config.Comment("How fast (degrees per tick) they can snap to that steep climb angle - deliberately much faster than the ordinary pitch-change speed above. A firework's push locks onto whichever direction they're looking within its first couple of ticks, so a slow, graceful turn toward vertical wastes most of the boost on a shallow angle.")
+        @Config.RangeDouble(min = 5.0, max = 90.0)
+        public double steepClimbPitchChangePerTick = 45.0;
+
+        @Config.Comment("How long (in ticks) a follower keeps pointing steeply at whoever it's chasing after the height gap that justified it, so the aim is already steep well before the next rocket ignites - not just for the boost's own duration afterwards.")
+        @Config.RangeInt(min = 5, max = 60)
+        public int followRocketClimbHoldTicks = 20;
+
+        @Config.Comment("How far behind (in blocks, sideways) a follower has to fall before it also spends a rocket just to catch up horizontally - separate from the vertical catch-up above, for when you accelerate away in level flight instead of climbing.")
+        @Config.RangeDouble(min = 4.0, max = 48.0)
+        public double followRocketHorizontalDeficit = 16.0;
+
+        @Config.Comment("If a follower ever falls this far behind (in blocks, sideways) while flying, it gives up on the flight and lands instead of continuing to trail behind in the air - keeps it from drifting out of loaded chunks mid-flight, where it would be yanked back to the ground anyway. Lower this if your server's view distance is short.")
+        @Config.RangeDouble(min = 24.0, max = 128.0)
+        public double followFlightAbortDistance = 48.0;
+
+        @Config.Comment("How many ticks in a row a gap has to keep looking rocket-worthy before a follower actually spends one on it. Filters out a brief height/speed wobble from you so it doesn't fire a rocket on its own - only a gap that's still there a moment later is real.")
+        @Config.RangeInt(min = 0, max = 40)
+        public int followRocketConfirmTicks = 8;
+
+        @Config.Comment("Skip lighting a rocket if the follower is already closing the gap on its own at least this fast (blocks per tick), climbing/diving/gliding under a previous boost or just good positioning. Firing on top of an already-effective approach is what sends them overshooting past you and needing a second rocket right back the other way.")
+        @Config.RangeDouble(min = 0.05, max = 2.0)
+        public double followRocketSkipClosingSpeed = 0.5;
+
+        @Config.Comment("Once a follower is within this many blocks of its formation spot, it stops aiming straight at it and instead just flies with the same nose angle and heading as whoever it's following - like a real flock, not a swarm of missiles converging on one point. This is what stops them overshooting past you and having to turn back. Kept small on purpose, close to the formation spacing above - a real height gap that's worth climbing hard for (or spending a rocket on) needs to fall outside this radius, or the mirroring would smother the climb.")
+        @Config.RangeDouble(min = 2.0, max = 12.0)
+        public double chaseMirrorRadius = 4.0;
+
+        @Config.Comment("How many extra blocks beyond the radius above it takes to fade all the way from mirroring whoever they're following to steering straight at the formation spot - a smooth transition instead of an abrupt switch between the two.")
+        @Config.RangeDouble(min = 1.0, max = 32.0)
+        public double chaseMirrorFadeDistance = 8.0;
+
+        @Config.Comment("How many degrees a follower tilts up or down per block it's above or below its formation spot, while steering straight at it (beyond the mirroring radius above). Replaces aiming exactly at the spot's bearing, which for a formation slot this close produced wild swings from small, ordinary height differences.")
+        @Config.RangeDouble(min = 0.5, max = 10.0)
+        public double chasePitchGainDegPerBlock = 3.0;
+
+        @Config.Comment("For this many ticks after whoever they follow takes off, followers launch right away instead of waiting until they've fallen far behind - keeps the whole group leaving the ground together instead of trickling into the air one by one.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int followTakeoffJoinWindowTicks = 60;
+
+        @Config.Comment("Longest random delay (in ticks) before a follower reacts to a takeoff, so a whole escort doesn't launch on the exact same tick. Lower means a tighter, quicker group launch.")
+        @Config.RangeInt(min = 0, max = 60)
+        public int followTakeoffStaggerTicks = 10;
+
+        @Config.Comment("How far ahead (in ticks) followers aim sideways/forwards of who they're chasing. Higher tracks a fast-moving leader more eagerly but overshoots turns.")
+        @Config.RangeDouble(min = 5.0, max = 40.0)
+        public double followChaseLeadTicks = 20.0;
+
+        @Config.Comment("How far ahead (in ticks) followers aim vertically of who they're chasing. Kept lower than the sideways lead on purpose: a player boosting straight up with fireworks briefly reaches a huge climb rate, and aiming that far ahead vertically would fling followers into a wild overclimb.")
+        @Config.RangeDouble(min = 2.0, max = 20.0)
+        public double followChaseVerticalLeadTicks = 8.0;
+
+        @Config.Comment("Furthest (in blocks) that vertical aim-ahead is allowed to reach above or below the leader's own altitude, however fast they're currently climbing or falling. Caps the effect of a firework's brief burst of vertical speed.")
+        @Config.RangeDouble(min = 2.0, max = 40.0)
+        public double followChaseMaxAltitudeLead = 14.0;
+
+        @Config.Comment("Sideways spacing (in blocks) between followers flying together, so they fan out around the leader instead of stacking on one point.")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double followFormationLateralSpacing = 3.0;
+
+        @Config.Comment("Vertical spacing (in blocks) between layers of followers flying together, so a big escort splits into a few altitude bands instead of all crowding the leader's exact height.")
+        @Config.RangeDouble(min = 0.0, max = 6.0)
+        public double followFormationVerticalSpacing = 1.5;
+
+        @Config.Comment("Let them decide to fly on their own while travelling, whenever the ground ahead drops away enough for a glide to actually pay off. Turn this off to keep flight for followers and commands only.")
+        public boolean autoTakeoff = true;
+
+        @Config.Comment("They only consider flying when their destination is at least this many blocks away. Short hops are always walked.")
+        @Config.RangeDouble(min = 16.0, max = 512.0)
+        public double minTravelDistance = 80.0;
+
+        @Config.Comment("A glide has to cover at least this many blocks to be worth taking off for. Higher means they only fly when it really saves them a walk.")
+        @Config.RangeDouble(min = 8.0, max = 256.0)
+        public double minGlideDistance = 35.0;
+
+        @Config.Comment("How far ahead (blocks) they look when judging whether a glide is worth it.")
+        @Config.RangeDouble(min = 32.0, max = 512.0)
+        public double maxScanDistance = 176.0;
+
+        @Config.Comment("How much clear air (blocks) they want between their glide path and the ground below it. Higher makes them more cautious about skimming terrain.")
+        @Config.RangeDouble(min = 0.0, max = 8.0)
+        public double corridorClearance = 2.5;
+
+        @Config.Comment("How often (in ticks) a traveller checks whether a glide is available. Higher is cheaper but they miss more opportunities.")
+        @Config.RangeInt(min = 20, max = 400)
+        public int scanIntervalTicks = 60;
+
+        @Config.Comment("Highest number of these terrain checks allowed across the whole world each tick, so a crowd of elytra wearers can never spike the server.")
+        @Config.RangeInt(min = 1, max = 64)
+        public int maxScansPerTick = 4;
+
+        @Config.Comment("Log every takeoff, landing and flight decision to the server log. Very spammy - only for diagnosing flight problems.")
+        public boolean debugElytra = false;
     }
 
     public static class HazardSafety {
@@ -1792,9 +2095,6 @@ public class TravellersConfig {
     }
 
     public static class Worker {
-        @Config.Comment("If true, hired workers without a barrack are automatically assigned to the nearest one.")
-        public boolean autoAssignWorkersToBarracks = false;
-
         @Config.Comment("Number of in-game days before a dead worker respawns at their barrack (requires workerRespawnInBarracks).")
         @Config.RangeInt(min = 1, max = 30)
         public int workerBarrackRespawnDays = 3;
@@ -2134,6 +2434,55 @@ public class TravellersConfig {
         @Config.Comment("How long (milliseconds) you need to hover a button before its description appears.")
         @Config.RangeInt(min = 0, max = 3000)
         public int hoverDelayMs = 500;
+    }
+
+    public static class WorkerHub {
+        @Config.Comment("Keep several menu branches open at the same time. Every button then keeps a fixed spot, but the menu needs much more room and will fall back to opening one branch at a time when it does not fit your screen.")
+        public boolean multiBranchExpand = false;
+
+        @Config.Comment("Width of the menu buttons, in pixels.")
+        @Config.RangeInt(min = 40, max = 160)
+        public int buttonWidth = 76;
+
+        @Config.Comment("Height of the menu buttons, in pixels.")
+        @Config.RangeInt(min = 12, max = 40)
+        public int buttonHeight = 18;
+
+        @Config.Comment("Vertical gap between two buttons of the same column, in pixels.")
+        @Config.RangeInt(min = 0, max = 30)
+        public int rowGap = 6;
+
+        @Config.Comment("Horizontal gap between two columns of the menu, in pixels.")
+        @Config.RangeInt(min = 4, max = 60)
+        public int columnGap = 22;
+
+        @Config.Comment("Size of the portrait shown at the center of the menu, in pixels.")
+        @Config.RangeInt(min = 24, max = 120)
+        public int portraitSize = 54;
+
+        @Config.Comment("Empty space kept between the portrait and the first column of buttons, in pixels.")
+        @Config.RangeInt(min = 4, max = 60)
+        public int portraitGap = 14;
+
+        @Config.Comment("Draw the lines linking a menu button to the ones it opens.")
+        public boolean showLinks = true;
+
+        @Config.Comment("The portrait turns its head towards your mouse cursor.")
+        public boolean headFollowsCursor = true;
+
+        @Config.Comment("How far the portrait can turn its head left or right, in degrees.")
+        @Config.RangeInt(min = 0, max = 90)
+        public int headMaxYaw = 50;
+
+        @Config.Comment("How far the portrait can tilt its head up or down, in degrees.")
+        @Config.RangeInt(min = 0, max = 60)
+        public int headMaxPitch = 25;
+
+        @Config.Comment("Show the culture, health and home village lines under the portrait.")
+        public boolean showInfoLines = true;
+
+        @Config.Comment("Let you right-click and drag a menu button out to place a shortcut copy of it, so you don't have to open the menu tree every time. Shared by every hired worker's menu.")
+        public boolean enableShortcuts = true;
     }
 
     public static class Compat {

@@ -253,8 +253,14 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         if (button == this.back) {
             if (returnTo != null) {
                 mc.displayGuiScreen(returnTo);
+            } else if (worker != null) {
+                // Opened from a worker's hub (server-side, so there is no parent screen to hold).
+                com.jubitus.travellers.server.net.TravellerFollowNet.CHANNEL.sendToServer(
+                        new com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui(
+                                worker.getEntityId(),
+                                com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui.Type.HUB));
             } else {
-                mc.displayGuiScreen(new GuiWorkerBehavior(player, worker, null));
+                mc.displayGuiScreen(new GuiWorkerBehavior(player, null, null));
             }
             return;
         }
@@ -326,9 +332,6 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.village_relations.title", "Village relations"),
                 this.guiLeft + 8, this.guiTop + 6, TravellersGuiTheme.COL_TEXT);
-        this.fontRenderer.drawString(
-                I18n.format("travellers.worker.village_relations.hint", "Select a village, then toggle enemy."),
-                this.guiLeft + 8, this.guiTop + 16, TravellersGuiTheme.COL_TEXT_DIM);
 
         drawVillageList(mouseX, mouseY);
 

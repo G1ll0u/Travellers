@@ -26,14 +26,17 @@ import com.jubitus.travellers.entity.entityAI.combat.TravellerItemDamage;
 import com.jubitus.travellers.entity.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
+import com.jubitus.travellers.entity.entityAI.flight.ElytraFlightController;
 import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowGroupLeader;
 import com.jubitus.travellers.entity.entityAI.follow.PathScheduler;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
 import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerCamp;
+import com.jubitus.travellers.entity.entityAI.travel.mount.MountMode;
+import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
+import net.minecraft.entity.passive.EntityHorse;
 import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
 import com.jubitus.travellers.utils.mobs.compat.AncientWarfare2Compat;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
@@ -81,7 +84,6 @@ import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.DifficultyInstance;
-import net.minecraft.world.EnumDifficulty;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;
@@ -105,9 +107,6 @@ import java.util.UUID;
 
 public class EntityTraveller extends EntityCreature {
 
-    public static final String GHOST_TORCH_TAG = TravellerEquipmentManager.GHOST_TORCH_TAG;
-    // FISHING ROD
-    public static final String GHOST_ROD_TAG = TravellerEquipmentManager.GHOST_ROD_TAG;
     public static final double NEAR_HYS_DELTA_SQ = 4 * 4; // must be 4 blocks closer to switch
     // If something is close AND we currently have no target,
 // we allow bypassing the limiter so nearby defenders react.
@@ -126,6 +125,9 @@ public class EntityTraveller extends EntityCreature {
     // Per-entity render scale rolled at spawn from the active appearance's baseHeight, mirroring
     // Millenaire's own VillagerRecord scale roll (baseHeight * random 0.80-0.89 for adults).
     private static final DataParameter<Float> RENDER_SCALE = EntityDataManager.createKey(EntityTraveller.class, DataSerializers.FLOAT);
+    // Hitbox at render scale 1.0 (config-driven); the live box is base * getRenderScale().
+    // The biped model spans ~2.01 blocks from feet to top of head at scale 1.0, hence the default
+    // height being taller than vanilla's 1.8 - it must contain the head, not just the body.
     // ---- GAP / CLIFF handling ----
     private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
     private static final int ARRIVE_IN = Math.max(8, TravellersConfig.DESTINATIONS.villageNear - 4); // e.g., 28 if near=32
@@ -149,6 +151,12 @@ public class EntityTraveller extends EntityCreature {
     private static final DataParameter<String> VOICE_PERSONALITY_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
 
+    // UUID of this entity's bonded horse companion - must be synced (not just server-side), since the
+    // client reads isMountedOnBondedMount() for its own local seat-position calculation every tick
+    // (see getYOffset()), independent of whatever the last position sync packet said.
+    private static final DataParameter<com.google.common.base.Optional<UUID>> MOUNT_UUID =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.OPTIONAL_UNIQUE_ID);
+
     // NBT key (must match exactly in write/read)
     private static final String NBT_VOICE_PERSONALITY_ID = "VoicePersonalityId";
 
@@ -158,6 +166,7 @@ public class EntityTraveller extends EntityCreature {
     public final TravellerCamp travellerCamp = new TravellerCamp(this);
     public final TravellerCombatLogic combat = new TravellerCombatLogic(this);
     public final TravellerEquipmentManager equipment = new TravellerEquipmentManager(this);
+    public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
     public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     final TravelCommon travelCommon = new TravelCommon(this);
     private final int retargetPhase = this.rand.nextInt(10); // 0..9
@@ -182,6 +191,281 @@ public class EntityTraveller extends EntityCreature {
 
     // UUID of the group leader this entity follows (null = leader or solo)
     @Nullable private UUID groupLeaderUUID;
+
+    // UUID of this entity's bonded horse companion (null = on foot). A permanent 1:1 pairing, not a
+    // group resource - see TravellerMountSupport for spawn/bond/anti-theft and MountedNavigator for
+    // steering. Backed entirely by the MOUNT_UUID DataParameter (synced) - no separate server-only
+    // field, so there is only one source of truth to keep consistent between the two sides.
+    private int mountJumpCooldownTicks;
+
+    // A bonded mount captured off-body outside the normal virtualize path (currently: a solo boat
+    // crossing, see EntityAITravel/TravellerMountSupport.captureMount) - see getPendingMountNbt().
+    private NBTTagCompound pendingMountNbt;
+
+    // What this rider currently wants to do with its bonded horse (ride it, lead it, leave it
+    // standing). Persisted: an AI task that put the horse down must find it in the same state after a
+    // reload, or the reconciler would silently re-mount a rider its own AI had deliberately put on
+    // foot. Server-only - the client derives everything it needs from isRiding().
+    private MountMode mountMode = MountMode.MOUNTED;
+
+    // Last known full NBT of the bonded horse, refreshed while it's around. This is what makes
+    // "a rider never loses its horse except by death" actually true rather than nearly true: if the
+    // horse ever disappears without dying, it is rebuilt from here, identical, UUID included.
+    @Nullable private NBTTagCompound mountSnapshotNbt;
+
+    // Transient reconciler counters (see TravellerMountSupport.tickMount): consecutive ticks the
+    // bonded horse could not be found in the world, and ticks spent trying to walk back to it.
+    private int mountMissingTicks;
+    private int remountTicks;
+
+    // Transient (never persisted): mirrors isMountedOnBondedMount() from the previous tick, purely so
+    // TravellerMountSupport.tickMountedNavigation can detect the exact tick a bonded mount stops being
+    // ridden and check, once, whether that was because the horse actually died (clear mountUUID so a
+    // future mount roll/GUI assignment isn't blocked by a dangling reference) versus a deliberate
+    // dismount that keeps the bond (planned future feature) - never inferred from "not riding" alone.
+    private boolean wasRidingBondedMountLastTick;
+
+    public boolean wasRidingBondedMountLastTick() {
+        return wasRidingBondedMountLastTick;
+    }
+
+    public void setWasRidingBondedMountLastTick(boolean value) {
+        wasRidingBondedMountLastTick = value;
+    }
+
+    // Transient (never persisted, resets to 0 on every fresh materialize/bond by construction - a
+    // new EntityTraveller instance always starts at the Java default): 0..1 fraction of the way from
+    // walking baseline to full mounted speed, see TravellerMountSupport.tickSpeedRamp.
+    private float mountSpeedRamp;
+
+    public float getMountSpeedRamp() {
+        return mountSpeedRamp;
+    }
+
+    public void setMountSpeedRamp(float value) {
+        mountSpeedRamp = value;
+    }
+
+    @Nullable
+    public UUID getMountUUID() {
+        return this.dataManager.get(MOUNT_UUID).orNull();
+    }
+
+    public void setMountUUID(@Nullable UUID mountUUID) {
+        this.dataManager.set(MOUNT_UUID, com.google.common.base.Optional.fromNullable(mountUUID));
+    }
+
+    public int getMountJumpCooldownTicks() {
+        return this.mountJumpCooldownTicks;
+    }
+
+    public void setMountJumpCooldownTicks(int ticks) {
+        this.mountJumpCooldownTicks = ticks;
+    }
+
+    /**
+     * A bonded mount captured off-body for a reason other than the rider itself going virtual (today:
+     * only a solo boat crossing via {@code EntityAITravel} - see {@code TravellerMountSupport#captureMount}).
+     * Persisted (not transient) so it survives a save/reload mid-crossing instead of the horse silently
+     * ceasing to exist; picked up into {@code VirtualTravellerRecord.mountNbt} if the rider itself
+     * virtualizes before the crossing finishes, so it's never lost either way.
+     */
+    @Nullable
+    public NBTTagCompound getPendingMountNbt() {
+        return pendingMountNbt;
+    }
+
+    public void setPendingMountNbt(@Nullable NBTTagCompound nbt) {
+        this.pendingMountNbt = nbt;
+    }
+
+    /**
+     * Never set this directly from an AI task - go through
+     * {@code TravellerMountSupport.setMountMode}, which also performs the transition (mounting,
+     * leashing, stepping off onto solid ground) instead of just recording the wish.
+     */
+    public MountMode getMountMode() {
+        return mountMode;
+    }
+
+    public void setMountModeRaw(MountMode mode) {
+        this.mountMode = mode;
+    }
+
+    @Nullable
+    public NBTTagCompound getMountSnapshotNbt() {
+        return mountSnapshotNbt;
+    }
+
+    public void setMountSnapshotNbt(@Nullable NBTTagCompound nbt) {
+        this.mountSnapshotNbt = nbt;
+    }
+
+    // Transient: consecutive ticks the horse has been pressed against something while its rider was
+    // asking to move forward - see TravellerMountSupport.tickMountedUnstick.
+    private int mountStuckTicks;
+
+    public int getMountStuckTicks() {
+        return mountStuckTicks;
+    }
+
+    public void setMountStuckTicks(int ticks) {
+        this.mountStuckTicks = ticks;
+    }
+
+    public int getMountMissingTicks() {
+        return mountMissingTicks;
+    }
+
+    public void setMountMissingTicks(int ticks) {
+        this.mountMissingTicks = ticks;
+    }
+
+    public int getRemountTicks() {
+        return remountTicks;
+    }
+
+    public void setRemountTicks(int ticks) {
+        this.remountTicks = ticks;
+    }
+
+    /** True while actually riding the horse this entity is bonded to (not some other vehicle/horse). */
+    public boolean isMountedOnBondedMount() {
+        UUID mountUUID = getMountUUID();
+        if (mountUUID == null || !isRiding()) return false;
+        Entity ride = getRidingEntity();
+        return ride instanceof EntityHorse && ride.getUniqueID().equals(mountUUID);
+    }
+
+    /**
+     * While mounted, every movement order goes to the horse instead of to this rider - this override
+     * and {@link #getMoveHelper()} are the single point where that happens, so the ~270 navigation
+     * calls spread across this mod's AI need no knowledge of mounts at all.
+     *
+     * <p>The reason it must be the horse is that vanilla sizes all of navigation from whichever entity
+     * asks: the cells a step may occupy ({@code NodeProcessor.init} uses {@code floor(width + 1)}),
+     * and the point aimed at inside a node ({@code Path.getVectorFromIndex} uses
+     * {@code (int)(width + 1) * 0.5}). Asking as a 0.6-wide rider on behalf of a 1.4-wide horse
+     * produces a route planned for a corridor one cell wide, aimed straight down the line of block
+     * centres - which is precisely where a horse's body overhangs both neighbouring cells and jams.
+     * Asking as the horse makes the whole chain consistent without a single correction.
+     *
+     * <p>This rider's own navigator and move helper still exist and are still ticked by
+     * {@code EntityLiving.updateEntityActionState} (it reads the fields, not these getters); they are
+     * kept idle by {@link #suspendOwnMovement()} for as long as it is mounted.
+     */
+    @Override
+    public net.minecraft.pathfinding.PathNavigate getNavigator() {
+        Entity ride = getRidingEntity();
+        if (ride instanceof EntityLiving && isMountedOnBondedMount()) {
+            return ((EntityLiving) ride).getNavigator();
+        }
+        return super.getNavigator();
+    }
+
+    @Override
+    public net.minecraft.entity.ai.EntityMoveHelper getMoveHelper() {
+        Entity ride = getRidingEntity();
+        if (ride instanceof EntityLiving && isMountedOnBondedMount()) {
+            return ((EntityLiving) ride).getMoveHelper();
+        }
+        return super.getMoveHelper();
+    }
+
+    /**
+     * Parks this rider's own navigator and move helper while its horse is doing the walking. They
+     * cannot simply be ignored: {@code EntityLiving.updateEntityActionState} ticks the fields
+     * directly, so a move helper left holding an old target would keep writing {@code moveForward}
+     * and {@code rotationYaw} on a body that is now a passenger.
+     */
+    public void suspendOwnMovement() {
+        if (!this.navigator.noPath()) this.navigator.clearPath();
+        this.moveHelper.setMoveTo(this.posX, this.posY, this.posZ, 0.0D);
+    }
+
+    /**
+     * Sets the body yaw for a purely cosmetic turn (looking at a fire, facing a fishing spot, keeping
+     * the body aligned with the direction of travel).
+     *
+     * <p><b>Refuses to do anything while mounted, and that is the whole point.</b> On a horse,
+     * {@code rotationYaw} is not decoration - {@code AbstractHorse.travel()} reads the rider's
+     * {@code rotationYaw} and steers by it, so it is the steering wheel. Any code writing it outside
+     * the move helper is driving the horse somewhere the path never asked for. That is exactly what
+     * {@code TravelCommon.syncBodyYawWhileTravelling()} was doing: mounted, {@code Entity.updateRidden()}
+     * zeroes the rider's motion every tick, so that method always fell through to its "aim at the raw
+     * travel waypoint" branch - and since the little motion the rider regenerates points along its
+     * current yaw, the result was a self-reinforcing lock that never turned at all. Measured in a real
+     * log: the horse pointed 30 degrees away from the path node it was being steered toward on average,
+     * more than 30 degrees off half the time, and stalled dead against terrain 8% of all ticks.
+     *
+     * <p>Aiming a bow is deliberately NOT routed through here: a mounted archer turning its horse to
+     * face a target is exactly what a player does, and vanilla propagates it the same way.
+     */
+    public void setBodyYaw(float yaw) {
+        if (isMountedOnBondedMount()) return;
+        this.rotationYaw = yaw;
+    }
+
+    /**
+     * Every follow/travel rescue teleport in this mod goes through {@code setPositionAndUpdate}
+     * (see {@code FollowRecoveryHelper.teleportWorker}, {@code EntityAIFollowGroupLeader.tryHopTowardTarget},
+     * {@code EntityAITravel}'s surface-rescue hops, {@code MaterializePositionResolver.unstickEntitiesInVolume}...).
+     * None of them know about mounts - left alone, a rescue would move only the rider, and
+     * {@code AbstractHorse.updatePassenger()} would snap it straight back onto the horse's own
+     * position the very next tick (the horse's position always wins - it's the vehicle, the rider is
+     * just carried). Overriding here once, centrally, fixes every call site instead of auditing each
+     * one: the horse gets the same teleport, the rider gets it as always, and they land in the same
+     * place together.
+     */
+    @Override
+    public void setPositionAndUpdate(double x, double y, double z) {
+        // Every rescue/catch-up hop in the mod funnels through here, so this one line records them
+        // all with both ends - which is what makes "it teleported a block underground" or "it
+        // teleported and came straight back" answerable from a trace instead of from memory.
+        if (!world.isRemote) {
+            com.jubitus.travellers.utils.debug.trace.TravellerTracer.event(this, "teleport",
+                    String.format(java.util.Locale.ROOT, "from=%.2f,%.2f,%.2f to=%.2f,%.2f,%.2f dist=%.1f",
+                            posX, posY, posZ, x, y, z,
+                            Math.sqrt((x - posX) * (x - posX) + (y - posY) * (y - posY) + (z - posZ) * (z - posZ))));
+        }
+        // A horse being led on a leash must come along for the same reason a ridden one must: every
+        // one of those rescue hops exists to get this entity out of somewhere it was stuck, and
+        // leaving its horse behind is how a rider ends up permanently separated from it. A hitched
+        // horse is deliberately left alone - staying put is the entire point of that mode.
+        if (!isMountedOnBondedMount() && getMountMode() == MountMode.LED) {
+            TravellerMountSupport.teleportLedMountWith(this, x, y, z);
+        }
+        if (isMountedOnBondedMount()) {
+            Entity ride = getRidingEntity();
+            ride.setPositionAndUpdate(x, y, z);
+            // A teleport must not carry over whatever momentum the horse had built up right before
+            // it fired (most often a stuck/stagnation rescue, i.e. exactly when the horse was
+            // fighting an obstacle and had a large motion vector). Left alone, physics applies that
+            // leftover motion on the very next tick on top of the new position - reading as a huge,
+            // erratic one-tick jump right after what should have been a clean, short hop.
+            ride.motionX = 0;
+            ride.motionY = 0;
+            ride.motionZ = 0;
+            this.motionX = 0;
+            this.motionY = 0;
+            this.motionZ = 0;
+        }
+        super.setPositionAndUpdate(x, y, z);
+    }
+
+    /**
+     * Vanilla's own seat-height hook (read by {@code AbstractHorse}/{@code Entity#updatePassenger}) -
+     * matches the value a mounted player uses (-0.35) by default, scaled by this individual's own
+     * render scale roll so a shorter-rolled traveller doesn't float above a horse a taller one would
+     * sit correctly on. 0 the rest of the time, same as vanilla's default for every other entity.
+     */
+    @Override
+    public double getYOffset() {
+        if (isMountedOnBondedMount()) {
+            return TravellersConfig.MOUNTS.mountedSeatYOffset * getRenderScale();
+        }
+        return super.getYOffset();
+    }
     // Which village/lone building this traveller/raider "belongs to" for population accounting —
     // mirrors EntityTravellerWorker.homeVillageCenter. Deliberately never used for AI/steering, only
     // so TravellerSoftSpawner can tell a village's spawned population apart from a neighbour's once
@@ -196,6 +480,13 @@ public class EntityTraveller extends EntityCreature {
     public void setHomeVillage(@Nullable BlockPos pos) {
         this.homeVillage = pos;
     }
+    // How far ahead tickEdgeVirtualizeProbe looks for loaded ground, clamped to the remaining distance.
+    private static final int EDGE_PROBE_MIN_BLOCKS = 16;
+    private static final int EDGE_PROBE_MAX_BLOCKS = 32;
+    // Consecutive ticks spent facing unloaded terrain, and the tick the probe last ran (it is driven
+    // from both the travel AI and the generic per-tick path, and must only count once per tick).
+    private int edgeBlockedTicks = 0;
+    private long edgeProbeLastTick = -1L;
     int spawnAmbientCooldownTicks = 0;                       // counts down server-side
     // server-side only
     private int trackingPlayers = 0;
@@ -206,7 +497,6 @@ public class EntityTraveller extends EntityCreature {
     private int combatSilenceUntilTick = 0;
     private final int debugNextTargetTraceTick = 0;
     private ForgeChunkManager.Ticket travelTicket;
-    private int dogScanCooldown = 0;
     // --- Caravan / follow-other-travellers state ---
     @Nullable
     private UUID followLeaderId = null;
@@ -229,11 +519,9 @@ public class EntityTraveller extends EntityCreature {
     private int travelTorchCooldown = 0;
     // --- spawn helper flags ---
     private boolean checkedCompanionSpawn = false;   // only run logic once
-    private boolean suppressCompanionSpawn = false;  // set for eggs/commands/etc.
     private int stuckTargetTicks = 0;
     private double lastTargetDistSq = -1.0D;
     @Nullable
-    private UUID dogId = null;
     private int currentFollowers = 0;
     // Set/cleared each tick by EntityAICampStay while peacefully occupying a camp (building, wandering,
     // napping, sleeping). Never persisted: purely a same-tick "don't proactively engage" signal for
@@ -255,12 +543,12 @@ public class EntityTraveller extends EntityCreature {
         this.setPathPriority(PathNodeType.LAVA, -1.0F);
         this.setPathPriority(PathNodeType.DAMAGE_OTHER, -1.0F);
 
-        this.setSize(0.5F, 1.6F);
+        updateSizeForRenderScale();
         this.enablePersistence(); // make them persist in world
         this.setCanPickUpLoot(true);
         this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
         this.setLeftHanded(false);
-        this.stepHeight = 1.2F;
+        this.stepHeight = 1.0F;
 
     }
 
@@ -278,19 +566,6 @@ public class EntityTraveller extends EntityCreature {
         if (t > 1) return P.subtract(B).lengthSquared();
         Vec3d H = A.add(AB.scale(t));
         return P.subtract(H).lengthSquared();
-    }
-
-    @SubscribeEvent
-    public static void onSpecialSpawn(LivingSpawnEvent.SpecialSpawn event) {
-        if (event.getEntityLiving() instanceof EntityTraveller) {
-            EntityTraveller t = (EntityTraveller) event.getEntityLiving();
-            // This travellers came from spawn egg, command, structure, etc.
-            t.setSuppressCompanionSpawn(true);
-        }
-    }
-
-    public void setSuppressCompanionSpawn(boolean suppress) {
-        this.suppressCompanionSpawn = suppress;
     }
 
     public boolean isTrackedByAnyPlayer() {
@@ -506,10 +781,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public boolean isGhostRod(ItemStack s) {
-        return !s.isEmpty()
-                && isFishingRodLike(s)
-                && s.hasTagCompound()
-                && s.getTagCompound().getBoolean(GHOST_ROD_TAG);
+        return isFishingRodLike(s) && equipment.isGhostRod(s);
     }
 
     public boolean isFishingRodLike(ItemStack s) {
@@ -517,14 +789,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     public ItemStack makeGhostRod(ItemStack src) {
-        ItemStack copy = src.copy();
-        copy.setCount(1);
-        NBTTagCompound tag = copy.getTagCompound();
-        if (tag == null) tag = new NBTTagCompound();
-        tag.setBoolean(GHOST_ROD_TAG, true);
-        if (tag.hasKey("AttributeModifiers")) tag.removeTag("AttributeModifiers");
-        copy.setTagCompound(tag);
-        return copy;
+        return equipment.makeGhostRod(src);
     }
 
     public TravellerCamp getCamp() {
@@ -565,7 +830,7 @@ public class EntityTraveller extends EntityCreature {
         double dx = pos.getX() + 0.5 - this.posX;
         double dz = pos.getZ() + 0.5 - this.posZ;
         float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-        this.rotationYaw = rotlerp(this.rotationYaw, yaw, bodyStep);
+        setBodyYaw(rotlerp(this.rotationYaw, yaw, bodyStep));
         this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, bodyStep);
         this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, headStep);
     }
@@ -586,7 +851,7 @@ public class EntityTraveller extends EntityCreature {
         double dx = fp.getX() + 0.5 - this.posX;
         double dz = fp.getZ() + 0.5 - this.posZ;
         float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-        this.rotationYaw = rotlerp(this.rotationYaw, yaw, 10.0F);
+        setBodyYaw(rotlerp(this.rotationYaw, yaw, 10.0F));
         this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, 10.0F);
         this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, 12.0F);
     }
@@ -835,7 +1100,7 @@ public class EntityTraveller extends EntityCreature {
                 return;
             }
         }
-        if (world != null && world.getDifficulty() == EnumDifficulty.PEACEFUL) {
+        if (world != null && TravellersDerivedConfig.isPeacefulBlocked(world)) {
             super.setAttackTarget(null);
             setInCombat(false);
             return;
@@ -1006,6 +1271,7 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(AIMING_BOW, Boolean.FALSE); // NEW
         this.dataManager.register(SLEEPING, Boolean.FALSE);
         this.dataManager.register(SLEEPING_BED_POS, BlockPos.ORIGIN);
+        this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
     }
     public static void dbg(String s) {
         System.out.println("[TravellersDBG] " + s);
@@ -1048,6 +1314,10 @@ public class EntityTraveller extends EntityCreature {
     public void onUpdate() {
         dropBoatIfOffscreen();
         super.onUpdate();
+        // Generic edge probe. Runs after super.onUpdate() so that a unit whose travel AI already
+        // probed this tick (with its own, more precise destination) keeps that answer - this call then
+        // no-ops. It exists for everything the travel AI does not drive: followers, Go orders, escorts.
+        if (!world.isRemote && tickEdgeVirtualizeProbe(getEdgeProbeGoal())) return;
         if (!world.isRemote && voiceKindNow != VoiceKind.NONE && this.ticksExisted >= voiceLockUntilTick) {
             voiceKindNow = VoiceKind.NONE;
         }
@@ -1224,7 +1494,16 @@ public class EntityTraveller extends EntityCreature {
             combat.decayAndPruneThreats();
             pruneIgnoredTargets();
         }
-        if (!isInCombat()) {
+        // isInCombat() reads TravellerCombatLogic.inCombat, a plain unsynced field that is only ever
+        // set true server-side - on the client it reads permanently false. Without this guard, this
+        // block ran on EVERY client tick whenever isAimingBow() was true (the client's own local,
+        // always-"not in combat" view), calling resetActiveHand() and wiping the vanilla bow-draw
+        // state (activeItemStack/activeItemStackUseCount) right back to empty every tick - undoing
+        // updateActiveHand()'s progress (and its empty->non-empty heal above) before it could ever
+        // stick, which is why the bow never visibly showed as drawn. setAimingBow(false) itself is a
+        // no-op on the client anyway (guarded); the client must only ever mirror the server's synced
+        // AIMING_BOW/HAND_STATES, never decide independently to reset them.
+        if (!world.isRemote && !isInCombat()) {
             if (isAimingBow()) {
                 // Only cancel if the thing we're using is a bow, so eating stays intact
                 ItemStack hand = this.getHeldItemMainhand();
@@ -1234,50 +1513,55 @@ public class EntityTraveller extends EntityCreature {
                 setAimingBow(false);
             }
         }
-        EntityLivingBase tgt = this.getAttackTarget();
-        if (tgt instanceof EntityPlayer) {
-            EntityPlayer p = (EntityPlayer) tgt;
+        // Same class of bug as above: this is server-authoritative chase-forgiveness bookkeeping
+        // (LOS/proximity timers, threat memory, owner-assist state) with no valid client-side reading -
+        // left unguarded, it ran every client tick too and could just as easily call resetActiveHand().
+        if (!world.isRemote) {
+            EntityLivingBase tgt = this.getAttackTarget();
+            if (tgt instanceof EntityPlayer) {
+                EntityPlayer p = (EntityPlayer) tgt;
 
-            // 1) Track “still engaging” signals: LOS or being near keeps chase fresh
-            boolean see = this.getEntitySenses().canSee(p);
-            double keepDist = TravellersConfig.PLAYER_AGGRO.playerFleeKeepDistance;
-            boolean close = this.getDistanceSq(p) <= (keepDist * keepDist);
-            if (see || close) {
-                combat.lastLOSorCloseTick = this.ticksExisted; // still engaged; don’t forgive
-            }
-
-            // 2) Calm player? (your earlier memory updated by the hurt event)
-            boolean playerCalm =
-                    lastPlayerAggroAgeTicks(p) > TravellersConfig.PLAYER_AGGRO.playerCalmForgiveTicks;
-
-            // Optional: don’t instantly forgive right after being damaged by them
-            TravellerCombatLogic.Threat th = combat.getThreat(p.getUniqueID());
-            boolean wasRecentlyThreat = (th != null) && (this.ticksExisted - th.lastSeenTick <= 40);
-
-            // 3) Fleeing window: must be away/out of LOS for long enough
-            boolean fleeingLongEnough =
-                    (this.ticksExisted - combat.lastLOSorCloseTick) > TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
-
-            // 4) Assist chases (worker joining its owner against a player it was never
-            // personally attacked by) must not be "forgiven" just because THIS worker was
-            // never hit — playerCalm/wasRecentlyThreat only track direct aggression against
-            // this entity. As long as the owner is still actively fighting the same player,
-            // the assist stays alive regardless of those two signals.
-            boolean assistStillDriven = isOwnerStillFightingAssistTarget(p);
-
-            if (playerCalm && fleeingLongEnough && !wasRecentlyThreat && !assistStillDriven) {
-                this.setAttackTarget(null);
-                this.setInCombat(false);
-                this.getNavigator().clearPath();
-                if (isAimingBow()) {
-                    setAimingBow(false);
-                    resetActiveHand();
+                // 1) Track “still engaging” signals: LOS or being near keeps chase fresh
+                boolean see = this.getEntitySenses().canSee(p);
+                double keepDist = TravellersConfig.PLAYER_AGGRO.playerFleeKeepDistance;
+                boolean close = this.getDistanceSq(p) <= (keepDist * keepDist);
+                if (see || close) {
+                    combat.lastLOSorCloseTick = this.ticksExisted; // still engaged; don’t forgive
                 }
+
+                // 2) Calm player? (your earlier memory updated by the hurt event)
+                boolean playerCalm =
+                        lastPlayerAggroAgeTicks(p) > TravellersConfig.PLAYER_AGGRO.playerCalmForgiveTicks;
+
+                // Optional: don’t instantly forgive right after being damaged by them
+                TravellerCombatLogic.Threat th = combat.getThreat(p.getUniqueID());
+                boolean wasRecentlyThreat = (th != null) && (this.ticksExisted - th.lastSeenTick <= 40);
+
+                // 3) Fleeing window: must be away/out of LOS for long enough
+                boolean fleeingLongEnough =
+                        (this.ticksExisted - combat.lastLOSorCloseTick) > TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
+
+                // 4) Assist chases (worker joining its owner against a player it was never
+                // personally attacked by) must not be "forgiven" just because THIS worker was
+                // never hit — playerCalm/wasRecentlyThreat only track direct aggression against
+                // this entity. As long as the owner is still actively fighting the same player,
+                // the assist stays alive regardless of those two signals.
+                boolean assistStillDriven = isOwnerStillFightingAssistTarget(p);
+
+                if (playerCalm && fleeingLongEnough && !wasRecentlyThreat && !assistStillDriven) {
+                    this.setAttackTarget(null);
+                    this.setInCombat(false);
+                    this.getNavigator().clearPath();
+                    if (isAimingBow()) {
+                        setAimingBow(false);
+                        resetActiveHand();
+                    }
+                    combat.resetChaseMemory();
+                    this.setRevengeTarget(null);
+                }
+            } else if (tgt == null) {
                 combat.resetChaseMemory();
-                this.setRevengeTarget(null);
             }
-        } else if (tgt == null) {
-            combat.resetChaseMemory();
         }
         if (!world.isRemote) {
             if (isAimingBow()) {
@@ -1310,7 +1594,8 @@ public class EntityTraveller extends EntityCreature {
         IAttributeInstance move = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
 
         // This avoids cross-chunk riding NBT weirdness without changing runtime state.
-        if (this.isRiding() && this.getRidingEntity() instanceof EntityTravellerBoat) {
+        if (this.isRiding() && (this.getRidingEntity() instanceof EntityTravellerBoat
+                || isMountedOnBondedMount())) {
             compound.removeTag("Riding");
         }
 
@@ -1327,7 +1612,6 @@ public class EntityTraveller extends EntityCreature {
             super.writeEntityToNBT(compound);
 
             // ---- your existing writes below ----
-            if (dogId != null) compound.setUniqueId("DogId", dogId);
             compound.setTag("TravellerInv", inventory.serializeNBT());
             if (travelCommon.getTargetVillage() != null)
                 compound.setTag("TargetVillage", NBTUtil.createPosTag(travelCommon.getTargetVillage()));
@@ -1363,6 +1647,10 @@ public class EntityTraveller extends EntityCreature {
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, getVoicePersonalityId());
             if (groupLeaderUUID != null) compound.setUniqueId("GroupLeaderUUID", groupLeaderUUID);
+            if (getMountUUID() != null) compound.setUniqueId("MountUUID", getMountUUID());
+            if (pendingMountNbt != null) compound.setTag("PendingMountNbt", pendingMountNbt);
+            compound.setString("MountMode", mountMode.name());
+            if (mountSnapshotNbt != null) compound.setTag("MountSnapshot", mountSnapshotNbt);
             if (homeVillage != null) {
                 compound.setInteger("HomeVillageX", homeVillage.getX());
                 compound.setInteger("HomeVillageY", homeVillage.getY());
@@ -1386,6 +1674,13 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
+        // Vanilla persists the elytra-flying flag ("FallFlying"), but the flight controller's state is
+        // purely in memory - anything restored from NBT (chunk load, and every materialize, whose NBT
+        // was frozen at virtualize time while the record kept moving) would otherwise come back
+        // airborne with nothing steering it. Cleared unconditionally: an "if flying" guard here would
+        // just be a slower way of writing the same thing.
+        this.setElytraFlying(false);
+        this.elytraFlight.reset();
         if (compound.getBoolean("LeftHanded")) this.setLeftHanded(false);
         this.travellerCamp.setCampLeader(compound.getBoolean("CampLeader"));
         this.travellerCamp.campLeaveTime = compound.getLong("CampLeaveTime");
@@ -1403,7 +1698,6 @@ public class EntityTraveller extends EntityCreature {
         if (!this.world.isRemote) {
             this.spawnAmbientCooldownTicks = Math.max(this.spawnAmbientCooldownTicks, 4 * 20); // at least ~4s
         }
-        dogId = compound.hasUniqueId("DogId") ? compound.getUniqueId("DogId") : null;
         if (compound.hasKey("TargetVillage", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND)) {
             this.travelCommon.setTargetVillage(NBTUtil.getPosFromTag(
                     compound.getCompoundTag("TargetVillage")));
@@ -1463,6 +1757,10 @@ public class EntityTraveller extends EntityCreature {
         travelCommon.setReadyToDepart(compound.getBoolean("ReadyToDepart"));
         travelCommon.setDepartCooldownTicks(compound.getInteger("DepartCooldown"));
         groupLeaderUUID = compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null;
+        setMountUUID(compound.hasUniqueId("MountUUID") ? compound.getUniqueId("MountUUID") : null);
+        pendingMountNbt = compound.hasKey("PendingMountNbt") ? compound.getCompoundTag("PendingMountNbt") : null;
+        mountMode = MountMode.byName(compound.getString("MountMode"));
+        mountSnapshotNbt = compound.hasKey("MountSnapshot") ? compound.getCompoundTag("MountSnapshot") : null;
         if (compound.hasKey("HomeVillageX")) {
             homeVillage = new BlockPos(
                     compound.getInteger("HomeVillageX"),
@@ -1499,6 +1797,8 @@ public class EntityTraveller extends EntityCreature {
             if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
 
             tickHazardRepulsion();
+            TravellerMountSupport.tickMount(this);
+            com.jubitus.travellers.utils.debug.trace.TravellerTracer.tick(this);
         }
 
         super.onLivingUpdate();
@@ -1530,6 +1830,7 @@ public class EntityTraveller extends EntityCreature {
         }
 
         if (travellerCamp.campJoinCooldown > 0) travellerCamp.campJoinCooldown--;
+        if (world.isRemote) tickElytraBank();
         if (world.isRemote && hurtAnimCooldown > 0) hurtAnimCooldown--;
         if (speakCooldown > 0) speakCooldown--;
         if (world.isRemote) {
@@ -1809,6 +2110,24 @@ public class EntityTraveller extends EntityCreature {
     }
 
     /**
+     * Resizes the hitbox so it matches the rendered model, which is drawn at
+     * {@link #getRenderScale()} in {@link com.jubitus.travellers.client.render.RenderTraveller}.
+     * Driven from {@link #notifyDataManagerChange} so both sides (server set + client sync) resize.
+     * Sleeping keeps its own tiny box until wake-up.
+     */
+    public void updateSizeForRenderScale() {
+        if (isSleepingInBed()) return;
+        float s = getRenderScale();
+        setSize(TravellersConfig.ATTRIBUTES.hitboxWidth * s, TravellersConfig.ATTRIBUTES.hitboxHeight * s);
+    }
+
+    @Override
+    public void notifyDataManagerChange(DataParameter<?> key) {
+        super.notifyDataManagerChange(key);
+        if (RENDER_SCALE.equals(key)) updateSizeForRenderScale();
+    }
+
+    /**
      * Replicates Millenaire's own VillagerRecord scale roll: baseHeight * random 0.80-0.89,
      * rolled once at spawn (per-instance jitter, like real villagers) then persisted.
      */
@@ -1844,6 +2163,60 @@ public class EntityTraveller extends EntityCreature {
             }
         } else if (isHandActive() && getActiveItemStack().getItem() instanceof ItemBow) {
             resetActiveHand();
+        }
+    }
+
+    /**
+     * Vanilla bug, client-side only, confirmed via {@code /travellersdebug bow status} +
+     * {@code MixinLayerHeldItem}'s render-time log: {@code EntityLivingBase.notifyDataManagerChange}
+     * captures {@code activeItemStack} from {@code getHeldItem(getActiveHand())} at the instant the
+     * HAND_STATES sync packet is processed - if that happens before the separate equipment sync packet
+     * has applied the held item (both fire the same server tick from {@link #setAimingBow}, no ordering
+     * guarantee between the two packet types), it captures EMPTY. Vanilla's own {@code updateActiveHand()}
+     * then has no way back: {@code ForgeHooks.canContinueUsing(EMPTY, realItem)} is false forever, so the
+     * real item is never adopted, and {@code resetActiveHand()} skips touching HAND_STATES on the client
+     * (guarded to the server), so {@code isHandActive()} stays true forever too. Net effect: the hand
+     * reads as "active" holding nothing, permanently - the item's own use-progress (bow pull/nock, etc.)
+     * never advances, though everything server-side (and the arm pose, which reads our own AIMING_BOW
+     * flag) is unaffected. Treat "was empty, now isn't" as a valid continuation instead of a break; the
+     * rest of the method is unmodified vanilla.
+     */
+    @Override
+    protected void updateActiveHand() {
+        if (this.isHandActive()) {
+            ItemStack itemstack = this.getHeldItem(this.getActiveHand());
+
+            boolean healingFromEmpty = this.activeItemStack.isEmpty() && !itemstack.isEmpty();
+            if (net.minecraftforge.common.ForgeHooks.canContinueUsing(this.activeItemStack, itemstack)
+                    || healingFromEmpty) {
+                this.activeItemStack = itemstack;
+                if (healingFromEmpty) {
+                    // activeItemStackUseCount is stale (0, from the broken state) - without this it
+                    // underflows to -1 a few lines below in this same call, which fires
+                    // onItemUseFinish() -> resetActiveHand() and immediately undoes the heal.
+                    this.activeItemStackUseCount = itemstack.getMaxItemUseDuration();
+                }
+            }
+
+            if (itemstack == this.activeItemStack) {
+                if (!this.activeItemStack.isEmpty()) {
+                    this.activeItemStackUseCount = net.minecraftforge.event.ForgeEventFactory.onItemUseTick(
+                            this, this.activeItemStack, this.activeItemStackUseCount);
+                    if (this.activeItemStackUseCount > 0) {
+                        this.activeItemStack.getItem().onUsingTick(this.activeItemStack, this, this.activeItemStackUseCount);
+                    }
+                }
+
+                if (this.getItemInUseCount() <= 25 && this.getItemInUseCount() % 4 == 0) {
+                    this.updateItemUse(this.activeItemStack, 5);
+                }
+
+                if (--this.activeItemStackUseCount <= 0 && !this.world.isRemote) {
+                    this.onItemUseFinish();
+                }
+            } else {
+                this.resetActiveHand();
+            }
         }
     }
 
@@ -1915,8 +2288,8 @@ public class EntityTraveller extends EntityCreature {
 
     public void wakeUpTraveller() {
         if (world.isRemote || !isSleepingInBed()) return;
-        this.setSize(0.5F, 1.6F);
         this.dataManager.set(SLEEPING, false);
+        updateSizeForRenderScale();
     }
 
     /**
@@ -1969,6 +2342,8 @@ public class EntityTraveller extends EntityCreature {
         if (world.isRemote || isDead) return;
         if (!TravellersConfig.HAZARD_SAFETY.enabled) return;
         if (isRiding() || isSleepingInBed() || campingPassive) return;
+        // A glide is a deliberate flight over exactly the drops this nudge exists to avoid.
+        if (elytraFlight.isActive()) return;
 
         PathNavigate nav = this.getNavigator();
         if (nav instanceof TravellerNavigateGround && ((TravellerNavigateGround) nav).isGapJumping()) return;
@@ -2469,7 +2844,14 @@ public class EntityTraveller extends EntityCreature {
         boolean tookDamage = super.attackEntityFrom(source, amount);
         if (!tookDamage || world.isRemote) return tookDamage;
 
-        TravellerItemDamage.damageArmorOnHit(this, amount);
+        // A lethal hit already ran onDeath() synchronously inside super.attackEntityFrom above,
+        // which may have dropped this entity's armor as world EntityItems — vanilla's dropEquipment
+        // hands the drop the exact same ItemStack reference still sitting in the equipment slot,
+        // it never copies it. Damaging armor after that point would silently over-wear the item
+        // that's already on the ground instead of anything still worn by this entity.
+        if (getHealth() > 0.0F) {
+            TravellerItemDamage.damageArmorOnHit(this, amount);
+        }
 
         if (choirSinging) {
             // Keep the OGG stream alive; just mute the sound on clients for 8 seconds so
@@ -2534,7 +2916,7 @@ public class EntityTraveller extends EntityCreature {
             this.setRevengeTarget((EntityLivingBase) src);
         }
 
-        if (world.getDifficulty() != EnumDifficulty.PEACEFUL && src instanceof EntityLivingBase) {
+        if (!TravellersDerivedConfig.isPeacefulBlocked(world) && src instanceof EntityLivingBase) {
             EntityLivingBase le = (EntityLivingBase) src;
 
             // Always remember threats – we saw them / they hit us
@@ -2576,6 +2958,14 @@ public class EntityTraveller extends EntityCreature {
 
 @Override
 public void fall(float distance, float damageMultiplier) {
+    // A flight that got cut off mid-air with no more glide control (elytra breaking, the hard flight
+    // time cap) has no controlled way down - it really does fall the rest of the way like a stone. That
+    // fall must never be a lethal - or even damaging - one just because something else took its wings
+    // away without warning; see ElytraFlightController.land()/isPendingSafeDescent.
+    if (elytraFlight.isPendingSafeDescent()) {
+        elytraFlight.clearPendingSafeDescent();
+        return;
+    }
     // Fall damage starts at 6 blocks instead of vanilla 3 (subtract 2 on top of Minecraft's own 3-block safe distance).
     super.fall(Math.max(0.0F, distance - 2.0F), damageMultiplier);
 }
@@ -2592,6 +2982,7 @@ public void fall(float distance, float damageMultiplier) {
                     new MsgStopTravellerVoice(this),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             travellerCamp.cleanupOwnedCampfireIfAny();
+            TravellerMountSupport.releaseMountOnRiderDeath(this);
             // Camp event system: free this traveller's slot so the camp updates / can be reused.
             com.jubitus.travellers.utils.world.camp.CampsiteManager.get((net.minecraft.world.WorldServer) world)
                     .releaseOccupant(this.getUniqueID());
@@ -2605,19 +2996,12 @@ public void fall(float distance, float damageMultiplier) {
             this.dismountRidingEntity();
             boat.setDead();
         }
-        if (equipment.isGhostWeapon(getHeldItemMainhand())) setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-        EntityTravellerDog dog = getDog();
-
+        // Strip every ghost-tagged visual copy (sword/bow/torch/block/rod) before vanilla's drop
+        // logic runs, or a clone with no attribute modifiers can be dropped alongside the real item.
+        equipment.purgeGhostItems();
         super.onDeath(cause);
     }
 
-    @Nullable
-    public EntityTravellerDog getDog() {
-        if (dogId == null) return null;
-        List<EntityTravellerDog> list = world.getEntities(EntityTravellerDog.class,
-                e -> e != null && e.isEntityAlive() && dogId.equals(e.getUniqueID()));
-        return list.isEmpty() ? null : list.get(0);
-    }
 
     @Override
     @javax.annotation.Nullable
@@ -2641,8 +3025,78 @@ public void fall(float distance, float damageMultiplier) {
         return 0.95F + (this.rand.nextFloat() - 0.5F) * 0.08F;
     }
 
+    /**
+     * Smoothed banking angle for the flight pose, in degrees. Client-side and purely cosmetic.
+     *
+     * <p>Vanilla derives a gliding player's roll from the raw angle between motion and look, which is
+     * fine at player glide speeds but not here: at low speed the motion vector is mostly noise, so
+     * that angle swings across its whole +/-180 range from tick to tick and the model snaps about.
+     * This keeps the same idea but clamps it to a believable lean, fades it out as they slow down, and
+     * eases toward it instead of jumping - held as prev/current so the renderer interpolates rather
+     * than smoothing per frame at whatever framerate happens to be running.
+     */
+    private float elytraBank;
+    private float prevElytraBank;
+
+    /** Below this horizontal speed (blocks/tick) the motion direction is too noisy to bank from. */
+    private static final double ELYTRA_BANK_MIN_SPEED = 0.15D;
+    /** Speed at which the bank reaches full strength. */
+    private static final double ELYTRA_BANK_FULL_SPEED = 0.55D;
+    /** Steepest lean, in degrees. */
+    private static final float ELYTRA_BANK_MAX = 45.0F;
+    /** Per-tick easing toward the target lean. */
+    private static final float ELYTRA_BANK_SMOOTHING = 0.2F;
+
+    /** Interpolated banking angle for rendering. */
+    public float getElytraBank(float partialTicks) {
+        return prevElytraBank + (elytraBank - prevElytraBank) * partialTicks;
+    }
+
+    private void tickElytraBank() {
+        prevElytraBank = elytraBank;
+
+        float target = 0.0F;
+        if (isElytraFlying()) {
+            double speedSq = motionX * motionX + motionZ * motionZ;
+            Vec3d look = getLookVec();
+            double lookSq = look.x * look.x + look.z * look.z;
+
+            if (speedSq > ELYTRA_BANK_MIN_SPEED * ELYTRA_BANK_MIN_SPEED && lookSq > 1.0E-6D) {
+                double speed = Math.sqrt(speedSq);
+                // Clamped before acos: floating point can push this a hair past 1 and return NaN.
+                double cos = MathHelper.clamp(
+                        (motionX * look.x + motionZ * look.z) / (speed * Math.sqrt(lookSq)), -1.0D, 1.0D);
+                double cross = motionX * look.z - motionZ * look.x;
+
+                target = (float) (Math.signum(cross) * Math.acos(cos) * (180.0D / Math.PI));
+                target = MathHelper.clamp(target, -ELYTRA_BANK_MAX, ELYTRA_BANK_MAX);
+                target *= (float) MathHelper.clamp(
+                        (speed - ELYTRA_BANK_MIN_SPEED) / (ELYTRA_BANK_FULL_SPEED - ELYTRA_BANK_MIN_SPEED),
+                        0.0D, 1.0D);
+            }
+        }
+
+        elytraBank += (target - elytraBank) * ELYTRA_BANK_SMOOTHING;
+    }
+
+    /**
+     * Vanilla entity flag 7 - the elytra-flying state. Exposed because {@code setFlag} is protected
+     * and this is the only thing standing between a mob and vanilla's own elytra physics, which has
+     * no player-only gate.
+     */
+    public void setElytraFlying(boolean flying) {
+        this.setFlag(7, flying);
+    }
+
     @Override
     public void travel(float strafe, float vertical, float forward) {
+        // Steer here, not in onLivingUpdate: vanilla runs the AI (and the look helper, which would
+        // overwrite our rotations) just before calling travel(), so this is the only hook where our
+        // heading survives into the same tick's physics.
+        if (!this.world.isRemote) {
+            this.elytraFlight.tick();
+        }
+
         if (this.isInWater()) {
             float boost = (float) TravellersConfig.COMBAT.swimSpeedMultiplier;
             super.travel(strafe * boost, vertical, forward * boost);
@@ -2779,10 +3233,10 @@ public void fall(float distance, float damageMultiplier) {
         }
     }
 
-    // Seat height so the player doesn't clip the head.
+    // Seat height so the player doesn't clip the head. The hitbox already follows the render scale.
     @Override
     public double getMountedYOffset() {
-        return this.height * getRenderScale();
+        return this.height;
     }
 
     // Allow exactly one passenger.
@@ -3014,8 +3468,158 @@ public void fall(float distance, float damageMultiplier) {
     public boolean canVirtualizeIgnoringCombat() {
         if (isDead) return false;
         if (isHandActive()) return false;
-        if (isRiding()) return false;
+        // A bonded mount comes along into virtualization (see VirtualTravellerManager); any other
+        // ride (boat, someone else's horse) still blocks, same as before.
+        if (isRiding() && !isMountedOnBondedMount()) return false;
+        // Mid-flight there is no sane position to hand to the offscreen simulation, which only ever
+        // walks records along the ground. forceVirtualizeResolvingBlockers() overrides this, as it
+        // does for the other soft blockers here.
+        if (elytraFlight.isActive()) return false;
         return true;
+    }
+
+    /**
+     * "The ground I am trying to walk onto is not loaded, so hand off to the offscreen simulation
+     * instead of milling about at the boundary." Returns true if this call virtualized the entity.
+     *
+     * <p>This is the mechanism that keeps units from piling up along the edge of loaded terrain, and
+     * the reason it probes rather than waits: right at the edge, loaded space still exists in every
+     * direction except the one the unit wants, so the waypoint search's sideways-detour and
+     * random-reseed fallbacks keep finding *some* candidate and the unit keeps making small, real,
+     * essentially random moves - which resets every stagnation counter often enough that none of them
+     * reliably trips. Looking straight at "is the chunk ahead loaded" bypasses all of that.
+     *
+     * <p>Shared on purpose: it used to live inline in {@link com.jubitus.travellers.entity.entityAI.travel.EntityAITravel},
+     * so only a unit walking toward a village got it. A worker following its leader, a worker on a Go
+     * order, or a group follower chasing a virtual leader had no equivalent and could only leave via
+     * its chunk actually unloading. Each caller supplies whatever "where am I trying to go" means for
+     * it ({@link #getEdgeProbeGoal()} for the generic per-tick case), and the blocked-time counter is
+     * shared between them, since it measures one thing: how long this unit has been up against
+     * unloaded terrain. Runs at most once per tick regardless of how many callers ask.
+     */
+    public boolean tickEdgeVirtualizeProbe(@Nullable BlockPos goal) {
+        if (world == null || world.isRemote || !(world instanceof WorldServer)) return false;
+        long now = world.getTotalWorldTime();
+        if (edgeProbeLastTick == now) return false;
+        edgeProbeLastTick = now;
+
+        if (goal == null) {
+            edgeBlockedTicks = 0;
+            return false;
+        }
+        // Just materialized: let it settle. A unit that appears right at the boundary would otherwise
+        // be probed straight back out on its next tick, appearing and vanishing on the spot.
+        if (com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager
+                .get((WorldServer) world).isInVirtualizeGrace(getUniqueID())) {
+            edgeBlockedTicks = 0;
+            return false;
+        }
+        // Fighting in loaded terrain: stay physical and finish the fight. The offscreen battle sim
+        // exists for units that are already virtual, not as a reason to pull one out of a fight it is
+        // visibly having - and the goal used here is a travel destination the unit isn't pursuing
+        // right now anyway.
+        EntityLivingBase fighting = getAttackTarget();
+        if (fighting != null && fighting.isEntityAlive()) {
+            edgeBlockedTicks = 0;
+            return false;
+        }
+
+        BlockPos from = getPosition();
+        double dx = goal.getX() - from.getX();
+        double dz = goal.getZ() - from.getZ();
+        double distSq = dx * dx + dz * dz;
+        if (distSq < 1.0) {
+            edgeBlockedTicks = 0;
+            return false;
+        }
+
+        double dist = Math.sqrt(distSq);
+        int probeDist = (int) Math.max(EDGE_PROBE_MIN_BLOCKS, Math.min(EDGE_PROBE_MAX_BLOCKS, dist));
+        int px = from.getX() + (int) Math.round(dx / dist * probeDist);
+        int pz = from.getZ() + (int) Math.round(dz / dist * probeDist);
+
+        if (com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.isChunkLoaded(
+                (WorldServer) world, px >> 4, pz >> 4)) {
+            edgeBlockedTicks = 0;
+            return false;
+        }
+
+        if (++edgeBlockedTicks < TravellersConfig.TRAVEL.edgeAheadUnloadedGraceTicks) return false;
+        edgeBlockedTicks = 0;
+        return tryVirtualizeStuckAtEdge();
+    }
+
+    /**
+     * Where this unit is currently trying to get to, for {@link #tickEdgeVirtualizeProbe}. Only ever a
+     * direction hint - a null result simply means "not going anywhere in particular", which correctly
+     * exempts an idle unit standing in loaded terrain from ever being probed out of the world.
+     */
+    @Nullable
+    protected BlockPos getEdgeProbeGoal() {
+        TravelCommon tc = getTravelCommon();
+        if (tc != null) {
+            BlockPos wp = tc.getCurrentWaypoint();
+            if (wp != null) return wp;
+            BlockPos tv = tc.getTargetVillage();
+            if (tv != null) return tv;
+        }
+        UUID leader = getGroupLeaderUUID();
+        if (leader != null && world instanceof WorldServer) {
+            WorldServer ws = (WorldServer) world;
+            Entity live = ws.getEntityFromUuid(leader);
+            if (live != null && !live.isDead) return live.getPosition();
+            return com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager
+                    .get(ws).getVirtualPosition(leader);
+        }
+        return null;
+    }
+
+    /**
+     * Virtualize now, resolving the soft blockers {@link #canVirtualizeIgnoringCombat()} normally
+     * obeys instead of waiting them out: a boat this mod spawned is dismounted and killed, and a
+     * raised hand is dropped. A bonded horse mount is NOT dismounted here - it is an allowed rider
+     * (see {@link #canVirtualizeIgnoringCombat()}) and {@code tryVirtualize()} below captures it
+     * along with the entity.
+     *
+     * <p>Used by the two paths that get no second chance. {@link com.jubitus.travellers.utils.world.pathing.offscreen.ChunkUnloadVirtualizeHandler}
+     * is one: whatever isn't captured as the chunk unloads is written into the chunk file instead and
+     * stops existing as far as the offscreen simulation is concerned. The other is a unit vanilla has
+     * stopped ticking ({@link com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager#isFrozenByVanilla}),
+     * where the blockers are not merely inconvenient but permanent: an entity that stopped ticking
+     * mid-meal keeps {@code isHandActive()} true forever, so declining to virtualize it for that
+     * reason leaves it standing at the border for good.
+     *
+     * <p>Anything still ineligible after that (already dead, no server world) is left alone.
+     */
+    public boolean forceVirtualizeResolvingBlockers() {
+        if (isDead) return false;
+        if (!(world instanceof WorldServer)) return false;
+
+        if (isRiding() && !isMountedOnBondedMount()) {
+            Entity ride = getRidingEntity();
+            dismountRidingEntity();
+            if (ride instanceof EntityTravellerBoat) {
+                ((EntityTravellerBoat) ride).requestKill();
+            }
+        }
+        if (isHandActive()) resetActiveHand();
+        // A flight cannot simply be waited out here: this path exists for units vanilla has stopped
+        // ticking, where the controller will never get another tick to land them.
+        boolean wasFlying = elytraFlight.isActive();
+        if (wasFlying) {
+            elytraFlight.reset();
+            setElytraFlying(false);
+        }
+
+        boolean virtualized = tryVirtualize();
+        // tryVirtualize() can still refuse (e.g. still in combat) after the flight was already cleared
+        // above - left as-is, that strands the entity mid-air with the elytra flag off and nobody
+        // steering it: an uncontrolled freefall from whatever height it was at, wings still on its back.
+        // Re-arm a forced landing instead so it comes down under control.
+        if (!virtualized && wasFlying) {
+            elytraFlight.emergencyRecover();
+        }
+        return virtualized;
     }
 
     /**
@@ -3114,65 +3718,6 @@ public void fall(float distance, float damageMultiplier) {
         playVoiceMoving(hello, vol, pitch, dur, true, VoiceKind.TALK);
     }
 
-
-    private void maybeRecruitDog() {
-        if (dogScanCooldown > 0) {
-            dogScanCooldown--;
-            return;
-        }
-        dogScanCooldown = TravellersConfig.ATTRIBUTES.dogScanCooldownTicks;
-
-        if (this.isInCombat()) return;
-        if (getDog() != null) return; // already have one
-
-        // Find a nearby *wild* wolf
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(6.0, 2.0, 6.0);
-        List<EntityWolf> wolves = this.world.getEntitiesWithinAABB(EntityWolf.class, box,
-                w -> w != null
-                        && w.isEntityAlive()
-                        && !w.isTamed()
-                        && !w.isAngry()
-                        && w.getLeashHolder() == null
-        );
-
-        if (wolves.isEmpty()) return;
-
-        EntityWolf wild = wolves.get(0);
-
-        // Convert wild wolf -> travellers dog
-        EntityTravellerDog dog = new EntityTravellerDog(this.world);
-        dog.setLocationAndAngles(wild.posX, wild.posY, wild.posZ, wild.rotationYaw, wild.rotationPitch);
-        dog.enablePersistence();
-        dog.setTamed(true);
-        dog.setSitting(false);
-        dog.setHealth(dog.getMaxHealth());
-        dog.setOwnerId(this.getUniqueID()); // crucial: owner is the travellers
-        dog.setCollarColor(collarForCulture(this.getCultureId())); // customize aesthetic
-
-        // Optional: give it a name
-        dog.setAlwaysRenderNameTag(false);
-
-        // Spawn & remove the wild one
-        if (!world.isRemote) {
-            world.spawnEntity(dog);
-            wild.setDead();
-        }
-
-        this.dogId = dog.getUniqueID();
-    }
-
-    private EnumDyeColor collarForCulture(String cultureId) {
-        // quick mapping (tweak to taste or pull from your CultureRegistry)
-        switch (cultureId) {
-            case "fr":
-                return EnumDyeColor.RED;
-            case "en":
-                return EnumDyeColor.BLUE;
-            default:
-                return EnumDyeColor.ORANGE;
-        }
-    }
-
     /**
      * Called by {@code EntityAITravel} when its own stuck-rescue escalation has repeatedly
      * failed to find any loaded destination to teleport/detour to — a precise signal that the
@@ -3213,12 +3758,6 @@ public void fall(float distance, float damageMultiplier) {
         if (tryVirtualize()) return true;
 
         // Fallback: clean fade (virtualization not available for some reason)
-        EntityTravellerDog dog = getDog();
-        if (dog != null && !dog.world.isRemote) {
-            if (!(dog.isTamed() && dog.getOwner() instanceof EntityPlayer)) {
-                dog.setDead();
-            }
-        }
         this.setDead();
         return true;
     }
@@ -3370,8 +3909,6 @@ public void fall(float distance, float damageMultiplier) {
         return equipment.makeGhostTorch();
     }
 
-// --- companion dog spawn helpers ---
-
     public boolean hasTravelTorchVisible() {
         return isGhostTorch(getItemStackFromSlot(EntityEquipmentSlot.OFFHAND));
     }
@@ -3387,78 +3924,6 @@ public void fall(float distance, float damageMultiplier) {
     @Nullable
     public BlockPos getCampfirePos() {
         return travellerCamp.getCampfirePos();
-    }
-
-    private void maybeSpawnCompanionDog() {
-        if (world.isRemote) return;
-        if (suppressCompanionSpawn) return;                    // egg/command/etc.
-        if (!TravellersConfig.SPAWN.spawnTravellerWithDog) return;
-        if (this.dogId != null) return;                        // already has one?
-
-        double chance = TravellersConfig.SPAWN.travellerDogSpawnChance; // or hard-code 0.35
-        if (this.rand.nextDouble() >= chance) return;
-
-        WorldServer ws = (WorldServer) this.world;
-        BlockPos origin = this.getPosition();
-
-        BlockPos dogPos = findSafeDogSpawnPos(ws, origin);
-        if (dogPos == null) {
-            // No safe place found nearby, just give up silently
-            return;
-        }
-
-        EntityTravellerDog dog = new EntityTravellerDog(ws);
-        dog.setPosition(dogPos.getX() + 0.5, dogPos.getY(), dogPos.getZ() + 0.5);
-
-        dog.onInitialSpawn(ws.getDifficultyForLocation(dogPos), null);
-
-// ✅ IMPORTANT: make it a real companion dog
-        dog.enablePersistence();
-        dog.setTamed(true);
-        dog.setOwnerId(this.getUniqueID());
-        dog.setSitting(false);
-        dog.setHealth(dog.getMaxHealth());
-
-        this.dogId = dog.getUniqueID();
-        ws.spawnEntity(dog);
-
-    }
-
-    /**
-     * Find a nearby, non-solid, ground-supported position where the dog
-     * won’t spawn inside a block.
-     */
-    @Nullable
-    private BlockPos findSafeDogSpawnPos(World world, BlockPos center) {
-        int radius = 2;
-
-        // Prefer around the travellers at same Y, then one block up
-        for (int dy = 0; dy <= 1; dy++) {
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    BlockPos pos = center.add(dx, dy, dz);
-                    if (isSafeDogPos(world, pos)) {
-                        return pos;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean isSafeDogPos(World world, BlockPos pos) {
-        BlockPos below = pos.down();
-
-        IBlockState belowState = world.getBlockState(below);
-        // Needs solid-ish floor to stand on
-        if (!belowState.isSideSolid(world, below, EnumFacing.UP)) return false;
-
-        IBlockState feet = world.getBlockState(pos);
-        IBlockState head = world.getBlockState(pos.up());
-
-        // Feet or head space must not be solid full blocks
-        if (feet.getMaterial().isSolid() && feet.isFullCube()) return false;
-        return !head.getMaterial().isSolid() || !head.isFullCube();
     }
 
     public int getTicksExisted() {
@@ -3554,15 +4019,16 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     /**
-     * "Is this entity's own ground chunk currently loaded for a real reason" - deliberately the exact
-     * same {@link com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager#isChunkNeededNow}
+     * "Is this entity's own ground chunk loaded" - deliberately the exact same
+     * {@link com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager#isChunkLoaded}
      * predicate that decides materialize/virtualize eligibility, not an independent distance
      * approximation. Used to be its own "is a player roughly within view distance" circle check, which
-     * could disagree with the chunk-loaded predicate above (e.g. near the corners of the loaded square,
-     * or once a chunk is kept loaded by something other than raw player distance) - callers of this
-     * method (the travel AI's "don't bother pathfinding, nobody could be watching" bail-out chief among
-     * them) would then freeze a unit that was, by the other predicate, still fully physical and meant to
-     * be acting normally.
+     * could disagree with the chunk-loaded predicate (near the corners of the loaded square, or once a
+     * chunk is kept loaded by something other than raw player distance) - callers of this method (the
+     * travel AI's "don't bother pathfinding, nobody could be watching" bail-out chief among them) would
+     * then freeze a unit that was, by the other predicate, still fully physical and meant to be acting
+     * normally. The name is now a misnomer kept for its call sites' sake: a player's view distance is
+     * only one of the reasons a chunk can be loaded.
      */
     public boolean isInPlayerViewDistanceApprox() {
         if (world == null) return true;
@@ -3571,7 +4037,7 @@ public void fall(float distance, float damageMultiplier) {
         net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) world;
         int cx = net.minecraft.util.math.MathHelper.floor(posX) >> 4;
         int cz = net.minecraft.util.math.MathHelper.floor(posZ) >> 4;
-        return com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.isChunkNeededNow(ws, cx, cz);
+        return com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.isChunkLoaded(ws, cx, cz);
     }
 
     protected void clearAggroIfOffscreen() {

@@ -111,17 +111,6 @@ public class EntityTravellerMerchant extends EntityTraveller {
         }
     }
 
-    @Override
-    public void onUpdate() {
-        super.onUpdate();
-
-        if (!this.world.isRemote) {
-            TravellerChunkManager.INSTANCE.onChunkloaderTick(
-                    this,
-                    TravellersConfig.ATTRIBUTES.merchantChunkRadius
-            );
-        }
-    }
 
     @Override
     public void writeEntityToNBT(NBTTagCompound nbt) {
@@ -195,7 +184,6 @@ public class EntityTravellerMerchant extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
-            TravellerChunkManager.INSTANCE.untrackChunkloader(this);
 
             if (homeVillageCenter != null && world instanceof WorldServer) {
                 TravellerVillageRegistry reg = TravellerVillageRegistry.get((WorldServer) world);

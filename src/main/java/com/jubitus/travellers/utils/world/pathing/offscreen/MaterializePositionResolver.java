@@ -16,6 +16,7 @@ import net.minecraftforge.fluids.IFluidBlock;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
+import com.jubitus.travellers.utils.world.camp.CampTerrainValidator;
 import com.jubitus.travellers.utils.world.camp.CampsiteManager;
 import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
 
@@ -50,7 +51,37 @@ public final class MaterializePositionResolver {
     // Random spread radius for solo travelers that moved far (blocks, ±)
     private static final double SOLO_SPREAD = 2.5;
 
+    // How far an entity must have drifted from its virtualization point (blocks) before its frozen Y
+    // is considered stale. Formation adjustments and battle jostling stay under this.
+    private static final double DRIFT_THRESHOLD = 16.0;
+
+    // Vertical window searched around a still-valid frozen Y. Kept tight on purpose: a wide window
+    // lets the down-first search walk out of a slightly-off surface Y straight into a cave.
+    private static final int FROZEN_Y_SEARCH_RADIUS = 4;
+
+    // How far above its own frozen floor a resolved spawn may end up before it is treated as having
+    // been pushed onto a roof / upper floor rather than nudged out of a single block.
+    private static final double SAME_LEVEL_LIFT_TOLERANCE = 3.0;
+
+    // Vertical slack when looking for free space on "the same floor": enough for a step or a stair,
+    // not enough to reach the storey above.
+    private static final int SAME_LEVEL_Y_SLACK = 2;
+
     private MaterializePositionResolver() {}
+
+    /**
+     * True when the record has moved far enough from where it was virtualized that its frozen Y no
+     * longer describes the terrain under it (offscreen simulation never advances Y).
+     * <p>
+     * Measured live against the current position rather than latched: a follower scattered by a
+     * virtual battle that has since walked back to its formation slot must restore exactly where it
+     * stood, not be surface-clamped out of the building its group was waiting in.
+     */
+    public static boolean hasDrifted(VirtualTravellerRecord r) {
+        double dx = r.posX - r.virtualizedPosX;
+        double dz = r.posZ - r.virtualizedPosZ;
+        return dx * dx + dz * dz >= DRIFT_THRESHOLD * DRIFT_THRESHOLD;
+    }
 
     // -------------------------------------------------------------------------
 
@@ -84,7 +115,7 @@ public final class MaterializePositionResolver {
         // open surface is a stationary entity inside a roofed structure (building / barracks bed), which
         // a blind surface-clamp would push onto the roof.
         boolean preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize
-                && r.hasTraveledFar;
+                && hasDrifted(r);
 
         // Mid-battle pawn: appear exactly where the battle sim placed it — no formation slot,
         // ring spread or building avoidance (the fight is where it is). Y is still resolved.
@@ -158,7 +189,7 @@ public final class MaterializePositionResolver {
                     // different local terrain, and seeding the down-first search with a mismatched Y is
                     // exactly what let stationary followers drop into a cave under their own column.
                 }
-            } else if (!r.hasTraveledFar) {
+            } else if (!hasDrifted(r)) {
                 // No leader position resolvable and the worker never moved far on its own either
                 // (e.g. leader itself never simulated a position yet): fall back to a deterministic
                 // UUID ring so workers don't all stack on the exact same spot.
@@ -171,7 +202,7 @@ public final class MaterializePositionResolver {
                 }
             }
 
-        } else if (r.hasTraveledFar) {
+        } else if (hasDrifted(r)) {
             // Solo traveler that moved: random spread to avoid stacking
             int ox = (int) Math.round((world.rand.nextDouble() - 0.5) * SOLO_SPREAD * 2);
             int oz = (int) Math.round((world.rand.nextDouble() - 0.5) * SOLO_SPREAD * 2);
@@ -205,8 +236,36 @@ public final class MaterializePositionResolver {
 
         double spawnY = referenceY;
         if (world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) {
-            spawnY = findSafeFloorY(world, bx, bz, referenceY, preferSurface);
+            // Surface-resolved entity: the ground under its column may well be a rooftop (Millénaire
+            // building the index didn't resolve, player build, another mod's structure), so look
+            // around for real ground rather than trusting the column we happen to have landed on.
+            Ground g = preferSurface
+                    ? findNaturalGround(world, bx, bz, TravellersConfig.MATERIALIZATION.naturalGroundSearchRadius)
+                    : null;
+            if (g != null) {
+                bx = g.x;
+                bz = g.z;
+                baseX = bx + 0.5;
+                baseZ = bz + 0.5;
+                spawnY = g.y;
+            } else {
+                spawnY = findSafeFloorY(world, bx, bz, referenceY, preferSurface);
+            }
             spawnY = ensureNotInSolid(world, bx, spawnY, bz);
+
+            // An entity that kept its own valid frozen Y must never come back higher than the floor it
+            // was standing on: if its exact column is now blocked (it drifted into a wall, or a player
+            // built there), ensureNotInSolid walks up until it clears the obstacle - which inside a
+            // building means it pops out on the roof. Look sideways on its own floor instead.
+            if (!preferSurface && spawnY > referenceY + SAME_LEVEL_LIFT_TOLERANCE) {
+                BlockPos onLevel = findSpotAtLevel(world, bx, bz, referenceY,
+                        TravellersConfig.MATERIALIZATION.sameLevelSearchRadius);
+                if (onLevel != null) {
+                    baseX = onLevel.getX() + 0.5;
+                    baseZ = onLevel.getZ() + 0.5;
+                    spawnY = onLevel.getY();
+                }
+            }
         }
 
         return new ResolvedPosition(baseX, spawnY, baseZ);
@@ -269,15 +328,14 @@ public final class MaterializePositionResolver {
      * offscreen Y no longer matches the terrain from dropping into a cave below (possibly next to lava).
      */
     public static double findSafeFloorY(WorldServer world, int bx, int bz, double referenceY, boolean preferSurface) {
-        int refY = (int) Math.floor(referenceY);
-        int maxY = world.getActualHeight() - 3;
-
         if (preferSurface) {
-            double surf = findSurfaceFloorY(world, bx, bz, maxY);
+            double surf = columnGroundY(world, bx, bz);
             if (!Double.isNaN(surf)) return surf;
         }
 
-        for (int offset = 0; offset <= 32; offset++) {
+        int refY = (int) Math.floor(referenceY);
+        int maxY = world.getActualHeight() - 3;
+        for (int offset = 0; offset <= FROZEN_Y_SEARCH_RADIUS; offset++) {
             int yDown = refY - offset;
             if (yDown >= 1 && isSafeFloor(world, bx, yDown, bz)) return yDown + 1.0;
             if (offset > 0) {
@@ -286,24 +344,133 @@ public final class MaterializePositionResolver {
             }
         }
 
-        // Last resort: top-down scan skipping foliage
-        double surf = findSurfaceFloorY(world, bx, bz, maxY);
+        double surf = columnGroundY(world, bx, bz);
         if (!Double.isNaN(surf)) return surf;
 
         return referenceY;
     }
 
-    /** Top-down scan for the highest safe floor at (bx, bz), skipping tree foliage. NaN if none. */
-    private static double findSurfaceFloorY(WorldServer world, int bx, int bz, int maxY) {
-        for (int y = maxY; y > 1; y--) {
-            BlockPos pos = new BlockPos(bx, y, bz);
-            IBlockState state = world.getBlockState(pos);
-            if (state.getBlock() instanceof BlockLeaves) continue;
-            if (state.getBlock() instanceof BlockLog) continue;
-            if (state.getBlock().isAir(state, world, pos)) continue;
-            if (isSafeFloor(world, bx, y, bz)) return y + 1.0;
+    /**
+     * Spirals outward from (bx, bz) for a standable spot on roughly the same floor as {@code refY}
+     * (feet Y returned). Unlike {@link #columnGroundY} it does not care what is above: an indoor
+     * floor is a valid answer, a ceiling is what we are trying to stay under. Never loads a chunk.
+     */
+    @Nullable
+    private static BlockPos findSpotAtLevel(WorldServer world, int bx, int bz, double refY, int maxRadius) {
+        int refBlockY = (int) Math.floor(refY);
+        for (int r = 0; r <= Math.max(0, maxRadius); r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (r > 0 && Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    int x = bx + dx;
+                    int z = bz + dz;
+                    if (!chunkLoaded(world, x, z)) continue;
+                    for (int dy = 0; dy <= SAME_LEVEL_Y_SLACK; dy++) {
+                        int down = refBlockY - 1 - dy;
+                        if (down >= 1 && isSafeFloor(world, x, down, z)) return new BlockPos(x, down + 1, z);
+                        if (dy > 0) {
+                            int up = refBlockY - 1 + dy;
+                            if (isSafeFloor(world, x, up, z)) return new BlockPos(x, up + 1, z);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** A resolved standing spot: the ground column that was picked, and whether it is natural terrain. */
+    public static final class Ground {
+        public final int x, z;
+        public final double y;
+        public final boolean natural;
+
+        Ground(int x, double y, int z, boolean natural) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.natural = natural;
+        }
+    }
+
+    /**
+     * Looks for a column of natural ground at or near (bx, bz), spiralling outward up to
+     * {@code maxRadius}. This is what keeps an entity off rooftops: the top of a building column IS
+     * its roof, so resolving "the surface" there is always wrong, whether or not the Millénaire
+     * building index knew about it. Artificial columns are only used as a last resort (a roof still
+     * beats a cave next to lava). Never loads a chunk.
+     */
+    // How far above the nearest natural ground a man-made surface may still be stood on. Below it the
+    // surface reads as a road / bridge / village square the entity belongs on; above it, as a roof.
+    private static final double ARTIFICIAL_GROUND_TOLERANCE = 2.0;
+
+    @Nullable
+    public static Ground findNaturalGround(WorldServer world, int bx, int bz, int maxRadius) {
+        Ground center = resolveColumn(world, bx, bz);
+        if (center != null && center.natural) return center;
+
+        Ground natural = null;
+        for (int r = 1; r <= Math.max(0, maxRadius) && natural == null; r++) {
+            for (int dx = -r; dx <= r && natural == null; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    Ground g = resolveColumn(world, bx + dx, bz + dz);
+                    if (g != null && g.natural) {
+                        natural = g;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (natural == null) return center;
+        // Man-made but level with the terrain around it (a road, a bridge, a village square, the
+        // ground floor of a house): standing there is coherent, only a roof needs moving off.
+        if (center != null && center.y <= natural.y + ARTIFICIAL_GROUND_TOLERANCE) return center;
+        return natural;
+    }
+
+    /** Resolves one column into a {@link Ground}, or null when it has no usable standing surface. */
+    @Nullable
+    private static Ground resolveColumn(WorldServer world, int x, int z) {
+        if (!chunkLoaded(world, x, z)) return null;
+        double y = columnGroundY(world, x, z);
+        if (Double.isNaN(y)) return null;
+        boolean natural = CampTerrainValidator.isCellNatural(world, new BlockPos(x, (int) y - 1, z));
+        return new Ground(x, y, z, natural);
+    }
+
+    /**
+     * Feet Y of the ground surface of the column at (bx, bz), NaN if the column has none usable.
+     * <p>
+     * Descends from the heightmap through everything an entity can stand in (air, grass, flowers,
+     * torches, tree canopy) and stops at the FIRST block with a real collision box. It deliberately
+     * never keeps descending past that block: doing so is what dropped entities into caves at y≈14,
+     * since a plain "two air blocks above" test fails on any column with a tuft of grass on it.
+     */
+    public static double columnGroundY(WorldServer world, int bx, int bz) {
+        if (!chunkLoaded(world, bx, bz)) return Double.NaN; // never pull a chunk in to answer this
+        int maxY = world.getActualHeight() - 3;
+        int startY = Math.min(maxY, world.getHeight(bx, bz) + 2);
+        for (int y = startY; y > 0; y--) {
+            if (isStandSpace(world, new BlockPos(bx, y, bz))) continue;
+            return isSafeFloor(world, bx, y, bz) ? y + 1.0 : Double.NaN;
         }
         return Double.NaN;
+    }
+
+    /**
+     * True if an entity can occupy this block: air, or anything without a collision box (tall grass,
+     * flowers, torches, crops...). Tree canopy counts too, so the descent passes through it to the
+     * ground below instead of treating a leaf block as a floor.
+     */
+    private static boolean isStandSpace(WorldServer world, BlockPos p) {
+        IBlockState st = world.getBlockState(p);
+        Block b = st.getBlock();
+        if (b.isAir(st, world, p)) return true;
+        if (st.getMaterial().isLiquid() || b instanceof IFluidBlock) return false;
+        if (b instanceof BlockLeaves) return true;
+        return st.getCollisionBoundingBox(world, p) == null;
     }
 
     private static boolean isSafeFloor(WorldServer world, int bx, int y, int bz) {
@@ -319,10 +486,7 @@ public final class MaterializePositionResolver {
         if (TravellersConfig.MATERIALIZATION.avoidHazardLiquids && isHazardBlock(st.getBlock(), st)) {
             return false;
         }
-        IBlockState s1 = world.getBlockState(floor.up());
-        IBlockState s2 = world.getBlockState(floor.up(2));
-        return s1.getBlock().isAir(s1, world, floor.up())
-                && s2.getBlock().isAir(s2, world, floor.up(2));
+        return isStandSpace(world, floor.up()) && isStandSpace(world, floor.up(2));
     }
 
     /** Liquids (vanilla or modded) and any block registry-name-listed as a camp terrain hazard. */
@@ -355,15 +519,52 @@ public final class MaterializePositionResolver {
         int y = (int) Math.floor(spawnY);
         int maxY = world.getActualHeight() - 2;
         for (int i = 0; y + i <= maxY; i++) {
-            BlockPos p1 = new BlockPos(bx, y + i, bz);
-            BlockPos p2 = new BlockPos(bx, y + i + 1, bz);
-            IBlockState s1 = world.getBlockState(p1);
-            IBlockState s2 = world.getBlockState(p2);
-            if (s1.getBlock().isAir(s1, world, p1) && s2.getBlock().isAir(s2, world, p2)) {
+            if (isStandSpace(world, new BlockPos(bx, y + i, bz))
+                    && isStandSpace(world, new BlockPos(bx, y + i + 1, bz))) {
                 return y + i;
             }
         }
         return spawnY;
+    }
+
+    /**
+     * Finds a safe-floor column with standing clearance near {@code (nearX, nearY, nearZ)}, rejecting
+     * any column inside {@code forbidden} (typically a camp shelter's footprint - a horse shouldn't
+     * materialize standing inside a tent). Mirrors {@link #findSpotAtLevel}'s own ring search exactly,
+     * with the added forbidden-box filter. Returns {@code null} if nothing was found within {@code
+     * maxRadius} - callers should fall back to the naive "same spot as whatever it's near" placement
+     * rather than block materialization entirely.
+     */
+    @Nullable
+    public static BlockPos findClearMountSpot(WorldServer world, double nearX, double nearY, double nearZ,
+                                               @Nullable AxisAlignedBB forbidden, int maxRadius) {
+        int cx = MathHelper.floor(nearX);
+        int cz = MathHelper.floor(nearZ);
+        int refY = MathHelper.floor(nearY);
+
+        for (int r = 0; r <= maxRadius; r++) {
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (r > 0 && Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    int x = cx + dx;
+                    int z = cz + dz;
+                    if (forbidden != null && x + 1 > forbidden.minX && x < forbidden.maxX
+                            && z + 1 > forbidden.minZ && z < forbidden.maxZ) {
+                        continue;
+                    }
+                    if (!chunkLoaded(world, x, z)) continue;
+                    for (int dy = 0; dy <= SAME_LEVEL_Y_SLACK; dy++) {
+                        int down = refY - 1 - dy;
+                        if (down >= 1 && isSafeFloor(world, x, down, z)) return new BlockPos(x, down + 1, z);
+                        if (dy > 0) {
+                            int up = refY - 1 + dy;
+                            if (isSafeFloor(world, x, up, z)) return new BlockPos(x, up + 1, z);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     /**

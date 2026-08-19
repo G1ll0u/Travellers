@@ -85,6 +85,10 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgMakeWorkerLeader.Handler.class, MsgMakeWorkerLeader.class, id++, Side.SERVER);
         registerClientOnly(MsgSyncLeaderFollowerCount.class,
                 isClient ? new MsgSyncLeaderFollowerCount.Handler() : new MsgSyncLeaderFollowerCount.NoopHandler());
+        registerClientOnly(
+                com.jubitus.travellers.server.net.message.debug.MsgTraceHud.class,
+                isClient ? new com.jubitus.travellers.server.net.message.debug.MsgTraceHud.Handler()
+                        : new com.jubitus.travellers.server.net.message.debug.MsgTraceHud.NoopHandler());
         CHANNEL.registerMessage(MsgRecruitWorkers.Handler.class, MsgRecruitWorkers.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgRecruitStartSelectedVillages.Handler.class,
                 MsgRecruitStartSelectedVillages.class, id++, Side.SERVER);
@@ -96,7 +100,6 @@ public final class TravellerFollowNet {
                 id++, Side.SERVER);
         CHANNEL.registerMessage(MsgOpenWorkerSubGui.Handler.class,
                 MsgOpenWorkerSubGui.class, id++, Side.SERVER);
-        CHANNEL.registerMessage(MsgWorkerSetHome.Handler.class, MsgWorkerSetHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGoHome.Handler.class, MsgWorkerGoHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerRequestGoList.Handler.class, MsgWorkerRequestGoList.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgWorkerGoTo.Handler.class, MsgWorkerGoTo.class, id++, Side.SERVER);
@@ -173,7 +176,6 @@ public final class TravellerFollowNet {
                 isClient ? new MsgOpenLoneBarrackPrompt.ClientHandler() : new MsgOpenLoneBarrackPrompt.NoopHandler()
         );
         CHANNEL.registerMessage(MsgWorkerGetEquipment.Handler.class, MsgWorkerGetEquipment.class, id++, Side.SERVER);
-        CHANNEL.registerMessage(MsgLeaderSetHome.Handler.class, MsgLeaderSetHome.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgCreateLoneBarrack.Handler.class, MsgCreateLoneBarrack.class, id++, Side.SERVER);
         registerClientOnly(MsgLoneBarrackResult.class,
                 isClient ? new MsgLoneBarrackResult.ClientHandler() : new MsgLoneBarrackResult.NoopHandler());

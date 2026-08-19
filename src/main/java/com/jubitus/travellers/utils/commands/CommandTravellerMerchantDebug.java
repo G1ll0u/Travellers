@@ -1,7 +1,6 @@
 package com.jubitus.travellers.utils.commands;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
-import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -52,10 +51,6 @@ public class CommandTravellerMerchantDebug extends CommandBase {
             return;
         }
 
-        TravellerChunkManager.WorldState ws = TravellerChunkManager.INSTANCE.getWorldState(world);
-        TravellerChunkManager.MerchantData md =
-                TravellerChunkManager.INSTANCE.getMerchantData(world, target.getUniqueID());
-
         BlockPos pos = target.getPosition();
         sender.sendMessage(new TextComponentString(
                 String.format("Merchant %s at (%d, %d, %d) in dim %d",
@@ -88,24 +83,12 @@ public class CommandTravellerMerchantDebug extends CommandBase {
             sender.sendMessage(new TextComponentString("No target village"));
         }
 
-        // chunkloading info
-        if (md != null) {
-            long now = world.getTotalWorldTime();
-            long since = now - md.lastProgressTick;
-            sender.sendMessage(new TextComponentString(
-                    String.format("Chunkloading: %s, radius=%d, last progress %ds ago",
-                            md.chunkloading ? "ON" : "OFF",
-                            md.radius,
-                            since / 20)));
-        } else {
-            sender.sendMessage(new TextComponentString("No merchant data in chunk manager"));
-        }
-
-        if (ws != null) {
-            sender.sendMessage(new TextComponentString(
-                    String.format("World forced chunks for merchants: %d",
-                            ws.forced.size())));
-        }
+        // Whether this merchant is a real entity right now is decided by one thing only: is its own
+        // chunk loaded (see VirtualTravellerManager.isChunkLoaded). Nothing force-loads chunks for it.
+        boolean chunkLoaded = world instanceof net.minecraft.world.WorldServer
+                && com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager.isChunkLoaded(
+                        (net.minecraft.world.WorldServer) world, pos.getX() >> 4, pos.getZ() >> 4);
+        sender.sendMessage(new TextComponentString("Own chunk loaded: " + (chunkLoaded ? "yes" : "no")));
     }
 
     private EntityTravellerMerchant findNearestMerchant(World world, Vec3d from) {

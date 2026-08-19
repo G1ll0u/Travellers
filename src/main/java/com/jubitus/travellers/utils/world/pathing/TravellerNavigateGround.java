@@ -12,6 +12,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.FMLLog;
+import org.apache.logging.log4j.Level;
 
 import javax.annotation.Nullable;
 
@@ -370,6 +372,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
         }
     }
 
+
     private boolean isGapOrHazardBelowWorld(BlockPos below) {
         IBlockState s = this.world.getBlockState(below);
         Material m = s.getMaterial();
@@ -544,6 +547,13 @@ public class TravellerNavigateGround extends PathNavigateGround {
      */
     @Nullable
     private GapJumpResult evaluateJump(double targetX, double targetZ) {
+        // While mounted, the rider's own motionY/motionX impulse below is meaningless - its position
+        // is overwritten by the horse's every tick regardless. TravellerMountSupport.tickMountedNavigation
+        // drives the horse's own jump instead, sized off that specific horse's jump-strength attribute.
+        if (this.entity instanceof com.jubitus.travellers.entity.travellers.EntityTraveller
+                && ((com.jubitus.travellers.entity.travellers.EntityTraveller) this.entity).isMountedOnBondedMount()) {
+            return null;
+        }
         if (!this.entity.onGround || this.entity.isInWater() || this.entity.isInLava()) {
             debugJump("skip: onGround=%b inWater=%b inLava=%b", this.entity.onGround, this.entity.isInWater(), this.entity.isInLava());
             return null;

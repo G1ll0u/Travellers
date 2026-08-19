@@ -45,51 +45,6 @@ public final class MillControlledVillageHelper {
         return result;
     }
 
-    public static List<Building> getBarracksInControlledVillages(World world, EntityPlayer player) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null || wd.villagesList == null) return Collections.emptyList();
-
-        List<Building> result = new ArrayList<>();
-        for (Point p : wd.villagesList.pos) {
-            Building townHall = wd.getBuilding(p);
-            if (townHall == null || !townHall.isTownhall || !townHall.controlledBy(player)) continue;
-            result.addAll(townHall.getBuildingsWithTag("barracks"));
-        }
-        return result;
-    }
-
-    @Nullable
-    public static Building findBarracksAtPos(World world, EntityPlayer player, BlockPos pos) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null || wd.villagesList == null) return null;
-
-        for (Point vp : wd.villagesList.pos) {
-            Building townHall = wd.getBuilding(vp);
-            if (townHall == null || !townHall.isTownhall || !townHall.controlledBy(player)) continue;
-            for (Building b : townHall.getBuildingsWithTag("barracks")) {
-                if (toBlockPos(b.getPos()).equals(pos)) return b;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Check if a barracks building at the given position still exists in any controlled village
-     * (used during respawn when the owner may be offline).
-     */
-    public static boolean barracksBuildingExistsAnywhere(World world, BlockPos pos) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null || wd.villagesList == null) return true; // can't verify, assume still there
-        for (Point vp : wd.villagesList.pos) {
-            Building townHall = wd.getBuilding(vp);
-            if (townHall == null || !townHall.isTownhall) continue;
-            for (Building b : townHall.getBuildingsWithTag("barracks")) {
-                if (toBlockPos(b.getPos()).equals(pos)) return true;
-            }
-        }
-        return false;
-    }
-
     public static void invalidateCache(UUID playerId) {
         CHIEF_CACHE.remove(playerId);
     }

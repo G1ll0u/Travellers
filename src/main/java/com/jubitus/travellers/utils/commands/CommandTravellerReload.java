@@ -19,7 +19,7 @@ public class CommandTravellerReload extends net.minecraft.command.CommandBase {
     public void execute(net.minecraft.server.MinecraftServer server,
                         net.minecraft.command.ICommandSender sender,
                         String[] args) throws net.minecraft.command.CommandException {
-        JubiConfig.applyOnStartup("travellers");
+        JubiConfig.applyOnStartup();
         TravellersDerivedConfig.refresh();
         TravellersDerivedConfig.applyRuntimeEffects();
         TravellersDerivedConfig.syncServerCostCachesFromConfig();

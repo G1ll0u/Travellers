@@ -1,7 +1,9 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLivingBase;
@@ -63,17 +65,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             if (!canSee && !near) return false;
         }
 
-        AxisAlignedBB bb = tgt.getEntityBoundingBox();
-        double gapXZSq = gapToAABB_XZ_Sq(this.attacker, bb);
-
-        double myFeet = this.attacker.posY;
-        double myHead = this.attacker.posY + this.attacker.height;
-        double vGap = 0.0D;
-        if (myHead < bb.minY) vGap = bb.minY - myHead;
-        else if (myFeet > bb.maxY) vGap = myFeet - bb.maxY;
-
-        double reachSq = this.getAttackReachSqr(tgt);
-        boolean inReach = (gapXZSq <= (reachSq * 1.35D)) && (vGap <= 2.0D);
+        boolean inReach = isInReach(tgt, 1.35D);
 
         if (attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
@@ -85,7 +77,71 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
         if (inReach) return true;
 
+        WorkerAttitude attitude = attitudeOf();
+        if (attitude != WorkerAttitude.ATTACK && !withinTether(tgt)) return false;
+
         return isPathAreaLoaded(tgt, 24);
+    }
+
+    /** Group posture for this attacker - always ATTACK for anything that isn't a hired worker. */
+    private WorkerAttitude attitudeOf() {
+        return (attacker instanceof EntityTravellerWorker)
+                ? ((EntityTravellerWorker) attacker).getCachedAttitude()
+                : WorkerAttitude.ATTACK;
+    }
+
+    /**
+     * DEFEND/HOLD tether: refuses to chase a target beyond a short leash instead of freezing in
+     * place the moment it's out of strict melee reach - a HOLD archer that's rushed still needs to
+     * take a few real steps to cut the intruder down (standing dead still while both sides shuffle
+     * for the last half-block of reach just looks like jittering), it just returns to formation
+     * afterward once the follow AI reclaims control.
+     * <p>
+     * DEFEND is anchored to the group's current leader/owner position (a moving anchor - the group
+     * can keep advancing while still holding its ground against distant threats).
+     * HOLD is anchored to the worker's OWN current formation slot (a much tighter, per-worker leash)
+     * so "hold the line" archers only ever break rank far enough to deal with whoever breached it.
+     */
+    private boolean withinTether(EntityLivingBase tgt) {
+        if (!(attacker instanceof EntityTravellerWorker)) return true;
+        EntityTravellerWorker w = (EntityTravellerWorker) attacker;
+
+        double anchorX;
+        double anchorZ;
+        double radius;
+        if (w.getCachedAttitude() == WorkerAttitude.HOLD) {
+            if (w.hasFollowerSlotGoal()) {
+                anchorX = w.getFollowerSlotGoalX();
+                anchorZ = w.getFollowerSlotGoalZ();
+            } else {
+                anchorX = attacker.posX;
+                anchorZ = attacker.posZ;
+            }
+            radius = TravellersConfig.COMBAT.holdBreakRadius;
+        } else {
+            EntityLivingBase anchor = w.getEffectiveFollowTarget();
+            anchorX = anchor != null ? anchor.posX : attacker.posX;
+            anchorZ = anchor != null ? anchor.posZ : attacker.posZ;
+            radius = TravellersConfig.COMBAT.defendTetherRadius;
+        }
+
+        double dx = tgt.posX - anchorX;
+        double dz = tgt.posZ - anchorZ;
+        return dx * dx + dz * dz <= radius * radius;
+    }
+
+    private boolean isInReach(EntityLivingBase tgt, double reachFudge) {
+        AxisAlignedBB bb = tgt.getEntityBoundingBox();
+        double gapXZSq = gapToAABB_XZ_Sq(this.attacker, bb);
+
+        double myFeet = this.attacker.posY;
+        double myHead = this.attacker.posY + this.attacker.height;
+        double vGap = 0.0D;
+        if (myHead < bb.minY) vGap = bb.minY - myHead;
+        else if (myFeet > bb.maxY) vGap = myFeet - bb.maxY;
+
+        double reachSq = this.getAttackReachSqr(tgt);
+        return (gapXZSq <= (reachSq * reachFudge)) && (vGap <= 2.0D);
     }
 
     @Override
@@ -117,6 +173,11 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             if (t.hasBowInBackpackPublic() && d2 > meleeHoldSq) {
                 return false;
             }
+        }
+
+        WorkerAttitude attitude = attitudeOf();
+        if (attitude != WorkerAttitude.ATTACK && !isInReach(tgt, 1.35D) && !withinTether(tgt)) {
+            return false;
         }
 
         // Ne plus couper l'AI juste parce que le nav a perdu son path un instant

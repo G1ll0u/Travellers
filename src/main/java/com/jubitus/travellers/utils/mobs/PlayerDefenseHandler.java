@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.mobs;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.Entity;
@@ -8,7 +9,6 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.world.EnumDifficulty;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -25,7 +25,7 @@ public final class PlayerDefenseHandler {
 
         EntityPlayer player = (EntityPlayer) event.getEntityLiving();
         if (player.world.isRemote) return; // server only
-        if (player.world.getDifficulty() == EnumDifficulty.PEACEFUL) return;
+        if (TravellersDerivedConfig.isPeacefulBlocked(player.world)) return;
 
         Entity src = event.getSource().getTrueSource();
         if (!(src instanceof EntityLivingBase)) return;   // ignore non-entity damage

@@ -1,9 +1,13 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
 import com.google.common.base.Predicate;
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
+import net.minecraft.util.math.AxisAlignedBB;
+
+import java.util.List;
 
 /**
  * Throttled version of EntityAINearestAttackableTarget for workers.
@@ -63,13 +67,58 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
         int scanPriority = boosted ? 2 : 0;
         if (!CombatTargetScanScheduler.tryAcquire(worker.world, worker.getEntityId(), scanPriority)) return false;
 
+        boolean found;
         if (boosted) {
+            found = false;
             for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {
-                if (super.shouldExecute()) return true;
+                if (super.shouldExecute()) { found = true; break; }
             }
-            return false;
+        } else {
+            found = super.shouldExecute();
         }
 
-        return super.shouldExecute();
+        if (found) preferTargetNearOwner();
+        return found;
+    }
+
+    /**
+     * Escorts guard the player/leader, not just themselves: if a valid target is standing
+     * meaningfully closer to the worker's owner/leader than the one vanilla's nearest-to-self sort
+     * picked, engage that one instead. Bounded to one small extra AABB query, only when a target
+     * was already found and the worker isn't already right next to its owner (nothing to gain).
+     */
+    private void preferTargetNearOwner() {
+        if (!worker.isHiredFollower() || targetEntity == null) return;
+
+        EntityLivingBase owner = worker.getEffectiveFollowTarget();
+        if (owner == null || owner == worker) return;
+
+        double followerToOwnerSq = worker.getDistanceSq(owner);
+        if (followerToOwnerSq < 4.0D * 4.0D) return;
+
+        double radius = TravellersConfig.COMBAT.escortOwnerPriorityRadius;
+        if (radius <= 0.0D) return;
+
+        AxisAlignedBB box = owner.getEntityBoundingBox().grow(radius, 6.0D, radius);
+        List<T> nearOwner = worker.world.getEntitiesWithinAABB(targetClass, box, targetEntitySelector);
+        if (nearOwner.isEmpty()) return;
+
+        double currentDistToOwnerSq = owner.getDistanceSq(targetEntity);
+        T best = null;
+        double bestDistSq = currentDistToOwnerSq;
+
+        for (T candidate : nearOwner) {
+            double d = owner.getDistanceSq(candidate);
+            if (d < bestDistSq) {
+                bestDistSq = d;
+                best = candidate;
+            }
+        }
+
+        // Only switch when meaningfully closer to the owner - avoids flip-flopping between two
+        // near-equal candidates every scan.
+        if (best != null && bestDistSq < currentDistToOwnerSq - 4.0D) {
+            targetEntity = best;
+        }
     }
 }

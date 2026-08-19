@@ -2,7 +2,6 @@ package com.jubitus.travellers.client.render;
 
 import com.jubitus.travellers.client.render.backpack.BackpackStyles;
 import com.jubitus.travellers.entity.travellers.*;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerDog;
 import net.minecraftforge.fml.client.registry.RenderingRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -15,9 +14,6 @@ public class ClientProxy {
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerRaider.class, RenderTraveller::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerMerchant.class, RenderTraveller::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerWorker.class, RenderTraveller::new);
-
-        RenderingRegistry.registerEntityRenderingHandler(EntityTravellerDog.class, manager ->
-                new net.minecraft.client.renderer.entity.RenderWolf(manager));
 
         BackpackStyles.registerAll();
     }

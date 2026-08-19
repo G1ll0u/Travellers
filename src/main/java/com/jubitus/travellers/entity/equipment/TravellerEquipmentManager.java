@@ -280,6 +280,34 @@ public class TravellerEquipmentManager {
         return checkGhostTag(s, GHOST_BLOCK_TAG);
     }
 
+    public ItemStack makeGhostRod(ItemStack src) {
+        return tagGhost(src, GHOST_ROD_TAG);
+    }
+
+    public boolean isGhostRod(ItemStack s) {
+        return checkGhostTag(s, GHOST_ROD_TAG);
+    }
+
+    /** True for any of the 5 ghost-tagged visual copies (sword, bow, torch, block, fishing rod). */
+    public boolean isGhost(ItemStack s) {
+        return isGhostWeapon(s) || isGhostBow(s) || isGhostTorch(s) || isGhostBlock(s) || isGhostRod(s);
+    }
+
+    /**
+     * Clears every equipment slot still holding a ghost-tagged visual copy. Call before any vanilla
+     * or custom drop logic runs (e.g. at the top of {@code onDeath}) so ghost copies — which carry no
+     * attribute modifiers — never get dropped as if they were the real item.
+     */
+    public void purgeGhostItems() {
+        if (entity.world.isRemote) return;
+        for (EntityEquipmentSlot slot : EntityEquipmentSlot.values()) {
+            ItemStack s = entity.getItemStackFromSlot(slot);
+            if (!s.isEmpty() && isGhost(s)) {
+                entity.setItemStackToSlot(slot, ItemStack.EMPTY);
+            }
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Backpack / inventory queries
     // -------------------------------------------------------------------------
@@ -391,6 +419,21 @@ public class TravellerEquipmentManager {
             if (fallback.isEmpty()) fallback = c.randomBow(r);
             if (fallback.isEmpty()) fallback = new ItemStack(Items.STONE_SWORD);
             entity.setItemStackToSlot(EntityEquipmentSlot.MAINHAND, fallback);
+        }
+
+        applyConfiguredDropChances();
+    }
+
+    /**
+     * Applies {@link TravellersConfig.Equipment#equipmentDropChance} to every armor/hand slot, so the
+     * vanilla on-death drop roll ({@code EntityLiving#dropEquipment}) is config-driven instead of
+     * permanently stuck at vanilla's own 0.085 default. No-op for entities (e.g. workers) that
+     * override {@code dropEquipment} and don't use vanilla's per-slot chance at all.
+     */
+    private void applyConfiguredDropChances() {
+        float chance = TravellersConfig.EQUIPMENT.equipmentDropChance;
+        for (EntityEquipmentSlot slot : EntityEquipmentSlot.values()) {
+            entity.setDropChance(slot, chance);
         }
     }
 
@@ -578,8 +621,8 @@ public class TravellerEquipmentManager {
      */
     public void dropBackpackLoot() {
         if (entity.world.isRemote || entity.inventory == null) return;
-        final float DROP_CHANCE = 0.30f;
-        final int MAX_DROPS = 2;
+        final float dropChance = TravellersConfig.EQUIPMENT.backpackDropChance;
+        final int maxDrops = TravellersConfig.EQUIPMENT.backpackMaxDrops;
 
         int n = entity.inventory.getSlots();
         List<Integer> slots = new ArrayList<>(n);
@@ -588,10 +631,10 @@ public class TravellerEquipmentManager {
 
         int dropped = 0;
         for (int slot : slots) {
-            if (dropped >= MAX_DROPS) break;
+            if (dropped >= maxDrops) break;
             ItemStack s = entity.inventory.getStackInSlot(slot);
             if (s.isEmpty()) continue;
-            if (entity.getRNG().nextFloat() < DROP_CHANCE) {
+            if (entity.getRNG().nextFloat() < dropChance) {
                 EntityItem item = new EntityItem(entity.world, entity.posX, entity.posY + 0.5, entity.posZ, s.copy());
                 item.motionX = (entity.getRNG().nextDouble() - 0.5) * 0.1;
                 item.motionY = 0.1;

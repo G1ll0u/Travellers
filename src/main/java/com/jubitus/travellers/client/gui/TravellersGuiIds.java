@@ -3,7 +3,6 @@ package com.jubitus.travellers.client.gui;
 public final class TravellersGuiIds {
     public static final int WORKER = 1;
     public static final int WORKER_HUB = 11;
-    public static final int WORKER_ORDERS = 12;
     public static final int WORKER_INV = 13;
     public static final int WORKER_RECRUIT = 123;
     public static final int WORKER_BEHAVIOR = 124;

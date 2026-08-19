@@ -93,6 +93,15 @@ public class EntityTravellerWorker extends EntityTraveller {
     private long followerSlotGoalTick = 0L;
     private int followerIdleSettleTicks = 0;
     private int cachedGroupSize = 1;
+    /**
+     * Group combat posture, refreshed once/sec from WorkerFormationSavedData (see onLivingUpdate's
+     * ticksExisted%20 block) — the single cheap read path for combat AI, never read the saved data
+     * directly from per-tick code.
+     */
+    private com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude cachedAttitude =
+            com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude.ATTACK;
+    /** See {@link #cachedAttitude} - same refresh cadence, same reasoning. */
+    private double cachedPlayerCohesion = 0.4D;
 
     private static final int IDLE_LOOK_STALE_GOAL_TICKS = 40; // 2 seconds
     private static final double IDLE_LOOK_SLOT_RADIUS = 4.1D; // roughly matches follow AI idle stop band
@@ -185,7 +194,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType assignedHomeType =
             com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
     boolean goingHome = false;
-    private int barracksFindCooldown = 0;
     private int anchorScanCooldown = 0;
     // --- dynamic owner catchup goal ---
     private BlockPos cachedCatchupGoal = null;
@@ -585,58 +593,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return assignedHomeType;
     }
 
-    /**
-     * True if this hired worker has no barracks assignment tracked in BarracksSlotManager.
-     * Workers without a barracks cannot respawn after death.
-     */
-    public boolean isWorkerHomeless() {
-        if (world.isRemote || !hiredFollower) return false;
-        if (assignedHomePos == null
-                || assignedHomeType != com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS) {
-            return true;
-        }
-        if (world instanceof net.minecraft.world.WorldServer) {
-            return !com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(world).isWorkerRegistered(this.getUniqueID());
-        }
-        return false;
-    }
-
-    /** Try to find and assign the nearest barracks with a free slot. Warns the owner if none available. */
-    private void tryAutoAssignBarracks(net.minecraft.entity.player.EntityPlayer owner) {
-        if (!com.jubitus.travellers.config.TravellersConfig.WORKER.autoAssignWorkersToBarracks) return;
-        if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return;
-        if (!isWorkerHomeless()) return;
-
-        java.util.List<org.millenaire.common.village.Building> liveBarracks =
-                com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper
-                        .getBarracksInControlledVillages(world, owner);
-
-        com.jubitus.travellers.utils.world.mill.BarracksSlotManager bsm =
-                com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(world);
-
-        net.minecraft.util.math.BlockPos nearest = bsm.findNearestFreeBarracks(
-                owner.getUniqueID(), world.provider.getDimension(), posX, posZ, liveBarracks);
-
-        if (nearest == null) {
-//            if (owner instanceof net.minecraft.entity.player.EntityPlayerMP) {
-//                owner.sendMessage(new net.minecraft.util.text.TextComponentString(
-//                        net.minecraft.util.text.TextFormatting.YELLOW + getName()
-//                                + " has no available barracks. Build a Workers Barracks to house them!"));
-//            }
-            return;
-        }
-
-        org.millenaire.common.village.Building b =
-                com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper
-                        .findBarracksAtPos(world, owner, nearest);
-        String bName = (b != null && b.location != null && b.location.getIBuildingPlan() != null)
-                ? b.location.getIBuildingPlan().getNativeName() : "Workers Barracks";
-
-        bsm.assignWorker(owner.getUniqueID(), nearest, world.provider.getDimension(), bName, this.getUniqueID());
-        this.setAssignedHome(nearest, world.provider.getDimension(), bName,
-                com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS);
-    }
-
     public FollowMode getActiveFollowMode() {
         return activeFollowMode;
     }
@@ -926,14 +882,12 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Override
     protected void dropEquipment(boolean wasRecentlyHit, int lootingModifier) {
-        // Consolidate real items from entity slots into inventory before drop
+        // Consolidate real items from entity slots into inventory before drop. Ghost items were
+        // already purged by EntityTraveller.onDeath, so every remaining stack here is real.
         for (net.minecraft.inventory.EntityEquipmentSlot slot : net.minecraft.inventory.EntityEquipmentSlot.values()) {
             ItemStack s = getItemStackFromSlot(slot);
             if (s.isEmpty()) continue;
-            boolean ghost = equipment.isGhostWeapon(s) || equipment.isGhostBow(s) || equipment.isGhostTorch(s);
-            if (!ghost) {
-                net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, s.copy(), false);
-            }
+            net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, s.copy(), false);
             setItemStackToSlot(slot, ItemStack.EMPTY);
         }
         // Vanilla dropEquipment is suppressed; everything goes through dropLoot → dropInventoryFull
@@ -941,8 +895,12 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Override
     protected void dropLoot(boolean wasRecentlyHit, int lootingModifier, DamageSource source) {
-        super.dropLoot(wasRecentlyHit, lootingModifier, source); // random loot + dropBackpackLoot(inventory)
-        equipment.dropInventoryFull(inventory);      // remaining worker items (weapons, armor, loot)
+        // A hired worker always drops everything it's carrying (own stakes, no random gate) — skip
+        // EntityTraveller.dropLoot's dropBackpackLoot() pass entirely, since dropInventoryFull below
+        // would drop whatever survives it anyway.
+        dropFewItems(wasRecentlyHit, lootingModifier);
+        dropEquipment(wasRecentlyHit, lootingModifier);
+        equipment.dropInventoryFull(inventory);
         equipment.dropInventoryFull(travelInventory);
     }
 
@@ -1038,6 +996,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Server-side: register/update this worker as a chunkloader
         if (!world.isRemote) {
             if ((this.ticksExisted % 20) == 0) { // once per second
+                refreshCachedAttitude();
+
                 EntityLivingBase tgt = this.getAttackTarget();
                 if (tgt instanceof EntityPlayer) {
                     if (!this.isEnemyPlayer((EntityPlayer) tgt)) {
@@ -1060,16 +1020,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
             tickVirtualLeaderFollow();
 
-            // Periodic homeless check: try to find a barracks if we don't have one
-            if (isHiredFollower() && TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) {
-                if (--barracksFindCooldown <= 0) {
-                    barracksFindCooldown = 20 * 60 * 5; // every 5 minutes
-                    if (isWorkerHomeless() && followOwnerId != null) {
-                        EntityPlayer owner = world.getPlayerEntityByUUID(followOwnerId);
-                        if (owner != null) tryAutoAssignBarracks(owner);
-                    }
-                }
-            }
 // Update leader follower count every 5s. world.getEntities() is not cheap at 500 workers.
             if (--leaderCountCooldown <= 0) {
                 leaderCountCooldown = 100;
@@ -1077,13 +1027,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 equipment.syncEquipmentFromInventory();
             }
 
-            // Workers used to self-force their own chunk here (TravellerChunkManager.onChunkloaderTick)
-            // to stay loaded while walking a mission. Removed: materialize/virtualize is now driven by
-            // whether the ground chunk is genuinely loaded (VirtualTravellerManager), and a worker
-            // permanently forcing its own chunk would never be seen as "unneeded" and could never
-            // virtualize again. A worker that outruns loaded chunks now hands off to the offscreen
-            // simulation via EntityAITravel's stuck-at-edge rescue instead (see
-            // EntityTraveller.tryVirtualizeStuckAtEdge()).
             updateDynamicNavigation();
             tickFollowerIdleBehaviour();
             tickStayAtIdleAnchor(); // NEW
@@ -1490,10 +1433,18 @@ public class EntityTravellerWorker extends EntityTraveller {
         // 3) Normal idle interaction → open HUB GUI (Transport / Follow)
         if (!this.isInCombat()) {
             if (player instanceof EntityPlayerMP) {
+                // Same two syncs as the HUB case of MsgOpenWorkerSubGui: the hub displays the hire
+                // state and the authoritative follower count as soon as it opens.
+                TravellerFollowNet.CHANNEL.sendTo(
+                        new com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState(this),
+                        (EntityPlayerMP) player
+                );
                 TravellerFollowNet.CHANNEL.sendTo(
                         new MsgOpenClientWorkerGui(this.getEntityId(), MsgOpenClientWorkerGui.Type.HUB),
                         (EntityPlayerMP) player
                 );
+                com.jubitus.travellers.server.group.WorkerGroupService.syncLeaderFollowerCount(
+                        (EntityPlayerMP) player, this.getUniqueID());
             }
         }
         return true;
@@ -1503,7 +1454,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
             clearLeaderFromLoadedEscortsOnDeath();
-            TravellerChunkManager.INSTANCE.untrackChunkloader(this);
             setFollowOrderActive(false);
 
             if (homeVillageCenter != null && world instanceof WorldServer) {
@@ -1533,26 +1483,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 com.jubitus.travellers.notify.BattleSummary summary = new com.jubitus.travellers.notify.BattleSummary(
                         this.getPosition(), world.provider.getDimension(), casualties, java.util.Collections.emptyList());
                 NotificationService.notifyEventOfflineRaw(world.getMinecraftServer(), followOwnerId, i18nKey, summary, deathArgs);
-            }
-
-            // Barracks respawn handling
-            if (hiredFollower && followOwnerId != null
-                    && assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS
-                    && assignedHomePos != null
-                    && TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
-                try {
-                    NBTTagCompound nbt = new NBTTagCompound();
-                    writeToNBT(nbt);
-                    stripInventoryNbt(nbt);
-                    com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(world)
-                            .scheduleRespawn(followOwnerId, this.getUniqueID(), assignedHomePos, assignedHomeDim, nbt);
-                } catch (Exception e) {
-                    System.err.println("[Travellers] Failed to schedule barracks respawn: " + e.getMessage());
-                }
-            } else if (hiredFollower
-                    && assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS) {
-                // Has barracks but respawn disabled or no owner: free the slot
-                com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(world).unassignWorker(this.getUniqueID());
             }
 
             // Lone barrack bed respawn handling
@@ -2389,10 +2319,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.idleAnchorPos = null;
 
         this.getNavigator().clearPath();
-
-        if (!world.isRemote) {
-            tryAutoAssignBarracks(owner);
-        }
     }
 
     public void dismissFollower() {
@@ -2411,10 +2337,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                     WorkerOwnerVisualsSavedData.DEFAULT_COLOR,
                     WorkerOwnerVisualsSavedData.DEFAULT_STYLE
             );
-            // Free barracks slot on dismiss
-            if (assignedHomeType == com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.BARRACKS) {
-                com.jubitus.travellers.utils.world.mill.BarracksSlotManager.get(world).unassignWorker(this.getUniqueID());
-            }
         }
     }
 
@@ -2656,6 +2578,40 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
         }
         return getFollowOwner();
+    }
+
+    /** Refreshes {@link #cachedAttitude}/{@link #cachedPlayerCohesion} from the scope this worker
+     * currently follows - see their field docs for why combat/follow AI reads the cache instead of
+     * the saved data directly. */
+    private void refreshCachedAttitude() {
+        if (!isHiredFollower()) {
+            cachedAttitude = com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude.ATTACK;
+            cachedPlayerCohesion = 0.4D;
+            return;
+        }
+        // A worker that leads its own group is scoped to ITSELF (its group's settings live under
+        // its own UUID, set from the Hub entry for that leader) - resolving via
+        // getEffectiveFollowTarget() would instead chase up to whoever THIS worker happens to be
+        // following (usually the player, or another leader in a leader-follows-leader chain), which
+        // is a different group's settings entirely. isVisualLeader() is the same cheap loaded-only
+        // "do I have followers" signal already used for the armband texture - fine here too, this is
+        // just an AI-behaviour heuristic, not authoritative state.
+        com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey scope = isVisualLeader()
+                ? new com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey(
+                        com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey.Type.WORKER,
+                        getUniqueID())
+                : com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeResolver
+                        .resolveRuntimeScope(getEffectiveFollowTarget());
+        if (scope == null) {
+            cachedAttitude = com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude.ATTACK;
+            cachedPlayerCohesion = 0.4D;
+            return;
+        }
+        com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings settings =
+                com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSavedData
+                        .get(world).getSettings(scope);
+        cachedAttitude = settings.attitude;
+        cachedPlayerCohesion = settings.playerCohesion;
     }
 
     private void tickStayAtIdleAnchor() {
@@ -3174,6 +3130,18 @@ public class EntityTravellerWorker extends EntityTraveller {
         return null;
     }
 
+    /**
+     * A worker's destination is almost never a travel route - it is a mission target, a Go order, an
+     * escort leader or its owner. {@link #getVirtualGoal()} already resolves exactly that, in the same
+     * precedence order the offscreen simulation uses, so the edge probe reuses it rather than
+     * re-deriving a second, potentially disagreeing answer.
+     */
+    @Override
+    @Nullable
+    protected BlockPos getEdgeProbeGoal() {
+        return getVirtualGoal();
+    }
+
     public boolean canVirtualize() {
         return !isInCombat() && canVirtualizeIgnoringCombat();
     }
@@ -3182,7 +3150,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     public boolean canVirtualizeIgnoringCombat() {
         if (isDead) return false;
         if (isHandActive()) return false;
-        if (isRiding()) return false;
+        // A bonded mount comes along into virtualization (see VirtualTravellerManager); any other
+        // ride (boat, someone else's horse) still blocks, same as before.
+        if (isRiding() && !isMountedOnBondedMount()) return false;
         if (awaitingPickup) return false;
         if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null) {
             if (getDistanceSqToCenter(jobVillageCenter) < 48.0 * 48.0) return false;
@@ -3352,6 +3322,14 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public int getCachedGroupSize() { return cachedGroupSize; }
     public void setCachedGroupSize(int size) { cachedGroupSize = Math.max(1, size); }
+
+    public com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude getCachedAttitude() {
+        return cachedAttitude;
+    }
+
+    public double getCachedPlayerCohesion() {
+        return cachedPlayerCohesion;
+    }
 
     // Optional: call this from packets after assign/clear for instant UI update
     public void forceRefreshLeaderCount() {
@@ -3586,6 +3564,8 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         net.minecraft.util.math.BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
         if (leaderPos == null) return;
+        com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord leaderRecord =
+                vwm.getRecord(leaderId);
 
         // Stagger initial cooldown by entity ID so workers don't all repath on the same tick.
         // resolvePhysicalFollowerGoal below is O(followers-of-this-leader) per call (dense-rank
@@ -3606,6 +3586,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 com.jubitus.travellers.utils.world.pathing.offscreen.VirtualFormationSimulator.resolvePhysicalFollowerGoal(
                         serverWorld, vwm.getAllRecords(), leaderId,
                         leaderPos.getX() + 0.5, leaderPos.getY(), leaderPos.getZ() + 0.5,
+                        leaderRecord != null ? leaderRecord.rotYaw : 0.0f,
                         getUniqueID(), world.getTotalWorldTime());
 
         double slotDx = slotPos.getX() + 0.5 - posX;
@@ -4005,12 +3986,13 @@ public class EntityTravellerWorker extends EntityTraveller {
                 }
             }
 
-            if (nbt.hasKey("HomeX")) {
+            // HomeType 1 = removed Millenaire barracks building: drop the home, it is no longer valid
+            boolean legacyBarracksHome = nbt.getInteger("HomeType") == 1;
+            if (nbt.hasKey("HomeX") && !legacyBarracksHome) {
                 assignedHomePos = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
                 assignedHomeDim = nbt.getInteger("HomeDim");
                 assignedHomeName = nbt.getString("HomeName");
-                assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType
-                        .fromNbt(nbt.hasKey("HomeType") ? nbt.getInteger("HomeType") : 0);
+                assignedHomeType = com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
             } else {
                 assignedHomePos = null;
                 assignedHomeDim = 0;

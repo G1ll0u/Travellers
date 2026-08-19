@@ -5,7 +5,6 @@ import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
-import com.jubitus.travellers.client.gui.orders.GuiWorkerOrders;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
@@ -61,7 +60,6 @@ public class MsgOpenClientWorkerGui implements IMessage {
 
     public enum Type {
         HUB,
-        ORDERS,
         RECRUIT,
         BEHAVIOR,
         GO,
@@ -84,14 +82,6 @@ public class MsgOpenClientWorkerGui implements IMessage {
                         Entity e = world.getEntityByID(msg.entityId);
                         if (e instanceof EntityTravellerWorker) {
                             mc.displayGuiScreen(new GuiWorkerHub(player, (EntityTravellerWorker) e));
-                        }
-                        return;
-                    }
-
-                    case ORDERS: {
-                        Entity e = world.getEntityByID(msg.entityId);
-                        if (e instanceof EntityTravellerWorker) {
-                            mc.displayGuiScreen(new GuiWorkerOrders(player, (EntityTravellerWorker) e));
                         }
                         return;
                     }

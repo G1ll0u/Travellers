@@ -1,6 +1,7 @@
 package com.jubitus.travellers.utils.world.spawn;
 
 import com.jubitus.travellers.Tags;
+import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
@@ -333,18 +334,18 @@ public final class TravellerSoftSpawner {
     }
 
     /**
-     * Picks a random index within [loFrac, hiFrac) of a route's length — shared "spawn already on your
-     * way" logic used by travellers/raiders (a wide window across their whole journey) and workers
-     * (a narrow window near home) alike, so nothing spawns clumped exactly at either endpoint.
-     * Falls back to index 0 if the route is too short for the requested window.
+     * Picks a random point in a ring [minDist, maxDist] around a settlement — shared dissemination
+     * logic for travellers/raiders/workers, so a freshly discovered village/lone building never shows
+     * its population clumped on top of it. XZ only; Y is resolved separately (see resolveVirtualSpawnY).
      */
-    private static int pickDispersedIndex(Random rand, int routeSize, float loFrac, float hiFrac) {
-        if (routeSize <= 1) return 0;
-        int lo = (int) (routeSize * loFrac);
-        int hi = (int) (routeSize * hiFrac);
-        if (hi <= lo) hi = Math.min(routeSize, lo + 1);
-        if (lo >= hi) return 0;
-        return lo + rand.nextInt(hi - lo);
+    private static BlockPos pickRingPoint(Random rand, BlockPos center, int minDist, int maxDist) {
+        int lo = Math.max(0, minDist);
+        int hi = Math.max(lo, maxDist);
+        double angle = rand.nextDouble() * Math.PI * 2.0;
+        int dist = hi <= lo ? lo : lo + rand.nextInt(hi - lo + 1);
+        int x = center.getX() + (int) Math.round(Math.cos(angle) * dist);
+        int z = center.getZ() + (int) Math.round(Math.sin(angle) * dist);
+        return new BlockPos(x, center.getY(), z);
     }
 
     /**
@@ -387,13 +388,41 @@ public final class TravellerSoftSpawner {
         if (candidates.isEmpty()) return 0;
         BlockPos dest = candidates.get(ws.rand.nextInt(candidates.size()));
 
-        // Build the full route from home to destination
+        boolean isRaider = "RAIDER".equals(entityClass);
+
+        // Disperse the spawn point in a ring around the HOME settlement instead of along the route to
+        // the destination — a village/lone building discovered "at the frontier" must not show its
+        // whole population clustered on top of it just because the rolled destination happened to be
+        // close by. The entity then travels from this dispersed point onward to its destination.
+        int minDist = isRaider ? TravellersConfig.SPAWN_RAIDERS.raiderSpawnMinDistanceFromHome
+                : TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnMinDistanceFromHome;
+        int maxDist = isRaider ? TravellersConfig.SPAWN_RAIDERS.raiderSpawnMaxDistanceFromHome
+                : TravellersConfig.SPAWN_TRAVELLERS.travellerSpawnMaxDistanceFromHome;
+        BlockPos ringPoint = pickRingPoint(ws.rand, homeVillage, minDist, maxDist);
+
+        // Resolve Y: use real terrain surface if chunk is loaded, otherwise keep waypoint Y or use 64
+        BlockPos spawnPos = resolveVirtualSpawnY(ws, ringPoint);
+
+        // Never land on/near ANY settlement — village or lone building, home, destination, or an
+        // unrelated one the ring roll happened to land close to.
+        int avoidRadius = TravellersConfig.SPAWN.spawnSettlementAvoidanceRadius;
+        if (MillVillageIndex.isNearAnySettlement(ws, spawnPos, avoidRadius)) {
+            if (TravellersConfig.OFFSCREEN.populationDebugLog) {
+                FMLLog.log(Level.INFO,
+                        "[Travellers/Population] %s spawn vetoed at %s (within %d blocks of a settlement)",
+                        entityClass, spawnPos, avoidRadius);
+            }
+            return 0;
+        }
+
+        // Build the route from the dispersed spawn point onward to destination — never from home,
+        // or the entity would need to backtrack to a waypoint it isn't standing on.
         List<BlockPos> fullRoute = new ArrayList<>();
         boolean useRoads = MPBIntegration.PRESENT
-                && (!"RAIDER".equals(entityClass) || TravellersConfig.SPAWN_RAIDERS.raidersUseUltreiaPaths);
+                && (!isRaider || TravellersConfig.SPAWN_RAIDERS.raidersUseUltreiaPaths);
         if (useRoads) {
             List<BlockPos> mpbRoute = MPBIntegration.findRoadRoute(
-                    ws, homeVillage.getX(), homeVillage.getZ(), dest.getX(), dest.getZ(), 48);
+                    ws, spawnPos.getX(), spawnPos.getZ(), dest.getX(), dest.getZ(), 48);
             if (mpbRoute != null && !mpbRoute.isEmpty()) {
                 fullRoute.addAll(mpbRoute);
             }
@@ -403,25 +432,6 @@ public final class TravellerSoftSpawner {
                 || fullRoute.get(fullRoute.size() - 1).getX() != dest.getX()
                 || fullRoute.get(fullRoute.size() - 1).getZ() != dest.getZ()) {
             fullRoute.add(dest);
-        }
-
-        // Pick a random waypoint in the middle 20-80% of the route as the spawn point.
-        // This places the entity somewhere between two villages rather than at a village center.
-        int spawnIdx = pickDispersedIndex(ws.rand, fullRoute.size(), 0.2f, 0.8f);
-        BlockPos spawnWaypoint = fullRoute.get(spawnIdx);
-
-        // Resolve Y: use real terrain surface if chunk is loaded, otherwise keep waypoint Y or use 64
-        BlockPos spawnPos = resolveVirtualSpawnY(ws, spawnWaypoint);
-
-        // Raiders must not spawn inside village perimeters
-        if ("RAIDER".equals(entityClass)
-                && MillVillageIndex.isNearVillage(ws, spawnPos, TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance)) {
-            if (TravellersConfig.OFFSCREEN.populationDebugLog) {
-                FMLLog.log(Level.INFO,
-                        "[Travellers/Population] raider spawn vetoed at %s (within %d blocks of a village)",
-                        spawnPos, TravellersConfig.SPAWN_RAIDERS.raiderMinVillageDistance);
-            }
-            return 0;
         }
 
         // Never spawn within a player's view distance — most commonly hit right when a player's own
@@ -463,12 +473,15 @@ public final class TravellerSoftSpawner {
         r.entityClass = entityClass;
         r.homeVillage = homeKey;
 
-        // Route = remaining waypoints from spawnIdx onward
-        r.travelRoute = new ArrayList<>(fullRoute.subList(spawnIdx, fullRoute.size()));
+        r.travelRoute = fullRoute;
         r.routeIndex = 0;
         r.goal = r.travelRoute.isEmpty() ? dest : r.travelRoute.get(0);
 
         r.virtualizedTick = ws.getTotalWorldTime();
+        // Group-atomic mount roll: decided once here and copied to every follower below, so the
+        // whole group materializes uniformly mounted or on-foot regardless of when each member
+        // actually materializes (see VirtualTravellerRecord.mounted).
+        r.mounted = TravellerMountSupport.rollGroupMount(ws.rand, entityClass);
         mgr.addRecord(r);
 
         // Roll for group followers — same culture as the leader, same route
@@ -534,6 +547,8 @@ public final class TravellerSoftSpawner {
         r.routeIndex = leader.routeIndex;
         r.goal = leader.goal;
         r.virtualizedTick = ws.getTotalWorldTime();
+        // Copy, never re-roll: the whole group shares the leader's mount roll (group-atomic).
+        r.mounted = leader.mounted;
         mgr.addRecord(r);
     }
 
@@ -560,19 +575,25 @@ public final class TravellerSoftSpawner {
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);
 
-        // Disperse the spawn point along the start of the worker's own route instead of dropping it
-        // right on the village center — a freshly discovered village otherwise shows its whole
-        // workforce standing in one clump. Mirrors the traveller/raider mid-route dispersal above,
-        // but keeps a narrower, config-driven window so workers still appear close to home.
-        List<BlockPos> homeAndRoute = new ArrayList<>(tc.route.size() + 1);
-        homeAndRoute.add(homeVillage);
-        homeAndRoute.addAll(tc.route);
-        float maxFrac = TravellersConfig.SPAWN_WORKERS.workerSpawnDisperseMaxPercent / 100f;
-        int spawnIdx = pickDispersedIndex(ws.rand, homeAndRoute.size(), 0f, maxFrac);
-        BlockPos spawnPos = resolveVirtualSpawnY(ws, homeAndRoute.get(spawnIdx));
+        // Disperse the spawn point in a ring around the home village instead of dropping it right on
+        // the village center — a freshly discovered village otherwise shows its whole workforce
+        // standing in one clump. Same dissemination ring as travellers/raiders (see spawnVirtualTraveller).
+        BlockPos ringPoint = pickRingPoint(ws.rand,
+                homeVillage, TravellersConfig.SPAWN_WORKERS.workerSpawnMinDistanceFromHome,
+                TravellersConfig.SPAWN_WORKERS.workerSpawnMaxDistanceFromHome);
+        BlockPos spawnPos = resolveVirtualSpawnY(ws, ringPoint);
 
-        // Never spawn (and therefore instantly materialize) a worker right in front of a player —
-        // same reasoning as the traveller/raider check in spawnVirtualTraveller().
+        // Never land on/near ANY settlement, and never spawn (and therefore instantly materialize) a
+        // worker right in front of a player — same reasoning as spawnVirtualTraveller().
+        int avoidRadius = TravellersConfig.SPAWN.spawnSettlementAvoidanceRadius;
+        if (MillVillageIndex.isNearAnySettlement(ws, spawnPos, avoidRadius)) {
+            if (TravellersConfig.OFFSCREEN.populationDebugLog) {
+                FMLLog.log(Level.INFO,
+                        "[Travellers/Population] WORKER spawn vetoed at %s (within %d blocks of a settlement)",
+                        spawnPos, avoidRadius);
+            }
+            return false;
+        }
         if (isNearAnyPlayer(ws, spawnPos)) {
             if (TravellersConfig.OFFSCREEN.populationDebugLog) {
                 FMLLog.log(Level.INFO,
@@ -607,6 +628,9 @@ public final class TravellerSoftSpawner {
         // walk toward and the worker sits frozen at home until it materializes.
         r.goal = tempEntity.getVirtualGoal();
         r.virtualizedTick = ws.getTotalWorldTime();
+        // Non-hired workers spawn individually (no group loop here) — roll per worker. Hired-worker
+        // groups are formed later by players via WorkerGroupService, not at spawn time.
+        r.mounted = TravellerMountSupport.rollGroupMount(ws.rand, "WORKER");
         mgr.addRecord(r);
         return true;
     }

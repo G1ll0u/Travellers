@@ -434,7 +434,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 mc.displayGuiScreen(returnTo);
             } else {
                 TravellerFollowNet.CHANNEL.sendToServer(
-                        new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS));
+                        new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             }
             return;
         }
@@ -457,7 +457,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 mc.displayGuiScreen(returnTo);
             } else if (!leaderMode && worker != null) {
                 TravellerFollowNet.CHANNEL.sendToServer(
-                        new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS));
+                        new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             }
             return;
         }

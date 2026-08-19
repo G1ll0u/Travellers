@@ -2,6 +2,7 @@ package com.jubitus.travellers.utils.world.pathing.offscreen;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityAI.ambient.EntityAIAutoEat;
+import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -18,6 +19,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.storage.MapStorage;
@@ -68,6 +70,18 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private final Map<UUID, VirtualTravellerRecord> records = new HashMap<>();
     private final Map<UUID, Long> graceUntil = new HashMap<>();
+    /**
+     * Mirror of {@link #graceUntil}: blocks re-materializing for a moment after a unit went virtual.
+     *
+     * <p>Needed because the edge probe deliberately virtualizes a unit that is standing on a LOADED
+     * chunk - it is the ground *ahead* that is not loaded. Without this, the record it leaves behind is
+     * immediately eligible to materialize again on the very same chunk, and the unit oscillates:
+     * appear, walk one second up to the boundary, vanish, appear... The grace gives the offscreen
+     * simulation time to carry the record clear of the loaded area (chunks are 16 blocks wide, so a
+     * couple of seconds of virtual walking), after which the ordinary "is my chunk loaded" rule holds
+     * on its own.
+     */
+    private final Map<UUID, Long> materializeGraceUntil = new HashMap<>();
 
     private long lastSimTick = -1;
     private long lastMatCheckTick = -1;
@@ -94,6 +108,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     public void tick(WorldServer world, long now) {
         // Clean expired grace periods
         graceUntil.entrySet().removeIf(e -> now > e.getValue());
+        materializeGraceUntil.entrySet().removeIf(e -> now > e.getValue());
 
         // Refresh goals for dynamic targets (catchup / follow owner)
         if (now - lastGoalRefresh >= GOAL_REFRESH_INTERVAL) {
@@ -104,7 +119,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Advance virtual positions
         if (now - lastSimTick >= SIM_INTERVAL) {
             lastSimTick = now;
-            advanceVirtual();
+            advanceVirtual(now);
         }
 
         // Check for job arrivals (forced materialization)
@@ -131,11 +146,6 @@ public class VirtualTravellerManager extends WorldSavedData {
     // Movement simulation
     // -------------------------------------------------------------------------
 
-    // Workers must travel more than this many blocks from their virtualization point
-    // before we consider them to have "traveled far" (and use surface-clamped Y on spawn).
-    // Keeps formation-adjustment moves (a few blocks toward the leader) from triggering the clamp.
-    private static final double FAR_TRAVEL_THRESHOLD_SQ = 16.0 * 16.0;
-
     // Blend factor for smoothing a virtual entity's facing toward its movement direction each sim
     // step. Purely cosmetic (only visible via a materialized entity's initial facing), but without
     // it a leader's rotYaw stays frozen at whatever it was at virtualization until the next
@@ -143,7 +153,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     // straight into VirtualFormationSimulator's follower offsets.
     private static final float YAW_SMOOTHING_BLEND = 0.35F;
 
-    private void advanceVirtual() {
+    private void advanceVirtual(long now) {
         double simStep = currentSimStep();
         for (VirtualTravellerRecord r : records.values()) {
             if (r.battleId != null) continue; // battle sim owns movement
@@ -166,18 +176,18 @@ public class VirtualTravellerManager extends WorldSavedData {
             } else {
                 stepCap = simStep;
             }
+            // Mounted records cover ground faster offscreen too, mirroring the horse's real speed
+            // bonus a loaded rider gets from vanilla's AbstractHorse.travel(). Cheap bool check first.
+            // A rider that went virtual leading or hitching its horse is walking, so it gets nothing.
+            if (r.mounted && (r.mountMode == null || "MOUNTED".equals(r.mountMode))) {
+                stepCap *= TravellersConfig.MOUNTS.mountedVirtualSpeedMultiplier;
+            }
             double step = Math.min(stepCap, dist);
             r.posX += (dx / dist) * step;
             r.posZ += (dz / dist) * step;
+            r.lastVirtualMoveTick = now;
             float targetYaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
             r.rotYaw = blendYawTowards(r.rotYaw, targetYaw, YAW_SMOOTHING_BLEND);
-            if (!r.hasTraveledFar) {
-                double odx = r.posX - r.virtualizedPosX;
-                double odz = r.posZ - r.virtualizedPosZ;
-                if (odx * odx + odz * odz >= FAR_TRAVEL_THRESHOLD_SQ) {
-                    r.hasTraveledFar = true;
-                }
-            }
         }
     }
 
@@ -226,6 +236,39 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.health = healed;
         r.entityNbt.setFloat("Health", healed);
         if (healed >= max - 0.001F) r.recoveringToFull = false;
+    }
+
+    /** Ticks since a record last moved offscreen, treating "never moved" as infinitely long ago. */
+    private static long idleTicksSince(long lastMoveTick, long now) {
+        return lastMoveTick == Long.MIN_VALUE ? Long.MAX_VALUE : now - lastMoveTick;
+    }
+
+    /**
+     * Freezes an escort follower in place while its leader is standing still, instead of walking it
+     * to a freshly computed formation slot.
+     * <p>
+     * Offscreen slots come from {@link VirtualFormationSimulator}, which is surface-only by design
+     * (it may not scan blocks), while the loaded {@code FollowFormationCoordinator} compacts the
+     * same formation to fit indoors. Left to itself the offscreen sim therefore drags a group that
+     * was parked inside a building out through its walls toward the wide open-field shape - and the
+     * materializer then has to lift those wall-embedded records up, which is what put them on the
+     * roof. A leader that is not moving has nothing to re-form around, so the group simply holds.
+     * <p>
+     * Followers genuinely out of position (scattered by a virtual battle, leader teleported) are
+     * past {@code anchoredHoldRadius} and still regroup normally.
+     */
+    private static boolean holdAnchoredFormation(VirtualTravellerRecord r,
+                                                 double leaderX, double leaderZ,
+                                                 long leaderIdleTicks) {
+        if (leaderIdleTicks < TravellersConfig.WORKER_FORMATION.anchoredHoldDelayTicks) return false;
+        double dx = leaderX - r.posX;
+        double dz = leaderZ - r.posZ;
+        double hold = TravellersConfig.WORKER_FORMATION.anchoredHoldRadius;
+        if (dx * dx + dz * dz > hold * hold) return false;
+        // Overwrite rather than leave untouched: the goal seeded at virtualization points at the
+        // owner for any hired follower, and holding that would walk the whole group to the player.
+        r.goal = new BlockPos(MathHelper.floor(r.posX), MathHelper.floor(r.posY), MathHelper.floor(r.posZ));
+        return true;
     }
 
     /**
@@ -400,14 +443,22 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (r.escortLeaderUUID != null && r.followOrderActive) {
             VirtualTravellerRecord leaderRec = records.get(r.escortLeaderUUID);
             if (leaderRec != null) {
+                if (holdAnchoredFormation(r, leaderRec.posX, leaderRec.posZ,
+                        idleTicksSince(leaderRec.lastVirtualMoveTick, now))) {
+                    return;
+                }
                 VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
-                        leaderRec.posX, leaderRec.posY, leaderRec.posZ, true, now);
+                        leaderRec.posX, leaderRec.posY, leaderRec.posZ, leaderRec.rotYaw, true, now);
                 return;
             }
             Entity leader = world.getEntityFromUuid(r.escortLeaderUUID);
             if (leader != null && !leader.isDead) {
+                double moved = leader.posX - leader.prevPosX;
+                double movedZ = leader.posZ - leader.prevPosZ;
+                long idleTicks = (moved * moved + movedZ * movedZ) < 1.0E-4 ? Long.MAX_VALUE : 0L;
+                if (holdAnchoredFormation(r, leader.posX, leader.posZ, idleTicks)) return;
                 VirtualFormationSimulator.applyFormationGoal(world, records, r, r.escortLeaderUUID,
-                        leader.posX, leader.posY, leader.posZ, true, now);
+                        leader.posX, leader.posY, leader.posZ, leader.rotationYaw, true, now);
                 return;
             }
             // Leader is neither a virtual record nor loaded in this dimension (truly gone): clear the
@@ -421,7 +472,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             EntityPlayer owner = world.getPlayerEntityByUUID(r.followOwnerUUID);
             if (owner != null && !owner.isDead) {
                 VirtualFormationSimulator.applyFormationGoal(world, records, r, r.followOwnerUUID,
-                        owner.posX, owner.posY, owner.posZ, false, now);
+                        owner.posX, owner.posY, owner.posZ, owner.rotationYaw, false, now);
                 return;
             }
         }
@@ -741,19 +792,18 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     /**
      * Materialize/virtualize used to be a pure "distance to nearest player" check approximating the
-     * view distance. It is now driven by whether the unit's actual ground chunk is loaded - by any
-     * player's view distance OR force-loaded by this or another mod (a Millenaire village, a chunk
-     * loader item, etc.) - so a worker sent far away on a Go order appears the instant it walks onto
-     * chunks someone else is keeping loaded, exactly as if a player had walked up to it. Both
-     * directions share {@link #isChunkNeeded} as the single source of truth so there is never a case
-     * where "should this be real" disagrees depending on which side is asking.
+     * view distance. It is now driven by one fact only: is the unit's own ground chunk actually
+     * loaded, for any reason at all - a player's view distance, a Millenaire town-hall ticket,
+     * another mod's chunk loader, this mod's own transient loads. So a worker sent far away on a Go
+     * order appears the instant it walks onto chunks somebody is keeping loaded, exactly as if a
+     * player had walked up to it. Both directions share {@link #isFrozenByVanillaAt} as the single
+     * source of truth so there is never a case where "should this be real" disagrees depending on
+     * which side is asking.
      */
     private void checkPlayerMaterialize(WorldServer world, long now) {
         if (records.isEmpty()) return;
         int dim = world.provider.getDimension();
 
-        com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket>
-                forced = snapshotForcedChunks(world);
         int stableTicks = TravellersConfig.MATERIALIZATION.materializeChunkStableTicks;
 
         List<UUID> toMaterialize = null;
@@ -763,7 +813,13 @@ public class VirtualTravellerManager extends WorldSavedData {
             int cx = ((int) Math.floor(r.posX)) >> 4;
             int cz = ((int) Math.floor(r.posZ)) >> 4;
 
-            if (!isChunkNeeded(world, cx, cz, forced)) {
+            // Not merely "the chunk is loaded" but "vanilla would actually tick a unit standing here"
+            // - the stricter of the two, and the same predicate the virtualize side uses.
+            if (isFrozenByVanillaAt(world, r.posX, r.posZ)) {
+                materializeWatch.remove(r.uuid);
+                continue;
+            }
+            if (materializeGraceUntil.containsKey(r.uuid)) {
                 materializeWatch.remove(r.uuid);
                 continue;
             }
@@ -784,7 +840,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             for (UUID id : toMaterialize) {
                 materializeWatch.remove(id);
                 VirtualTravellerRecord r = records.remove(id);
-                if (r != null) materializeEntity(world, r, now, false);
+                if (r != null) materializeEntity(world, r, now);
             }
         }
 
@@ -797,9 +853,25 @@ public class VirtualTravellerManager extends WorldSavedData {
     // Virtualization of real workers
     // -------------------------------------------------------------------------
 
+    /**
+     * Decides which real units should go offscreen. Two reasons, both meaning "this unit cannot
+     * function as a physical entity here":
+     *
+     * <ul>
+     *   <li><b>Vanilla has stopped ticking it</b> ({@link #isFrozenByVanilla}) - by far the common
+     *       case, and the one that has to be caught from the world tick because the unit's own tick is
+     *       precisely what is no longer running. See that method for why.</li>
+     *   <li><b>It is standing outside loaded terrain altogether</b> - a unit that drifted across the
+     *       boundary under its own power, which leaves it in world.loadedEntityList with
+     *       addedToChunk=false so no unload event ever fires for it.</li>
+     * </ul>
+     *
+     * <p>The everyday "a player walked away" case is handled neither here nor by any poll, but by
+     * {@link ChunkUnloadVirtualizeHandler} at the moment the chunk unloads - a debounced poll cannot
+     * win that race, since PlayerChunkMap.removeEntry() queues the unload in the same call that stops
+     * the chunk being tracked.
+     */
     private void checkVirtualize(WorldServer world, long now) {
-        com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket>
-                forced = snapshotForcedChunks(world);
         int unneededTicks = TravellersConfig.MATERIALIZATION.virtualizeChunkUnneededTicks;
 
         // Snapshot entity list to avoid ConcurrentModificationException
@@ -820,35 +892,57 @@ public class VirtualTravellerManager extends WorldSavedData {
             UUID id = worker.getUniqueID();
             stillLoaded.add(id);
             if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
-            if (!canVirtualizeMaybeBattling(worker, battleMgr)) { virtualizeWatch.remove(id); continue; }
-            if (!tickUnneededWatch(id, worker.chunkCoordX, worker.chunkCoordZ, world, forced, now, unneededTicks)) continue;
-            virtualizeWorker(world, worker, now);
+            boolean frozen = isFrozenByVanilla(world, worker);
+            // The eligibility gate is skipped for a frozen unit on purpose. Every condition it
+            // protects - finishing a delivery near the target village, waiting for a pickup, riding a
+            // boat - assumes the unit is still running its AI and will finish what it is doing. A
+            // frozen one never will, and worse, several of those states can no longer end: an entity
+            // that stopped ticking mid-meal keeps isHandActive() forever. Honouring the gate here is
+            // therefore the same as leaving it standing at the border for good.
+            if (!frozen && !canVirtualizeMaybeBattling(worker, battleMgr)) { virtualizeWatch.remove(id); continue; }
+            if (!tickUnneededWatch(id, worker, world, now, unneededTicks, frozen)) continue;
+            if (frozen) {
+                logFrozenVirtualize(worker, worker.forceVirtualizeResolvingBlockers());
+            } else {
+                virtualizeWorker(world, worker, now);
+            }
         }
 
         for (EntityTraveller entity : travellers) {
             UUID id = entity.getUniqueID();
             stillLoaded.add(id);
             if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
+            boolean frozen = isFrozenByVanilla(world, entity);
             // Unlike workers, travellers/raiders can proximity-acquire a passive player as attackTarget
             // (RaiderAttackTargetAI) and stay "in combat" (travellerNoAggroOffscreen) for as long as that
             // player is nearby. Virtualization eligibility must ignore that state entirely, or a raider
             // idling near a stationary player it's eyeing would never leave the world.
-            if (!entity.canVirtualizeIgnoringCombat()) { virtualizeWatch.remove(id); continue; }
-            if (!tickUnneededWatch(id, entity.chunkCoordX, entity.chunkCoordZ, world, forced, now, unneededTicks)) continue;
-            virtualizeTraveller(world, entity, now);
+            if (!frozen && !entity.canVirtualizeIgnoringCombat()) { virtualizeWatch.remove(id); continue; }
+            if (!tickUnneededWatch(id, entity, world, now, unneededTicks, frozen)) continue;
+            if (frozen) {
+                logFrozenVirtualize(entity, entity.forceVirtualizeResolvingBlockers());
+            } else {
+                virtualizeTraveller(world, entity, now);
+            }
         }
 
         if (!virtualizeWatch.isEmpty()) virtualizeWatch.keySet().retainAll(stillLoaded);
     }
 
     /**
-     * Tracks how long a loaded unit's own chunk has been continuously unneeded. Returns true once the
-     * debounce window has elapsed (caller should virtualize immediately after).
+     * Tracks how long a loaded unit has been continuously standing outside loaded terrain. Returns
+     * true once the debounce window has elapsed (caller should virtualize immediately after).
      */
-    private boolean tickUnneededWatch(UUID id, int chunkX, int chunkZ, WorldServer world,
-            com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> forced,
-            long now, int unneededTicks) {
-        if (isChunkNeeded(world, chunkX, chunkZ, forced)) {
+    private boolean tickUnneededWatch(UUID id, Entity entity, WorldServer world, long now,
+                                      int unneededTicks, boolean frozen) {
+        // Derived from the live position, NOT from entity.chunkCoordX/Z: those only update while the
+        // entity is actually attached to a chunk, so they go stale at exactly the moment that matters
+        // here (an entity that walked past the boundary has addedToChunk=false and keeps reporting the
+        // last chunk it was attached to - which is still loaded, so it would never virtualize).
+        // The materialize side derives its chunk the same way, so both agree by construction.
+        int cx = net.minecraft.util.math.MathHelper.floor(entity.posX) >> 4;
+        int cz = net.minecraft.util.math.MathHelper.floor(entity.posZ) >> 4;
+        if (!frozen && isChunkLoaded(world, cx, cz)) {
             virtualizeWatch.remove(id);
             return false;
         }
@@ -862,50 +956,61 @@ public class VirtualTravellerManager extends WorldSavedData {
         return true;
     }
 
-    /** True if nothing currently requires this chunk to stay loaded: no player watching it, no force-load ticket (ours or another mod's). This is the single source of truth for both materialize and virtualize. */
-    public static boolean isChunkNeeded(WorldServer world, int chunkX, int chunkZ,
-            @Nullable com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> forced) {
-        if (world.getPlayerChunkMap().contains(chunkX, chunkZ)) return true;
-        return forced != null && forced.containsKey(new net.minecraft.util.math.ChunkPos(chunkX, chunkZ));
+    /**
+     * The single source of truth for whether a unit should exist as a real entity: is this chunk
+     * loaded, for any reason whatsoever. Deliberately NOT "is a player near" and deliberately not a
+     * list of the specific reasons a chunk might be loaded (player view distance, a Millenaire
+     * town-hall ticket, another mod's chunk loader, one of this mod's own transient loads) - asking
+     * the chunk provider directly covers all of them, present and future, and cannot disagree with
+     * itself. Both materialize and virtualize route through here, as does every "is anyone able to
+     * observe me" check in the AI, so a unit's eligibility to act can never contradict its
+     * eligibility to exist.
+     */
+    public static boolean isChunkLoaded(WorldServer world, int chunkX, int chunkZ) {
+        return world.getChunkProvider().chunkExists(chunkX, chunkZ);
     }
-
-    @Nullable
-    private static com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> snapshotForcedChunks(WorldServer world) {
-        try {
-            return net.minecraftforge.common.ForgeChunkManager.getPersistentChunksFor(world);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    // Per-dimension, per-tick cache of the forced-chunks snapshot so callers outside this class's own
-    // tick pass (e.g. EntityTraveller's per-entity AI, called once per loaded traveller per tick) can
-    // reuse the same "is my chunk needed" answer this class computes for materialize/virtualize, without
-    // each of potentially hundreds of entities independently rebuilding the ForgeChunkManager snapshot
-    // every tick.
-    private static final Map<Integer, Long> isNeededCacheTick = new HashMap<>();
-    private static final Map<Integer, com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket>> isNeededCacheValue = new HashMap<>();
 
     /**
-     * Same predicate as {@link #isChunkNeeded}, for callers that don't already have a forced-chunks
-     * snapshot handy. This is the single source of truth other systems (travel AI "am I being watched
-     * closely enough to act" checks) should defer to instead of approximating their own distance-based
-     * notion of "tracked", so a unit's eligibility to act never disagrees with its eligibility to exist
-     * as a physical entity in the first place.
+     * True if vanilla has stopped ticking this entity because it sits too close to unloaded terrain -
+     * an exact mirror of the gate in {@code World.updateEntityWithOptionalForce}, not an approximation
+     * of it.
+     *
+     * <p>This is the single most important reason a unit has to go offscreen, and the least obvious.
+     * Vanilla refuses to tick any non-player entity unless the area 32 blocks around it is fully
+     * loaded (0 blocks - i.e. just its own chunk - when that chunk holds a ForgeChunkManager ticket).
+     * A traveller that walks up to the edge of loaded terrain therefore stops receiving
+     * {@code onUpdate} entirely, well before it reaches the visible boundary: no AI, no travel task,
+     * no self-check of any kind. It becomes a statue, and every unit that arrives there joins it -
+     * which is what "travellers gather at the border and never leave" actually is.
+     *
+     * <p>Because of that, nothing driven from the entity's own tick can ever fix this; the check has
+     * to run from the world tick, which is why it lives here. And since a frozen unit can do nothing
+     * physical at all, "vanilla won't tick it" is not merely a hint that it should be virtual - it is
+     * the definition of it.
      */
-    public static boolean isChunkNeededNow(WorldServer world, int chunkX, int chunkZ) {
-        int dim = world.provider.getDimension();
-        long now = world.getTotalWorldTime();
-        Long cachedTick = isNeededCacheTick.get(dim);
-        com.google.common.collect.ImmutableSetMultimap<net.minecraft.util.math.ChunkPos, net.minecraftforge.common.ForgeChunkManager.Ticket> forced;
-        if (cachedTick != null && cachedTick == now) {
-            forced = isNeededCacheValue.get(dim);
-        } else {
-            forced = snapshotForcedChunks(world);
-            isNeededCacheTick.put(dim, now);
-            isNeededCacheValue.put(dim, forced);
-        }
-        return isChunkNeeded(world, chunkX, chunkZ, forced);
+    public static boolean isFrozenByVanilla(WorldServer world, Entity entity) {
+        return isFrozenByVanillaAt(world, entity.posX, entity.posZ);
+    }
+
+    /**
+     * Position-based form of {@link #isFrozenByVanilla}, for deciding whether an offscreen record may
+     * become a real entity at a given spot.
+     *
+     * <p>Materialize and virtualize deliberately share this one predicate so they are exact
+     * complements: a unit is physical precisely where vanilla would tick it, and virtual everywhere
+     * else. Anything less strict on the materialize side re-creates the original bug from the other
+     * direction - a record placed inside the 32-block band would spawn as a statue vanilla refuses to
+     * tick, then be virtualized straight back by the rule above, over and over.
+     */
+    public static boolean isFrozenByVanillaAt(WorldServer world, double posX, double posZ) {
+        int x = net.minecraft.util.math.MathHelper.floor(posX);
+        int z = net.minecraft.util.math.MathHelper.floor(posZ);
+        boolean ticketed = world.getPersistentChunks()
+                .containsKey(new net.minecraft.util.math.ChunkPos(x >> 4, z >> 4));
+        int range = ticketed ? 0 : 32;
+        // BlockPos overload because vanilla's int one is private; identical bounds and allowEmpty flag.
+        return !world.isAreaLoaded(
+                new BlockPos(x - range, 0, z - range), new BlockPos(x + range, 0, z + range), true);
     }
 
     /** Tracks how long a virtual record's chunk has been continuously needed, for the materialize debounce. */
@@ -920,6 +1025,24 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private final Map<UUID, ChunkWatch> materializeWatch = new HashMap<>();
     private final Map<UUID, Long> virtualizeWatch = new HashMap<>();
+
+    /**
+     * True while this unit is inside the short settling window after materializing. checkVirtualize
+     * already honours it; the edge probe has to ask explicitly, since it virtualizes directly rather
+     * than going through that pass - and a unit that materializes right at the boundary would
+     * otherwise be probed straight back out on its next tick, which is the same oscillation
+     * materializeGraceUntil prevents from the other side.
+     */
+    public boolean isInVirtualizeGrace(UUID id) {
+        return graceUntil.containsKey(id);
+    }
+
+    private static void logFrozenVirtualize(EntityTraveller entity, boolean ok) {
+        if (!TravellersConfig.GENERAL.debug) return;
+        net.minecraftforge.fml.common.FMLLog.log.info(
+                "[Travellers/Frozen] {} at ({}, {}) was no longer ticked by vanilla -> virtualize {}",
+                entity.getName(), (int) entity.posX, (int) entity.posZ, ok ? "OK" : "REFUSED");
+    }
 
     /** Battle participants may re-virtualize mid-combat (the sim takes over); others keep the combat gate. */
     private static boolean canVirtualizeMaybeBattling(
@@ -1034,15 +1157,78 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
 
         records.put(r.uuid, r);
+        materializeGraceUntil.put(r.uuid, now + TravellersConfig.MATERIALIZATION.rematerializeGraceTicks);
         com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
                 .restoreBattleIdIfParticipant(r);
 
-        TravellerChunkManager.INSTANCE.untrackChunkloader(worker);
+        captureMountIfBonded(worker, r);
         worker.setDead();
 
         markDirty();
         // Followers are NOT force-virtualized here; each one virtualizes individually
         // once it leaves the player's view distance (via checkVirtualize).
+    }
+
+    /**
+     * Captures a bonded horse's full state (identity, tame/saddle, attributes, age, color) into the
+     * record and removes it from the world, mirroring how {@code entity} itself goes virtual instead
+     * of despawning. Restored by the matching branch in {@link #materializeEntity}. No-op if the
+     * entity isn't currently riding its bonded mount.
+     */
+    private void captureMountIfBonded(EntityTraveller entity, VirtualTravellerRecord r) {
+        // A mount already captured off-body for a solo boat crossing (EntityAITravel) takes priority -
+        // it must be carried into the record instead of silently lost, however long entity itself
+        // now stays virtual before that crossing would have finished.
+        NBTTagCompound pending = entity.getPendingMountNbt();
+        if (pending != null) {
+            r.mountNbt = pending;
+            r.mounted = true;
+            entity.setPendingMountNbt(null);
+            return;
+        }
+
+        NBTTagCompound mountNbt = TravellerMountSupport.captureMount(entity);
+        if (mountNbt == null) return;
+        r.mountNbt = mountNbt;
+        r.mountMode = entity.getMountMode().name();
+        // Covers mounts bonded outside the spawn-roll path too (e.g. /travellersdebug mount give),
+        // where r.mounted was never rolled true - riding a bonded mount is definitive either way.
+        r.mounted = true;
+    }
+
+    /**
+     * Ends a virtual rider's bond after its horse died in the loaded world (see
+     * {@code MountDeathHandler}). Without this the record would keep its captured mount data and
+     * materialize the rider onto a horse the player just watched die.
+     */
+    public void clearRecordMount(UUID riderUUID) {
+        VirtualTravellerRecord r = records.get(riderUUID);
+        if (r == null) return;
+        r.mounted = false;
+        r.mountNbt = null;
+        r.mountMode = null;
+        markDirty();
+    }
+
+    /**
+     * Symmetric counterpart to {@link #captureMountIfBonded}: restores the exact same horse (same
+     * UUID, same tame/saddle/attributes/age/color) from {@code r.mountNbt} if one was captured, or
+     * bonds a brand new one via {@link TravellerMountSupport#bondNewMount} for a record that rolled
+     * mounted at spawn (Phase 1) but never actually went virtual while mounted before. No-op if
+     * neither applies. Must run after {@code entity} is already spawned into {@code world}.
+     */
+    private void restoreOrBondMount(WorldServer world, EntityTraveller entity, VirtualTravellerRecord r) {
+        if (r.mountMode != null) {
+            entity.setMountModeRaw(com.jubitus.travellers.entity.entityAI.travel.mount.MountMode.byName(r.mountMode));
+        }
+        if (r.mountNbt != null) {
+            // TravellerMountSupport.restoreMount re-syncs speed to the live config and strips the
+            // horse's own AI itself - see its doc for why both matter on every restore, not just a
+            // fresh bond.
+            TravellerMountSupport.restoreMount(entity, r.mountNbt);
+        } else if (r.mounted) {
+            TravellerMountSupport.bondNewMount(entity);
+        }
     }
 
     /**
@@ -1129,14 +1315,12 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.health = entity.getHealth();
 
         records.put(r.uuid, r);
+        materializeGraceUntil.put(r.uuid, now + TravellersConfig.MATERIALIZATION.rematerializeGraceTicks);
         com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
                 .restoreBattleIdIfParticipant(r);
+        captureMountIfBonded(entity, r);
         entity.setDead();
         markDirty();
-    }
-
-    private void materializeWorker(WorldServer world, VirtualTravellerRecord r, long now, boolean forceLoadChunk) {
-        materializeEntity(world, r, now, forceLoadChunk);
     }
 
     /** Pairing of the raw camp slot (or null if not camping) and the resolved safe spawn position. */
@@ -1176,17 +1360,17 @@ public class VirtualTravellerManager extends WorldSavedData {
                 new MaterializePositionResolver.ResolvedPosition(spawnPos.getX() + 0.5, cy, spawnPos.getZ() + 0.5));
     }
 
-    private void materializeEntity(WorldServer world, VirtualTravellerRecord r, long now, boolean forceLoadChunk) {
+    /**
+     * Never force-loads a chunk: a unit only ever materializes into terrain something else is already
+     * keeping loaded (that is precisely what qualified it, see checkPlayerMaterialize). The old
+     * forceLoadChunk parameter, always false at every call site by the end, was the last remnant of the
+     * era when this mod pulled chunks in to move units around.
+     */
+    private void materializeEntity(WorldServer world, VirtualTravellerRecord r, long now) {
         if (world.getEntityFromUuid(r.uuid) != null) return;
 
         MaterializePositionResolver.ResolvedPosition pos =
                 MaterializePositionResolver.resolve(world, r, records);
-
-        int bx = (int) Math.floor(pos.x);
-        int bz = (int) Math.floor(pos.z);
-        if (forceLoadChunk) {
-            world.getChunkProvider().provideChunk(bx >> 4, bz >> 4);
-        }
 
         // Health may have changed virtually (battle sim) — sync into the frozen NBT before restore
         if (r.health >= 0f && r.entityNbt != null) {
@@ -1207,7 +1391,8 @@ public class VirtualTravellerManager extends WorldSavedData {
                     && "TRAVELLER".equals(r.entityClass)
                     && MPBIntegration.PRESENT
                     && !r.travelRoute.isEmpty()) {
-                BlockPos roadPos = MPBIntegration.findNearestRoadPos(world, bx, bz, 24);
+                BlockPos roadPos = MPBIntegration.findNearestRoadPos(
+                        world, (int) Math.floor(pos.x), (int) Math.floor(pos.z), 24);
                 if (roadPos != null && world.getChunkProvider().chunkExists(roadPos.getX() >> 4, roadPos.getZ() >> 4)) {
                     double roadY = MaterializePositionResolver.findSafeFloorY(
                             world, roadPos.getX(), roadPos.getZ(), pos.y);
@@ -1257,6 +1442,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 entity.setVillageIdling(false);
             }
             world.spawnEntity(entity);
+            restoreOrBondMount(world, entity, r);
             if (r.battleId != null) {
                 com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
                         .onParticipantMaterialized(world, r.uuid, entity);
@@ -1285,6 +1471,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 worker.wakeUpTraveller();
             }
             world.spawnEntity(worker);
+            restoreOrBondMount(world, worker, r);
             if (r.battleId != null) {
                 com.jubitus.travellers.utils.world.battle.VirtualBattleManager.get(world)
                         .onParticipantMaterialized(world, r.uuid, worker);

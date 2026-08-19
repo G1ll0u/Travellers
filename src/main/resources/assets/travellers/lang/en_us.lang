@@ -27,7 +27,7 @@ travellers.worker.follow.not_enough_money=You don't have enough money.
 travellers.worker.follow.hired_by_other=This traveller is already hired by someone else.
 travellers.worker.hub.inventory=Inventory
 travellers.worker.orders.make_leader=Lead
-travellers.worker.orders.make_leader.tooltip=Turn this henchman into a group leader. Your followers will follow him.
+travellers.worker.orders.make_leader.tooltip=Turn this henchman into a group leader. Henchmen actively following you will follow him.
 travellers.worker.orders.follow_on=Follow: ON
 travellers.worker.orders.follow_off=Follow: OFF
 travellers.worker.orders.follow.tooltip=Toggle whether this henchman actively follows its leader or you.
@@ -115,7 +115,7 @@ travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
 travellers.worker.home_list.empty=No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.
 
 travellers.worker.hub.formation=Formations
-travellers.worker.hub.formation.tooltip=Manage your henchmen groups and formation settings.
+travellers.worker.hub.formation.tooltip=Manage your units.
 
 travellers.worker.formation.title=Formation & Groups
 travellers.worker.formation.preview=Radar Preview
@@ -138,6 +138,13 @@ travellers.worker.formation.cave=Cave mode
 travellers.worker.formation.cave.on=Adaptive cave: ON
 travellers.worker.formation.cave.off=Adaptive cave: OFF
 travellers.worker.formation.escorts=Escorts
+travellers.worker.formation.cohesion=Player cohesion
+
+travellers.worker.formation.attitude=Attitude
+travellers.worker.formation.attitude.tooltip=Attack: chases freely; Defend: less agressive, Hold Position: minimum movement
+travellers.worker.formation.attitude.attack=Attack
+travellers.worker.formation.attitude.defend=Defend
+travellers.worker.formation.attitude.hold=Hold Position
 
 travellers.worker.formation.style.compact=Compact
 travellers.worker.formation.style.line=Line
@@ -158,7 +165,7 @@ travellers.worker.formation.hover.offset=Offset: x=%s z=%s
 travellers.worker.hub.mark_button=Henchman mark
 travellers.worker.hub.mark_button.desc=Edit your hired Henchmen visual mark
 
-travellers.worker.mark.title=Henchman Mark
+travellers.worker.mark.title=Appearance
 travellers.worker.mark.style=Style
 travellers.worker.mark.color=Color: %s
 travellers.worker.mark.preview=Preview
@@ -290,9 +297,6 @@ travellers.notify.leader.no_free_followers=No free direct followers to assign.
 
 travellers.notify.home.not_your_worker=Not your henchman.
 travellers.notify.home.none_assigned=No home assigned.
-travellers.notify.home.barracks_not_found=Barracks not found or not in your village.
-travellers.notify.home.barracks_full=This barracks is full!
-travellers.notify.home.barracks_assigned=Barracks assigned: %s
 travellers.notify.home.lone_barrack_not_found=Lone barrack not found.
 travellers.notify.home.lone_barrack_assigned=Lone Barrack assigned: %s
 travellers.notify.home.lone_barrack_bed_destroyed=%s's bed at "%s" was destroyed. Assign it a new bed.
@@ -344,3 +348,28 @@ travellers.dialogue.travelling_with_someone=I'm travelling with someone right no
 travellers.dialogue.staying_in_village=I'm staying in %s for a bit.
 travellers.dialogue.no_destination=I don't currently have a destination.
 travellers.dialogue.heading_to=I'm actually heading to %s in the %s.
+
+# --- Worker hub menu tree ---
+travellers.worker.hub.node.orders=Orders
+travellers.worker.hub.node.follow=Follow
+travellers.worker.hub.node.follow_player=Follow me
+travellers.worker.hub.node.leader=Lead
+travellers.worker.hub.node.go=Go...
+travellers.worker.hub.node.travel=Travel
+travellers.worker.hub.node.recruit=Recruit
+travellers.worker.hub.node.choir=Sing
+travellers.worker.hub.node.transport=Transport
+travellers.worker.hub.node.unhire=Dismiss
+travellers.worker.hub.node.unhire_confirm=Sure?
+travellers.worker.hub.node.unhire.tooltip=Dismiss this henchman. Click twice to confirm.
+travellers.worker.hub.node.management=Management
+travellers.worker.hub.node.players=Players
+travellers.worker.hub.node.players.tooltip=Players your henchmen treat as enemies. Applies to all of your henchmen, not just this one.
+travellers.worker.hub.node.relations=Relations
+travellers.worker.hub.node.villages=Villages
+travellers.worker.hub.node.villages.tooltip=How your henchmen behave towards each village. Applies to all of your henchmen, not just this one.
+travellers.worker.hub.node.barracks=Barracks
+travellers.worker.hub.node.inventory=Inventory
+travellers.worker.hub.node.formation=Formation
+travellers.worker.hub.info.health=Health %s/%s
+travellers.worker.hub.info.village=From %s

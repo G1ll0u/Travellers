@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.combat;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -14,7 +15,6 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.EnumDifficulty;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -58,7 +58,9 @@ public class TravellerCombatLogic {
         boolean base = isInCombatRaw();
         if (!base) return false;
         if (!TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen) return base;
-        return isAnyPlayerWithinViewRadius();
+        // Shared chunk-based predicate, never an independent distance circle - see
+        // EntityTraveller.isInPlayerViewDistanceApprox().
+        return entity.isInPlayerViewDistance();
     }
 
     // Grace window after being hit by a living entity, separate from vanilla's hurtResistantTime
@@ -108,7 +110,7 @@ public class TravellerCombatLogic {
      */
     public boolean canEngageTarget(@Nullable EntityLivingBase target) {
         if (target == null || !target.isEntityAlive()) return false;
-        if (entity.world.getDifficulty() == EnumDifficulty.PEACEFUL) return false;
+        if (TravellersDerivedConfig.isPeacefulBlocked(entity.world)) return false;
 
         TravellerBlacklist blacklist = entity.getAggroBlacklist();
         if (blacklist != null && blacklist.isBlacklisted(target)) return false;
@@ -216,7 +218,14 @@ public class TravellerCombatLogic {
         boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(entity), damage);
         if (!hit) return false;
 
-        TravellerItemDamage.damageWeaponOnHit(entity);
+        // A counter-effect on the target (e.g. Thorns) can synchronously kill the attacker inside
+        // attackEntityFrom above and drop its weapon as a world item sharing this exact ItemStack
+        // reference (vanilla never copies on drop) — damaging it after that would over-wear the
+        // already-dropped item instead of anything this entity still holds. See EntityTraveller's
+        // matching guard around damageArmorOnHit for the same root cause.
+        if (entity.getHealth() > 0.0F) {
+            TravellerItemDamage.damageWeaponOnHit(entity);
+        }
 
         if (!entity.world.isRemote && target instanceof EntityLivingBase) {
             rememberThreat((EntityLivingBase) target, THREAT_FOR_HIT / 2);
@@ -379,14 +388,6 @@ public class TravellerCombatLogic {
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
-
-    private boolean isAnyPlayerWithinViewRadius() {
-        if (entity.world == null) return true;
-        if (entity.world.isRemote) return true;
-        double radius = TravellersConfig.COMBAT.travellerOffscreenViewRadius;
-        if (radius <= 0.0D) return true;
-        return entity.world.getClosestPlayer(entity.posX, entity.posY, entity.posZ, radius, false) != null;
-    }
 
     // -------------------------------------------------------------------------
     // Inner classes (moved from EntityTraveller)

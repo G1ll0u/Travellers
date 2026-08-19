@@ -14,6 +14,7 @@ import net.minecraft.pathfinding.WalkNodeProcessor;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.IBlockAccess;
 import org.millenaire.common.block.IBlockPath;
 
@@ -186,7 +187,11 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         // the exact landing GapJumpEvaluator would compute for that direction — when the entity
         // later walks the resulting path, TravellerNavigateGround's existing reactive gap-jump
         // fires naturally once it nears the edge, since its target is already that same landing.
-        if (TravellersConfig.GAP_JUMP.pathfinderAware && this.entity != null && w < options.length - 4) {
+        // Never while mounted: TravellerNavigateGround.evaluateJump refuses to fire a pedestrian gap
+        // jump for a rider whose position comes from its horse, so routing a mounted rider across one
+        // plans a step it can physically never take - it walks to the edge and stalls there.
+        if (TravellersConfig.GAP_JUMP.pathfinderAware && this.entity != null
+                && w < options.length - 4) {
             w = addGapJumpCandidates(options, w, current, target, maxDistance);
         }
 

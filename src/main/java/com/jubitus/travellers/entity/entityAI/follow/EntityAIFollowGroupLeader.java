@@ -52,6 +52,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
 
     @Nullable private LeaderTarget leaderTarget;
     private final FollowBoatController boatController;
+    private final FollowFlightController flightController;
     private int repathCooldown;
     private int stagnationTicks;
     private double lastProgressX;
@@ -70,6 +71,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         this.slotOffsetX = off[0];
         this.slotOffsetZ = off[1];
         this.boatController = new FollowBoatController(follower, speed);
+        this.flightController = new FollowFlightController(follower);
         setMutexBits(3);
     }
 
@@ -98,6 +100,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         this.leaderTarget = t;
         // A leader crossing water (or the follower already riding to catch up) always takes over,
         // ahead of the camp check - never mistaken for camping.
+        if (flightController.shouldHandle(t.entity)) return true;
         if (boatController.shouldHandle(t.entity)) return true;
         // Yield to EntityAICampStay when the leader is camping.
         if (isLeaderCamping()) return false;
@@ -111,6 +114,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         // since shouldExecute() would have refused to start this task for one at all.
         if (leaderTarget == null) return boatController.shouldHandle(null);
         if (follower.getAttackTarget() != null && !follower.getAttackTarget().isDead) return false;
+        if (flightController.shouldHandle(leaderTarget.entity)) return true;
         if (boatController.shouldHandle(leaderTarget.entity)) return true;
         if (isLeaderCamping()) return false;
         return true;
@@ -123,6 +127,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         hasProgressAnchor = false;
         sprintingCatchup = false;
         boatController.reset();
+        flightController.reset();
     }
 
     @Override
@@ -134,6 +139,7 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         campCheckCooldown = 0;
         leaderIsCamping = false;
         boatController.reset();
+        flightController.reset();
     }
 
     @Override
@@ -163,6 +169,15 @@ public class EntityAIFollowGroupLeader extends EntityAIBase {
         // leader to track) just get an already-mounted boat to safety. Bypasses all ground-follow
         // logic below - stagnation/teleport-rescue is meaningless while riding a boat and must not
         // fire mid-crossing.
+        // Air crossing: launch with a gliding leader and chase them. Like the boat branch below, this
+        // bypasses the ground-follow logic entirely - stagnation and teleport-rescue are meaningless
+        // in mid-air and must not fire during a flight.
+        if (flightController.tick(fresh.entity)) {
+            stagnationTicks = 0;
+            hasProgressAnchor = false;
+            return;
+        }
+
         if (boatController.tick(fresh.entity)) {
             stagnationTicks = 0;
             hasProgressAnchor = false;

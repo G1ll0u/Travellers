@@ -279,7 +279,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == backButton) {
             TravellerFollowNet.CHANNEL.sendToServer(
-                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.ORDERS));
+                    new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             return;
         }
 

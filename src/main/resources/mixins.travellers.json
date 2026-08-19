@@ -1,6 +1,6 @@
 {
   "package": "com.jubitus.travellers.mixins",
-  "plugin": "com.jubitus.travellers.mixins.TravellersMixinConfigPlugin",
+  "plugin": "com.jubitus.travellers.TravellersMixinConfigPlugin",
   "required": true,
   "refmap": "mixins.travellers.refmap.json",
   "target": "@env(DEFAULT)",

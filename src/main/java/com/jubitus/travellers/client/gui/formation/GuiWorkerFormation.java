@@ -51,7 +51,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
     private GuiWorkerFormationSlider followDistanceSlider;
     private GuiWorkerFormationSlider spacingSlider;
     private GuiWorkerFormationSlider widthSlider;
-    private GuiWorkerFormationSlider turnSlider;
 
     // Buttons (right column)
     private GuiButton styleButton;
@@ -152,19 +151,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
                 settings.width,
                 v -> Integer.toString((int) Math.round(v))
         );
-        rowY += 34;
-
-        this.turnSlider = new GuiWorkerFormationSlider(
-                rightX, rowY, rightW, 20,
-                "travellers.worker.formation.turn",
-                WorkerFormationSettings.MIN_TURN_SMOOTHNESS,
-                WorkerFormationSettings.MAX_TURN_SMOOTHNESS,
-                5.0D,
-                settings.turnSmoothness,
-                v -> Integer.toString((int) Math.round(v))
-        );
-        // turnSlider ends at rowY + 20; bottomY starts at guiTop + Y_SIZE - 24 = guiTop + 266
-        // Gap ≥ 30 px — no overlap.
 
         // ── Bottom row ────────────────────────────────────────────────────────
         int bottomY = guiTop + effectiveYSize - 24;
@@ -228,7 +214,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         if (followDistanceSlider.mousePressed(mouseX, mouseY, mouseButton)) consumed = true;
         if (spacingSlider.mousePressed(mouseX, mouseY, mouseButton))       consumed = true;
         if (widthSlider.mousePressed(mouseX, mouseY, mouseButton))         consumed = true;
-        if (turnSlider.mousePressed(mouseX, mouseY, mouseButton))          consumed = true;
 
         if (consumed) {
             pullSliderValues();
@@ -248,7 +233,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         changed |= followDistanceSlider.mouseDragged(mouseX, mouseY);
         changed |= spacingSlider.mouseDragged(mouseX, mouseY);
         changed |= widthSlider.mouseDragged(mouseX, mouseY);
-        changed |= turnSlider.mouseDragged(mouseX, mouseY);
 
         if (changed) {
             pullSliderValues();
@@ -266,7 +250,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         changed |= followDistanceSlider.mouseReleased(state);
         changed |= spacingSlider.mouseReleased(state);
         changed |= widthSlider.mouseReleased(state);
-        changed |= turnSlider.mouseReleased(state);
 
         previewPanel.mouseReleased(state);
 
@@ -323,7 +306,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         followDistanceSlider.draw(mc, mouseX, mouseY);
         spacingSlider.draw(mc, mouseX, mouseY);
         widthSlider.draw(mc, mouseX, mouseY);
-        turnSlider.draw(mc, mouseX, mouseY);
 
         // Hover tooltips from preview
         List<String> hover = previewPanel.getHoverLines(mouseX, mouseY, previewX, previewY);
@@ -354,7 +336,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         if (followDistanceSlider != null) followDistanceSlider.setValue(settings.followDistance);
         if (spacingSlider      != null) spacingSlider.setValue(settings.spacing);
         if (widthSlider        != null) widthSlider.setValue(settings.width);
-        if (turnSlider         != null) turnSlider.setValue(settings.turnSmoothness);
 
         if (previewPanel != null) previewPanel.setData(settings, followerCount);
     }
@@ -364,7 +345,6 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         settings.followDistance = followDistanceSlider.getValue();
         settings.spacing        = spacingSlider.getValue();
         settings.width          = (int) Math.round(widthSlider.getValue());
-        settings.turnSmoothness = (int) Math.round(turnSlider.getValue());
         settings.clamp();
         refreshButtons();
     }

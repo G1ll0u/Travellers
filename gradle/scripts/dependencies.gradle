@@ -38,16 +38,24 @@ repositories {
     mavenLocal() // Must be last for caching to work
 }
 
+configurations {
+    shade
+    implementation.extendsFrom shade
+}
+
 dependencies {
     // Include StripLatestForgeRequirements by gilles for the dev env, saves everyone a hassle
     runtimeOnly 'com.cleanroommc:strip-latest-forge-requirements:1.0'
     // Include OSXNarratorBlocker by gilles for the dev env, for M1+ Macs
     runtimeOnly 'com.cleanroommc:osxnarratorblocker:1.0'
-    embed files('libs/jubiconfig-1.2.0.jar')
+    // Shaded (not embed'd) so it can be package-relocated below — see the relocate comment further
+    // down. Each mod embedding jubiconfig this way can independently use its own jubiconfig
+    // version with zero risk of classloader collisions with another mod's copy.
+    shade files('libs/jubiconfig-2.2.0.jar')
     implementation files('libs/millenaire-8.1.2.jar')
     implementation files('libs/millmix-1.1.6.jar')
     implementation files('libs/DramaticTrees-1.12.2-0.13.4.jar')
-    implementation files('libs/ultreia-b0.1.0.jar')
+    implementation files('libs/ultreia-b0.1.2.jar')
     implementation "curse.maven:ancient-warfare-2-tweaked-890591:6634879"
     implementation 'mezz:jei:4.29.13'
     // Example - Dependency descriptor:
@@ -81,4 +89,21 @@ dependencies {
     // implementation ('com.google.code.gson:gson:2.8.6') {
     //     transitive = false
     // }
+}
+
+// Need reobfJar to use uber jars, so dependencies that are shaded in are present
+if (!configurations.shade.dependencies.empty) {
+    tasks.named('reobfJar').configure {
+        inputJar.set(tasks.named('shadowJar').flatMap({ it.archiveFile }))
+    }
+}
+
+tasks.shadowJar {
+    enabled = !project.configurations.shade.dependencies.empty
+    archiveClassifier = 'uberdev'
+    configurations = [ project.configurations.shade ]
+    // Relocated into a package unique to this mod so this mod's jubiconfig version can never
+    // collide/conflict with another mod's own (possibly different) embedded jubiconfig version —
+    // each mod's copy is fully private. Keep this relocate target unique per mod.
+    relocate 'com.jubitus.jubiconfig', 'com.jubitus.travellers.shadow.jubiconfig'
 }

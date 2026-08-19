@@ -2,6 +2,8 @@ package com.jubitus.travellers.entity.entityAI.ambient;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
+import com.jubitus.travellers.entity.entityAI.travel.mount.MountMode;
+import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.ai.EntityAIBase;
@@ -94,6 +96,12 @@ public class EntityAIRoamInsideVillage extends EntityAIBase {
         BlockPos near = mob.getNearestVillage();
         this.village = (target != null) ? target : near;
 
+        // A rider arriving at a village leaves its horse standing where it got off rather than
+        // riding it through the alleys, and picks it up again on the way out (resetTask).
+        if (TravellersConfig.MOUNTS.hitchMountInVillages) {
+            TravellerMountSupport.setMountMode(mob, MountMode.HITCHED);
+        }
+
         // If we can’t find a center, abort cleanly
         if (this.village == null) {
             mob.setVillageIdling(false);
@@ -114,6 +122,7 @@ public class EntityAIRoamInsideVillage extends EntityAIBase {
 
     @Override
     public void resetTask() {
+        TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
         mob.setVillageIdling(false);
         mob.setRoamTarget(null);
         this.roamTarget = null;

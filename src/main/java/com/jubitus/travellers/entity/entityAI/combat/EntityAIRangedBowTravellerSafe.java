@@ -3,7 +3,9 @@ package com.jubitus.travellers.entity.entityAI.combat;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
+import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -33,10 +35,16 @@ import java.util.List;
  * the entire time this AI is running, LOS or not - so a shot can go out the instant LOS returns and
  * so third-party mods that react to "using an item" (ambient bow-pull sounds, the bow's own string
  * texture) see the traveller as actually drawing, not just posing.
- * - With LOS: kite to hold a preferred distance band between min/max range, sidestepping around a
- * friendly that's blocking the shot line rather than just waiting it out.
+ * - With LOS: kite to hold a preferred distance band between min/max range. A friendly blocking the
+ * shot line is first handled "for free" by lofting a high arc over them ({@link #canLoftOverBlocker}
+ * picks the other root of the same ballistic equation used to aim); only when no arc can clear it
+ * (e.g. a low ceiling) does the archer physically sidestep to open the angle.
  * - Without LOS: reposition toward the target faster than normal (a short grace period first, to
  * avoid twitchy repathing on brief flicker), still fully drawn and ready.
+ * - HOLD-attitude workers ({@link #isHoldAttitude}) skip kiting/backstep/distance-drift entirely and
+ * hold their ground - the lofted shot covers most blocked-line cases without moving at all, and the
+ * rare last-resort sidestep is small and tethered to the worker's own formation slot. This is what
+ * lets a player park an archer group on a tower without them wandering off the edge.
  * <p>
  * Min/max range gates hand-off to melee (too close) or target drop (too far) - both stay outside
  * this class, driven by {@link EntityTraveller#getAttackTarget()} range checks elsewhere.
@@ -55,6 +63,19 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private static final int BLOCK_CHECK_INTERVAL_TICKS = 3; // throttle the ally-in-the-way entity scan
     private static final int AIM_SETTLE_MIN_TICKS = 3;
     private static final int AIM_SETTLE_MAX_TICKS = 6;
+    // --- lofted ("en cloche") shots over a blocking ally ---
+    private static final double LOB_CLEARANCE_MARGIN = 0.6D; // extra headroom above the blocker's AABB
+    private static final float LOB_INACCURACY_BONUS = 1.4F;  // a lofted shot is harder to land than a flat one
+    // Ballistic "clear the blocker" solutions run from a flat arc up to near-vertical mortar fire as
+    // the blocker gets closer - past this launch angle it stops reading as an arc and starts reading
+    // as a rain of arrows, so it's treated the same as "no arc can clear this" (falls back to sidestep).
+    private static final double LOB_MAX_LAUNCH_ANGLE_DEG = 55.0D;
+    // --- HOLD attitude: near-frozen archer, only a small last-resort sidestep to clear a shot ---
+    private static final float HOLD_SIDESTEP_DAMPEN = 0.4f;
+    // Brief lowered-bow window right after firing, so the string/nock visibly resets and redraws per
+    // shot (like a skeleton) instead of staying frozen at full draw for the whole engagement. Short
+    // enough that it's always well clear of shootIntervalTicks (min 10) before the next shot is due.
+    private static final int BOW_RELAX_TICKS = 8;
     // Lead tuning
     private static final double LEAD_GAIN_LATERAL = 1.18; // 1.10–1.25: sideways runners
     private static final double LEAD_GAIN_RADIAL = 1.06; // 1.00–1.10: toward/away bias
@@ -88,6 +109,10 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     // Cached result of the last blocking-ally scan (see #tickShotBlocked)
     private int blockCheckCooldown = 0;
     private int blockedSidestepDir = 0; // 0 = clear, else the direction to sidestep to clear the shot
+    private int bowRelaxTicksLeft = 0; // >0 while the bow is deliberately let down after a shot
+    @Nullable
+    private Entity blockedByEntity = null; // the ally currently in the shot line, if any
+    private float lobPitchDeg = 0f; // launch pitch (MC convention: negative = up) of the last validated lofted shot
     @Nullable
     private java.util.UUID lastTargetId = null;
     private double lastVX = 0, lastVY = 0, lastVZ = 0;
@@ -115,7 +140,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     @Override
     public boolean shouldExecute() {
         if (mob.world.isRemote) return false;
-        if (mob.world.getDifficulty().getId() <= 0) return false; // PEACEFUL
+        if (TravellersDerivedConfig.isPeacefulBlocked(mob.world)) return false;
         if (mob.isAutoEating()) return false;
 
         EntityLivingBase tgt = mob.getAttackTarget();
@@ -152,6 +177,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         repathCooldown = 0;
         blockCheckCooldown = 0;
         blockedSidestepDir = 0;
+        bowRelaxTicksLeft = 0;
         wasSeeing = false;
 
         mob.getNavigator().clearPath(); // we'll handle micro-movement
@@ -178,9 +204,15 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         EntityLivingBase tgt = mob.getAttackTarget();
         if (tgt == null) return;
 
-        // Bow stays drawn for the whole time this AI runs, LOS or not - see class javadoc.
+        // Bow stays drawn for the whole time this AI runs, LOS or not - see class javadoc - except for
+        // a brief relax right after a shot (see #performShot), so the string/nock visibly cycles per
+        // shot like a skeleton instead of staying permanently at full draw.
         ensureBowInHand();
-        if (!mob.isAimingBow()) mob.setAimingBow(true);
+        if (bowRelaxTicksLeft > 0) {
+            bowRelaxTicksLeft--;
+        } else if (!mob.isAimingBow()) {
+            mob.setAimingBow(true);
+        }
 
         // Readiness (cooldown) isn't gated on LOS: an archer that's been blind for a while but had
         // its cadence timer run out can fire the instant it sees the target again, no extra wait.
@@ -199,12 +231,25 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             wasSeeing = true;
 
             mob.setSprinting(false);
-            hardFaceTarget(tgt, 48.0F, 36.0F, 75.0F);
 
             boolean blocked = tickShotBlocked(tgt);
-            applyKitingMovement(d, blocked);
+            // A blocked shot isn't necessarily a dead end: try lofting an arc over the blocker first
+            // (free - no movement needed, so it's also what keeps a HOLD archer from having to break
+            // rank at all). Only fall back to physically sidestepping when no arc can clear it.
+            boolean lofted = blocked && canLoftOverBlocker(tgt);
+            boolean needsClearing = blocked && !lofted;
 
-            if (blocked) {
+            // Face the actual angle we're about to shoot at - flat at the target normally, tilted up
+            // to match the arc when lofting, so the pose never disagrees with the arrow's path.
+            hardFaceTarget(tgt, 48.0F, 36.0F, 75.0F, lofted ? lobPitchDeg : null);
+
+            if (isHoldAttitude()) {
+                applyHoldMovement(needsClearing);
+            } else {
+                applyKitingMovement(d, needsClearing);
+            }
+
+            if (needsClearing) {
                 return; // movement above is already biased toward clearing the shot line
             }
             if (aimWarmup > 0) {
@@ -236,17 +281,21 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
                 steadyTicksLeft = 0; // no steady while closing or target moving
             }
 
-            performShot(tgt, d);
+            performShot(tgt, d, lofted);
             coolDown = shootIntervalTicks;
+            mob.setAimingBow(false);
+            bowRelaxTicksLeft = BOW_RELAX_TICKS;
             return;
         }
 
         // --- NO LOS ---
         wasSeeing = false;
         noLOSTicks++;
-        hardFaceTarget(tgt, 32.0F, 22.0F, 75.0F);
+        hardFaceTarget(tgt, 32.0F, 22.0F, 75.0F, null);
 
-        if (noLOSTicks < LOS_REACQUIRE_GRACE_TICKS) {
+        // HOLD attitude: never actually walk to chase LOS back (see class javadoc for what does
+        // stay active - kiting/sidestep while visible are untouched, only this blind pursuit stops).
+        if (noLOSTicks < LOS_REACQUIRE_GRACE_TICKS || isHoldAttitude()) {
             // Short grace: hold still briefly (foliage flicker, a door swinging shut, etc.) rather
             // than immediately committing to a reposition.
             mob.getNavigator().clearPath();
@@ -255,6 +304,92 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         }
 
         repositionForLOS(tgt, d);
+    }
+
+    private boolean isHoldAttitude() {
+        return mob instanceof EntityTravellerWorker
+                && ((EntityTravellerWorker) mob).getCachedAttitude() == WorkerAttitude.HOLD;
+    }
+
+    /**
+     * HOLD archers stand their ground - no kiting, no distance-band drift, no periodic backstep
+     * (that's what would eventually walk one off the edge of a tower). If a blocked shot can't be
+     * lofted over the blocker either, a small last-resort sidestep is still allowed, but only while
+     * it stays within the same tether {@link EntityAIAttackMeleeCustom} uses to let HOLD melee break
+     * rank ({@code COMBAT.holdBreakRadius}) - once at the edge of it, the archer just holds and waits.
+     */
+    private void applyHoldMovement(boolean needsClearing) {
+        if (needsClearing && withinHoldTether()) {
+            if (blockedSidestepDir != 0) strafeDir = blockedSidestepDir;
+            float mult = TravellersConfig.COMBAT.rangedBlockedSidestepSpeedMultiplier * HOLD_SIDESTEP_DAMPEN;
+            mob.getMoveHelper().strafe(0.0F, strafeInput * (float) strafeDir * mult);
+            setAimMoveSpeed(mult);
+        } else {
+            mob.getMoveHelper().strafe(0.0F, 0.0F);
+            setAimMoveSpeed(0.0f);
+        }
+    }
+
+    private boolean withinHoldTether() {
+        if (!(mob instanceof EntityTravellerWorker)) return true;
+        EntityTravellerWorker w = (EntityTravellerWorker) mob;
+        if (!w.hasFollowerSlotGoal()) return true;
+        double dx = mob.posX - w.getFollowerSlotGoalX();
+        double dz = mob.posZ - w.getFollowerSlotGoalZ();
+        double r = TravellersConfig.COMBAT.holdBreakRadius;
+        return dx * dx + dz * dz <= r * r;
+    }
+
+    /**
+     * Whether a high-arc trajectory can clear the current blocking ally ({@link #blockedByEntity})
+     * without physically moving. Cheap on purpose - shares the same throttle as the blocker scan
+     * itself ({@link #tickShotBlocked}), so this only runs a handful of times a second even with a
+     * large HOLD archer group.
+     */
+    private boolean canLoftOverBlocker(EntityLivingBase target) {
+        Entity blocker = blockedByEntity;
+        if (blocker == null) return false;
+
+        double sx = mob.posX, sy = mob.posY + mob.getEyeHeight(), sz = mob.posZ;
+        double bx = target.posX, by = target.posY + target.getEyeHeight() * 0.5, bz = target.posZ;
+        double fx = bx - sx, fy = by - sy, fz = bz - sz;
+        double xh = Math.sqrt(fx * fx + fz * fz);
+        if (xh < 1.0E-6D) return false;
+
+        double g = 0.05D, v = ARROW_VEL, v2 = v * v;
+        double disc = v2 * v2 - g * (g * xh * xh + 2.0D * fy * v2);
+        if (disc <= 0.0D) return false; // target out of ballistic range for this speed
+        double tanHigh = (v2 + Math.sqrt(disc)) / (g * xh);
+
+        double angleDeg = Math.toDegrees(Math.atan(tanHigh));
+        if (angleDeg > LOB_MAX_LAUNCH_ANGLE_DEG) return false; // would read as a mortar, not an arc
+
+        // Blocker's position projected onto the shot line.
+        double ux = fx / xh, uz = fz / xh;
+        double distAlong = (blocker.posX - sx) * ux + (blocker.posZ - sz) * uz;
+        if (distAlong <= 0.2D || distAlong >= xh - 0.2D) return false; // not really between shooter and target
+
+        double clearance = tanHigh * distAlong
+                - g * distAlong * distAlong * (1.0D + tanHigh * tanHigh) / (2.0D * v2);
+        double arcY = sy + clearance;
+
+        double requiredY = blocker.getEntityBoundingBox().maxY + LOB_CLEARANCE_MARGIN;
+        if (arcY < requiredY) return false;
+
+        double midX = sx + fx * (distAlong / xh) * 0.5D;
+        double midZ = sz + fz * (distAlong / xh) * 0.5D;
+        boolean clear = columnClear(blocker.posX, blocker.posZ, arcY) && columnClear(midX, midZ, arcY);
+        if (clear) lobPitchDeg = (float) -angleDeg; // MC pitch: negative looks up
+        return clear;
+    }
+
+    /** Short vertical scan for a solid ceiling around the arc's height at one XZ point. */
+    private boolean columnClear(double x, double z, double y) {
+        BlockPos base = new BlockPos(x, y, z);
+        for (int dy = 0; dy <= 2; dy++) {
+            if (mob.world.getBlockState(base.up(dy)).getMaterial().blocksMovement()) return false;
+        }
+        return true;
     }
 
     /**
@@ -273,8 +408,12 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
      * @param maxYawStep   max degrees of yaw change per tick
      * @param maxPitchStep max degrees of pitch change per tick
      * @param headLimit    max head/body divergence in degrees
+     * @param pitchOverrideDeg if non-null, aim this pitch instead of the flat line to the target -
+     *                          used for a lofted shot so the pose visibly matches the arc it's about
+     *                          to fire, rather than looking level while the arrow leaves upward.
      */
-    private void hardFaceTarget(EntityLivingBase target, float maxYawStep, float maxPitchStep, float headLimit) {
+    private void hardFaceTarget(EntityLivingBase target, float maxYawStep, float maxPitchStep, float headLimit,
+                                 @Nullable Float pitchOverrideDeg) {
         // Vector from eyes to target mid-height
         double sx = mob.posX;
         double sy = mob.posY + mob.getEyeHeight();
@@ -290,7 +429,9 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         if (horiz < 1.0E-6 && Math.abs(dy) < 1.0E-6) return;
 
         float desiredYaw = (float) (Math.atan2(dz, dx) * (180D / Math.PI)) - 90.0F;
-        float desiredPitch = (float) (-(Math.atan2(dy, horiz) * (180D / Math.PI)));
+        float desiredPitch = pitchOverrideDeg != null
+                ? pitchOverrideDeg
+                : (float) (-(Math.atan2(dy, horiz) * (180D / Math.PI)));
 
         // Smoothly step head first
         mob.rotationYawHead = rotlerp(mob.rotationYawHead, desiredYaw, maxYawStep);
@@ -415,6 +556,8 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
      * blocker fastest.
      */
     private int findBlockingSidestepDir(EntityLivingBase target) {
+        blockedByEntity = null;
+
         Vec3d from = new Vec3d(mob.posX, mob.posY + mob.getEyeHeight(), mob.posZ);
         Vec3d to = new Vec3d(target.posX, target.posY + target.getEyeHeight() * 0.5, target.posZ);
 
@@ -449,6 +592,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
             // Does our shot segment intersect this grown AABB?
             if (bb.calculateIntercept(from, to) != null) {
+                blockedByEntity = e;
                 // Which side of the shot line the blocker sits on; step to the opposite side to
                 // widen the angle away from it as fast as possible.
                 double ex = e.posX - from.x, ez = e.posZ - from.z;
@@ -459,7 +603,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         return 0;
     }
 
-    private void performShot(EntityLivingBase target, double distance) {
+    private void performShot(EntityLivingBase target, double distance, boolean lofted) {
         World w = mob.world;
         EntityTippedArrow arrow = new EntityTippedArrow(w, mob);
         arrow.setEnchantmentEffectsFromEntity(mob, 1.0F);
@@ -538,12 +682,19 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         double fz = aimZ - sz;
         double xh = Math.sqrt(fx * fx + fz * fz);
 
-        // Final lower-arc elevation
+        // Final elevation: the low arc by default, or the high ("en cloche") arc when lofting over a
+        // blocking ally - same quadratic, just the other root.
         double v2 = v * v;
         double disc = (v2 * v2) - g * (g * xh * xh + 2.0D * fy * v2);
         if (disc > 0.0D && xh > 1.0e-6D) {
             double root = Math.sqrt(disc);
-            double tanTheta = (v2 - root) / (g * xh);
+            double tanTheta = lofted ? (v2 + root) / (g * xh) : (v2 - root) / (g * xh);
+            if (lofted) {
+                // Guard against the lead-adjusted aim point pushing past what was actually validated
+                // as "an arc, not a mortar" in canLoftOverBlocker (which checked the raw target point).
+                double tanCap = Math.tan(Math.toRadians(LOB_MAX_LAUNCH_ANGLE_DEG));
+                if (tanTheta > tanCap) tanTheta = tanCap;
+            }
             aimY = tanTheta * xh;
         } else {
             aimY = fy + xh * 0.06D;
@@ -557,6 +708,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // Distance-scaled inaccuracy (keeps some misses)
         double dNorm = Math.min(1.0, xh / 24.0);
         float inaccuracy = (float) (INACC_NEAR + (INACC_FAR - INACC_NEAR) * dNorm);
+        if (lofted) inaccuracy += LOB_INACCURACY_BONUS; // an arcing shot is harder to land cleanly
 
         // Fire
         arrow.shoot(fx, aimY, fz, ARROW_VEL, inaccuracy);

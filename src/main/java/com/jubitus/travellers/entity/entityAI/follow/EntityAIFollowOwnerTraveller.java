@@ -1,6 +1,7 @@
 package com.jubitus.travellers.entity.entityAI.follow;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.utils.world.pathing.GapJumpEvaluator;
@@ -63,6 +64,13 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
     /** Consecutive ticks the straight line to the goal has been hazard-blocked with no usable detour. */
     private int steeringBlockedTicks;
+
+    /** Read by the trace tool: how close this follower is to giving up on direct steering and asking
+     * for a real path. Without it a trace cannot tell "steering thinks it is fine" from "steering is
+     * about to escalate", which are very different failures. */
+    public int getSteeringBlockedTicks() {
+        return steeringBlockedTicks;
+    }
     private int deflectionRecheckCooldown;
     private double cachedDeflectDirX;
     private double cachedDeflectDirZ;
@@ -89,6 +97,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
     private final float stopDist;
 
     private final FollowBoatController boatController;
+    private final FollowFlightController flightController;
     private final FollowModeSelector modeSelector;
 
     private EntityLivingBase followTarget;
@@ -172,6 +181,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         this.stopDist = stopDist;
         this.modeSelector = new FollowModeSelector(worker);
         this.boatController = new FollowBoatController(worker, speed);
+        this.flightController = new FollowFlightController(worker);
         this.setMutexBits(3);
     }
 
@@ -184,6 +194,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         this.followTarget = target;
 
+        if (flightController.shouldHandle(target)) return true;
         if (boatController.shouldHandle(target)) return true;
         return horizontalDistanceTo(target) > startDist;
     }
@@ -197,6 +208,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         this.followTarget = current;
 
+        if (flightController.shouldHandle(current)) return true;
         if (boatController.shouldHandle(current)) return true;
         if (worker.isCatchupTravel()) return false;
 
@@ -251,6 +263,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         boatController.reset();
+        flightController.reset();
     }
 
     @Override
@@ -303,6 +316,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         lastFollowTargetUUID = null;
 
         boatController.reset();
+        flightController.reset();
     }
 
     @Override
@@ -329,6 +343,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             onFollowTargetChanged();
         }
         lastFollowTargetUUID = targetUUID;
+
+        // Flight first: while airborne the flight controller owns movement outright, and every
+        // formation/slot/stagnation measurement below assumes a walking follower on the ground.
+        if (flightController.tick(target)) {
+            return;
+        }
 
         if (boatController.tick(target)) {
             return;
@@ -451,7 +471,13 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                                         horizontalDistanceTo(target) > stopDist + 3.0D
                         ));
             } else {
-                // Player: much more sensitive wake-up
+                // Player: much more sensitive wake-up.
+                // NOTE: this branch is a defensive fallback only - idleAtSlot is never SET true for a
+                // player leader below (see "Player leader: no long idle state"), so in practice a
+                // player-followed worker never reaches this block except transiently right after its
+                // leader switches from a worker to the player. The real playerCohesion lever for a
+                // settled player-led escort is the fast-path tolerance further down (search
+                // "Player leader: lower tolerance").
                 shouldWake =
                         slot.leaderActuallyMoving
                                 || leaderMoveSq > 0.60D * 0.60D
@@ -573,12 +599,17 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
                 settledTicks = 0;
                 goalRefreshCooldown = 0;
             } else {
-                // Player leader: lower tolerance, react quickly
+                // Player leader: lower tolerance, react quickly - and the higher playerCohesion is,
+                // the tighter that tolerance gets, so a settled escort re-paths toward its slot on a
+                // smaller drift instead of only when a visible gap has already opened up. This is the
+                // lever that actually runs continuously for a player-led escort (unlike the idleAtSlot
+                // wake-up thresholds above, which player leaders never idle into).
+                double tolerance = 0.75D * (1.0D - 0.6D * worker.getCachedPlayerCohesion());
                 double idealDx = worker.posX - slot.idealX;
                 double idealDz = worker.posZ - slot.idealZ;
                 double idealDriftSq = idealDx * idealDx + idealDz * idealDz;
 
-                if (idealDriftSq < 0.75D * 0.75D && !slot.leaderActuallyMoving) {
+                if (idealDriftSq < tolerance * tolerance && !slot.leaderActuallyMoving) {
                     if (worker.getNavigator().noPath()) return;
                     repathCooldown = Math.max(repathCooldown, 2);
                     return;
@@ -1584,6 +1615,17 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             worker.getNavigator().clearPath();
             return;
         }
+        // Every probe above (isHazardAhead, the deflection, the corridor search) is sized from the
+        // worker's own sub-1-block hitbox, so for a mounted worker they are blind to the only thing
+        // that actually stops it: its horse's much wider, taller body. The way ahead reads as clear,
+        // this counter resets every tick, the escalation to real pathfinding - which IS mount-aware -
+        // never happens, and the horse is steered into the same tree indefinitely. Measured: 1381
+        // consecutive ticks at zero displacement with the rider still asking to move forward. Real
+        // physics is the only reliable witness here, so it feeds the counter directly.
+        if (TravellerMountSupport.isMountWedged(worker)) {
+            steeringBlockedTicks++;
+            return;
+        }
         steeringBlockedTicks = 0;
 
         if (idleAtSlot) {
@@ -1607,7 +1649,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (airborneLeader) {
             if (horizToGoal > 1.8D) {
                 if (!tryGapJump(goal.x, goal.z, clampedSpeed)) {
-                    worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, clampedSpeed);
+                    steerTo(goal.x, worker.posY, goal.z, clampedSpeed);
                 }
             } else {
                 worker.getNavigator().clearPath();
@@ -1618,7 +1660,7 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         if (mode == FollowMode.CAVE && Math.abs(worker.posY - target.posY) <= 3.0D) {
             double s = Math.max(0.20D, moveSpeed * 0.92D);
             if (!tryGapJump(goal.x, goal.z, s)) {
-                worker.getMoveHelper().setMoveTo(goal.x, goal.y, goal.z, s);
+                steerTo(goal.x, goal.y, goal.z, s);
             }
             return;
         }
@@ -1627,12 +1669,12 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
             if (horizToGoal > 2.0D) {
                 double s = Math.max(0.20D, moveSpeed * 0.84D);
                 if (!tryGapJump(goal.x, goal.z, s)) {
-                    worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, s);
+                    steerTo(goal.x, worker.posY, goal.z, s);
                 }
             } else if (!leaderStill) {
                 double s = Math.max(0.20D, moveSpeed * 0.78D);
                 if (!tryGapJump(goal.x, goal.z, s)) {
-                    worker.getMoveHelper().setMoveTo(goal.x, worker.posY, goal.z, s);
+                    steerTo(goal.x, worker.posY, goal.z, s);
                 }
             } else {
                 worker.getNavigator().clearPath();
@@ -1641,8 +1683,14 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
         }
 
         if (!tryGapJump(goal.x, goal.z, clampedSpeed)) {
-            worker.getMoveHelper().setMoveTo(goal.x, goal.y, goal.z, clampedSpeed);
+            steerTo(goal.x, goal.y, goal.z, clampedSpeed);
         }
+    }
+
+    /** The single way this task hands a direct steering target to the move helper. While mounted,
+     * {@code getMoveHelper()} is the horse's own, so this steers the horse directly. */
+    private void steerTo(double x, double y, double z, double speed) {
+        worker.getMoveHelper().setMoveTo(x, y, z, speed);
     }
 
     private boolean tryGapJump(double goalX, double goalZ, double speed) {
@@ -1925,10 +1973,16 @@ public class EntityAIFollowOwnerTraveller extends EntityAIBase {
 
         boolean workerLeader = slot.workerLeader;
 
-        double leaderMoveThresholdSq = workerLeader ? (4.0D * 4.0D) : (2.5D * 2.5D);
-        double leaderMoveThresholdY  = workerLeader ? 6.0D : 4.0D;
-        double workerMoveThresholdSq = workerLeader ? (2.5D * 2.5D) : (2.0D * 2.0D);
-        double idealShiftThresholdSq = workerLeader ? (5.5D * 5.5D) : (3.5D * 3.5D);
+        // playerCohesion is THE lever a player actually feels while walking: it tightens how far the
+        // player has to move before a settled escort bothers to re-evaluate/re-path toward its slot
+        // at all. This runs unconditionally every tick for a player-led follower (unlike the
+        // idleAtSlot machinery above, which only ever engages for a worker leader) - so it's the
+        // correct place for "walk WITH me instead of trailing", not a subtle side-effect elsewhere.
+        double cohesionMul = workerLeader ? 1.0D : (1.0D - 0.55D * worker.getCachedPlayerCohesion());
+        double leaderMoveThresholdSq = workerLeader ? (4.0D * 4.0D) : (2.5D * cohesionMul) * (2.5D * cohesionMul);
+        double leaderMoveThresholdY  = workerLeader ? 6.0D : 4.0D * cohesionMul;
+        double workerMoveThresholdSq = workerLeader ? (2.5D * 2.5D) : (2.0D * cohesionMul) * (2.0D * cohesionMul);
+        double idealShiftThresholdSq = workerLeader ? (5.5D * 5.5D) : (3.5D * cohesionMul) * (3.5D * cohesionMul);
 
         boolean noPath = worker.getNavigator().noPath();
 

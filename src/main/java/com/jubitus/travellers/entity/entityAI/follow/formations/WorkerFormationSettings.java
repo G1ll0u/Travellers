@@ -21,6 +21,9 @@ public final class WorkerFormationSettings {
     public static final int MIN_ESCORTS = 0;
     public static final int MAX_ESCORTS = 16;
 
+    public static final double MIN_PLAYER_COHESION = 0.0D;
+    public static final double MAX_PLAYER_COHESION = 1.0D;
+
     public WorkerFormationStyle style = WorkerFormationStyle.ADAPTIVE;
     public double followDistance = 2.5D;
     public double spacing = 1.0D;
@@ -29,6 +32,15 @@ public final class WorkerFormationSettings {
     public boolean adaptiveCave = true;
     /** How many workers are kept as close escorts near the leader regardless of formation. */
     public int numEscorts = 2;
+    /** Combat posture for the whole group - see {@link WorkerAttitude}. */
+    public WorkerAttitude attitude = WorkerAttitude.ATTACK;
+    /**
+     * How eagerly followers stick to their leader while it's moving (0 = today's looser trailing
+     * behaviour, 1 = tight escort that fills in beside/ahead of the leader and reacts to the
+     * smallest movement). See FormationGeometry#computeSurfaceOffset and
+     * EntityAIFollowOwnerTraveller's wake-up thresholds for where this is applied.
+     */
+    public double playerCohesion = 0.4D;
 
     public WorkerFormationSettings copy() {
         WorkerFormationSettings s = new WorkerFormationSettings();
@@ -39,6 +51,8 @@ public final class WorkerFormationSettings {
         s.turnSmoothness = this.turnSmoothness;
         s.adaptiveCave = this.adaptiveCave;
         s.numEscorts = this.numEscorts;
+        s.attitude = this.attitude;
+        s.playerCohesion = this.playerCohesion;
         return s;
     }
 
@@ -46,12 +60,21 @@ public final class WorkerFormationSettings {
         if (style == null) {
             style = WorkerFormationStyle.ADAPTIVE;
         }
+        // COLUMN is no longer a selectable surface style (see WorkerFormationStyle) - migrate
+        // pre-existing saves/settings that still have it to the closest remaining style.
+        if (style == WorkerFormationStyle.COLUMN) {
+            style = WorkerFormationStyle.LINE;
+        }
+        if (attitude == null) {
+            attitude = WorkerAttitude.ATTACK;
+        }
 
         followDistance = roundHalf(MathHelper.clamp(followDistance, MIN_FOLLOW_DISTANCE, MAX_FOLLOW_DISTANCE));
         spacing = roundQuarter(MathHelper.clamp(spacing, MIN_SPACING, MAX_SPACING));
         width = MathHelper.clamp(width, MIN_WIDTH, MAX_WIDTH);
         turnSmoothness = MathHelper.clamp(turnSmoothness, MIN_TURN_SMOOTHNESS, MAX_TURN_SMOOTHNESS);
         numEscorts = MathHelper.clamp(numEscorts, MIN_ESCORTS, MAX_ESCORTS);
+        playerCohesion = roundQuarter(MathHelper.clamp(playerCohesion, MIN_PLAYER_COHESION, MAX_PLAYER_COHESION));
         return this;
     }
 
@@ -71,6 +94,8 @@ public final class WorkerFormationSettings {
         tag.setInteger("TurnSmoothness", turnSmoothness);
         tag.setBoolean("AdaptiveCave", adaptiveCave);
         tag.setInteger("NumEscorts", numEscorts);
+        tag.setString("Attitude", attitude.name());
+        tag.setDouble("PlayerCohesion", playerCohesion);
         return tag;
     }
 
@@ -102,6 +127,16 @@ public final class WorkerFormationSettings {
         }
         if (tag.hasKey("NumEscorts")) {
             s.numEscorts = tag.getInteger("NumEscorts");
+        }
+        if (tag.hasKey("Attitude")) {
+            try {
+                s.attitude = WorkerAttitude.valueOf(tag.getString("Attitude"));
+            } catch (IllegalArgumentException ignored) {
+                s.attitude = WorkerAttitude.ATTACK;
+            }
+        }
+        if (tag.hasKey("PlayerCohesion")) {
+            s.playerCohesion = tag.getDouble("PlayerCohesion");
         }
 
         return s.clamp();

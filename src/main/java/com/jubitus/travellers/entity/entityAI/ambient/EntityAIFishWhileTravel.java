@@ -302,7 +302,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         double dx = best.getX() + 0.5 - mob.posX;
         double dz = best.getZ() + 0.5 - mob.posZ;
         float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-        mob.rotationYaw = rotlerp(mob.rotationYaw, yaw, 8.0F);
+        mob.setBodyYaw(rotlerp(mob.rotationYaw, yaw, 8.0F));
         mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, 8.0F);
         mob.rotationYawHead = rotlerp(mob.rotationYawHead, mob.renderYawOffset, 12.0F);
     }
@@ -391,7 +391,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
             double dx = best.getX() + 0.5 - mob.posX;
             double dz = best.getZ() + 0.5 - mob.posZ;
             float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-            mob.rotationYaw = rotlerp(mob.rotationYaw, yaw, 8.0F);
+            mob.setBodyYaw(rotlerp(mob.rotationYaw, yaw, 8.0F));
             mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, 8.0F);
             mob.rotationYawHead = rotlerp(mob.rotationYawHead, mob.renderYawOffset, 12.0F);
         }
