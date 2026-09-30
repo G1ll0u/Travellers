@@ -557,6 +557,35 @@ tasks.register('generateDynamicSounds') {
                 raidIndex
         )
 
+        // ---- Dialogue-only personalities: character sheets with no sound folder at all ----
+        // A personality can exist purely as assets/travellers/personalities/<lang>/<id>.md (see
+        // PersonalityProfileLoader) with no matching sounds/travellers/<lang>/<id>/ folder. It still
+        // has to appear in travIndex.langs so CultureRegistry.pickRandomTravellerPersonalityId can
+        // actually assign it at spawn; it carries no clips (CultureRegistry falls back to the
+        // culture's default voice set for a personality whose VoiceSet is entirely empty). Raiders
+        // are out of scope - they have no friendly dialogue to begin with.
+        def personalitiesBase = file("$projectDir/src/main/resources/assets/${MODID}/personalities")
+        if (personalitiesBase.exists()) {
+            dirChildren(personalitiesBase).each { File langDir ->
+                def lang = langDir.name.toLowerCase()
+                def mdFiles = langDir.listFiles()?.findAll { it.isFile() && it.name.toLowerCase().endsWith(".md") } ?: []
+                if (mdFiles.isEmpty()) return
+
+                def existing = (travIndex.langs[lang] ?: []) as Set
+                def soundless = mdFiles.collect { it.name.substring(0, it.name.length() - 3).toLowerCase() }
+                        .findAll { !existing.contains(it) }
+                if (soundless.isEmpty()) return
+
+                travIndex.langs[lang] = ((travIndex.langs[lang] ?: []) + soundless).sort()
+                travIndex.clips[lang] = travIndex.clips[lang] ?: [:]
+                soundless.each { String personality ->
+                    travIndex.clips[lang][personality] = [:]
+                    kinds.each { String kind -> travIndex.clips[lang][personality][kind] = [] }
+                }
+                println "[generateDynamicSounds] Sound-less personalities for ${lang}: ${soundless.join(', ')}"
+            }
+        }
+
         // ---- Choir songs ----
         // Structure: sounds/travellers/<lang>/<personality>/choir/<songName>/<stem_N>.ogg
         // choir_index.json: { songs: {...}, aliases: {...}, durationTicks per song }

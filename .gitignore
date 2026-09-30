@@ -24,3 +24,28 @@ libs
 /millDecomp/
 /.claude/
 /temp/
+
+# reference sources
+/minecraft-src/
+/other srcs/
+/soundphyiscs_source/
+
+# logs and tool folders
+/logs/
+/.codex/
+
+# audio workshop
+/choirs_work/
+/bashTools/
+/convert_oggs
+src/main/resources/assets/travellers/sounds/travellers/choir_studio*.py
+
+# personal scripts
+/deploy.sh
+/README_.md
+
+# local notes and plans
+/CLAUDE.md
+/CHANGELOG.md
+/docs/
+src/main/resources/assets/travellers/personalities/fr_bak/
