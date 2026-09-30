@@ -1,9 +1,6 @@
 package com.jubitus.travellers.server.gui;
 
 import com.jubitus.travellers.client.gui.*;
-import com.jubitus.travellers.client.gui.bahavior.ContainerWorkerBehavior;
-import com.jubitus.travellers.client.gui.bahavior.relations.ContainerWorkerVillageRelations;
-import com.jubitus.travellers.client.gui.orders.ContainerWorkerFollow;
 import com.jubitus.travellers.client.gui.transport.ContainerWorker;
 import com.jubitus.travellers.client.gui.transport.ContainerWorkerInventory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;

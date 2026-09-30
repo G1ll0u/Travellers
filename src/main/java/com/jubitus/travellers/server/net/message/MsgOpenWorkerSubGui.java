@@ -2,25 +2,25 @@ package com.jubitus.travellers.server.net.message;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeResolver;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.group.WorkerGroupService;
-import com.jubitus.travellers.server.net.MsgOpenClientWorkerGui;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.message.MsgOpenClientWorkerGui;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormationGui;
 import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -55,7 +55,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
         java.util.List<String> out = new java.util.ArrayList<>();
         MinecraftServer srv = player.getServer();
         if (srv != null) {
-            for (UUID id : com.jubitus.travellers.utils.world.data.PlayerEnemyRelations.get(player.world)
+            for (UUID id : com.jubitus.travellers.world.data.PlayerEnemyRelations.get(player.world)
                     .getHostiles(player.getUniqueID())) {
                 GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(id);
                 out.add(gp != null && gp.getName() != null ? gp.getName() : id.toString());

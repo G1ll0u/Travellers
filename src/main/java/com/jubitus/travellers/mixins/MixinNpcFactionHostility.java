@@ -4,7 +4,7 @@ import com.jubitus.travellers.TravellersMixinConfigPlugin;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.mobs.compat.AncientWarfare2Compat;
+import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.shadowmage.ancientwarfare.npc.entity.faction.NpcFaction;

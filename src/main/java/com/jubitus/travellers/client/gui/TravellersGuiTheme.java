@@ -19,6 +19,12 @@ public final class TravellersGuiTheme {
     public static final int COL_TEXT_DIM = 0xFFA08060;
     public static final int COL_TEXT_HOV = 0xFFFFCC88;
 
+    // ── Dialogue transcript ───────────────────────────────────────────────────
+    /** Accent bar + name color for the player's side of a dialogue transcript. */
+    public static final int COL_DIALOGUE_PLAYER = 0xFF7FBF6A;
+    /** Accent bar + name color for the traveller's side of a dialogue transcript. */
+    public static final int COL_DIALOGUE_NPC    = 0xFFE0A868;
+
     // ── List rows ─────────────────────────────────────────────────────────────
     public static final int COL_ROW_SEL   = 0x604A3C20;
     public static final int COL_ROW_HOVER = 0x3AFFFFFF;

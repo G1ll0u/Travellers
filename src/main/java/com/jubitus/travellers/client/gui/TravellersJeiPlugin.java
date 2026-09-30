@@ -1,7 +1,7 @@
 package com.jubitus.travellers.client.gui;
 
-import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
-import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
+import com.jubitus.travellers.client.gui.behavior.GuiWorkerBehavior;
+import com.jubitus.travellers.client.gui.behavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
 import com.jubitus.travellers.client.gui.transport.GuiWorker;

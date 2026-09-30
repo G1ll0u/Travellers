@@ -5,8 +5,11 @@
   "refmap": "mixins.travellers.refmap.json",
   "mixins": [
     "MixinOwnedMobFriendlyTraveller",
+    "MixinEntityCreature",
     "MixinEntityLiving",
-    "MixinAbstractHorse"
+    "MixinEntityHorse",
+    "MixinEntityTracker",
+    "MixinPathFinder"
   ],
   "client": [
     "MixinLayerHeldItem"

@@ -1,8 +1,9 @@
 package com.jubitus.travellers.client.gui.transport;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -39,7 +40,7 @@ public class GuiWorkerInventory extends GuiContainer implements ITravellersGui {
     public void initGui() {
         super.initGui();
         this.buttonList.clear();
-        this.backButton = this.addButton(new GuiButton(
+        this.backButton = this.addButton(new GuiTravellersButton(
                 0, this.guiLeft + this.xSize - 58, this.guiTop + this.ySize,
                 54, 20, I18n.format("travellers.gui.back")));
     }

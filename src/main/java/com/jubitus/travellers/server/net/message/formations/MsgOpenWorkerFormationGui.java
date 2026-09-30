@@ -1,9 +1,9 @@
 package com.jubitus.travellers.server.net.message.formations;
 
 import com.jubitus.travellers.client.gui.formation.GuiWorkerFormation;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeResolver;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;

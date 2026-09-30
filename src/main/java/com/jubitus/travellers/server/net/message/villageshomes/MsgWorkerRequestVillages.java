@@ -3,8 +3,8 @@ package com.jubitus.travellers.server.net.message.villageshomes;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;

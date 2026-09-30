@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.recruit;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
@@ -13,7 +14,7 @@ import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.recruit.MsgRecruitStartSelectedVillages;
@@ -93,11 +94,11 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         int gap = 4;
         int buttonsTop = listY + listH + gap;
 
-        this.backButton = this.addButton(new GuiButton(
+        this.backButton = this.addButton(new GuiTravellersButton(
                 2, listX, buttonsTop, bw, bh,
                 I18n.format("travellers.gui.back", "Back")));
 
-        this.startButton = this.addButton(new GuiButton(
+        this.startButton = this.addButton(new GuiTravellersButton(
                 0, listX + bw + gap, buttonsTop, bw, bh,
                 I18n.format("travellers.worker.recruit.start", "Recruit")));
 

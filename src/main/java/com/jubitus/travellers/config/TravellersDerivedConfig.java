@@ -3,11 +3,10 @@ package com.jubitus.travellers.config;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.mobs.lists.AttackList;
-import com.jubitus.travellers.utils.mobs.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.AttackList;
+import com.jubitus.travellers.combat.lists.TravellerBlacklist;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.World;
@@ -19,7 +18,7 @@ import java.util.Set;
 
 /**
  * Runtime objects derived from TravellersConfig raw string arrays (attack/blacklist rule sets,
- * merchant include filters) plus small client-side caches of server-sent values.
+ * filters) plus small client-side caches of server-sent values.
  * Rebuilt via refresh(), called from the same startup step that used to call
  * TravellersModConfig.applyDerivedValues().
  */
@@ -33,9 +32,6 @@ public class TravellersDerivedConfig {
     public static final TravellerBlacklist TRAVELLER_BLACKLIST = new TravellerBlacklist();
     public static final TravellerBlacklist TRAVELLER_AGGRO_BLACKLIST = new TravellerBlacklist();
     public static final TravellerBlacklist RAIDER_AGGRO_BLACKLIST = new TravellerBlacklist();
-
-    public static final Set<String> INCLUDED_MERCHANT_VILLAGER_TAGS = new HashSet<>();
-    public static final Set<String> INCLUDED_MERCHANT_VILLAGER_FILES = new HashSet<>();
 
     // Registry names (e.g. "somemod:quicksand") from CAMP_EVENTS.terrainHazardBlacklist, lowercased.
     public static final Set<String> CAMP_TERRAIN_HAZARD_BLACKLIST = new HashSet<>();
@@ -57,21 +53,6 @@ public class TravellersDerivedConfig {
     }
 
     public static void refresh() {
-        INCLUDED_MERCHANT_VILLAGER_TAGS.clear();
-        for (String t : TravellersConfig.FILTERS.includedMerchantVillagerTagsRaw) {
-            if (t == null) continue;
-            String s = t.trim().toLowerCase(Locale.ROOT);
-            if (!s.isEmpty()) INCLUDED_MERCHANT_VILLAGER_TAGS.add(s);
-        }
-
-        INCLUDED_MERCHANT_VILLAGER_FILES.clear();
-        for (String f : TravellersConfig.FILTERS.includedMerchantVillagerFilesRaw) {
-            if (f == null) continue;
-            String s = f.trim().toLowerCase(Locale.ROOT);
-            if (s.endsWith(".txt")) s = s.substring(0, s.length() - 4);
-            if (!s.isEmpty()) INCLUDED_MERCHANT_VILLAGER_FILES.add(s);
-        }
-
         RAIDER_ATTACK_LIST.reload(
                 TravellersConfig.ATTACK_RULES.raiderAttackIdRules,
                 TravellersConfig.ATTACK_RULES.raiderAttackClassRules);
@@ -124,10 +105,7 @@ public class TravellersDerivedConfig {
                 // e.g. 40) briefly gets clamped down to the generic travellerMaxHealth (e.g. 25)
                 // here, then healed back up to 40 over time by natural regen once onConfigReload()
                 // restores the correct max a few lines later.
-                if (t instanceof EntityTravellerMerchant) {
-                    cfgMaxHealth = TravellersConfig.ATTRIBUTES.merchantMaxHealth;
-                    cfgFollowRange = TravellersConfig.ATTRIBUTES.merchantFollowRange;
-                } else if (t instanceof EntityTravellerWorker) {
+                if (t instanceof EntityTravellerWorker) {
                     cfgMaxHealth = TravellersConfig.ATTRIBUTES.workerMaxHealth;
                     cfgFollowRange = TravellersConfig.ATTRIBUTES.workerFollowRange;
                 } else if (t instanceof EntityTravellerRaider) {

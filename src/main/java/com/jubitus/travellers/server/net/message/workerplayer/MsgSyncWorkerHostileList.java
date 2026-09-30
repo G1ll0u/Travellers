@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
-import com.jubitus.travellers.client.gui.bahavior.GuiWorkerEnemies;
+import com.jubitus.travellers.client.gui.behavior.GuiWorkerEnemies;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;

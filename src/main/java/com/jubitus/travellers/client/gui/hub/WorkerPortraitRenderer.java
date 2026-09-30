@@ -57,6 +57,14 @@ public final class WorkerPortraitRenderer {
      */
     private static boolean renderingPortrait = false;
 
+    /**
+     * Last rendered angles, eased towards the target every draw call so the head catches up to the
+     * cursor gradually instead of snapping to it every frame. Shared static state is fine — only one
+     * portrait is ever on screen at a time; switching to a different worker's hub just re-settles it.
+     */
+    private static float smoothedYaw = 0.0F;
+    private static float smoothedPitch = 0.0F;
+
     private WorkerPortraitRenderer() {}
 
     public static boolean isRenderingPortrait() {
@@ -82,18 +90,22 @@ public final class WorkerPortraitRenderer {
         // preRenderCallback multiplies by getRenderScale() again, so divide it out here.
         float glScale = pixelsPerBlock / scale;
 
-        float headYaw = 0.0F;
-        float headPitch = 0.0F;
+        float targetYaw = 0.0F;
+        float targetPitch = 0.0F;
         if (TravellersConfig.WORKER_HUB.headFollowsCursor) {
             // Yaw is mirrored: the GL transform below scales X by -1 (vanilla's own portrait
             // transform), so a positive rotation on the entity reads as a turn to the left here.
-            headYaw = angleTowards(centerX - mouseX, TravellersConfig.WORKER_HUB.headMaxYaw);
-            headPitch = angleTowards(mouseY - centerY, TravellersConfig.WORKER_HUB.headMaxPitch);
+            targetYaw = angleTowards(centerX - mouseX, TravellersConfig.WORKER_HUB.headMaxYaw);
+            targetPitch = pitchTowards(centerY, mouseY, TravellersConfig.WORKER_HUB.headMaxPitch);
         }
+
+        float smoothing = (float) TravellersConfig.WORKER_HUB.headSmoothing;
+        smoothedYaw += (targetYaw - smoothedYaw) * smoothing;
+        smoothedPitch += (targetPitch - smoothedPitch) * smoothing;
 
         // The portrait frame has a 1px border; clip inside it.
         beginClip(x + 1, y + 1, size - 2, size - 2);
-        renderEntity(entity, centerX, centerY, glScale, pixelsPerBlock, headYaw, headPitch);
+        renderEntity(entity, centerX, centerY, glScale, pixelsPerBlock, smoothedYaw, smoothedPitch);
         endClip();
     }
 
@@ -101,6 +113,19 @@ public final class WorkerPortraitRenderer {
     private static float angleTowards(int delta, int maxDegrees) {
         float raw = (float) Math.toDegrees(Math.atan(delta / 60.0D)) * 1.5F;
         return Math.max(-maxDegrees, Math.min(maxDegrees, raw));
+    }
+
+    /**
+     * Linear over the real screen span above/below the portrait, so max pitch needs the cursor at
+     * the actual top/bottom edge of the screen — not just a fixed pixel offset above the head, which
+     * read as wildly over-sensitive on anything but a very tall window.
+     */
+    private static float pitchTowards(int centerY, int mouseY, int maxDegrees) {
+        int delta = mouseY - centerY;
+        int scaledHeight = new ScaledResolution(Minecraft.getMinecraft()).getScaledHeight();
+        int span = Math.max(1, delta >= 0 ? scaledHeight - centerY : centerY);
+        float frac = Math.max(-1.0F, Math.min(1.0F, delta / (float) span));
+        return frac * maxDegrees;
     }
 
     private static void renderEntity(EntityTraveller entity, int centerX, int centerY,

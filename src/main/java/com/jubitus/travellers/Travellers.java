@@ -8,24 +8,24 @@ import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.campcommon.CampfireManager;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.LoneBarrackInteractionHandler;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerOffscreenHandler;
+import com.jubitus.travellers.entity.entityai.ambient.camp.campcommon.CampfireManager;
+import com.jubitus.travellers.entity.entityai.travel.travelcommon.ZoneInteractionHandler;
+import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerOffscreenHandler;
 import com.jubitus.travellers.entity.travellers.*;
 import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncServerCosts;
-import com.jubitus.travellers.utils.commands.*;
-import com.jubitus.travellers.utils.mobs.MobTargetInjector;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.server.net.TravellerWorkerLootHandler;
+import com.jubitus.travellers.command.*;
+import com.jubitus.travellers.combat.MobTargetInjector;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerWorkerLootHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksClientHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
-import com.jubitus.travellers.utils.world.pathing.chunkmanager.TravellerChunkManager;
-import com.jubitus.travellers.utils.world.spawn.TravellerSoftSpawner;
+import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.world.spawn.TravellerSoftSpawner;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
@@ -36,6 +36,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Config;
 import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
@@ -50,7 +51,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.jubitus.travellers.utils.world.mill.VillageDataLoader.loadVillageCenters;
+import static com.jubitus.travellers.world.mill.VillageDataLoader.loadVillageCenters;
 
 @Mod(modid = Tags.MOD_ID, name = Tags.MOD_NAME, version = Tags.VERSION,
         dependencies = "required-after:millenaire",
@@ -59,6 +60,21 @@ public class Travellers {
     public static final SimpleNetworkWrapper NETWORK =
             NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
     public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
+
+    /**
+     * Tracking range (blocks) for every entity this mod registers - and, through
+     * {@code MixinEntityTracker}, for the bonded horses they ride.
+     *
+     * <p>One constant on purpose: vanilla tracks a horse at 80 ({@code EntityTracker}'s {@code IAnimals}
+     * branch), and a rider tracked further than its own mount is a guaranteed desync, not a race -
+     * {@code EntityTrackerEntry} sends a riding entity no position packets at all, so between the
+     * horse's range and the rider's the client has a rider it cannot place and no vehicle to place it
+     * on. The two numbers must agree, so they are the same number.
+     */
+    public static final int ENTITY_TRACKING_RANGE = 128;
+
+    /** Position update frequency for the same set of entities. Vanilla animals use 3, players 2. */
+    public static final int ENTITY_UPDATE_FREQUENCY = 2;
     @Mod.Instance(Tags.MOD_ID)
     public static Travellers INSTANCE;
     private static int nextId = 0;
@@ -88,16 +104,17 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerCount());
         event.registerServerCommand(new CommandMountTraveller());
         event.registerServerCommand(new CommandTravellerDebug());
-        event.registerServerCommand(new com.jubitus.travellers.utils.commands.CommandTravellersShelter());
+        event.registerServerCommand(new com.jubitus.travellers.command.CommandTravellersShelter());
         event.registerServerCommand(new CommandDumpCultureItems());
         event.registerServerCommand(new CommandMillDump());
         event.registerServerCommand(new CommandMillNearestVillageDump());
         event.registerServerCommand(new CommandTravellerMap());
         event.registerServerCommand(new CommandTravellerInfo());
-        event.registerServerCommand(new CommandTravellerMerchantDebug());
         event.registerServerCommand(new CommandVillageNeeds());
         event.registerServerCommand(new TravellerCommandChunks());
         event.registerServerCommand(new CommandSummonWorkers());
+        event.registerServerCommand(new CommandSummonRaiders());
+        event.registerServerCommand(new CommandTravellerRouteDump());
         event.registerServerCommand(new CommandModConfig());
     }
 
@@ -119,7 +136,10 @@ public class Travellers {
                     TravellersDerivedConfig.syncServerCostCachesFromConfig();
                     broadcastServerCostsToAllPlayers();
                 },
-                configDir
+                configDir,
+                false, // isClientOnly
+                null,  // dynamicCategorySource
+                0      // resetVersion — force a one-time reset for pre-jubiconfig-2.3.0 installs
         );
         JubiConfig.applyOnStartup();
         JubiConfig.loadHistory();
@@ -128,17 +148,16 @@ public class Travellers {
         ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events
-        MinecraftForge.EVENT_BUS.register(new LoneBarrackInteractionHandler());
+        MinecraftForge.EVENT_BUS.register(new ZoneInteractionHandler());
         MinecraftForge.EVENT_BUS.register(TravellerWorkerLootHandler.class);
         MinecraftForge.EVENT_BUS.register(TravellerOffscreenHandler.class);
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
         MinecraftForge.EVENT_BUS.register(MobTargetInjector.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
-        MinecraftForge.EVENT_BUS.register(new com.jubitus.travellers.utils.world.camp.CampsiteDiscoveryHandler());
         // Virtualizes travellers/raiders/workers the instant their chunk unloads (the mirror of
         // VirtualTravellerManager materializing them when a chunk loads).
         MinecraftForge.EVENT_BUS.register(
-                com.jubitus.travellers.utils.world.pathing.offscreen.ChunkUnloadVirtualizeHandler.class);
+                com.jubitus.travellers.world.virtualization.ChunkUnloadVirtualizeHandler.class);
 
 
         if (event.getSide().isClient()) {
@@ -185,31 +204,19 @@ public class Travellers {
                     Tags.MOD_ID + ".traveller",
                     1,              // ID already used by you
                     this,
-                    256, 1, true,
+                    ENTITY_TRACKING_RANGE, ENTITY_UPDATE_FREQUENCY, true,
                     0xaca288, 0x7D4D33
             );
 
-            // *** NEW: merchant travellers (non-despawning + chunk-loader entity class) ***
-            EntityRegistry.registerModEntity(
-                    new ResourceLocation(Tags.MOD_ID, "traveller_merchant"),
-                    EntityTravellerMerchant.class,              // <-- you'll create this class
-                    Tags.MOD_ID + ".traveller_merchant",   // old name, no colon
-                    5,                                          // <-- NEW unique numeric ID
-                    this,
-                    128,                                        // tracking range (match normal travellers)
-                    1,                                          // update frequency
-                    true,                                       // send velocity updates
-                    0xC0A060,                                   // egg primary colour (optional)
-                    0x302010                                    // egg secondary colour (optional)
-            );
+            // Entity id 5 was the removed legacy merchant: never reuse it.
             EntityRegistry.registerModEntity(
                     new ResourceLocation(Tags.MOD_ID, "traveller_worker"),
                     EntityTravellerWorker.class,              // <-- you'll create this class
                     Tags.MOD_ID + ".traveller_worker",   // old name, no colon
                     6,                                          // <-- NEW unique numeric ID
                     this,
-                    256,                                        // tracking range (match normal travellers)
-                    1,                                          // update frequency
+                    ENTITY_TRACKING_RANGE,                      // tracking range (shared constant)
+                    ENTITY_UPDATE_FREQUENCY,                    // update frequency
                     true,                                       // send velocity updates
                     0xEAE8B4,                                   // egg primary colour (optional)
                     0x480607                                    // egg secondary colour (optional)
@@ -221,8 +228,8 @@ public class Travellers {
                     "traveller_boat",
                     4,
                     this,
-                    256,
-                    3,
+                    ENTITY_TRACKING_RANGE,
+                    ENTITY_UPDATE_FREQUENCY,
                     true
             );
 
@@ -234,7 +241,7 @@ public class Travellers {
                         Tags.MOD_ID + ".traveller_raider",
                         2,
                         this,
-                        128, 1, true,
+                        ENTITY_TRACKING_RANGE, ENTITY_UPDATE_FREQUENCY, true,
                         0x3d2c1e, 0x8b2e1a
                 );
             }
@@ -263,7 +270,16 @@ public class Travellers {
                 .instance()
                 .getMinecraftServerInstance();
         // Every open trace has to be closed here, or it never gets its summary written.
-        com.jubitus.travellers.utils.debug.trace.TravellerTracer.shutdown(server);
+        com.jubitus.travellers.debug.trace.TravellerTracer.shutdown(server);
+        com.jubitus.travellers.debug.profile.MovementProfiler.shutdown();
+
+        // Static per-dimension caches keyed by dimension id alone would otherwise bleed into the next
+        // world loaded in this same client session (two different save files can both use dimension 0).
+        com.jubitus.travellers.world.zone.stable.StableCoordinator.resetAll();
+        com.jubitus.travellers.world.zone.stable.StableWatchLog.closeAll();
+
+        com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.resetAll();
+        com.jubitus.travellers.debug.destination.DestinationChoiceLog.close();
 
         if (server == null) return;
 
@@ -274,6 +290,14 @@ public class Travellers {
         // Worldmap tiles are persisted off-thread (see MapPyramidPersistenceEvents); make sure
         // any in-flight writes actually land on disk before the process exits.
         com.jubitus.travellers.server.map.pyramid.MapPyramidStore.shutdownIOAndAwait();
+
+        // Terrain profile grid: flush every dimension (WorldEvent.Unload already did, this is
+        // belt-and-braces) and wait for the off-thread region writer to drain.
+        com.jubitus.travellers.world.pathing.terrain.TerrainWorldState.disposeAll();
+        com.jubitus.travellers.world.pathing.terrain.TerrainProfileIO.shutdownAndAwait();
+
+        // Route planner thread pool + cache.
+        com.jubitus.travellers.world.pathing.route.TravelRoutePlanner.shutdown();
     }
 
     @Mod.EventHandler
@@ -282,5 +306,16 @@ public class Travellers {
         ModSounds.assignVoicesToCultures(); // ✅ add this
     }
 
+    /**
+     * Fires once, right after every mod finishes loading — before the main menu is even shown, the
+     * earliest point client-local settings (config dir, {@code DialogueClientSettings}'s own
+     * properties file) are safely readable. The one hook for "optional model preload on startup".
+     */
+    @Mod.EventHandler
+    public void loadComplete(FMLLoadCompleteEvent event) {
+        if (event.getSide().isClient()) {
+            com.jubitus.travellers.client.dialogue.DialogueModelPreloader.preloadIfEnabled();
+        }
+    }
 
 }

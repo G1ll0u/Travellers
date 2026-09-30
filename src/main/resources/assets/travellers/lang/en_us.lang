@@ -1,5 +1,4 @@
 entity.travellers.traveller.name=Traveller
-entity.travellers.traveller_merchant.name=Merchant
 entity.travellers.traveller_worker.name=Henchman
 entity.travellers.traveller_raider.name=Raider
 
@@ -45,6 +44,23 @@ travellers.worker.hub.barracks.tooltip=Open barracks menu where you can assign a
 travellers.worker.barracks.list=Barracks
 travellers.worker.barracks.unassigned=Unassigned Henchmen
 travellers.worker.barracks.selected=Selected Barrack Henchmen
+travellers.worker.zones.tab_home=Home
+travellers.worker.zones.tab_duty=Duty
+travellers.worker.zones.list_stables=Stables
+travellers.worker.zones.unassigned_duty=Unassigned (no duty)
+travellers.worker.zones.selected_duty=On Duty Here
+travellers.worker.zones.list_zones=Barracks & Stables
+travellers.worker.zones.unassigned_any=Unassigned Henchmen
+travellers.worker.zones.assigned_here=Assigned Here
+travellers.notify.duty.worker_grouped=This worker leads a group - it must have no followers before it can be assigned duty.
+travellers.notify.duty.assigned=Assigned to duty at %s.
+travellers.notify.duty.no_bed=%s has no free bed - place another bed in the Stable before assigning a palfrenier there.
+travellers.notify.stable.bed_destroyed=%s's bed at "%s" was destroyed. The palfrenier will keep watch but do no work until it has a bed again.
+travellers.notify.stable.horse_tamed=A horse was tamed at %s.
+travellers.notify.stable.horse_saddled=A horse was saddled at %s.
+travellers.notify.stable.foal_born=A foal was born at %s.
+travellers.notify.stable.mount_recovered=%s's horse joined the stable it was put on duty at.
+travellers.notify.stable.pool_too_small_to_equip=The stable "%s" had no saddled horse spare to give out - it also keeps a small reserve. Tame, saddle or breed more first.
 travellers.worker.barracks.dragdrop=Select a barrack and drag & drop to assign/unassign henchmen
 travellers.worker.barracks.delete=Delete Barrack
 travellers.worker.barracks.get_equip=Get Equipment
@@ -68,6 +84,7 @@ travellers.gui.go=Go
 travellers.gui.unnamed=(unnamed)
 
 travellers.map.center=Center
+travellers.map.unavailable_dimension=The map only shows the Overworld.
 travellers.map.teleport=Teleport
 travellers.map.teleport.active=Click map...
 travellers.map.spawn_traveller=Spawn traveller
@@ -219,25 +236,34 @@ key.travellers.formation_hub=Open Formation Hub
 key.travellers.world_map=Open World Map
 key.categories.travellers=Travellers
 
-# Barrack
-travellers.lone_barrack.prompt.title=New Barrack
+# Player zones (Barrack / Stable)
+travellers.lone_barrack.prompt.title=New Zone
 travellers.lone_barrack.prompt.name=Name:
 travellers.lone_barrack.prompt.half_width=width
 travellers.lone_barrack.prompt.half_depth=depth
 travellers.lone_barrack.prompt.half_height=height
-travellers.lone_barrack.prompt.validate=Create Barrack
-travellers.lone_barrack.prompt.chests=Chests: %s (min. 1)
-travellers.lone_barrack.prompt.beds=Beds: %s (min. 1)
-travellers.lone_barrack.error.no_coffers=No chests found in the area. Place at least one chest in the radius.
-travellers.lone_barrack.error.no_beds=No beds found in the area. Place at least one bed (capacity = one Henchman per bed).
-travellers.lone_barrack.error.overlaps=This area overlaps an existing barrack.
-travellers.lone_barrack.error.in_village=You are trying to create a Barrack inside a village. If you own this village, use the normal Millenaire building menu and select 'Henchmans Barracks'.
-travellers.lone_barrack.created=Barrack created!
+travellers.lone_barrack.error.overlaps=This area overlaps an existing zone.
+travellers.lone_barrack.created=Zone created!
+
+travellers.zone.prompt.validate=Create %s
+travellers.zone.prompt.role.chest=Chests: %s (min. %s)
+travellers.zone.prompt.role.bed=Beds: %s (min. %s)
+travellers.zone.prompt.role.hitch=Fences: %s (min. %s)
+travellers.zone.error.no_chest=No chests found in the area. Place at least one chest in the radius.
+travellers.zone.error.no_bed=No beds found in the area. Place at least one bed (capacity = one Henchman per bed).
+travellers.zone.error.no_hitch=No fence found in the area. Place at least one fence so horses can be hitched to it.
+
+travellers.zone.barrack.title=Barrack
+travellers.zone.barrack.description=Housing for hired workers. Needs at least one bed and one chest. Workers assigned here call it home: they can respawn beside their bed after dying, and their capacity is one worker per bed.
+
+travellers.zone.stable.title=Stable
+travellers.zone.stable.description=A horse ranch for hired workers. Needs at least one chest, one fence to hitch horses to, and one bed per palfrenier. Assigned palfreniers tame, saddle and breed horses here for your other workers to ride, and sleep in the beds at night.
 
 # Map legend
 travellers.map.legend.village=Village
 travellers.map.legend.controlled_village=Ctrl. Village
 travellers.map.legend.home=Barrack
+travellers.map.legend.stable=Stable
 travellers.map.legend.follower=Follower
 travellers.map.legend.leader=Leader
 travellers.map.legend.player=You
@@ -248,6 +274,7 @@ travellers.map.legend.camp_slot=Camp shelter
 travellers.map.population.traveller=Travellers: %d (%d loaded, %d virtual)
 travellers.map.population.raider=Raiders: %d (%d loaded, %d virtual)
 travellers.map.population.worker=Henchmen: %d (%d loaded, %d virtual)
+travellers.map.population.stable=Stables: %d (%d loaded, %d virtual)
 
 # Henchman/unit hover tooltips
 travellers.map.worker.unnamed=Henchman #%d
@@ -320,14 +347,21 @@ travellers.notify.hostile.war_declared_on_you=%s attacked your henchmen - you ar
 travellers.notify.worker.arrived_home=Henchman is now at home.
 travellers.notify.worker.cargo_arrived_full=I'm here with your goods. Check my pack.
 travellers.notify.worker.cargo_arrived_partial=I'm here. I couldn't sell everything, some goods are still in my pack.
-travellers.notify.worker.already_on_job=I'm already on a job. Wait for me to come back.
+travellers.notify.worker.already_on_job=I'm already on a job.
 travellers.notify.worker.died=Your henchman has died during his periple.
 travellers.notify.worker.retaliation_target=%s set as enemy (retaliation).
 
+travellers.notify.mount.led_terrain_blocked=%s's horse can't get through here - leading it on foot instead.
+travellers.notify.mount.led_sidestep_gave_up=%s's horse got stuck and couldn't work its way free - leading it on foot instead.
+travellers.notify.mount.led_low_health=%s's horse is too badly hurt to keep riding - leading it on foot instead.
+
 travellers.notify.trade.refused=The village refuses to trade with you (reputation too low or village is not trading right now).
-travellers.notify.trade.sold=Sold %s x %s for %sd, rep +%s
-travellers.notify.trade.donated=Donated %s x %s, rep +%s
-travellers.notify.trade.accepted=[%s] accepted your offer and your reputation increased.
+travellers.notify.trade.sold_summary=Sale at %s: %s items sold for %s, rep +%s%s
+travellers.notify.trade.donated_summary=Donation to %s: %s items, rep +%s%s
+travellers.notify.goto.arrived=Your henchman has arrived at its destination.
+travellers.notify.goto.group_arrived=Your group of %s henchmen has arrived at its destination.
+travellers.notify.equip.done=Equipment collected: %s of %s got something new.
+travellers.notify.equip.nothing=Nothing better to equip was found.
 
 travellers.notify.battle.under_attack=Your henchmen are under attack
 travellers.notify.battle.worker_killed=%s was killed in battle
@@ -348,13 +382,59 @@ travellers.dialogue.travelling_with_someone=I'm travelling with someone right no
 travellers.dialogue.staying_in_village=I'm staying in %s for a bit.
 travellers.dialogue.no_destination=I don't currently have a destination.
 travellers.dialogue.heading_to=I'm actually heading to %s in the %s.
+travellers.dialogue.gui_fallback_heading_to=I'm actually heading to %s.
+
+# --- Dialogue GUI (AI conversation) ---
+travellers.dialogue.gui.title=Talk
+travellers.dialogue.gui.not_configured=You haven't set up AI dialogue yet.
+travellers.dialogue.gui.configure=Configure AI Dialogue
+travellers.dialogue.gui.send=Send
+travellers.dialogue.gui.you=You
+travellers.dialogue.gui.generating=...
+travellers.dialogue.gui.looking_up=...(thinking it over)...
+travellers.dialogue.gui.tool_cap_fallback=Let me think on that a little more before I answer.
+travellers.dialogue.gui.error_note=(Something went wrong reaching your local AI.)
+
+# --- Dialogue setup screen (client-local Ollama connection) ---
+travellers.dialogue.setup.title=AI Dialogue Setup
+travellers.dialogue.setup.host=Ollama host
+travellers.dialogue.setup.port=Port
+travellers.dialogue.setup.enabled=AI Dialogue:
+travellers.dialogue.setup.preload=Preload model on startup
+travellers.dialogue.setup.preload_help=Warms up your chosen model when the game starts, so the first conversation isn't slow
+travellers.dialogue.setup.test_connection=Test connection
+travellers.dialogue.setup.testing=Testing...
+travellers.dialogue.setup.test_ok=Connected - %d model(s) found.
+travellers.dialogue.setup.test_no_models=Connected, but no models are pulled yet.
+travellers.dialogue.setup.test_failed=Could not connect: %s
+travellers.dialogue.setup.detail_level=Detail: %s
+travellers.dialogue.setup.detail_level.minimal=Minimal
+travellers.dialogue.setup.detail_level.standard=Standard
+travellers.dialogue.setup.detail_level.rich=Rich
+travellers.dialogue.setup.detail_level_help=Rich = more detail, needs a bigger local model
+travellers.dialogue.setup.debug_dump=Debug: dump raw prompts
+travellers.dialogue.setup.debug_dump_help=Writes everything sent to the AI to a log file, for diagnosing bad answers
+travellers.dialogue.setup.advanced=Advanced (model settings)
+
+travellers.dialogue.setup.advanced.title=Advanced Model Settings
+travellers.dialogue.setup.advanced.intro=Leave a field blank to use the model's own default.
+travellers.dialogue.setup.advanced.think=Extended thinking
+travellers.dialogue.setup.advanced.tools=Let the NPC look things up
+travellers.dialogue.setup.advanced.tools_warning=Not every model supports this - unsupported ones just ignore it.
+travellers.dialogue.setup.advanced.reset=Reset to defaults
+travellers.dialogue.setup.advanced.num_ctx=Context size (memory, num_ctx)
+travellers.dialogue.setup.advanced.temperature=Temperature (creativity)
+travellers.dialogue.setup.advanced.top_p=Top P (word focus)
+travellers.dialogue.setup.advanced.top_k=Top K (word choices)
+travellers.dialogue.setup.advanced.repeat_penalty=Repeat penalty
+travellers.dialogue.setup.advanced.num_predict=Max reply length (-1 = no limit)
 
 # --- Worker hub menu tree ---
 travellers.worker.hub.node.orders=Orders
 travellers.worker.hub.node.follow=Follow
 travellers.worker.hub.node.follow_player=Follow me
 travellers.worker.hub.node.leader=Lead
-travellers.worker.hub.node.go=Go...
+travellers.worker.hub.node.go=Missions
 travellers.worker.hub.node.travel=Travel
 travellers.worker.hub.node.recruit=Recruit
 travellers.worker.hub.node.choir=Sing

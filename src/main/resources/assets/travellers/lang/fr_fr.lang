@@ -1,5 +1,4 @@
 entity.travellers.traveller.name=Voyageur
-entity.travellers.traveller_merchant.name=Marchand
 entity.travellers.traveller_worker.name=Homme de main
 entity.travellers.traveller_raider.name=Pillard
 
@@ -45,6 +44,21 @@ travellers.worker.hub.barracks.tooltip=Ouvrir le menu des casernes pour assigner
 travellers.worker.barracks.list=Casernes
 travellers.worker.barracks.unassigned=Hommes de main non assignés
 travellers.worker.barracks.selected=Hommes de main de la caserne sélectionnée
+travellers.worker.zones.tab_home=Foyer
+travellers.worker.zones.tab_duty=Service
+travellers.worker.zones.list_stables=Écuries
+travellers.worker.zones.unassigned_duty=Sans service
+travellers.worker.zones.selected_duty=En service ici
+travellers.worker.zones.list_zones=Casernes et écuries
+travellers.worker.zones.unassigned_any=Ouvriers non assignés
+travellers.worker.zones.assigned_here=Assignés ici
+travellers.notify.duty.worker_grouped=Ce travailleur dirige un groupe - il ne doit plus avoir de suiveurs pour être affecté à une garde.
+travellers.notify.duty.assigned=Assigné en service à %s.
+travellers.notify.stable.horse_tamed=Un cheval a été apprivoisé à %s.
+travellers.notify.stable.horse_saddled=Un cheval a été sellé à %s.
+travellers.notify.stable.foal_born=Un poulain est né à %s.
+travellers.notify.stable.mount_recovered=Le cheval de %s a rejoint l'écurie où il a été mis en service.
+travellers.notify.stable.pool_too_small_to_equip=L'écurie « %s » n'avait aucun cheval sellé disponible à donner - elle garde aussi une petite réserve. Apprivoisez, sellez ou faites-en naître d'autres d'abord.
 travellers.worker.barracks.dragdrop=Sélectionnez une caserne et glissez-déposez pour assigner/désassigner des hommes de main
 travellers.worker.barracks.delete=Supprimer la caserne
 travellers.worker.barracks.get_equip=Obtenir l'équipement
@@ -69,6 +83,7 @@ travellers.gui.go=Aller
 travellers.gui.unnamed=(sans nom)
 
 travellers.map.center=Centrer
+travellers.map.unavailable_dimension=La carte ne montre que la Surface.
 travellers.map.teleport=Téléporter
 travellers.map.teleport.active=Cliquer sur la carte...
 travellers.map.spawn_traveller=spawn voyageur
@@ -222,26 +237,34 @@ key.travellers.formation_hub=Ouvrir le centre de formation
 key.travellers.world_map=Ouvrir la carte du monde
 key.categories.travellers=Voyageurs
 
-# Barrack
-travellers.lone_barrack.prompt.title=Nouvelle Caserne
+# Zones du joueur (Caserne / Écurie)
+travellers.lone_barrack.prompt.title=Nouvelle Zone
 travellers.lone_barrack.prompt.name=Nom :
 travellers.lone_barrack.prompt.half_width=largeur
 travellers.lone_barrack.prompt.half_depth=profondeur
 travellers.lone_barrack.prompt.half_height=hauteur
-travellers.lone_barrack.prompt.validate=Créer la caserne
+travellers.lone_barrack.error.overlaps=Cette zone chevauche une zone existante.
+travellers.lone_barrack.created=Zone créée !
 
-travellers.lone_barrack.prompt.chests=Coffres : %s (min. 1)
-travellers.lone_barrack.prompt.beds=Lits : %s (min. 1)
-travellers.lone_barrack.error.no_coffers=Aucun coffre trouvé dans la zone. Placez au moins un coffre dans le rayon.
-travellers.lone_barrack.error.no_beds=Aucun lit trouvé dans la zone. Placez au moins un lit (capacité = un homme de main par lit).
-travellers.lone_barrack.error.overlaps=Cette zone chevauche une caserne existante.
-travellers.lone_barrack.error.in_village=Vous tentez de créer une caserne à l'intérieur d'un village. Si vous possédez ce village, utilisez le menu de construction habituel de Millenaire et sélectionnez « Casernes des hommes de main ».
-travellers.lone_barrack.created=Caserne créée !
+travellers.zone.prompt.validate=Créer : %s
+travellers.zone.prompt.role.chest=Coffres : %s (min. %s)
+travellers.zone.prompt.role.bed=Lits : %s (min. %s)
+travellers.zone.prompt.role.hitch=Clôtures : %s (min. %s)
+travellers.zone.error.no_chest=Aucun coffre trouvé dans la zone. Placez au moins un coffre dans le rayon.
+travellers.zone.error.no_bed=Aucun lit trouvé dans la zone. Placez au moins un lit (capacité = un homme de main par lit).
+travellers.zone.error.no_hitch=Aucune clôture trouvée dans la zone. Placez au moins une clôture pour y attacher des chevaux.
+
+travellers.zone.barrack.title=Caserne
+travellers.zone.barrack.description=Logement pour les travailleurs engagés. Nécessite au moins un lit et un coffre. Les travailleurs assignés ici la considèrent comme leur foyer : ils peuvent réapparaître près de leur lit après leur mort, avec une capacité d'un travailleur par lit.
+
+travellers.zone.stable.title=Écurie
+travellers.zone.stable.description=Un haras pour vos travailleurs engagés. Nécessite au moins un coffre et une clôture pour y attacher des chevaux. Les palefreniers assignés y apprivoisent, sellent et font se reproduire des chevaux pour vos autres travailleurs.
 
 # Map legend
 travellers.map.legend.village=Village
 travellers.map.legend.controlled_village=Vil. contrôlé
 travellers.map.legend.home=Caserne
+travellers.map.legend.stable=Écurie
 travellers.map.legend.follower=Suiveur
 travellers.map.legend.leader=Chef
 travellers.map.legend.player=Vous
@@ -252,6 +275,7 @@ travellers.map.legend.camp_slot=Abri de camp
 travellers.map.population.traveller=Voyageurs : %d (%d chargés, %d virtuels)
 travellers.map.population.raider=Pillards : %d (%d chargés, %d virtuels)
 travellers.map.population.worker=Hommes de main : %d (%d chargés, %d virtuels)
+travellers.map.population.stable=Écuries : %d (%d chargées, %d virtuelles)
 
 # Henchman/unit hover tooltips
 travellers.map.worker.unnamed=Homme de main #%d
@@ -329,10 +353,17 @@ travellers.notify.worker.already_on_job=Je suis déjà en mission. Attendez mon 
 travellers.notify.worker.died=Votre homme de main est mort durant son périple.
 travellers.notify.worker.retaliation_target=%s désigné comme ennemi (représailles).
 
+travellers.notify.mount.led_terrain_blocked=Le cheval de %s ne peut pas passer par là - il le mène à pied à la place.
+travellers.notify.mount.led_sidestep_gave_up=Le cheval de %s est resté coincé et n'a pas réussi à se dégager - il le mène à pied à la place.
+travellers.notify.mount.led_low_health=Le cheval de %s est trop blessé pour continuer à être monté - il le mène à pied à la place.
+
 travellers.notify.trade.refused=Le village refuse de commercer avec vous (réputation trop basse ou le village ne commerce pas actuellement).
-travellers.notify.trade.sold=Vendu %s x %s pour %sd, rép +%s
-travellers.notify.trade.donated=Donné %s x %s, rép +%s
-travellers.notify.trade.accepted=[%s] a accepté votre offre et votre réputation a augmenté.
+travellers.notify.trade.sold_summary=Vente à %s : %s objets vendus pour %s, rép +%s%s
+travellers.notify.trade.donated_summary=Don à %s : %s objets, rép +%s%s
+travellers.notify.goto.arrived=Votre homme de main est arrivé à destination.
+travellers.notify.goto.group_arrived=Votre groupe de %s hommes de main est arrivé à destination.
+travellers.notify.equip.done=Équipement récupéré : %s sur %s ont reçu du nouveau matériel.
+travellers.notify.equip.nothing=Aucun meilleur équipement n'a été trouvé.
 
 travellers.notify.battle.under_attack=Vos hommes de main sont attaqués
 travellers.notify.battle.worker_killed=%s a été tué au combat
@@ -361,7 +392,7 @@ travellers.worker.hub.node.orders=Ordres
 travellers.worker.hub.node.follow=Suivre
 travellers.worker.hub.node.follow_player=Me suivre
 travellers.worker.hub.node.leader=Chef
-travellers.worker.hub.node.go=Aller...
+travellers.worker.hub.node.go=Missions
 travellers.worker.hub.node.travel=Voyager
 travellers.worker.hub.node.recruit=Recruter
 travellers.worker.hub.node.choir=Chanter

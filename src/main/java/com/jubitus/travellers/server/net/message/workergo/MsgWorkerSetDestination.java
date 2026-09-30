@@ -4,7 +4,7 @@ import com.jubitus.travellers.client.gui.transport.ContainerWorker;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.utils.flooz.TravellerMoney;
+import com.jubitus.travellers.economy.TravellerMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -106,6 +106,7 @@ public class MsgWorkerSetDestination implements IMessage {
             if (player.openContainer instanceof ContainerWorker) {
                 ((ContainerWorker) player.openContainer).markJobStarted();
             }
+            com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startVillageDeliveryJob(player, villageCenter, msg.donate);
 
             String costStr = MillCommonUtilities.getShortPrice(cost);

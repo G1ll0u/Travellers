@@ -1,6 +1,6 @@
 package com.jubitus.travellers.notify;
 
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.notify.MsgShowNotification;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.Mod;

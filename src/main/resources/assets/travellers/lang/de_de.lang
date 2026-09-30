@@ -1,5 +1,4 @@
 entity.travellers.traveller.name=Reisender
-entity.travellers.traveller_merchant.name=Händler
 entity.travellers.traveller_worker.name=Handlanger
 entity.travellers.traveller_raider.name=Räuber
 

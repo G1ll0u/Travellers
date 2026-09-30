@@ -1,13 +1,13 @@
 package com.jubitus.travellers.server.net.message.formations;
 
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeResolver;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;

@@ -1,10 +1,11 @@
 package com.jubitus.travellers.client.gui.formation;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateWorkerFormationSettings;
 import net.minecraft.client.Minecraft;
@@ -103,10 +104,10 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         int rightW = 116;
         int rowY   = guiTop + 20;               // aligns with previewY
 
-        this.styleButton = this.addButton(new GuiButton(1, rightX, rowY, rightW, 20, ""));
+        this.styleButton = this.addButton(new GuiTravellersButton(1, rightX, rowY, rightW, 20, ""));
         rowY += 26;
 
-        this.caveButton = this.addButton(new GuiButton(2, rightX, rowY, rightW, 20, ""));
+        this.caveButton = this.addButton(new GuiTravellersButton(2, rightX, rowY, rightW, 20, ""));
         rowY += 30;
 
         this.escortsSlider = new GuiWorkerFormationSlider(
@@ -155,14 +156,14 @@ public class GuiWorkerFormation extends GuiScreen implements ITravellersGui {
         // ── Bottom row ────────────────────────────────────────────────────────
         int bottomY = guiTop + effectiveYSize - 24;
 
-        this.zoomOutButton  = this.addButton(new GuiButton(10, previewX,      bottomY, 20, 20, "-"));
-        this.zoomInButton   = this.addButton(new GuiButton(11, previewX + 24, bottomY, 20, 20, "+"));
-        this.recenterButton = this.addButton(new GuiButton(
+        this.zoomOutButton  = this.addButton(new GuiTravellersButton(10, previewX,      bottomY, 20, 20, "-"));
+        this.zoomInButton   = this.addButton(new GuiTravellersButton(11, previewX + 24, bottomY, 20, 20, "+"));
+        this.recenterButton = this.addButton(new GuiTravellersButton(
                 12, previewX + 50, bottomY, 62, 20,
                 I18n.format("travellers.worker.formation.preview.reset")
         ));
 
-        this.backButton = this.addButton(new GuiButton(
+        this.backButton = this.addButton(new GuiTravellersButton(
                 99, guiLeft + effectiveXSize - 70, bottomY, 60, 20,
                 I18n.format("travellers.gui.back")
         ));

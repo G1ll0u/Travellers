@@ -1,10 +1,10 @@
 package com.jubitus.travellers.client.gui;
 
-import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
-import com.jubitus.travellers.client.gui.bahavior.relations.ContainerWorkerVillageRelations;
-import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
+import com.jubitus.travellers.client.gui.behavior.GuiWorkerBehavior;
+import com.jubitus.travellers.client.gui.behavior.relations.ContainerWorkerVillageRelations;
+import com.jubitus.travellers.client.gui.behavior.relations.GuiWorkerVillageRelations;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
-import com.jubitus.travellers.client.gui.home.GuiWorkerLoneBarrackPrompt;
+import com.jubitus.travellers.client.gui.home.GuiPlayerZonePrompt;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
 import com.jubitus.travellers.client.gui.transport.GuiWorker;
 import com.jubitus.travellers.client.gui.transport.GuiWorkerInventory;
@@ -51,7 +51,7 @@ public class ClientGuiHandler extends CommonGuiHandler {
             return new GuiWorkerBehavior(player, e instanceof EntityTravellerWorker ? (EntityTravellerWorker) e : null, null);
         }
         if (id == TravellersGuiIds.LONE_BARRACK_PROMPT) {
-            return new GuiWorkerLoneBarrackPrompt(player, new BlockPos(x, y, z));
+            return new GuiPlayerZonePrompt(player, new BlockPos(x, y, z));
         }
         if (id == TravellersGuiIds.WORKER_GO) {
             Entity e = world.getEntityByID(x);

@@ -2,8 +2,8 @@ package com.jubitus.travellers.server.marker;
 
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.server.MinecraftServer;

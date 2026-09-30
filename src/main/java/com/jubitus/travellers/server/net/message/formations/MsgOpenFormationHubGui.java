@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.formations;
 
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;

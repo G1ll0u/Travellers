@@ -310,23 +310,6 @@ public final class CultureRegistry {
         boolean raiderAllowed = VillagerFilterRules.RAIDER.isAllowed(tagsInFile, villagerBaseName);
         boolean workerAllowed = VillagerFilterRules.WORKER.isAllowed(tagsInFile, villagerBaseName);
 
-        // Merchant keeps its original include-only whitelist behaviour (EntityTravellerMerchant is
-        // slated for removal, not worth migrating to the new symmetric filter engine).
-        boolean hasMerchantFileIncludes = !TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_FILES.isEmpty();
-        boolean hasMerchantTagIncludes = !TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.isEmpty();
-        boolean merchantFileMatch = hasMerchantFileIncludes &&
-                TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_FILES.contains(villagerBaseName);
-        boolean merchantTagMatch = false;
-        if (hasMerchantTagIncludes) {
-            for (String t : tagsInFile) {
-                if (TravellersDerivedConfig.INCLUDED_MERCHANT_VILLAGER_TAGS.contains(t)) {
-                    merchantTagMatch = true;
-                    break;
-                }
-            }
-        }
-        boolean merchantAllowed = (hasMerchantFileIncludes && merchantFileMatch)
-                || (hasMerchantTagIncludes && merchantTagMatch);
 
         // === Gender & texture guards (common) ===
         if (!"male".equals(gender)) return;  // adjust if you want females too
@@ -344,6 +327,7 @@ public final class CultureRegistry {
 
             TravellerAppearance app = new TravellerAppearance(base, baseHeight);
             if (!equipmentProfile.isEmpty()) app.equipmentProfile = equipmentProfile;
+            app.jobId = villagerBaseName;
 
             for (String c : clothesTextures) {
                 ResourceLocation cl = normalizeMillenaireTexture(c);
@@ -384,15 +368,6 @@ public final class CultureRegistry {
             }
         } else {
             System.out.println("[Travellers] Skipping worker appearance (not whitelisted) file=" + txt.getName());
-        }
-
-        // === Add to MERCHANT pool if allowed ===
-        if (merchantAllowed) {
-            for (TravellerAppearance app : built) {
-                culture.addMerchantAppearance(app);
-            }
-        } else {
-            System.out.println("[Travellers] Skipping merchant appearance (not whitelisted) file=" + txt.getName());
         }
 
         // === Name lists: firstNameList / familyNameList -> /cultures/<culture>/namelists/*.txt ===
@@ -638,6 +613,37 @@ public final class CultureRegistry {
         return BIOME_CULTURE_WEIGHTS;
     }
 
+    /**
+     * How much this culture "belongs" in a biome, in [0,1] (1 = the biome's dominant culture),
+     * or {@code -1} when there is no weight data for the biome. {@code biomeName} may be a full
+     * registry name ("minecraft:plains") or a bare path ("plains"). Used by Plan B's corridor
+     * friendliness term.
+     */
+    public static float biomeCultureAffinity(String biomeName, String cultureId) {
+        if (biomeName == null || cultureId == null || cultureId.isEmpty()) return -1f;
+        Map<String, Integer> bucket = resolveBiomeBucket(biomeName);
+        if (bucket == null || bucket.isEmpty()) return -1f;
+        int max = 0;
+        for (int w : bucket.values()) max = Math.max(max, w);
+        if (max <= 0) return -1f;
+        Integer mine = bucket.get(cultureId);
+        if (mine == null) return 0f;
+        float v = Math.max(0, mine) / (float) max;
+        return v > 1f ? 1f : v;
+    }
+
+    private static Map<String, Integer> resolveBiomeBucket(String biomeName) {
+        String norm = normalizeBiomeKey(biomeName);
+        Map<String, Integer> b = getBucketForBiomeKey(norm);
+        if (b != null && !b.isEmpty()) return b;
+        int colon = norm.indexOf(':');
+        if (colon >= 0) {
+            b = getBucketForBiomeKey(norm.substring(colon + 1));
+            if (b != null && !b.isEmpty()) return b;
+        }
+        return null;
+    }
+
     public static File detectMillenaireBaseCultures() {
         // config/ -> .minecraft/
         File mcDir = net.minecraftforge.fml.common.Loader.instance()
@@ -860,7 +866,23 @@ public final class CultureRegistry {
 
         ensureItemListLoaded();       // will now run AFTER registries are ready
         bootstrapAllMillenaireCultures(); // will parse traded_goods and attach items
+        com.jubitus.travellers.entity.equipment.TravellerMillPriorities.reload(); // equipment quality table
+        com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.invalidateCache();
         ModSounds.assignVoicesToCultures();
+    }
+
+    /** Millenaire item key (lowercased, as used in villager .txt / traded_goods / villagerconfig) → its ItemStack. */
+    public static ItemStack getMillenaireItemByKey(String key) {
+        if (key == null) return ItemStack.EMPTY;
+        ensureItemListLoaded();
+        ItemStack s = MILLENAIRE_ITEMS.get(key.trim().toLowerCase(Locale.ROOT));
+        return s == null ? ItemStack.EMPTY : s;
+    }
+
+    /** .minecraft/mods/millenaire — root of the base Millenaire install (itemlist.txt, villagerconfig/, cultures/). */
+    public static File detectMillenaireRoot() {
+        File mcDir = net.minecraftforge.fml.common.Loader.instance().getConfigDir().getParentFile();
+        return new File(mcDir, "mods/millenaire");
     }
 
     public static String pickRandomCultureIdWithRaiders(Random r) {
@@ -888,7 +910,15 @@ public final class CultureRegistry {
                 for (VoicePersonality vp : vars) {
                     if (vp != null && vp.id != null
                             && vp.id.toLowerCase(java.util.Locale.ROOT).equals(pid)) {
-                        return vp.voiceSet;
+                        // A dialogue-only personality (a character sheet with no sound folder,
+                        // see generateDynamicSounds / PersonalityProfileLoader) has an entry here
+                        // with an empty VoiceSet. Returning it as-is would play nothing at all;
+                        // falling through to the culture default is the actual intent ("uses
+                        // default sounds if none are present").
+                        if (vp.voiceSet != null && !vp.voiceSet.isEmpty()) {
+                            return vp.voiceSet;
+                        }
+                        break;
                     }
                 }
             }

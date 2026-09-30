@@ -1,7 +1,7 @@
 package com.jubitus.travellers.client.gui.formation;
 
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationPreviewLayout;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationPreviewLayout;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;

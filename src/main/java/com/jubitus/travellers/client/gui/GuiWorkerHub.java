@@ -17,10 +17,10 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgHireWorker;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestServerCosts;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillVillageIndex;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
@@ -895,7 +895,13 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
 
     private void drawLink(Link link, int color) {
         TravellersGuiTheme.drawHLine(link.childX, link.midX, link.childY, color);
-        TravellersGuiTheme.drawVLine(link.midX, link.childY, link.parentY, color);
+        // Gui.drawRect excludes its far edge, so the elbow corner pixel at (midX, childY) is only
+        // ever covered by one of the two segments meeting there, depending on which way the link
+        // runs. Extending the vertical run one pixel past its far end guarantees it always covers
+        // that corner instead of leaving a hole on links running one particular direction.
+        int vFar = Math.max(link.childY, link.parentY) + 1;
+        int vNear = Math.min(link.childY, link.parentY);
+        TravellersGuiTheme.drawVLine(link.midX, vNear, vFar, color);
         TravellersGuiTheme.drawHLine(link.midX, link.parentX, link.parentY, color);
     }
 

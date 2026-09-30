@@ -12,7 +12,6 @@ public class ClientProxy {
     public static void registerRenderers() {
         RenderingRegistry.registerEntityRenderingHandler(EntityTraveller.class, RenderTraveller::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerRaider.class, RenderTraveller::new);
-        RenderingRegistry.registerEntityRenderingHandler(EntityTravellerMerchant.class, RenderTraveller::new);
         RenderingRegistry.registerEntityRenderingHandler(EntityTravellerWorker.class, RenderTraveller::new);
 
         BackpackStyles.registerAll();

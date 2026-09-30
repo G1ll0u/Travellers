@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.group;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 
 /**
  * Single authoritative "can this hired worker take a new player order?" predicate, shared by every

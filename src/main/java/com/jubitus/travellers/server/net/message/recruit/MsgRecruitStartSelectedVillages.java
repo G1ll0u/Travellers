@@ -5,7 +5,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.utils.flooz.TravellerMoney;
+import com.jubitus.travellers.economy.TravellerMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -116,6 +116,7 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
             }
 
             // Start mission with EXACT villages chosen
+            com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startRecruitMission(player, msg.route, null);
         }
     }

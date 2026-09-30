@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.leadfollow;
 
-import com.jubitus.travellers.utils.debug.FollowTravellerClient;
+import com.jubitus.travellers.client.debug.FollowTravellerClient;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;

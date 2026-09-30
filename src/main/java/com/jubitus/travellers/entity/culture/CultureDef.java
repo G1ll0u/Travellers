@@ -2,6 +2,8 @@ package com.jubitus.travellers.entity.culture;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.equipment.TravellerEquipmentManager;
+import com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy;
+import com.jubitus.travellers.entity.equipment.TravellerMillPriorities;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.item.*;
 import net.minecraft.util.ResourceLocation;
@@ -30,7 +32,6 @@ public final class CultureDef {
 
     private final java.util.Map<String, NamePool> namePools = new java.util.LinkedHashMap<>();
     private final java.util.List<TravellerAppearance> workerLooks = new java.util.ArrayList<>();
-    private final java.util.List<TravellerAppearance> merchantLooks = new java.util.ArrayList<>();
 
     // SIMPLE: category -> list of ItemStacks
     private final java.util.Map<String, java.util.List<ItemStack>> itemsByCategory = new java.util.HashMap<>();
@@ -149,24 +150,49 @@ public final class CultureDef {
         java.util.List<ItemStack> swords = collectItems(stack -> {
             Item item = stack.getItem();
             if (item instanceof ItemBow || item instanceof ItemArmor) return false;
-            if (TravellerEquipmentManager.isBelowWeaponFloor(stack)) return false;
-            return TravellerEquipmentManager.isWeapon(stack);
+            return TravellerEquipmentManager.isWeapon(stack) && spawnAllowed(stack, null, profile);
         });
         if (!swords.isEmpty()) {
-            return pickWeightedByQuality(swords, r, TravellerEquipmentManager::scoreWeapon, profile);
+            return pickWeightedByQuality(swords, r,
+                    s -> TravellerEquipmentPolicy.quality(s, TravellerMillPriorities.Bucket.MELEE), profile);
         }
 
         java.util.List<ItemStack> tools = collectItems(stack -> {
             Item item = stack.getItem();
             if (item instanceof ItemBow || item instanceof ItemArmor || !(item instanceof ItemTool)) return false;
-            return !TravellerEquipmentManager.isGoldTier(stack);
+            return spawnAllowed(stack, null, profile);
         });
         return pickRandom(tools, r);
     }
 
+    /**
+     * Whether this exact stack may appear in {@code this} culture's spawn pool: not a Millenaire
+     * "never equip" item, and either the culture's own gear / plain vanilla / another mod's — never
+     * another Millenaire culture's signature gear (raiders excepted, they scavenge from everyone).
+     */
+    private boolean spawnAllowed(ItemStack s, EntityEquipmentSlot slotOrNull, WeightProfile profile) {
+        if (s == null || s.isEmpty()) return false;
+        if (TravellerEquipmentPolicy.isForbidden(s)) return false;
+        boolean bypass = profile == WeightProfile.RAIDER
+                && TravellersConfig.EQUIPMENT.raiderAllowMixedCultureGear;
+        EntityEquipmentSlot slot = slotOrNull;
+        if (slot == null && s.getItem() instanceof ItemArmor) slot = ((ItemArmor) s.getItem()).armorType;
+        return TravellerEquipmentPolicy.cultureAllows(this.id, bypass, s, slot, false);
+    }
+
+    /**
+     * "foreigntrade" is exotic merchant stock (imported curiosities, other cultures' signature gear,
+     * vanilla diamond sets) that a culture sells to players but never actually wears or fights with —
+     * see {@link #randomTradeGood}. Equipment pools must skip it or raiders/travellers end up spawning
+     * in gear no one in that culture would realistically own.
+     */
+    private static final String CATEGORY_FOREIGN_TRADE = "foreigntrade";
+
     private java.util.List<ItemStack> collectItems(java.util.function.Predicate<ItemStack> pred) {
         java.util.List<ItemStack> out = new java.util.ArrayList<>();
-        for (java.util.List<ItemStack> list : itemsByCategory.values()) {
+        for (java.util.Map.Entry<String, java.util.List<ItemStack>> entry : itemsByCategory.entrySet()) {
+            if (CATEGORY_FOREIGN_TRADE.equals(entry.getKey())) continue;
+            java.util.List<ItemStack> list = entry.getValue();
             if (list == null) continue;
             for (ItemStack s : list) {
                 if (s == null || s.isEmpty()) continue;
@@ -270,39 +296,41 @@ public final class CultureDef {
         return out;
     }
 
-    /** Any bow-like item from culture. */
+    /** Any bow-like item from the culture pool, culture-filtered. */
     public ItemStack randomBow(java.util.Random r) {
+        return randomBow(r, WeightProfile.TRAVELLER);
+    }
+
+    public ItemStack randomBow(java.util.Random r, WeightProfile profile) {
         java.util.List<ItemStack> pool = collectItems(stack -> {
             Item item = stack.getItem();
-            if (item instanceof ItemBow) return true;
-            if (item.getRegistryName() != null) {
-                String path = item.getRegistryName().getPath().toLowerCase(java.util.Locale.ROOT);
-                return path.contains("bow");
-            }
-            return false;
+            boolean bowLike = item instanceof ItemBow
+                    || (item.getRegistryName() != null
+                    && item.getRegistryName().getPath().toLowerCase(java.util.Locale.ROOT).contains("bow"));
+            return bowLike && spawnAllowed(stack, null, profile);
         });
         return pickRandom(pool, r);
     }
 
-    /** Any armor piece (any slot), quality-rarity weighted. Gold-tier armor is never picked. */
+    /** Any armor piece (any slot), quality-rarity weighted, culture-filtered. */
     public ItemStack randomArmor(java.util.Random r, WeightProfile profile) {
         java.util.List<ItemStack> pool = collectItems(stack -> stack.getItem() instanceof ItemArmor
-                && !TravellerEquipmentManager.isGoldTier(stack));
-        return pickWeightedByQuality(pool, r, s -> TravellerEquipmentManager.scoreArmor(s, ((ItemArmor) s.getItem()).armorType), profile);
+                && spawnAllowed(stack, ((ItemArmor) stack.getItem()).armorType, profile));
+        return pickWeightedByQuality(pool, r,
+                s -> TravellerEquipmentPolicy.armorRank(s, ((ItemArmor) s.getItem()).armorType), profile);
     }
 
-    /** Armor piece for a specific slot, quality-rarity weighted. Gold-tier armor is never picked. */
+    /** Armor piece for a specific slot, quality-rarity weighted, culture-filtered. */
     public ItemStack randomArmorForSlot(EntityEquipmentSlot slot, java.util.Random r, WeightProfile profile) {
         if (slot == null || !slot.getSlotType().equals(EntityEquipmentSlot.Type.ARMOR)) {
             return ItemStack.EMPTY;
         }
         java.util.List<ItemStack> pool = collectItems(stack -> {
             if (!(stack.getItem() instanceof ItemArmor)) return false;
-            if (TravellerEquipmentManager.isGoldTier(stack)) return false;
-            ItemArmor armor = (ItemArmor) stack.getItem();
-            return armor.armorType == slot;
+            if (((ItemArmor) stack.getItem()).armorType != slot) return false;
+            return spawnAllowed(stack, slot, profile);
         });
-        return pickWeightedByQuality(pool, r, s -> TravellerEquipmentManager.scoreArmor(s, slot), profile);
+        return pickWeightedByQuality(pool, r, s -> TravellerEquipmentPolicy.armorRank(s, slot), profile);
     }
 
     // randomTradeGood(...) can KEEP using foreigntrade if you want:
@@ -380,21 +408,9 @@ public final class CultureDef {
         workerLooks.add(a);
     }
 
-    public void addMerchantAppearance(TravellerAppearance a) {
-        merchantLooks.add(a);
-    }
-
     public int getWorkerTextureCount() {
         if (workerLooks != null && !workerLooks.isEmpty()) {
             return workerLooks.size();
-        }
-        // fallback to travellers pool if you want
-        return getTravellerTextureCount();
-    }
-
-    public int getMerchantTextureCount() {
-        if (merchantLooks != null && !merchantLooks.isEmpty()) {
-            return merchantLooks.size();
         }
         // fallback to travellers pool if you want
         return getTravellerTextureCount();
@@ -413,20 +429,5 @@ public final class CultureDef {
         if (i >= list.size()) i = i % list.size();
         return list.get(i);
     }
-
-    public TravellerAppearance getMerchantAppearance(int index) {
-        java.util.List<TravellerAppearance> list =
-                (merchantLooks != null && !merchantLooks.isEmpty()) ? merchantLooks : travellerLooks;
-
-        if (list.isEmpty()) {
-            return new TravellerAppearance(
-                    new ResourceLocation("minecraft", "textures/entity/steve.png"));
-        }
-        int i = index;
-        if (i < 0) i = 0;
-        if (i >= list.size()) i = i % list.size();
-        return list.get(i);
-    }
-
 
 }

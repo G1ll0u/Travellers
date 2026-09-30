@@ -3,9 +3,9 @@ package com.jubitus.travellers.server.net.message.workergo;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.zone.PlayerZoneManager;
+import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -72,11 +72,18 @@ public class MsgWorkerGoTo implements IMessage {
                     list.add(MsgWorkerGoList.Entry.village(v, label, dist));
                 }
 
-                LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
-                for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                PlayerZoneManager lbMgr = PlayerZoneManager.get(player.world);
+                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
+                        com.jubitus.travellers.world.zone.ZoneType.BARRACK)) {
                     int dist = EntityTravellerWorker.dist2D(origin, r.center);
                     String label =(r.name != null && !r.name.isEmpty() ? r.name : "Barrack");
                     list.add(MsgWorkerGoList.Entry.home(r.center, label, dist));
+                }
+                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
+                        com.jubitus.travellers.world.zone.ZoneType.STABLE)) {
+                    int dist = EntityTravellerWorker.dist2D(origin, r.center);
+                    String label = (r.name != null && !r.name.isEmpty() ? r.name : "Stable");
+                    list.add(MsgWorkerGoList.Entry.stable(r.center, label, dist));
                 }
 
                 list.sort(Comparator.comparingInt(a -> a.distance));
@@ -86,6 +93,7 @@ public class MsgWorkerGoTo implements IMessage {
                 BlockPos target = list.get(msg.index).pos;
 
                 // Start travel order
+                com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, w.getUniqueID());
                 w.startGoToDestination(target, w.dimension);
 
                 NotificationService.notify(player, NotificationDefs.GOTO_GOING_TO, list.get(msg.index).label);

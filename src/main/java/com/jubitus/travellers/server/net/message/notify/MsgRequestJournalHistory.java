@@ -3,7 +3,7 @@ package com.jubitus.travellers.server.net.message.notify;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.notify.JournalEntry;
 import com.jubitus.travellers.notify.NotificationJournalData;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

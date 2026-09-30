@@ -1,18 +1,18 @@
 package com.jubitus.travellers.server.group;
 
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeResolver;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.server.net.message.leadfollow.MsgSyncLeaderFollowerCount;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemArmor;
@@ -259,6 +259,32 @@ public final class WorkerGroupService {
         } else {
             NotificationService.notify(player, NotificationDefs.LEADER_NO_FREE_FOLLOWERS);
         }
+    }
+
+    /**
+     * Mission launch (go / equip / transport / recruit): a worker still escorting another leader
+     * leaves that group for good and follows the owner directly, so the mission and the return leg
+     * never resolve against the old group. Its own followers (if it leads any) stay with it. Call
+     * BEFORE the mission's start method - the mutation resets the go/follow flags.
+     */
+    public static void detachForMission(EntityPlayerMP player, UUID workerId) {
+        MinecraftServer server = player.getServer();
+        if (server == null || workerId == null) return;
+        UUID owner = player.getUniqueID();
+
+        UUID oldLeader;
+        EntityTravellerWorker loaded = findLoaded(server, owner, workerId);
+        if (loaded != null) {
+            oldLeader = loaded.getEscortLeaderUUID();
+            if (oldLeader == null) return;
+            backToOwnerLoaded(loaded);
+        } else {
+            VirtualTravellerRecord r = vwm(server).getRecord(workerId);
+            if (r == null || !owner.equals(r.followOwnerUUID) || r.escortLeaderUUID == null) return;
+            oldLeader = r.escortLeaderUUID;
+            backToOwnerVirtual(r);
+        }
+        epilogue(player, server, setOf(oldLeader));
     }
 
     /** Send a leader (and therefore its whole group) to a destination. */

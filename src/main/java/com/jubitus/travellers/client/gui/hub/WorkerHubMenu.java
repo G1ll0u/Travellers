@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.gui.hub;
 
-import com.jubitus.travellers.client.gui.bahavior.GuiWorkerEnemies;
+import com.jubitus.travellers.client.gui.behavior.GuiWorkerEnemies;
 import com.jubitus.travellers.client.gui.hub.WorkerHubNode.Column;
 import com.jubitus.travellers.client.gui.hub.WorkerHubNode.Kind;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
@@ -59,17 +59,17 @@ public final class WorkerHubMenu {
                                     .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.GO)),
 
                             WorkerHubNode.leaf("recruit", Kind.SCREEN, Column.LEFT, "travellers.worker.hub.node.recruit")
-                                    .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.RECRUIT))
+                                    .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.RECRUIT)),
+
+                            WorkerHubNode.leaf("transport", Kind.SCREEN, Column.LEFT, "travellers.worker.hub.node.transport")
+                                    .tooltip("travellers.worker.hub.transport.tooltip")
+                                    .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.TRANSPORT))
                     ),
 
                     WorkerHubNode.leaf("choir", Kind.TOGGLE, Column.LEFT, "travellers.worker.hub.node.choir")
                             .tooltip("travellers.worker.orders.choir.tooltip")
                             .toggledIf(ctx -> ctx.worker.isWorkerChoirActive())
                             .onClick(ctx -> ctx.send(new MsgWorkerChoirToggle(ctx.worker.getEntityId()))),
-
-                    WorkerHubNode.leaf("transport", Kind.SCREEN, Column.LEFT, "travellers.worker.hub.node.transport")
-                            .tooltip("travellers.worker.hub.transport.tooltip")
-                            .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.TRANSPORT)),
 
                     WorkerHubNode.leaf("unhire", Kind.DANGER, Column.LEFT, "travellers.worker.hub.node.unhire")
                             .label(ctx -> I18n.format(ctx.isAwaitingConfirm("unhire")

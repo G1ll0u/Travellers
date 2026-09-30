@@ -68,6 +68,7 @@ public class MsgWorkerGoToPos implements IMessage {
                 BlockPos top = player.world.getHeight(new BlockPos(target.getX(), 0, target.getZ()));
                 target = new BlockPos(target.getX(), top.getY(), target.getZ());
 
+                com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, w.getUniqueID());
                 w.startGoToDestination(target, w.dimension);
 
                 NotificationService.notify(player, NotificationDefs.GOTO_GOING_TO_POS);

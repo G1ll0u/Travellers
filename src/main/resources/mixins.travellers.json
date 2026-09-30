@@ -9,6 +9,8 @@
   "mixins": [
     "MixinBuildingSafeBuyingPrice",
     "MixinBuildingResManagerAccessor",
+    "MixinResManagerPointsAccessor",
+    "MixinCultureLoadedLanguagesAccessor",
     "MixinBlockPathSlab",
     "MixinMillVillagerFriendlyTraveller",
     "MixinSummon",

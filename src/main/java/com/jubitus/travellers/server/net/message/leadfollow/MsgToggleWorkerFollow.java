@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.leadfollow;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;

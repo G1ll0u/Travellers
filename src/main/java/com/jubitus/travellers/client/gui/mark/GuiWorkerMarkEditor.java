@@ -1,9 +1,10 @@
 package com.jubitus.travellers.client.gui.mark;
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.marker.MsgSaveWorkerOwnerVisuals;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -86,10 +87,10 @@ public class GuiWorkerMarkEditor extends GuiScreen implements ITravellersGui {
         this.value = hsv[2];
 
         this.buttonList.clear();
-        this.prevStyleButton = this.addButton(new GuiButton(0, guiLeft + 142, guiTop + 30, 20, 20, "<"));
-        this.nextStyleButton = this.addButton(new GuiButton(1, guiLeft + 218, guiTop + 30, 20, 20, ">"));
-        this.cancelButton = this.addButton(new GuiButton(3, guiLeft + 142, guiTop + 144, 50, 20, I18n.format("gui.cancel")));
-        this.saveButton = this.addButton(new GuiButton(2, guiLeft + 196, guiTop + 144, 50, 20, I18n.format("gui.done")));
+        this.prevStyleButton = this.addButton(new GuiTravellersButton(0, guiLeft + 142, guiTop + 30, 20, 20, "<"));
+        this.nextStyleButton = this.addButton(new GuiTravellersButton(1, guiLeft + 218, guiTop + 30, 20, 20, ">"));
+        this.cancelButton = this.addButton(new GuiTravellersButton(3, guiLeft + 142, guiTop + 144, 50, 20, I18n.format("gui.cancel")));
+        this.saveButton = this.addButton(new GuiTravellersButton(2, guiLeft + 196, guiTop + 144, 50, 20, I18n.format("gui.done")));
     }
 
     @Override

@@ -7,21 +7,20 @@ import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VillagerFilterRules;
 import com.jubitus.travellers.entity.culture.VoiceSet;
-import com.jubitus.travellers.entity.entityAI.ambient.EntityAIFishWhileTravel;
-import com.jubitus.travellers.entity.entityAI.ambient.EntityAIRoamInsideVillage;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampJoinFire;
-import com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampPause;
-import com.jubitus.travellers.entity.entityAI.combat.EntityAIAttackMeleeCustom;
-import com.jubitus.travellers.entity.entityAI.combat.TravellerCombatLogic;
-import com.jubitus.travellers.entity.entityAI.combat.EntityAIDefendIfClose;
-import com.jubitus.travellers.entity.entityAI.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.entity.entityAI.follow.EntityAIFollowGroupLeader;
-import com.jubitus.travellers.entity.entityAI.travel.EntityAIOpenFenceGate;
-import com.jubitus.travellers.entity.entityAI.travel.EntityAITravel;
-import com.jubitus.travellers.utils.mobs.TravellerHurtByTarget;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.entity.entityai.ambient.EntityAIFishWhileTravel;
+import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
+import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampJoinFire;
+import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampPause;
+import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
+import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
+import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
+import com.jubitus.travellers.entity.entityai.combat.EntityAIRangedBowTravellerSafe;
+import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowGroupLeader;
+import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
+import com.jubitus.travellers.combat.TravellerHurtByTarget;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillVillageIndex;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
@@ -100,7 +99,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         //    with no priority bias between target types.
         this.targetTasks.addTask(
                 4,
-                new com.jubitus.travellers.entity.entityAI.combat.RaiderAttackTargetAI<>(
+                new com.jubitus.travellers.entity.entityai.combat.RaiderAttackTargetAI<>(
                         this,
                         EntityLivingBase.class,
                         10,
@@ -148,8 +147,9 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // Follow a group leader (raider groups, same mechanism as travellers - see EntityTraveller).
         // Must run before EntityAICampStay below so its "yield while leader camps" check actually
-        // takes effect (see EntityAIFollowGroupLeader's own shouldExecute comment).
-        aiFollowGroupLeader = new EntityAIFollowGroupLeader(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
+        // takes effect (see EntityAIFollowLeader's own shouldExecute comment).
+        aiFollowGroupLeader = new com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader(
+                this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 1.0F, 1.0F);
         this.tasks.addTask(4, aiFollowGroupLeader);
 
         // === CAMP / GROUP BEHAVIOR ===========================================================
@@ -157,7 +157,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
             // New camp event system: same task as travellers (faction separation is enforced by
             // CampsiteRecord.canClaim, not by the AI).
-            this.tasks.addTask(6, new com.jubitus.travellers.entity.entityAI.ambient.camp.EntityAICampStay(this));
+            this.tasks.addTask(6, new com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampStay(this));
         } else if (TravellersConfig.CAMP.campsEnabled) {
             // 6: leader pauses at campcommon
             this.tasks.addTask(6, new EntityAICampPause(this));
@@ -174,27 +174,19 @@ public class EntityTravellerRaider extends EntityTraveller {
         aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 48);
         this.tasks.addTask(12, aiTravel);
 
-        // Roam inside mill
-        this.tasks.addTask(
-                11,
-                new EntityAIRoamInsideVillage(
-                        this,
-                        0.34D,
-                        3 * 20,
-                        10 * 20,
-                        TravellersConfig.DESTINATIONS.villageRoamMinDuration * 20,
-                        TravellersConfig.DESTINATIONS.villageRoamMaxDuration * 20
-                )
-        ); // Optional: customize 2-minute duration or wordlist at runtime
+        // Village visit (streets only for raiders, see EntityAIVillageVisit)
+        EntityAIVillageVisit visit = new EntityAIVillageVisit(this);
+        setVillageVisitAI(visit);
+        this.tasks.addTask(11, visit);
 
         // Fish while travelling (adds flavor during travel phases)
         this.tasks.addTask(11, new EntityAIFishWhileTravel(this));
 
         // === UTILITY / IDLE BEHAVIOR =========================================================
 
-        // Open gates and doors
-        this.tasks.addTask(9, new EntityAIOpenFenceGate(this));
-        this.tasks.addTask(10, new EntityAIOpenDoor(this, true));
+        // Open gates and doors, close them behind (shared with EntityTraveller - mirrored here
+        // because this initEntityAI() fully replaces the base task list with no super call).
+        this.tasks.addTask(9, new com.jubitus.travellers.entity.entityai.travel.EntityAIPassDoor(this));
 
         // Look at nearby players and idle looking around
         this.tasks.addTask(13, new EntityAIWatchClosest(this, EntityPlayer.class, 12.0F));
@@ -378,9 +370,13 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         Entity src = source.getTrueSource();
 
-        // Allow creative hits: take damage but don't aggro
+        // Must stay: unlike EntityTraveller.attackEntityFrom, the retaliation branch below
+        // unconditionally calls setInCombat(true) right after setAttackTarget(), which would
+        // re-flip setInCombat back to true even though setAttackTarget() itself rejects a
+        // creative/spectator target - this early return is what actually prevents that.
         if (src instanceof EntityPlayer && ((EntityPlayer) src).isCreative()) {
             setInCombat(false);
+            setRevengeTarget(null);
             return true;
         }
 
@@ -438,6 +434,11 @@ public class EntityTravellerRaider extends EntityTraveller {
     @Override
     public boolean isAggressiveToTravellers() {
         return true;
+    }
+
+    @Override
+    public boolean usesVillageVisit() {
+        return TravellersConfig.VILLAGE_VISIT.enabledRaiders;
     }
 
     @Override

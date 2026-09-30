@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.formation;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
@@ -9,7 +10,7 @@ import com.jubitus.travellers.notify.BattleSummary;
 import com.jubitus.travellers.notify.JournalEntry;
 import com.jubitus.travellers.notify.NotificationType;
 import com.jubitus.travellers.server.net.message.notify.MsgRequestJournalHistory;
-import com.jubitus.travellers.client.gui.bahavior.GuiWorkerBehavior;
+import com.jubitus.travellers.client.gui.behavior.GuiWorkerBehavior;
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.home.WorkerHeadRenderer;
@@ -22,12 +23,12 @@ import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityAI.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.server.net.message.formations.MsgRequestFormationHub;
@@ -250,9 +251,9 @@ public class GuiWorkerFormationHub extends GuiScreen
         // ── Right column: style/attitude buttons then sliders, all evenly spaced ───
         int rowGap = 30;
         int rowY = contentY;
-        styleButton = addButton(new GuiButton(1, rightX, rowY, rightW, 20, ""));
+        styleButton = addButton(new GuiTravellersButton(1, rightX, rowY, rightW, 20, ""));
         rowY += rowGap;
-        attitudeButton = addButton(new GuiButton(2, rightX, rowY, rightW, 20, ""));
+        attitudeButton = addButton(new GuiTravellersButton(2, rightX, rowY, rightW, 20, ""));
         rowY += rowGap;
 
         escortsSlider = new GuiWorkerFormationSlider(rightX, rowY, rightW, 20,
@@ -285,11 +286,11 @@ public class GuiWorkerFormationHub extends GuiScreen
         int obY = contentY + 2;
 
         // Leader orders
-        goButton           = addButton(new GuiButton(30, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.go")));
-        followButton       = addButton(new GuiButton(31, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.follow")));
-        followToggleButton = addButton(new GuiButton(41, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.follow_on")));
-        mergeButton        = addButton(new GuiButton(32, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.merge")));
-        getEquipButton     = addButton(new GuiButton(40, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.get_equip")));
+        goButton           = addButton(new GuiTravellersButton(30, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.go")));
+        followButton       = addButton(new GuiTravellersButton(31, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.follow")));
+        followToggleButton = addButton(new GuiTravellersButton(41, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.follow_on")));
+        mergeButton        = addButton(new GuiTravellersButton(32, obX, obY + 72, obW, 20, I18n.format("travellers.worker.formation.merge")));
+        getEquipButton     = addButton(new GuiTravellersButton(40, obX, obY + 96, obW, 20, I18n.format("travellers.worker.formation.get_equip")));
         // Overlay cancels get their OWN row (obY+120), never reused by any trigger button. Sharing a
         // slot with a trigger button is unsafe: vanilla's button-click loop doesn't stop at the first
         // match, it keeps testing every remaining button against LIVE state - so a trigger button whose
@@ -297,13 +298,13 @@ public class GuiWorkerFormationHub extends GuiScreen
         // at the exact same spot still under the cursor, which then also fires in the same click and
         // immediately undoes what the trigger just did (this was the actual "Get Equipment does
         // nothing, but the click sound plays twice" bug: both buttons fired on one click).
-        mergeCancelButton  = addButton(new GuiButton(33, obX, obY + 120, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
-        cancelGoButton     = addButton(new GuiButton(34, obX, obY + 120, obW, 20, I18n.format("travellers.worker.formation.go_cancel")));
+        mergeCancelButton  = addButton(new GuiTravellersButton(33, obX, obY + 120, obW, 20, I18n.format("travellers.worker.formation.merge_cancel")));
+        cancelGoButton     = addButton(new GuiTravellersButton(34, obX, obY + 120, obW, 20, I18n.format("travellers.worker.formation.go_cancel")));
 
         // Follower orders
-        groupButton            = addButton(new GuiButton(35, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.group", "Group")));
-        followerComeBackButton = addButton(new GuiButton(38, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
-        followerMergeButton    = addButton(new GuiButton(39, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
+        groupButton            = addButton(new GuiTravellersButton(35, obX, obY,      obW, 20, I18n.format("travellers.worker.formation.group", "Group")));
+        followerComeBackButton = addButton(new GuiTravellersButton(38, obX, obY + 24, obW, 20, I18n.format("travellers.worker.formation.come_back")));
+        followerMergeButton    = addButton(new GuiTravellersButton(39, obX, obY + 48, obW, 20, I18n.format("travellers.worker.formation.merge")));
 
         tooltips.set(attitudeButton, "travellers.worker.formation.attitude.tooltip");
         tooltips.set(goButton, "travellers.worker.formation.go.tooltip");
@@ -317,11 +318,11 @@ public class GuiWorkerFormationHub extends GuiScreen
 
         // General buttons — bottom of the leaders-list column, freeing the orders column for orders.
         int genLeftY = listY + leaderRowsH + 4;
-        barracksButton = addButton(new GuiButton(36, listX, genLeftY,      LIST_W, 20, I18n.format("travellers.worker.hub.barracks")));
-        behaviorButton = addButton(new GuiButton(37, listX, genLeftY + 24, LIST_W, 20, I18n.format("travellers.worker.hub.behavior")));
+        barracksButton = addButton(new GuiTravellersButton(36, listX, genLeftY,      LIST_W, 20, I18n.format("travellers.worker.hub.barracks")));
+        behaviorButton = addButton(new GuiTravellersButton(37, listX, genLeftY + 24, LIST_W, 20, I18n.format("travellers.worker.hub.behavior")));
 
         // ── Back button ───────────────────────────────────────────────────────
-        backButton = addButton(new GuiButton(99, guiLeft + effW - 70, bottomY, 60, 20,
+        backButton = addButton(new GuiTravellersButton(99, guiLeft + effW - 70, bottomY, 60, 20,
                 I18n.format(standalone ? "travellers.gui.close" : "travellers.gui.back")));
 
         // ── Worldmap ──────────────────────────────────────────────────────────
@@ -709,19 +710,20 @@ public class GuiWorkerFormationHub extends GuiScreen
         }
 
         float fontScale = TravellersConfig.NOTIFICATIONS.historyPanelFontScale;
-        int rowH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
-        int visibleRows = historyVisibleRows();
-        clampHistoryScroll(entries.size(), visibleRows);
+        clampHistoryScroll(entries, innerH);
 
         long worldTime = mc.world != null ? mc.world.getTotalWorldTime() : 0L;
         boolean showBattleIcon = TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled;
 
-        for (int i = 0; i < visibleRows; i++) {
-            int idx = historyScroll + i;
-            if (idx < 0 || idx >= entries.size()) break;
+        int rowTop = innerY;
+        int shown = 0;
+        for (int idx = historyScroll; idx < entries.size(); idx++) {
             JournalEntry entry = entries.get(idx);
+            String[] lines = historyLines(entry, worldTime);
+            int rowH = historyEntryHeight(lines.length);
+            if (shown > 0 && rowTop + rowH > innerY + innerH) break;
+            shown++;
 
-            int rowTop = innerY + i * rowH;
             boolean hovered = mouseX >= innerX && mouseX < innerX + innerW
                     && mouseY >= rowTop && mouseY < rowTop + rowH;
             TravellersGuiTheme.drawListRow(innerX, rowTop, innerW, rowH, hovered, false);
@@ -730,48 +732,77 @@ public class GuiWorkerFormationHub extends GuiScreen
 
             boolean hasBattle = showBattleIcon && entry.battleSummary != null;
             int iconW = hasBattle ? 10 : 0;
-
-            String text;
-            try {
-                text = I18n.format(entry.i18nKey, (Object[]) entry.args);
-            } catch (Exception ex) {
-                text = entry.i18nKey;
-            }
-            if (entry.battleSummary != null) {
-                String suffix = LocationFormat.describe(entry.battleSummary.location, entry.battleSummary.dimension);
-                if (suffix != null) text = text + ", " + suffix;
-            }
-            String timeAgo = formatTimeAgo(worldTime - entry.worldTime);
-            String full = TextFormatting.GRAY + "[" + timeAgo + "] " + TextFormatting.RESET + text;
+            int textMaxW = Math.max(10, (int) ((innerW - 8 - iconW) / fontScale) - 4);
+            float lineH = historyLineHeight();
 
             GlStateManager.pushMatrix();
-            GlStateManager.translate(innerX + 8, rowTop + (rowH - fontRenderer.FONT_HEIGHT * fontScale) / 2f, 0f);
+            GlStateManager.translate(innerX + 8, rowTop + (rowH - lineH * lines.length) / 2f, 0f);
             GlStateManager.scale(fontScale, fontScale, 1f);
-            int textMaxW = Math.max(10, (int) ((innerW - 8 - iconW) / fontScale) - 4);
-            fontRenderer.drawString(fontRenderer.trimStringToWidth(full, textMaxW), 0, 0, COL_TEXT);
+            for (int l = 0; l < lines.length; l++) {
+                fontRenderer.drawString(fontRenderer.trimStringToWidth(lines[l], textMaxW), 0,
+                        Math.round(l * lineH / fontScale), COL_TEXT);
+            }
             GlStateManager.popMatrix();
 
             if (hasBattle) {
                 fontRenderer.drawString("⚔", innerX + innerW - 10, rowTop + (rowH - fontRenderer.FONT_HEIGHT) / 2, 0xFFCCCCCC);
             }
+            rowTop += rowH;
         }
 
         if (historyScroll > 0)
             fontRenderer.drawString("▲", innerX + innerW - 10, innerY + 1, COL_TEXT_DIM);
-        if (historyScroll + visibleRows < entries.size())
+        if (historyScroll + shown < entries.size())
             fontRenderer.drawString("▼", innerX + innerW - 10, innerY + innerH - 9, COL_TEXT_DIM);
     }
 
-    private int historyVisibleRows() {
-        if (historyH <= 0) return 0;
-        int pad = 3;
-        int innerH = historyH - pad * 2;
-        int rowH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
-        return Math.max(1, innerH / rowH);
+    /** Entry text split on '\n' (only the first line carries the time-ago prefix). */
+    private String[] historyLines(JournalEntry entry, long worldTime) {
+        String text;
+        try {
+            text = I18n.format(entry.i18nKey, (Object[]) entry.args);
+        } catch (Exception ex) {
+            text = entry.i18nKey;
+        }
+        if (entry.battleSummary != null) {
+            String suffix = LocationFormat.describe(entry.battleSummary.location, entry.battleSummary.dimension);
+            if (suffix != null) text = text + ", " + suffix;
+        }
+        String[] lines = text.split("\n", -1);
+        lines[0] = TextFormatting.GRAY + "[" + formatTimeAgo(worldTime - entry.worldTime) + "] "
+                + TextFormatting.RESET + lines[0];
+        return lines;
     }
 
-    private void clampHistoryScroll(int total, int visibleRows) {
-        int max = Math.max(0, total - visibleRows);
+    private float historyLineHeight() {
+        return fontRenderer.FONT_HEIGHT * TravellersConfig.NOTIFICATIONS.historyPanelFontScale + 1f;
+    }
+
+    private int historyEntryHeight(int lineCount) {
+        int minH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
+        return lineCount <= 1 ? minH : Math.max(minH, (int) Math.ceil(historyLineHeight() * lineCount) + 2);
+    }
+
+    private int historyEntryHeight(JournalEntry entry) {
+        return historyEntryHeight(historyLines(entry, 0L).length);
+    }
+
+    private int historyInnerHeight() {
+        return historyH <= 0 ? 0 : historyH - 3 * 2;
+    }
+
+    /** Scroll is the index of the first visible entry; the max is the earliest start that still fits the newest entry at the bottom. */
+    private void clampHistoryScroll(List<JournalEntry> entries, int innerH) {
+        int total = entries.size();
+        int idx = total;
+        int used = 0;
+        while (idx > 0) {
+            int h = historyEntryHeight(entries.get(idx - 1));
+            if (used + h > innerH) break;
+            used += h;
+            idx--;
+        }
+        int max = Math.max(0, Math.min(idx, total - 1));
         if (historyScroll > max) historyScroll = max;
         if (historyScroll < 0) historyScroll = 0;
         historyPinnedToBottom = historyScroll >= max;
@@ -795,17 +826,18 @@ public class GuiWorkerFormationHub extends GuiScreen
         int innerX = guiLeft + pad;
         int innerY = historyY + pad;
         int innerW = effW - pad * 2;
-        int rowH = TravellersConfig.NOTIFICATIONS.historyPanelRowHeight;
         if (mouseX < innerX || mouseX >= innerX + innerW || mouseY < innerY) return null;
 
-        int i = (mouseY - innerY) / rowH;
-        int visibleRows = historyVisibleRows();
-        if (i < 0 || i >= visibleRows) return null;
-
+        int innerH = historyInnerHeight();
         List<JournalEntry> entries = ClientJournalCache.entries();
-        int idx = historyScroll + i;
-        if (idx < 0 || idx >= entries.size()) return null;
-        return entries.get(idx);
+        int rowTop = innerY;
+        for (int idx = historyScroll; idx >= 0 && idx < entries.size(); idx++) {
+            int rowH = historyEntryHeight(entries.get(idx));
+            if (idx > historyScroll && rowTop + rowH > innerY + innerH) break;
+            if (mouseY < rowTop + rowH) return entries.get(idx);
+            rowTop += rowH;
+        }
+        return null;
     }
 
     /** Centers the worldmap on the clicked event's location. Only entries carrying a
@@ -888,7 +920,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (equipPickingMode && equipDests != null) {
             for (MsgEquipDestsResponse.EquipDestInfo d : equipDests) {
                 if (d.pos == null) continue;
-                if (d.useWholeVillage) {
+                if (d.kind == com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE) {
                     mapController.panel.addMarker(WorldMapMarkerFactory.controlledVillage(d.pos, d.name, ownerColor));
                 } else {
                     mapController.panel.addMarker(WorldMapMarkerFactory.home(d.pos, d.name, ownerColor));
@@ -1136,7 +1168,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         } else if (historyH > 0 && mouseX >= guiLeft && mouseX < guiLeft + effW
                 && mouseY >= historyY && mouseY < historyY + historyH) {
             historyScroll += wheel > 0 ? -1 : 1;
-            clampHistoryScroll(ClientJournalCache.entries().size(), historyVisibleRows());
+            clampHistoryScroll(ClientJournalCache.entries(), historyInnerHeight());
         }
     }
 
@@ -1160,7 +1192,7 @@ public class GuiWorkerFormationHub extends GuiScreen
             if (equipDests != null) {
                 MsgEquipDestsResponse.EquipDestInfo nearest = findNearestEquipDest(mouseX, mouseY);
                 if (nearest != null) {
-                    TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGetEquip(equipPickingLeaderUUID, nearest.pos, nearest.useWholeVillage));
+                    TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGetEquip(equipPickingLeaderUUID, nearest.pos, nearest.kind));
                     destinationCrossPos = nearest.pos;
                     destinationCrossExpireMs = System.currentTimeMillis() + DESTINATION_CROSS_DURATION_MS;
                 }

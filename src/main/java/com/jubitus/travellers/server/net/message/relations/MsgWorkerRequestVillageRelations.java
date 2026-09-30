@@ -2,9 +2,9 @@ package com.jubitus.travellers.server.net.message.relations;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.data.TravellerVillageRelations;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.world.data.TravellerVillageRelations;
+import com.jubitus.travellers.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;

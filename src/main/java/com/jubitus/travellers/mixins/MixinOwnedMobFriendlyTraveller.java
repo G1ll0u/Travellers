@@ -1,6 +1,6 @@
 package com.jubitus.travellers.mixins;
 
-import com.jubitus.travellers.utils.mobs.OwnedMobFriendlyTravellerFilter;
+import com.jubitus.travellers.combat.OwnedMobFriendlyTravellerFilter;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityOwnable;

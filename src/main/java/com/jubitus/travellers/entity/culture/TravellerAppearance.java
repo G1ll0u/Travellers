@@ -14,6 +14,12 @@ public final class TravellerAppearance {
     @Nullable
     public VillagerEquipmentProfile equipmentProfile;
 
+    /** The villager .txt's own filename (without extension), e.g. "farmer" or "merchant_art" - the
+     * only "job id" that exists in Millénaire's data. Null when built from a file with no recognizable
+     * name (shouldn't happen in practice, but never assume one exists). See {@link JobLabelFormatter}. */
+    @Nullable
+    public String jobId;
+
     public TravellerAppearance(ResourceLocation baseTexture) {
         this(baseTexture, 1.0f);
     }

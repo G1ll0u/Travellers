@@ -57,6 +57,12 @@ public final class VoiceSet {
         return pickFrom(death, rand, fallback);
     }
 
+    /** True if every clip category is empty - a personality with no sound folder at all (a dialogue-only "no voice" personality), or a genuinely empty one. */
+    public boolean isEmpty() {
+        return talk.length == 0 && hurt.length == 0 && hello.length == 0 && ambient.length == 0
+                && attack.length == 0 && creeper.length == 0 && kill.length == 0 && death.length == 0;
+    }
+
     private static SoundEvent pickFrom(SoundEvent[] arr, java.util.Random rand, SoundEvent fallback) {
         if (arr == null || arr.length == 0) return fallback;
         if (rand == null) return arr[0];

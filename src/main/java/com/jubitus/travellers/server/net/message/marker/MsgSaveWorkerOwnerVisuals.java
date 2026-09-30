@@ -2,7 +2,7 @@ package com.jubitus.travellers.server.net.message.marker;
 
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.text.TextComponentTranslation;

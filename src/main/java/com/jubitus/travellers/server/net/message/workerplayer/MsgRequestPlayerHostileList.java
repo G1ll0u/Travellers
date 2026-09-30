@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;

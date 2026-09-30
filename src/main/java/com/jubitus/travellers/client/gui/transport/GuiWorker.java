@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.transport;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
@@ -11,7 +12,7 @@ import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.villageshomes.MsgWorkerRequestVillages;
@@ -106,19 +107,19 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         int buttonWidth = 60, buttonHeight = 20, buttonGapX = 4, buttonGapY = 4;
         int buttonsTop = listY + listH + buttonGapY;
 
-        this.validateButton = this.addButton(new GuiButton(
+        this.validateButton = this.addButton(new GuiTravellersButton(
                 0, listX, buttonsTop, buttonWidth, buttonHeight,
                 I18n.format("travellers.worker.validate", "Validate")));
 
-        this.sendButton = this.addButton(new GuiButton(
+        this.sendButton = this.addButton(new GuiTravellersButton(
                 1, listX + buttonWidth + buttonGapX, buttonsTop, buttonWidth, buttonHeight,
                 I18n.format("travellers.worker.send", "Send")));
 
-        this.backButton = this.addButton(new GuiButton(
+        this.backButton = this.addButton(new GuiTravellersButton(
                 3, listX, buttonsTop + buttonHeight + buttonGapY,
                 buttonWidth, buttonHeight, I18n.format("travellers.gui.back", "Back")));
 
-        this.donateButton = this.addButton(new GuiButton(
+        this.donateButton = this.addButton(new GuiTravellersButton(
                 2, listX + buttonWidth + buttonGapX, buttonsTop + buttonHeight + buttonGapY,
                 buttonWidth, buttonHeight, I18n.format("travellers.worker.donate", "Donate")));
 

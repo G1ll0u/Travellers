@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.go;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
 import com.jubitus.travellers.client.gui.ITravellersGui;
@@ -13,7 +14,7 @@ import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
@@ -142,40 +143,40 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         int bw = 70, bh = 20, gap = 4;
         int buttonsTop = listY + listH + gap;
 
-        this.goButton = this.addButton(new GuiButton(1, listX + listW - bw, buttonsTop, bw, bh,
+        this.goButton = this.addButton(new GuiTravellersButton(1, listX + listW - bw, buttonsTop, bw, bh,
                 I18n.format("travellers.gui.go", "Go")));
         this.goButton.enabled = false;
 
         int aw = 16, ah = 16;
         int ay = mapY + (mapH / 2) - (ah / 2);
-        this.panW = this.addButton(new GuiButton(2, mapX + 2, ay, aw, ah, "<"));
-        this.panE = this.addButton(new GuiButton(3, mapX + mapW - aw - 2, ay, aw, ah, ">"));
+        this.panW = this.addButton(new GuiTravellersButton(2, mapX + 2, ay, aw, ah, "<"));
+        this.panE = this.addButton(new GuiTravellersButton(3, mapX + mapW - aw - 2, ay, aw, ah, ">"));
 
         int axMid = mapX + (mapW / 2) - (aw / 2);
-        this.panN = this.addButton(new GuiButton(4, axMid, mapY + 2, aw, ah, "^"));
-        this.panS = this.addButton(new GuiButton(5, axMid, mapY + mapH - ah - 2, aw, ah, "v"));
+        this.panN = this.addButton(new GuiTravellersButton(4, axMid, mapY + 2, aw, ah, "^"));
+        this.panS = this.addButton(new GuiTravellersButton(5, axMid, mapY + mapH - ah - 2, aw, ah, "v"));
 
         int zTop = mapY + mapH + 6;
-        this.zoomOutButton  = this.addButton(new GuiButton(6, mapX, zTop, 20, 20, "-"));
-        this.zoomInButton   = this.addButton(new GuiButton(7, mapX + 24, zTop, 20, 20, "+"));
-        this.recenterButton = this.addButton(new GuiButton(8, mapX + mapW - 58, zTop, 58, 20,
+        this.zoomOutButton  = this.addButton(new GuiTravellersButton(6, mapX, zTop, 20, 20, "-"));
+        this.zoomInButton   = this.addButton(new GuiTravellersButton(7, mapX + 24, zTop, 20, 20, "+"));
+        this.recenterButton = this.addButton(new GuiTravellersButton(8, mapX + mapW - 58, zTop, 58, 20,
                 I18n.format("travellers.map.center", "Center")));
-        this.backButton = this.addButton(new GuiButton(9, listX, buttonsTop, 50, bh,
+        this.backButton = this.addButton(new GuiTravellersButton(9, listX, buttonsTop, 50, bh,
                 I18n.format("travellers.gui.back", "Back")));
 
         // Second row under the list: Get Equipment (only for controlled villages / lone barracks)
         int buttonsTop2 = buttonsTop + bh + gap;
-        this.getEquipButton = this.addButton(new GuiButton(10, listX, buttonsTop2, listW, bh,
+        this.getEquipButton = this.addButton(new GuiTravellersButton(10, listX, buttonsTop2, listW, bh,
                 I18n.format("travellers.worker.barracks.get_equip", "Get Equipment")));
         this.getEquipButton.enabled = false;
 
         // Inline equip dialog buttons (over the list), hidden until opened
         int dlgY = listY + 4;
-        this.equipStayButton   = this.addButton(new GuiButton(11, listX, dlgY, listW, bh,
+        this.equipStayButton   = this.addButton(new GuiTravellersButton(11, listX, dlgY, listW, bh,
                 I18n.format("travellers.worker.barracks.equip_stay", "Equip and Stay")));
-        this.equipReturnButton = this.addButton(new GuiButton(12, listX, dlgY + bh + gap, listW, bh,
+        this.equipReturnButton = this.addButton(new GuiTravellersButton(12, listX, dlgY + bh + gap, listW, bh,
                 I18n.format("travellers.worker.barracks.equip_return", "Equip and Return")));
-        this.equipCancelButton = this.addButton(new GuiButton(13, listX, dlgY + (bh + gap) * 2, listW, bh,
+        this.equipCancelButton = this.addButton(new GuiTravellersButton(13, listX, dlgY + (bh + gap) * 2, listW, bh,
                 I18n.format("travellers.gui.cancel", "Cancel")));
         showEquipDialog = false;
         applyEquipDialogVisibility();
@@ -240,6 +241,8 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 e = MsgWorkerGoList.Entry.village(r.pos, r.label, r.distance);
             else if (r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE)
                 e = MsgWorkerGoList.Entry.controlledVillage(r.pos, r.label, r.distance);
+            else if (r.kind == MsgWorkerGoList.Kind.STABLE)
+                e = MsgWorkerGoList.Entry.stable(r.pos, r.label, r.distance);
             else
                 e = MsgWorkerGoList.Entry.home(r.pos, r.label, r.distance);
             pois.add(e);
@@ -324,6 +327,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             final float scale = 0.85F;
             String prefix = r.kind == MsgWorkerGoList.Kind.VILLAGE ? "[V] "
                     : r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE ? "[CV] "
+                    : r.kind == MsgWorkerGoList.Kind.STABLE ? "[S] "
                     : ""; //<-- yes it's stupid
             String distSuffix = " (" + r.distance + "m)";
             String label = shortenNameWithSuffix(prefix + r.label, distSuffix, (int)((listW - 6) / scale));
@@ -522,23 +526,29 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         zoomInButton.visible = !d; zoomOutButton.visible = !d; recenterButton.visible = !d;
     }
 
-    /** Get Equipment is allowed only for a controlled village or a lone barrack row. */
+    /** Get Equipment is allowed for a controlled village, a lone barrack, or a stable row. */
     private void updateGetEquipEnabled() {
         boolean ok = selectedMapPos == null && selectedIndex >= 0 && selectedIndex < rows.size()
                 && (rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
-                    || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.HOME);
+                    || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.HOME
+                    || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.STABLE);
         if (getEquipButton != null) getEquipButton.enabled = ok;
     }
 
     private void sendGetEquipment(boolean stay) {
         if (selectedIndex < 0 || selectedIndex >= rows.size()) return;
         Row r = rows.get(selectedIndex);
-        boolean useWholeVillage = r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE;
+        com.jubitus.travellers.world.mill.EquipTargetKind kind =
+                r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
+                        ? com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE
+                        : r.kind == MsgWorkerGoList.Kind.STABLE
+                        ? com.jubitus.travellers.world.mill.EquipTargetKind.STABLE
+                        : com.jubitus.travellers.world.mill.EquipTargetKind.LONE_BARRACK;
         UUID targetUUID = leaderMode ? leaderUUID : (worker != null ? worker.getUniqueID() : null);
         if (targetUUID == null || r.pos == null) return;
         TravellerFollowNet.CHANNEL.sendToServer(
                 new com.jubitus.travellers.server.net.message.home.MsgWorkerGetEquipment(
-                        targetUUID, stay, useWholeVillage, r.pos));
+                        targetUUID, stay, kind, r.pos));
     }
 
     private static class Row {

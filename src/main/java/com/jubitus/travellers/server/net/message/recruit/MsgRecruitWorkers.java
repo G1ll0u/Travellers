@@ -3,7 +3,7 @@ package com.jubitus.travellers.server.net.message.recruit;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.utils.flooz.TravellerMoney;
+import com.jubitus.travellers.economy.TravellerMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -93,6 +93,7 @@ public class MsgRecruitWorkers implements IMessage {
             NotificationService.notify(player, NotificationDefs.RECRUIT_MISSION_STARTED,
                     MillCommonUtilities.getShortPrice(fee));
 
+            com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startRecruitMission(player, villages, returnPos);
         }
     }

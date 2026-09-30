@@ -8,7 +8,6 @@ import com.jubitus.travellers.client.render.models.ModelBackpack;
 import com.jubitus.travellers.client.render.models.ModelBamboo;
 import com.jubitus.travellers.client.render.models.ModelChuspas;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.client.model.ModelBiped;
@@ -54,8 +53,7 @@ public class LayerTravellerBackpack implements net.minecraft.client.renderer.ent
                               float limbSwing, float limbSwingAmount, float partialTicks,
                               float ageInTicks, float netHeadYaw, float headPitch, float scale) {
 
-        if (!(entity instanceof EntityTravellerWorker)
-                && !(entity instanceof EntityTravellerMerchant)) return;
+        if (!(entity instanceof EntityTravellerWorker)) return;
 
         if (!entity.shouldRenderBackpack()) return;
 

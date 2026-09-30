@@ -71,10 +71,22 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         killing = true;
 
         if (!world.isRemote && !this.getPassengers().isEmpty()) {
+            restoreSaddles();
             this.removePassengers();
         }
 
         super.setDead();
+    }
+
+    // Whoever removes the boat, every traveller aboard gets its saddle back (boarding switched it to LED).
+    private void restoreSaddles() {
+        for (Entity p : this.getPassengers()) {
+            if (p instanceof com.jubitus.travellers.entity.travellers.EntityTraveller) {
+                com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport.setMountMode(
+                        (com.jubitus.travellers.entity.travellers.EntityTraveller) p,
+                        com.jubitus.travellers.entity.entityai.travel.mount.MountMode.MOUNTED);
+            }
+        }
     }
 
     public void killNow() {
@@ -83,6 +95,7 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         killing = true;
 
         if (!world.isRemote) {
+            restoreSaddles();
             for (Entity p : new java.util.ArrayList<>(this.getPassengers())) {
                 p.dismountRidingEntity();
             }
@@ -96,6 +109,7 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         if (this.isDead || killing) return;
 
         if (!this.getPassengers().isEmpty()) {
+            if (!world.isRemote) restoreSaddles();
             for (Entity p : new java.util.ArrayList<>(this.getPassengers())) {
                 p.dismountRidingEntity();
             }

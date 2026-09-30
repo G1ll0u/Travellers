@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.relations;
 
-import com.jubitus.travellers.client.gui.bahavior.relations.GuiWorkerVillageRelations;
+import com.jubitus.travellers.client.gui.behavior.relations.GuiWorkerVillageRelations;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
