@@ -1,14 +1,15 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.world.zone.ZoneAssignments;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -45,27 +46,22 @@ public class MsgUnassignWorkerBarrack implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 UUID ownerId = player.getUniqueID();
                 WorldServer world = player.getServerWorld();
-                int dim = world.provider.getDimension();
-
+                BlockPos home = null;
                 Entity e = world.getEntityFromUuid(msg.workerUUID);
                 if (e instanceof EntityTravellerWorker) {
                     EntityTravellerWorker w = (EntityTravellerWorker) e;
                     if (!ownerId.equals(w.getFollowOwnerId())) return;
-                    w.setAssignedHome(null, dim, "", TravellerHomeManager.HomeType.LONE_BARRACK);
-                    TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
+                    home = w.getAssignedHomePos();
                 } else {
-                    VirtualTravellerManager vwm = VirtualTravellerManager.get(world);
-                    VirtualTravellerRecord rec = vwm.getRecord(msg.workerUUID);
+                    VirtualTravellerRecord rec = VirtualTravellerManager.get(world.getMinecraftServer().getWorld(0))
+                            .getRecord(msg.workerUUID);
                     if (rec == null || !ownerId.equals(rec.followOwnerUUID)) return;
-                    EntityTravellerWorker temp = new EntityTravellerWorker(world);
-                    temp.readFromNBT(rec.entityNbt);
-                    temp.setUniqueId(rec.uuid);
-                    temp.setAssignedHome(null, dim, "", TravellerHomeManager.HomeType.LONE_BARRACK);
-                    NBTTagCompound updated = new NBTTagCompound();
-                    temp.writeToNBT(updated);
-                    rec.entityNbt = updated;
-                    vwm.markDirty();
+                    NBTTagCompound nbt = rec.entityNbt;
+                    if (nbt != null && nbt.hasKey("HomeX")) {
+                        home = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
+                    }
                 }
+                if (home != null) ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, home);
 
                 TravellerFollowNet.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);
             });

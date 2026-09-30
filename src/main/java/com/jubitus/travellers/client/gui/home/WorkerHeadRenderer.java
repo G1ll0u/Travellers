@@ -50,7 +50,9 @@ public final class WorkerHeadRenderer {
         try {
             CultureDef c = CultureRegistry.get(cultureId);
             if (c == null) return null;
-            TravellerAppearance app = c.getAppearance(textureIndex);
+            // Every leader shown here is an EntityTravellerWorker, whose TextureIdx is rolled
+            // against the worker pool, not the traveller one (see EntityTraveller.getActiveAppearance()).
+            TravellerAppearance app = c.getWorkerAppearance(textureIndex);
             return app != null ? app.baseTexture : null;
         } catch (Exception ex) {
             return null;

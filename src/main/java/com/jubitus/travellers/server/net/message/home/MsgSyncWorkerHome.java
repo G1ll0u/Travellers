@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;

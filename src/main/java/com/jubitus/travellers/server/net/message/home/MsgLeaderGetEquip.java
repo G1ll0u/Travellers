@@ -3,11 +3,13 @@ package com.jubitus.travellers.server.net.message.home;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
-import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.mill.EquipTargetKind;
+import com.jubitus.travellers.world.zone.PlayerZoneManager;
+import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.world.zone.ZoneType;
+import com.jubitus.travellers.world.mill.MillControlledVillageHelper;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
@@ -23,15 +25,15 @@ public class MsgLeaderGetEquip implements IMessage {
 
     private long uuidMost, uuidLeast;
     private long destPosLong;
-    private boolean useWholeVillage;
+    private EquipTargetKind kind;
 
     public MsgLeaderGetEquip() {}
 
-    public MsgLeaderGetEquip(UUID leaderUUID, BlockPos destPos, boolean useWholeVillage) {
+    public MsgLeaderGetEquip(UUID leaderUUID, BlockPos destPos, EquipTargetKind kind) {
         this.uuidMost = leaderUUID.getMostSignificantBits();
         this.uuidLeast = leaderUUID.getLeastSignificantBits();
         this.destPosLong = destPos.toLong();
-        this.useWholeVillage = useWholeVillage;
+        this.kind = kind;
     }
 
     @Override
@@ -39,7 +41,7 @@ public class MsgLeaderGetEquip implements IMessage {
         uuidMost = buf.readLong();
         uuidLeast = buf.readLong();
         destPosLong = buf.readLong();
-        useWholeVillage = buf.readBoolean();
+        kind = EquipTargetKind.values()[buf.readByte() & 0xFF];
     }
 
     @Override
@@ -47,20 +49,28 @@ public class MsgLeaderGetEquip implements IMessage {
         buf.writeLong(uuidMost);
         buf.writeLong(uuidLeast);
         buf.writeLong(destPosLong);
-        buf.writeBoolean(useWholeVillage);
+        buf.writeByte(kind.ordinal());
     }
 
-    private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos, boolean useWholeVillage) {
+    private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos, EquipTargetKind kind) {
         if (pos == null) return false;
         UUID ownerId = player.getUniqueID();
-        if (useWholeVillage) {
-            if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
-            return MillControlledVillageHelper.getControlledVillageCenters(player.world, player).contains(pos);
+        switch (kind) {
+            case CONTROLLED_VILLAGE:
+                if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
+                return MillControlledVillageHelper.getControlledVillageCenters(player.world, player).contains(pos);
+            case STABLE:
+                for (PlayerZoneRecord r : PlayerZoneManager.get(player.world).getByOwnerAndType(ownerId, ZoneType.STABLE)) {
+                    if (pos.equals(r.center)) return true;
+                }
+                return false;
+            case LONE_BARRACK:
+            default:
+                for (PlayerZoneRecord r : PlayerZoneManager.get(player.world).getByOwnerAndType(ownerId, ZoneType.BARRACK)) {
+                    if (pos.equals(r.center)) return true;
+                }
+                return false;
         }
-        for (LoneBarrackRecord r : LoneBarrackManager.get(player.world).getByOwner(ownerId)) {
-            if (pos.equals(r.center)) return true;
-        }
-        return false;
     }
 
     public static class Handler implements IMessageHandler<MsgLeaderGetEquip, IMessage> {
@@ -75,7 +85,7 @@ public class MsgLeaderGetEquip implements IMessage {
                 UUID ownerId = player.getUniqueID();
                 BlockPos destPos = BlockPos.fromLong(msg.destPosLong);
 
-                if (!isValidEquipTarget(player, destPos, msg.useWholeVillage)) return;
+                if (!isValidEquipTarget(player, destPos, msg.kind)) return;
 
                 // Try real entity first
                 for (WorldServer ws : srv.worlds) {
@@ -88,7 +98,7 @@ public class MsgLeaderGetEquip implements IMessage {
                                     com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
                             return;
                         }
-                        leader.startGetEquipMission(destPos, true, msg.useWholeVillage);
+                        leader.startGetEquipMission(destPos, true, msg.kind);
                         return;
                     }
                 }
@@ -108,7 +118,7 @@ public class MsgLeaderGetEquip implements IMessage {
                 temp.readFromNBT(r.entityNbt);
                 temp.setUniqueId(r.uuid);
                 temp.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-                temp.startGetEquipMission(destPos, true, msg.useWholeVillage);
+                temp.startGetEquipMission(destPos, true, msg.kind);
 
                 NBTTagCompound updatedNbt = new NBTTagCompound();
                 temp.writeToNBT(updatedNbt);

@@ -2,11 +2,11 @@ package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
-import com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper;
-import com.jubitus.travellers.utils.world.mill.MillVillageIndex;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.world.zone.PlayerZoneManager;
+import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.world.mill.MillControlledVillageHelper;
+import com.jubitus.travellers.world.mill.MillVillageIndex;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
@@ -34,14 +34,23 @@ public class MsgRequestEquipDests implements IMessage {
                 if (TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) {
                     for (BlockPos pos : MillControlledVillageHelper.getControlledVillageCenters(player.world, player)) {
                         String name = MillVillageIndex.nameForApprox(player.world, pos);
-                        dests.add(new MsgEquipDestsResponse.EquipDestInfo(pos, true, name));
+                        dests.add(new MsgEquipDestsResponse.EquipDestInfo(pos,
+                                com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE, name));
                     }
                 }
 
-                LoneBarrackManager lbMgr = LoneBarrackManager.get(player.world);
-                for (LoneBarrackRecord r : lbMgr.getByOwner(player.getUniqueID())) {
+                PlayerZoneManager lbMgr = PlayerZoneManager.get(player.world);
+                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
+                        com.jubitus.travellers.world.zone.ZoneType.BARRACK)) {
                     String name = (r.name != null && !r.name.isEmpty()) ? r.name : "Barrack";
-                    dests.add(new MsgEquipDestsResponse.EquipDestInfo(r.center, false, name));
+                    dests.add(new MsgEquipDestsResponse.EquipDestInfo(r.center,
+                            com.jubitus.travellers.world.mill.EquipTargetKind.LONE_BARRACK, name));
+                }
+                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
+                        com.jubitus.travellers.world.zone.ZoneType.STABLE)) {
+                    String name = (r.name != null && !r.name.isEmpty()) ? r.name : "Stable";
+                    dests.add(new MsgEquipDestsResponse.EquipDestInfo(r.center,
+                            com.jubitus.travellers.world.mill.EquipTargetKind.STABLE, name));
                 }
 
                 TravellerFollowNet.CHANNEL.sendTo(new MsgEquipDestsResponse(dests), player);

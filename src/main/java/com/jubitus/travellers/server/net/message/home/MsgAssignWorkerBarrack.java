@@ -1,12 +1,14 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.world.zone.PlayerZoneManager;
+import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.world.zone.ZoneRoles;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.world.zone.ZoneAssignments;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -54,9 +56,9 @@ public class MsgAssignWorkerBarrack implements IMessage {
                 WorldServer world = player.getServerWorld();
 
                 // Validate ownership of the target barrack
-                LoneBarrackManager lbMgr = LoneBarrackManager.get(world);
-                LoneBarrackRecord barrack = null;
-                for (LoneBarrackRecord r : lbMgr.getByOwner(ownerId)) {
+                PlayerZoneManager lbMgr = PlayerZoneManager.get(world);
+                PlayerZoneRecord barrack = null;
+                for (PlayerZoneRecord r : lbMgr.getByOwner(ownerId)) {
                     if (msg.center.equals(r.center)) { barrack = r; break; }
                 }
                 if (barrack == null) return;
@@ -67,7 +69,7 @@ public class MsgAssignWorkerBarrack implements IMessage {
 
                 // Capacity check: one worker per bed. The snapshot refreshes beds and gives current assignments.
                 MsgWorkerBarracksData snap = MsgWorkerBarracksData.buildFor(player);
-                int beds = barrack.bedPositions.size();
+                int beds = barrack.getRolePositions(ZoneRoles.BED).size();
                 int assigned = 0;
                 boolean alreadyHere = false;
                 for (MsgWorkerBarracksData.WorkerEntry we : snap.workers) {
@@ -87,6 +89,7 @@ public class MsgAssignWorkerBarrack implements IMessage {
                 if (e instanceof EntityTravellerWorker) {
                     EntityTravellerWorker w = (EntityTravellerWorker) e;
                     if (!ownerId.equals(w.getFollowOwnerId())) return;
+                    if (ZoneAssignments.isBoundElsewhere(w, barrack.center)) return;
                     w.setAssignedHome(barrack.center, dim, name, TravellerHomeManager.HomeType.LONE_BARRACK);
                     TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
                 } else {
@@ -97,6 +100,7 @@ public class MsgAssignWorkerBarrack implements IMessage {
                     EntityTravellerWorker temp = new EntityTravellerWorker(world);
                     temp.readFromNBT(rec.entityNbt);
                     temp.setUniqueId(rec.uuid);
+                    if (ZoneAssignments.isBoundElsewhere(temp, barrack.center)) return;
                     temp.setAssignedHome(barrack.center, dim, name, TravellerHomeManager.HomeType.LONE_BARRACK);
                     NBTTagCompound updated = new NBTTagCompound();
                     temp.writeToNBT(updated);

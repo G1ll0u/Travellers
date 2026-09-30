@@ -17,13 +17,13 @@ public class MsgEquipDestsResponse implements IMessage {
 
     public static class EquipDestInfo {
         public BlockPos pos;
-        public boolean useWholeVillage;
+        public com.jubitus.travellers.world.mill.EquipTargetKind kind;
         public String name;
 
         public EquipDestInfo() {}
-        public EquipDestInfo(BlockPos pos, boolean useWholeVillage, String name) {
+        public EquipDestInfo(BlockPos pos, com.jubitus.travellers.world.mill.EquipTargetKind kind, String name) {
             this.pos = pos;
-            this.useWholeVillage = useWholeVillage;
+            this.kind = kind;
             this.name = name;
         }
     }
@@ -40,7 +40,7 @@ public class MsgEquipDestsResponse implements IMessage {
         for (int i = 0; i < n; i++) {
             EquipDestInfo d = new EquipDestInfo();
             d.pos = BlockPos.fromLong(buf.readLong());
-            d.useWholeVillage = buf.readBoolean();
+            d.kind = com.jubitus.travellers.world.mill.EquipTargetKind.values()[buf.readByte() & 0xFF];
             d.name = ByteBufUtils.readUTF8String(buf);
             dests.add(d);
         }
@@ -52,7 +52,7 @@ public class MsgEquipDestsResponse implements IMessage {
         if (dests != null) {
             for (EquipDestInfo d : dests) {
                 buf.writeLong(d.pos.toLong());
-                buf.writeBoolean(d.useWholeVillage);
+                buf.writeByte(d.kind.ordinal());
                 ByteBufUtils.writeUTF8String(buf, d.name == null ? "" : d.name);
             }
         }

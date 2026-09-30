@@ -1,12 +1,13 @@
 package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiver;
-import com.jubitus.travellers.entity.entityAI.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager;
-import com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.zone.PlayerZoneManager;
+import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.world.zone.ZoneRoles;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -45,6 +46,8 @@ public class MsgWorkerBarracksData implements IMessage {
         public int textureIndex;
         public int ownerColor;
         @Nullable public BlockPos assignedCenter; // null = unassigned
+        /** Current world position; client-side only, for the nearest-first unassigned-list sort. */
+        @Nullable public BlockPos pos;
     }
 
     public final List<BarrackEntry> barracks = new ArrayList<>();
@@ -67,7 +70,10 @@ public class MsgWorkerBarracksData implements IMessage {
         // and must be treated as unassigned so the player can re-assign them.
         java.util.Set<BlockPos> validBarrackCenters = new java.util.HashSet<>();
         for (WorldServer ws : srv.worlds) {
-            for (LoneBarrackRecord r : LoneBarrackManager.get(ws).getByOwner(ownerId)) {
+            for (PlayerZoneRecord r : PlayerZoneManager.get(ws).getByOwner(ownerId)) {
+                // Barracks only: a Stable palfrenier's home points at its Stable center, which is a
+                // Duty concern (MsgWorkerZoneData), not a Barrack assignment.
+                if (r.type != com.jubitus.travellers.world.zone.ZoneType.BARRACK) continue;
                 validBarrackCenters.add(r.center);
             }
         }
@@ -94,6 +100,7 @@ public class MsgWorkerBarracksData implements IMessage {
                 BlockPos homePos = (w.getAssignedHomeType() == TravellerHomeManager.HomeType.LONE_BARRACK)
                         ? w.getAssignedHomePos() : null;
                 we.assignedCenter = (homePos != null && validBarrackCenters.contains(homePos)) ? homePos : null;
+                we.pos = w.getPosition();
                 msg.workers.add(we);
                 seen.add(we.uuid);
             }
@@ -119,6 +126,7 @@ public class MsgWorkerBarracksData implements IMessage {
                     BlockPos homePos = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
                     if (validBarrackCenters.contains(homePos)) we.assignedCenter = homePos;
                 }
+                we.pos = new BlockPos(r.posX, r.posY, r.posZ);
                 msg.workers.add(we);
                 seen.add(we.uuid);
             }
@@ -127,9 +135,9 @@ public class MsgWorkerBarracksData implements IMessage {
         // Dead workers pending respawn in lone barracks — must be collected BEFORE reconciliation
         // so their bed assignments survive the retainAll pass below.
         for (WorldServer ws : srv.worlds) {
-            com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager lbmPending =
-                    com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(ws);
-            for (com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.PendingRespawn pr
+            com.jubitus.travellers.world.zone.PlayerZoneManager lbmPending =
+                    com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws);
+            for (com.jubitus.travellers.world.zone.PlayerZoneManager.PendingRespawn pr
                     : lbmPending.getPendingRespawnsView().values()) {
                 if (!ownerId.equals(pr.ownerUUID)) continue;
                 if (seen.contains(pr.workerUUID)) continue;
@@ -141,6 +149,7 @@ public class MsgWorkerBarracksData implements IMessage {
                 we.textureIndex = nbt != null ? nbt.getInteger("TextureIdx") : 0;
                 we.ownerColor = com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData.get(ws).getFor(ownerId).color;
                 we.assignedCenter = pr.center;
+                we.pos = pr.center;
                 msg.workers.add(we);
                 seen.add(pr.workerUUID);
             }
@@ -149,20 +158,22 @@ public class MsgWorkerBarracksData implements IMessage {
         // Lone barracks owned by the player (per-world storage, current dimension).
         // Reconcile each barrack's bed assignments against the actual worker assignments.
         WorldServer pworld = player.getServerWorld();
-        LoneBarrackManager lbMgr = LoneBarrackManager.get(pworld);
-        for (LoneBarrackRecord r : lbMgr.getByOwner(ownerId)) {
+        PlayerZoneManager lbMgr = PlayerZoneManager.get(pworld);
+        for (PlayerZoneRecord r : lbMgr.getByOwner(ownerId)) {
+            if (r.type != com.jubitus.travellers.world.zone.ZoneType.BARRACK) continue;
             lbMgr.refreshBeds(pworld, ownerId, r.center); // rescan beds if loaded; prune broken-bed assignments
 
             java.util.Set<UUID> assignedHere = new java.util.HashSet<>();
             for (WorkerEntry we : msg.workers) {
                 if (r.center.equals(we.assignedCenter)) assignedHere.add(we.uuid);
             }
-            boolean changed = r.bedByWorker.keySet().retainAll(assignedHere);
+            java.util.Map<UUID, BlockPos> bedByWorker = r.barrackData().bedByWorker;
+            boolean changed = bedByWorker.keySet().retainAll(assignedHere);
             for (UUID wu : assignedHere) {
-                if (r.bedByWorker.containsKey(wu)) continue;
+                if (bedByWorker.containsKey(wu)) continue;
                 BlockPos free = r.pickFreeBed();
                 if (free == null) break; // over capacity (e.g. beds broken): worker stays bedless
-                r.bedByWorker.put(wu, free);
+                bedByWorker.put(wu, free);
                 changed = true;
             }
             if (changed) lbMgr.markDirty();
@@ -170,7 +181,7 @@ public class MsgWorkerBarracksData implements IMessage {
             BarrackEntry b = new BarrackEntry();
             b.center = r.center;
             b.name = (r.name == null || r.name.isEmpty()) ? "Barrack" : r.name;
-            b.beds = r.bedPositions.size();
+            b.beds = r.getRolePositions(ZoneRoles.BED).size();
             b.assigned = assignedHere.size();
             msg.barracks.add(b);
         }
@@ -199,6 +210,7 @@ public class MsgWorkerBarracksData implements IMessage {
             w.ownerColor = buf.readInt();
             boolean hasHome = buf.readBoolean();
             w.assignedCenter = hasHome ? BlockPos.fromLong(buf.readLong()) : null;
+            w.pos = buf.readBoolean() ? BlockPos.fromLong(buf.readLong()) : null;
             workers.add(w);
         }
         boolean hasNotif = buf.readBoolean();
@@ -224,6 +236,8 @@ public class MsgWorkerBarracksData implements IMessage {
             buf.writeInt(w.ownerColor);
             buf.writeBoolean(w.assignedCenter != null);
             if (w.assignedCenter != null) buf.writeLong(w.assignedCenter.toLong());
+            buf.writeBoolean(w.pos != null);
+            if (w.pos != null) buf.writeLong(w.pos.toLong());
         }
         buf.writeBoolean(notification != null && !notification.isEmpty());
         if (notification != null && !notification.isEmpty()) ByteBufUtils.writeUTF8String(buf, notification);

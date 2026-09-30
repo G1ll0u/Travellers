@@ -3,8 +3,8 @@ package com.jubitus.travellers.server.net.message.home;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
@@ -21,15 +21,16 @@ public class MsgWorkerGetEquipment implements IMessage {
 
     private UUID workerUUID;
     private boolean stayThere;
-    private boolean useWholeVillage;
+    private com.jubitus.travellers.world.mill.EquipTargetKind kind;
     private BlockPos homePos;
 
     public MsgWorkerGetEquipment() {}
 
-    public MsgWorkerGetEquipment(UUID workerUUID, boolean stayThere, boolean useWholeVillage, BlockPos homePos) {
+    public MsgWorkerGetEquipment(UUID workerUUID, boolean stayThere,
+                                  com.jubitus.travellers.world.mill.EquipTargetKind kind, BlockPos homePos) {
         this.workerUUID = workerUUID;
         this.stayThere = stayThere;
-        this.useWholeVillage = useWholeVillage;
+        this.kind = kind;
         this.homePos = homePos;
     }
 
@@ -40,7 +41,7 @@ public class MsgWorkerGetEquipment implements IMessage {
         workerUUID = new UUID(msb, lsb);
         byte flags = buf.readByte();
         stayThere = (flags & 1) != 0;
-        useWholeVillage = (flags & 2) != 0;
+        kind = com.jubitus.travellers.world.mill.EquipTargetKind.values()[(flags >> 1) & 0x0F];
         homePos = BlockPos.fromLong(buf.readLong());
     }
 
@@ -48,24 +49,36 @@ public class MsgWorkerGetEquipment implements IMessage {
     public void toBytes(ByteBuf buf) {
         buf.writeLong(workerUUID.getMostSignificantBits());
         buf.writeLong(workerUUID.getLeastSignificantBits());
-        byte flags = (byte) ((stayThere ? 1 : 0) | (useWholeVillage ? 2 : 0));
+        byte flags = (byte) ((stayThere ? 1 : 0) | (kind.ordinal() << 1));
         buf.writeByte(flags);
         buf.writeLong(homePos.toLong());
     }
 
-    private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos, boolean useWholeVillage) {
+    private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos,
+                                               com.jubitus.travellers.world.mill.EquipTargetKind kind) {
         if (pos == null) return false;
         java.util.UUID ownerId = player.getUniqueID();
-        if (useWholeVillage) {
-            if (!com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
-            return com.jubitus.travellers.utils.world.mill.MillControlledVillageHelper
-                    .getControlledVillageCenters(player.world, player).contains(pos);
+        switch (kind) {
+            case CONTROLLED_VILLAGE:
+                if (!com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
+                return com.jubitus.travellers.world.mill.MillControlledVillageHelper
+                        .getControlledVillageCenters(player.world, player).contains(pos);
+            case STABLE:
+                for (com.jubitus.travellers.world.zone.PlayerZoneRecord r :
+                        com.jubitus.travellers.world.zone.PlayerZoneManager.get(player.world)
+                                .getByOwnerAndType(ownerId, com.jubitus.travellers.world.zone.ZoneType.STABLE)) {
+                    if (pos.equals(r.center)) return true;
+                }
+                return false;
+            case LONE_BARRACK:
+            default:
+                for (com.jubitus.travellers.world.zone.PlayerZoneRecord r :
+                        com.jubitus.travellers.world.zone.PlayerZoneManager.get(player.world)
+                                .getByOwnerAndType(ownerId, com.jubitus.travellers.world.zone.ZoneType.BARRACK)) {
+                    if (pos.equals(r.center)) return true;
+                }
+                return false;
         }
-        for (com.jubitus.travellers.utils.world.lonebar.LoneBarrackRecord r :
-                com.jubitus.travellers.utils.world.lonebar.LoneBarrackManager.get(player.world).getByOwner(ownerId)) {
-            if (pos.equals(r.center)) return true;
-        }
-        return false;
     }
 
     public static class Handler implements IMessageHandler<MsgWorkerGetEquipment, IMessage> {
@@ -80,7 +93,7 @@ public class MsgWorkerGetEquipment implements IMessage {
 
                 // Validate the target: must be one of the player's controlled villages (whole-village)
                 // or one of the player's lone barracks. Blocks ordinary villages and others' barracks.
-                if (!isValidEquipTarget(player, msg.homePos, msg.useWholeVillage)) return;
+                if (!isValidEquipTarget(player, msg.homePos, msg.kind)) return;
 
                 // Try real entity first
                 for (WorldServer ws : srv.worlds) {
@@ -93,7 +106,8 @@ public class MsgWorkerGetEquipment implements IMessage {
                                     com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
                             return;
                         }
-                        worker.startGetEquipMission(msg.homePos, msg.stayThere, msg.useWholeVillage);
+                        com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
+                        worker.startGetEquipMission(msg.homePos, msg.stayThere, msg.kind);
                         return;
                     }
                 }
@@ -113,7 +127,9 @@ public class MsgWorkerGetEquipment implements IMessage {
                 temp.readFromNBT(r.entityNbt);
                 temp.setUniqueId(r.uuid);
                 temp.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-                temp.startGetEquipMission(msg.homePos, msg.stayThere, msg.useWholeVillage);
+                com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, r.uuid);
+                temp.clearEscortLeader();
+                temp.startGetEquipMission(msg.homePos, msg.stayThere, msg.kind);
 
                 NBTTagCompound updatedNbt = new NBTTagCompound();
                 temp.writeToNBT(updatedNbt);
