@@ -3,9 +3,19 @@
     "defaultPersonality": "default",
     "langs": {
         "en": [
-            "default"
+            "afraid",
+            "default",
+            "gilles",
+            "gilles_fou",
+            "silva"
         ],
         "fr": [
+            "gilles",
+            "gilles_fou",
+            "silva",
+            "vener"
+        ],
+        "fr_bak": [
             "gilles",
             "gilles_fou",
             "silva",
@@ -14,6 +24,89 @@
     },
     "clips": {
         "en": {
+            "afraid": {
+                "talk": [
+                    "entity.travellers.en.afraid.talk.__0",
+                    "entity.travellers.en.afraid.talk.__1",
+                    "entity.travellers.en.afraid.talk.__2",
+                    "entity.travellers.en.afraid.talk.__3",
+                    "entity.travellers.en.afraid.talk.__4",
+                    "entity.travellers.en.afraid.talk.__5",
+                    "entity.travellers.en.afraid.talk.__6",
+                    "entity.travellers.en.afraid.talk.__7",
+                    "entity.travellers.en.afraid.talk.__8",
+                    "entity.travellers.en.afraid.talk.__9"
+                ],
+                "hurt": [
+                    "entity.travellers.en.afraid.hurt.__0",
+                    "entity.travellers.en.afraid.hurt.__1",
+                    "entity.travellers.en.afraid.hurt.__2",
+                    "entity.travellers.en.afraid.hurt.__3",
+                    "entity.travellers.en.afraid.hurt.__4",
+                    "entity.travellers.en.afraid.hurt.__5",
+                    "entity.travellers.en.afraid.hurt.__6",
+                    "entity.travellers.en.afraid.hurt.__7",
+                    "entity.travellers.en.afraid.hurt.__8",
+                    "entity.travellers.en.afraid.hurt.__9"
+                ],
+                "hello": [
+                    "entity.travellers.en.afraid.hello.__0",
+                    "entity.travellers.en.afraid.hello.__1",
+                    "entity.travellers.en.afraid.hello.__2",
+                    "entity.travellers.en.afraid.hello.__3",
+                    "entity.travellers.en.afraid.hello.__4",
+                    "entity.travellers.en.afraid.hello.__5",
+                    "entity.travellers.en.afraid.hello.__6",
+                    "entity.travellers.en.afraid.hello.__7"
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    "entity.travellers.en.afraid.attack.__0",
+                    "entity.travellers.en.afraid.attack.__1",
+                    "entity.travellers.en.afraid.attack.__2",
+                    "entity.travellers.en.afraid.attack.__3",
+                    "entity.travellers.en.afraid.attack.__4",
+                    "entity.travellers.en.afraid.attack.__5",
+                    "entity.travellers.en.afraid.attack.__6",
+                    "entity.travellers.en.afraid.attack.__7",
+                    "entity.travellers.en.afraid.attack.__8",
+                    "entity.travellers.en.afraid.attack.__9",
+                    "entity.travellers.en.afraid.attack.__10"
+                ],
+                "creeper": [
+                    "entity.travellers.en.afraid.creeper.__0",
+                    "entity.travellers.en.afraid.creeper.__1",
+                    "entity.travellers.en.afraid.creeper.__2",
+                    "entity.travellers.en.afraid.creeper.__3",
+                    "entity.travellers.en.afraid.creeper.__4",
+                    "entity.travellers.en.afraid.creeper.__5",
+                    "entity.travellers.en.afraid.creeper.__6"
+                ],
+                "kill": [
+                    "entity.travellers.en.afraid.kill.__0",
+                    "entity.travellers.en.afraid.kill.__1",
+                    "entity.travellers.en.afraid.kill.__2",
+                    "entity.travellers.en.afraid.kill.__3",
+                    "entity.travellers.en.afraid.kill.__4",
+                    "entity.travellers.en.afraid.kill.__5",
+                    "entity.travellers.en.afraid.kill.__6",
+                    "entity.travellers.en.afraid.kill.__7",
+                    "entity.travellers.en.afraid.kill.__8"
+                ],
+                "death": [
+                    "entity.travellers.en.afraid.death.__0",
+                    "entity.travellers.en.afraid.death.__1",
+                    "entity.travellers.en.afraid.death.__2",
+                    "entity.travellers.en.afraid.death.__3",
+                    "entity.travellers.en.afraid.death.__4",
+                    "entity.travellers.en.afraid.death.__5",
+                    "entity.travellers.en.afraid.death.__6",
+                    "entity.travellers.en.afraid.death.__7",
+                    "entity.travellers.en.afraid.death.__8"
+                ]
+            },
             "default": {
                 "talk": [
                     "entity.travellers.en.default.talk.__0",
@@ -166,6 +259,84 @@
                     "entity.travellers.en.default.death.__9",
                     "entity.travellers.en.default.death.__10",
                     "entity.travellers.en.default.death.__11"
+                ]
+            },
+            "gilles": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
+                ]
+            },
+            "gilles_fou": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
+                ]
+            },
+            "silva": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
                 ]
             }
         },
@@ -656,6 +827,112 @@
                     "entity.travellers.fr.gilles_fou.creeper.__16",
                     "entity.travellers.fr.gilles_fou.creeper.__17",
                     "entity.travellers.fr.gilles_fou.creeper.__18"
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
+                ]
+            }
+        },
+        "fr_bak": {
+            "gilles": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
+                ]
+            },
+            "gilles_fou": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
+                ]
+            },
+            "silva": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
+                ],
+                "kill": [
+                    
+                ],
+                "death": [
+                    
+                ]
+            },
+            "vener": {
+                "talk": [
+                    
+                ],
+                "hurt": [
+                    
+                ],
+                "hello": [
+                    
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    
+                ],
+                "creeper": [
+                    
                 ],
                 "kill": [
                     

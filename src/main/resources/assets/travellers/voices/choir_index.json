@@ -3,6 +3,29 @@
         "fr": {
             "gilles": [
                 {
+                    "name": "kilo",
+                    "stems": [
+                        "entity.travellers.fr.gilles.choir.kilo.__0",
+                        "entity.travellers.fr.gilles.choir.kilo.__1",
+                        "entity.travellers.fr.gilles.choir.kilo.__2",
+                        "entity.travellers.fr.gilles.choir.kilo.__3",
+                        "entity.travellers.fr.gilles.choir.kilo.__4"
+                    ],
+                    "durationTicks": 1947
+                },
+                {
+                    "name": "plaine",
+                    "stems": [
+                        "entity.travellers.fr.gilles.choir.plaine.__0",
+                        "entity.travellers.fr.gilles.choir.plaine.__1",
+                        "entity.travellers.fr.gilles.choir.plaine.__2",
+                        "entity.travellers.fr.gilles.choir.plaine.__3",
+                        "entity.travellers.fr.gilles.choir.plaine.__4",
+                        "entity.travellers.fr.gilles.choir.plaine.__5"
+                    ],
+                    "durationTicks": 3666
+                },
+                {
                     "name": "salade",
                     "stems": [
                         "entity.travellers.fr.gilles.choir.salade.__0",
@@ -12,6 +35,13 @@
                         "entity.travellers.fr.gilles.choir.salade.__4"
                     ],
                     "durationTicks": 3458
+                },
+                {
+                    "name": "test",
+                    "stems": [
+                        "entity.travellers.fr.gilles.choir.test.__0"
+                    ],
+                    "durationTicks": 22
                 }
             ]
         }

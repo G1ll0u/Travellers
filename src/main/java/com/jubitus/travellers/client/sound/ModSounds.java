@@ -73,22 +73,35 @@ public final class ModSounds {
         }
     }
 
+    private static final String[] RAIDER_KINDS = {"talk", "hurt", "hello", "ambient", "attack", "kill", "death"};
+    private static final String[] TRAVELLER_KINDS = {"talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death"};
+
     private static void registerAggregateEvents(java.util.List<SoundEvent> out, RaiderVoiceIndex idx, String eventPrefix) {
         if (idx == null || idx.langs == null) return;
 
         for (java.util.Map.Entry<String, java.util.List<String>> en : idx.langs.entrySet()) {
             String lang = en.getKey().toLowerCase(java.util.Locale.ROOT);
+            java.util.Map<String, java.util.Map<String, java.util.List<String>>> byPersonality =
+                    idx.clips == null ? null : idx.clips.get(lang);
+
             for (String personality : en.getValue()) {
                 if (personality == null) continue;
                 personality = personality.toLowerCase(java.util.Locale.ROOT);
 
-                reg(out, eventPrefix + "." + lang + "." + personality + ".talk");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".hurt");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".hello");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".ambient");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".attack");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".kill");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".death");
+                // Only register an aggregate id for a (lang, personality, kind) that sounds.json
+                // actually backs with real clips - a personality with no clips for a kind (or no
+                // clips at all, e.g. a dialogue-only sheet with no sound folder) would otherwise get
+                // a SoundEvent registered with nothing behind it (2026-09-14 feedback: "the mod
+                // registers non-existent sounds").
+                java.util.Map<String, java.util.List<String>> kindClips =
+                        byPersonality == null ? null : byPersonality.get(personality);
+                if (kindClips == null) continue;
+
+                for (String kind : RAIDER_KINDS) {
+                    java.util.List<String> exact = kindClips.get(kind);
+                    if (exact == null || exact.isEmpty()) continue;
+                    reg(out, eventPrefix + "." + lang + "." + personality + "." + kind);
+                }
             }
         }
     }
@@ -119,18 +132,27 @@ public final class ModSounds {
 
         for (java.util.Map.Entry<String, java.util.List<String>> en : idx.langs.entrySet()) {
             String lang = en.getKey().toLowerCase(java.util.Locale.ROOT);
+            java.util.Map<String, java.util.Map<String, java.util.List<String>>> byPersonality =
+                    idx.clips == null ? null : idx.clips.get(lang);
+
             for (String personality : en.getValue()) {
                 if (personality == null) continue;
                 personality = personality.toLowerCase(java.util.Locale.ROOT);
 
-                reg(out, eventPrefix + "." + lang + "." + personality + ".talk");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".hurt");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".hello");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".ambient");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".attack");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".creeper");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".kill");
-                reg(out, eventPrefix + "." + lang + "." + personality + ".death");
+                // Same guard as the raider overload above - only register what sounds.json actually
+                // backs. A sound-less personality (dialogue-only .md sheet, no sound folder - see
+                // generateDynamicSounds) has an entry here with every kind empty, so it registers
+                // nothing at all, which is correct: VoiceSet.isEmpty() already falls it through to
+                // the culture's default voice set.
+                java.util.Map<String, java.util.List<String>> kindClips =
+                        byPersonality == null ? null : byPersonality.get(personality);
+                if (kindClips == null) continue;
+
+                for (String kind : TRAVELLER_KINDS) {
+                    java.util.List<String> exact = kindClips.get(kind);
+                    if (exact == null || exact.isEmpty()) continue;
+                    reg(out, eventPrefix + "." + lang + "." + personality + "." + kind);
+                }
             }
         }
     }
@@ -164,6 +186,8 @@ public final class ModSounds {
         CultureRegistry.RAIDER_VOICES.clear();
         CultureRegistry.RAIDER_VOICE_VARIANTS.clear();
 
+        VoicePersonalityOverrides overrides = VoicePersonalityOverrides.loadOrDefault();
+
         // ---------------- TRAVELLERS ----------------
         String tDefaultLang = (idx.defaultLang == null ? "en" : idx.defaultLang).toLowerCase(java.util.Locale.ROOT);
         String tDefaultPers = (idx.defaultPersonality == null ? "default" : idx.defaultPersonality).toLowerCase(java.util.Locale.ROOT);
@@ -193,6 +217,8 @@ public final class ModSounds {
             // ---- traveller variants ----
             java.util.List<String> tPersIds = idx.langs.get(lang);
             if (tPersIds == null) tPersIds = java.util.Collections.emptyList();
+            java.util.Map<String, java.util.Map<String, java.util.List<String>>> tClipsForLang =
+                    idx.clips == null ? null : idx.clips.get(lang);
 
             java.util.List<VoicePersonality> tPersonalities = new java.util.ArrayList<>();
             for (String pid : tPersIds) {
@@ -200,12 +226,18 @@ public final class ModSounds {
                 String clean = pid.toLowerCase(java.util.Locale.ROOT).trim();
                 if (clean.isEmpty()) continue;
 
-                VoiceSet vs = CultureRegistry.buildVoiceSet(lang, clean, idx.defaultLang, idx.defaultPersonality);
+                // A dialogue-only personality (character sheet, no sound folder) has no clips of its
+                // own - borrow another personality's real voice instead of silently ending up with an
+                // empty VoiceSet (2026-09-14 feedback: this is what made many norman travellers use
+                // the English en/default voice instead of a french one).
+                String sourcePid = resolveClipSourcePersonality(lang, clean, tClipsForLang, overrides,
+                        idx.defaultPersonality, tPersIds);
+                VoiceSet vs = CultureRegistry.buildVoiceSet(lang, sourcePid, idx.defaultLang, idx.defaultPersonality);
                 tPersonalities.add(new VoicePersonality(clean, vs));
             }
             CultureRegistry.TRAVELLER_VOICE_VARIANTS.put(cultureId, tPersonalities);
 
-            String tFallbackPers = pickFallbackPersonalityForLang(lang, idx.defaultPersonality, tPersIds);
+            String tFallbackPers = pickFallbackPersonalityForLang(lang, idx.defaultPersonality, tPersIds, tClipsForLang);
             VoiceSet tFallback = CultureRegistry.buildVoiceSet(lang, tFallbackPers, idx.defaultLang, idx.defaultPersonality);
             CultureRegistry.TRAVELLER_VOICES.put(cultureId, tFallback);
 
@@ -213,6 +245,8 @@ public final class ModSounds {
             // ---- raiders variants (unchanged idea, but also use langForCulture) ----
             java.util.List<String> rPersIds = ridx.langs.get(lang);
             if (rPersIds == null) rPersIds = java.util.Collections.emptyList();
+            java.util.Map<String, java.util.Map<String, java.util.List<String>>> rClipsForLang =
+                    ridx.clips == null ? null : ridx.clips.get(lang);
 
             java.util.List<VoicePersonality> rPersonalities = new java.util.ArrayList<>();
             for (String pid : rPersIds) {
@@ -225,7 +259,7 @@ public final class ModSounds {
             }
             CultureRegistry.RAIDER_VOICE_VARIANTS.put(cultureId, rPersonalities);
 
-            String rFallbackPers = pickFallbackPersonalityForLang(lang, ridx.defaultPersonality, rPersIds);
+            String rFallbackPers = pickFallbackPersonalityForLang(lang, ridx.defaultPersonality, rPersIds, rClipsForLang);
             VoiceSet rFallback = CultureRegistry.buildRaiderVoiceSet(lang, rFallbackPers, ridx.defaultLang, ridx.defaultPersonality);
             CultureRegistry.RAIDER_VOICES.put(cultureId, rFallback);
 
@@ -252,20 +286,66 @@ public final class ModSounds {
 
 
 
-    private static String pickFallbackPersonalityForLang(String lang, String globalDefault, java.util.List<String> langPersonalities) {
-        String dp = (globalDefault == null ? "default" : globalDefault).toLowerCase(java.util.Locale.ROOT);
+    /**
+     * A whole culture's fallback voice (no specific personality picked) - resolves to the language's
+     * own explicit default (see {@link #explicitLangDefault}), backed by whichever personality
+     * actually has real clips.
+     */
+    private static String pickFallbackPersonalityForLang(String lang, String globalDefault,
+            java.util.List<String> langPersonalities,
+            java.util.Map<String, java.util.Map<String, java.util.List<String>>> clipsForLang) {
+        String langDefault = explicitLangDefault(lang, globalDefault);
+        return resolveClipSourcePersonality(lang, langDefault, clipsForLang, null, globalDefault, langPersonalities);
+    }
+
+    /**
+     * The maintainer's own explicit default personality per language (2026-09-14 feedback) - not
+     * whichever id happened to sort first alphabetically, which silently became a dialogue-only,
+     * sound-less sheet once those started sharing the same personality folders as real voiced ones.
+     */
+    private static String explicitLangDefault(String lang, String globalDefault) {
+        if ("fr".equalsIgnoreCase(lang)) return "gilles";
+        return (globalDefault == null ? "default" : globalDefault).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Which personality's real clips should back {@code personalityId} in {@code lang}: itself if it
+     * has any, else its explicit "borrow this voice" override ({@link VoicePersonalityOverrides}) if
+     * that target actually has clips, else the language's own explicit default
+     * ({@link #explicitLangDefault}), else the first personality in the language that has any real
+     * clips at all, else the raw global default as a last resort (an empty {@link VoiceSet} is still
+     * possible here and is handled fine further up - see {@code VoiceSet.isEmpty()}).
+     */
+    private static String resolveClipSourcePersonality(String lang, String personalityId,
+            java.util.Map<String, java.util.Map<String, java.util.List<String>>> clipsForLang,
+            VoicePersonalityOverrides overrides, String globalDefault, java.util.List<String> langPersonalities) {
+
+        if (hasRealClips(clipsForLang, personalityId)) return personalityId;
+
+        String borrowed = overrides == null ? null : overrides.get(lang, personalityId);
+        if (borrowed != null && hasRealClips(clipsForLang, borrowed)) return borrowed;
+
+        String langDefault = explicitLangDefault(lang, globalDefault);
+        if (hasRealClips(clipsForLang, langDefault)) return langDefault;
 
         if (langPersonalities != null) {
             for (String p : langPersonalities) {
-                if (p != null && p.equalsIgnoreCase(dp)) return dp;
-            }
-            // If the global default doesn't exist for this language (FR has no "default"),
-            // use the first available personality for that language (e.g. "default").
-            if (!langPersonalities.isEmpty() && langPersonalities.get(0) != null) {
-                return langPersonalities.get(0).toLowerCase(java.util.Locale.ROOT);
+                if (p != null && hasRealClips(clipsForLang, p.toLowerCase(java.util.Locale.ROOT))) {
+                    return p.toLowerCase(java.util.Locale.ROOT);
+                }
             }
         }
-        return dp;
+        return langDefault;
+    }
+
+    private static boolean hasRealClips(java.util.Map<String, java.util.Map<String, java.util.List<String>>> clipsForLang,
+            String personalityId) {
+        java.util.Map<String, java.util.List<String>> kindClips = clipsForLang == null ? null : clipsForLang.get(personalityId);
+        if (kindClips == null) return false;
+        for (java.util.List<String> keys : kindClips.values()) {
+            if (keys != null && !keys.isEmpty()) return true;
+        }
+        return false;
     }
 
 }

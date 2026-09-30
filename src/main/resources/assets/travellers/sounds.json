@@ -1,4 +1,942 @@
 {
+    "entity.travellers.en.afraid.talk.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_001",
+                "stream": true
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.talk": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_001",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/talk/talk_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hurt.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hurt": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hurt/hurt_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.hurt"
+    },
+    "entity.travellers.en.afraid.hello.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.hello": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/hello/hello_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.talk"
+    },
+    "entity.travellers.en.afraid.attack.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__9": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_010",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack.__10": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_011",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.attack": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_009",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_010",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/attack/attack_011",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.attack"
+    },
+    "entity.travellers.en.afraid.creeper.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.creeper": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/creeper/creeper_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.creeper"
+    },
+    "entity.travellers.en.afraid.kill.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_002",
+                "stream": true
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.kill": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_002",
+                "stream": true
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/kill/kill_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.kill"
+    },
+    "entity.travellers.en.afraid.death.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_001",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_002",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_003",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_004",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_005",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_006",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__6": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_007",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__7": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_008",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death.__8": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
+    "entity.travellers.en.afraid.death": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/en/afraid/death/death_001",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_002",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_003",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_004",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_005",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_006",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_007",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_008",
+                "stream": false
+            },
+            {
+                "name": "travellers:travellers/en/afraid/death/death_009",
+                "stream": false
+            }
+        ],
+        "subtitle": "subtitles.entity.travellers.death"
+    },
     "entity.travellers.en.default.talk.__0": {
         "category": "voice",
         "sounds": [
@@ -10938,6 +11876,105 @@
         ],
         "subtitle": "subtitles.entity.travellers.attack"
     },
+    "entity.travellers.fr.gilles.choir.kilo.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/kilo/kilo_01",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.kilo.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/kilo/kilo_02",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.kilo.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/kilo/kilo_03",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.kilo.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/kilo/kilo_04",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.kilo.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/kilo/kilo_05",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.plaine.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/plaine/plaine_01",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.plaine.__1": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/plaine/plaine_02",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.plaine.__2": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/plaine/plaine_03",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.plaine.__3": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/plaine/plaine_04",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.plaine.__4": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/plaine/plaine_05",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.plaine.__5": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/plaine/plaine_06",
+                "stream": true
+            }
+        ]
+    },
     "entity.travellers.fr.gilles.choir.salade.__0": {
         "category": "voice",
         "sounds": [
@@ -10979,6 +12016,15 @@
         "sounds": [
             {
                 "name": "travellers:travellers/fr/gilles/choir/salade/filename5",
+                "stream": true
+            }
+        ]
+    },
+    "entity.travellers.fr.gilles.choir.test.__0": {
+        "category": "voice",
+        "sounds": [
+            {
+                "name": "travellers:travellers/fr/gilles/choir/test/test_01",
                 "stream": true
             }
         ]
