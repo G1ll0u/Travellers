@@ -14,7 +14,7 @@ You'll see norman, japanese, inuits, byzantines travelling the world.
 Travellers have voices and voice personalities ! 
 They will talk and eventually tell you when a creeper approaches.
 
-The only culture that really has voicelines are normans, they speak french and have 3 or 4 personalities.
+The only culture that really has voicelines are normans, they speak french and have 4 personalities.
 Other cultures speak english by default (I'm non-english speaker and don't speak other languages soooo...).
 
 Travellers also have different voice personalities !
@@ -28,22 +28,35 @@ They can eventually sing in **chorus** when you ask them or when they walk toget
 
 They also sing alone when they walk.
 
+### Dialogue feature
+Right-click a traveller that isn't hired and isn't hostile, and instead of a scripted line you get a real conversation: type whatever you want, and it answers in character. This runs entirely on your own computer through **Ollama** (a free, separate program you install yourself) — the server never contacts any AI service on your behalf, so this only works for players who set it up. It's off by default; ask whoever runs your server to turn it on in the `Dialogue` config (in singleplayer, that's you).
+
+They stay grounded in the actual world instead of making things up: their own personality, trade, culture and home village, why they're actually on the road, roughly how far away things are (in vague words — "a good walk south", never exact coordinates), what's going on around them, and whether they've met you before. Turn on tool use in the Advanced settings screen and, if your own model supports it, they can also look a few things up mid-conversation instead of only working from what they already know. You can also let them remember things across separate conversations later (off by default too) — a traveller remembers its own life, not just what you personally told it, so it can recall something a different player once said to it too.
+
+Since this depends entirely on the AI model running on your own machine, expect it to be a bit rough around the edges — a slow reply from a large model, an odd answer from a small one, or just the canned fallback line if nothing is configured on your end.
+
 ### Roaming and survival
 
 Travellers are built to handle real travel rather than scripted wandering:
 
-* They **really** travel between villages even when very far (Henchmen only — normal Travellers despawn after a while)
+* They **really** travel between villages even when very far — travellers, raiders and henchmen alike keep going when you're nowhere near (see *Virtualization* below)
+* They **visit every village on their way** for a minute or three: they tie their horse at the edge of the village, then stroll the streets, go into the tavern, the market or the temple (the exact spot a villager would go to), stop to read the information panels, and chat with villagers or other travellers — face to face, or in a small circle, nodding along. They step aside for people instead of walking into them, glance at you as you pass and stop to face you if you stay close. Visitors spread over the whole village instead of piling up in one spot, and a group splits up to visit on its own before meeting again at the leader's horse. It keeps going while you're away: come back and the visitors are already scattered around the village, each horse still at its post. Raiders only walk the streets. A wandering henchman leaves a small gift of building materials when it leaves. Everything is tunable in the `VillageVisit` config category.
 * They can **fight hostile mobs**, use melee or ranged combat (bows when available), and **upgrade their equipment** by picking up better items found on the ground.
+* They **open doors and fence gates** as they reach them (vanilla and most modded ones) and **close them behind them** — a group passing through keeps it open until the last one is through, and a gate out of a pen is shut again once they've left. A door you propped open yourself is left alone.
+* Leaving or entering a **walled village**, they head for the **gate** instead of trudging into a wall corner and getting stuck (which used to end in a teleport over the wall). It only kicks in when the wall is genuinely in the way — an unfinished wall or a village without one is walked through as before. Toggle in `Travel` config (`routeThroughVillageGates`).
+* Where they go next is **regionalized**, not a blind dice roll: a traveller leans toward villages of **its own culture** and ones its **home village is on good terms with** (Millénaire's own inter-village relations), avoids anyone it's at open war with, and **larger villages pull more traffic**. Distance still dominates — it's a soft nudge, fully tunable (`Destinations` category, `regionalizationStrength` 0–1), and travellers on roads tend to stay on roads. **Raiders invert it**: they head for foreign and hostile regions instead of their own.
 
 ### Horse companions
 
-Travellers, raiders and henchmen can show up with a **bonded horse** — a permanent companion, not a disposable ride. Once bonded, that pairing lasts for good: it follows them through virtualization (captured and restored exactly, gear and all, never re-rolled), through combat (they fight from the saddle, no need to dismount), and through your formations (mounted followers keep pace and catch up like anyone else, no special handling needed on your side). Nobody can steal it either — a bonded horse won't respond to another player trying to tame or ride it.
+Travellers, raiders and henchmen can show up with a **bonded horse** — a permanent companion, not a disposable ride. Once bonded, that pairing lasts for good: it follows them through virtualization (captured and restored exactly, gear and all, never re-rolled), through combat (they fight from the saddle, no need to dismount), and through your formations (mounted followers keep pace and catch up like anyone else, no special handling needed on your side). Nobody can steal it — not even you: right-clicking a bonded horse simply does nothing, for anyone, including its own henchman's owner, while that henchman is alive. The bond only ever ends when the henchman does.
 
-They don't stay in the saddle regardless of what they're doing. The moment the horse is out of its depth they get down, and it swims alongside on a lead — including behind a boat, towed across the open sea. Arriving in a village, they get down and leave the horse at the edge rather than riding it through the alleys, and pick it up again on their way out. Camping does the same.
+They don't stay in the saddle regardless of what they're doing. When water too deep to wade is in the way they get down at the bank without dithering, lead the horse in, and it swims alongside on a lead — including behind a boat, towed across the open sea — and they climb back on once both are dry on the far side, never in the water and never while the horse is still on the bank they left. Arriving in a village, they get down and leave the horse at the edge rather than riding it through the alleys, and pick it up again on their way out. Camping does the same. And where a horse simply doesn't fit — a narrow doorway, a thin wall, a tight gully — they step down and lead it through on foot rather than standing there, then climb back on once past it. A led horse tucks into single file right behind its owner, treading the same ground they just walked, and is brought back up if it ever snags on something and drops too far behind.
 
-Short of one of them dying, the pair is never separated: a horse that falls behind is brought back, and one that somehow disappears without dying comes back exactly as it was. If the rider is the one who dies, their horse is left behind as an ordinary tamed horse — yours to claim.
+They ride like riders, not like people who happen to be sitting on a horse: they cut diagonally across a slope instead of climbing it in steps, slow down for a bend and stop to swing the horse around for a hard turn instead of drifting wide, and hop an obstacle their own horse is strong enough to clear — a weak jumper won't try what a good one can.
 
-How often travellers, raiders and henchmen show up mounted, how much faster a horse makes them, and whether they bother dismounting in villages at all, is entirely up to you in the config GUI (`Mounts` category).
+Short of one of them dying, the pair is never separated: a horse that falls behind is brought back, and one that somehow disappears without dying comes back exactly as it was. Riders defend their horse: attack it and its rider reacts exactly as if you had struck them. If the rider is the one who dies, their horse is simply left behind, right where it happened, as an ordinary loose horse (or, if you turn on the `Mounts` option for it, dies with its rider). It doesn't wait forever unclaimed, though — any other unmounted henchman with nothing else to do can notice it nearby and walk over to claim it as its own new mount, the same way you can walk up and tame it yourself.
+
+How often travellers, raiders and henchmen show up mounted, how much faster a horse makes them — with separate paces for open-road travel and for riding in formation behind you, where they match your speed instead of racing ahead — and whether they bother dismounting in villages at all, is entirely up to you in the config GUI (`Mounts` category).
 
 ### Elytra flight
 
@@ -61,6 +74,12 @@ All travellers, raiders and henchmen are virtualized when unloaded. Meaning thei
 Meaning every traveller is unique and moves in the world.
 
 They appear (materialize) and disappear (turn virtual) based on whether the game is actually simulating the ground they stand on — kept loaded by your own view distance, or by anything else (another player, a Millénaire village, a chunk loader). A henchman sent far away on a "go" order will pop into existence the moment it reaches a loaded village, even while you're nowhere near it. The mod itself never forces chunks to stay loaded to move anyone around: everything outside loaded terrain is simulated instead, so a thousand travellers cost no chunk loading at all. Tunable in config (`Materialization` category: `materializeChunkStableTicks` / `virtualizeChunkUnneededTicks` / `rematerializeGraceTicks` — how long things must stay settled before they appear or disappear, to avoid flicker).
+
+Minecraft itself stops updating creatures entirely in a world where nobody is connected, which used to strand travellers in the permanently-loaded chunks around world spawn: they walked in, turned real, and then stood frozen there because the game was no longer running them — the whole world's population slowly piling up on the spawn until somebody logged back in. They now correctly go back off-screen instead and carry on with their journeys.
+
+You can also decide what happens when nobody is connected (`Offscreen` category): by default the whole off-screen simulation is **put on hold** and picks up exactly where it left off when someone logs in (`pauseWhenServerEmpty`). If you prefer a world that keeps living without you, turn that off — and optionally have it run slowly instead (`slowWhenServerEmpty` + `emptyServerSpeedMultiplier`, e.g. 0.25 for four times slower).
+
+The hand-off in both directions is all-or-nothing: if the game refuses to place someone where they were about to appear, they stay offscreen and try again a moment later rather than going missing, and nobody can ever end up existing twice (once as a real body, once as an offscreen record).
 
 ### Raiders
 
@@ -108,20 +127,24 @@ Open formations menu with the `H` key (by default)
 * **Run recruitment missions** to visit villages and bring back additional Henchmen (with configurable costs, distance limits, and spawn ranges)
 * **Sell or donate items to Millénaire villages** as if you did it yourself
 * **Travel extremely far**, including to destinations in **unloaded areas** — they do not require the target village to be actively loaded to sell or donate
-* **Be set as enemies** with specific villages or players; hired Henchmen inherit their leader's enemy player list
+* **Be set as enemies** with specific villages or players — declaring a player hostile applies to your whole crew at once, not just one Henchman
 Note that henchmen are better fighters than millagers, leading to non-fair village destruction.
 * **Follow you into the air** — an Elytra-equipped Henchman takes off with you when you start gliding, and spends firework rockets from its own inventory to keep up when you climb
 * **Have a world map** showing all your Henchmen and their positions at a glance
 * **Have an assigned Barracks** — a place for them to respawn and take equipment from chests when ordered
+* **Be put on duty at a Stable** — a dedicated crew that tames, saddles and breeds horses for the rest of your Henchmen
 
-### Barracks
+### Player zones: Barracks and Stables
 
-Henchmen can be assigned a **Barracks** — a zone you define yourself anywhere in the world, used for storage and Henchmen respawns.
+You can create two kinds of zone yourself, anywhere in the world: a **Barracks** (housing) and a **Stable** (horse ranch). Both work the same way to set up:
 
-* **To create one**: hold Millénaire's Summoning Wand, **sneak + right-click** any block. A prompt lets you name the barrack and set the zone dimensions.
-* The zone is scanned for **beds** — each bed becomes a slot for one Henchman. Henchman capacity equals the number of beds found inside the zone.
-* You can freely add or remove beds inside the zone at any time; the mod re-scans automatically. No need to reconfigure anything.
-* By default, Henchmen **respawn beside their assigned bed** after dying (configurable: on/off and delay in days). This means you can build proper barracks with rooms and beds and your Henchmen will come back there three days after dying.
+* **To create one**: hold Millénaire's Summoning Wand, **sneak + right-click** any block. A prompt lets you pick the type, name it, and set the zone dimensions — the panel on the right explains what each type needs and does, and updates live as you choose.
+* The zone is scanned for the blocks that type needs; you can freely add or remove them at any time and the mod re-scans automatically, no need to reconfigure anything.
+* Assigning Henchmen to either one happens from the same **Zones** screen (off the Henchman menu or the Formation Hub): one list of all your Barracks and Stables, each with its own icon in your colour. Drag a Henchman onto a Barracks to make it a resident, or onto a Stable to put it on duty. The unassigned list is sorted closest-first when you open the screen.
+
+**Barracks** need at least one **bed** and one **chest**. Each bed is a capacity slot for one Henchman; by default, Henchmen **respawn beside their assigned bed** after dying (configurable: on/off and delay in days), so a proper barracks with rooms and beds gets your Henchmen back a few days after they die.
+
+**Stables** need at least one **chest**, one **fence** (to hitch horses to), and one **bed per palfrenier** — the crew sleeps there at night, same as a Barracks resident, and **that bed is also its home**: a palfrenier respawns beside it after dying and it counts toward your housing, exactly like a Barracks bed. (Putting a Henchman on Stable duty pins its home to that Stable; taking it off duty clears it.) Assign any Henchman to Stable duty — if it was leading or following a group, it leaves that group first, and it claims a free bed (if there are none, the assignment is refused) — and it travels there on its own, all the way across the world if need be, turning virtual and back along the route without ever forgetting where it was headed. If it already had its own horse, that horse goes straight into the pool it's now tending instead of it staying mounted the whole time — and that happens whether it arrives with you watching or completely offscreen. It gets to work as a palfrenier: it walks up to an untamed horse and feeds it wheat (visibly carried in hand), takes it for a ride between feedings and gets thrown off — pure showmanship, the actual taming odds are the wheat and time, not the ride — until it's tame; walks to the chest, takes a saddle and carries it over to saddle a tamed horse; and lets a pair breed with golden carrots or apples from the same chest. When there's nothing urgent to do it doesn't just stand there — it'll go check on a horse or take a breather and look around now and then (it never opens the chest unless it's actually taking something out of it). At nightfall it walks to its bed and sleeps until dawn. If its bed is destroyed you're told, and it keeps watch at the Stable but does no real work until you give it a new one (it picks one up automatically the moment a spare bed is there). A palfrenier on duty also stops picking fights — it defends itself if attacked but won't go hunting everything nearby, exactly like a Henchman with Follow turned off. Horses in a Stable never wander off, and nobody but you can tame, lead or ride them out. **You can, though** — hop on any ready horse in your own Stable and it leaves the pool as an ordinary mount of yours; ride a tame horse of yours back inside the Stable's area and get off, and it joins the pool. Once a Stable has a few horses ready, send another Henchman there with a **Get Equipment** order to pick one up as its own permanent mount — send a group leader and its whole group gets outfitted in one visit, one horse each, for as many as the Stable has ready (it always keeps at least 2 in reserve, configurable, so it's never emptied out). **A Stable keeps evolving whether you're standing there or on the other side of the world** — while you're away, taming, saddling, breeding and a foal's growth all keep going on their own from the wheat, saddles and golden carrots in its chest, and you come back to the horses it grew; while you're there, the palfrenier does all of it by hand. The pace can differ a little between the two, but where a Stable ends up is the same. You get a notification each time one of your Stables tames a horse, saddles one, or has a foal (each toggleable in the config), so you can keep track of a distant one without visiting it. Each Stable's pool is capped at twice your total number of Henchmen, and separately by its own pen size (a tiny pen can't hold dozens of horses even if you have the Henchmen to justify it) — so breeding tapers off well before things get crowded. Delete a Stable and it lets go cleanly: every horse in its pool turns back into an ordinary tame horse of yours (yours to lead or ride away), and any palfreniers come off duty and walk back to you. Deleting a Barracks works the same way: its residents lose that home and come back to you. A Henchman belongs to one zone at a time — take it off its current one before assigning it elsewhere.
 
 This mechanic is subject to evolve.
 
@@ -138,7 +161,7 @@ and everything you can ask of it laid out around it as a tree.
 * Entries marked **>** leave for their own screen. Coming back from one lands you on the menu
   exactly as you left it; closing the menu for real resets it.
 * Clicking the portrait folds everything back to the root.
-* Under the portrait, outside the tree: your **colour mark** and the **Map**.
+* Under the portrait, outside the tree: your **colour mark and armband style**, and the **Map**.
 * On a Henchman you have not hired, the tree is replaced by its details and a **Hire** button.
 
 The menu sizes itself to your screen, so it works at any GUI scale. If you would rather keep several
