@@ -1,16 +1,13 @@
 package com.jubitus.travellers.server.net.message.map;
 
 import com.jubitus.travellers.config.TravellersConfig;
-
 import com.jubitus.travellers.server.map.pyramid.MapDiscoverySavedData;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
-
-import java.util.Set;
 
 public class MsgRequestMapDiscovery implements IMessage {
     public MsgRequestMapDiscovery() {}
@@ -23,10 +20,9 @@ public class MsgRequestMapDiscovery implements IMessage {
         public IMessage onMessage(MsgRequestMapDiscovery msg, MessageContext ctx) {
             EntityPlayerMP p = ctx.getServerHandler().player;
             p.getServerWorld().addScheduledTask(() -> {
-                // récupère les tiles découvertes du joueur (mémoire serveur)
-                Set<Long> tiles = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
-                boolean fullMap = com.jubitus.travellers.config.TravellersConfig.WORLDMAP.showFullMap;
-                TravellerFollowNet.CHANNEL.sendTo(new MsgMapDiscoverySync(tiles, fullMap), p);
+                MapDiscoverySavedData saved = MapDiscoverySavedData.get(p.world);
+                TravellerFollowNet.CHANNEL.sendTo(new MsgMapDiscoverySync(saved.getMasks(p.getUniqueID()),
+                        TravellersConfig.WORLDMAP.showFullMap), p);
             });
             return null;
         }

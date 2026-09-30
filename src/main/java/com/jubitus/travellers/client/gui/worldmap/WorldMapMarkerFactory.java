@@ -40,6 +40,11 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.HOME, name);
     }
 
+    public static GuiWorldMapPanel.Marker stable(BlockPos pos, String name, int ownerRgb) {
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
+                GuiWorldMapPanel.Marker.MarkerType.STABLE, name);
+    }
+
     public static GuiWorldMapPanel.Marker controlledVillage(BlockPos pos, String name, int ownerRgb) {
         return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
                 GuiWorldMapPanel.Marker.MarkerType.CONTROLLED_VILLAGE, name);
@@ -167,6 +172,13 @@ public final class WorldMapMarkerFactory {
     public static GuiWorldMapPanel.Marker populationWorker(BlockPos pos, boolean virtual, String label) {
         return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_WORKER,
                 GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);
+    }
+
+    /** Stable zone on the population map: its own icon, translucent while the pen is unloaded
+     * (its pool is being run by the offscreen timer). The label carries the full pool breakdown. */
+    public static GuiWorldMapPanel.Marker populationStable(BlockPos pos, boolean virtual, String label) {
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | 0xCCAA66,
+                GuiWorldMapPanel.Marker.MarkerType.STABLE, label);
     }
 
     /** Foreign hired worker discovered via vision: owner-tinted instead of the generic worker blue. */

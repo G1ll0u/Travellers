@@ -3,11 +3,13 @@ package com.jubitus.travellers.client.gui.worldmap;
 import com.jubitus.travellers.client.map.ClientTileCache;
 import com.jubitus.travellers.server.map.pyramid.MapTileGenerator;
 import com.jubitus.travellers.server.map.pyramid.TileKey;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapTiles;
 import com.jubitus.travellers.server.net.message.map.MsgWorkerMapView;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.math.BlockPos;
+import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +20,8 @@ public class WorldMapController {
     public final int mapX, mapY, mapW, mapH;
 
     private boolean dragging;
-    private int dragStartX, dragStartY;
+    // Raw screen pixels (origin bottom-left), finer than GUI coordinates at any GUI scale.
+    private int dragStartRawX, dragStartRawY;
     private float dragStartCenterX, dragStartCenterZ;
 
     private long lastViewSendMs;
@@ -32,7 +35,6 @@ public class WorldMapController {
         this.mapH = mapH;
         this.panel = new GuiWorldMapPanel(mc, mc.world, mapW, mapH, textureKey);
         panel.setCenter(initialCenter != null ? initialCenter : BlockPos.ORIGIN);
-        GuiWorldMapPanelHooks.setPanel(panel);
     }
 
     public boolean isMouseOver(int mouseX, int mouseY) {
@@ -70,8 +72,8 @@ public class WorldMapController {
     public boolean onMouseClick(int mouseX, int mouseY, int button) {
         if (button == 1 && isMouseOver(mouseX, mouseY)) {
             dragging = true;
-            dragStartX = mouseX;
-            dragStartY = mouseY;
+            dragStartRawX = Mouse.getX();
+            dragStartRawY = Mouse.getY();
             dragStartCenterX = panel.getCenterXf();
             dragStartCenterZ = panel.getCenterZf();
             return true;
@@ -80,11 +82,22 @@ public class WorldMapController {
     }
 
     public void onMouseDrag(int mouseX, int mouseY) {
+        updateDrag();
+    }
+
+    // Polled every frame from the live cursor, so panning follows the mouse to the screen pixel.
+    private void updateDrag() {
         if (!dragging) return;
+        if (!Mouse.isButtonDown(1)) {
+            dragging = false;
+            return;
+        }
+        Minecraft mc = Minecraft.getMinecraft();
+        float guiPerRaw = new ScaledResolution(mc).getScaledWidth() / (float) mc.displayWidth;
         float bpp = panel.getZoomBlocksPerPixel();
         panel.setCenterF(
-                dragStartCenterX - (mouseX - dragStartX) * bpp,
-                dragStartCenterZ - (mouseY - dragStartY) * bpp);
+                dragStartCenterX - (Mouse.getX() - dragStartRawX) * guiPerRaw * bpp,
+                dragStartCenterZ + (Mouse.getY() - dragStartRawY) * guiPerRaw * bpp);
     }
 
     public void onMouseRelease(int state) {
@@ -94,7 +107,9 @@ public class WorldMapController {
     }
 
     public void draw() {
+        updateDrag();
         panel.draw(mapX, mapY);
+        if (!panel.isMappedDimension()) return;
         requestTiles();
         sendView();
     }

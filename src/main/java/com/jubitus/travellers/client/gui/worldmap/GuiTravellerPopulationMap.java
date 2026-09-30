@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.worldmap.receiver.IBattleMapReceiver;
@@ -9,8 +10,13 @@ import com.jubitus.travellers.server.map.stream.MsgMapCampUpdate;
 import com.jubitus.travellers.server.map.stream.MsgMapPopulationUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeCampMap;
 import com.jubitus.travellers.server.map.stream.MsgSubscribePopulationMap;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.client.map.ClientItineraryDebugOverlay;
+import com.jubitus.travellers.client.map.ClientTerrainDebugOverlay;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
+import com.jubitus.travellers.server.net.message.map.MsgItineraryDebugRequest;
+import com.jubitus.travellers.server.net.message.map.MsgTerrainDebugRequest;
+import com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -41,8 +47,15 @@ public class GuiTravellerPopulationMap extends GuiScreen
     private GuiButton panN, panS, panWBtn, panE;
     private GuiButton teleportButton;
     private GuiButton spawnTravellerButton, spawnWorkerButton, spawnRaiderButton;
+    private GuiButton terrainButton;
+    private GuiButton routeButton;
+    private long lastRouteReqMs;
 
-    private enum ClickMode { NONE, TELEPORT, SPAWN_TRAVELLER, SPAWN_WORKER, SPAWN_RAIDER }
+    /** null = overlay off; otherwise the scanned-terrain map currently shown instead of the worldmap. */
+    private TerrainProfileImageExport.Mode terrainMode;
+    private long lastTerrainReqMs;
+
+    private enum ClickMode { NONE, TELEPORT, SPAWN_TRAVELLER, SPAWN_WORKER, SPAWN_RAIDER, ROUTE }
     private ClickMode clickMode = ClickMode.NONE;
 
     private final EntityPlayer player;
@@ -78,29 +91,34 @@ public class GuiTravellerPopulationMap extends GuiScreen
         int midY = mapY + (mapH / 2) - (ah / 2);
         int midX = mapX + (mapW / 2) - (aw / 2);
 
-        panWBtn = this.addButton(new GuiButton(2, mapX + 2, midY, aw, ah, "<"));
-        panE    = this.addButton(new GuiButton(3, mapX + mapW - aw - 2, midY, aw, ah, ">"));
-        panN    = this.addButton(new GuiButton(4, midX, mapY + 2, aw, ah, "^"));
-        panS    = this.addButton(new GuiButton(5, midX, mapY + mapH - ah - 2, aw, ah, "v"));
+        panWBtn = this.addButton(new GuiTravellersButton(2, mapX + 2, midY, aw, ah, "<"));
+        panE    = this.addButton(new GuiTravellersButton(3, mapX + mapW - aw - 2, midY, aw, ah, ">"));
+        panN    = this.addButton(new GuiTravellersButton(4, midX, mapY + 2, aw, ah, "^"));
+        panS    = this.addButton(new GuiTravellersButton(5, midX, mapY + mapH - ah - 2, aw, ah, "v"));
 
         int zTop = mapY + mapH + 6;
-        zoomOutButton  = this.addButton(new GuiButton(6, mapX, zTop, 20, 20, "-"));
-        zoomInButton   = this.addButton(new GuiButton(7, mapX + 24, zTop, 20, 20, "+"));
-        recenterButton = this.addButton(new GuiButton(8, mapX + mapW - 58, zTop, 58, 20,
+        zoomOutButton  = this.addButton(new GuiTravellersButton(6, mapX, zTop, 20, 20, "-"));
+        zoomInButton   = this.addButton(new GuiTravellersButton(7, mapX + 24, zTop, 20, 20, "+"));
+        recenterButton = this.addButton(new GuiTravellersButton(8, mapX + mapW - 58, zTop, 58, 20,
                 I18n.format("travellers.map.center", "Center")));
-        closeButton    = this.addButton(new GuiButton(9, mapX + mapW - 122, zTop, 58, 20,
+        closeButton    = this.addButton(new GuiTravellersButton(9, mapX + mapW - 122, zTop, 58, 20,
                 I18n.format("travellers.gui.close")));
-        teleportButton = this.addButton(new GuiButton(10, mapX + mapW - 186, zTop, 58, 20,
+        teleportButton = this.addButton(new GuiTravellersButton(10, mapX + mapW - 186, zTop, 58, 20,
                 I18n.format("travellers.map.teleport", "Teleport")));
+        terrainButton = this.addButton(new GuiTravellersButton(20, mapX + 50, zTop, Math.max(90, mapW - 250), 20,
+                terrainLabel()));
+
+        mapController.panel.debugBackgroundOverlay = this::drawTerrainOverlay;
 
         int zTop2 = zTop + 24;
-        int sbw = (mapW - 8) / 3;
-        spawnTravellerButton = this.addButton(new GuiButton(11, mapX, zTop2, sbw, 20,
+        int sbw = (mapW - 12) / 4;
+        spawnTravellerButton = this.addButton(new GuiTravellersButton(11, mapX, zTop2, sbw, 20,
                 I18n.format("travellers.map.spawn_traveller", "Spawn traveller")));
-        spawnRaiderButton = this.addButton(new GuiButton(13, mapX + sbw + 4, zTop2, sbw, 20,
+        spawnRaiderButton = this.addButton(new GuiTravellersButton(13, mapX + sbw + 4, zTop2, sbw, 20,
                 I18n.format("travellers.map.spawn_raider", "Spawn raider")));
-        spawnWorkerButton = this.addButton(new GuiButton(12, mapX + 2 * (sbw + 4), zTop2, sbw, 20,
+        spawnWorkerButton = this.addButton(new GuiTravellersButton(12, mapX + 2 * (sbw + 4), zTop2, sbw, 20,
                 I18n.format("travellers.map.spawn_worker", "Spawn worker")));
+        routeButton = this.addButton(new GuiTravellersButton(14, mapX + 3 * (sbw + 4), zTop2, sbw, 20, routeLabel()));
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribePopulationMap(true));
@@ -112,6 +130,83 @@ public class GuiTravellerPopulationMap extends GuiScreen
         super.onGuiClosed();
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribePopulationMap(false));
         TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeCampMap(false));
+        if (mapController != null && mapController.panel != null) {
+            mapController.panel.debugBackgroundOverlay = null;
+        }
+        ClientTerrainDebugOverlay.clear();
+        ClientItineraryDebugOverlay.clear();
+    }
+
+    private String routeLabel() {
+        if (clickMode == ClickMode.ROUTE) return "Click unit...";
+        return ClientItineraryDebugOverlay.isActive() ? "Route: hide" : "Route";
+    }
+
+    /** Re-asks for the selected unit's itinerary so the drawing follows it live. */
+    private void refreshRoute() {
+        java.util.UUID id = ClientItineraryDebugOverlay.selected();
+        if (id == null) return;
+        lastRouteReqMs = Minecraft.getSystemTime();
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgItineraryDebugRequest(0, 0, 0, id));
+    }
+
+    private String terrainLabel() {
+        return "Terrain: " + (terrainMode == null ? "off" : terrainMode.name().toLowerCase());
+    }
+
+    private void cycleTerrainMode() {
+        TerrainProfileImageExport.Mode[] all = TerrainProfileImageExport.Mode.values();
+        if (terrainMode == null) {
+            terrainMode = all[0];
+        } else if (terrainMode.ordinal() + 1 >= all.length) {
+            terrainMode = null;
+        } else {
+            terrainMode = all[terrainMode.ordinal() + 1];
+        }
+        terrainButton.displayString = terrainLabel();
+        if (terrainMode == null) ClientTerrainDebugOverlay.clear();
+        else requestTerrain();
+    }
+
+    /** Asks the server for the terrain cells covering the current viewport (plus a small margin). */
+    private void requestTerrain() {
+        if (terrainMode == null) return;
+        lastTerrainReqMs = Minecraft.getSystemTime();
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        int cx = Math.round(mapController.panel.getCenterXf());
+        int cz = Math.round(mapController.panel.getCenterZf());
+        int halfWBlocks = Math.round(mapW / 2f * bpp) + 48;
+        int halfHBlocks = Math.round(mapH / 2f * bpp) + 48;
+
+        int minCellX = Math.floorDiv(cx - halfWBlocks, 16);
+        int minCellZ = Math.floorDiv(cz - halfHBlocks, 16);
+        int wCells = Math.floorDiv(cx + halfWBlocks, 16) - minCellX + 1;
+        int hCells = Math.floorDiv(cz + halfHBlocks, 16) - minCellZ + 1;
+
+        // Clamp to the packet cap; when zoomed way out, show a centred patch rather than nothing.
+        int cap = MsgTerrainDebugRequest.MAX_CELLS;
+        if (wCells > cap) {
+            minCellX = Math.floorDiv(cx, 16) - cap / 2;
+            wCells = cap;
+        }
+        if (hCells > cap) {
+            minCellZ = Math.floorDiv(cz, 16) - cap / 2;
+            hCells = cap;
+        }
+        TravellerFollowNet.CHANNEL.sendToServer(new MsgTerrainDebugRequest(
+                minCellX, minCellZ, wCells, hCells, (byte) terrainMode.ordinal()));
+    }
+
+    /** Panel hook: draws the scanned-terrain tile over the worldmap background, under the markers. */
+    private void drawTerrainOverlay() {
+        if (terrainMode != null) {
+            ClientTerrainDebugOverlay.draw(mapX, mapY, mapW, mapH,
+                    mapController.panel.getCenterXf(), mapController.panel.getCenterZf(),
+                    mapController.panel.getZoomBlocksPerPixel());
+        }
+        ClientItineraryDebugOverlay.draw(mapX, mapY, mapW, mapH,
+                mapController.panel.getCenterXf(), mapController.panel.getCenterZf(),
+                mapController.panel.getZoomBlocksPerPixel());
     }
 
     @Override
@@ -120,6 +215,15 @@ public class GuiTravellerPopulationMap extends GuiScreen
 
         int wheel = Mouse.getDWheel();
         if (wheel != 0) mapController.handleWheel(mouseX, mouseY, wheel);
+
+        // Debug terrain overlay: refresh the tile ~once a second (markers stay live on their own).
+        if (terrainMode != null && Minecraft.getSystemTime() - lastTerrainReqMs > 1000L) {
+            requestTerrain();
+        }
+        if (ClientItineraryDebugOverlay.selected() != null && Minecraft.getSystemTime() - lastRouteReqMs > 1000L) {
+            refreshRoute();
+        }
+        routeButton.displayString = routeLabel();
 
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
@@ -130,6 +234,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         mapController.draw();
 
         super.drawScreen(mouseX, mouseY, partialTicks);
+        ClientItineraryDebugOverlay.drawInfo(mapX, mapY, mapW, mapH);
         drawCountsPanel();
         drawHoverTooltip(mouseX, mouseY);
         com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
@@ -149,6 +254,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         int travellerLoaded = 0, travellerVirtual = 0;
         int raiderLoaded = 0, raiderVirtual = 0;
         int workerLoaded = 0, workerVirtual = 0;
+        int stableLoaded = 0, stableVirtual = 0;
 
         for (MsgMapPopulationUpdate.Entry e : populationEntries) {
             switch (e.kind) {
@@ -161,6 +267,9 @@ public class GuiTravellerPopulationMap extends GuiScreen
                 case WORKER:
                     if (e.virtual) workerVirtual++; else workerLoaded++;
                     break;
+                case STABLE:
+                    if (e.virtual) stableVirtual++; else stableLoaded++;
+                    break;
             }
         }
 
@@ -171,17 +280,21 @@ public class GuiTravellerPopulationMap extends GuiScreen
                 raiderLoaded + raiderVirtual, raiderLoaded, raiderVirtual);
         String l3 = I18n.format("travellers.map.population.worker",
                 workerLoaded + workerVirtual, workerLoaded, workerVirtual);
+        String l4 = I18n.format("travellers.map.population.stable",
+                stableLoaded + stableVirtual, stableLoaded, stableVirtual);
 
-        int textW = Math.max(fr.getStringWidth(l1), Math.max(fr.getStringWidth(l2), fr.getStringWidth(l3)));
+        int textW = Math.max(Math.max(fr.getStringWidth(l1), fr.getStringWidth(l2)),
+                Math.max(fr.getStringWidth(l3), fr.getStringWidth(l4)));
         int boxX = mapX;
-        int boxY = mapY - 3 - (3 * 10 + 6);
+        int boxY = mapY - 3 - (4 * 10 + 6);
         int boxW = textW + 8;
-        int boxH = 3 * 10 + 6;
+        int boxH = 4 * 10 + 6;
 
         Gui.drawRect(boxX, boxY, boxX + boxW, boxY + boxH, 0x99090909);
         fr.drawString(l1, boxX + 4, boxY + 3, 0xFF88DD88);
         fr.drawString(l2, boxX + 4, boxY + 13, 0xFFDD6666);
         fr.drawString(l3, boxX + 4, boxY + 23, 0xFF6699DD);
+        fr.drawString(l4, boxX + 4, boxY + 33, 0xFFDDBB66);
     }
 
     @Override
@@ -214,12 +327,18 @@ public class GuiTravellerPopulationMap extends GuiScreen
                     TravellerFollowNet.CHANNEL.sendToServer(new com.jubitus.travellers.server.net.message.map.MsgSpawnEntityAtPos(
                             target.getX(), target.getZ(), com.jubitus.travellers.server.net.message.map.MsgSpawnEntityAtPos.TYPE_RAIDER));
                     break;
+                case ROUTE:
+                    int radius = Math.max(8, Math.round(mapController.panel.getZoomBlocksPerPixel() * 12));
+                    lastRouteReqMs = Minecraft.getSystemTime();
+                    TravellerFollowNet.CHANNEL.sendToServer(
+                            new MsgItineraryDebugRequest(target.getX(), target.getZ(), radius, null));
+                    break;
                 default:
                     break;
             }
             // Teleport is one-shot; the spawn modes stay active so multiple entities can be
             // placed in a row until the player clicks the button again to turn it off.
-            if (clickMode == ClickMode.TELEPORT) {
+            if (clickMode == ClickMode.TELEPORT || clickMode == ClickMode.ROUTE) {
                 setClickMode(ClickMode.NONE);
             }
             return;
@@ -279,6 +398,15 @@ public class GuiTravellerPopulationMap extends GuiScreen
         if (button == spawnTravellerButton) { setClickMode(ClickMode.SPAWN_TRAVELLER); return; }
         if (button == spawnWorkerButton) { setClickMode(ClickMode.SPAWN_WORKER); return; }
         if (button == spawnRaiderButton) { setClickMode(ClickMode.SPAWN_RAIDER); return; }
+        if (button == terrainButton) { cycleTerrainMode(); return; }
+        if (button == routeButton) {
+            if (clickMode != ClickMode.ROUTE && ClientItineraryDebugOverlay.isActive()) {
+                ClientItineraryDebugOverlay.clear();
+            } else {
+                setClickMode(ClickMode.ROUTE);
+            }
+            return;
+        }
 
         super.actionPerformed(button);
     }
@@ -320,6 +448,9 @@ public class GuiTravellerPopulationMap extends GuiScreen
                     break;
                 case WORKER:
                     mapController.panel.addMarker(WorldMapMarkerFactory.populationWorker(e.pos, e.virtual, e.label));
+                    break;
+                case STABLE:
+                    mapController.panel.addMarker(WorldMapMarkerFactory.populationStable(e.pos, e.virtual, e.label));
                     break;
             }
         }

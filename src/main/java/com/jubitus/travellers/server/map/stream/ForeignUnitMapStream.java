@@ -5,8 +5,8 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -200,7 +200,7 @@ public class ForeignUnitMapStream {
     }
 
     private static void sendForeignUnits(EntityPlayerMP player, List<MsgMapForeignUnitsUpdate.Entry> out) {
-        com.jubitus.travellers.server.net.TravellerFollowNet.sendToPlayer(player, new MsgMapForeignUnitsUpdate(out));
+        com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player, new MsgMapForeignUnitsUpdate(out));
     }
 
     private static List<Candidate> nearbyCandidates(Map<Long, List<Candidate>> cells, int dim,

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
+import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
@@ -9,7 +10,7 @@ import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
@@ -77,17 +78,17 @@ public class GuiPlayerWorldMap extends GuiScreen
         int midY = mapY + (mapH / 2) - (ah / 2);
         int midX = mapX + (mapW / 2) - (aw / 2);
 
-        panWBtn = this.addButton(new GuiButton(2, mapX + 2,           midY, aw, ah, "<"));
-        panE    = this.addButton(new GuiButton(3, mapX + mapW - aw - 2, midY, aw, ah, ">"));
-        panN    = this.addButton(new GuiButton(4, midX, mapY + 2,           aw, ah, "^"));
-        panS    = this.addButton(new GuiButton(5, midX, mapY + mapH - ah - 2, aw, ah, "v"));
+        panWBtn = this.addButton(new GuiTravellersButton(2, mapX + 2,           midY, aw, ah, "<"));
+        panE    = this.addButton(new GuiTravellersButton(3, mapX + mapW - aw - 2, midY, aw, ah, ">"));
+        panN    = this.addButton(new GuiTravellersButton(4, midX, mapY + 2,           aw, ah, "^"));
+        panS    = this.addButton(new GuiTravellersButton(5, midX, mapY + mapH - ah - 2, aw, ah, "v"));
 
         int zTop = mapY + mapH + 6;
-        zoomOutButton  = this.addButton(new GuiButton(6, mapX,           zTop, 20, 20, "-"));
-        zoomInButton   = this.addButton(new GuiButton(7, mapX + 24,      zTop, 20, 20, "+"));
-        recenterButton = this.addButton(new GuiButton(8, mapX + mapW - 58, zTop, 58, 20,
+        zoomOutButton  = this.addButton(new GuiTravellersButton(6, mapX,           zTop, 20, 20, "-"));
+        zoomInButton   = this.addButton(new GuiTravellersButton(7, mapX + 24,      zTop, 20, 20, "+"));
+        recenterButton = this.addButton(new GuiTravellersButton(8, mapX + mapW - 58, zTop, 58, 20,
                 I18n.format("travellers.map.center", "Center")));
-        backButton     = this.addButton(new GuiButton(9, mapX + mapW - 122, zTop, 58, 20,
+        backButton     = this.addButton(new GuiTravellersButton(9, mapX + mapW - 122, zTop, 58, 20,
                 I18n.format(contextWorkerId < 0 ? "travellers.gui.close" : "travellers.gui.back")));
 
         TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());

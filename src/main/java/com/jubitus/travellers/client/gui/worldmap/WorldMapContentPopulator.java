@@ -61,11 +61,15 @@ public final class WorldMapContentPopulator {
             panel.addMarker(WorldMapMarkerFactory.controlledVillage(e.pos, e.label, playerOwnerColor));
         }
 
-        // 3 — Homes
+        // 3 — Homes (Barracks) and Stables — same owner tint, distinct icon
         for (MsgWorkerGoList.Entry e : pois) {
             if (e.pos == null) continue;
             if (e.kind == MsgWorkerGoList.Kind.VILLAGE || e.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) continue;
-            panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label, playerOwnerColor));
+            if (e.kind == MsgWorkerGoList.Kind.STABLE) {
+                panel.addMarker(WorldMapMarkerFactory.stable(e.pos, e.label, playerOwnerColor));
+            } else {
+                panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label, playerOwnerColor));
+            }
         }
 
         // 4 — Follower workers

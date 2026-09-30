@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.map.stream;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.utils.world.build.BuildStep;
-import com.jubitus.travellers.utils.world.camp.CampBuildCoordinator;
-import com.jubitus.travellers.utils.world.camp.CampOccupant;
-import com.jubitus.travellers.utils.world.camp.CampsiteManager;
-import com.jubitus.travellers.utils.world.camp.CampsiteRecord;
-import com.jubitus.travellers.utils.world.camp.ShelterSlot;
+import com.jubitus.travellers.world.build.BuildStep;
+import com.jubitus.travellers.world.camp.CampBuildCoordinator;
+import com.jubitus.travellers.world.camp.CampOccupant;
+import com.jubitus.travellers.world.camp.CampsiteManager;
+import com.jubitus.travellers.world.camp.CampsiteRecord;
+import com.jubitus.travellers.world.camp.ShelterSlot;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
@@ -88,10 +88,10 @@ public class CampMapStream {
                     all, viewDim, en -> en.dim, en -> en.pos, cx, cz, rangeSq, MAX_ENTRIES_PER_PACKET);
 
             if (visible.isEmpty()) {
-                com.jubitus.travellers.server.net.TravellerFollowNet.sendToPlayer(player,
+                com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player,
                         new MsgMapCampUpdate(Collections.emptyList()));
             } else {
-                com.jubitus.travellers.server.net.TravellerFollowNet.sendToPlayer(player,
+                com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player,
                         new MsgMapCampUpdate(visible));
             }
         }

@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.chunks;
 
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
+import com.jubitus.travellers.debug.TravellerChunkSnapshot;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;

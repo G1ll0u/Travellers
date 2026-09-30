@@ -55,6 +55,11 @@ public class MapResweepCoordinator {
     public boolean start(WorldServer world, ICommandSender requester) {
         int dim = world.provider.getDimension();
         if (jobs.containsKey(dim)) return false;
+        if (!MapPyramidStore.isMapped(world)) {
+            requester.sendMessage(new TextComponentString(
+                    TextFormatting.YELLOW + "Map resweep: the worldmap only covers the overworld."));
+            return true;
+        }
 
         MapPyramidStore level0 = MapPyramidStore.get(world, 0);
         Deque<Long> pendingTiles = new ArrayDeque<>(level0.keySet());
@@ -135,30 +140,18 @@ public class MapResweepCoordinator {
         // world. Only queue-unload chunks WE loaded here - a chunk already loaded for a real reason
         // (player standing in it, forced elsewhere) is left alone; queueUnload on it would be a
         // no-op risk anyway since any real use immediately unqueues it.
-        boolean wasAlreadyLoaded = cps.getLoadedChunk(chunkX, chunkZ) != null;
+        boolean wasAlreadyLoaded = cps.chunkExists(chunkX, chunkZ);
         Chunk chunk = cps.provideChunk(chunkX, chunkZ); // temporary load
 
-        int chunksPerTile = WorldMapDiscovery.CHUNKS_PER_TILE;
-        int tileX = Math.floorDiv(chunkX, chunksPerTile);
-        int tileZ = Math.floorDiv(chunkZ, chunksPerTile);
-        long tileKey = TileKey.pack(tileX, tileZ);
-
-        MapPyramidStore level0 = MapPyramidStore.get(world, 0);
-        byte[] data = level0.get(tileKey);
-        boolean changed = data != null && data.length == MapTileGenerator.TILE_BYTES
-                && MapTileGenerator.refreshChunkPixels(world, chunkX, chunkZ, data);
-
-        if (changed) {
-            level0.put(tileKey, data);
-            PyramidDirtyPropagator.markParentDirty(dim, 0, tileX, tileZ);
-            MapLoadedChunkResampler.pushTileUpdate(dim, 0, tileX, tileZ, data);
-        }
+        // A chunk loaded here was just queued by ChunkReader (read at the latest on its unload);
+        // only one that was already loaded is painted directly, so no chunk is read twice.
+        boolean paintHere = wasAlreadyLoaded || !TravellersConfig.WORLDMAP.mapPregenOnChunkLoadEnabled;
+        boolean changed = paintHere && chunk != null && MapChunkPainter.paint(world, chunk);
 
         if (!wasAlreadyLoaded && chunk != null) cps.queueUnload(chunk);
 
         if (TravellersConfig.WORLDMAP.debugMap && changed) {
-            FMLLog.log(Level.INFO, "[Travellers/MapResweep] dim=%d chunk %d,%d changed -> tile %d,%d",
-                    dim, chunkX, chunkZ, tileX, tileZ);
+            FMLLog.log(Level.INFO, "[Travellers/MapResweep] dim=%d chunk %d,%d changed", dim, chunkX, chunkZ);
         }
     }
 

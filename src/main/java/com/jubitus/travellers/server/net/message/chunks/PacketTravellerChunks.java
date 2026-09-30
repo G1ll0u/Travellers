@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.chunks;
 
 import com.jubitus.travellers.client.gui.debug.GuiTravellerChunks;
-import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
+import com.jubitus.travellers.debug.TravellerChunkSnapshot;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -32,14 +32,6 @@ public class PacketTravellerChunks implements IMessage {
         int centerChunkZ = buf.readInt();
         int radiusBlocks = buf.readInt();
         int radiusChunks = buf.readInt();
-
-        int merchantCount = buf.readInt();
-        List<ChunkPos> merchant = new ArrayList<>(merchantCount);
-        for (int i = 0; i < merchantCount; i++) {
-            int x = buf.readInt();
-            int z = buf.readInt();
-            merchant.add(new ChunkPos(x, z));
-        }
 
         int normalCount = buf.readInt();
         List<ChunkPos> normal = new ArrayList<>(normalCount);
@@ -81,7 +73,6 @@ public class PacketTravellerChunks implements IMessage {
                 centerChunkZ,
                 radiusBlocks,
                 radiusChunks,
-                merchant,
                 normal,
                 villages,
                 virtualWorkers,
@@ -96,12 +87,6 @@ public class PacketTravellerChunks implements IMessage {
         buf.writeInt(snapshot.centerZ);
         buf.writeInt(snapshot.radiusBlocks);
         buf.writeInt(snapshot.radiusChunks);
-
-        buf.writeInt(snapshot.merchantChunks.size());
-        for (ChunkPos cp : snapshot.merchantChunks) {
-            buf.writeInt(cp.x);
-            buf.writeInt(cp.z);
-        }
 
         buf.writeInt(snapshot.normalChunks.size());
         for (ChunkPos cp : snapshot.normalChunks) {

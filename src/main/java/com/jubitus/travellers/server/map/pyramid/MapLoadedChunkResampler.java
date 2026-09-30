@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.map.pyramid;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgMapTileData;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -17,10 +17,8 @@ import java.util.Map;
 
 /**
  * Keeps level-0 worldmap pixels correct for as long as their chunk stays loaded, for whatever
- * reason (a player nearby, a worker's travel route, a chunk kept loaded by another system). Unlike
- * {@link MapTileChunkLoadPregen} (fast first-paint fill, write-once) this unconditionally
- * re-samples via {@link MapTileGenerator#refreshChunkPixels} so terrain edits and progressively
- * built structures (e.g. a growing Millenaire village) eventually repaint. Never loads a chunk
+ * reason. The first paint comes from {@code ChunkReader} and changes from its changed-chunk queue;
+ * this slow blind rotation is only a safety net for changes neither of them sees. Never loads a chunk
  * itself — only re-checks chunks already loaded, so it adds zero chunk-loading cost.
  *
  * Ticked from {@code TravellerChunkManager.onWorldTick}. Maintains a rotating per-dimension queue
@@ -36,6 +34,8 @@ public class MapLoadedChunkResampler {
     private MapLoadedChunkResampler() {}
 
     public void tick(WorldServer world, long now) {
+        flushDuePendingPushes();
+        if (TravellersConfig.WORLDMAP.mapSweepChunksPerTick <= 0 || !MapPyramidStore.isMapped(world)) return;
         int dim = world.provider.getDimension();
 
         // Rebuild only once the current pass has fully drained, never mid-pass on a timer — a
@@ -52,7 +52,12 @@ public class MapLoadedChunkResampler {
         Long lastRebuild = lastRebuildTick.get(dim);
         Deque<Long> queue = queues.get(dim);
         if (queue == null || (queue.isEmpty() && (lastRebuild == null || now - lastRebuild >= rebuildInterval))) {
+            if (queue != null && lastRebuild != null && dim == 0) {
+                MapFillStats.sweepPasses++;
+                MapFillStats.sweepLastPassTicks = now - lastRebuild;
+            }
             queue = rebuildQueue(world);
+            if (dim == 0) MapFillStats.sweepLastPassChunks = queue.size();
             queues.put(dim, queue);
             lastRebuildTick.put(dim, now);
             if (TravellersConfig.WORLDMAP.debugMap) {
@@ -63,6 +68,7 @@ public class MapLoadedChunkResampler {
 
         int budget = TravellersConfig.WORLDMAP.mapSweepChunksPerTick;
         int processed = 0, changedCount = 0;
+        long t0 = System.nanoTime();
         for (int i = 0; i < budget && !queue.isEmpty(); i++) {
             long packedChunk = queue.pollFirst();
             int chunkX = TileKey.unpackX(packedChunk);
@@ -70,12 +76,13 @@ public class MapLoadedChunkResampler {
             if (processChunk(world, chunkX, chunkZ)) changedCount++;
             processed++;
         }
+        MapFillStats.sweepNanos += System.nanoTime() - t0;
+        MapFillStats.sweepProcessed += processed;
+        MapFillStats.sweepChanged += changedCount;
         if (TravellersConfig.WORLDMAP.debugMap && processed > 0) {
             FMLLog.log(Level.INFO, "[Travellers/MapSweep] dim=%d tick: %d chunk(s) processed, %d changed, %d remaining in queue (this is the ALWAYS-ON background sweep, not the 'map resweep' admin command)",
                     dim, processed, changedCount, queue.size());
         }
-
-        flushDuePendingPushes();
     }
 
     private Deque<Long> rebuildQueue(WorldServer world) {
@@ -86,35 +93,10 @@ public class MapLoadedChunkResampler {
         return queue;
     }
 
-    /**
-     * @return true if this chunk's pixels actually changed (used only for debug counters).
-     */
+    // True if the chunk is still loaded and its pixels changed.
     private boolean processChunk(WorldServer world, int chunkX, int chunkZ) {
-        int chunksPerTile = WorldMapDiscovery.CHUNKS_PER_TILE;
-        int tileX = Math.floorDiv(chunkX, chunksPerTile);
-        int tileZ = Math.floorDiv(chunkZ, chunksPerTile);
-        long key = TileKey.pack(tileX, tileZ);
-
-        MapPyramidStore level0 = MapPyramidStore.get(world, 0);
-        byte[] data = level0.get(key);
-        // Also acts as a first-paint safety net: a tile MapTileChunkLoadPregen never touched
-        // (e.g. a chunk loaded before this mod's event subscribers were registered) still gets
-        // painted here instead of being skipped forever.
-        boolean firstPaintForTile = (data == null || data.length != MapTileGenerator.TILE_BYTES);
-        if (firstPaintForTile) data = new byte[MapTileGenerator.TILE_BYTES];
-
-        boolean changed = MapTileGenerator.refreshChunkPixels(world, chunkX, chunkZ, data);
-        if (changed) {
-            level0.put(key, data);
-            int dim = world.provider.getDimension();
-            PyramidDirtyPropagator.markParentDirty(dim, 0, tileX, tileZ);
-            pushTileUpdate(dim, 0, tileX, tileZ, data);
-            if (TravellersConfig.WORLDMAP.debugMap) {
-                FMLLog.log(Level.INFO, "[Travellers/MapSweep] dim=%d chunk %d,%d resampled -> tile %d,%d changed%s",
-                        dim, chunkX, chunkZ, tileX, tileZ, firstPaintForTile ? " (first paint)" : "");
-            }
-        }
-        return changed;
+        Chunk chunk = com.jubitus.travellers.world.chunkmanager.LoadedChunks.peek(world, chunkX, chunkZ);
+        return chunk != null && MapChunkPainter.paint(world, chunk);
     }
 
     // (dim<<40 | level<<32 | packed tileX,tileZ isn't safe - tileX/tileZ already use the full 64
@@ -155,6 +137,7 @@ public class MapLoadedChunkResampler {
         Long last = lastPushMs.get(key);
         if (last != null && now - last < minIntervalMs) {
             pendingPushes.put(key, new PendingPush(rawData, last + minIntervalMs));
+            MapFillStats.pushCoalesced++;
             return;
         }
         pendingPushes.remove(key);
@@ -183,7 +166,11 @@ public class MapLoadedChunkResampler {
         double centerZ = tileZ * (double) tileBlocks + tileBlocks / 2.0;
         double radius = TravellersConfig.WORLDMAP.mapInvalidateNotifyRadiusBlocks * (double) (1 << level);
 
+        if (level == 0) MapFillStats.pushSentLevel0++;
+        else MapFillStats.pushSentUpper++;
+        long t0 = System.nanoTime();
         byte[] compressed = TileCompression.deflate(rawData);
+        MapFillStats.pushDeflateNanos += System.nanoTime() - t0;
         TravellerFollowNet.CHANNEL.sendToAllAround(
                 new MsgMapTileData(level, tileX, tileZ, compressed),
                 new NetworkRegistry.TargetPoint(dim, centerX, 64.0, centerZ, radius));

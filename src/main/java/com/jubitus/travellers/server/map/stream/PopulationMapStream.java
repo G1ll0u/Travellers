@@ -2,11 +2,10 @@ package com.jubitus.travellers.server.map.stream;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerMerchant;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerManager;
-import com.jubitus.travellers.utils.world.pathing.offscreen.VirtualTravellerRecord;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -85,10 +84,10 @@ public class PopulationMapStream {
                     all, viewDim, en -> en.dim, en -> en.pos, cx, cz, rangeSq, MAX_ENTRIES_PER_PACKET);
 
             if (visible.isEmpty()) {
-                com.jubitus.travellers.server.net.TravellerFollowNet.sendToPlayer(player,
+                com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player,
                         new MsgMapPopulationUpdate(Collections.emptyList()));
             } else {
-                com.jubitus.travellers.server.net.TravellerFollowNet.sendToPlayer(player,
+                com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player,
                         new MsgMapPopulationUpdate(visible));
             }
         }
@@ -108,12 +107,32 @@ public class PopulationMapStream {
                     kind = MsgMapPopulationUpdate.Kind.WORKER;
                 } else if (t instanceof EntityTravellerRaider) {
                     kind = MsgMapPopulationUpdate.Kind.RAIDER;
-                } else if (t instanceof EntityTravellerMerchant) {
-                    continue; // merchant is unused for now, not part of the population overview
                 } else {
                     kind = MsgMapPopulationUpdate.Kind.TRAVELLER;
                 }
                 out.add(entry(dim, t.getPosition(), kind, false, t.getName()));
+            }
+        }
+
+        for (WorldServer ws : server.worlds) {
+            int dim = ws.provider.getDimension();
+            com.jubitus.travellers.world.zone.stable.StableCoordinator coord =
+                    com.jubitus.travellers.world.zone.stable.StableCoordinator.get(ws);
+            for (com.jubitus.travellers.world.zone.PlayerZoneRecord zone :
+                    com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws).getAll()) {
+                if (zone.type != com.jubitus.travellers.world.zone.ZoneType.STABLE
+                        || !(zone.data instanceof com.jubitus.travellers.world.zone.stable.StableZoneData)) {
+                    continue;
+                }
+                boolean loaded = coord.isZoneFullyLoaded(ws, zone);
+                String zn = (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
+                MsgMapPopulationUpdate.Entry se = new MsgMapPopulationUpdate.Entry();
+                se.dim = dim;
+                se.pos = zone.center;
+                se.kind = MsgMapPopulationUpdate.Kind.STABLE;
+                se.virtual = !loaded;
+                se.label = zn + "\n" + coord.debugSummary(ws, zone);
+                out.add(se);
             }
         }
 

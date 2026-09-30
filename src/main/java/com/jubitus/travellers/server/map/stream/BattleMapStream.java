@@ -2,9 +2,9 @@ package com.jubitus.travellers.server.map.stream;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.utils.world.battle.BattleParticipant;
-import com.jubitus.travellers.utils.world.battle.BattleRecord;
-import com.jubitus.travellers.utils.world.battle.VirtualBattleManager;
+import com.jubitus.travellers.world.battle.BattleParticipant;
+import com.jubitus.travellers.world.battle.BattleRecord;
+import com.jubitus.travellers.world.battle.VirtualBattleManager;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
@@ -95,7 +95,7 @@ public class BattleMapStream {
                 visible.add(en);
             }
 
-            com.jubitus.travellers.server.net.TravellerFollowNet.sendToPlayer(player,
+            com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player,
                     new MsgMapBattleUpdate(visible.isEmpty() ? Collections.emptyList() : visible));
         }
     }

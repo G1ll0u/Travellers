@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.map;
 
-import com.jubitus.travellers.client.gui.worldmap.GuiWorldMapPanelHooks;
+import com.jubitus.travellers.client.map.ClientTileTextures;
 import com.jubitus.travellers.client.map.ClientTileCache;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.server.map.pyramid.MapTileGenerator;
@@ -52,7 +52,7 @@ public class MsgMapTileData implements IMessage {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 byte[] data = TileCompression.inflate(msg.compressedData, MapTileGenerator.TILE_BYTES);
                 ClientTileCache.put(msg.level, msg.tileX, msg.tileZ, data);
-                GuiWorldMapPanelHooks.markDirty(msg.level, msg.tileX, msg.tileZ);
+                ClientTileTextures.invalidate(msg.level, msg.tileX, msg.tileZ);
                 if (TravellersConfig.WORLDMAP.debugMap) {
                     FMLLog.log(Level.INFO, "[Travellers/MapNet] client: tile data received, cached level=%d tile=%d,%d",
                             msg.level, msg.tileX, msg.tileZ);

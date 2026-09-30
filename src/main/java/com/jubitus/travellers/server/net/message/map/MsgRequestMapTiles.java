@@ -5,9 +5,10 @@ import com.jubitus.travellers.server.map.pyramid.MapDiscoverySavedData;
 import com.jubitus.travellers.server.map.pyramid.MapPyramidStore;
 import com.jubitus.travellers.server.map.pyramid.MapTileGenerator;
 import com.jubitus.travellers.server.map.pyramid.TileKey;
-import com.jubitus.travellers.server.map.pyramid.WorldMapDiscovery;
-import com.jubitus.travellers.server.net.TravellerFollowNet;
+import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -47,6 +48,8 @@ public class MsgRequestMapTiles implements IMessage {
 
     public static class Handler implements IMessageHandler<MsgRequestMapTiles, IMessage> {
         private static final int MAX_KEYS_PER_REQUEST = 64;
+        private static final byte[] EMPTY_TILE =
+                com.jubitus.travellers.server.map.pyramid.TileCompression.deflate(new byte[MapTileGenerator.TILE_BYTES]);
 
         @Override
         public IMessage onMessage(MsgRequestMapTiles msg, MessageContext ctx) {
@@ -55,15 +58,20 @@ public class MsgRequestMapTiles implements IMessage {
             long[] keys = msg.tileKeys;
 
             p.getServerWorld().addScheduledTask(() -> {
-                Set<Long> discovered = MapDiscoverySavedData.get(p.world).getTiles(p.getUniqueID());
+                if (!MapPyramidStore.isMapped(p.world)) return;
                 boolean fullMap = TravellersConfig.WORLDMAP.showFullMap;
+                LongOpenHashSet discovered = null;
+                if (!fullMap) {
+                    // A tile at this level is served if any level-0 tile inside it has a discovered chunk.
+                    discovered = new LongOpenHashSet();
+                    int span = 1 << level;
+                    for (LongIterator it = MapDiscoverySavedData.get(p.world).getMasks(p.getUniqueID()).keySet().iterator(); it.hasNext(); ) {
+                        long k0 = it.nextLong();
+                        discovered.add(TileKey.pack(Math.floorDiv(TileKey.unpackX(k0), span), Math.floorDiv(TileKey.unpackZ(k0), span)));
+                    }
+                }
 
                 MapPyramidStore store = MapPyramidStore.get(p.world, level);
-
-                int pcx = ((int) Math.floor(p.posX)) >> 4;
-                int pcz = ((int) Math.floor(p.posZ)) >> 4;
-                int pTileX = TileKey.floorDiv(pcx, WorldMapDiscovery.CHUNKS_PER_TILE);
-                int pTileZ = TileKey.floorDiv(pcz, WorldMapDiscovery.CHUNKS_PER_TILE);
 
                 int sent = 0;
                 for (int i = 0; i < keys.length && sent < MAX_KEYS_PER_REQUEST; i++) {
@@ -71,33 +79,15 @@ public class MsgRequestMapTiles implements IMessage {
                     int tx = TileKey.unpackX(key);
                     int tz = TileKey.unpackZ(key);
 
-                    if (!fullMap && !discovered.contains(key)) continue;
+                    if (discovered != null && !discovered.contains(key)) continue;
 
-                    byte[] data = store.get(key);
-                    boolean had = (data != null && data.length == MapTileGenerator.TILE_BYTES);
-                    if (!had) data = new byte[MapTileGenerator.TILE_BYTES];
-
-                    // Only level 0 ever samples the world, and only near the requesting
-                    // player's own position (prevents heavy generation work when panning far).
-                    boolean changed = false;
-                    if (level == 0) {
-                        boolean nearPlayer = Math.abs(tx - pTileX) <= 1 && Math.abs(tz - pTileZ) <= 1;
-                        if (nearPlayer) {
-                            changed = MapTileGenerator.fillMissingPixels(p.world, tx, tz, data, Integer.MAX_VALUE);
-                        }
+                    // Tiles are painted by ChunkReader as chunks load; a request only serves the store.
+                    // A level-0 tile with nothing painted yet still gets an empty reply.
+                    byte[] compressed = store.getCompressed(key);
+                    if (compressed == null) {
+                        if (level > 0) continue;
+                        compressed = EMPTY_TILE;
                     }
-
-                    if (!had || changed) {
-                        store.put(key, data);
-                    }
-                    if (level == 0 && changed) {
-                        com.jubitus.travellers.server.map.pyramid.PyramidDirtyPropagator.markParentDirty(
-                                p.world.provider.getDimension(), 0, tx, tz);
-                    }
-
-                    if (!had && level > 0) continue; // don't push still-empty derived tiles
-
-                    byte[] compressed = com.jubitus.travellers.server.map.pyramid.TileCompression.deflate(data);
                     TravellerFollowNet.CHANNEL.sendTo(new MsgMapTileData(level, tx, tz, compressed), p);
                     sent++;
                 }

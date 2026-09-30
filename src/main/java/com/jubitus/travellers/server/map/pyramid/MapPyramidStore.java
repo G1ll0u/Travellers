@@ -23,13 +23,24 @@ public class MapPyramidStore {
     private static final Map<World, Map<Integer, MapPyramidStore>> REGISTRY = new WeakHashMap<>();
 
     private final Map<Long, byte[]> tiles = new HashMap<>();
+    // Compressed bytes of tiles unchanged since they were last compressed.
     private final Map<Long, byte[]> compressedCache = new HashMap<>();
+    // Tiles changed since last compressed -> change stamp; compressed lazily (save thread or first send).
+    private final Map<Long, Long> staleStamps = new HashMap<>();
+    private long changeCounter;
     private final int level;
     private int migrationVersion;
     private boolean dirty;
 
     private MapPyramidStore(int level) {
         this.level = level;
+    }
+
+    // The worldmap only covers the overworld.
+    public static final int MAP_DIMENSION = 0;
+
+    public static boolean isMapped(World world) {
+        return world.provider.getDimension() == MAP_DIMENSION;
     }
 
     public static synchronized MapPyramidStore get(World world, int level) {
@@ -88,24 +99,67 @@ public class MapPyramidStore {
 
     public synchronized void put(long key, byte[] data) {
         tiles.put(key, data);
-        compressedCache.put(key, TileCompression.deflate(data));
+        compressedCache.remove(key);
+        staleStamps.put(key, ++changeCounter);
         dirty = true;
     }
 
-    /** Snapshots dirty data and hands the actual disk write off to a background thread. */
+    /** Compressed bytes of a tile (compressed now if it changed since), or null if the tile doesn't exist. */
+    public synchronized byte[] getCompressed(long key) {
+        byte[] raw = tiles.get(key);
+        if (raw == null) return null;
+        byte[] c = compressedCache.get(key);
+        if (c == null) {
+            c = deflateCounted(raw);
+            compressedCache.put(key, c);
+            staleStamps.remove(key);
+        }
+        return c;
+    }
+
+    // Keeps the save thread's compression unless the tile changed again meanwhile.
+    private synchronized void adoptCompressed(long key, long stamp, byte[] compressed) {
+        Long current = staleStamps.get(key);
+        if (current != null && current == stamp) {
+            compressedCache.put(key, compressed);
+            staleStamps.remove(key);
+        }
+    }
+
+    private static byte[] deflateCounted(byte[] raw) {
+        long t0 = System.nanoTime();
+        byte[] c = TileCompression.deflate(raw);
+        MapFillStats.storeDeflateNanos += System.nanoTime() - t0;
+        MapFillStats.storeDeflateCount++;
+        return c;
+    }
+
+    /** Snapshots dirty data (raw copies of changed tiles) and hands compression + disk write to a background thread. */
     synchronized void saveAsync(World world) {
         if (!dirty) return;
         dirty = false;
         Map<Long, byte[]> snapshot = new HashMap<>(compressedCache);
+        Map<Long, byte[]> staleRaw = new HashMap<>();
+        Map<Long, Long> stamps = new HashMap<>(staleStamps);
+        for (Long key : stamps.keySet()) staleRaw.put(key, tiles.get(key).clone());
         int mv = migrationVersion;
         File file = fileFor(world, level);
-        PyramidIOExecutor.submit(() -> PyramidFileIO.write(file, snapshot, mv));
+        PyramidIOExecutor.submit(() -> {
+            Map<Long, byte[]> fresh = new HashMap<>();
+            for (Map.Entry<Long, byte[]> e : staleRaw.entrySet()) fresh.put(e.getKey(), deflateCounted(e.getValue()));
+            snapshot.putAll(fresh);
+            PyramidFileIO.write(file, snapshot, mv);
+            for (Map.Entry<Long, byte[]> e : fresh.entrySet()) {
+                adoptCompressed(e.getKey(), stamps.get(e.getKey()), e.getValue());
+            }
+        });
     }
 
     /** Synchronous flush — only for a clean world unload/server stop, never during normal play. */
     synchronized void saveSync(World world) {
         if (!dirty) return;
         dirty = false;
+        for (Long key : new java.util.ArrayList<>(staleStamps.keySet())) getCompressed(key);
         PyramidFileIO.write(fileFor(world, level), new HashMap<>(compressedCache), migrationVersion);
     }
 

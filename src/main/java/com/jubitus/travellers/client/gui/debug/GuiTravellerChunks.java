@@ -1,7 +1,7 @@
 package com.jubitus.travellers.client.gui.debug;
 
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.utils.debug.TravellerChunkSnapshot;
+import com.jubitus.travellers.debug.TravellerChunkSnapshot;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -17,7 +17,6 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
 
     private TravellerChunkSnapshot snapshot;
     private int tickCounter = 0;
-    private Set<ChunkPos> merchantSet;
     private Set<ChunkPos> normalSet;
     private Set<ChunkPos> virtualWorkerChunks;
     private Set<ChunkPos> virtualTravellerChunks;
@@ -29,7 +28,6 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
 
     public void updateSnapshot(TravellerChunkSnapshot snapshot) {
         this.snapshot = snapshot;
-        this.merchantSet = new HashSet<>(snapshot.merchantChunks);
         this.normalSet = new HashSet<>(snapshot.normalChunks);
         this.virtualWorkerChunks = new HashSet<>();
         for (BlockPos pos : snapshot.virtualWorkers) {
@@ -80,9 +78,6 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
 
                 if (normalSet.contains(cp)) {
                     color = 0xFF555555; // normal loaded
-                }
-                if (merchantSet.contains(cp)) {
-                    color = 0xFF0066CC; // merchant forced
                 }
                 if (virtualWorkerChunks.contains(cp)) {
                     color = 0xFF884400; // virtual worker (orange-brown)
@@ -146,11 +141,6 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
         // Normal loaded
         drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFF555555);
         this.fontRenderer.drawString("Loaded chunks (normal)", legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
-
-        // Merchant loaded
-        legendTop += spacingY;
-        drawRect(legendLeft, legendTop, legendLeft + boxSize, legendTop + boxSize, 0xFF0066CC);
-        this.fontRenderer.drawString("Chunks loaded by travellers merchants", legendLeft + boxSize + 4, legendTop + 1, 0xFFFFFFFF);
 
         // Village
         legendTop += spacingY;

@@ -15,7 +15,7 @@ import java.util.List;
 
 public class MsgMapPopulationUpdate implements IMessage {
 
-    public enum Kind { TRAVELLER, RAIDER, WORKER }
+    public enum Kind { TRAVELLER, RAIDER, WORKER, STABLE }
 
     public static class Entry {
         public int dim;
