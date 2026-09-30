@@ -1,6 +1,6 @@
 package com.jubitus.travellers.mixins;
 
-import com.jubitus.travellers.entity.entityAI.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.ai.EntityMoveHelper;
@@ -41,6 +41,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Nothing is lost by skipping it: {@code AbstractHorse.travel()} reads the rider's
  * {@code moveForward}/{@code rotationYaw} directly, and a 1-block rise is handled by the horse's own
  * {@code stepHeight} (1.0), not by jumping.
+ *
+ * <p>The rider steers through vanilla's own
+ * {@code canBeSteered()} branch, and its navigator plans for the horse's body rather than its own
+ * (see {@code PathBody}), so nothing else about vanilla has to be changed.
  */
 @Mixin(EntityLiving.class)
 public abstract class MixinEntityLiving {
