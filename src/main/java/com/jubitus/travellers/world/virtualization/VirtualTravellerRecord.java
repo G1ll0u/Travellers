@@ -63,10 +63,9 @@ public class VirtualTravellerRecord {
     @Nullable public BlockPos homeVillage;
 
     // --- Regionalized destination choice (Plan B) ---------------------------------
-    // Immutable identity mirrored from entity NBT at virtualize; the ring and tripsSinceHome
+    // Immutable identity mirrored from entity NBT at virtualize; the ring
     // round-trip as-is (see the traveller-state checklist in CLAUDE.md).
     @Nullable public String cultureId;              // entity NBT "CultureId"
-    public int tripsSinceHome;                      // Phase 2 homesickness - persisted now, unused
     public long[] recentDestinations = new long[0]; // ring of last N chosen dests, packed XZ, newest first
     public float wanderlust;                        // mirror of TravelCommon.wanderlust
     public float exploreChance;                     // mirror of TravelCommon.exploreChance
@@ -314,7 +313,6 @@ public class VirtualTravellerRecord {
         }
         if (campCooldownUntil > 0L) tag.setLong("CampCooldown", campCooldownUntil);
         if (cultureId != null) tag.setString("Cult", cultureId);
-        if (tripsSinceHome != 0) tag.setInteger("TSH", tripsSinceHome);
         if (recentDestinations.length > 0) {
             tag.setIntArray("RcD", com.jubitus.travellers.entity.entityai.travel.travelcommon
                     .RecentDestinationRing.toIntPairs(recentDestinations));
@@ -386,7 +384,6 @@ public class VirtualTravellerRecord {
         r.formationOrdinal = tag.hasKey("FormOrd") ? tag.getInteger("FormOrd") : -1;
         r.entityClass = tag.hasKey("EC") ? tag.getString("EC") : "WORKER";
         r.cultureId = tag.hasKey("Cult") ? tag.getString("Cult") : null;
-        r.tripsSinceHome = tag.getInteger("TSH");
         if (tag.hasKey("RcD", 11)) {
             r.recentDestinations = com.jubitus.travellers.entity.entityai.travel.travelcommon
                     .RecentDestinationRing.fromIntPairs(tag.getIntArray("RcD"));

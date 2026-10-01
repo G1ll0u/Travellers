@@ -369,14 +369,7 @@ public final class TravellerSoftSpawner {
     private static int spawnVirtualTraveller(WorldServer ws, VirtualTravellerManager mgr,
                                               BlockPos homeVillage, String entityClass, @Nullable String cultureId,
                                               int remainingNeed) {
-        List<BlockPos> allCenters = MillVillageIndex.getAllSettlementCenters(ws);
-        if (allCenters.size() < 2) return 0;
-
-        // Pick a random destination different from home
-        List<BlockPos> candidates = new ArrayList<>(allCenters);
-        candidates.removeIf(c -> c.getX() == homeVillage.getX() && c.getZ() == homeVillage.getZ());
-        if (candidates.isEmpty()) return 0;
-        BlockPos dest = candidates.get(ws.rand.nextInt(candidates.size()));
+        if (MillVillageIndex.getAllSettlementCenters(ws).size() < 2) return 0;
 
         boolean isRaider = "RAIDER".equals(entityClass);
 
@@ -445,6 +438,8 @@ public final class TravellerSoftSpawner {
         r.homeVillage = homeKey;
         r.captureIdentityFromNbt();
 
+        BlockPos dest = mgr.pickInitialDestination(ws, r);
+        if (dest == null) return 0;
         // The itinerary toward dest is built by the offscreen simulation on its first goal refresh.
         r.setTrip(java.util.Collections.singletonList(dest), 0);
         r.goal = dest;
@@ -545,13 +540,6 @@ public final class TravellerSoftSpawner {
         tempEntity.setHomeVillage(homeVillage);
         tempEntity.setPosition(homePos.getX() + 0.5, homePos.getY(), homePos.getZ() + 0.5);
 
-        TravelCommon tc = tempEntity.getTravelCommon();
-        tc.updateNearestVillage();
-        tc.ensureRoutePlanned();
-        if (tc.route.isEmpty()) return false; // not enough destinations to travel
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
-
         // Disperse the spawn point in a ring around the home village instead of dropping it right on
         // the village center — a freshly discovered village otherwise shows its whole workforce
         // standing in one clump. Same dissemination ring as travellers/raiders (see spawnVirtualTraveller).
@@ -580,11 +568,20 @@ public final class TravellerSoftSpawner {
             return false;
         }
 
-        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-
+        // Culture and trip tuning must be rolled before the first destination is chosen.
         net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
                 ? new EntityTraveller.SpawnData(cultureId) : null;
         tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+
+        TravelCommon tc = tempEntity.getTravelCommon();
+        tc.updateNearestVillage();
+        tc.noteChosenDestination(homeVillage);
+        tc.ensureRoutePlanned();
+        if (tc.route.isEmpty()) return false; // not enough destinations to travel
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+
+        tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
 
         net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
         tempEntity.writeToNBT(entityNbt);

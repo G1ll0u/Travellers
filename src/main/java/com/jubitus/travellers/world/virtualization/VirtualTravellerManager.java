@@ -1192,10 +1192,21 @@ public class VirtualTravellerManager extends WorldSavedData {
     private BlockPos pickRoamDestination(WorldServer world, VirtualTravellerRecord r) {
         long now = world.getTotalWorldTime();
         if (!ItineraryPlanner.tryAcquire(now)) return null;
+        return chooseRoamDestination(world, r, roamOriginOf(r));
+    }
 
+    // First leg of a freshly spawned record, chosen from its home settlement.
+    @Nullable
+    public BlockPos pickInitialDestination(WorldServer world, VirtualTravellerRecord r) {
+        r.noteChosenDestination(r.homeVillage, TravellersConfig.DESTINATIONS.recentDestMemory);
+        return chooseRoamDestination(world, r, r.homeVillage);
+    }
+
+    @Nullable
+    private BlockPos chooseRoamDestination(WorldServer world, VirtualTravellerRecord r, BlockPos origin) {
         com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.DestinationContext ctx =
                 new com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.DestinationContext();
-        ctx.originCentre = roamOriginOf(r);
+        ctx.originCentre = origin;
         ctx.homeVillage = r.homeVillage;
         ctx.cultureId = r.cultureId;
         ctx.kind = "RAIDER".equals(r.entityClass)

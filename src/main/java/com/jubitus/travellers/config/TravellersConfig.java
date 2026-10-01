@@ -1447,6 +1447,18 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 8)
         public int recentDestMemory = 3;
 
+        @Config.Comment("How strongly travellers and workers who wandered far from home drift back toward it. 0 = they never feel homesick. Raiders ignore it.")
+        @Config.RangeDouble(min = 0.0, max = 3.0)
+        public double homePullWeight = 1.0;
+
+        @Config.Comment("Distance from home (blocks) within which travellers roam freely with no pull back home.")
+        @Config.RangeInt(min = 0, max = 20000)
+        public int homePullFreeRadius = 1200;
+
+        @Config.Comment("Distance from home (blocks) at which the pull back home is at its strongest.")
+        @Config.RangeInt(min = 1, max = 40000)
+        public int homePullFullRadius = 3000;
+
         @Config.Comment("[Advanced] How hard a foreign-culture destination is penalised (multiplies the culture bias).")
         @Config.RangeDouble(min = 0.0, max = 4.0)
         public double cultureMismatchPenalty = 1.0;
@@ -1486,9 +1498,6 @@ public class TravellersConfig {
         @Config.Comment("[Advanced] How long (ticks) a cached corridor friendliness score is trusted.")
         @Config.RangeInt(min = 1200, max = 240000)
         public int corridorCacheTtlTicks = 24000;
-
-        @Config.Comment("[Advanced] Enable the experimental v2 destination terms (terrain-cost distance, threat avoidance, anti-crowding). Not implemented yet.")
-        public boolean regionExtrasEnabled = false;
 
         @Config.Comment("Print destination-choice debug logs to the server console.")
         public boolean regionDebug = false;

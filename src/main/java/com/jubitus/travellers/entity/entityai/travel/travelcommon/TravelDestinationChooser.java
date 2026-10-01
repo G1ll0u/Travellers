@@ -55,7 +55,6 @@ public final class TravelDestinationChooser {
         public float wanderlust;
         public float exploreChance;
         public long[] recentDestinations = new long[0];
-        public int tripsSinceHome;            // Phase 2 - unused for now
         public Random rng;
         /** Loaded side with MPB present restricts candidates to road-connected villages, as today. */
         public boolean applyRoadRestriction;
@@ -63,6 +62,7 @@ public final class TravelDestinationChooser {
         @Nullable public Predicate<BlockPos> badVillages;
         /** For {@code /travellersdebug destination} - the last breakdown is stored under this id. */
         @Nullable public UUID debugId;
+        public boolean loaded;
     }
 
     /** One shortlist candidate as scored, for the analysis log / {@code /travellersdebug destination}. */
@@ -73,6 +73,7 @@ public final class TravelDestinationChooser {
         @Nullable public Integer relation;
         public int population;
         public boolean roadConnected;
+        public double homeDist = -1;
         public float corridor = -1f;
         public Breakdown terms;   // prefilter multipliers (before corridor)
         public double score;      // final score used for the weighted pick
@@ -95,6 +96,9 @@ public final class TravelDestinationChooser {
         public int poolCount;
         public double poolSameCultureFrac, poolMeanDist, poolMeanPop, poolMeanRelation, poolRoadFrac;
         public long tick;
+        @Nullable public java.util.UUID unit;
+        public double originHomeDist = -1;
+        public boolean loaded;
 
         ChosenDestination(BlockPos dest, String debug) {
             this.dest = dest;
@@ -174,6 +178,10 @@ public final class TravelDestinationChooser {
             cand.population = resolvePopulation(world, ws, c);
             cand.roadConnected = !roadVillages.isEmpty() && isNearRoadVillage(c, roadVillages, 64);
             cand.recentPos = RecentDestinationRing.indexOf(ctx.recentDestinations, c);
+            if (ctx.homeVillage != null) {
+                cand.homeDistOrigin = Math.sqrt(distSqXZ(ctx.originCentre, ctx.homeVillage));
+                cand.homeDistCand = Math.sqrt(distSqXZ(c, ctx.homeVillage));
+            }
             Breakdown bd = prefilterBreakdown(cand, t);
             Scored s = new Scored(c, cand, bd.total);
             s.terms = bd;
@@ -261,6 +269,7 @@ public final class TravelDestinationChooser {
             r.relation = s.cand.relation;
             r.population = s.cand.population;
             r.roadConnected = s.cand.roadConnected;
+            r.homeDist = s.cand.homeDistCand;
             r.corridor = s.corridor;
             r.terms = s.terms;
             r.score = s.score;
@@ -272,6 +281,9 @@ public final class TravelDestinationChooser {
     }
 
     private static ChosenDestination finish(World world, DestinationContext ctx, ChosenDestination cd) {
+        cd.unit = ctx.debugId;
+        if (ctx.homeVillage != null && cd.origin != null) cd.originHomeDist = Math.sqrt(distSqXZ(cd.origin, ctx.homeVillage));
+        cd.loaded = ctx.loaded;
         if (ctx.debugId != null) recordDebug(ctx.debugId, cd.debug);
         if (TravellersConfig.DESTINATIONS.regionDebug) {
             System.out.println("[Travellers/Destination] " + ctx.kind + " -> "
@@ -324,6 +336,8 @@ public final class TravelDestinationChooser {
         public int population;
         public boolean roadConnected;
         public int recentPos = -1;
+        // Distances to the home village (XZ); -1 when there is no home.
+        public double homeDistOrigin = -1, homeDistCand = -1;
     }
 
     public static final class Terms {
@@ -343,6 +357,10 @@ public final class TravelDestinationChooser {
         public boolean raiderInvert;
         public double maxRadius;
         public float wanderlust;
+        public boolean homePull;
+        public double homePullWeight;
+        public double homePullFreeRadius;
+        public double homePullFullRadius;
 
         public static Terms fromConfig(EntityKind kind, float wanderlust, double maxRadius, boolean raiderInvert) {
             TravellersConfig.Destinations d = TravellersConfig.DESTINATIONS;
@@ -362,13 +380,17 @@ public final class TravelDestinationChooser {
             t.raiderInvert = raiderInvert;
             t.maxRadius = maxRadius;
             t.wanderlust = wanderlust;
+            t.homePull = kind != EntityKind.RAIDER;
+            t.homePullWeight = d.homePullWeight;
+            t.homePullFreeRadius = d.homePullFreeRadius;
+            t.homePullFullRadius = d.homePullFullRadius;
             return t;
         }
     }
 
     /** Per-term multipliers of the prefilter score, for the analysis log / report. */
     public static final class Breakdown {
-        public double distance, culture, relation, population, recent, road, total;
+        public double distance, culture, relation, population, recent, road, home, total;
     }
 
     public static Breakdown prefilterBreakdown(Cand c, Terms t) {
@@ -379,7 +401,8 @@ public final class TravelDestinationChooser {
         b.population = populationTerm(c, t);
         b.recent = recentPenalty(c, t);
         b.road = roadTerm(c, t);
-        b.total = b.distance * b.culture * b.relation * b.population * b.recent * b.road;
+        b.home = homeTerm(c, t);
+        b.total = b.distance * b.culture * b.relation * b.population * b.recent * b.road * b.home;
         return b;
     }
 
@@ -413,9 +436,20 @@ public final class TravelDestinationChooser {
     static double recentPenalty(Cand c, Terms t) {
         if (c.recentPos < 0) return 1.0;
         double f = clamp(t.recentDestPenaltyFactor, 0.0, 1.0);
+        // Slot 0 is where the unit stands now; the place it came from (slot 1) gets the full penalty.
         double frac = t.recentDestMemory <= 1 ? 0.0
-                : clamp((double) c.recentPos / (t.recentDestMemory - 1), 0.0, 1.0);
+                : clamp((double) (c.recentPos - 1) / (t.recentDestMemory - 1), 0.0, 1.0);
         return f + (1.0 - f) * frac;
+    }
+
+    // The farther out past the free radius, the more a candidate that brings the unit closer to home is favoured.
+    static double homeTerm(Cand c, Terms t) {
+        if (!t.homePull || c.homeDistOrigin <= 0 || c.homeDistCand < 0) return 1.0;
+        double span = Math.max(1.0, t.homePullFullRadius - t.homePullFreeRadius);
+        double pressure = clamp((c.homeDistOrigin - t.homePullFreeRadius) / span, 0.0, 1.0);
+        if (pressure <= 0.0) return 1.0;
+        double gain = clamp((c.homeDistOrigin - c.homeDistCand) / c.homeDistOrigin, -1.0, 1.0);
+        return Math.max(0.1, 1.0 + t.homePullWeight * t.strength * pressure * gain);
     }
 
     static double roadTerm(Cand c, Terms t) {
@@ -601,6 +635,7 @@ public final class TravelDestinationChooser {
                     .append(" pop=").append(s.cand.population)
                     .append(" road=").append(s.cand.roadConnected ? "y" : "n")
                     .append(" recent=").append(s.cand.recentPos)
+                    .append(s.terms != null && s.terms.home != 1.0 ? " home=" + fmt(s.terms.home) : "")
                     .append(s.corridor >= 0 ? " corr=" + fmt(s.corridor) : "")
                     .append(" score=").append(fmt(s.score));
         }

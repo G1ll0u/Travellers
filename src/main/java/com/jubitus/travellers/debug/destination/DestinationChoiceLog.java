@@ -30,7 +30,8 @@ public final class DestinationChoiceLog {
             "candX", "candZ", "candCulture", "sameCulture", "relation", "population", "dist",
             "roadConnected", "corridor",
             "wDist", "wCulture", "wRelation", "wPopulation", "wRecent", "wRoad", "score", "picked",
-            "poolCount", "poolSameCultureFrac", "poolMeanDist", "poolMeanPop", "poolMeanRelation", "poolRoadFrac"
+            "poolCount", "poolSameCultureFrac", "poolMeanDist", "poolMeanPop", "poolMeanRelation", "poolRoadFrac",
+            "unit", "side", "wHome", "homeDist", "originHomeDist"
     };
 
     private static final Object LOCK = new Object();
@@ -56,6 +57,9 @@ public final class DestinationChoiceLog {
             row[7] = Integer.toString(cd.origin.getX());
             row[8] = Integer.toString(cd.origin.getZ());
             row[9] = q(cd.originCulture);
+            row[33] = cd.unit == null ? "" : cd.unit.toString();
+            row[34] = cd.loaded ? "loaded" : "virtual";
+            row[37] = cd.originHomeDist >= 0 ? Integer.toString((int) cd.originHomeDist) : "";
 
             // POOL row - the base rates to compare the pick against.
             String[] pool = row.clone();
@@ -94,6 +98,8 @@ public final class DestinationChoiceLog {
                     cand[22] = f(r.terms.population);
                     cand[23] = f(r.terms.recent);
                     cand[24] = f(r.terms.road);
+                    cand[35] = f(r.terms.home);
+                    cand[36] = r.homeDist >= 0 ? Integer.toString((int) r.homeDist) : "";
                     cand[25] = f(r.score);
                     cand[26] = Boolean.toString(r.picked);
                     w.println(join(cand));

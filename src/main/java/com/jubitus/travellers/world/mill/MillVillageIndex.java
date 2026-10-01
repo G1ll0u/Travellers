@@ -10,6 +10,7 @@ import org.millenaire.common.forge.Mill;
 import org.millenaire.common.utilities.MillCommonUtilities;
 import org.millenaire.common.utilities.Point;
 import org.millenaire.common.village.Building;
+import org.millenaire.common.village.VillagerRecord;
 import org.millenaire.common.village.BuildingLocation;
 import org.millenaire.common.world.MillWorldData;
 
@@ -905,17 +906,17 @@ public final class MillVillageIndex {
         MillWorldData wd = getWD(world);
         if (wd == null) return 0;
 
-        // Find the Town Hall building for that center
         Building th = getTownHallBuilding(wd, villageCenter);
         if (th == null) return 0;
+        return countResidents(th);
+    }
 
+    // Counts the village's villager records, so unloaded villagers count too.
+    public static int countResidents(Building townHall) {
         int count = 0;
-        for (MillVillager v : wd.getAllKnownVillagers()) {
-            if (v == null) continue;
-            Building vTh = v.getTownHall();
-            if (vTh == th) { // same Building instance
-                count++;
-            }
+        for (VillagerRecord vr : townHall.getVillagerRecords().values()) {
+            if (vr == null || vr.killed || vr.raidingVillage) continue;
+            count++;
         }
         return count;
     }
@@ -1193,19 +1194,6 @@ public final class MillVillageIndex {
         VillagePopulationCache popCache =
                 world instanceof WorldServer ? VillagePopulationCache.get((WorldServer) world) : null;
 
-        // 1) Build a Building -> count map from all known villagers
-        Map<Building, Integer> countsByTH = new java.util.IdentityHashMap<>();
-
-        for (MillVillager v : wd.getAllKnownVillagers()) {
-            if (v == null) continue;
-            Building th = v.getTownHall();
-            if (th == null) continue;
-
-            countsByTH.merge(th, 1, Integer::sum);
-        }
-
-        // 2) For every registered village center, turn it into VillageInfo
-        //    and look up its building's count.
         for (int i = 0; i < wd.villagesList.pos.size(); i++) {
             Point p = wd.villagesList.pos.get(i);
             if (p == null) continue;
@@ -1228,7 +1216,7 @@ public final class MillVillageIndex {
                 continue;
             }
 
-            int count = countsByTH.getOrDefault(th, 0);
+            int count = countResidents(th);
             if (popCache != null) popCache.recordPopulation(center, count);
 
             VillageInfo vi = new VillageInfo(

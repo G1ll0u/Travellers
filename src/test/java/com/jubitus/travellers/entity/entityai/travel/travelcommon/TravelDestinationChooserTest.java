@@ -33,6 +33,10 @@ class TravelDestinationChooserTest {
         t.raiderInvert = false;
         t.maxRadius = 4000;
         t.wanderlust = 0.5f;
+        t.homePull = true;
+        t.homePullWeight = 1.0;
+        t.homePullFreeRadius = 1200;
+        t.homePullFullRadius = 3000;
         return t;
     }
 
@@ -152,7 +156,50 @@ class TravelDestinationChooserTest {
         double older = TravelDestinationChooser.recentPenalty(cand(0, true, true, null, 0, false, 2), t);
         assertEquals(1.0, notRecent);
         assertEquals(t.recentDestPenaltyFactor, justVisited, 1e-9);
+        double cameFrom = TravelDestinationChooser.recentPenalty(cand(0, true, true, null, 0, false, 1), t);
+        assertEquals(t.recentDestPenaltyFactor, cameFrom, 1e-9);
         assertTrue(older > justVisited && older <= 1.0, "the oldest slot is almost un-penalised");
+    }
+
+    // ---- home pull ---------------------------------------------
+
+    private static Cand homeCand(double dist, double homeDistOrigin, double homeDistCand) {
+        Cand c = cand(dist, false, false, null, 0, false, -1);
+        c.homeDistOrigin = homeDistOrigin;
+        c.homeDistCand = homeDistCand;
+        return c;
+    }
+
+    @Test
+    void noHomePullWithinTheFreeRadius() {
+        Terms t = defaults(1.0);
+        assertEquals(1.0, TravelDestinationChooser.homeTerm(homeCand(500, 1000, 0), t));
+    }
+
+    @Test
+    void farFromHomeFavoursHomewardCandidates() {
+        Terms t = defaults(0.6);
+        double homeward = TravelDestinationChooser.homeTerm(homeCand(800, 3000, 2200), t);
+        double outward = TravelDestinationChooser.homeTerm(homeCand(800, 3000, 3800), t);
+        assertTrue(homeward > 1.0 && outward < 1.0);
+    }
+
+    @Test
+    void raidersFeelNoHomePull() {
+        Terms t = defaults(1.0);
+        t.homePull = false;
+        assertEquals(1.0, TravelDestinationChooser.homeTerm(homeCand(800, 5000, 0), t));
+    }
+
+    @Test
+    void homePullStaysSubDominantToDistance() {
+        for (float wl : new float[]{0f, 0.5f, 1f}) {
+            Terms t = defaults(1.0);
+            t.wanderlust = wl;
+            double farHome = TravelDestinationChooser.prefilterScore(homeCand(1800, 5000, 3200), t);
+            double nearAway = TravelDestinationChooser.prefilterScore(homeCand(300, 5000, 5300), t);
+            assertTrue(nearAway > farHome, "wl=" + wl + " near=" + nearAway + " far=" + farHome);
+        }
     }
 
     // ---- road connectivity ------------------------------------
@@ -171,7 +218,7 @@ class TravelDestinationChooserTest {
         Terms t = defaults(0.6);
         Cand c = cand(700, true, false, -40, 30, true, 1);
         Breakdown b = TravelDestinationChooser.prefilterBreakdown(c, t);
-        assertEquals(b.distance * b.culture * b.relation * b.population * b.recent * b.road, b.total, 1e-12);
+        assertEquals(b.distance * b.culture * b.relation * b.population * b.recent * b.road * b.home, b.total, 1e-12);
         assertEquals(b.total, TravelDestinationChooser.prefilterScore(c, t), 1e-12);
     }
 

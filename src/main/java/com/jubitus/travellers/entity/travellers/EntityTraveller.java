@@ -914,8 +914,9 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) this.dataManager.set(BACKPACK_STYLE, id);
     }
 
+    // A group follower has no trip of its own: it follows its leader, or catches up to it.
     public boolean isRouteLocked() {
-        return false;
+        return groupLeaderUUID != null || catchupTravel;
     }
 
     public void ignoreTarget(EntityLivingBase e, int ticks) {

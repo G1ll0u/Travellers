@@ -207,6 +207,15 @@ public class TravelCommon {
             if (nearest != null) {
                 origin = nearest;  // always route FROM the village center
             }
+        } else {
+            // Still at the settlement it last went to (or any it stands in): leave from there, never re-pick it.
+            BlockPos last = recentDestinations.length > 0
+                    ? new BlockPos((int) (recentDestinations[0] >> 32), 0, (int) recentDestinations[0]) : null;
+            if (last != null && isAtStop(last, ARRIVAL_HYSTERESIS_BLOCKS)) {
+                origin = last;
+            } else if (nearest != null && isAtStop(nearest, 0)) {
+                origin = nearest;
+            }
         }
 
         // --- 2) Pick a destination village ---
@@ -350,6 +359,7 @@ public class TravelCommon {
         ctx.applyRoadRestriction = com.jubitus.travellers.world.pathing.MPBIntegration.PRESENT;
         ctx.badVillages = this::isVillageBad;
         ctx.debugId = owner.getUniqueID();
+        ctx.loaded = true;
 
         TravelDestinationChooser.ChosenDestination chosen =
                 TravelDestinationChooser.choose(world, ctx);
