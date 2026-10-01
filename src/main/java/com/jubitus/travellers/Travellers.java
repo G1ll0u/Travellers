@@ -8,7 +8,6 @@ import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.entityai.ambient.camp.campcommon.CampfireManager;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.ZoneInteractionHandler;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerOffscreenHandler;
 import com.jubitus.travellers.entity.travellers.*;
@@ -265,7 +264,6 @@ public class Travellers {
 
     @Mod.EventHandler
     public void onServerStopping(FMLServerStoppingEvent event) {
-        // 1.12.2-safe: use FMLCommonHandler, same as your CampfireTicker
         MinecraftServer server = net.minecraftforge.fml.common.FMLCommonHandler
                 .instance()
                 .getMinecraftServerInstance();
@@ -283,10 +281,6 @@ public class Travellers {
         com.jubitus.travellers.debug.destination.DestinationChoiceLog.close();
 
         if (server == null) return;
-
-        for (WorldServer ws : server.worlds) {
-            CampfireManager.get(ws).extinguishAllForWorld(ws);
-        }
 
         // Worldmap tiles are persisted off-thread (see MapPyramidPersistenceEvents); make sure
         // any in-flight writes actually land on disk before the process exits.

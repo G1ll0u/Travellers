@@ -1,6 +1,5 @@
 package com.jubitus.travellers.world.camp;
 
-import com.jubitus.travellers.entity.entityai.ambient.camp.campcommon.CampfireBlock;
 import com.jubitus.travellers.world.camp.shelter.TerrainSnapshot;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;

@@ -321,12 +321,24 @@ public final class ItineraryPlanner {
 
         String msg = "itinerary spliced bridge " + p.start.getX() + "," + p.start.getZ()
                 + "->" + p.end.getX() + "," + p.end.getZ()
-                + " q=" + TravelPlan.qualityName(res.plan.quality) + (res.fromCache ? " (cache)" : "")
+                + " q=" + TravelPlan.qualityName(res.plan.quality)
+                + (res.fromCache ? " (cache from " + res.fromX + "," + res.fromZ + ")" : "")
+                + " roadVertsInBox=" + res.roadVertices
                 + " verts=" + spliced.size() + " " + spliced.kindsSummary() + " len=" + (int) spliced.totalLength()
-                + (res.plan.reachedGoal ? "" : " PARTIAL");
+                + (res.plan.reachedGoal ? "" : " PARTIAL")
+                + " plan=" + polylineText(res.plan.polyline);
         if (traced != null) TravellerTracer.event(traced, "path", msg);
         rlog(p.owner, msg);
         return true;
+    }
+
+    private static String polylineText(java.util.List<net.minecraft.util.math.BlockPos> pts) {
+        StringBuilder sb = new StringBuilder();
+        for (net.minecraft.util.math.BlockPos p : pts) {
+            if (sb.length() > 0) sb.append(';');
+            sb.append(p.getX()).append(',').append(p.getZ());
+        }
+        return sb.toString();
     }
 
     private static void rlog(UUID owner, String msg) {

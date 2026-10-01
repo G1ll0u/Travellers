@@ -2,6 +2,7 @@ package com.jubitus.travellers.server.net.message.group;
 
 import com.jubitus.travellers.server.group.WorkerGroupService;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -14,11 +15,12 @@ import java.util.UUID;
 
 public class MsgGroupCreate implements IMessage {
 
-    public enum Action { CREATE_GROUP, COME_BACK, ASSIGN_TO_LEADER }
+    public enum Action { CREATE_GROUP, COME_BACK, ASSIGN_TO_LEADER, CREATE_GROUP_AND_GO }
 
     private Action action;
     private List<UUID> workerUUIDs = new ArrayList<>();
     @Nullable private UUID targetLeaderUUID; // used for ASSIGN_TO_LEADER
+    @Nullable private BlockPos targetPos;     // used for CREATE_GROUP_AND_GO
 
     public MsgGroupCreate() {}
 
@@ -26,6 +28,12 @@ public class MsgGroupCreate implements IMessage {
         this.action = action;
         this.workerUUIDs = new ArrayList<>(uuids);
         this.targetLeaderUUID = targetLeaderUUID;
+    }
+
+    public static MsgGroupCreate createAndGo(List<UUID> uuids, BlockPos target) {
+        MsgGroupCreate m = new MsgGroupCreate(Action.CREATE_GROUP_AND_GO, uuids, null);
+        m.targetPos = target;
+        return m;
     }
 
     @Override
@@ -39,6 +47,7 @@ public class MsgGroupCreate implements IMessage {
         }
         boolean hasLeader = buf.readBoolean();
         if (hasLeader) targetLeaderUUID = new UUID(buf.readLong(), buf.readLong());
+        if (buf.readBoolean()) targetPos = BlockPos.fromLong(buf.readLong());
     }
 
     @Override
@@ -54,6 +63,8 @@ public class MsgGroupCreate implements IMessage {
             buf.writeLong(targetLeaderUUID.getMostSignificantBits());
             buf.writeLong(targetLeaderUUID.getLeastSignificantBits());
         }
+        buf.writeBoolean(targetPos != null);
+        if (targetPos != null) buf.writeLong(targetPos.toLong());
     }
 
     public static class Handler implements IMessageHandler<MsgGroupCreate, IMessage> {
@@ -71,6 +82,12 @@ public class MsgGroupCreate implements IMessage {
                         break;
                     case CREATE_GROUP:
                         WorkerGroupService.createGroup(player, msg.workerUUIDs);
+                        break;
+                    case CREATE_GROUP_AND_GO:
+                        UUID leader = WorkerGroupService.createGroup(player, msg.workerUUIDs);
+                        if (leader != null && msg.targetPos != null) {
+                            WorkerGroupService.leaderGoTo(player, leader, msg.targetPos);
+                        }
                         break;
                 }
             });

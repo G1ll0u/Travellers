@@ -17,6 +17,8 @@ public final class FormationLeaderInfo {
     // True when this leader is busy on a mission (transport/sale/recruit/get-equipment) and so can't
     // receive orders — drives client-side greying of the leader-order buttons.
     public boolean busy;
+    // True while it walks to a spot it was sent to with a Go order.
+    public boolean goActive;
 
     // Display data for the leader list
     public String cultureId = "";
@@ -49,6 +51,7 @@ public final class FormationLeaderInfo {
         tag.setBoolean("IsVirtual", isVirtual);
         tag.setBoolean("FollowActive", followActive);
         tag.setBoolean("Busy", busy);
+        tag.setBoolean("GoActive", goActive);
         tag.setString("CultureId", cultureId);
         tag.setInteger("TextureIndex", textureIndex);
         tag.setInteger("OwnerColor", ownerColor);
@@ -67,6 +70,7 @@ public final class FormationLeaderInfo {
         info.isVirtual = tag.getBoolean("IsVirtual");
         info.followActive = tag.getBoolean("FollowActive");
         info.busy = tag.getBoolean("Busy");
+        info.goActive = tag.getBoolean("GoActive");
         info.cultureId = tag.hasKey("CultureId") ? tag.getString("CultureId") : "";
         info.textureIndex = tag.hasKey("TextureIndex") ? tag.getInteger("TextureIndex") : 0;
         info.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;

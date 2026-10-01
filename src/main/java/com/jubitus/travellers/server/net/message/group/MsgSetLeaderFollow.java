@@ -9,40 +9,40 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import java.util.UUID;
 
-/**
- * Toggle a leader's follow state (ON = follow the owner, OFF = anchor in place), keeping its own
- * group. Works whether the leader is loaded or virtual. Delegates to
- * {@link WorkerGroupService#toggleLeaderFollow}.
- */
-public class MsgToggleLeaderFollow implements IMessage {
+/** "Resume marching" (follow = true) or "Halt here" (false) for a leader and its group, loaded or virtual. */
+public class MsgSetLeaderFollow implements IMessage {
 
     private long uuidMost, uuidLeast;
+    private boolean follow;
 
-    public MsgToggleLeaderFollow() {}
+    public MsgSetLeaderFollow() {}
 
-    public MsgToggleLeaderFollow(UUID leaderUUID) {
+    public MsgSetLeaderFollow(UUID leaderUUID, boolean follow) {
         this.uuidMost = leaderUUID.getMostSignificantBits();
         this.uuidLeast = leaderUUID.getLeastSignificantBits();
+        this.follow = follow;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         uuidMost = buf.readLong();
         uuidLeast = buf.readLong();
+        follow = buf.readBoolean();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeLong(uuidMost);
         buf.writeLong(uuidLeast);
+        buf.writeBoolean(follow);
     }
 
-    public static class Handler implements IMessageHandler<MsgToggleLeaderFollow, IMessage> {
+    public static class Handler implements IMessageHandler<MsgSetLeaderFollow, IMessage> {
         @Override
-        public IMessage onMessage(MsgToggleLeaderFollow msg, MessageContext ctx) {
+        public IMessage onMessage(MsgSetLeaderFollow msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() ->
-                    WorkerGroupService.toggleLeaderFollow(player, new UUID(msg.uuidMost, msg.uuidLeast)));
+                    WorkerGroupService.setLeaderFollow(player, new UUID(msg.uuidMost, msg.uuidLeast), msg.follow));
             return null;
         }
     }

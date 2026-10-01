@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.ambient.camp.campcommon;
+package com.jubitus.travellers.world.camp;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.properties.IProperty;

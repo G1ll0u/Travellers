@@ -1,123 +1,108 @@
 package com.jubitus.travellers.entity.entityai.ambient;
 
 import com.jubitus.travellers.config.TravellersConfig;
-
+import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
+import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
-import net.minecraft.block.Block;
-import net.minecraft.block.material.Material;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
+import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldServer;
-import org.millenaire.common.forge.Mill;
-import org.millenaire.common.utilities.Point;
-import org.millenaire.common.village.Building;
-import org.millenaire.common.world.MillWorldData;
 
 import javax.annotation.Nullable;
-import java.util.*;
 
+/**
+ * A player who stays close makes a walking or idle traveller stop and face them, for as long as they
+ * stay. Movement only: the head is the gaze's ({@link TravellerGaze.Kind#INTEREST}). It only ever
+ * pauses plain travel or idling - a camp, a fishing break, a conversation, a fight keep going and the
+ * player just gets glances.
+ */
 public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
+
+    private static final double LEAVE_MARGIN = 1.5D;
+    private static final int LOST_SIGHT_TICKS = 40;
+
     private final EntityTraveller traveller;
-    private final double triggerRangeSq;
-    private final float yawLimit;
-    private final float pitchLimit;
 
+    @Nullable
+    private EntityPlayer candidate;
+    private long candidateSince;
+    @Nullable
     private EntityPlayer target;
+    private int unseenTicks;
 
-    public EntityAIStopAndLookAtPlayer(EntityTraveller traveller, double triggerRange, float yawLimit, float pitchLimit) {
+    public EntityAIStopAndLookAtPlayer(EntityTraveller traveller) {
         this.traveller = traveller;
-        this.triggerRangeSq = triggerRange * triggerRange;
-        this.yawLimit = yawLimit;
-        this.pitchLimit = pitchLimit;
-        this.setMutexBits(2); // 1=MOVE, 2=LOOK
+        this.setMutexBits(1);
     }
 
     @Override
     public boolean shouldExecute() {
-        if (traveller.isSleepingInBed()) return false;
-        if (isDisabledForHiredWorker()) return false;
-        if (traveller.world.isRemote) return false;
-        if (traveller.hasFollowLeader()) return false;
-        if (traveller.isInCombat()) return false;
-        if (traveller.isAutoEating()) return false;
-        // A village visitor handles nearby players itself (a glance, or stopping if they stay close).
-        if (traveller.isVisitingVillage()) return false;
-
-        // NEW: ignore while a player is mounted
-        if (traveller.hasPlayerPassenger()) return false;
-
-        EntityPlayer p = traveller.world.getClosestPlayerToEntity(traveller, Math.sqrt(triggerRangeSq));
-        if (p == null || !p.isEntityAlive() || p.isSpectator()) return false;
-
-        double dSq = traveller.getDistanceSq(p);
-        if (dSq > triggerRangeSq) return false;
-
-        if (!traveller.getEntitySenses().canSee(p)) return false;
-        if (this.traveller instanceof EntityTravellerWorker) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this.traveller;
-            if (w.isHiredFollower() && !w.isJobActive()) {
-                // When acting as a follower (and not on a job),
-                // let the follow AI control head/eyes, not this one.
-                return false;
-            }
+        if (traveller.world.isRemote || !canPauseNow()) {
+            candidate = null;
+            return false;
         }
-        this.target = p;
+        EntityPlayer p = traveller.world.getClosestPlayerToEntity(traveller, TravellersConfig.GAZE.stopForPlayerDistance);
+        if (p == null || p.isSpectator() || !traveller.getEntitySenses().canSee(p)) {
+            candidate = null;
+            return false;
+        }
+        long now = traveller.world.getTotalWorldTime();
+        if (p != candidate) {
+            candidate = p;
+            candidateSince = now;
+        }
+        // Someone just walking past only gets a glance; someone who stays, a stop.
+        if (now - candidateSince < TravellersConfig.GAZE.stopForPlayerDelaySeconds * 20.0D) return false;
+        target = p;
         return true;
     }
 
     @Override
     public boolean shouldContinueExecuting() {
-        if (traveller.isSleepingInBed()) return false;
-        if (isDisabledForHiredWorker()) return false;
-        if (traveller.hasFollowLeader()) return false;
-        if (traveller.isInCombat() || traveller.isAutoEating()) return false;
-        if (traveller.hasPlayerPassenger()) return false; // NEW
-
-
-        return target != null && target.isEntityAlive()
-                && traveller.getDistanceSq(target) <= triggerRangeSq
-                && traveller.getEntitySenses().canSee(target);
-
+        if (target == null || !target.isEntityAlive() || target.isSpectator() || !canPauseNow()) return false;
+        double r = TravellersConfig.GAZE.stopForPlayerDistance + LEAVE_MARGIN;
+        if (traveller.getDistanceSq(target) > r * r) return false;
+        unseenTicks = traveller.getEntitySenses().canSee(target) ? 0 : unseenTicks + 1;
+        return unseenTicks < LOST_SIGHT_TICKS;
     }
 
     @Override
     public void startExecuting() {
-        // Don't force a stop if someone is riding
-        if (!traveller.hasPlayerPassenger()) {
-            traveller.getNavigator().clearPath();
-        }
-    }
-
-    @Override
-    public void resetTask() {
-        this.target = null;
+        unseenTicks = 0;
+        traveller.getNavigator().clearPath();
+        traveller.getGaze().focus(TravellerGaze.Kind.INTEREST, target);
+        traveller.getGreeter().greet(target);
     }
 
     @Override
     public void updateTask() {
-        if (traveller.isInCombat() || traveller.hasFollowLeader()) return;
-        if (traveller.hasPlayerPassenger()) return; // NEW: do nothing while mounted
-
-        // Optional: only keep this if you want them to stop when looking
-        traveller.getNavigator().clearPath();
-
-        traveller.getLookHelper().setLookPositionWithEntity(target, yawLimit, pitchLimit);
+        if (!traveller.getNavigator().noPath()) traveller.getNavigator().clearPath();
+        traveller.getGaze().focus(TravellerGaze.Kind.INTEREST, target);
     }
 
-    private boolean isDisabledForHiredWorker() {
-        if (this.traveller instanceof EntityTravellerWorker) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this.traveller;
-            // Hired follower in companion mode, or at work at its duty zone (the duty AI owns it)
-            return w.isHiredFollower() && (!w.isJobActive() || w.isOnDuty());
+    @Override
+    public void resetTask() {
+        target = null;
+        candidate = null;
+        traveller.getGaze().clearFocus(TravellerGaze.Kind.INTEREST);
+    }
+
+    /** Only plain travel or idling is paused; anything else the traveller is busy with goes on. */
+    private boolean canPauseNow() {
+        if (traveller.isSleepingInBed() || traveller.isInCombat() || traveller.isAutoEating()) return false;
+        if (traveller.hasFollowLeader() || traveller.hasPlayerPassenger() || traveller.isVisitingVillage()) return false;
+        // A group member stops with its leader, not on its own; a catching-up follower keeps going.
+        if (traveller.getGroupLeaderUUID() != null || traveller.isCatchupTravel()) return false;
+        // Pausing resets the travel task, which would undo a crossing, a flight or a terrain dismount.
+        if (traveller.isElytraFlying() || traveller.getRidingEntity() instanceof EntityBoat) return false;
+        if (traveller.getLedFallbackSinceTick() >= 0) return false;
+        if (traveller instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) traveller;
+            if (w.isChoirFreezeActive()) return false;
+            if (w.isHiredFollower() && (!w.isJobActive() || w.isOnDuty())) return false;
         }
-        return false;
+        EntityAIBase moving = traveller.getRunningMovementTask();
+        return moving == null || moving == this || moving instanceof EntityAITravel;
     }
 }

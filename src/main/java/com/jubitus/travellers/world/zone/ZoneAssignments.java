@@ -141,19 +141,33 @@ public final class ZoneAssignments {
         r.workerMode = w.getMode().name();
     }
 
+    private static final String[] RESPAWN_DROPPED_KEYS = {
+            "MountUUID", "MountSnapshot", "PendingMountNbt", "PendingMountPos", "MountMode", "VillageHitchStop"};
+
     /** A hired worker died, loaded or offscreen: it comes back beside its bed later (see
-     * {@code PlayerZoneManager.processRespawns}), or its bed is freed at once. */
+     * {@code PlayerZoneManager.tickRespawns}), or its bed is freed at once. */
     public static void onWorkerDied(MinecraftServer server, UUID workerUUID, @Nullable UUID owner,
                                     @Nullable ZoneRef ref, NBTTagCompound strippedNbt) {
         if (ref == null) return;
         WorldServer zoneWorld = net.minecraftforge.common.DimensionManager.getWorld(ref.dim);
         if (zoneWorld == null) return;
         PlayerZoneManager mgr = PlayerZoneManager.get(zoneWorld);
-        if (owner != null && com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
+        if (owner != null && com.jubitus.travellers.config.TravellersConfig.WORKER.workerRespawnAtBed) {
+            // Its horse went loose where it died: it comes back on foot, never with a second copy of it.
+            for (String key : RESPAWN_DROPPED_KEYS) strippedNbt.removeTag(key);
             mgr.scheduleRespawn(owner, workerUUID, ref, strippedNbt);
         } else {
             mgr.unassignWorker(workerUUID);
         }
+    }
+
+    /** Mornings left before a dead worker comes back beside its bed, or -1 when no respawn is pending. */
+    public static int pendingRespawnDays(MinecraftServer server, UUID workerUUID) {
+        for (WorldServer ws : server.worlds) {
+            PlayerZoneManager.PendingRespawn pr = PlayerZoneManager.get(ws).getPendingRespawnsView().get(workerUUID);
+            if (pr != null) return pr.daysRemaining;
+        }
+        return -1;
     }
 
     /** Detaches every worker bound to {@code zone}, then runs the type-specific teardown. Call before removing the record. */

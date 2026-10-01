@@ -388,8 +388,6 @@ public class GuiWorkerBarracks extends GuiScreen
             this.fontRenderer.drawString(trim(dragWorker.name, 90), mouseX + 24, mouseY - 4,
                     TravellersGuiTheme.COL_TEXT_HOV);
         }
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(
-                new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

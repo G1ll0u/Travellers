@@ -81,7 +81,6 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
         this.hoveredRow = getRowIndexAt(mouseX, mouseY);
 
         drawEnemyList(mouseX, mouseY);
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

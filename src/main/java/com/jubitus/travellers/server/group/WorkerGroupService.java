@@ -5,6 +5,7 @@ import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.notify.MissionNotifications;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
@@ -65,9 +66,11 @@ public final class WorkerGroupService {
     // -------------------------------------------------------------------------
 
     /** Turn the given selection into a standalone group led by its best-equipped member. */
-    public static void createGroup(EntityPlayerMP player, List<UUID> memberUuids) {
+    /** Returns the new leader, or null when nobody could be grouped. */
+    @Nullable
+    public static UUID createGroup(EntityPlayerMP player, List<UUID> memberUuids) {
         MinecraftServer server = player.getServer();
-        if (server == null || memberUuids == null || memberUuids.isEmpty()) return;
+        if (server == null || memberUuids == null || memberUuids.isEmpty()) return null;
         UUID owner = player.getUniqueID();
         Set<UUID> set = new HashSet<>(memberUuids);
 
@@ -76,11 +79,11 @@ public final class WorkerGroupService {
         int skipped = stripBusy(loaded, virtual);
         if (loaded.isEmpty() && virtual.isEmpty()) {
             notifySkipped(player, skipped);
-            return;
+            return null;
         }
 
         UUID leaderId = pickBestEquipped(loaded, virtual);
-        if (leaderId == null) return;
+        if (leaderId == null) return null;
 
         for (EntityTravellerWorker w : loaded.values()) {
             if (leaderId.equals(w.getUniqueID())) becomeAnchoredLeaderLoaded(w);
@@ -93,6 +96,7 @@ public final class WorkerGroupService {
 
         epilogue(player, server, setOf(leaderId));
         notifySkipped(player, skipped);
+        return leaderId;
     }
 
     /** Assign the given selection as followers of an existing leader. */
@@ -300,7 +304,9 @@ public final class WorkerGroupService {
                 return;
             }
             loadedLeader.setFollowOrderActive(false);
+            BlockPos from = loadedLeader.getPosition();
             loadedLeader.startGoToDestination(target, loadedLeader.dimension);
+            MissionNotifications.goOrdered(player, leaderId, from, target, NotificationDefs.GOTO_GOING_TO_POS);
         } else {
             VirtualTravellerRecord r = vwm(server).getRecord(leaderId);
             if (r == null || !owner.equals(r.followOwnerUUID)) return;
@@ -311,6 +317,8 @@ public final class WorkerGroupService {
             r.goOrderActive = true;
             r.followOrderActive = false;
             r.goal = target;
+            MissionNotifications.goOrdered(player, leaderId,
+                    new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ), target, NotificationDefs.GOTO_GOING_TO_POS);
         }
         epilogue(player, server, setOf(leaderId));
     }
@@ -361,11 +369,11 @@ public final class WorkerGroupService {
     }
 
     /**
-     * Toggle whether a leader (and therefore its whole group) follows the owner or stays anchored in
-     * place. ON = follow the owner directly (clears any convoy link); OFF = anchor where it stands.
-     * Either way the leader keeps its own followers.
+     * "Resume marching" (follow = true): the leader goes back to following whoever it follows (its
+     * owner, or the leader it convoys behind - escortLeaderUUID is kept). "Halt here" (false): it
+     * anchors where it stands. Either way a pending Go order is dropped; missions are refused as busy.
      */
-    public static void toggleLeaderFollow(EntityPlayerMP player, UUID leaderId) {
+    public static void setLeaderFollow(EntityPlayerMP player, UUID leaderId, boolean follow) {
         MinecraftServer server = player.getServer();
         if (server == null || leaderId == null) return;
         UUID owner = player.getUniqueID();
@@ -375,25 +383,18 @@ public final class WorkerGroupService {
             return;
         }
 
-        // Pause/resume WITHOUT forgetting the escort target: a convoy leader that is paused (OFF) and
-        // then resumed (ON) must go back to following the SAME leader, not fall back to the owner. So
-        // this only flips followOrderActive and leaves escortLeaderUUID untouched. Movement respects the
-        // paused state because canUseFollow() (loaded), tickVirtualLeaderFollow() and the virtual escort
-        // branch are all gated on followOrderActive.
         EntityTravellerWorker loaded = findLoaded(server, owner, leaderId);
         if (loaded != null) {
-            loaded.setFollowOrderActive(!loaded.isFollowOrderActive());
+            loaded.setFollowOrderActive(follow); // also ends a Go order and its travel
             loaded.getNavigator().clearPath();
         } else {
             VirtualTravellerRecord r = vwm(server).getRecord(leaderId);
             if (r == null || !owner.equals(r.followOwnerUUID)) return;
-            r.followOrderActive = !r.followOrderActive;
-            if (r.followOrderActive) {
-                r.goal = null; // resume: let refreshGoal recompute the live follow/escort slot
-            } else {
-                // pause: hold current position so advanceVirtual doesn't keep walking toward an old goal
-                r.goal = new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ);
-            }
+            r.goOrderActive = false;
+            r.followOrderActive = follow;
+            clearVirtualCatchup(r);
+            // resume: refreshGoal recomputes the live follow/escort slot; halt: hold this spot
+            r.goal = follow ? null : new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ);
         }
         epilogue(player, server, setOf(leaderId));
     }
@@ -583,6 +584,7 @@ public final class WorkerGroupService {
                 FormationLeaderInfo info = new FormationLeaderInfo(w.getUniqueID(), w.getName(), 0,
                         w.posX, w.posZ, false, false);
                 info.followActive = w.isFollowOrderActive();
+                info.goActive = w.isGoOrderActive();
                 info.busy = WorkerOrderGuard.isBusy(w);
                 info.cultureId = w.getCultureId();
                 info.textureIndex = w.getTextureIndex();
@@ -643,6 +645,7 @@ public final class WorkerGroupService {
                 ? r.entityNbt.getString("CustomName") : "Henchman";
         FormationLeaderInfo info = new FormationLeaderInfo(r.uuid, name, 0, r.posX, r.posZ, false, true);
         info.followActive = r.followOrderActive;
+        info.goActive = r.goOrderActive;
         info.busy = WorkerOrderGuard.isBusy(r);
         info.cultureId = r.entityNbt != null && r.entityNbt.hasKey("CultureId")
                 ? r.entityNbt.getString("CultureId") : "";

@@ -4,6 +4,7 @@ import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.world.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 
+import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
@@ -169,6 +170,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         mob.getNavigator().clearPath();
         mob.setCurrentWaypoint(null);
         phase = Phase.IDLE;
+        mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
         // Cooldown before next fishing session
         cooldown = cooldownTicks;
     }
@@ -284,13 +286,9 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
     }
 
+    // The gaze turns head and body; passers-by still get a glance.
     private void facePos(BlockPos best) {
-        double dx = best.getX() + 0.5 - mob.posX;
-        double dz = best.getZ() + 0.5 - mob.posZ;
-        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-        mob.setBodyYaw(rotlerp(mob.rotationYaw, yaw, 8.0F));
-        mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, 8.0F);
-        mob.rotationYawHead = rotlerp(mob.rotationYawHead, mob.renderYawOffset, 12.0F); mob.noteHeadWriter("fish");
+        mob.getGaze().focus(TravellerGaze.Kind.POINT, best);
     }
 
     private void doCastWindup() {
@@ -373,14 +371,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
 
     private void faceNearestWater() {
         BlockPos best = findNearestWaterColumn(mob.getPosition(), 4);
-        if (best != null) {
-            double dx = best.getX() + 0.5 - mob.posX;
-            double dz = best.getZ() + 0.5 - mob.posZ;
-            float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-            mob.setBodyYaw(rotlerp(mob.rotationYaw, yaw, 8.0F));
-            mob.renderYawOffset = rotlerp(mob.renderYawOffset, mob.rotationYaw, 8.0F);
-            mob.rotationYawHead = rotlerp(mob.rotationYawHead, mob.renderYawOffset, 12.0F); mob.noteHeadWriter("fish");
-        }
+        if (best != null) facePos(best);
     }
 
     /**
@@ -416,13 +407,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         return best;
     }
 
-    // reuse your rotlerp (static) from EntityTraveller
-    private static float rotlerp(float current, float target, float maxStep) {
-        float delta = MathHelper.wrapDegrees(target - current);
-        if (delta > maxStep) delta = maxStep;
-        if (delta < -maxStep) delta = -maxStep;
-        return current + delta;
-    }
 
     private boolean isAreaLoaded(BlockPos pos, int r) {
         if (!(mob.world instanceof WorldServer)) return mob.world.isAreaLoaded(pos, r);

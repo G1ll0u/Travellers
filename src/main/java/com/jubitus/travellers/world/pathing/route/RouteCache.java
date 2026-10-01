@@ -24,15 +24,22 @@ public final class RouteCache {
         final long tick;
         final byte quality;
         final boolean reachedGoal;
+        final byte[] kinds;
         final int minX, minZ, maxX, maxZ;
+        // Diagnostics: where the search that filled this entry started, and how many road vertices it saw.
+        final int fromX, fromZ, roadVertices;
 
-        Entry(int dimension, List<BlockPos> polyline, long tick, byte quality, boolean reachedGoal,
-              int minX, int minZ, int maxX, int maxZ) {
+        Entry(int dimension, List<BlockPos> polyline, long tick, byte quality, boolean reachedGoal, byte[] kinds,
+              int minX, int minZ, int maxX, int maxZ, int fromX, int fromZ, int roadVertices) {
             this.dimension = dimension;
             this.polyline = polyline;
             this.tick = tick;
             this.quality = quality;
             this.reachedGoal = reachedGoal;
+            this.kinds = kinds;
+            this.fromX = fromX;
+            this.fromZ = fromZ;
+            this.roadVertices = roadVertices;
             this.minX = minX;
             this.minZ = minZ;
             this.maxX = maxX;
@@ -43,9 +50,10 @@ public final class RouteCache {
     private final LinkedHashMap<String, Entry> map = new LinkedHashMap<>(64, 0.75f, true);
 
     public synchronized void put(String key, int dimension, TravelPlan plan, long now,
-                                 int minX, int minZ, int maxX, int maxZ) {
+                                 int minX, int minZ, int maxX, int maxZ, int fromX, int fromZ, int roadVertices) {
         map.put(key, new Entry(dimension, new ArrayList<>(plan.polyline), now, plan.quality,
-                plan.reachedGoal, minX, minZ, maxX, maxZ));
+                plan.reachedGoal, plan.kinds == null ? null : plan.kinds.clone(), minX, minZ, maxX, maxZ,
+                fromX, fromZ, roadVertices));
         int cap = Math.max(16, com.jubitus.travellers.config.TravellersConfig.ROUTING.routeCacheMaxEntries);
         Iterator<Map.Entry<String, Entry>> it = map.entrySet().iterator();
         while (map.size() > cap && it.hasNext()) {
@@ -56,13 +64,26 @@ public final class RouteCache {
 
     /** Returns a fresh {@link TravelPlan} copy, or {@code null} if missing or older than {@code ttlTicks}. */
     public synchronized TravelPlan get(String key, long now, int ttlTicks) {
+        Entry e = live(key, now, ttlTicks);
+        if (e == null) return null;
+        return new TravelPlan(new ArrayList<>(e.polyline), e.tick, e.quality, e.reachedGoal,
+                e.kinds == null ? null : e.kinds.clone());
+    }
+
+    /** Diagnostics for a live entry: {fromX, fromZ, roadVertices}, or null. */
+    public synchronized int[] origin(String key, long now, int ttlTicks) {
+        Entry e = live(key, now, ttlTicks);
+        return e == null ? null : new int[]{e.fromX, e.fromZ, e.roadVertices};
+    }
+
+    private Entry live(String key, long now, int ttlTicks) {
         Entry e = map.get(key);
         if (e == null) return null;
         if (now - e.tick > ttlTicks) {
             map.remove(key);
             return null;
         }
-        return new TravelPlan(new ArrayList<>(e.polyline), e.tick, e.quality, e.reachedGoal);
+        return e;
     }
 
     /** Drops every entry in {@code dimension} whose bounding box intersects the given box. */

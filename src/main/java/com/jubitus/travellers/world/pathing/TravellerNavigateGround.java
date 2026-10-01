@@ -19,6 +19,14 @@ import javax.annotation.Nullable;
 
 public class TravellerNavigateGround extends PathNavigateGround {
     private TravellerNodeProcessor travellerProc;
+    // While > 0, caps the A* search range (and so the chunk cache vanilla builds around the entity).
+    private float searchRangeCap = -1.0F;
+
+    @Override
+    public float getPathSearchRange() {
+        float range = super.getPathSearchRange();
+        return searchRangeCap > 0.0F ? Math.min(range, searchRangeCap) : range;
+    }
     private PathFinder travellerFinder;
     // --- Gap jump state ---
     private int stuckTicks = 0;
@@ -667,6 +675,10 @@ public class TravellerNavigateGround extends PathNavigateGround {
         getPathFinder();
         if (travellerProc == null) return false;
         travellerProc.setIgnoreMount(ignoreMount);
+        // A probe only needs room around the straight line to its target, not the full follow range.
+        net.minecraft.entity.Entity body = PathBody.of(this.entity);
+        double tdx = target.getX() + 0.5D - body.posX, tdz = target.getZ() + 0.5D - body.posZ;
+        searchRangeCap = (float) (Math.sqrt(tdx * tdx + tdz * tdz) * 1.5D + PROBE_RANGE_MARGIN);
         try {
             net.minecraft.pathfinding.Path path = timedPathToPos(target, true);
             if (path == null) return false;
@@ -677,8 +689,11 @@ public class TravellerNavigateGround extends PathNavigateGround {
             return dx * dx + dz * dz <= REACH_TOLERANCE_SQ;
         } finally {
             travellerProc.setIgnoreMount(false);
+            searchRangeCap = -1.0F;
         }
     }
+
+    private static final double PROBE_RANGE_MARGIN = 16.0D;
 
     /**
      * Diagnostic: would this destination be reachable if the traveller were on foot rather than
@@ -700,6 +715,38 @@ public class TravellerNavigateGround extends PathNavigateGround {
      */
     public boolean isReachable(BlockPos target) {
         return reachesTarget(target, false);
+    }
+
+    /**
+     * {@link #isReachable} as if the body stood at (x, feetY, z): the moving body (and its rider) is
+     * shifted there for the search only, within this call, so nothing is ever sent to clients.
+     */
+    public boolean isReachableFrom(double x, double feetY, double z, BlockPos target) {
+        net.minecraft.entity.Entity body = PathBody.of(this.entity);
+        double dx = x - body.posX, dy = feetY - body.getEntityBoundingBox().minY, dz = z - body.posZ;
+        net.minecraft.util.math.AxisAlignedBB bodyBox = body.getEntityBoundingBox();
+        net.minecraft.util.math.AxisAlignedBB riderBox = this.entity.getEntityBoundingBox();
+        double bx = body.posX, by = body.posY, bz = body.posZ;
+        double rx = this.entity.posX, ry = this.entity.posY, rz = this.entity.posZ;
+        try {
+            shiftBy(body, dx, dy, dz);
+            if (body != this.entity) shiftBy(this.entity, dx, dy, dz);
+            return reachesTarget(target, false);
+        } finally {
+            body.posX = bx; body.posY = by; body.posZ = bz;
+            body.setEntityBoundingBox(bodyBox);
+            if (body != this.entity) {
+                this.entity.posX = rx; this.entity.posY = ry; this.entity.posZ = rz;
+                this.entity.setEntityBoundingBox(riderBox);
+            }
+        }
+    }
+
+    private static void shiftBy(net.minecraft.entity.Entity e, double dx, double dy, double dz) {
+        e.posX += dx;
+        e.posY += dy;
+        e.posZ += dz;
+        e.setEntityBoundingBox(e.getEntityBoundingBox().offset(dx, dy, dz));
     }
 
     /** How close, squared, a diagnostic route must end to its target to count as reaching it -

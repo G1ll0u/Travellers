@@ -14,7 +14,6 @@ import com.jubitus.travellers.server.net.message.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
-import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormationGui;
 import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;

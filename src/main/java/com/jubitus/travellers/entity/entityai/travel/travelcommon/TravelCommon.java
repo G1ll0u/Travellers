@@ -5,7 +5,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.VoiceSet;
-import com.jubitus.travellers.entity.entityai.ambient.camp.campcommon.CampfireBlock;
+import com.jubitus.travellers.world.camp.CampfireBlock;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
@@ -424,12 +424,10 @@ public class TravelCommon {
         return cachedVillages;
     }
 
-    /**
-     * Align torso (renderYawOffset) to travel direction while pathing.
-     */
+    // Smooths the heading toward the travel direction while pathing.
     public void syncBodyYawWhileTravelling() {
         if (owner.isInCombat() || owner.getAttackTarget() != null) return;
-        // A village visit owns the head and body itself (VisitGaze, the visit turn cap).
+        // A village visit caps its own body turns (TravellerMoveHelper).
         if (owner.isVisitingVillage()) return;
         if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
 
@@ -455,18 +453,8 @@ public class TravelCommon {
                 (water ? 6.0F : 10.0F)
         );
 
-        float bodyTurn = water ? 24.0F : 45.0F;
-        float headTurn = water ? 30.0F : 60.0F;
-        float headLimit = 75.0F;
-
-        owner.setBodyYaw(EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, bodyTurn));
-        owner.renderYawOffset = EntityTraveller.rotlerp(owner.renderYawOffset, owner.rotationYaw, bodyTurn);
-        owner.rotationYawHead = EntityTraveller.rotlerp(owner.rotationYawHead, owner.renderYawOffset, headTurn);
-
-        float diff = MathHelper.wrapDegrees(owner.rotationYawHead - owner.renderYawOffset);
-        if (diff < -headLimit) owner.rotationYawHead = owner.renderYawOffset - headLimit;
-        if (diff > headLimit) owner.rotationYawHead = owner.renderYawOffset + headLimit;
-        owner.noteHeadWriter("syncBody");
+        // Heading only: the body follows it (TravellerBodyHelper) and the head is the gaze's.
+        owner.setBodyYaw(EntityTraveller.rotlerp(owner.rotationYaw, lastDesiredTravelYaw, water ? 24.0F : 45.0F));
     }
 
     public boolean isAtTargetStop() {

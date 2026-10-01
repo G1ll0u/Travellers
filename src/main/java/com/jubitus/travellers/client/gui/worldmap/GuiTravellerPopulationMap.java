@@ -237,7 +237,6 @@ public class GuiTravellerPopulationMap extends GuiScreen
         ClientItineraryDebugOverlay.drawInfo(mapX, mapY, mapW, mapH);
         drawCountsPanel();
         drawHoverTooltip(mouseX, mouseY);
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawHoverTooltip(int mouseX, int mouseY) {

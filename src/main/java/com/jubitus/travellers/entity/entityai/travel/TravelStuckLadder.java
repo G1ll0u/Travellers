@@ -43,6 +43,10 @@ public final class TravelStuckLadder {
         return stall;
     }
 
+    public int failedHops() {
+        return failedHops;
+    }
+
     public int rung() {
         return rung;
     }
@@ -98,6 +102,23 @@ public final class TravelStuckLadder {
             return Action.REPLAN;
         }
         return Action.NONE;
+    }
+
+    /** Evidence gathered elsewhere (the follow AI): the rungs still fire one by one, in order. */
+    public void preload(int stallTicks) {
+        if (stall < stallTicks) stall = stallTicks;
+    }
+
+    /** A* proved no way out from here (detour and local escape both unreachable): hop on the next tick. */
+    public void deadEnd(Timings t) {
+        rung = 3;
+        stall = Math.max(stall, t.hop);
+        hopCooldown = 0;
+    }
+
+    /** The hop could not be checked this tick (world-wide budget spent): retry next tick, not a failure. */
+    public void hopDeferred() {
+        hopCooldown = 1;
     }
 
     /** The hop found nowhere to land: try again soon, and count toward the edge hand-off. */

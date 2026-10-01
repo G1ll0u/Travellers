@@ -2,6 +2,7 @@ package com.jubitus.travellers.entity.entityai.ambient;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
+import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
 import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
 import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
 import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
@@ -53,7 +54,7 @@ import java.util.Objects;
  * Outdoor walks accept a partial path and re-path as they go. Stuck inside a building, it walks back
  * out through the entrance; a hop to the nearest outdoor spot is the last resort.
  *
- * <p>The head belongs to {@link VisitGaze} for the whole visit; conversations are
+ * <p>The head is the traveller's {@link TravellerGaze}, given foci here; conversations are
  * {@link VillageConversation}s; {@link VisitOccupancy} keeps visitors spread over the village.
  */
 public class EntityAIVillageVisit extends EntityAIBase {
@@ -108,7 +109,6 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private final EntityTraveller mob;
-    private final VisitGaze gaze;
 
     private boolean running;
     private boolean finished;
@@ -160,7 +160,6 @@ public class EntityAIVillageVisit extends EntityAIBase {
 
     public EntityAIVillageVisit(EntityTraveller mob) {
         this.mob = mob;
-        this.gaze = new VisitGaze(mob);
         this.setMutexBits(3);
     }
 
@@ -191,10 +190,6 @@ public class EntityAIVillageVisit extends EntityAIBase {
     private boolean asFollower() {
         VillageVisitState st = mob.getVillageVisitState();
         return st != null && st.asFollower;
-    }
-
-    public String describeGaze() {
-        return gaze.describe();
     }
 
     // ---------------------------------------------------------------- lifecycle
@@ -258,7 +253,8 @@ public class EntityAIVillageVisit extends EntityAIBase {
         mob.setVillageIdling(true);
         if (!follower) mob.setReadyToDepart(false);
         clearActivity();
-        gaze.reset();
+        mob.getGaze().reset();
+        mob.getGaze().setPlaces(placesOfInterest(settlement));
 
         // Back from offscreen: first stand where it reappeared, facing the building it was visiting.
         VillageVisitState st = mob.getVillageVisitState();
@@ -278,7 +274,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         lastActiveTick = mob.world.getTotalWorldTime();
         clearActivity();
         mob.getNavigator().clearPath();
-        gaze.reset();
+        mob.getGaze().reset();
         facingPlayer = null;
         playerCloseTicks = 0;
         nearby = Collections.emptyList();
@@ -309,7 +305,6 @@ public class EntityAIVillageVisit extends EntityAIBase {
         tickPlayer();
         tickSocial();
         updateActivity();
-        if (!finished) gaze.tick(nearby, settlement);
     }
 
     private void updateActivity() {
@@ -623,13 +618,13 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (conversation != null) {
             conversation.leave(mob);
             conversation = null;
-            gaze.clearFocus(VisitGaze.Kind.TALK);
+            mob.getGaze().clearFocus(TravellerGaze.Kind.TALK);
         }
         activity = Activity.NONE;
         legs.clear();
         leg = null;
         legTarget = null;
-        gaze.clearFocus(VisitGaze.Kind.POINT);
+        mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
         lookAt = null;
         moving = false;
         exitEntrance = null;
@@ -682,10 +677,10 @@ public class EntityAIVillageVisit extends EntityAIBase {
                 if (--preTurnLeft > 0) return;
             } else if (!justWalked && needsPreTurn(next)) {
                 preTurnLeft = PRE_TURN_TICKS;
-                gaze.focus(VisitGaze.Kind.POINT, next.pos);
+                mob.getGaze().focus(TravellerGaze.Kind.POINT, next.pos);
                 return;
             }
-            gaze.clearFocus(VisitGaze.Kind.POINT);
+            mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
             leg = legs.poll();
             if (!beginLeg(leg)) return;
         }
@@ -695,7 +690,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
                 moving = false;
                 mob.getNavigator().clearPath();
                 lingerLeft = leg.lingerTicks;
-                if (lookAt != null) gaze.focus(VisitGaze.Kind.POINT, lookAt);
+                if (lookAt != null) mob.getGaze().focus(TravellerGaze.Kind.POINT, lookAt);
             } else {
                 if (tickAvoidance()) return;
                 trackProgress();
@@ -706,7 +701,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (--lingerLeft <= 0) {
             justWalked = leg.lingerTicks <= 0;
             leg = null;
-            if (lookAt != null) gaze.clearFocus(VisitGaze.Kind.POINT);
+            if (lookAt != null) mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
             lookAt = null;
         }
     }
@@ -751,7 +746,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
                 lingerLeft = l.lingerTicks;
                 legTarget = mob.getPosition();
                 lookAt = l.pos;
-                gaze.focus(VisitGaze.Kind.POINT, l.pos);
+                mob.getGaze().focus(TravellerGaze.Kind.POINT, l.pos);
                 return true;
             }
             if (!gainsGround(path, target)) {
@@ -986,24 +981,24 @@ public class EntityAIVillageVisit extends EntityAIBase {
             if (facingPlayer != null) stopFacingPlayer();
             return;
         }
-        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
         if (facingPlayer != null) {
-            double r = cfg.playerFaceDistance + 1.5D;
+            double r = TravellersConfig.GAZE.stopForPlayerDistance + 1.5D;
             if (!facingPlayer.isEntityAlive() || facingPlayer.isSpectator() || mob.getDistanceSq(facingPlayer) > r * r) {
                 stopFacingPlayer();
             }
             return;
         }
         if (mob.ticksExisted % PLAYER_CHECK_TICKS != 0) return;
-        EntityPlayer p = mob.world.getClosestPlayerToEntity(mob, cfg.playerFaceDistance);
+        EntityPlayer p = mob.world.getClosestPlayerToEntity(mob, TravellersConfig.GAZE.stopForPlayerDistance);
         if (p == null || p.isSpectator() || !mob.getEntitySenses().canSee(p)) {
             playerCloseTicks = 0;
             return;
         }
         playerCloseTicks += PLAYER_CHECK_TICKS;
-        if (playerCloseTicks < cfg.playerFaceDelaySeconds * 20.0D) return;
+        if (playerCloseTicks < TravellersConfig.GAZE.stopForPlayerDelaySeconds * 20.0D) return;
         facingPlayer = p;
-        gaze.focus(VisitGaze.Kind.PLAYER, p);
+        mob.getGaze().focus(TravellerGaze.Kind.INTEREST, p);
+        mob.getGreeter().greet(p);
         mob.getNavigator().clearPath();
         trace("player", "facing " + p.getName());
     }
@@ -1011,7 +1006,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     private void stopFacingPlayer() {
         facingPlayer = null;
         playerCloseTicks = 0;
-        gaze.clearFocus(VisitGaze.Kind.PLAYER);
+        mob.getGaze().clearFocus(TravellerGaze.Kind.INTEREST);
         repath();
     }
 
@@ -1036,20 +1031,15 @@ public class EntityAIVillageVisit extends EntityAIBase {
         }
         if (activity == Activity.TALK || activity.departing() || nearby.isEmpty()) return;
 
-        if (isAvailableForTalk() && mob.getRNG().nextDouble() < cfg.talkChance && tryStartTalk()) return;
-
-        if (!gaze.isGlancing() && gaze.getFocusKind() == null && mob.getRNG().nextDouble() < cfg.glanceChance) {
-            List<EntityLivingBase> people = new ArrayList<>();
-            double r2 = cfg.socialRadius * cfg.socialRadius;
-            for (EntityLivingBase e : nearby) {
-                if (mob.getDistanceSq(e) <= r2 && isPerson(e)) people.add(e);
-            }
-            if (!people.isEmpty()) gaze.glance(people.get(mob.getRNG().nextInt(people.size())), 20 + mob.getRNG().nextInt(30));
-        }
+        if (isAvailableForTalk() && mob.getRNG().nextDouble() < cfg.talkChance) tryStartTalk();
     }
 
-    private static boolean isPerson(EntityLivingBase e) {
-        return e instanceof MillVillager || e instanceof EntityPlayer || e instanceof EntityTraveller;
+    /** The settlement's buildings, worth a look while standing around. */
+    private static List<BlockPos> placesOfInterest(@Nullable VillageVisitIndex.Settlement s) {
+        if (s == null || s.buildings.isEmpty()) return Collections.emptyList();
+        List<BlockPos> out = new ArrayList<>(s.buildings.size());
+        for (VillageVisitIndex.Target t : s.buildings) out.add(t.entrance != null ? t.entrance : t.point);
+        return out;
     }
 
     /** Free to start or join a conversation: strolling or pausing, with time left, not a raider. */
@@ -1127,14 +1117,14 @@ public class EntityAIVillageVisit extends EntityAIBase {
         }
 
         EntityLivingBase speaker = c.speaker(now);
-        gaze.focus(VisitGaze.Kind.TALK, speaker == mob ? c.listenerFor(mob) : speaker);
+        mob.getGaze().focus(TravellerGaze.Kind.TALK, speaker == mob ? c.listenerFor(mob) : speaker);
         if (TravellersConfig.VILLAGE_VISIT.talkNods && speaker != mob) {
             int changes = c.getSpeakerChanges();
             if (changes != seenSpeakerChanges) {
                 seenSpeakerChanges = changes;
-                if (mob.getRNG().nextDouble() < 0.6D) gaze.nod();
+                if (mob.getRNG().nextDouble() < 0.6D) mob.getGaze().nod();
             } else if (mob.getRNG().nextInt(90) == 0) {
-                gaze.nod();
+                mob.getGaze().nod();
             }
         }
     }

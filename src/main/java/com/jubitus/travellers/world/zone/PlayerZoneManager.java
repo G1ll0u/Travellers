@@ -4,6 +4,8 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
+import com.jubitus.travellers.notify.NoticePlace;
+import com.jubitus.travellers.notify.WorkerLifecycleNotifications;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
@@ -46,6 +48,8 @@ public class PlayerZoneManager extends WorldSavedData {
     private final Map<UUID, PendingRespawn> pendingRespawns = new HashMap<>();
     // horses of deleted Stables waiting for their ground to tick (see StableRelease)
     private final List<NBTTagCompound> pendingHorseReleases = new ArrayList<>();
+    // in-game day of the last respawn countdown step (persisted, so a restart never counts a morning twice)
+    private long lastRespawnDay = -1L;
 
     public PlayerZoneManager() {
         super(DATA_NAME);
@@ -183,14 +187,20 @@ public class PlayerZoneManager extends WorldSavedData {
         pr.center = zone.center;
         pr.dimension = zone.dim;
         pr.workerNbt = workerNbt.copy();
-        pr.daysRemaining = Math.max(1, TravellersConfig.WORKER.workerBarrackRespawnDays);
+        pr.daysRemaining = Math.max(1, TravellersConfig.WORKER.workerRespawnDays);
         pendingRespawns.put(workerUUID, pr);
         markDirty();
     }
 
-    /** Process pending bed respawns for this world's dimension. Called once per morning. */
-    public void processRespawns(WorldServer world) {
-        if (!TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) return;
+    /** Counts down every pending bed respawn once per in-game morning and brings back the due ones. */
+    public void tickRespawns(WorldServer world) {
+        if (!TravellersConfig.WORKER.workerRespawnAtBed || pendingRespawns.isEmpty()) return;
+        long time = world.getWorldTime();
+        long day = time / 24000L;
+        if (day == lastRespawnDay || time % 24000L < TravellersConfig.WORKER.workerRespawnMorningTime) return;
+        lastRespawnDay = day;
+        markDirty();
+
         int dim = world.provider.getDimension();
         List<UUID> toProcess = new ArrayList<>();
         for (PendingRespawn pr : pendingRespawns.values()) {
@@ -199,53 +209,63 @@ public class PlayerZoneManager extends WorldSavedData {
 
         for (UUID wid : toProcess) {
             PendingRespawn pr = pendingRespawns.get(wid);
-            if (pr == null) continue;
-
-            pr.daysRemaining--;
-            markDirty();
-            if (pr.daysRemaining > 0) continue;
+            if (pr == null || --pr.daysRemaining > 0) continue;
+            pendingRespawns.remove(wid);
 
             PlayerZoneRecord rec = pr.zoneId != null ? getById(pr.zoneId) : getByOwnerAndCenter(pr.ownerUUID, pr.center);
             BlockPos bed = (rec != null && rec.data instanceof ZoneBedData)
                     ? ((ZoneBedData) rec.data).bedByWorker().get(wid) : null;
-            if (rec == null || bed == null) {
-                // Zone deleted or worker lost its bed: no respawn. (Works for a Stable palfrenier's
-                // bed too - a Stable bed is also that worker's home, see MsgAssignWorkerDuty.)
-                pendingRespawns.remove(wid);
-                markDirty();
-                continue;
+            if (bed != null && world.isBlockLoaded(bed) && !isBedAt(world, bed)) {
+                ((ZoneBedData) rec.data).bedByWorker().remove(wid);
+                bed = null;
             }
 
-            if (!world.isBlockLoaded(bed)) continue; // wait until the bed chunk is loaded
-
-            // Verify the bed still exists
-            IBlockState st = world.getBlockState(bed);
-            boolean stillBed;
-            try { stillBed = BlockRoleScanners.BED.matches(world, bed, st); }
-            catch (Throwable t) { stillBed = false; }
-            if (!stillBed) {
-                if (rec.data instanceof ZoneBedData) ((ZoneBedData) rec.data).bedByWorker().remove(wid);
-                pendingRespawns.remove(wid);
-                markDirty();
+            EntityTravellerWorker worker = buildWorker(world, pr);
+            if (worker == null) continue;
+            if (bed == null) {
+                // Zone deleted or bed gone while it was dead: it does not come back.
+                WorkerLifecycleNotifications.respawnCancelled(world.getMinecraftServer(), pr.ownerUUID, worker.getName());
                 continue;
             }
-
-            spawnWorker(world, pr, findSpawnBesideBed(world, bed));
-            pendingRespawns.remove(wid);
-            markDirty();
+            if (bringBack(world, worker, bed)) {
+                WorkerLifecycleNotifications.respawned(world.getMinecraftServer(), pr.ownerUUID, worker.getName(),
+                        new NoticePlace(worker.getPosition(), dim, wid));
+            }
         }
     }
 
-    private static void spawnWorker(WorldServer world, PendingRespawn pr, BlockPos spawnPos) {
+    @Nullable
+    private static EntityTravellerWorker buildWorker(WorldServer world, PendingRespawn pr) {
         try {
             EntityTravellerWorker worker = new EntityTravellerWorker(world);
             worker.readFromNBT(pr.workerNbt);
             worker.setHealth(worker.getMaxHealth());
-            worker.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-            worker.setFollowOrderActive(false);
-            world.spawnEntity(worker);
+            return worker;
         } catch (Exception e) {
-            System.err.println("[Travellers] PlayerZoneManager: failed to respawn worker " + pr.workerUUID + ": " + e.getMessage());
+            System.err.println("[Travellers] PlayerZoneManager: failed to rebuild worker " + pr.workerUUID + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Beside the bed when its ground is loaded, else (or if the spawn is refused) as a virtual record at the bed. */
+    private static boolean bringBack(WorldServer world, EntityTravellerWorker worker, BlockPos bed) {
+        if (world.isBlockLoaded(bed)) {
+            BlockPos spot = findSpawnBesideBed(world, bed);
+            worker.setPosition(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+            worker.resetForBedRespawn(spot);
+            if (world.spawnEntity(worker)) return true;
+            if (worker.isDead) return false; // refused because this identity already exists
+        }
+        worker.setPosition(bed.getX() + 0.5, bed.getY(), bed.getZ() + 0.5);
+        worker.resetForBedRespawn(bed);
+        return VirtualTravellerManager.get(world).virtualizeWorker(world, worker, world.getTotalWorldTime());
+    }
+
+    private static boolean isBedAt(WorldServer world, BlockPos pos) {
+        try {
+            return BlockRoleScanners.BED.matches(world, pos, world.getBlockState(pos));
+        } catch (Throwable t) {
+            return false;
         }
     }
 
@@ -279,6 +299,7 @@ public class PlayerZoneManager extends WorldSavedData {
         records.clear();
         pendingRespawns.clear();
         pendingHorseReleases.clear();
+        lastRespawnDay = nbt.hasKey("LastRespawnDay") ? nbt.getLong("LastRespawnDay") : -1L;
         NBTTagList horses = nbt.getTagList("PendingHorseReleases", 10);
         for (int i = 0; i < horses.tagCount(); i++) pendingHorseReleases.add(horses.getCompoundTagAt(i));
         NBTTagList list = nbt.getTagList("Records", 10);
@@ -325,6 +346,7 @@ public class PlayerZoneManager extends WorldSavedData {
             respawns.appendTag(rt);
         }
         nbt.setTag("PendingRespawns", respawns);
+        nbt.setLong("LastRespawnDay", lastRespawnDay);
 
         NBTTagList horses = new NBTTagList();
         for (NBTTagCompound h : pendingHorseReleases) horses.appendTag(h);

@@ -25,7 +25,7 @@ public final class NotificationLoginHandler {
         List<QueuedNotice> queued = NotificationQueueData.get(player.world).take(player.getUniqueID());
         for (QueuedNotice n : queued) {
             TravellerFollowNet.sendToPlayer(player,
-                    new MsgShowNotification(n.type, n.i18nKey, n.args, n.worldTime, n.location, n.dimension));
+                    new MsgShowNotification(n.type, n.i18nKey, n.args, n.worldTime, n.place, n.detail));
         }
     }
 }

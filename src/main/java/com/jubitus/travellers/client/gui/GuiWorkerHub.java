@@ -696,7 +696,6 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
         if (drag.active) drawDragGhost(mouseX, mouseY);
 
         tooltips.render(mouseX, mouseY, this.width, this.height);
-        NotificationOverlayRenderer.draw(new ScaledResolution(mc));
     }
 
     /** Name and info lines, trimmed to whatever horizontal room the columns leave them. */

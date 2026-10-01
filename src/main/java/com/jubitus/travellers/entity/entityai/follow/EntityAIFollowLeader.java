@@ -104,6 +104,8 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
     private static final int SCHEDULER_DENIAL_BLOCK_TELEPORT_TICKS = 60;
     private static final int RECENT_PATH_SUCCESS_BLOCK_TELEPORT_TICKS = 80;
+    // A route ending farther than this from the goal is vanilla's partial best effort, not a success.
+    private static final double PARTIAL_PATH_TOLERANCE = 3.0D;
 
     private final EntityTraveller follower;
     private double baseSpeed;
@@ -435,6 +437,14 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
         FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
         FollowMode selected = modeSelector.select(target, pathFailTicks, stagnationTicks);
+        // Stuck outside a cave with no working way to move (failed routes or blocked steering, not a
+        // crowd jostle): the travel AI's ladder and its hop to a resume point take over.
+        if (selected == FollowMode.SURFACE
+                && stagnationTicks >= TravellersConfig.WORKER_FORMATION.followStuckCatchupSeconds * 20
+                && (pathFailTicks >= 3
+                || steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks)) {
+            selected = FollowMode.CATCHUP;
+        }
 
         if (selected != previousEvaluatedMode) {
 
@@ -464,6 +474,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
             }
             follower.notifyFollowerSlotGoal(slot.idealX, slot.idealY, slot.idealZ);
 
+            follower.getStuckRecord().handOverToCatchup();
             follower.startCatchupTravelTo(target);
             return;
         }
@@ -816,7 +827,13 @@ public class EntityAIFollowLeader extends EntityAIBase {
                 moved = follower.getNavigator().tryMoveToXYZ(goal.x, goal.y, goal.z, moveSpeed);
             }
 
-            if (moved) {
+            if (moved && !pathEndsNear(follower.getNavigator().getPath(), goal)) {
+                // Vanilla's best-effort partial route (e.g. to the foot of a pit wall): walk it, but it
+                // is still a failure for the rescue counters.
+                failedAllowedPathTicks += 4;
+                pathFailTicks++;
+                markActivePathGoal(goal);
+            } else if (moved) {
                 recentPathSuccessTicks = RECENT_PATH_SUCCESS_BLOCK_TELEPORT_TICKS;
                 failedAllowedPathTicks = 0;
                 pathFailTicks = 0;
@@ -1253,22 +1270,16 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
         boolean tryingToMove = !idleAtSlot && (hasPath || goalDistSq > 4.0D * 4.0D);
 
-        // Stagnation is judged by PROGRESS toward the goal, not raw per-tick movement. A follower
-        // jammed against several others in a crowded pit gets physically jostled by ordinary
-        // Minecraft entity collision every tick - that alone used to look like "moving" and reset
-        // this counter forever, so a pile of stuck workers never tripped the pit-escape rescue
-        // below even though none of them were actually getting anywhere.
+        // Local steering signal only: closing on the current goal this tick.
         boolean progressed = goalDistSq < bestGoalDistSq - PROGRESS_EPSILON_SQ;
         if (progressed) {
             bestGoalDistSq = goalDistSq;
         }
         progressedTowardGoalLastTick = progressed;
 
-        if (tryingToMove && !progressed) {
-            stagnationTicks++;
-        } else if (stagnationTicks > 0) {
-            stagnationTicks = Math.max(0, stagnationTicks - 2);
-        }
+        // Stagnation is the entity's shared stuck evidence (new cells, see StuckRecord): jostling or
+        // pacing never fakes it, and it survives target changes and follow/travel hand-offs.
+        stagnationTicks = follower.getStuckRecord().tickFollow(follower.posX, follower.posY, follower.posZ, tryingToMove);
 
         lastProgressX = follower.posX;
         lastProgressY = follower.posY;
@@ -1319,126 +1330,58 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (currentGoal == null) return false;
         if (recoveryCooldown > 0) return false;
 
-        // Pit rescue: follower has no path at all and has made no progress toward its goal.
-        // Bypasses the scheduler/recentPath guards that would block a stuck follower indefinitely.
-        if (schedulerDeniedTicks <= 0 || recentPathSuccessTicks <= 0) {
-            boolean pitStuck =
-                    follower.getNavigator().noPath()
-                            && stagnationTicks >= cfg.rescue.pitStagnationTicks
-                            && pathFailTicks >= cfg.rescue.pitPathFailTicks
-                            && failedAllowedPathTicks >= cfg.rescue.pitFailedAllowedPathTicks;
-
-            if (pitStuck) {
-                FollowRecoveryHelper.TeleportCandidate candidate =
-                        FollowRecoveryHelper.findPitEscapeTeleport(
-                                follower,
-                                target,
-                                currentGoal.x,
-                                currentGoal.y,
-                                currentGoal.z,
-                                cfg.rescue.pitStepDistance
-                        );
-
-                if (candidate != null) {
-                    FollowRecoveryHelper.teleportWorker(follower, candidate);
-                    com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(follower, com.jubitus.travellers.debug.profile.MovementAnomaly.FOLLOW_PIT_RESCUE);
-                    onTeleportRecovery(cfg);
-                    return true;
-                }
-            }
-        }
+        // Outside caves a stuck follower is handed to catchup travel (see updateTask): one ladder, one hop.
+        if (mode != FollowMode.CAVE) return false;
 
         if (schedulerDeniedTicks > 0) return false;
         if (recentPathSuccessTicks > 0) return false;
 
         boolean visible = canSeeTarget(target);
 
-        if (mode == FollowMode.CAVE) {
-            boolean outsideVsUnderground = FollowRecoveryHelper.isWorkerOutsideWhileLeaderUnderground(follower, target);
+        boolean outsideVsUnderground = FollowRecoveryHelper.isWorkerOutsideWhileLeaderUnderground(follower, target);
 
-            // Surface workers with underground leader: shorter grace, relaxed thresholds.
-            // They can never get activePathTicks (underground goal unreachable from surface),
-            // so the normal condition would never trigger without this bypass.
-            int graceTicks = outsideVsUnderground ? 15 : cfg.rescue.caveModeGraceTicks;
-            if (modeTicks < graceTicks) {
-                return false;
-            }
-
-            if (!isHardCaveRescueCase(target, currentGoal, cfg)) {
-                return false;
-            }
-
-            int minStagnation = cfg.rescue.caveMinStagnationTicks;
-            int minFailed = cfg.rescue.caveMinFailedPathTicks;
-
-            if (outsideVsUnderground) {
-                // Faster thresholds: stagnation builds quickly since the path always fails,
-                // and activePathTicks can never reach 20 from the surface.
-                minStagnation = 50;
-                minFailed = 16;
-            } else if (visible) {
-                minStagnation += cfg.rescue.visibleExtraStagnationTicks;
-                minFailed += cfg.rescue.visibleExtraFailedPathTicks;
-            }
-
-            boolean caveCase =
-                    stagnationTicks >= minStagnation
-                            && failedAllowedPathTicks >= minFailed
-                            && (activePathTicks >= cfg.rescue.minActivePathTicks || outsideVsUnderground);
-
-            if (caveCase) {
-                boolean rescued = FollowRecoveryHelper.tryCaveFollowRescue(
-                        follower,
-                        target,
-                        currentGoal.x,
-                        currentGoal.y,
-                        currentGoal.z,
-                        cfg
-                );
-
-                if (rescued) {
-                    com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(follower, com.jubitus.travellers.debug.profile.MovementAnomaly.FOLLOW_CAVE_RESCUE);
-                    onTeleportRecovery(cfg);
-                    return true;
-                }
-            }
-
+        // Surface workers with underground leader: shorter grace, relaxed thresholds.
+        // They can never get activePathTicks (underground goal unreachable from surface),
+        // so the normal condition would never trigger without this bypass.
+        int graceTicks = outsideVsUnderground ? 15 : cfg.rescue.caveModeGraceTicks;
+        if (modeTicks < graceTicks) {
             return false;
         }
 
-        boolean genericStuck =
-                stagnationTicks >= cfg.rescue.surfaceMinStagnationTicks
-                        && failedAllowedPathTicks >= cfg.rescue.surfaceMinFailedPathTicks
-                        && activePathTicks >= cfg.rescue.minActivePathTicks
-                        && pathFailTicks >= 12;
+        if (!isHardCaveRescueCase(target, currentGoal, cfg)) {
+            return false;
+        }
 
-        if (genericStuck) {
-            FollowRecoveryHelper.TeleportCandidate candidate =
-                    FollowRecoveryHelper.findShortStepTeleport(
-                            follower,
-                            target,
-                            cfg.rescue.surfaceMaxStep,
-                            cfg.rescue.surfaceMinLeaderDistance,
-                            cfg.rescue.surfaceMaxLeaderDistance,
-                            false
-                    );
+        int minStagnation = cfg.rescue.caveMinStagnationTicks;
+        int minFailed = cfg.rescue.caveMinFailedPathTicks;
 
-            if (candidate != null) {
-                FollowRecoveryHelper.teleportWorker(follower, candidate);
-                com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(follower, com.jubitus.travellers.debug.profile.MovementAnomaly.FOLLOW_SURFACE_RESCUE);
-                onTeleportRecovery(cfg);
-                return true;
-            }
+        if (outsideVsUnderground) {
+            // Faster thresholds: stagnation builds quickly since the path always fails,
+            // and activePathTicks can never reach 20 from the surface.
+            minStagnation = 50;
+            minFailed = 16;
+        } else if (visible) {
+            minStagnation += cfg.rescue.visibleExtraStagnationTicks;
+            minFailed += cfg.rescue.visibleExtraFailedPathTicks;
+        }
 
-            // Short-step failed (e.g., mountain between follower and leader with no reachable
-            // spot in that narrow corridor). Try a wide search centered on the leader so we
-            // can land on the far side of any obstacle blocking the path.
-            candidate = FollowRecoveryHelper.findWideTeleportNearLeader(
-                    follower, target, 12.0D, cfg.rescue.surfaceMinLeaderDistance);
+        boolean caveCase =
+                stagnationTicks >= minStagnation
+                        && failedAllowedPathTicks >= minFailed
+                        && (activePathTicks >= cfg.rescue.minActivePathTicks || outsideVsUnderground);
 
-            if (candidate != null) {
-                FollowRecoveryHelper.teleportWorker(follower, candidate);
-                com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(follower, com.jubitus.travellers.debug.profile.MovementAnomaly.FOLLOW_SURFACE_RESCUE);
+        if (caveCase) {
+            boolean rescued = FollowRecoveryHelper.tryCaveFollowRescue(
+                    follower,
+                    target,
+                    currentGoal.x,
+                    currentGoal.y,
+                    currentGoal.z,
+                    cfg
+            );
+
+            if (rescued) {
+                com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(follower, com.jubitus.travellers.debug.profile.MovementAnomaly.FOLLOW_CAVE_RESCUE);
                 onTeleportRecovery(cfg);
                 return true;
             }
@@ -1549,6 +1492,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
     }
 
     private void onTeleportRecovery(FollowRuntimeConfig cfg) {
+        follower.getStuckRecord().reset();
         pathFailTicks = 0;
         failedAllowedPathTicks = 0;
         stagnationTicks = 0;
@@ -2279,6 +2223,16 @@ public class EntityAIFollowLeader extends EntityAIBase {
         );
 
         return workerToGoalSq <= wf.pathReuseWorkerToGoalMaxBlocks * wf.pathReuseWorkerToGoalMaxBlocks;
+    }
+
+    private static boolean pathEndsNear(@Nullable net.minecraft.pathfinding.Path path, GoalCandidate goal) {
+        if (path == null) return false;
+        net.minecraft.pathfinding.PathPoint end = path.getFinalPathPoint();
+        if (end == null) return false;
+        double dx = end.x + 0.5D - goal.x;
+        double dz = end.z + 0.5D - goal.z;
+        return dx * dx + dz * dz <= PARTIAL_PATH_TOLERANCE * PARTIAL_PATH_TOLERANCE
+                && Math.abs(end.y - goal.y) <= PARTIAL_PATH_TOLERANCE;
     }
 
     private void markActivePathGoal(GoalCandidate goal) {

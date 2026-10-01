@@ -67,6 +67,7 @@ public class WorkerMapStream {
         final String statusKey;
         final UUID followTarget; // escort leader UUID, or null
         final boolean followsOwner;
+        final String role;
 
         WorkerInfo(EntityTravellerWorker w, int dim) {
             this.entityId = w.getEntityId();
@@ -86,6 +87,7 @@ public class WorkerMapStream {
             this.statusKey = statusKeyFor(w.getMode().name(), w.isGoingHome(), w.isGoOrderActive());
             this.followTarget = w.getEscortLeaderUUID();
             this.followsOwner = this.followTarget == null && w.isFollowOrderActive();
+            this.role = w.getDutyKind() != null ? w.getDutyKind() : "";
         }
 
         WorkerInfo(VirtualTravellerRecord vr, boolean isLeader) {
@@ -105,6 +107,7 @@ public class WorkerMapStream {
             this.statusKey = statusKeyFor(vr.workerMode, false, vr.goOrderActive);
             this.followTarget = vr.escortLeaderUUID;
             this.followsOwner = this.followTarget == null && vr.followOrderActive;
+            this.role = vr.dutyKind != null ? vr.dutyKind : "";
         }
     }
 
@@ -316,6 +319,7 @@ public class WorkerMapStream {
                 en.inBattle = w.inBattle;
                 en.statusKey = w.statusKey;
                 en.followsOwner = w.followsOwner;
+                en.role = w.role;
                 en.followName = w.followTarget != null ? nameByUuid.getOrDefault(w.followTarget, "") : "";
                 out.add(en);
             }

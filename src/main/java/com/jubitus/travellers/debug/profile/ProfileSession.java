@@ -246,13 +246,7 @@ final class ProfileSession {
         boolean teleported = disp > TELEPORT_BLOCKS_PER_SECOND * secs;
         if (teleported) anomaly(e, MovementAnomaly.TELEPORT_SEEN, now);
 
-        EntityAIBase moveTask = null;
-        for (EntityAITasks.EntityAITaskEntry entry : e.tasks.taskEntries) {
-            if (entry.using && (entry.action.getMutexBits() & 1) != 0) {
-                moveTask = entry.action;
-                break;
-            }
-        }
+        EntityAIBase moveTask = e.getRunningMovementTask();
         st.ai = moveTask == null ? "none" : shortName(moveTask);
 
         boolean mounted = e.isMountedOnBondedMount();
@@ -466,8 +460,7 @@ final class ProfileSession {
             GroupStats g = groups.get(st.groupKey);
             if (g != null) {
                 g.anomalies++;
-                if (a == MovementAnomaly.FOLLOW_PIT_RESCUE || a == MovementAnomaly.FOLLOW_CAVE_RESCUE
-                        || a == MovementAnomaly.FOLLOW_SURFACE_RESCUE) {
+                if (a == MovementAnomaly.FOLLOW_CAVE_RESCUE || a == MovementAnomaly.TRAVEL_RESCUE_TP) {
                     g.rescues++;
                 }
             }

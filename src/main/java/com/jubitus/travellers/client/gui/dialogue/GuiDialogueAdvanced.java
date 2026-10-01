@@ -261,8 +261,6 @@ public class GuiDialogueAdvanced extends GuiScreen implements ITravellersGui {
         drawLabeledField(numPredictField, "travellers.dialogue.setup.advanced.num_predict");
 
         super.drawScreen(mouseX, mouseY, partialTicks);
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(
-                new net.minecraft.client.gui.ScaledResolution(this.mc));
     }
 
     private void drawLabeledField(GuiTextField field, String labelKey) {

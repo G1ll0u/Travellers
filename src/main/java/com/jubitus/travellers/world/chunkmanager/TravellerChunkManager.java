@@ -112,15 +112,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // Paced physical resweep job started by "/travellersdebug map resweep", if one is running
         com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.tick(ws, now);
 
-        // Morning tick: process barracks respawns and reconcile deleted barracks for online players
-        if (TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
-            long currentDay = ws.getWorldTime() / 24000L;
-            long dayTime = ws.getWorldTime() % 24000L;
-            if (dayTime >= TravellersConfig.CONTROLLED_VILLAGE.workerRespawnMorningTime && currentDay > state.lastRespawnProcessDay) {
-                state.lastRespawnProcessDay = currentDay;
-                com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws).processRespawns(ws);
-            }
-        }
+        // Dead hired workers coming back beside their bed (once per in-game morning, persisted)
+        com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws).tickRespawns(ws);
     }
 
     private WorldState getOrCreateState(WorldServer ws) {
@@ -154,6 +147,5 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
     }
 
     public static class WorldState {
-        public long lastRespawnProcessDay = -1L;
     }
 }

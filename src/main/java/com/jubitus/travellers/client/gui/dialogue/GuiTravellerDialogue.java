@@ -677,7 +677,6 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
         }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new ScaledResolution(this.mc));
     }
 
     private void drawTranscript() {

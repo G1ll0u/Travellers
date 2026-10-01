@@ -26,10 +26,13 @@ public class MsgLeaderGetEquip implements IMessage {
     private long uuidMost, uuidLeast;
     private long destPosLong;
     private EquipTargetKind kind;
+    // true = the group stays at the destination once equipped, false = it comes back to follow its owner
+    private boolean stay;
 
     public MsgLeaderGetEquip() {}
 
-    public MsgLeaderGetEquip(UUID leaderUUID, BlockPos destPos, EquipTargetKind kind) {
+    public MsgLeaderGetEquip(UUID leaderUUID, BlockPos destPos, EquipTargetKind kind, boolean stay) {
+        this.stay = stay;
         this.uuidMost = leaderUUID.getMostSignificantBits();
         this.uuidLeast = leaderUUID.getLeastSignificantBits();
         this.destPosLong = destPos.toLong();
@@ -42,6 +45,7 @@ public class MsgLeaderGetEquip implements IMessage {
         uuidLeast = buf.readLong();
         destPosLong = buf.readLong();
         kind = EquipTargetKind.values()[buf.readByte() & 0xFF];
+        stay = buf.readBoolean();
     }
 
     @Override
@@ -50,6 +54,7 @@ public class MsgLeaderGetEquip implements IMessage {
         buf.writeLong(uuidLeast);
         buf.writeLong(destPosLong);
         buf.writeByte(kind.ordinal());
+        buf.writeBoolean(stay);
     }
 
     private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos, EquipTargetKind kind) {
@@ -97,7 +102,7 @@ public class MsgLeaderGetEquip implements IMessage {
                             com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, leader);
                             return;
                         }
-                        leader.startGetEquipMission(destPos, true, msg.kind);
+                        leader.startGetEquipMission(destPos, msg.stay, msg.kind);
                         return;
                     }
                 }
@@ -116,7 +121,7 @@ public class MsgLeaderGetEquip implements IMessage {
                 temp.readFromNBT(r.entityNbt);
                 temp.setUniqueId(r.uuid);
                 temp.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-                temp.startGetEquipMission(destPos, true, msg.kind);
+                temp.startGetEquipMission(destPos, msg.stay, msg.kind);
 
                 NBTTagCompound updatedNbt = new NBTTagCompound();
                 temp.writeToNBT(updatedNbt);

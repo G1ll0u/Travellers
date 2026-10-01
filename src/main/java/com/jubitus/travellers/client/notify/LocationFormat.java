@@ -33,10 +33,13 @@ public final class LocationFormat {
         double dz = loc.getZ() - player.posZ;
         int distance = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
 
+        return I18n.format("travellers.notify.location_suffix", distance, cardinal(dx, dz));
+    }
+
+    /** Compass direction (N, NE, ... NW) of a world offset; +X is east, +Z is south. */
+    public static String cardinal(double dx, double dz) {
         double angle = Math.toDegrees(Math.atan2(dx, -dz));
         if (angle < 0) angle += 360.0;
-        int index = ((int) Math.round(angle / 45.0)) % 8;
-
-        return I18n.format("travellers.notify.location_suffix", distance, CARDINALS[index]);
+        return CARDINALS[((int) Math.round(angle / 45.0)) % 8];
     }
 }

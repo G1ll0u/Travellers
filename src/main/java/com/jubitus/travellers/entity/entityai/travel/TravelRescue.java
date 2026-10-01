@@ -93,8 +93,6 @@ final class TravelRescue {
         final double MIN_FORWARD = 1.5; // blocks
         final double MAX_BACKSLIDE = 4.0;
         final double MAX_BACKSLIDE_SQ = MAX_BACKSLIDE * MAX_BACKSLIDE;
-        final int LOAD_RADIUS = 2;
-
         Vec3d to = new Vec3d(target.getX() - start.getX(), 0, target.getZ() - start.getZ());
         if (to.lengthSquared() < 1.0) return false;
 
@@ -106,54 +104,14 @@ final class TravelRescue {
 
         BlockPos best = null;
         double bestScore = -1e18;
+        StringBuilder why = new StringBuilder();
 
         for (int lat : lateral) {
             int nx = start.getX() + (int) Math.round(dir.x * stepBlocks + right.x * lat);
             int nz = start.getZ() + (int) Math.round(dir.z * stepBlocks + right.z * lat);
 
-            BlockPos guess = new BlockPos(nx, start.getY(), nz);
-            if (!terrain.isAreaLoaded(guess, LOAD_RADIUS)) continue;
-
-            BlockPos surf = terrain.findSurfaceOrWaterY(guess);
+            BlockPos surf = landingAt(nx, start.getY(), nz, why, String.valueOf(lat));
             if (surf == null) continue;
-
-            // ✅ If candidate is water, snap it to the TOP of that water column
-            if (terrain.isSwimmable(surf)) {
-                BlockPos top = terrain.snapToWaterSurface(surf);
-                if (top == null) continue; // no safe headroom / not loaded
-                surf = top;
-            }
-
-
-            boolean swimmable = terrain.isSwimmable(surf);
-
-// Only require "solid support" for LAND targets.
-// If it's water, allow it (we will "land" as swimming).
-            if (!swimmable) {
-                boolean okSupport = terrain.isNaturalGroundSupport(surf.down());
-                if (!okSupport) {
-                    IBlockState sup = mob.world.getBlockState(surf.down());
-                    okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, surf.down(), sup);
-                }
-                if (!okSupport) continue;
-
-                // Only do tree-top correction for land
-                surf = terrain.adjustTreeTopToGround(surf);
-            }
-
-// Must still be navigable (land OR water)
-            if (!terrain.isNavigable(surf)) continue;
-
-
-            double landY = terrain.candidateLandingY(surf);
-            if (MillFootprints.isForbiddenLanding(mob.world, surf.getX() + 0.5D, landY, surf.getZ() + 0.5D)) continue;
-
-            AxisAlignedBB aabb = landingBox(surf.getX() + 0.5D, landY, surf.getZ() + 0.5D);
-
-            if (!terrain.isAabbAreaLoaded(aabb)) continue;
-            if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
-            if (TravelTerrain.intersectsForbiddenLiquid(mob.world, aabb)) continue;
-
 
             // forward + backslide gating
             double sx = (surf.getX() + 0.5) - (start.getX() + 0.5);
@@ -161,10 +119,10 @@ final class TravelRescue {
             Vec3d step = new Vec3d(sx, 0, sz);
 
             double forward = step.dotProduct(fwd);
-            if (forward < MIN_FORWARD) continue;
+            if (forward < MIN_FORWARD) { reject(why, String.valueOf(lat), "notForward"); continue; }
 
             double candD2 = TravelTerrain.horizDistSq(surf, target);
-            if (candD2 > curD2 + MAX_BACKSLIDE_SQ) continue;
+            if (candD2 > curD2 + MAX_BACKSLIDE_SQ) { reject(why, String.valueOf(lat), "backslide"); continue; }
 
             double score = (forward * 10.0) - (candD2 * 0.001) - (lat * lat * 0.01);
             if (score > bestScore) {
@@ -173,14 +131,137 @@ final class TravelRescue {
             }
         }
 
-        if (best == null) return false;
+        if (best == null) {
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop toward step=" + stepBlocks + " refused:" + why);
+            return false;
+        }
 
-        double y = terrain.isSwimmable(best) ? (best.getY() + 0.02D) : terrain.teleportLandingY(best);
-        mob.setPositionAndUpdate(best.getX() + 0.5, y, best.getZ() + 0.5);
+        landOn(best);
+        return true;
+    }
+
+    enum HopResult { MOVED, DEFERRED, FAILED }
+
+    // A* checks per hop; the world-wide per-tick budget is TRAVEL.stuckHopChecksPerTick.
+    private static final int MAX_CHECKS_PER_HOP = 2;
+    private static final int[] LATERAL = {0, 2, -2};
+    private static long checkBudgetTick = Long.MIN_VALUE;
+    private static int checkBudgetUsed;
+
+    /**
+     * Hops to a point along the route the unit can resume from. {@code route} holds pairs
+     * (landing column, onward point further along the same route), nearest first. A landing is
+     * accepted once one A* proves the unit can walk on from it to its onward point; with no proof
+     * within budget the farthest clear landing is used, so the next hop starts further along.
+     */
+    HopResult teleportToResumePoint(List<BlockPos[]> route) {
+        if (mob.world.isRemote || route.isEmpty()) return HopResult.FAILED;
+        if (mob.isInCombat() || mob.isAutoEating() || mob.isHandActive()) return HopResult.FAILED;
+        TravellerNavigateGround nav = mob.getNavigator() instanceof TravellerNavigateGround
+                ? (TravellerNavigateGround) mob.getNavigator() : null;
+
+        StringBuilder why = new StringBuilder();
+        BlockPos farthest = null;
+        int checks = 0;
+        int refY = mob.getPosition().getY();
+        for (int i = 0; i < route.size(); i++) {
+            BlockPos col = route.get(i)[0];
+            BlockPos onward = route.get(i)[1];
+            double ox = onward.getX() - col.getX(), oz = onward.getZ() - col.getZ();
+            double len = Math.sqrt(ox * ox + oz * oz);
+            double px = len < 1e-3 ? 0.0 : -oz / len, pz = len < 1e-3 ? 0.0 : ox / len;
+            for (int lat : LATERAL) {
+                if (lat != 0 && len < 1e-3) continue;
+                BlockPos spot = landingAt(col.getX() + (int) Math.round(px * lat), refY,
+                        col.getZ() + (int) Math.round(pz * lat), why, i + "/" + lat);
+                if (spot == null) continue;
+                farthest = spot;
+                if (nav == null || checks >= MAX_CHECKS_PER_HOP) break;
+                if (!acquireCheck()) {
+                    if (checks == 0) return HopResult.DEFERRED;
+                    break;
+                }
+                checks++;
+                BlockPos onGround = terrain.findSurfaceOrWaterY(onward);
+                double feet = terrain.isSwimmable(spot) ? spot.getY() + 0.02D : terrain.teleportLandingY(spot);
+                if (nav.isReachableFrom(spot.getX() + 0.5D, feet, spot.getZ() + 0.5D, onGround != null ? onGround : onward)) {
+                    com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop resume verified at " + spot.getX() + "," + spot.getY() + "," + spot.getZ() + " (" + i + "/" + lat + ")");
+                    landOn(spot);
+                    return HopResult.MOVED;
+                }
+                reject(why, i + "/" + lat, "noOnwardRoute");
+                break;
+            }
+        }
+        if (farthest == null) {
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop resume refused:" + why);
+            return HopResult.FAILED;
+        }
+        com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop resume unverified at " + farthest.getX() + "," + farthest.getY() + "," + farthest.getZ() + " after" + why);
+        landOn(farthest);
+        return HopResult.MOVED;
+    }
+
+    private boolean acquireCheck() {
+        long t = mob.world.getTotalWorldTime();
+        if (t != checkBudgetTick) {
+            checkBudgetTick = t;
+            checkBudgetUsed = 0;
+        }
+        if (checkBudgetUsed >= TravellersConfig.TRAVEL.stuckHopChecksPerTick) return false;
+        checkBudgetUsed++;
+        return true;
+    }
+
+    private static void reject(StringBuilder why, String tag, String reason) {
+        why.append(' ').append(tag).append('=').append(reason);
+    }
+
+    /**
+     * The spot a hop would land on in column (x, z): its surface (or water top), checked clear for the
+     * whole body. Null, with the reason appended to {@code why}, when nothing safe is there.
+     */
+    @Nullable
+    private BlockPos landingAt(int x, int refY, int z, StringBuilder why, String tag) {
+        BlockPos guess = new BlockPos(x, refY, z);
+        if (!terrain.isAreaLoaded(guess, 2)) { reject(why, tag, "unloaded"); return null; }
+
+        BlockPos surf = terrain.findSurfaceOrWaterY(guess);
+        if (surf == null) { reject(why, tag, "noSurface"); return null; }
+
+        if (terrain.isSwimmable(surf)) {
+            BlockPos top = terrain.snapToWaterSurface(surf);
+            if (top == null) { reject(why, tag, "waterNoHeadroom"); return null; }
+            surf = top;
+        }
+        if (!terrain.isSwimmable(surf)) {
+            boolean okSupport = terrain.isNaturalGroundSupport(surf.down());
+            if (!okSupport) {
+                IBlockState sup = mob.world.getBlockState(surf.down());
+                okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, surf.down(), sup);
+            }
+            if (!okSupport) { reject(why, tag, "noSupport"); return null; }
+            surf = terrain.adjustTreeTopToGround(surf);
+        }
+        if (!terrain.isNavigable(surf)) { reject(why, tag, "notNavigable"); return null; }
+
+        double landY = terrain.candidateLandingY(surf);
+        if (MillFootprints.isForbiddenLanding(mob.world, surf.getX() + 0.5D, landY, surf.getZ() + 0.5D)) { reject(why, tag, "building"); return null; }
+
+        AxisAlignedBB aabb = landingBox(surf.getX() + 0.5D, landY, surf.getZ() + 0.5D);
+        if (!terrain.isAabbAreaLoaded(aabb)) { reject(why, tag, "boxUnloaded"); return null; }
+        if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) { reject(why, tag, "blocked@" + surf.getY()); return null; }
+        if (TravelTerrain.intersectsForbiddenLiquid(mob.world, aabb)) { reject(why, tag, "hazard"); return null; }
+        return surf;
+    }
+
+    private void landOn(BlockPos spot) {
+        if (ai.isInBoat()) ai.dismountAndDeleteBoat();
+        double y = terrain.isSwimmable(spot) ? (spot.getY() + 0.02D) : terrain.teleportLandingY(spot);
+        mob.setPositionAndUpdate(spot.getX() + 0.5, y, spot.getZ() + 0.5);
         mob.motionX = mob.motionY = mob.motionZ = 0.0D;
         mob.velocityChanged = true;
         ai.clearNav();
-        return true;
     }
 
     boolean teleportToSurfaceRescue(int radius, int minRise) {
@@ -204,6 +285,7 @@ final class TravelRescue {
 
         BlockPos bestAny = null;
         double bestAnyScore = Double.MAX_VALUE; // fallback uses “closest” like before
+        int tooLow = 0, notStandable = 0, noSupport = 0, building = 0, blocked = 0, hazard = 0;
 
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -222,24 +304,24 @@ final class TravelRescue {
                 // wooded tile passes a "6 blocks higher" filter it does not remotely satisfy, which
                 // turned this from "dig me out, I'm buried" into an arbitrary hop under any canopy.
                 BlockPos feet = terrain.adjustTreeTopToGround(top);
-                if (feet.getY() < minY) continue;
-                if (!terrain.isStandable(feet)) continue;
+                if (feet.getY() < minY) { tooLow++; continue; }
+                if (!terrain.isStandable(feet)) { notStandable++; continue; }
                 boolean okSupport = terrain.isNaturalGroundSupport(feet.down());
                 if (!okSupport) {
                     // stage 3: allow man-made solids too (still reject leaves/liquids via terrain.isStandable())
                     IBlockState sup = mob.world.getBlockState(feet.down());
                     okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, feet.down(), sup);
                 }
-                if (!okSupport) continue;
+                if (!okSupport) { noSupport++; continue; }
 
                 double landY = terrain.candidateLandingY(feet);
-                if (MillFootprints.isForbiddenLanding(w, feet.getX() + 0.5D, landY, feet.getZ() + 0.5D)) continue;
+                if (MillFootprints.isForbiddenLanding(w, feet.getX() + 0.5D, landY, feet.getZ() + 0.5D)) { building++; continue; }
 
                 AxisAlignedBB aabb = landingBox(feet.getX() + 0.5D, landY, feet.getZ() + 0.5D);
                 if (!terrain.isAabbAreaLoaded(aabb)) continue;
 
-                if (!w.getCollisionBoxes(mob, aabb).isEmpty()) continue;
-                if (TravelTerrain.intersectsForbiddenLiquid(w, aabb)) continue;
+                if (!w.getCollisionBoxes(mob, aabb).isEmpty()) { blocked++; continue; }
+                if (TravelTerrain.intersectsForbiddenLiquid(w, aabb)) { hazard++; continue; }
 
 
                 // ---- Fallback (old behaviour): closest to origin ----
@@ -272,7 +354,12 @@ final class TravelRescue {
         }
 
         BlockPos best = (bestForward != null) ? bestForward : bestAny;
-        if (best == null) return false;
+        if (best == null) {
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop surface radius=" + radius
+                    + " minRise=" + minRise + " refused: tooLow=" + tooLow + " notStandable=" + notStandable
+                    + " noSupport=" + noSupport + " building=" + building + " blocked=" + blocked + " hazard=" + hazard);
+            return false;
+        }
 
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 

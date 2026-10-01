@@ -10,6 +10,8 @@ import com.jubitus.travellers.notify.BattleSummary;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.notify.VanillaDeathMessage;
+import com.jubitus.travellers.notify.NoticePlace;
+import com.jubitus.travellers.notify.WorkerLifecycleNotifications;
 import com.jubitus.travellers.world.camp.CampsiteManager;
 import com.jubitus.travellers.world.virtualization.VirtualFormationSimulator;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
@@ -212,13 +214,10 @@ public class VirtualBattleManager extends WorldSavedData {
             UUID owner = w.getFollowOwnerUUID();
             if (p != null && w.isHiredFollower() && owner != null && shouldNotifyDeath(b, owner)) {
                 String name = entity.getName();
-                if (name == null || name.isEmpty()) name = "A worker";
                 VirtualTravellerManager vtm = VirtualTravellerManager.get(world);
-                VanillaDeathMessage.Resolved dt = VanillaDeathMessage.from(entity, cause);
-                String i18nKey = dt != null ? dt.i18nKey : NotificationDefs.BATTLE_WORKER_KILLED.i18nKey;
-                String[] args = dt != null ? dt.args : new String[]{name};
-                NotificationService.notifyEventOfflineRaw(world.getMinecraftServer(), owner, i18nKey,
-                        buildDeathSummary(world, vtm, b, p, name, entity.getPosition()), args);
+                WorkerLifecycleNotifications.died(world.getMinecraftServer(), owner, uuid, name,
+                        NoticePlace.of(entity), VanillaDeathMessage.from(entity, cause),
+                        buildDeathSummary(world, vtm, b, p, name, entity.getPosition()));
             }
         }
         markDirty();
@@ -668,16 +667,6 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
 
-        if (rec.isHiredFollower && rec.followOwnerUUID != null && shouldNotifyDeath(b, rec.followOwnerUUID)) {
-            String name = rec.name == null || rec.name.isEmpty() ? "A worker" : rec.name;
-            String attackerName = resolveParticipantName(world, vtm, attacker.uuid);
-            VanillaDeathMessage.Resolved dt = VanillaDeathMessage.genericSlainBy(name, attackerName);
-            NotificationService.notifyEventOfflineRaw(world.getMinecraftServer(), rec.followOwnerUUID, dt.i18nKey,
-                    buildDeathSummary(world, vtm, b, victim, name,
-                            new BlockPos((int) rec.posX, (int) rec.posY, (int) rec.posZ)),
-                    dt.args);
-        }
-
         if (rec.campSiteId != null) {
             CampsiteManager.get(world).releaseOccupant(rec.uuid);
         }
@@ -689,6 +678,17 @@ public class VirtualBattleManager extends WorldSavedData {
             com.jubitus.travellers.entity.travellers.EntityTravellerWorker.stripInventoryNbt(nbt);
             com.jubitus.travellers.world.zone.ZoneAssignments.onWorkerDied(world.getMinecraftServer(), rec.uuid,
                     rec.followOwnerUUID, com.jubitus.travellers.world.zone.ZoneRef.read(nbt), nbt);
+        }
+
+        // After the bed rule, so the notice can say whether the worker comes back.
+        if (rec.isHiredFollower && rec.followOwnerUUID != null && shouldNotifyDeath(b, rec.followOwnerUUID)) {
+            String name = rec.name == null ? "" : rec.name;
+            String attackerName = resolveParticipantName(world, vtm, attacker.uuid);
+            BlockPos pos = new BlockPos((int) rec.posX, (int) rec.posY, (int) rec.posZ);
+            WorkerLifecycleNotifications.died(world.getMinecraftServer(), rec.followOwnerUUID, rec.uuid, name,
+                    new NoticePlace(pos, rec.dimension, rec.uuid),
+                    VanillaDeathMessage.genericSlainBy(name, attackerName),
+                    buildDeathSummary(world, vtm, b, victim, name, pos));
         }
 
         // A virtually-dying rider's mount has no physical presence to leave abandoned offscreen (no

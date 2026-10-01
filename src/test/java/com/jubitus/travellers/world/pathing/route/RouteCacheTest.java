@@ -19,7 +19,7 @@ class RouteCacheTest {
     @Test
     void putThenGetReturnsAnIndependentCopy() {
         RouteCache c = new RouteCache();
-        c.put("k", 0, plan(0, 100, 200), 1000L, 0, 0, 500, 500);
+        c.put("k", 0, plan(0, 100, 200), 1000L, 0, 0, 500, 500, 0, 0, 0);
         TravelPlan got = c.get("k", 1000L, 12000);
         assertNotNull(got);
         assertEquals(3, got.polyline.size());
@@ -28,9 +28,20 @@ class RouteCacheTest {
     }
 
     @Test
+    void segmentKindsSurviveTheCache() {
+        RouteCache c = new RouteCache();
+        java.util.List<BlockPos> pts = new java.util.ArrayList<>();
+        for (int x : new int[]{0, 50, 100}) pts.add(new BlockPos(x, 64, 0));
+        c.put("k", 0, new TravelPlan(pts, 0L, TravelPlan.QUALITY_COARSE, true, new byte[]{1, 2}), 0L, 0, 0, 100, 100, 0, 0, 0);
+        TravelPlan got = c.get("k", 0L, 99999);
+        assertNotNull(got.kinds, "a cached road/boat plan must not come back as all-walk");
+        assertEquals(2, got.kinds[1]);
+    }
+
+    @Test
     void entriesExpireAfterTtl() {
         RouteCache c = new RouteCache();
-        c.put("k", 0, plan(0, 100), 1000L, 0, 0, 10, 10);
+        c.put("k", 0, plan(0, 100), 1000L, 0, 0, 10, 10, 0, 0, 0);
         assertNotNull(c.get("k", 1000L + 12000, 12000));
         assertNull(c.get("k", 1000L + 12001, 12000));
         assertEquals(0, c.size(), "expired entry is dropped on read");
@@ -42,7 +53,7 @@ class RouteCacheTest {
         TravellersConfig.ROUTING.routeCacheMaxEntries = 16; // clamp floor in put()
         try {
             RouteCache c = new RouteCache();
-            for (int i = 0; i < 20; i++) c.put("k" + i, 0, plan(0, i), 0L, 0, 0, 1, 1);
+            for (int i = 0; i < 20; i++) c.put("k" + i, 0, plan(0, i), 0L, 0, 0, 1, 1, 0, 0, 0);
             assertEquals(16, c.size());
             assertNull(c.get("k0", 0L, 99999));
             assertNotNull(c.get("k19", 0L, 99999));
@@ -54,9 +65,9 @@ class RouteCacheTest {
     @Test
     void invalidateBoxDropsOnlyIntersectingEntriesInTheSameDimension() {
         RouteCache c = new RouteCache();
-        c.put("a", 0, plan(0, 1), 0L, 0, 0, 100, 100);      // dim 0, near origin
-        c.put("b", 0, plan(0, 1), 0L, 5000, 5000, 6000, 6000); // dim 0, far
-        c.put("c", 1, plan(0, 1), 0L, 0, 0, 100, 100);      // dim 1, near origin
+        c.put("a", 0, plan(0, 1), 0L, 0, 0, 100, 100, 0, 0, 0);      // dim 0, near origin
+        c.put("b", 0, plan(0, 1), 0L, 5000, 5000, 6000, 6000, 0, 0, 0); // dim 0, far
+        c.put("c", 1, plan(0, 1), 0L, 0, 0, 100, 100, 0, 0, 0);      // dim 1, near origin
         int removed = c.invalidateBox(0, 50, 50, 60, 60);
         assertEquals(1, removed);
         assertNull(c.get("a", 0L, 99999));
@@ -70,9 +81,9 @@ class RouteCacheTest {
         TravellersConfig.ROUTING.routeCacheMaxEntries = 16;
         try {
             RouteCache c = new RouteCache();
-            for (int i = 0; i < 16; i++) c.put("k" + i, 0, plan(0, i), 0L, 0, 0, 1, 1);
+            for (int i = 0; i < 16; i++) c.put("k" + i, 0, plan(0, i), 0L, 0, 0, 1, 1, 0, 0, 0);
             c.get("k0", 0L, 99999);                 // touch k0 -> most-recently-used
-            c.put("k16", 0, plan(0, 16), 0L, 0, 0, 1, 1); // evicts k1, not k0
+            c.put("k16", 0, plan(0, 16), 0L, 0, 0, 1, 1, 0, 0, 0); // evicts k1, not k0
             assertNotNull(c.get("k0", 0L, 99999));
             assertNull(c.get("k1", 0L, 99999));
         } finally {

@@ -227,7 +227,6 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             }
         }
         tooltips.render(mouseX, mouseY, this.width, this.height);
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     @Override

@@ -11,15 +11,13 @@ import com.jubitus.travellers.server.net.message.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.formations.MsgRequestFormationHub;
-import com.jubitus.travellers.server.net.message.formations.MsgOpenWorkerFormationGui;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateFormationByScope;
 import com.jubitus.travellers.server.net.message.formations.MsgUpdateWorkerFormationSettings;
-import com.jubitus.travellers.server.net.message.group.MsgGroupComeBack;
 import com.jubitus.travellers.server.net.message.group.MsgGroupCreate;
 import com.jubitus.travellers.server.net.message.group.MsgGroupFollow;
 import com.jubitus.travellers.server.net.message.group.MsgGroupMerge;
 import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
-import com.jubitus.travellers.server.net.message.group.MsgToggleLeaderFollow;
+import com.jubitus.travellers.server.net.message.group.MsgSetLeaderFollow;
 import com.jubitus.travellers.server.net.message.home.*;
 import com.jubitus.travellers.server.net.message.home.MsgCreatePlayerZone;
 import com.jubitus.travellers.server.net.message.home.MsgDeletePlayerZone;
@@ -145,10 +143,6 @@ public final class TravellerFollowNet {
         registerClientOnly(MsgMapDiscoverySync.class,
                 isClient ? new MsgMapDiscoverySync.ClientHandler() : new MsgMapDiscoverySync.NoopHandler());
 
-        registerClientOnly(
-                MsgOpenWorkerFormationGui.class,
-                isClient ? new MsgOpenWorkerFormationGui.Handler() : new MsgOpenWorkerFormationGui.NoopHandler()
-        );
         CHANNEL.registerMessage(
                 MsgSaveWorkerOwnerVisuals.Handler.class,
                 MsgSaveWorkerOwnerVisuals.class,
@@ -248,11 +242,10 @@ public final class TravellerFollowNet {
                 MsgChoirSoundDone.class, id++, Side.SERVER);
         registerClientOnly(MsgChoirSingerMute.class, isClient ? new MsgChoirSingerMute.Handler() : new MsgChoirSingerMute.NoopHandler());
 
-        CHANNEL.registerMessage(MsgGroupComeBack.Handler.class, MsgGroupComeBack.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgGroupCreate.Handler.class, MsgGroupCreate.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgGroupMerge.Handler.class, MsgGroupMerge.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgGroupFollow.Handler.class, MsgGroupFollow.class, id++, Side.SERVER);
-        CHANNEL.registerMessage(MsgToggleLeaderFollow.Handler.class, MsgToggleLeaderFollow.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(MsgSetLeaderFollow.Handler.class, MsgSetLeaderFollow.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgLeaderGoTo.Handler.class, MsgLeaderGoTo.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgUpdateFormationByScope.Handler.class, MsgUpdateFormationByScope.class, id++, Side.SERVER);
         registerClientOnly(MsgOpenFormationHubGui.class,

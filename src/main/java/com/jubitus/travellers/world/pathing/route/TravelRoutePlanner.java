@@ -35,12 +35,17 @@ public final class TravelRoutePlanner {
         public final UUID key;
         public final TravelPlan plan;
         public final boolean fromCache;
+        // Diagnostics: where the search behind this plan started, and how many road vertices it saw.
+        public final int fromX, fromZ, roadVertices;
 
-        RouteResult(int dimension, UUID key, TravelPlan plan, boolean fromCache) {
+        RouteResult(int dimension, UUID key, TravelPlan plan, boolean fromCache, int fromX, int fromZ, int roadVertices) {
             this.dimension = dimension;
             this.key = key;
             this.plan = plan;
             this.fromCache = fromCache;
+            this.fromX = fromX;
+            this.fromZ = fromZ;
+            this.roadVertices = roadVertices;
         }
     }
 
@@ -76,9 +81,12 @@ public final class TravelRoutePlanner {
     public static boolean request(WorldServer world, TravelRouteJob job, String cacheKey, int priority) {
         long now = world.getTotalWorldTime();
 
-        TravelPlan cached = CACHE.get(cacheKey, now, Math.max(1, TravellersConfig.ROUTING.routeCacheTtlTicks));
+        int ttl = Math.max(1, TravellersConfig.ROUTING.routeCacheTtlTicks);
+        TravelPlan cached = CACHE.get(cacheKey, now, ttl);
         if (cached != null) {
-            RESULTS.add(new RouteResult(job.dimension, job.callbackKey, cached, true));
+            int[] o = CACHE.origin(cacheKey, now, ttl);
+            RESULTS.add(new RouteResult(job.dimension, job.callbackKey, cached, true,
+                    o != null ? o[0] : 0, o != null ? o[1] : 0, o != null ? o[2] : -1));
             return true;
         }
 
@@ -93,8 +101,9 @@ public final class TravelRoutePlanner {
             try {
                 TravelPlan plan = CoarseRouteSearch.run(job, now);
                 CACHE.put(cacheKey, job.dimension, plan, now,
-                        job.boxMinX, job.boxMinZ, job.boxMaxX, job.boxMaxZ);
-                RESULTS.add(new RouteResult(job.dimension, job.callbackKey, plan, false));
+                        job.boxMinX, job.boxMinZ, job.boxMaxX, job.boxMaxZ, job.originX, job.originZ, job.roads.size());
+                RESULTS.add(new RouteResult(job.dimension, job.callbackKey, plan, false,
+                        job.originX, job.originZ, job.roads.size()));
             } catch (Throwable t) {
                 System.err.println("[Travellers/Route] planner job failed: " + t);
             } finally {

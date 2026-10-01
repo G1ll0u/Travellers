@@ -258,7 +258,8 @@ public final class CoarseRouteSearch {
             Node n = best.get(k);
             if (n == null) {
                 int wx = roads.xs[v], wz = roads.zs[v];
-                n = new Node(0, 0, v, false, wx, wz, view.height(wx, wz));
+                // The road's own surface height, not the coarse grid's: on a bridge that is the deck.
+                n = new Node(0, 0, v, false, wx, wz, (short) roads.ys[v]);
                 n.g = Double.POSITIVE_INFINITY;
                 best.put(k, n);
             }

@@ -24,7 +24,7 @@ public final class TravellerStateDialogueContextProvider implements DialogueCont
             builder.mountPhrase(phrase);
         }
 
-        builder.camping(traveller.travellerCamp.getCampfirePos() != null);
+        builder.camping(traveller.isCampingPassive());
         builder.recentlyInCombat(traveller.isInPostCombatSilence());
     }
 }

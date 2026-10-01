@@ -347,7 +347,6 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
             }
         }
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawVillageList(int mouseX, int mouseY) {

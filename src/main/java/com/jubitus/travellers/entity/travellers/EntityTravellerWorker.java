@@ -11,8 +11,6 @@ import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIStopAndLookAtPlayer;
-import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampJoinFire;
-import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendOwnerProactively;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIOwnerHurtByTargetTraveller;
@@ -88,11 +86,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     public static final int PVP_ENGAGE_TICKS = 20 * 120; // 2 minutes
 
 
-    // --- Follow-slot tracking for idle-look gating (fed by EntityAIFollowLeader). The core
-    // followerHasSlotGoal/followerSlotGoalX/Y/Z fields now live on EntityTraveller (shared with
-    // plain group followers' catchup-exit check); only the staleness timestamp is worker-only. ---
-    private long followerSlotGoalTick = 0L;
-    private int followerIdleSettleTicks = 0;
     private int cachedGroupSize = 1;
     /**
      * Group combat posture, refreshed once/sec from WorkerFormationSavedData (see onLivingUpdate's
@@ -104,11 +97,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     /** See {@link #cachedAttitude} - same refresh cadence, same reasoning. */
     private double cachedPlayerCohesion = 0.4D;
 
-    private static final int IDLE_LOOK_STALE_GOAL_TICKS = 40; // 2 seconds
-    private static final double IDLE_LOOK_SLOT_RADIUS = 4.1D; // roughly matches follow AI idle stop band
-    private static final double IDLE_LOOK_SLOT_RADIUS_SQ = IDLE_LOOK_SLOT_RADIUS * IDLE_LOOK_SLOT_RADIUS;
-    private static final double IDLE_LOOK_SELF_STILL_EPS_SQ = 0.05D * 0.05D; // ~0.05 blocks/tick
-    private static final double IDLE_LOOK_SLOT_Y_TOL = 3.4D;
 
     // --- "Go..." order state ---
     private boolean goOrderActive = false;
@@ -119,13 +107,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     private int escortLeaderCheckCooldown = 0;
     // -1 = uninitialised; set to entity-ID-based phase offset on first tick to spread load across ticks
     private int virtualLeaderRepathCooldown = -1;
-    private double virtualLeaderLastTargetX = Double.NaN;
-    private double virtualLeaderLastTargetZ = Double.NaN;
-    // Pit-rescue tracking for tickVirtualLeaderFollow() - mirrors the progress-based stagnation
-    // check EntityAIFollowLeader uses when the leader is loaded, so a worker trapped in a
-    // pit isn't only rescuable while its escort leader happens to be physically present.
-    private double virtualLeaderBestGoalDistSq = Double.MAX_VALUE;
-    private int virtualLeaderNoProgressTicks = 0;
+    // The formation slot of an offscreen escort leader; catchup travel drives toward it.
+    @Nullable private BlockPos virtualEscortSlot;
 
     private static final int MIN_REP_TO_TRADE = -1024;
     // --- anchor guard tuning ---
@@ -213,16 +196,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     // NEW: leader logic – if non-null, this worker follows another worker instead of the player
     @Nullable
     private UUID escortLeaderUUID = null;
-    // For non-entity look targets
-    private boolean followerLookHasPoint = false;
-    private double followerLookX;
-    private double followerLookY;
-    private double followerLookZ;
-    // --- follower idle behaviour ---
-    private int followerLookCooldown = 0;
-    @Nullable
-    private Entity followerLookTarget = null;
-    private int followerLookTicks = 0;
     int postJobFarewellTicks = 0;
     boolean postJobFarewellActive = false;
     private double baseFollowRange;
@@ -283,12 +256,10 @@ public class EntityTravellerWorker extends EntityTraveller {
         removeTaskOfType(EntityAIVillageVisit.class);
         removeTaskOfType(EntityAITravel.class);
         removeTaskOfType(EntityAIFollowLeader.class);
-        removeTaskOfType(EntityAICampJoinFire.class);
-        removeTaskOfType(EntityAICampPause.class);
         removeTaskOfType(EntityAIStopAndLookAtPlayer.class);
         // Priority 0 = highest; mutex 3 blocks all other move+look AI when freeze is active
         this.tasks.addTask(0, new com.jubitus.travellers.entity.entityai.choir.EntityAIChoirFreeze(this));
-        this.tasks.addTask(10, new EntityAIStopAndLookAtPlayer(this, 3.2D, 30.0F, 30.0F));
+        this.tasks.addTask(10, new EntityAIStopAndLookAtPlayer(this));
         // Base EntityTraveller.initEntityAI() (run via super() above) already registered
         // EntityAIDefendIfClose at priority 1 and TravellerHurtByTarget at priority 2 — pull
         // them out and re-add below at their place in the worker's own priority order instead
@@ -812,8 +783,11 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void startCatchupTravelTo(@Nullable EntityLivingBase target) {
         if (target == null) return;
         if (target.dimension != this.dimension) return;
+        beginCatchupToward(target.getUniqueID());
+    }
 
-        this.catchupTargetUUID = target.getUniqueID();
+    private void beginCatchupToward(UUID targetId) {
+        this.catchupTargetUUID = targetId;
         this.cachedCatchupGoal = null;
         this.nextCatchupRefreshTick = 0;
 
@@ -1108,10 +1082,15 @@ public class EntityTravellerWorker extends EntityTraveller {
                             : (distToLeader <= stopDist && (visible || distToLeader <= stopDist * 0.75D));
                 }
 
-                if (stop) {
+                // Near but trapped (a pit under the leader): the travel ladder must finish before follow resumes.
+                if (stop && !getStuckRecord().isEscalating()) {
                     stopOwnerCatchupTravel();
                 }
-            } else {
+            } else if (virtualEscortSlot == null || !isVirtualLeader(catchupTargetUUID)
+                    || (getDistanceSqToCenter(virtualEscortSlot)
+                    <= FollowRuntimeConfig.get().catchup.stopDistanceVisible * FollowRuntimeConfig.get().catchup.stopDistanceVisible
+                    && !getStuckRecord().isEscalating())) {
+                // An offscreen escort leader is chased through its slot until close to it; a gone one ends catchup.
                 stopOwnerCatchupTravel();
             }
         }
@@ -1239,7 +1218,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 // --- "Go..." order arrival ---
         if (!world.isRemote && goOrderActive && goOrderTargetPos != null && goOrderTargetDim == this.dimension) {
-            int r = TravellersConfig.WORKER.workerGoArrivalRadius;
+            int r = mode == WorkerMode.GET_EQUIPMENT
+                    ? TravellersConfig.WORKER.workerEquipArrivalRadius : TravellersConfig.WORKER.workerGoArrivalRadius;
             double dx = this.posX - (goOrderTargetPos.getX() + 0.5D);
             double dz = this.posZ - (goOrderTargetPos.getZ() + 0.5D);
             if (dx * dx + dz * dz <= (double) (r * r)) {
@@ -1659,31 +1639,23 @@ public class EntityTravellerWorker extends EntityTraveller {
                 reg.clearWorkerFor(homeVillageCenter, this.getUniqueID());
             }
 
-            // Death notice for hired workers, unless the richer battle-death path already covers
-            // this exact death (fired later via super.onDeath -> VirtualBattleManager.onParticipantDeath).
-            if (hiredFollower && followOwnerId != null && world instanceof WorldServer
-                    && !com.jubitus.travellers.world.battle.VirtualBattleManager.get((WorldServer) world)
-                            .isParticipant(this.getUniqueID())) {
-                String name = this.getName();
-                if (name == null || name.isEmpty()) name = "A worker";
-                com.jubitus.travellers.notify.VanillaDeathMessage.Resolved dt =
-                        com.jubitus.travellers.notify.VanillaDeathMessage.from(this, cause);
-                String i18nKey = dt != null ? dt.i18nKey : NotificationDefs.WORKER_DIED.i18nKey;
-                String[] deathArgs = dt != null ? dt.args : new String[0];
-                java.util.List<com.jubitus.travellers.notify.BattleSummary.CasualtyEntry> casualties =
-                        java.util.Collections.singletonList(
-                                new com.jubitus.travellers.notify.BattleSummary.CasualtyEntry(name, true, 0f));
-                com.jubitus.travellers.notify.BattleSummary summary = new com.jubitus.travellers.notify.BattleSummary(
-                        this.getPosition(), world.provider.getDimension(), casualties, java.util.Collections.emptyList());
-                NotificationService.notifyEventOfflineRaw(world.getMinecraftServer(), followOwnerId, i18nKey, summary, deathArgs);
-            }
-
+            // Bed respawn is decided first: the death notice says whether the worker comes back.
             if (hiredFollower && zone != null && world.getMinecraftServer() != null) {
                 NBTTagCompound nbt = new NBTTagCompound();
                 writeToNBT(nbt);
                 stripInventoryNbt(nbt);
                 com.jubitus.travellers.world.zone.ZoneAssignments.onWorkerDied(
                         world.getMinecraftServer(), getUniqueID(), followOwnerId, zone, nbt);
+            }
+
+            // A battle participant's notice comes from VirtualBattleManager.onParticipantDeath (via super.onDeath).
+            if (hiredFollower && followOwnerId != null && world instanceof WorldServer
+                    && !com.jubitus.travellers.world.battle.VirtualBattleManager.get((WorldServer) world)
+                            .isParticipant(this.getUniqueID())) {
+                com.jubitus.travellers.notify.WorkerLifecycleNotifications.died(world.getMinecraftServer(),
+                        followOwnerId, getUniqueID(), getName(),
+                        com.jubitus.travellers.notify.NoticePlace.of(this),
+                        com.jubitus.travellers.notify.VanillaDeathMessage.from(this, cause), null);
             }
         }
 
@@ -1867,6 +1839,27 @@ public class EntityTravellerWorker extends EntityTraveller {
      * Final clean up when worker has come back to the employer.
      * NOTE: we keep routeLocked = true so the worker will NOT auto-roam anymore.
      */
+    /**
+     * Back beside its bed after dying: it stands there on its own (follow off, out of any group, no
+     * order or mission left over from before its death). Its zone - and a palfrenier's duty - is kept.
+     */
+    public void resetForBedRespawn(BlockPos spot) {
+        clearEscortLeader();
+        stopOwnerCatchupTravel();
+        this.goOrderActive = false;
+        this.goOrderTargetPos = null;
+        this.goOrderTargetDim = 0;
+        this.goingHome = false;
+        this.goingToDuty = false;
+        this.recruitActive = false;
+        this.recruitReturningToOwner = false;
+        this.returnUsingFollow = false;
+        if (this.mode != WorkerMode.ON_DUTY) finishJob();
+        this.followOrderActive = false;
+        stopAllTravelNow();
+        this.idleAnchorPos = spot;
+    }
+
     private void finishJob() {
         this.mode = WorkerMode.IDLE;
         this.jobVillageCenter = null;
@@ -2366,11 +2359,17 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (this.followOrderActive == active && active) return;
 
         this.followOrderActive = active;
+        // Following and a Go order are exclusive: either change ends the Go order along with its
+        // travel route, or the travel AI keeps walking to the old destination against the follow AI.
+        if (this.goOrderActive) {
+            cancelGoOrderAndTravel();
+            if (!active) {
+                this.idleAnchorPos = this.getPosition();
+                return;
+            }
+        }
         if (active) {
-            this.goOrderActive = false;
-            this.goOrderTargetPos = null;
-            this.goOrderTargetDim = 0;
-            // ✅ PLACE IT HERE: player re-engages follow -> cancel any "going home" travel
+            // Player re-engages follow: cancel any "going home" travel too
             if (this.goingHome) {
                 this.goingHome = false;
                 stopAllTravelNow();            // clears TravelCommon target/route/waypoint + navigator
@@ -2571,167 +2570,21 @@ public class EntityTravellerWorker extends EntityTraveller {
     // Mark/unmark specific players as hostile
 
 
+    // Keeps a hired follower from standing inside its owner. Where it looks is the gaze's job.
     private void tickFollowerIdleBehaviour() {
-
-        // If this worker is acting as an escort leader (has followers), don't run follower idle look.
-        // Use the DataManager counter instead of a live AABB scan — 500 scans/tick is too expensive.
-        if (!world.isRemote && this.isHiredFollower()) {
-            boolean hasFollowers = this.getLeaderFollowerCount() > 0;
-            if (hasFollowers) {
-                clearFollowerIdleLookState();
-                followerIdleSettleTicks = 0;
-                return;
-            }
-        }
-
-        // Basic validity gates
         if (!isHiredFollower() || !isFollowOrderActive() || isJobActive()) {
-            clearFollowerIdleLookState();
-            followerIdleSettleTicks = 0;
             followerHasSlotGoal = false; // only meaningful while following
             return;
         }
-
+        if (isInCombat() || getLeaderFollowerCount() > 0) return;
         EntityPlayer owner = getFollowOwner();
-        if (owner == null || owner.isDead) {
-            clearFollowerIdleLookState();
-            followerIdleSettleTicks = 0;
-            return;
-        }
-
-        // While target is moving, NEVER idle-look (looks bad while walking).
+        if (owner == null || owner.isDead) return;
         EntityLivingBase followTarget = getEffectiveFollowTarget();
-        if (followTarget != null && isMovingEnough(followTarget)) {
-            // Keep your old “soft separation” to avoid clipping into the owner while they move.
-            double d2 = this.getDistanceSq(owner);
-            double minSeparation = 1.2D;
-            if (d2 < (minSeparation * minSeparation) && !this.isInCombat()) {
-                double dx = this.posX - owner.posX;
-                double dz = this.posZ - owner.posZ;
-                applySoftSeparation(dx, dz, 0.05D);
-            }
-
-            clearFollowerIdleLookState();
-            followerIdleSettleTicks = 0;
-            return;
-        }
-
-        // Main gate: only idle-look when we are settled in/near our slot and not navigating.
-        if (!shouldRunIdleLook()) {
-            clearFollowerIdleLookState();
-            return;
-        }
-
-        // Combat always overrides idle look
-        if (this.isInCombat() || this.getAttackTarget() != null) {
-            clearFollowerIdleLookState();
-            followerIdleSettleTicks = 0;
-            return;
-        }
-
-        // Tiny push only if we're basically inside the owner
-        double d2Owner = this.getDistanceSq(owner);
-        double minSeparation = 0.3D;
-        if (d2Owner < (minSeparation * minSeparation)) {
-            double dx = this.posX - owner.posX;
-            double dz = this.posZ - owner.posZ;
-            applySoftSeparation(dx, dz, 0.05D);
-        }
-
-        // Continue current look
-        if (followerLookTicks > 0) {
-            if (followerLookTarget != null && followerLookTarget.isEntityAlive()) {
-                this.getLookHelper().setLookPositionWithEntity(
-                        followerLookTarget,
-                        10.0F,
-                        (float) this.getVerticalFaceSpeed()
-                );
-            } else if (followerLookHasPoint) {
-                this.getLookHelper().setLookPosition(
-                        followerLookX,
-                        followerLookY,
-                        followerLookZ,
-                        10.0F,
-                        (float) this.getVerticalFaceSpeed()
-                );
-            }
-
-            followerLookTicks--;
-            if (followerLookTicks <= 0) {
-                followerLookCooldown = 20 + this.rand.nextInt(40);
-                followerLookTarget = null;
-                followerLookHasPoint = false;
-            }
-            return;
-        }
-
-        // Wait between looks (prevents twitchy rapid retargeting)
-        if (followerLookCooldown > 0) {
-            followerLookCooldown--;
-            return;
-        }
-
-        // Pick a new look target/point (LOOK ONLY — no movement here)
-        followerLookTicks = 40 + this.rand.nextInt(80);
-        followerLookTarget = null;
-        followerLookHasPoint = false;
-
-        double lookRadius = 6.0D;
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(lookRadius, 2.0, lookRadius);
-
-        List<EntityLivingBase> candidates = this.world.getEntitiesWithinAABB(
-                EntityLivingBase.class,
-                box,
-                e -> e != null && e != this && e != owner && e.isEntityAlive()
-        );
-
-        int mode = this.rand.nextInt(3);
-
-        if (mode == 1 && !candidates.isEmpty()) {
-            followerLookTarget = candidates.get(this.rand.nextInt(candidates.size()));
-            this.getLookHelper().setLookPositionWithEntity(
-                    followerLookTarget,
-                    10.0F,
-                    (float) this.getVerticalFaceSpeed()
-            );
-        } else if (mode == 0) {
-            followerLookTarget = owner;
-            this.getLookHelper().setLookPositionWithEntity(
-                    followerLookTarget,
-                    10.0F,
-                    (float) this.getVerticalFaceSpeed()
-            );
-        } else {
-            double r = 3.0D + this.rand.nextDouble() * 6.0D;
-            double angle = this.rand.nextDouble() * Math.PI * 2.0D;
-
-            double px = this.posX + Math.cos(angle) * r;
-            double pz = this.posZ + Math.sin(angle) * r;
-
-            double eyeY = this.posY + this.getEyeHeight();
-            double py;
-            if (this.rand.nextInt(5) != 0) {
-                py = eyeY - 0.3D + this.rand.nextDouble() * 0.6D;
-            } else {
-                py = eyeY - 1.0D - this.rand.nextDouble() * 0.8D;
-            }
-
-            followerLookHasPoint = true;
-            followerLookX = px;
-            followerLookY = py;
-            followerLookZ = pz;
-
-            this.getLookHelper().setLookPosition(
-                    followerLookX,
-                    followerLookY,
-                    followerLookZ,
-                    4.0F,
-                    (float) this.getVerticalFaceSpeed()
-            );
-        }
+        double minSeparation = followTarget != null && isMovingEnough(followTarget) ? 1.2D : 0.3D;
+        double dx = this.posX - owner.posX;
+        double dz = this.posZ - owner.posZ;
+        if (dx * dx + dz * dz < minSeparation * minSeparation) applySoftSeparation(dx, dz, 0.05D);
     }
-
-
 
     private void applySoftSeparation(double dx, double dz, double strength) {
         // Normalize
@@ -3794,53 +3647,37 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     }
 
-    // Navigate toward a virtual leader's simulated position so real followers
-    // walk naturally toward an out-of-range leader instead of freezing in place.
-    // Each follower virtualizes on its own once it exits the player's view distance.
+    // A loaded escort follower whose leader is offscreen: resolve its formation slot next to the leader's
+    // virtual position and hand it to catchup travel (EntityAITravel and its stuck ladder), the same way
+    // a follower too far behind a loaded leader is.
     private void tickVirtualLeaderFollow() {
         if (world.isRemote) return;
-        if (!isHiredFollower()) return;
-        if (getAttackTarget() != null) return;
-        if (!isFollowOrderActive()) {
-            resetVirtualLeaderPitTracking();
-            return; // paused (Follow: OFF): hold position, keep escort target
-        }
+        if (!isHiredFollower() || getAttackTarget() != null || !isFollowOrderActive()) return;
 
         UUID leaderId = getEscortLeaderUUID();
-        if (leaderId == null) {
-            resetVirtualLeaderPitTracking();
+        if (leaderId == null || !(world instanceof net.minecraft.world.WorldServer)) {
+            virtualEscortSlot = null;
             return;
         }
-        if (!(world instanceof net.minecraft.world.WorldServer)) return;
         net.minecraft.world.WorldServer serverWorld = (net.minecraft.world.WorldServer) world;
-
         com.jubitus.travellers.world.virtualization.VirtualTravellerManager vwm =
                 com.jubitus.travellers.world.virtualization.VirtualTravellerManager.get(serverWorld);
         if (!vwm.isVirtual(leaderId)) {
-            resetVirtualLeaderPitTracking();
+            virtualEscortSlot = null;
             return;
         }
 
-        net.minecraft.util.math.BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
-        if (leaderPos == null) return;
-        com.jubitus.travellers.world.virtualization.VirtualTravellerRecord leaderRecord =
-                vwm.getRecord(leaderId);
-
-        // Stagger initial cooldown by entity ID so workers don't all repath on the same tick.
-        // resolvePhysicalFollowerGoal below is O(followers-of-this-leader) per call (dense-rank
-        // bookkeeping), so this stays gated behind the same 40-tick cooldown as before - the pit
-        // rescue check piggybacks on this cadence rather than running every tick.
+        // Staggered: resolvePhysicalFollowerGoal is O(followers of this leader).
         if (virtualLeaderRepathCooldown < 0) {
             virtualLeaderRepathCooldown = Math.floorMod(getEntityId(), 40);
         }
         if (--virtualLeaderRepathCooldown > 0) return;
-        int elapsedTicks = 40; // this check's own cadence, see comment above
         virtualLeaderRepathCooldown = 40;
 
-        // Target this worker's own formation slot (shared FormationGeometry math with the loaded
-        // follow AI and VirtualFormationSimulator) rather than the leader's exact tile - otherwise
-        // every follower of a virtual leader converges on the same spot instead of holding formation
-        // shape, which is exactly what leaves a battle-scattered group unable to defend each other.
+        net.minecraft.util.math.BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
+        if (leaderPos == null) return;
+        com.jubitus.travellers.world.virtualization.VirtualTravellerRecord leaderRecord = vwm.getRecord(leaderId);
+
         boolean mounted = com.jubitus.travellers.world.pathing.PathBody.isMounted(this)
                 || (leaderRecord != null && leaderRecord.mountNbt != null);
         net.minecraft.util.math.BlockPos slotPos =
@@ -3850,82 +3687,19 @@ public class EntityTravellerWorker extends EntityTraveller {
                         leaderRecord != null ? leaderRecord.rotYaw : 0.0f,
                         getUniqueID(), mounted, world.getTotalWorldTime());
 
-        double slotDx = slotPos.getX() + 0.5 - posX;
-        double slotDz = slotPos.getZ() + 0.5 - posZ;
+        virtualEscortSlot = resolveVirtualSlot(slotPos.getX() + 0.5D, slotPos.getZ() + 0.5D);
+        notifyFollowerSlotGoal(virtualEscortSlot.getX() + 0.5D, virtualEscortSlot.getY(), virtualEscortSlot.getZ() + 0.5D);
 
-        // Pit-rescue tracking: unlike the horizontal-only "close enough, do nothing" check below,
-        // this looks at the FULL 3D distance to the slot so a worker that fell into a pit directly
-        // under its slot (correct X/Z, wildly wrong Y) can't be mistaken for one that arrived and
-        // left to rot with no rescue - the virtual-leader counterpart of
-        // EntityAIFollowLeader's own progress-based pit rescue, which never runs at all
-        // while the leader is offscreen. Checked at the same ~40-tick cadence as the goal resolve
-        // above (elapsedTicks added per check instead of 1) so the configured tick threshold still
-        // means roughly the same thing in wall-clock time regardless of that cadence.
-        double slotDy = slotPos.getY() - posY;
-        double slotDistSq = slotDx * slotDx + slotDz * slotDz + slotDy * slotDy;
-
-        FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-        if (slotDistSq < virtualLeaderBestGoalDistSq - 0.3D * 0.3D) {
-            virtualLeaderBestGoalDistSq = slotDistSq;
-            virtualLeaderNoProgressTicks = 0;
-        } else if (slotDistSq > 3.0D * 3.0D) {
-            virtualLeaderNoProgressTicks += elapsedTicks;
-        } else {
-            virtualLeaderNoProgressTicks = 0;
+        double startDist = FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D;
+        if (!catchupTravel && getDistanceSqToCenter(virtualEscortSlot) > startDist * startDist) {
+            beginCatchupToward(leaderId);
         }
-
-        if (virtualLeaderNoProgressTicks >= cfg.rescue.virtualLeaderPitRescueTicks) {
-            FollowRecoveryHelper.TeleportCandidate candidate = FollowRecoveryHelper.findPitEscapeTeleportRaw(
-                    this,
-                    leaderPos.getX() + 0.5, leaderPos.getY(), leaderPos.getZ() + 0.5,
-                    slotPos.getX() + 0.5, slotPos.getY(), slotPos.getZ() + 0.5,
-                    cfg.rescue.pitStepDistance);
-
-            if (candidate != null) {
-                FollowRecoveryHelper.teleportWorker(this, candidate);
-                resetVirtualLeaderPitTracking();
-                return;
-            }
-            // No safe spot found this attempt - keep counting and retry next check rather than
-            // resetting, so a temporarily-unresolvable pit doesn't reset the clock forever.
-        }
-
-        if (slotDx * slotDx + slotDz * slotDz < 3.0 * 3.0) return;
-
-        // Cap to loaded-chunk navigation range to avoid silent pathfinding failures.
-        // The worker steps toward its slot incrementally; once it exits view distance
-        // it virtualizes naturally and the virtual system takes over tracking.
-        double dist = Math.sqrt(slotDx * slotDx + slotDz * slotDz);
-        double navCap = 48.0;
-        double targetX = dist <= navCap ? slotPos.getX() + 0.5 : posX + (slotDx / dist) * navCap;
-        double targetZ = dist <= navCap ? slotPos.getZ() + 0.5 : posZ + (slotDz / dist) * navCap;
-
-        // Skip pathfinding if the current path is still valid and the target hasn't shifted
-        // enough to justify a new A* search. Virtual leaders move slowly, so the existing
-        // path stays relevant for several seconds at a time.
-        if (!getNavigator().noPath() && !Double.isNaN(virtualLeaderLastTargetX)) {
-            double shiftX = targetX - virtualLeaderLastTargetX;
-            double shiftZ = targetZ - virtualLeaderLastTargetZ;
-            if (shiftX * shiftX + shiftZ * shiftZ < 5.0 * 5.0) return;
-        }
-
-        virtualLeaderLastTargetX = targetX;
-        virtualLeaderLastTargetZ = targetZ;
-
-        // Walk back faster than usual while significantly displaced from the slot (e.g. right after
-        // a virtual battle scattered the group), mirroring the loaded follow AI's own catch-up boost.
-        TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
-        double speed = TravellersConfig.SPEED.movementSpeedWhileFollowing;
-        if (dist > wf.virtualRegroupTriggerDistance) {
-            speed *= wf.virtualRegroupSpeedMultiplier;
-        }
-
-        getNavigator().tryMoveToXYZ(targetX, leaderPos.getY(), targetZ, speed);
     }
 
-    private void resetVirtualLeaderPitTracking() {
-        virtualLeaderBestGoalDistSq = Double.MAX_VALUE;
-        virtualLeaderNoProgressTicks = 0;
+    private boolean isVirtualLeader(@Nullable UUID id) {
+        return id != null && world instanceof net.minecraft.world.WorldServer
+                && com.jubitus.travellers.world.virtualization.VirtualTravellerManager
+                .get((net.minecraft.world.WorldServer) world).isVirtual(id);
     }
 
     public void startGoToDestination(BlockPos pos, int dim) {
@@ -4560,19 +4334,6 @@ public class EntityTravellerWorker extends EntityTraveller {
      * Called by EntityAIFollowLeader to tell this worker what its current formation/idle slot is.
      * Server-side only in practice (AI runs on server), but safe if called elsewhere.
      */
-    @Override
-    public void notifyFollowerSlotGoal(double x, double y, double z) {
-        super.notifyFollowerSlotGoal(x, y, z);
-        this.followerSlotGoalTick = this.world.getTotalWorldTime();
-    }
-
-    private void clearFollowerIdleLookState() {
-        followerLookTarget = null;
-        followerLookHasPoint = false;
-        followerLookTicks = 0;
-        followerLookCooldown = 0;
-    }
-
     private static boolean isMovingEnough(EntityLivingBase e) {
         if (e == null) return false;
 
@@ -4587,67 +4348,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return (Math.max(mvSq, moSq) > MOTION_EPSILON) || e.isSprinting() || e.isSneaking();
     }
 
-    /**
-     * True only when we are settled into our slot and not navigating.
-     * This is the single gate for follower idle-looking.
-     */
-    public boolean shouldRunIdleLook() {
-        if (world.isRemote) return false;
-
-        if (!isHiredFollower() || !isFollowOrderActive()) return false;
-        if (isJobActive()) return false;
-        if (isInCombat() || getAttackTarget() != null) return false;
-        if (isRiding()) return false;
-
-        EntityPlayer owner = getFollowOwner();
-        if (owner == null || owner.isDead) return false;
-
-        // Keep idle look local-ish (prevents weird head snaps when owner far / chunk edges).
-        if (getDistanceSq(owner) > (16.0D * 16.0D)) {
-            followerIdleSettleTicks = 0;
-            return false;
-        }
-
-        // IMPORTANT: use effective follow target (owner OR escort leader).
-        EntityLivingBase followTarget = getEffectiveFollowTarget();
-        if (followTarget == null || followTarget.isDead) return false;
-
-        // Never idle-look while the follow target is moving (even if follow AI delays starting).
-        if (isMovingEnough(followTarget)) {
-            followerIdleSettleTicks = 0;
-            return false;
-        }
-
-        long now = world.getTotalWorldTime();
-        if (!followerHasSlotGoal || (now - followerSlotGoalTick) > IDLE_LOOK_STALE_GOAL_TICKS) {
-            followerIdleSettleTicks = 0;
-            return false;
-        }
-
-        double dx = posX - followerSlotGoalX;
-        double dz = posZ - followerSlotGoalZ;
-        double d2 = dx * dx + dz * dz;
-        double dyAbs = Math.abs(posY - followerSlotGoalY);
-
-        boolean nearSlot = d2 <= IDLE_LOOK_SLOT_RADIUS_SQ && dyAbs <= IDLE_LOOK_SLOT_Y_TOL;
-
-        PathNavigate nav = getNavigator();
-        boolean noPath = (nav == null) || nav.noPath();
-
-        double selfMotionSq = motionX * motionX + motionZ * motionZ;
-        boolean selfStill = selfMotionSq <= IDLE_LOOK_SELF_STILL_EPS_SQ;
-
-        if (nearSlot && noPath && selfStill) {
-            followerIdleSettleTicks++;
-        } else {
-            followerIdleSettleTicks = 0;
-        }
-
-        // ~0.6s..1.1s settle delay, randomized per entity so they don't all turn at once
-        int h = getUniqueID().hashCode();
-        int required = 12 + Math.abs((h >>> 7) % 10); // 12..21 ticks
-        return followerIdleSettleTicks >= required;
-    }
     public boolean isGoOrderActive() {
         return goOrderActive;
     }

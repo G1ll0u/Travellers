@@ -9,8 +9,6 @@ import com.jubitus.travellers.entity.culture.VillagerFilterRules;
 import com.jubitus.travellers.entity.culture.VoiceSet;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
-import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampJoinFire;
-import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
@@ -158,12 +156,6 @@ public class EntityTravellerRaider extends EntityTraveller {
             // New camp event system: same task as travellers (faction separation is enforced by
             // CampsiteRecord.canClaim, not by the AI).
             this.tasks.addTask(6, new com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampStay(this));
-        } else if (TravellersConfig.CAMP.campsEnabled) {
-            // 6: leader pauses at campcommon
-            this.tasks.addTask(6, new EntityAICampPause(this));
-
-            // 7: others join the campfire
-            this.tasks.addTask(7, new EntityAICampJoinFire(this, 0.34D));
         }
 
         // === TRAVEL / ROAMING / FOLLOWING ====================================================
@@ -187,10 +179,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // Open gates and doors, close them behind (shared with EntityTraveller - mirrored here
         // because this initEntityAI() fully replaces the base task list with no super call).
         this.tasks.addTask(9, new com.jubitus.travellers.entity.entityai.travel.EntityAIPassDoor(this));
-
-        // Look at nearby players and idle looking around
-        this.tasks.addTask(13, new EntityAIWatchClosest(this, EntityPlayer.class, 12.0F));
-        this.tasks.addTask(14, new EntityAILookIdle(this));
+        // Looking around is the gaze's job (TravellerGaze), not an AI task.
 
         // === OPTIONAL / DISABLED FEATURES ====================================================
 

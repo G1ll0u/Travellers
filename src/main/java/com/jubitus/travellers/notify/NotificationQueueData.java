@@ -54,9 +54,9 @@ public class NotificationQueueData extends WorldSavedData {
     }
 
     public void enqueue(UUID owner, NotificationType type, String i18nKey, String[] args, long worldTime,
-                        @Nullable BlockPos location, int dimension) {
+                        @Nullable NoticePlace place, @Nullable NoticeLine detail) {
         List<QueuedNotice> list = pending.computeIfAbsent(owner, k -> new ArrayList<>());
-        list.add(new QueuedNotice(type, i18nKey, args, worldTime, location, dimension));
+        list.add(new QueuedNotice(type, i18nKey, args, worldTime, place, detail));
 
         int cap = TravellersConfig.NOTIFICATIONS.offlineQueueCapPerPlayer;
         while (list.size() > cap) {
@@ -107,12 +107,19 @@ public class NotificationQueueData extends WorldSavedData {
                         args[k] = argsTag.getStringTagAt(k);
                     }
 
-                    BlockPos location = noticeTag.hasKey("LocX")
-                            ? new BlockPos(noticeTag.getInteger("LocX"), noticeTag.getInteger("LocY"), noticeTag.getInteger("LocZ"))
-                            : null;
-                    int dimension = noticeTag.getInteger("LocDim");
+                    NoticePlace place = null;
+                    if (noticeTag.hasKey("Place", Constants.NBT.TAG_COMPOUND)) {
+                        place = NoticePlace.fromNbt(noticeTag.getCompoundTag("Place"));
+                    } else if (noticeTag.hasKey("LocX")) {
+                        place = new NoticePlace(new BlockPos(noticeTag.getInteger("LocX"),
+                                noticeTag.getInteger("LocY"), noticeTag.getInteger("LocZ")),
+                                noticeTag.getInteger("LocDim"), null);
+                    }
 
-                    list.add(new QueuedNotice(type, i18nKey, args, worldTime, location, dimension));
+                    NoticeLine detail = noticeTag.hasKey("Detail", Constants.NBT.TAG_COMPOUND)
+                            ? NoticeLine.fromNbt(noticeTag.getCompoundTag("Detail")) : null;
+
+                    list.add(new QueuedNotice(type, i18nKey, args, worldTime, place, detail));
                 }
 
                 pending.put(owner, list);
@@ -142,11 +149,11 @@ public class NotificationQueueData extends WorldSavedData {
                 }
                 noticeTag.setTag("Args", argsTag);
 
-                if (n.location != null) {
-                    noticeTag.setInteger("LocX", n.location.getX());
-                    noticeTag.setInteger("LocY", n.location.getY());
-                    noticeTag.setInteger("LocZ", n.location.getZ());
-                    noticeTag.setInteger("LocDim", n.dimension);
+                if (n.place != null) {
+                    noticeTag.setTag("Place", n.place.toNbt());
+                }
+                if (n.detail != null) {
+                    noticeTag.setTag("Detail", n.detail.toNbt());
                 }
 
                 notices.appendTag(noticeTag);

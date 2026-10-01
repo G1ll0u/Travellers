@@ -102,11 +102,6 @@ public final class FollowRuntimeConfig {
         rescue.caveMaxLeaderDistance = 24.0D;
         rescue.caveMaxHorizontal = 12.0D;
         rescue.caveMinVerticalAbove = 4.0D;
-        rescue.surfaceMinStagnationTicks = wf.stuckTeleportDelayTicks;
-        rescue.surfaceMinFailedPathTicks = 35;
-        rescue.surfaceMaxStep = 6.0D;
-        rescue.surfaceMinLeaderDistance = 4.0D;
-        rescue.surfaceMaxLeaderDistance = wf.stuckTeleportMaxDistance;
         rescue.caveModeGraceTicks = 60;
         rescue.caveNoTeleportLeaderDistance = 4.0D;
         rescue.caveNoTeleportGoalDistance = 5.0D;
@@ -116,11 +111,6 @@ public final class FollowRuntimeConfig {
         rescue.caveEmergencyVerticalOnlyMinGap = 2.0D;
         rescue.caveEmergencyOnlyMinStagnationTicks = 260;
 
-        rescue.pitStagnationTicks = wf.pitRescueStagnationTicks;
-        rescue.pitPathFailTicks = wf.pitRescuePathFailTicks;
-        rescue.pitFailedAllowedPathTicks = wf.pitRescuePathFailTicks * 2;
-        rescue.pitStepDistance = wf.pitRescueStepDistance;
-        rescue.virtualLeaderPitRescueTicks = wf.virtualLeaderPitRescueTicks;
     }
 
     public static final class Group {
@@ -195,11 +185,6 @@ public final class FollowRuntimeConfig {
         public double caveMaxLeaderDistance;
         public double caveMaxHorizontal;
         public double caveMinVerticalAbove;
-        public int surfaceMinStagnationTicks;
-        public int surfaceMinFailedPathTicks;
-        public double surfaceMaxStep;
-        public double surfaceMinLeaderDistance;
-        public double surfaceMaxLeaderDistance;
         public int caveModeGraceTicks;
         public double caveNoTeleportLeaderDistance;
         public double caveNoTeleportGoalDistance;
@@ -209,10 +194,5 @@ public final class FollowRuntimeConfig {
         public double caveEmergencyVerticalOnlyMinGap;
         public int caveEmergencyOnlyMinStagnationTicks;
 
-        public int pitStagnationTicks;
-        public int pitPathFailTicks;
-        public int pitFailedAllowedPathTicks;
-        public double pitStepDistance;
-        public int virtualLeaderPitRescueTicks;
     }
 }

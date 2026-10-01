@@ -215,7 +215,6 @@ public class GuiWorkerMarkEditor extends GuiScreen implements ITravellersGui {
         if (isPointInRect(guiLeft + 142, guiTop + 90, 66, 20, mouseX, mouseY)) {
             drawHoveringText(java.util.Collections.singletonList(I18n.format("travellers.worker.mark.preview.leader_hint")), mouseX, mouseY);
         }
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(new net.minecraft.client.gui.ScaledResolution(net.minecraft.client.Minecraft.getMinecraft()));
     }
 
     private void drawSVBox() {

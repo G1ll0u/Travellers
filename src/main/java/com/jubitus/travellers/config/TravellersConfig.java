@@ -22,6 +22,7 @@ public class TravellersConfig {
     public static final WorkerFormation WORKER_FORMATION = new WorkerFormation();
     public static final Destinations DESTINATIONS = new Destinations();
     public static final VillageVisit VILLAGE_VISIT = new VillageVisit();
+    public static final Gaze GAZE = new Gaze();
     public static final Offscreen OFFSCREEN = new Offscreen();
     public static final Materialization MATERIALIZATION = new Materialization();
     public static final Travel TRAVEL = new Travel();
@@ -32,7 +33,6 @@ public class TravellersConfig {
     public static final HazardSafety HAZARD_SAFETY = new HazardSafety();
     public static final Sound SOUND = new Sound();
     public static final Choir CHOIR = new Choir();
-    public static final Camp CAMP = new Camp();
     public static final CampEvents CAMP_EVENTS = new CampEvents();
     public static final BattleEvents BATTLE_EVENTS = new BattleEvents();
     public static final Fishing FISHING = new Fishing();
@@ -985,13 +985,9 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.5, max = 6.0)
         public double caveArriveRadius = 3.60;
 
-        @Config.Comment("How long (in ticks, 20 = 1 second) a worker can be stuck before it teleports closer to catch up.")
-        @Config.RangeInt(min = 20, max = 400)
-        public int stuckTeleportDelayTicks = 100;
-
-        @Config.Comment("Max distance (blocks) from the leader a stuck worker is allowed to teleport to.")
-        @Config.RangeDouble(min = 4.0, max = 32.0)
-        public double stuckTeleportMaxDistance = 10.0;
+        @Config.Comment("How long, in seconds, a follower can be stuck before it gets the same unstuck help as a traveller on the road.")
+        @Config.RangeInt(min = 1, max = 30)
+        public int followStuckCatchupSeconds = 4;
 
         @Config.Comment("Slowest movement speed for workers trying to catch up (1.0 = normal walking speed).")
         @Config.RangeDouble(min = 0.05, max = 1.0)
@@ -1167,21 +1163,67 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 1.0, max = 8.0)
         public double formationSettleVerticalTolerance = 3.0;
 
-        @Config.Comment("How long (in ticks, 20 = 1 second) a worker with no path must make zero progress toward its slot before it's rescued with a short teleport out of a pit.")
-        @Config.RangeInt(min = 20, max = 400)
-        public int pitRescueStagnationTicks = 120;
+    }
 
-        @Config.Comment("How many failed pathfinding attempts a trapped worker needs before the pit-rescue teleport is allowed to fire.")
-        @Config.RangeInt(min = 5, max = 100)
-        public int pitRescuePathFailTicks = 20;
+    public static class Gaze {
+        @Config.Comment("How fast travellers turn their head. Lower is calmer.")
+        @Config.RangeDouble(min = 2.0, max = 40.0)
+        public double headTurnSpeed = 8.0;
 
-        @Config.Comment("Max distance (blocks) a single pit-rescue teleport hop can cover. Kept short so a rescued worker steps discreetly out of trouble instead of jumping far across the map.")
-        @Config.RangeDouble(min = 2.0, max = 12.0)
-        public double pitRescueStepDistance = 5.0;
+        @Config.Comment("How far a standing traveller turns its head before its body turns to follow.")
+        @Config.RangeDouble(min = 10.0, max = 75.0)
+        public double bodyFollowAngle = 45.0;
 
-        @Config.Comment("How long (in ticks, 20 = 1 second) a worker following a VIRTUAL (offscreen) leader can make zero progress toward its slot before it gets the same short pit-rescue teleport as when the leader is loaded.")
-        @Config.RangeInt(min = 40, max = 600)
-        public int virtualLeaderPitRescueTicks = 200;
+        @Config.Comment("How fast a standing traveller's body turns to follow its head. Lower is calmer.")
+        @Config.RangeDouble(min = 1.0, max = 30.0)
+        public double bodyTurnSpeed = 6.0;
+
+        @Config.Comment("How fast a halted rider turns its horse toward what it is looking at. Lower is calmer.")
+        @Config.RangeDouble(min = 1.0, max = 20.0)
+        public double mountedTurnSpeed = 4.0;
+
+        @Config.Comment("How far to one side a halted rider keeps its horse from what it is looking at, so the horse's head doesn't block its view.")
+        @Config.RangeDouble(min = 0.0, max = 60.0)
+        public double mountedSideOffset = 35.0;
+
+        @Config.Comment("Shortest time a traveller keeps looking at the same thing before looking elsewhere (seconds).")
+        @Config.RangeDouble(min = 0.5, max = 30.0)
+        public double holdMinSeconds = 2.0;
+
+        @Config.Comment("Longest time a traveller keeps looking at the same thing before looking elsewhere (seconds).")
+        @Config.RangeDouble(min = 0.5, max = 30.0)
+        public double holdMaxSeconds = 5.0;
+
+        @Config.Comment("Chance, each time a traveller looks around, that it glances at someone or something nearby (0 = never, 1 = always).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double glanceChance = 0.4;
+
+        @Config.Comment("Travellers only look around when a player is at least this close; farther away nobody sees it, so they save the effort.")
+        @Config.RangeDouble(min = 8.0, max = 128.0)
+        public double watchRange = 32.0;
+
+        @Config.Comment("How far around them travellers notice people and animals worth a look.")
+        @Config.RangeDouble(min = 4.0, max = 24.0)
+        public double awarenessRadius = 10.0;
+
+        @Config.Comment("How close a player must stand for a traveller to stop and face them.")
+        @Config.RangeDouble(min = 1.0, max = 8.0)
+        public double stopForPlayerDistance = 3.2;
+
+        @Config.Comment("How long a player must stay that close before the traveller stops for them (seconds).")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public double stopForPlayerDelaySeconds = 1.0;
+
+        @Config.Comment("Travellers say hello to people and groups they meet on the road, and to you.")
+        public boolean greetingsEnabled = true;
+
+        @Config.Comment("How close travellers must get to each other, or to you, to say hello.")
+        @Config.RangeDouble(min = 2.0, max = 16.0)
+        public double greetRange = 8.0;
+
+        @Config.Comment("How long before the same travellers say hello to each other, or to you, again (seconds).")
+        @Config.RangeDouble(min = 10.0, max = 3600.0)
+        public double greetCooldownSeconds = 300.0;
     }
 
     public static class VillageVisit {
@@ -1283,10 +1325,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double talkChance = 0.15;
 
-        @Config.Comment("Chance, each time a visiting traveller looks around, that it glances at a villager nearby while walking (0 = never, 1 = always).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public double glanceChance = 0.35;
-
         @Config.Comment("Shortest conversation (seconds).")
         @Config.RangeInt(min = 1, max = 120)
         public int talkMinSeconds = 4;
@@ -1310,18 +1348,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public double crowdPenalty = 1.5;
 
-        @Config.Comment("Shortest time a visiting traveller keeps looking at the same thing before looking elsewhere (seconds).")
-        @Config.RangeDouble(min = 0.5, max = 30.0)
-        public double gazeHoldMinSeconds = 2.0;
-
-        @Config.Comment("Longest time a visiting traveller keeps looking at the same thing before looking elsewhere (seconds).")
-        @Config.RangeDouble(min = 0.5, max = 30.0)
-        public double gazeHoldMaxSeconds = 5.0;
-
-        @Config.Comment("How fast a visiting traveller turns its head. Lower is calmer.")
-        @Config.RangeDouble(min = 2.0, max = 40.0)
-        public double gazeTurnSpeed = 8.0;
-
         @Config.Comment("How fast a visiting traveller turns its body while walking. Lower gives rounder, calmer turns.")
         @Config.RangeDouble(min = 5.0, max = 90.0)
         public double visitBodyTurnSpeed = 20.0;
@@ -1344,13 +1370,7 @@ public class TravellersConfig {
         @Config.Comment("Travellers nod a little while listening in a conversation.")
         public boolean talkNods = true;
 
-        @Config.Comment("How close a player must stand for a visiting traveller to stop and face them.")
-        @Config.RangeDouble(min = 1.0, max = 8.0)
-        public double playerFaceDistance = 3.2;
 
-        @Config.Comment("How long a player must stay that close before the traveller stops for them (seconds).")
-        @Config.RangeDouble(min = 0.0, max = 10.0)
-        public double playerFaceDelaySeconds = 1.0;
 
         @Config.Comment("While nobody is around, how often a visiting traveller moves on to another spot of the village (seconds).")
         @Config.RangeInt(min = 5, max = 600)
@@ -1647,6 +1667,18 @@ public class TravellersConfig {
         @Config.Comment("How far an unstuck hop may move a traveller, in blocks. Small = discreet.")
         @Config.RangeInt(min = 2, max = 16)
         public int stuckHopBlocks = 5;
+
+        @Config.Comment("How far an unstuck hop may reach after earlier hops found nowhere to land, in blocks.")
+        @Config.RangeInt(min = 2, max = 32)
+        public int stuckHopMaxBlocks = 16;
+
+        @Config.Comment("Before an unstuck hop, how far beyond the landing spot a traveller checks it can keep walking, in blocks.")
+        @Config.RangeInt(min = 4, max = 48)
+        public int stuckHopOnwardBlocks = 12;
+
+        @Config.Comment("How many unstuck-hop landing checks the whole world may run per tick. Lower = lighter on the server, slower rescues.")
+        @Config.RangeInt(min = 1, max = 20)
+        public int stuckHopChecksPerTick = 2;
 
         @Config.Comment("How far a traveller can be pushed away from its route (by a fight or a rescue) before it plans a new route from where it stands instead of walking back to the old one.")
         @Config.RangeInt(min = 16, max = 512)
@@ -2441,56 +2473,8 @@ public class TravellersConfig {
         public int choirSpreadGraceChecks = 3;
     }
 
-    public static class Camp {
-        @Config.Comment("If true, travellers will sometimes make camps with a firepit.")
-        public boolean campsEnabled = false;
 
-        @Config.Comment("Radius (blocks) around campfire where travellers gather.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int campRadius = 8;
-
-        @Config.Comment("How far (blocks) travellers look for nearby camps to join.")
-        @Config.RangeInt(min = 1, max = 128)
-        public int campSeekRadius = 12;
-
-        @Config.Comment("Maximum travellers gathered around a single campfire.")
-        @Config.RangeInt(min = 1, max = 32)
-        public int campMaxJoinersPerCamp = 12;
-
-        @Config.Comment("Minimum ticks between wander moves while at camp.")
-        @Config.RangeInt(min = 1, max = 120000)
-        public int campWanderMinDelay = 40;
-
-        @Config.Comment("Maximum ticks between wander moves while at camp.")
-        @Config.RangeInt(min = 1, max = 120000)
-        public int campWanderMaxDelay = 140;
-
-        @Config.Comment("Minimum ticks between look-around actions while at camp.")
-        @Config.RangeInt(min = 1, max = 120000)
-        public int campLookMinDelay = 30;
-
-        @Config.Comment("Maximum ticks between look-around actions while at camp.")
-        @Config.RangeInt(min = 1, max = 120000)
-        public int campLookMaxDelay = 110;
-
-        @Config.Comment("Per-tick chance (0–1) that a traveller starts a camp when conditions are met.")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float campStartChancePerTick = 0.0008f;
-
-        @Config.Comment("Ticks before a traveller can rejoin a camp fire after leaving one.")
-        @Config.RangeInt(min = 0, max = 72000)
-        public int campJoinCooldownTicks = 7200;
-
-        @Config.Comment("Ticks between random camp-stop attempts for a single traveller.")
-        @Config.RangeInt(min = 0, max = 720000)
-        public int campRandomCooldown = 6 * 60 * 20;
-
-        @Config.Comment("Baseline ticks between animation swings while cooking/working at a camp.")
-        @Config.RangeInt(min = 1, max = 6000)
-        public int campSwingEvery = 80;
-    }
-
-    // New offscreen-capable camp event system (travellers + raiders). Independent from the legacy Camp class above.
+    // Offscreen-capable camp event system (travellers + raiders).
     public static class CampEvents {
         @Config.Comment("Master switch for the new offscreen-capable camp event system.")
         public boolean enabled = false;
@@ -2770,18 +2754,19 @@ public class TravellersConfig {
         @Config.RangeInt(min = 4, max = 32)
         public int workerBarracksRadius = 10;
 
-        @Config.Comment("If true, dead workers with a barracks home respawn there the next in-game day.")
-        public boolean workerRespawnInBarracks = true;
-
-        @Config.Comment("In-game day time (0-23999) when dead workers respawn at their barracks.")
-        @Config.RangeInt(min = 0, max = 23999)
-        public int workerRespawnMorningTime = 1000;
     }
 
     public static class Worker {
-        @Config.Comment("Number of in-game days before a dead worker respawns at their barrack (requires workerRespawnInBarracks).")
+        @Config.Comment("Dead workers who had a bed (barrack or stable) come back beside it after a few days.")
+        public boolean workerRespawnAtBed = true;
+
+        @Config.Comment("How many mornings a dead worker waits before coming back beside its bed.")
         @Config.RangeInt(min = 1, max = 30)
-        public int workerBarrackRespawnDays = 3;
+        public int workerRespawnDays = 3;
+
+        @Config.Comment("Time of day dead workers come back (0 = sunrise, 6000 = noon).")
+        @Config.RangeInt(min = 0, max = 23999)
+        public int workerRespawnMorningTime = 1000;
 
         @Config.Comment("Default half-width (X axis) for lone barracks detection.")
         @Config.RangeInt(min = 4, max = 32)
@@ -2824,9 +2809,21 @@ public class TravellersConfig {
         @Config.RangeInt(min = 128, max = 100000)
         public int workerVillageDetectRadius = 8000;
 
-        @Config.Comment("Distance (blocks) considered 'arrived' at a Go-to destination.")
+        @Config.Comment("How close workers must get to the spot you send them to before they stop.")
         @Config.RangeInt(min = 1, max = 512)
-        public int workerGoArrivalRadius = 32;
+        public int workerGoArrivalRadius = 4;
+
+        @Config.Comment("How close workers must get to a barrack, stable or village to pick up equipment there.")
+        @Config.RangeInt(min = 1, max = 512)
+        public int workerEquipArrivalRadius = 32;
+
+        @Config.Comment("Only tell you a Go order arrived if the destination was at least this far (blocks)...")
+        @Config.RangeInt(min = 0, max = 10000)
+        public int goNotifyMinDistance = 48;
+
+        @Config.Comment("...or if the trip took at least this long (seconds).")
+        @Config.RangeInt(min = 0, max = 36000)
+        public int goNotifyMinSeconds = 60;
 
         @Config.Comment("How close (blocks) a worker coming back from a sale/donation stays to you while it waits for you to take the goods.")
         @Config.RangeDouble(min = 1.5, max = 10.0)

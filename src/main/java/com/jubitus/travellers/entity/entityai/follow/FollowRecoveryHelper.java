@@ -174,80 +174,6 @@ public final class FollowRecoveryHelper {
     }
 
     /**
-     * Same escape search as {@link #findPitEscapeTeleport}, for a worker whose escort leader is
-     * currently VIRTUAL (offscreen) - there's no loaded {@link EntityLivingBase} to read a position
-     * from, so the leader's coordinates are passed directly instead.
-     */
-    @Nullable
-    public static TeleportCandidate findPitEscapeTeleportRaw(
-            EntityTraveller worker,
-            double leaderX, double leaderY, double leaderZ,
-            double goalX, double goalY, double goalZ,
-            double maxStep) {
-
-        double dx = goalX - worker.posX;
-        double dy = goalY - worker.posY;
-        double dz = goalZ - worker.posZ;
-        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (dist < 0.5D) return null;
-
-        double step = Math.min(maxStep, dist);
-        double anchorX = worker.posX + (dx / dist) * step;
-        double anchorY = worker.posY + (dy / dist) * step;
-        double anchorZ = worker.posZ + (dz / dist) * step;
-
-        return findBestSpotNear(
-                worker,
-                leaderX, leaderY, leaderZ,
-                anchorX, anchorY, anchorZ,
-                4,
-                false,
-                0.0D,
-                256.0D,
-                step + 5.0D
-        );
-    }
-
-    @Nullable
-    public static TeleportCandidate findShortStepTeleport(EntityTraveller worker,
-                                                          EntityLivingBase leader,
-                                                          double maxStep,
-                                                          double minLeaderDistance,
-                                                          double maxLeaderDistance,
-                                                          boolean requireUnderground) {
-        double dx = leader.posX - worker.posX;
-        double dy = leader.posY - worker.posY;
-        double dz = leader.posZ - worker.posZ;
-
-        double distSq = dx * dx + dy * dy + dz * dz;
-        if (distSq < 1.0E-6D) return null;
-
-        double dist = Math.sqrt(distSq);
-        double step = Math.min(maxStep, dist);
-
-        double nx = dx / dist;
-        double ny = dy / dist;
-        double nz = dz / dist;
-
-        double anchorX = worker.posX + nx * step;
-        double anchorY = worker.posY + ny * step;
-        double anchorZ = worker.posZ + nz * step;
-
-        return findBestSpotNear(
-                worker,
-                leader.posX, leader.posY, leader.posZ,
-                anchorX,
-                anchorY,
-                anchorZ,
-                4,
-                requireUnderground,
-                minLeaderDistance,
-                maxLeaderDistance,
-                maxStep + 2.5D
-        );
-    }
-
-    /**
      * Leader position is passed as raw coordinates (not an {@link EntityLivingBase}) purely for
      * scoring/distance-filtering purposes - it's only ever read as X/Y/Z, so a virtual (offscreen)
      * leader's last known position works exactly as well as a loaded entity's.
@@ -367,44 +293,6 @@ public final class FollowRecoveryHelper {
             }
         }
         return top;
-    }
-
-    /**
-     * Last-resort teleport for a worker trapped in a pit: steps a small distance
-     * toward the goal slot and finds the nearest standable surface.
-     * No leader-distance filtering — the only goal is to escape the pit.
-     */
-    @Nullable
-    public static TeleportCandidate findPitEscapeTeleport(
-            EntityTraveller worker,
-            EntityLivingBase leader,
-            double goalX, double goalY, double goalZ,
-            double maxStep) {
-        return findPitEscapeTeleportRaw(worker, leader.posX, leader.posY, leader.posZ, goalX, goalY, goalZ, maxStep);
-    }
-
-    /**
-     * Wide-radius fallback for when the direct short-step teleport fails (e.g., a mountain
-     * sits between the worker and its leader). Searches around the leader position with no
-     * worker-distance constraint so the worker can land on the far side of any obstacle.
-     */
-    @Nullable
-    public static TeleportCandidate findWideTeleportNearLeader(EntityTraveller worker,
-                                                               EntityLivingBase leader,
-                                                               double searchRadius,
-                                                               double minLeaderDistance) {
-        return findBestSpotNear(
-                worker,
-                leader.posX, leader.posY, leader.posZ,
-                leader.posX,
-                leader.posY,
-                leader.posZ,
-                (int) Math.ceil(searchRadius),
-                false,
-                minLeaderDistance,
-                searchRadius,
-                1024.0D
-        );
     }
 
     public static void teleportWorker(EntityTraveller worker, TeleportCandidate candidate) {

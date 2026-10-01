@@ -18,6 +18,9 @@ public final class ItineraryCursor {
     // Output of computeCarrot, read right after the call.
     public double carrotX;
     public double carrotZ;
+    // Height hint and segment kind at the carrot (the road surface on a ROAD run).
+    public double carrotY;
+    public byte carrotKind;
 
     public int segment() {
         return seg;
@@ -97,6 +100,8 @@ public final class ItineraryCursor {
         if (t > 1.0) t = 1.0;
         carrotX = it.x(k) + 0.5 + (it.x(k + 1) - it.x(k)) * t;
         carrotZ = it.z(k) + 0.5 + (it.z(k + 1) - it.z(k)) * t;
+        carrotY = it.y(k) + (it.y(k + 1) - it.y(k)) * t;
+        carrotKind = it.kind(k);
     }
 
     /** Kind of the segment the cursor is on. */

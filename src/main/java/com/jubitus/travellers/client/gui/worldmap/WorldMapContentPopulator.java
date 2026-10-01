@@ -72,10 +72,14 @@ public final class WorldMapContentPopulator {
             }
         }
 
-        // 4 — Follower workers
+        // 4 — Follower workers, or the role marker of an on-duty worker
         for (MsgMapWorkersUpdate.Entry e : workers) {
             if (e.pos == null || e.dim != myDim || e.isLeader) continue;
-            panel.addMarker(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor));
+            if (isOnDuty(e)) {
+                panel.addMarker(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role));
+            } else {
+                panel.addMarker(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor));
+            }
         }
 
         // 5 — Leader workers
@@ -89,6 +93,11 @@ public final class WorldMapContentPopulator {
             panel.addMarker(WorldMapMarkerFactory.player(
                     player.getPosition(), player.getName(), playerOwnerColor, player.rotationYaw));
         }
+    }
+
+    /** An on-duty worker (e.g. a palfrenier) takes no player order: drawn with its role marker, never selectable. */
+    public static boolean isOnDuty(MsgMapWorkersUpdate.Entry e) {
+        return e.role != null && !e.role.isEmpty();
     }
 
     /** Hover label: name, current activity, who it follows, live HP (red heart), battle flag. */

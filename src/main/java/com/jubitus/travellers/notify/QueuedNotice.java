@@ -1,7 +1,5 @@
 package com.jubitus.travellers.notify;
 
-import net.minecraft.util.math.BlockPos;
-
 import javax.annotation.Nullable;
 
 /**
@@ -13,16 +11,17 @@ public final class QueuedNotice {
     public final String[] args;
     public final long worldTime;
     @Nullable
-    public final BlockPos location;
-    public final int dimension;
+    public final NoticePlace place;
+    @Nullable
+    public final NoticeLine detail;
 
     public QueuedNotice(NotificationType type, String i18nKey, String[] args, long worldTime,
-                         @Nullable BlockPos location, int dimension) {
+                        @Nullable NoticePlace place, @Nullable NoticeLine detail) {
         this.type = type;
         this.i18nKey = i18nKey;
         this.args = args;
         this.worldTime = worldTime;
-        this.location = location;
-        this.dimension = dimension;
+        this.place = place;
+        this.detail = detail;
     }
 }

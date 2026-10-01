@@ -1,9 +1,14 @@
 package com.jubitus.travellers.notify;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.server.group.WorkerGroupService;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.BlockPos;
 
 import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -15,9 +20,39 @@ public final class MissionNotifications {
     private MissionNotifications() {
     }
 
+    private static final class Trip {
+        final double distance;
+        final long startTick;
+
+        Trip(double distance, long startTick) {
+            this.distance = distance;
+            this.startTick = startTick;
+        }
+    }
+
+    // Go orders in progress, by the worker that received them. Not persisted: a trip whose start was
+    // lost (restart) is always announced, like before this filter existed.
+    private static final Map<UUID, Trip> TRIPS = new HashMap<>();
+    private static final int MAX_TRIPS = 512;
+
+    /** A Go order was given. Short repositioning moves stay silent, here and on arrival. */
+    public static void goOrdered(EntityPlayer player, UUID workerId, BlockPos from, BlockPos to,
+                                 NotificationDef startDef, String... args) {
+        MinecraftServer server = player.getServer();
+        if (server == null) return;
+        double distance = Math.sqrt(from.distanceSq(to.getX(), from.getY(), to.getZ()));
+        if (TRIPS.size() >= MAX_TRIPS) TRIPS.clear();
+        TRIPS.put(workerId, new Trip(distance, server.getWorld(0).getTotalWorldTime()));
+        if (distance >= TravellersConfig.WORKER.goNotifyMinDistance) {
+            NotificationService.notify(player, startDef, args);
+        }
+    }
+
     /** Go-to arrival: solo message, or one group message when the worker leads followers. */
     public static void arrived(@Nullable MinecraftServer server, @Nullable UUID ownerId, UUID workerId) {
         if (server == null || ownerId == null) return;
+        Trip trip = TRIPS.remove(workerId);
+        if (trip != null && !worthTelling(server, trip)) return;
         int followers = WorkerGroupService.countFollowers(server, ownerId, workerId);
         if (followers > 0) {
             NotificationService.notifyOffline(server, ownerId, NotificationDefs.GOTO_GROUP_ARRIVED,
@@ -25,6 +60,12 @@ public final class MissionNotifications {
         } else {
             NotificationService.notifyOffline(server, ownerId, NotificationDefs.GOTO_ARRIVED);
         }
+    }
+
+    private static boolean worthTelling(MinecraftServer server, Trip trip) {
+        long seconds = (server.getWorld(0).getTotalWorldTime() - trip.startTick) / 20L;
+        return trip.distance >= TravellersConfig.WORKER.goNotifyMinDistance
+                || seconds >= TravellersConfig.WORKER.goNotifyMinSeconds;
     }
 
     /** Get-equipment result: how many of the workers (the leader plus its followers) got something. */

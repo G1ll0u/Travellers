@@ -49,6 +49,7 @@ public final class RoadLayer {
         if (polylines == null || polylines.isEmpty()) return EMPTY;
         List<int[]> pts = new ArrayList<>();
         List<int[]> links = new ArrayList<>();
+        List<Integer> owners = new ArrayList<>();
         for (List<BlockPos> raw : polylines) {
             if (raw == null || raw.size() < 2) continue;
             List<BlockPos> line = resample(CoarseRouteSearch.simplify(raw, simplifyEps), maxGap);
@@ -56,6 +57,7 @@ public final class RoadLayer {
             for (int k = 0; k < line.size(); k++) {
                 BlockPos p = line.get(k);
                 pts.add(new int[]{p.getX(), p.getY(), p.getZ()});
+                owners.add(base);
                 links.add(new int[]{k == 0 ? -1 : base + k - 1, k == line.size() - 1 ? -1 : base + k + 1});
             }
         }
@@ -68,8 +70,31 @@ public final class RoadLayer {
             pv[i] = links.get(i)[0];
             nx[i] = links.get(i)[1];
         }
-        return new RoadLayer(xs, ys, zs, pv, nx, maxGap);
+        RoadLayer layer = new RoadLayer(xs, ys, zs, pv, nx, maxGap);
+        int[] road = new int[n];
+        for (int i = 0; i < n; i++) road[i] = owners.get(i);
+        layer.raiseOverlaps(road, maxGap * 0.5);
+        return layer;
     }
+
+    /**
+     * Where two roads share the same ground at different heights, both take the upper one: a road is
+     * never deliberately laid under a bridge, so the lower copy is a stale path through the gap the
+     * bridge spans (seen with MPB keeping a road's ravine waypoints under its own bridge).
+     */
+    private void raiseOverlaps(int[] road, double radius) {
+        int[] raised = ys.clone();
+        for (int i = 0; i < xs.length; i++) {
+            final int vi = i;
+            forEachNear(xs[i], zs[i], radius, w -> {
+                // Another road only: the two legs of one switchback are the same road and stay apart.
+                if (road[w] != road[vi] && ys[w] - raised[vi] >= OVERLAP_MIN_GAP) raised[vi] = ys[w];
+            });
+        }
+        System.arraycopy(raised, 0, ys, 0, ys.length);
+    }
+
+    private static final int OVERLAP_MIN_GAP = 4;
 
     private static List<BlockPos> resample(List<BlockPos> line, int maxGap) {
         List<BlockPos> out = new ArrayList<>();

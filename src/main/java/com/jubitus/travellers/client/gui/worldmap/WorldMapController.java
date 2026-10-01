@@ -23,6 +23,10 @@ public class WorldMapController {
     // Raw screen pixels (origin bottom-left), finer than GUI coordinates at any GUI scale.
     private int dragStartRawX, dragStartRawY;
     private float dragStartCenterX, dragStartCenterZ;
+    // Where the right button went down (GUI coords): a release close to it is a click, not a pan.
+    private boolean rightPressed;
+    private int rightPressX, rightPressY;
+    private static final int CLICK_SLOP_PX = 3;
 
     private long lastViewSendMs;
     private long lastTileRequestMs;
@@ -76,6 +80,9 @@ public class WorldMapController {
             dragStartRawY = Mouse.getY();
             dragStartCenterX = panel.getCenterXf();
             dragStartCenterZ = panel.getCenterZf();
+            rightPressed = true;
+            rightPressX = mouseX;
+            rightPressY = mouseY;
             return true;
         }
         return false;
@@ -104,6 +111,31 @@ public class WorldMapController {
         if (state == 1 && dragging) {
             dragging = false;
         }
+    }
+
+    /**
+     * Call on right-button release: true when the button went down on the map and came back up
+     * without the map being dragged, i.e. a plain right click. A drag moves the map instead.
+     */
+    public boolean endRightClick(int mouseX, int mouseY) {
+        boolean wasPressed = rightPressed;
+        rightPressed = false;
+        if (!wasPressed) return false;
+        if (Math.abs(mouseX - rightPressX) > CLICK_SLOP_PX || Math.abs(mouseY - rightPressY) > CLICK_SLOP_PX) {
+            return false;
+        }
+        // A sub-slop wobble may have panned the map a little: put it back exactly.
+        panel.setCenterF(dragStartCenterX, dragStartCenterZ);
+        return isMouseOver(mouseX, mouseY);
+    }
+
+    /** Screen position of a world column on the map. */
+    public float worldToScreenX(double worldX) {
+        return mapX + mapW / 2f + (float) (worldX - panel.getCenterXf()) / panel.getZoomBlocksPerPixel();
+    }
+
+    public float worldToScreenY(double worldZ) {
+        return mapY + mapH / 2f + (float) (worldZ - panel.getCenterZf()) / panel.getZoomBlocksPerPixel();
     }
 
     public void draw() {

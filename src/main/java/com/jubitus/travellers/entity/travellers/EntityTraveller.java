@@ -20,8 +20,6 @@ import com.jubitus.travellers.entity.entityai.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIStopAndLookAtPlayer;
-import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampJoinFire;
-import com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampPause;
 import com.jubitus.travellers.entity.entityai.combat.AttackTargetLimiter;
 import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
@@ -38,7 +36,6 @@ import com.jubitus.travellers.entity.entityai.travel.EntityAIPassDoor;
 import com.jubitus.travellers.entity.entityai.travel.TravellerDoorways;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerCamp;
 import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
 import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
@@ -62,6 +59,12 @@ import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.*;
+import com.jubitus.travellers.entity.entityai.gaze.TravellerBodyHelper;
+import com.jubitus.travellers.entity.entityai.gaze.Greetings;
+import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
+import com.jubitus.travellers.entity.entityai.gaze.TravellerGreeter;
+import com.jubitus.travellers.entity.entityai.gaze.TravellerLookHelper;
+import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
@@ -170,9 +173,7 @@ public class EntityTraveller extends EntityCreature {
     private static final String NBT_VOICE_PERSONALITY_ID = "VoicePersonalityId";
 
 
-    private static final int HELLO_COOLDOWN_TICKS = 5 * 60 * 20; // 5 min
     private static final double EMERGENCY_ENGAGE_RANGE_SQ = EMERGENCY_ENGAGE_RANGE * EMERGENCY_ENGAGE_RANGE;
-    public final TravellerCamp travellerCamp = new TravellerCamp(this);
     public final TravellerCombatLogic combat = new TravellerCombatLogic(this);
     public final TravellerEquipmentManager equipment = new TravellerEquipmentManager(this);
     public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
@@ -185,10 +186,7 @@ public class EntityTraveller extends EntityCreature {
     public final com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore dialogueMemory =
             new com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore();
     private final int retargetPhase = this.rand.nextInt(10); // 0..9
-    // --- Camp join cooldown (prevents placing a fire right after resting) ---
-    private final TravellerCamp camp = new TravellerCamp(this);
     // per-player last hello tick (server-authoritative)
-    private final Map<UUID, Integer> lastHelloTickByPlayer = new java.util.HashMap<>();
     // ---- GAP / CLIFF handling control ----
     private final boolean wasInWater = false;
     private final int noPathTicks = 0;
@@ -841,6 +839,26 @@ public class EntityTraveller extends EntityCreature {
         // Vanilla's move helper turns up to 90 degrees per tick, which AbstractHorse.travel() copies
         // straight onto a horse's body. See TravellerMoveHelper - identical to vanilla on foot.
         this.moveHelper = new com.jubitus.travellers.world.pathing.TravellerMoveHelper(this);
+        this.gaze = new TravellerGaze(this);
+        this.greeter = new TravellerGreeter(this);
+        ObfuscationReflectionHelper.setPrivateValue(EntityLiving.class, this, new TravellerLookHelper(this, gaze), "field_70749_g");
+    }
+
+    private TravellerGaze gaze;
+    private TravellerGreeter greeter;
+
+    public TravellerGreeter getGreeter() {
+        return greeter;
+    }
+
+    /** What the head looks at when no AI task asks for something; see {@link TravellerLookHelper}. */
+    public TravellerGaze getGaze() {
+        return gaze;
+    }
+
+    @Override
+    protected EntityBodyHelper createBodyHelper() {
+        return new TravellerBodyHelper(this);
     }
 
     public boolean isGhostTorch(ItemStack s) {
@@ -1021,55 +1039,6 @@ public class EntityTraveller extends EntityCreature {
     }
 
 
-    /**
-     * Mark a campcommon to avoid for N ticks.
-     */
-    public void avoidCamp(BlockPos pos, int ticks) {
-        travellerCamp.avoidCamp(pos, ticks);
-    }
-
-
-// === Shared campcommon helpers ===
-
-    /**
-     * True if this campcommon is currently blacklisted for this travellers.
-     */
-    public boolean isAvoidingCamp(BlockPos pos) {
-        return travellerCamp.isAvoidingCamp(pos);
-    }
-
-    public boolean isCampJoinOnCooldown() {
-        return travellerCamp.isCampJoinOnCooldown();
-    }
-
-    public boolean hasCampfire() {
-        return travellerCamp.hasCampfire();
-    }
-
-    public void markCampLeader(BlockPos pos, int durationTicks) {
-        travellerCamp.markCampLeader(pos, durationTicks);
-    }
-
-    // joiner
-    public void joinCampAt(BlockPos pos, int durationTicks) {
-        travellerCamp.joinCampAt(pos, durationTicks);
-    }
-
-    public void clearCamp() {
-        travellerCamp.clearCamp();
-    }
-
-    public void setCampJoinCooldown() {
-        travellerCamp.setCampJoinCooldown();
-    }
-
-    public void setCampCooldown() {
-        travellerCamp.setCampCooldown();
-    }
-
-    public boolean campOnCooldown() {
-        return travellerCamp.campOnCooldown();
-    }
 
     public boolean isGhostRod(ItemStack s) {
         return isFishingRodLike(s) && equipment.isGhostRod(s);
@@ -1081,10 +1050,6 @@ public class EntityTraveller extends EntityCreature {
 
     public ItemStack makeGhostRod(ItemStack src) {
         return equipment.makeGhostRod(src);
-    }
-
-    public TravellerCamp getCamp() {
-        return camp;
     }
 
     @Nullable
@@ -1116,58 +1081,12 @@ public class EntityTraveller extends EntityCreature {
         return this.dataManager.get(CULTURE_ID);
     }
 
-    // Smoothly turn to look at a block (used for fire & social glances)
-    public void faceTowards(BlockPos pos, float bodyStep, float headStep) {
-        double dx = pos.getX() + 0.5 - this.posX;
-        double dz = pos.getZ() + 0.5 - this.posZ;
-        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-        setBodyYaw(rotlerp(this.rotationYaw, yaw, bodyStep));
-        this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, bodyStep);
-        this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, headStep);
-        noteHeadWriter("faceTowards");
-    }
-
     // Helper: clamp angular delta and step toward a target
     public static float rotlerp(float current, float target, float maxStep) {
         float delta = MathHelper.wrapDegrees(target - current);
         if (delta > maxStep) delta = maxStep;
         if (delta < -maxStep) delta = -maxStep;
         return current + delta;
-    }
-
-    // Convenience for the current campfire
-    public void lookAtFire() {
-        if (travellerCamp.isSocialLooking()) return; // don't override a chat glance
-        BlockPos fp = travellerCamp.getCampfirePos();
-        if (fp == null) return;
-        double dx = fp.getX() + 0.5 - this.posX;
-        double dz = fp.getZ() + 0.5 - this.posZ;
-        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0F;
-        setBodyYaw(rotlerp(this.rotationYaw, yaw, 10.0F));
-        this.renderYawOffset = rotlerp(this.renderYawOffset, this.rotationYaw, 10.0F);
-        this.rotationYawHead = rotlerp(this.rotationYawHead, this.renderYawOffset, 12.0F);
-        noteHeadWriter("fire");
-    }
-
-    // Choose a stand slot ~1.4 blocks in front of the fire (shared by both AIs)
-    @Nullable
-    public BlockPos pickFrontOfFire(BlockPos fire) {
-        Vec3d dir = new Vec3d(this.posX - (fire.getX() + 0.5), 0, this.posZ - (fire.getZ() + 0.5));
-        if (dir.lengthSquared() < 1.0E-4) dir = new Vec3d(1, 0, 0);
-        dir = dir.normalize();
-
-        int[] angles = new int[]{0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180};
-        for (int aDeg : angles) {
-            double a = Math.toRadians(aDeg);
-            double cx = Math.cos(a) * dir.x - Math.sin(a) * dir.z;
-            double cz = Math.sin(a) * dir.x + Math.cos(a) * dir.z;
-            int x = fire.getX() + (int) Math.round(cx * 1.4);
-            int z = fire.getZ() + (int) Math.round(cz * 1.4);
-            BlockPos top = travelCommon.topStandable(new BlockPos(x, fire.getY(), z));
-            if (top != null && top.distanceSq(fire) <= (TravellersConfig.CAMP.campRadius + 2) * (TravellersConfig.CAMP.campRadius + 2))
-                return top;
-        }
-        return null;
     }
 
     // Find a dry standable Y near XZ (no chunk loads)
@@ -1209,9 +1128,22 @@ public class EntityTraveller extends EntityCreature {
         return headWriters.isEmpty() ? "-" : headWriters;
     }
 
-    /** What the visit's gaze is on, for the trace; "-" outside a visit. */
+    /** The running AI task holding the movement bit, or null when nothing moves the traveller. */
+    @Nullable
+    public EntityAIBase getRunningMovementTask() {
+        for (EntityAITasks.EntityAITaskEntry entry : tasks.taskEntries) {
+            if (entry.using && (entry.action.getMutexBits() & 1) != 0) return entry.action;
+        }
+        return null;
+    }
+
+    public boolean hasHeadWriterThisTick() {
+        return !headWriters.isEmpty();
+    }
+
+    /** What the gaze is on, for the trace. */
     public String describeGaze() {
-        return villageVisitAI != null && villageVisitAI.isRunning() ? villageVisitAI.describeGaze() : "-";
+        return gaze != null ? gaze.describe() : "-";
     }
 
     /** True while the village visit task is actually running (not merely the persisted idling flag). */
@@ -1414,12 +1346,9 @@ public class EntityTraveller extends EntityCreature {
         if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
             // New camp event system: keep occupants at their slot (build is handled by the manager).
             this.tasks.addTask(6, new com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampStay(this));
-        } else if (TravellersConfig.CAMP.campsEnabled) {
-            this.tasks.addTask(6, new EntityAICampPause(this));                       // leader
-            this.tasks.addTask(7, new EntityAICampJoinFire(this, 0.34D)); // joiner
         }
 
-        this.tasks.addTask(9, new EntityAIStopAndLookAtPlayer(this, 3.2D, 30.0F, 30.0F));
+        this.tasks.addTask(9, new EntityAIStopAndLookAtPlayer(this));
         if (TravellersConfig.TRAVEL.fishWhileTravelEnabled) {
             this.tasks.addTask(22, new EntityAIFishWhileTravel(this));
         }
@@ -1432,8 +1361,6 @@ public class EntityTraveller extends EntityCreature {
 
         aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(27, aiTravel);
-
-        this.tasks.addTask(28, new EntityAILookIdle(this));
     }
 
     // Entity Attributes
@@ -2024,14 +1951,6 @@ public class EntityTraveller extends EntityCreature {
                 compound.setIntArray("CurrentWaypoint", new int[]{travelCommon.getCurrentWaypoint().getX(), travelCommon.getCurrentWaypoint().getY(), travelCommon.getCurrentWaypoint().getZ()});
             if (travelCommon.getRoamTarget() != null)
                 compound.setIntArray("RoamTarget", new int[]{travelCommon.getRoamTarget().getX(), travelCommon.getRoamTarget().getY(), travelCommon.getRoamTarget().getZ()});
-            compound.setBoolean("CampLeader", this.travellerCamp.isCampLeader());
-            compound.setLong("CampLeaveTime", this.travellerCamp.campLeaveTime);
-
-            if (this.travellerCamp.getCampfirePos() != null) {
-                compound.setInteger("CampX", this.travellerCamp.getCampfirePos().getX());
-                compound.setInteger("CampY", this.travellerCamp.getCampfirePos().getY());
-                compound.setInteger("CampZ", this.travellerCamp.getCampfirePos().getZ());
-            }
 
             compound.setInteger("LastCombatTick", this.dataManager.get(LAST_COMBAT_TICK));
             compound.setInteger("PauseTicks", travelCommon.getPauseTicks());
@@ -2117,18 +2036,8 @@ public class EntityTraveller extends EntityCreature {
         this.dialogueMemory.loadFrom(compound.hasKey("DialogueMemory")
                 ? compound.getCompoundTag("DialogueMemory") : new NBTTagCompound());
         if (compound.getBoolean("LeftHanded")) this.setLeftHanded(false);
-        this.travellerCamp.setCampLeader(compound.getBoolean("CampLeader"));
-        this.travellerCamp.campLeaveTime = compound.getLong("CampLeaveTime");
         if (compound.hasKey("LastCombatTick")) {
             this.dataManager.set(LAST_COMBAT_TICK, compound.getInteger("LastCombatTick"));
-        }
-        if (compound.hasKey("CampX")) {
-            int x = compound.getInteger("CampX");
-            int y = compound.getInteger("CampY");
-            int z = compound.getInteger("CampZ");
-            this.travellerCamp.campfirePos = new BlockPos(x, y, z);
-        } else {
-            this.travellerCamp.campfirePos = null;
         }
         if (!this.world.isRemote) {
             this.spawnAmbientCooldownTicks = Math.max(this.spawnAmbientCooldownTicks, 4 * 20); // at least ~4s
@@ -2264,7 +2173,6 @@ public class EntityTraveller extends EntityCreature {
             }
 
             if (spawnAmbientCooldownTicks > 0) spawnAmbientCooldownTicks--;
-            if (travellerCamp.campGlobalCooldown > 0) travellerCamp.campGlobalCooldown--;
             if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
 
             tickHazardRepulsion();
@@ -2273,6 +2181,8 @@ public class EntityTraveller extends EntityCreature {
             TravellerMountSupport.tickMount(this);
             tickVirtualGroupLeaderFollow();
             tickCatchupExit();
+            gaze.tickAwareness();
+            greeter.tick();
             com.jubitus.travellers.debug.trace.TravellerTracer.tick(this);
             com.jubitus.travellers.debug.profile.MovementProfiler.tick(this);
             headWriters = "";
@@ -2308,7 +2218,6 @@ public class EntityTraveller extends EntityCreature {
             markCombatNow();
         }
 
-        if (travellerCamp.campJoinCooldown > 0) travellerCamp.campJoinCooldown--;
         if (world.isRemote) tickElytraBank();
         if (world.isRemote && hurtAnimCooldown > 0) hurtAnimCooldown--;
         if (speakCooldown > 0) speakCooldown--;
@@ -2318,7 +2227,6 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             equipment.tickPickupCooldown();
         }
-        travellerCamp.tickCampAvoid();
 
         // Pick an initial random target only once
         if (!world.isRemote) {
@@ -2377,27 +2285,6 @@ public class EntityTraveller extends EntityCreature {
             }
             if (this.canPickUpLoot() && !isInCombat() && equipment.getPickupCooldown() == 0) {
                 equipment.tryScanAndPickupGroundItemsThrottled();
-            }
-            if (travellerCamp.getCampfirePos() != null && this.isEntityAlive()) {
-
-                if (this instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) this;
-                    if (w.isHiredFollower()) {
-                        // Followers should not care about camps / fire look
-                        // while they are serving a player.
-                        // So skip all campcommon social look logic here.
-                    } else {
-                        travellerCamp.tickCampSocial();
-                        if (!travellerCamp.isSocialLooking()) {
-                            this.lookAtFire();
-                        }
-                    }
-                } else {
-                    travellerCamp.tickCampSocial();
-                    if (!travellerCamp.isSocialLooking()) {
-                        this.lookAtFire();
-                    }
-                }
             }
         }
 
@@ -3554,7 +3441,6 @@ public void fall(float distance, float damageMultiplier) {
             TravellerFollowNet.CHANNEL.sendToAllAround(
                     new MsgStopTravellerVoice(this),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
-            travellerCamp.cleanupOwnedCampfireIfAny();
             TravellerMountSupport.releaseMountOnRiderDeath(this);
             // Camp event system: free this traveller's slot so the camp updates / can be reused.
             com.jubitus.travellers.world.camp.CampsiteManager.get((net.minecraft.world.WorldServer) world)
@@ -3763,16 +3649,11 @@ public void fall(float distance, float damageMultiplier) {
         return AncientWarfare2Compat.isHostile(e, effectiveOwner);
     }
 
-    public void cleanupOwnedCampfireIfAny() {
-        travellerCamp.cleanupOwnedCampfireIfAny();
-    }
-
 
     @Override
     public void setDead() {
         if (!this.world.isRemote) {
             TravellerDoorways.releaseAll(this.world, this.getEntityId());
-            travellerCamp.cleanupOwnedCampfireIfAny();
             // If we're in a boat, despawn the boat with us
             if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
                 net.minecraft.entity.item.EntityBoat boat =
@@ -4088,7 +3969,10 @@ public void fall(float distance, float damageMultiplier) {
      */
     public void startCatchupTravelTo(@Nullable EntityLivingBase target) {
         if (target == null || target.dimension != this.dimension) return;
+        beginCatchup();
+    }
 
+    private void beginCatchup() {
         this.cachedCatchupGoal = null;
         this.nextCatchupRefreshTick = 0L;
         this.catchupTravel = true;
@@ -4123,7 +4007,7 @@ public void fall(float distance, float damageMultiplier) {
         if (!catchupTravel || !(world instanceof WorldServer)) return cachedCatchupGoal;
 
         EntityLivingBase target = getEffectiveFollowTarget();
-        if (target == null) return cachedCatchupGoal;
+        if (target == null) return virtualLeaderSlot != null ? virtualLeaderSlot : cachedCatchupGoal;
 
         long now = world.getTotalWorldTime();
         if (cachedCatchupGoal == null || now >= nextCatchupRefreshTick) {
@@ -4161,7 +4045,13 @@ public void fall(float distance, float damageMultiplier) {
 
         EntityLivingBase t = getEffectiveFollowTarget();
         if (t == null) {
-            stopCatchupTravel();
+            // An offscreen leader is chased through its slot until close to it; a gone one ends catchup.
+            if (virtualLeaderSlot == null) {
+                stopCatchupTravel();
+            } else if (getDistanceSqToCenter(virtualLeaderSlot) <= sq(FollowRuntimeConfig.get().catchup.stopDistanceVisible)
+                    && !getStuckRecord().isEscalating()) {
+                stopCatchupTravel();
+            }
             return;
         }
 
@@ -4189,7 +4079,8 @@ public void fall(float distance, float damageMultiplier) {
                     : (distToLeader <= stopDist && (visible || distToLeader <= stopDist * 0.75D));
         }
 
-        if (stop) stopCatchupTravel();
+        // Near but trapped (a pit under the leader): the travel ladder must finish before follow resumes.
+        if (stop && !getStuckRecord().isEscalating()) stopCatchupTravel();
     }
 
     private int cachedGroupSize = 1;
@@ -4229,122 +4120,64 @@ public void fall(float distance, float damageMultiplier) {
     public double getFollowerSlotGoalZ() { return followerSlotGoalZ; }
 
     private int virtualLeaderRepathCooldown = -1;
-    private double virtualLeaderLastTargetX = Double.NaN;
-    private double virtualLeaderLastTargetZ = Double.NaN;
-    private double virtualLeaderBestGoalDistSq = Double.MAX_VALUE;
-    private int virtualLeaderNoProgressTicks = 0;
+    // The slot of an offscreen group leader, surface-resolved where loaded; catchup travel drives toward it.
+    @Nullable private BlockPos virtualLeaderSlot;
 
     /**
-     * Mirrors {@code EntityTravellerWorker.tickVirtualLeaderFollow()} for a plain traveller/raider
-     * group follower whose leader is currently offscreen. {@code EntityAIFollowLeader.shouldExecute()}
-     * returns false whenever {@link #getEffectiveFollowTarget()} is null (leader not loaded), and
-     * {@code EntityAITravel} refuses to run at all while {@link #groupLeaderUUID} is set - without
-     * this, a physical follower left behind by a leader that virtualized would simply freeze in
-     * place rather than keep pace offscreen-to-onscreen.
-     * <p>
-     * Deliberately always uses the RING offset here regardless of {@link #groupFormationStyle} -
-     * this method has no live registration of the rest of the group to rank against (the leader
-     * isn't a loaded entity to register with), unlike {@code GroupFormationTracker} which the
-     * loaded-loaded case uses. A real style resolves correctly the moment this follower's leader
-     * (re)materializes; until then this is a "stay roughly near the leader" approximation, not the
-     * follower's final resting spot.
+     * A loaded group follower whose leader is offscreen: resolves the slot next to the leader's virtual
+     * position and hands the follower to catchup travel ({@code EntityAITravel}, with its stuck ladder),
+     * the same way a follower too far behind a loaded leader is. Always the RING offset: there is no
+     * loaded group to rank against until the leader materializes.
      */
     private void tickVirtualGroupLeaderFollow() {
         UUID leaderId = groupLeaderUUID;
-        if (leaderId == null) {
-            resetVirtualLeaderPitTracking();
+        if (leaderId == null || getEffectiveFollowTarget() != null || !(world instanceof WorldServer)) {
+            virtualLeaderSlot = null;
             return;
         }
-        if (getEffectiveFollowTarget() != null) return; // leader is loaded - EntityAIFollowLeader handles it
-        if (!(world instanceof WorldServer)) return;
         WorldServer serverWorld = (WorldServer) world;
 
         com.jubitus.travellers.world.virtualization.VirtualTravellerManager vwm =
                 com.jubitus.travellers.world.virtualization.VirtualTravellerManager.get(serverWorld);
         if (!vwm.isVirtual(leaderId)) {
-            // Leader is neither loaded (checked above via getEffectiveFollowTarget) nor virtual -
-            // genuinely gone (dead, or never made it into this world's virtual registry). Without
-            // clearing the link here, this follower is stuck forever: EntityAITravel refuses to run
-            // while groupLeaderUUID is set, EntityAIFollowLeader never gets a valid target, and this
-            // method itself keeps hitting this exact branch every tick - the same dead-end the old
-            // EntityAIFollowGroupLeader.shouldExecute() explicitly guarded against ("Leader is
-            // genuinely gone... clear the stale link, resume independent travel").
+            // Leader neither loaded nor virtual: gone for good. Clear the link or this follower idles
+            // forever (EntityAITravel refuses to run while groupLeaderUUID is set).
             groupLeaderUUID = null;
-            resetVirtualLeaderPitTracking();
+            virtualLeaderSlot = null;
             return;
         }
 
-        BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
-        if (leaderPos == null) return;
-
-        // Stagger initial cooldown by entity ID so a whole scattered group doesn't repath the same
-        // tick - mirrors the worker version's own reasoning exactly.
         if (virtualLeaderRepathCooldown < 0) {
             virtualLeaderRepathCooldown = Math.floorMod(getEntityId(), 40);
         }
         if (--virtualLeaderRepathCooldown > 0) return;
-        int elapsedTicks = 40;
         virtualLeaderRepathCooldown = 40;
+
+        BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
+        if (leaderPos == null) return;
 
         com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry.SlotOffset off =
                 com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry.computeRingOffset(getUniqueID());
-        double slotX = leaderPos.getX() + 0.5 + off.dx;
-        double slotY = leaderPos.getY();
-        double slotZ = leaderPos.getZ() + 0.5 + off.dz;
+        virtualLeaderSlot = resolveVirtualSlot(leaderPos.getX() + 0.5D + off.dx, leaderPos.getZ() + 0.5D + off.dz);
 
-        double slotDx = slotX - posX;
-        double slotDz = slotZ - posZ;
-        double slotDy = slotY - posY;
-        double slotDistSq = slotDx * slotDx + slotDz * slotDz + slotDy * slotDy;
-
-        com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig cfg =
-                com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig.get();
-        if (slotDistSq < virtualLeaderBestGoalDistSq - 0.3D * 0.3D) {
-            virtualLeaderBestGoalDistSq = slotDistSq;
-            virtualLeaderNoProgressTicks = 0;
-        } else if (slotDistSq > 3.0D * 3.0D) {
-            virtualLeaderNoProgressTicks += elapsedTicks;
-        } else {
-            virtualLeaderNoProgressTicks = 0;
+        if (!isCatchupTravel() && getDistanceSqToCenter(virtualLeaderSlot)
+                > sq(FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D)) {
+            beginCatchup();
         }
-
-        if (virtualLeaderNoProgressTicks >= cfg.rescue.virtualLeaderPitRescueTicks) {
-            com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper.TeleportCandidate candidate =
-                    com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper.findPitEscapeTeleportRaw(
-                            this,
-                            leaderPos.getX() + 0.5, leaderPos.getY(), leaderPos.getZ() + 0.5,
-                            slotX, slotY, slotZ,
-                            cfg.rescue.pitStepDistance);
-
-            if (candidate != null) {
-                com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper.teleportWorker(this, candidate);
-                resetVirtualLeaderPitTracking();
-                return;
-            }
-        }
-
-        if (slotDx * slotDx + slotDz * slotDz < 3.0 * 3.0) return;
-
-        double dist = Math.sqrt(slotDx * slotDx + slotDz * slotDz);
-        double navCap = 48.0;
-        double targetX = dist <= navCap ? slotX : posX + (slotDx / dist) * navCap;
-        double targetZ = dist <= navCap ? slotZ : posZ + (slotDz / dist) * navCap;
-
-        if (!getNavigator().noPath() && !Double.isNaN(virtualLeaderLastTargetX)) {
-            double shiftX = targetX - virtualLeaderLastTargetX;
-            double shiftZ = targetZ - virtualLeaderLastTargetZ;
-            if (shiftX * shiftX + shiftZ * shiftZ < 5.0 * 5.0) return;
-        }
-
-        virtualLeaderLastTargetX = targetX;
-        virtualLeaderLastTargetZ = targetZ;
-
-        getNavigator().tryMoveToXYZ(targetX, leaderPos.getY(), targetZ, TravellersConfig.SPEED.movementSpeedWhileTravel);
     }
 
-    private void resetVirtualLeaderPitTracking() {
-        virtualLeaderBestGoalDistSq = Double.MAX_VALUE;
-        virtualLeaderNoProgressTicks = 0;
+    /** A slot next to an offscreen leader: its ground where loaded (the virtual Y is not tracked), else our own height. */
+    protected BlockPos resolveVirtualSlot(double x, double z) {
+        BlockPos column = new BlockPos(x, posY, z);
+        if (!(world instanceof WorldServer) || com.jubitus.travellers.world.chunkmanager.LoadedChunks.peek(
+                (WorldServer) world, column.getX() >> 4, column.getZ() >> 4) == null) return column;
+        int y = com.jubitus.travellers.world.ground.ColumnGround.nearestLayer(world, column.getX(), column.getZ(),
+                column.getY(), true);
+        return y == com.jubitus.travellers.world.ground.ColumnGround.NONE ? column : new BlockPos(column.getX(), y, column.getZ());
+    }
+
+    private static double sq(double v) {
+        return v * v;
     }
 
     /**
@@ -4677,21 +4510,18 @@ public void fall(float distance, float damageMultiplier) {
         return combat.lastPlayerAggroAgeTicks(p);
     }
 
+    /** Whether a hello is still due to this player: not if this traveller's party greeted theirs lately. */
     boolean shouldHelloFor(EntityPlayer p) {
-        Integer t = lastHelloTickByPlayer.get(p.getUniqueID());
-        return t == null || (this.ticksExisted - t) >= HELLO_COOLDOWN_TICKS;
+        UUID me = Greetings.partyOf(this);
+        return me == null || !Greetings.hasGreeted(world, me, p.getUniqueID());
     }
 
     void markHello(EntityPlayer p) {
-        lastHelloTickByPlayer.put(p.getUniqueID(), this.ticksExisted);
-        // prune very old entries opportunistically
-        if ((this.ticksExisted & 0xFF) == 0) {
-            int now = this.ticksExisted;
-            lastHelloTickByPlayer.entrySet().removeIf(e -> now - e.getValue() > (HELLO_COOLDOWN_TICKS * 4));
-        }
+        UUID me = Greetings.partyOf(this);
+        if (me != null) Greetings.record(world, me, p.getUniqueID());
     }
 
-    void playHelloSound() {
+    public void playHelloSound() {
         chooseVoicePersonalityIfNeeded();
         VoiceSet v = getActiveTravellerVoiceSet();
 
@@ -4764,38 +4594,6 @@ public void fall(float distance, float damageMultiplier) {
         return false;
     }
 
-    public boolean isSocialLooking() {
-        return travellerCamp.isSocialLooking();
-    }
-
-    public void beginSocialLook(EntityTraveller peer, int ticks) {
-        if (peer == null || peer == this) return;
-        this.travellerCamp.socialPeer = peer;
-        this.travellerCamp.socialTicks = Math.max(1, ticks);
-        // small desync so they don't snap in perfect lockstep
-        this.travellerCamp.socialCooldown = 40 + rand.nextInt(60);
-    }
-
-    public void endSocialLook() {
-        travellerCamp.endSocialLook();
-    }
-
-    public void tickCampSocial() {
-
-        // maintain active glance
-
-        // (idle) occasionally start a new glance
-
-        // ~2% per second: adjust to taste
-
-        // don't yank someone who's already looking at another travellers (unless it's at us)
-
-        // make it mutual most of the time
-
-        // cooldown before starting another new glance
-        travellerCamp.tickCampSocial();
-    }
-
     public void setTravelTorchVisible(boolean on) {
         if (world.isRemote) return;
 
@@ -4817,8 +4615,8 @@ public void fall(float distance, float damageMultiplier) {
         if (on) {
             // Don't show while fighting or doing something hand-active
             if (this.isInCombat() || this.isAutoEating()) return;
-            // Don't show when idling at village or at a campfire
-            if (travelCommon.isVillageIdling() || travellerCamp.getCampfirePos() != null) return;
+            // Don't show when idling at village or camping
+            if (travelCommon.isVillageIdling() || isCampingPassive()) return;
             // Cooldown: don't re-enable immediately after we just turned it off
             int cd = TravellersConfig.TRAVEL.travelTorchCooldownTicks > 0
                     ? TravellersConfig.TRAVEL.travelTorchCooldownTicks
@@ -4913,11 +4711,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public void setVillageIdling(boolean villageIdling) {
         travelCommon.setVillageIdling(villageIdling);
-    }
-
-    @Nullable
-    public BlockPos getCampfirePos() {
-        return travellerCamp.getCampfirePos();
     }
 
     public int getTicksExisted() {
@@ -5115,6 +4908,13 @@ public void fall(float distance, float damageMultiplier) {
 
     public EntityAITravel getTravelAI() {
         return this.aiTravel;
+    }
+
+    private final com.jubitus.travellers.entity.entityai.travel.StuckRecord stuckRecord =
+            new com.jubitus.travellers.entity.entityai.travel.StuckRecord();
+
+    public com.jubitus.travellers.entity.entityai.travel.StuckRecord getStuckRecord() {
+        return stuckRecord;
     }
 
     public com.jubitus.travellers.world.pathing.itinerary.ItineraryState getItineraryState() {

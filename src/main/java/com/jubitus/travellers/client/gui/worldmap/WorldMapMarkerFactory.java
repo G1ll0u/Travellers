@@ -25,6 +25,13 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.FOLLOWER, name);
     }
 
+    /** Marker for a worker on duty, by its duty kind (DutyDefs). Unknown kinds fall back to the follower marker. */
+    public static GuiWorldMapPanel.Marker dutyWorker(BlockPos pos, String name, int ownerRgb, String dutyKind) {
+        GuiWorldMapPanel.Marker.MarkerType type = com.jubitus.travellers.world.zone.duty.DutyDefs.STABLE_HAND.equals(dutyKind)
+                ? GuiWorldMapPanel.Marker.MarkerType.PALFRENIER : GuiWorldMapPanel.Marker.MarkerType.FOLLOWER;
+        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), type, name);
+    }
+
     public static GuiWorldMapPanel.Marker village(BlockPos pos, String name) {
         return new GuiWorldMapPanel.Marker(pos, COLOR_VILLAGE,
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);

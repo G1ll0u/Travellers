@@ -359,8 +359,6 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
-        com.jubitus.travellers.client.notify.NotificationOverlayRenderer.draw(
-                new net.minecraft.client.gui.ScaledResolution(this.mc));
     }
 
     @Override

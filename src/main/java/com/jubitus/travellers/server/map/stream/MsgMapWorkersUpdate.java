@@ -30,6 +30,8 @@ public class MsgMapWorkersUpdate implements IMessage {
         public String statusKey = "";
         public String followName = "";
         public boolean followsOwner;
+        // Duty kind of an on-duty worker (e.g. STABLE_HAND), "" for none: picks its map marker.
+        public String role = "";
     }
 
     private List<Entry> entries = new ArrayList<>();
@@ -67,6 +69,7 @@ public class MsgMapWorkersUpdate implements IMessage {
             e.statusKey = ByteBufUtils.readUTF8String(buf);
             e.followName = ByteBufUtils.readUTF8String(buf);
             e.followsOwner = buf.readBoolean();
+            e.role = ByteBufUtils.readUTF8String(buf);
             entries.add(e);
         }
     }
@@ -92,6 +95,7 @@ public class MsgMapWorkersUpdate implements IMessage {
             ByteBufUtils.writeUTF8String(buf, e.statusKey != null ? e.statusKey : "");
             ByteBufUtils.writeUTF8String(buf, e.followName != null ? e.followName : "");
             buf.writeBoolean(e.followsOwner);
+            ByteBufUtils.writeUTF8String(buf, e.role != null ? e.role : "");
         }
     }
 

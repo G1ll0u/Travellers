@@ -24,34 +24,60 @@ import java.util.List;
 
 public class GuiWorldMapPanel {
 
-    private static final ResourceLocation TEX_PLAYER =
-        new ResourceLocation("travellers", "textures/map/marker_player.png");
-    private static final ResourceLocation TEX_VILLAGE =
-        new ResourceLocation("travellers", "textures/map/marker_village.png");
-    private static final ResourceLocation TEX_CTRL_VILLAGE =
-        new ResourceLocation("travellers", "textures/map/marker_controlled_village.png");
-    private static final ResourceLocation TEX_HOME =
-        new ResourceLocation("travellers", "textures/map/marker_home.png");
-    private static final ResourceLocation TEX_STABLE =
-        new ResourceLocation("travellers", "textures/map/marker_stable.png");
-    private static final ResourceLocation TEX_LEADER =
-        new ResourceLocation("travellers", "textures/map/marker_leader.png");
-    private static final ResourceLocation TEX_FOLLOWER =
-        new ResourceLocation("travellers", "textures/map/marker_follower.png");
-    private static final ResourceLocation TEX_DESTINATION_CROSS =
-        new ResourceLocation("travellers", "textures/map/marker_destination_cross.png");
-    private static final ResourceLocation TEX_CAMP_FIREPIT =
-        new ResourceLocation("travellers", "textures/map/marker_camp_firepit.png");
-    private static final ResourceLocation TEX_CAMP_SLOT =
-        new ResourceLocation("travellers", "textures/map/marker_camp_slot.png");
-
     // Coarser levels drawn underneath while the current level is still streaming in.
     private static final int COARSE_FALLBACK_LEVELS = 3;
     // Below this many screen pixels per texel, magnified tiles are smoothed instead of drawn as hard squares.
     private static final float NEAREST_MIN_SCREEN_PX = 3f;
 
     public static class Marker {
-        public enum MarkerType { VILLAGE, CONTROLLED_VILLAGE, HOME, STABLE, LEADER, FOLLOWER, FOLLOWER_HIGHLIGHTED, PLAYER, DESTINATION_CROSS, POP_TRAVELLER, POP_RAIDER, POP_WORKER, CAMP_FIREPIT, CAMP_SLOT, BATTLE }
+        /** How a legend swatch is coloured: the viewer's own mark colour, a darker shade of it, or a fixed colour. */
+        public enum LegendTint { OWNER, OWNER_DARK, FIXED }
+
+        /**
+         * Everything about a marker kind in one place. Declaration order is draw order (first = bottom);
+         * the legend lists the kinds that have a legend key, topmost first.
+         */
+        public enum MarkerType {
+            FOLLOWER("marker_follower", Size.WORKER, "follower", LegendTint.OWNER_DARK, 0),
+            FOLLOWER_HIGHLIGHTED("marker_follower", Size.WORKER_HIGHLIGHTED, null, LegendTint.OWNER, 0),
+            PALFRENIER("marker_palfrenier", Size.WORKER, "palfrenier", LegendTint.OWNER, 0),
+            LEADER("marker_leader", Size.WORKER, "leader", LegendTint.OWNER, 0),
+            HOME("marker_home", Size.WORKER, "home", LegendTint.OWNER, 0),
+            STABLE("marker_stable", Size.WORKER, "stable", LegendTint.OWNER, 0),
+            VILLAGE("marker_village", Size.VILLAGE, "village", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_VILLAGE),
+            CONTROLLED_VILLAGE("marker_controlled_village", Size.VILLAGE, "controlled_village", LegendTint.OWNER, 0),
+            CAMP_SLOT("marker_camp_slot", Size.CAMP, "camp_slot", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT),
+            CAMP_FIREPIT("marker_camp_firepit", Size.CAMP, "camp_firepit", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT),
+            POP_TRAVELLER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
+            POP_RAIDER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
+            POP_WORKER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
+            BATTLE("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0),
+            PLAYER("marker_player", Size.PLAYER, "player", LegendTint.OWNER, 0),
+            DESTINATION_CROSS("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0);
+
+            public final ResourceLocation texture;
+            final Size size;
+            /** Lang key under travellers.map.legend., or null when the kind is never listed. */
+            final String legendKey;
+            final LegendTint legendTint;
+            final int legendArgb;
+
+            MarkerType(String texture, Size size, String legendKey, LegendTint legendTint, int legendArgb) {
+                this.texture = new ResourceLocation("travellers", "textures/map/" + texture + ".png");
+                this.size = size;
+                this.legendKey = legendKey == null ? null : "travellers.map.legend." + legendKey;
+                this.legendTint = legendTint;
+                this.legendArgb = legendArgb;
+            }
+
+            /** The legend entry this kind counts as (a highlighted follower is still a follower). */
+            MarkerType legendType() {
+                return this == FOLLOWER_HIGHLIGHTED ? FOLLOWER : this;
+            }
+        }
+
+        /** Size class, resolved against the worldmap config at draw time. */
+        enum Size { PLAYER, VILLAGE, WORKER, WORKER_HIGHLIGHTED, ALERT, POPULATION, CAMP }
 
         public final BlockPos pos;
         public final int argb;
@@ -90,6 +116,8 @@ public class GuiWorldMapPanel {
     private int legendOwnerColor = 0xFFFFFF;
 
     private final List<Marker> markers = new ArrayList<>();
+    // Markers standing here are drawn larger and brighter (hover / menu target).
+    private java.util.Set<BlockPos> highlighted = java.util.Collections.emptySet();
 
     public int getWidth()  { return w; }
     public int getHeight() { return h; }
@@ -131,6 +159,10 @@ public class GuiWorldMapPanel {
     public void addMarker(Marker m) { markers.add(m); }
 
     public void setSelectedPos(BlockPos pos) { this.selectedPos = pos; }
+
+    public void setHighlighted(java.util.Set<BlockPos> positions) {
+        this.highlighted = positions != null ? positions : java.util.Collections.emptySet();
+    }
 
     /** Pyramid level matching the current zoom: level L = 2^L blocks/pixel. */
     public int currentPyramidLevel() {
@@ -292,93 +324,46 @@ public class GuiWorldMapPanel {
 
     // ── Marker rendering ─────────────────────────────────────────────────────
 
-    /**
-     * Draw order: first = background, last = foreground.
-     *   FOLLOWER → FOLLOWER_HIGHLIGHTED → LEADER → HOME → VILLAGE / CONTROLLED_VILLAGE → PLAYER
-     */
-    private static final Marker.MarkerType[] DRAW_ORDER = {
-        Marker.MarkerType.FOLLOWER,
-        Marker.MarkerType.FOLLOWER_HIGHLIGHTED,
-        Marker.MarkerType.LEADER,
-        Marker.MarkerType.HOME,
-        Marker.MarkerType.STABLE,
-        Marker.MarkerType.VILLAGE,
-        Marker.MarkerType.CONTROLLED_VILLAGE,
-        Marker.MarkerType.CAMP_SLOT,
-        Marker.MarkerType.CAMP_FIREPIT,
-        Marker.MarkerType.POP_TRAVELLER,
-        Marker.MarkerType.POP_RAIDER,
-        Marker.MarkerType.POP_WORKER,
-        Marker.MarkerType.BATTLE,
-        Marker.MarkerType.PLAYER,
-        Marker.MarkerType.DESTINATION_CROSS,
-    };
-
     private void drawMarkers(int mapX, int mapY) {
         float zoomFloor = Math.max(1f, Math.round(1f / blocksPerPixel));
         float scale = zoomFloor * (float) TravellersConfig.WORLDMAP.markerScaleGlobal;
         boolean directional = TravellersConfig.WORLDMAP.playerMarkerDirectional;
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        for (Marker.MarkerType pass : DRAW_ORDER) {
+        for (Marker.MarkerType pass : Marker.MarkerType.values()) {
             for (Marker m : markers) {
                 if (m.type != pass) continue;
                 float sx = worldToScreenX(m.pos.getX(), mapX);
                 float sy = worldToScreenY(m.pos.getZ(), mapY);
-                int size = Math.round(getMarkerBaseSize(m.type) * scale);
+                boolean hl = highlighted.contains(m.pos);
+                int size = Math.round(baseSize(m.type.size) * scale * (hl ? HIGHLIGHT_SCALE : 1f));
+                int argb = hl ? (m.argb & 0xFF000000) | WorldMapMarkerFactory.lighten(m.argb & 0xFFFFFF, 0.45f) : m.argb;
                 GlStateManager.pushMatrix();
                 GlStateManager.translate(sx, sy, 0f);
                 if (m.type == Marker.MarkerType.PLAYER && directional) {
                     // Base texture points north (up); yaw 0 = facing south (down on screen).
                     GlStateManager.rotate(m.angleDeg + 180f, 0f, 0f, 1f);
                 }
-                drawMarkerPng(getMarkerTexture(m.type), 0, 0, m.argb, size);
+                drawMarkerPng(m.type.texture, 0, 0, argb, size);
                 GlStateManager.popMatrix();
             }
         }
         GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
-    private static ResourceLocation getMarkerTexture(Marker.MarkerType type) {
-        switch (type) {
-            case PLAYER:             return TEX_PLAYER;
-            case VILLAGE:            return TEX_VILLAGE;
-            case CONTROLLED_VILLAGE: return TEX_CTRL_VILLAGE;
-            case HOME:               return TEX_HOME;
-            case STABLE:             return TEX_STABLE;
-            case LEADER:             return TEX_LEADER;
-            case FOLLOWER:
-            case FOLLOWER_HIGHLIGHTED: return TEX_FOLLOWER;
-            case DESTINATION_CROSS:  return TEX_DESTINATION_CROSS;
-            case POP_TRAVELLER:
-            case POP_RAIDER:
-            case POP_WORKER:         return TEX_FOLLOWER;
-            case CAMP_FIREPIT:       return TEX_CAMP_FIREPIT;
-            case CAMP_SLOT:          return TEX_CAMP_SLOT;
-            case BATTLE:             return TEX_DESTINATION_CROSS;
-            default:                 return TEX_VILLAGE;
-        }
-    }
+    private static final float HIGHLIGHT_SCALE = 1.4f;
 
     /** Base display size in screen pixels, from config — independent of PNG resolution. */
-    private static int getMarkerBaseSize(Marker.MarkerType type) {
+    private static int baseSize(Marker.Size size) {
         TravellersConfig.Worldmap cfg = TravellersConfig.WORLDMAP;
-        switch (type) {
+        switch (size) {
             case PLAYER:             return cfg.playerMarkerSize;
-            case VILLAGE:
-            case CONTROLLED_VILLAGE: return cfg.villageMarkerSize;
-            case HOME:
-            case STABLE:
-            case LEADER:
-            case FOLLOWER:           return cfg.workerMarkerSize;
-            case FOLLOWER_HIGHLIGHTED: return cfg.workerMarkerSize + cfg.followerHighlightedSizeBonus;
-            case DESTINATION_CROSS:
-            case BATTLE:             return cfg.alertMarkerSize;
-            case POP_TRAVELLER:
-            case POP_RAIDER:
-            case POP_WORKER:         return cfg.populationMarkerSize;
-            case CAMP_FIREPIT:
-            case CAMP_SLOT:          return cfg.campMarkerSize;
+            case VILLAGE:            return cfg.villageMarkerSize;
+            case WORKER_HIGHLIGHTED: return cfg.workerMarkerSize + cfg.followerHighlightedSizeBonus;
+            case ALERT:              return cfg.alertMarkerSize;
+            case POPULATION:         return cfg.populationMarkerSize;
+            case CAMP:               return cfg.campMarkerSize;
+            case WORKER:
             default:                 return cfg.workerMarkerSize;
         }
     }
@@ -401,61 +386,34 @@ public class GuiWorldMapPanel {
 
     // ── Legend ────────────────────────────────────────────────────────────────
 
-    private static final Marker.MarkerType[] LEGEND_TYPES = {
-        Marker.MarkerType.PLAYER,
-        Marker.MarkerType.VILLAGE,
-        Marker.MarkerType.CONTROLLED_VILLAGE,
-        Marker.MarkerType.HOME,
-        Marker.MarkerType.STABLE,
-        Marker.MarkerType.LEADER,
-        Marker.MarkerType.FOLLOWER,
-        Marker.MarkerType.CAMP_FIREPIT,
-        Marker.MarkerType.CAMP_SLOT,
-    };
-
-    private static final String[] LEGEND_KEYS = {
-        "travellers.map.legend.player",
-        "travellers.map.legend.village",
-        "travellers.map.legend.controlled_village",
-        "travellers.map.legend.home",
-        "travellers.map.legend.stable",
-        "travellers.map.legend.leader",
-        "travellers.map.legend.follower",
-        "travellers.map.legend.camp_firepit",
-        "travellers.map.legend.camp_slot",
-    };
-
     private void drawLegend(int mapX, int mapY) {
         net.minecraft.client.gui.FontRenderer fr = mc.fontRenderer;
 
-        int[] colors = buildLegendColors();
+        // Only kinds actually on the map are listed: each GUI decides which markers it adds.
+        java.util.EnumSet<Marker.MarkerType> present = java.util.EnumSet.noneOf(Marker.MarkerType.class);
+        for (Marker m : markers) {
+            if (m.type.legendType().legendKey != null) present.add(m.type.legendType());
+        }
+        if (present.isEmpty()) return;
 
-        // Only show legend entries for marker types actually present on the map.
-        // Each GUI decides which markers it adds, so the legend follows automatically.
-        boolean[] present = presentMarkerTypes();
+        // Topmost kind first.
+        List<Marker.MarkerType> rows = new ArrayList<>(present);
+        java.util.Collections.reverse(rows);
 
         int entryH    = 9;
         int shapeArea = 12; // pixels reserved for the shape
         int shapeGap  = 3;
         int padX = 4, padY = 3;
 
-        // Measure text width and count visible entries to size the background.
         int maxTextW = 0;
-        int visibleCount = 0;
-        String[] labels = new String[LEGEND_KEYS.length];
-        for (int i = 0; i < LEGEND_KEYS.length; i++) {
-            if (!present[i]) continue;
-            labels[i] = I18n.format(LEGEND_KEYS[i]);
-            int tw = fr.getStringWidth(labels[i]);
-            if (tw > maxTextW) maxTextW = tw;
-            visibleCount++;
+        String[] labels = new String[rows.size()];
+        for (int i = 0; i < rows.size(); i++) {
+            labels[i] = I18n.format(rows.get(i).legendKey);
+            maxTextW = Math.max(maxTextW, fr.getStringWidth(labels[i]));
         }
 
-        if (visibleCount == 0) return;
-
         int legendW = padX + shapeArea + shapeGap + maxTextW + padX;
-        int legendH = padY + visibleCount * entryH + padY;
-
+        int legendH = padY + rows.size() * entryH + padY;
         int lx = mapX + 3;
         int ly = mapY + h - legendH - 3;
 
@@ -464,50 +422,22 @@ public class GuiWorldMapPanel {
 
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-        int row = 0;
-        for (int i = 0; i < LEGEND_TYPES.length; i++) {
-            if (!present[i]) continue;
-            int ey = ly + padY + row * entryH;
-            int shapeCx = lx + padX + shapeArea / 2;
-            int shapeCy = ey + entryH / 2;
-            drawMarkerPng(getMarkerTexture(LEGEND_TYPES[i]), shapeCx, shapeCy, colors[i], 8);
+        for (int i = 0; i < rows.size(); i++) {
+            Marker.MarkerType t = rows.get(i);
+            int ey = ly + padY + i * entryH;
+            drawMarkerPng(t.texture, lx + padX + shapeArea / 2, ey + entryH / 2, legendColor(t), 8);
             GlStateManager.color(1f, 1f, 1f, 1f);
             fr.drawString(labels[i], lx + padX + shapeArea + shapeGap, ey + (entryH - 8) / 2, 0xEEDDBB);
-            row++;
         }
     }
 
-    /** Flags, parallel to LEGEND_TYPES, marking which marker types are currently on the map. */
-    private boolean[] presentMarkerTypes() {
-        boolean[] present = new boolean[LEGEND_TYPES.length];
-        for (Marker m : markers) {
-            // Treat FOLLOWER_HIGHLIGHTED as FOLLOWER for legend purposes.
-            Marker.MarkerType effectiveType = (m.type == Marker.MarkerType.FOLLOWER_HIGHLIGHTED)
-                    ? Marker.MarkerType.FOLLOWER : m.type;
-            for (int i = 0; i < LEGEND_TYPES.length; i++) {
-                if (LEGEND_TYPES[i] == effectiveType) {
-                    present[i] = true;
-                    break;
-                }
-            }
+    private int legendColor(Marker.MarkerType t) {
+        switch (t.legendTint) {
+            case OWNER:      return 0xFF000000 | legendOwnerColor;
+            case OWNER_DARK: return 0xFF000000 | WorldMapMarkerFactory.darken(legendOwnerColor, 0.55f);
+            case FIXED:
+            default:         return t.legendArgb;
         }
-        return present;
-    }
-
-    private int[] buildLegendColors() {
-        int ownerArgb    = 0xFF000000 | (legendOwnerColor & 0xFFFFFF);
-        int followerArgb = 0xFF000000 | WorldMapMarkerFactory.darken(legendOwnerColor & 0xFFFFFF, 0.55f);
-        return new int[] {
-            ownerArgb,                              // PLAYER
-            WorldMapMarkerFactory.COLOR_VILLAGE,    // VILLAGE
-            ownerArgb,                              // CONTROLLED_VILLAGE
-            ownerArgb,                              // HOME
-            ownerArgb,                              // STABLE
-            ownerArgb,                              // LEADER
-            followerArgb,                           // FOLLOWER
-            WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT, // CAMP_FIREPIT (lit color swatch)
-            WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT,  // CAMP_SLOT (built color swatch)
-        };
     }
 
     // ── Draw primitives ──────────────────────────────────────────────────────

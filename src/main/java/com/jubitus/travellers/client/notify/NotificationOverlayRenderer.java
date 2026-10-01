@@ -6,9 +6,10 @@ import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraftforge.client.event.GuiScreenEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -25,9 +26,20 @@ public class NotificationOverlayRenderer {
     private static final int PADDING = 4;
     private static final int GAP = 3;
 
+    // Above vanilla/Forge tooltips, which draw at z 300.
+    private static final float OVERLAY_Z = 400F;
+
     public static void draw(ScaledResolution res) {
         List<ActiveNotification> notifications = ClientNotificationCache.visible();
         if (notifications.isEmpty()) return;
+
+        // A tooltip drawn earlier this frame leaves lighting and depth on; lit flat quads flicker.
+        RenderHelper.disableStandardItemLighting();
+        GlStateManager.disableLighting();
+        GlStateManager.disableDepth();
+        GlStateManager.color(1F, 1F, 1F, 1F);
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(0F, 0F, OVERLAY_Z);
 
         FontRenderer fr = Minecraft.getMinecraft().fontRenderer;
         float fontScale = TravellersConfig.NOTIFICATIONS.fontScale;
@@ -56,6 +68,9 @@ public class NotificationOverlayRenderer {
 
             cursorY = top ? (boxY + boxH + GAP) : (boxY - GAP);
         }
+
+        GlStateManager.popMatrix();
+        GlStateManager.color(1F, 1F, 1F, 1F);
     }
 
     // Vanilla FontRenderer treats a color whose alpha byte is near 0 as "no alpha specified"
@@ -109,13 +124,16 @@ public class NotificationOverlayRenderer {
     public static void onRenderOverlay(RenderGameOverlayEvent.Post event) {
         if (event.getType() != RenderGameOverlayEvent.ElementType.ALL) return;
 
-        GuiScreen cur = Minecraft.getMinecraft().currentScreen;
-        if (cur == null) {
+        if (Minecraft.getMinecraft().currentScreen == null) {
             draw(new ScaledResolution(Minecraft.getMinecraft()));
-            return;
         }
-        if (cur instanceof ITravellersGui) {
-            return; // that GUI paints notifications itself via its own drawScreen call
+    }
+
+    // Our own screens get the toasts on top of everything they drew, tooltips included.
+    @SubscribeEvent
+    public static void onDrawScreen(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (event.getGui() instanceof ITravellersGui) {
+            draw(new ScaledResolution(Minecraft.getMinecraft()));
         }
     }
 

@@ -2,6 +2,9 @@ package com.jubitus.travellers.server.net.message.notify;
 
 import com.jubitus.travellers.client.notify.ClientNotificationCache;
 import com.jubitus.travellers.client.notify.LocationFormat;
+import com.jubitus.travellers.client.notify.NoticeText;
+import com.jubitus.travellers.notify.NoticeLine;
+import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.notify.NotificationType;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
@@ -21,26 +24,25 @@ public class MsgShowNotification implements IMessage {
     public long worldTime;
     public boolean hasLocation;
     public int locX, locY, locZ, locDim;
+    @Nullable
+    public NoticeLine detail;
 
     public MsgShowNotification() {
     }
 
-    public MsgShowNotification(NotificationType type, String i18nKey, String[] args, long worldTime) {
-        this(type, i18nKey, args, worldTime, null, 0);
-    }
-
     public MsgShowNotification(NotificationType type, String i18nKey, String[] args, long worldTime,
-                                @Nullable BlockPos loc, int dimension) {
+                                @Nullable NoticePlace place, @Nullable NoticeLine detail) {
+        this.detail = detail;
         this.typeOrdinal = type.ordinal();
         this.i18nKey = i18nKey;
         this.args = args;
         this.worldTime = worldTime;
-        this.hasLocation = loc != null;
-        if (loc != null) {
-            this.locX = loc.getX();
-            this.locY = loc.getY();
-            this.locZ = loc.getZ();
-            this.locDim = dimension;
+        this.hasLocation = place != null;
+        if (place != null) {
+            this.locX = place.pos.getX();
+            this.locY = place.pos.getY();
+            this.locZ = place.pos.getZ();
+            this.locDim = place.dimension;
         }
     }
 
@@ -61,6 +63,7 @@ public class MsgShowNotification implements IMessage {
         for (int i = 0; i < argCount; i++) {
             args[i] = ByteBufUtils.readUTF8String(buf);
         }
+        detail = buf.readBoolean() ? NoticeLine.read(buf) : null;
     }
 
     @Override
@@ -79,6 +82,8 @@ public class MsgShowNotification implements IMessage {
         for (String arg : args) {
             ByteBufUtils.writeUTF8String(buf, arg);
         }
+        buf.writeBoolean(detail != null);
+        if (detail != null) detail.write(buf);
     }
 
     public static class Handler implements IMessageHandler<MsgShowNotification, IMessage> {
@@ -86,11 +91,9 @@ public class MsgShowNotification implements IMessage {
         public IMessage onMessage(MsgShowNotification msg, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 NotificationType type = NotificationType.values()[msg.typeOrdinal];
-                String text = I18n.format(msg.i18nKey, (Object[]) msg.args);
-                if (msg.hasLocation) {
-                    String suffix = LocationFormat.describe(new BlockPos(msg.locX, msg.locY, msg.locZ), msg.locDim);
-                    if (suffix != null) text = text + ", " + suffix;
-                }
+                NoticePlace place = msg.hasLocation
+                        ? new NoticePlace(new BlockPos(msg.locX, msg.locY, msg.locZ), msg.locDim, null) : null;
+                String text = NoticeText.format(msg.i18nKey, msg.args, place, msg.detail);
                 ClientNotificationCache.push(type, text, msg.worldTime);
             });
             return null;

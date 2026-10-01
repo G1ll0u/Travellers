@@ -17,14 +17,21 @@ public final class JournalEntry {
     public final long worldTime;
     @Nullable
     public final BattleSummary battleSummary;
+    @Nullable
+    public final NoticePlace place;
+    @Nullable
+    public final NoticeLine detail;
 
     public JournalEntry(NotificationType type, String i18nKey, String[] args, long worldTime,
-                         @Nullable BattleSummary battleSummary) {
+                        @Nullable BattleSummary battleSummary, @Nullable NoticePlace place,
+                        @Nullable NoticeLine detail) {
         this.type = type;
         this.i18nKey = i18nKey;
         this.args = args;
         this.worldTime = worldTime;
         this.battleSummary = battleSummary;
+        this.place = place;
+        this.detail = detail;
     }
 
     public NBTTagCompound toNbt() {
@@ -41,6 +48,12 @@ public final class JournalEntry {
 
         if (battleSummary != null) {
             tag.setTag("BattleSummary", battleSummary.toNbt());
+        }
+        if (place != null) {
+            tag.setTag("Place", place.toNbt());
+        }
+        if (detail != null) {
+            tag.setTag("Detail", detail.toNbt());
         }
 
         return tag;
@@ -60,6 +73,17 @@ public final class JournalEntry {
         BattleSummary summary = tag.hasKey("BattleSummary", Constants.NBT.TAG_COMPOUND)
                 ? BattleSummary.fromNbt(tag.getCompoundTag("BattleSummary")) : null;
 
-        return new JournalEntry(type, i18nKey, args, worldTime, summary);
+        NoticePlace place;
+        if (tag.hasKey("Place", Constants.NBT.TAG_COMPOUND)) {
+            place = NoticePlace.fromNbt(tag.getCompoundTag("Place"));
+        } else {
+            // older entries only carried a location through their battle summary
+            place = summary != null ? new NoticePlace(summary.location, summary.dimension, null) : null;
+        }
+
+        NoticeLine detail = tag.hasKey("Detail", Constants.NBT.TAG_COMPOUND)
+                ? NoticeLine.fromNbt(tag.getCompoundTag("Detail")) : null;
+
+        return new JournalEntry(type, i18nKey, args, worldTime, summary, place, detail);
     }
 }

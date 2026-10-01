@@ -28,6 +28,11 @@ They can eventually sing in **chorus** when you ask them or when they walk toget
 
 They also sing alone when they walk.
 
+### They notice you (and each other)
+Travellers look around like real people: on the road they watch the way ahead and glance at whoever they pass — you, another traveller, a villager, a wolf crossing their path. Stay close to one and it stops, turns to face you (a rider swings its horse round, keeping it a little to the side so it can see you) and keeps an eye on you, with the odd look away, until you move on.
+
+They also **say hello**: to you when they pass you or stop for you, and to other travellers and groups they meet on the road. One hello per group, not a chorus — the other members just nod along, and someone from the group being greeted answers (one of your own Henchmen answers for you). Once a traveller has greeted you, right-clicking it gets you its chatter rather than a second hello. In villages they only greet you, raiders greet nobody, and it can all be tuned or turned off in the `Gaze` config.
+
 ### Dialogue feature
 Right-click a traveller that isn't hired and isn't hostile, and instead of a scripted line you get a real conversation: type whatever you want, and it answers in character. This runs entirely on your own computer through **Ollama** (a free, separate program you install yourself) — the server never contacts any AI service on your behalf, so this only works for players who set it up. It's off by default; ask whoever runs your server to turn it on in the `Dialogue` config (in singleplayer, that's you).
 
@@ -191,12 +196,18 @@ The Henchman will travel to the village, complete the transaction, and return to
 
 **Manage groups and formations** *(default key: **H**)*
 * Press **H** in-game (or right-click a Henchman and open the **Formation Hub**) to open the hub
-* The hub shows a world map with all your Henchmen marked and a list of current leaders
-* Select Henchmen directly on the map by click-dragging a rectangle; hold **Shift** to select only followers / add to existing selection
-* Create a group from your selection — the best-equipped Henchman in the selection becomes the leader automatically
-* Adjust formation style, spacing and Attitude (Attack/Defend/Hold Position) with the controls on the right, plus a Player Cohesion slider for how tightly escorts hug a moving leader instead of trailing behind
-* Give orders to the group leaders: send them somewhere (**Go to…**), have a whole group **Follow…** another leader or you while keeping its own formation (a convoy), toggle a group's **Follow: ON/OFF** to make it follow you or hold position, **Merge…** one group into another (merge into yourself to dismiss it), or fetch equipment
-* A scrollable **event history** panel (recruits, trades, arrivals, battles...) is shown above/below the hub — click a battle entry to center the map on it
+* The hub shows a world map with all your Henchmen marked, a list of your groups on the left and the selected group's settings on the right. Palfreniers on Stable duty have their own map icon
+* **Left click** a leader (on the map or in the list) to select its group; click-drag a rectangle to select several Henchmen; hold **Shift** to add followers to your selection. **Right-drag** moves the map
+* **Right click** on the map to give an order to what you selected — the menu shows only what makes sense for what you clicked:
+  * on the ground: **Go here** · on a Barracks, Stable or village of yours: **Go here**, **Get equipment** (then come back, or stay there)
+  * on yourself: **Follow me**, or **Merge into my escort** · on another leader: **Follow this group** (a convoy that keeps its own formation) or **Merge with this group**
+  * on the selected group itself: **Halt here** / **Resume marching**
+  * with loose followers selected: **Form a group** (the best-equipped becomes leader), **Form a group and go here**, **Join this group** (on a leader) or **Follow me** (on yourself)
+  * a group busy on a mission shows its orders greyed out, with the reason when you hover them
+* Adjust formation style, spacing and Attitude (Attack/Defend/Hold Position) on the right
+* The **event history** at the bottom (recruits, trades, arrivals, battles, deaths...) — click an entry to center the map on where it happened, or on the Henchman it is about
+* You're only told a Go order arrived when the trip was long (far, or took a while) — moving a group a few blocks stays quiet
+* When a Henchman dies you're told whether it will come back beside its bed (and in how many days), and told again when it's back
 
 **World map**
 * A standalone world map (showing your Henchmen) can be opened with a key you assign yourself in **Options > Controls** under the Travellers category — no key is bound by default.

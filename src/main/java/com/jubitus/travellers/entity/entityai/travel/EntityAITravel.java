@@ -81,10 +81,7 @@ public class EntityAITravel extends EntityAIBase {
     private int moveWindowTicks = 0;
     private boolean moveWindowInit = false;
     // --- The one stuck ladder (see TravelStuckLadder) and its progress baseline ---
-    private final TravelStuckLadder stuckLadder = new TravelStuckLadder();
-    private double bestRemaining = Double.MAX_VALUE;
     @Nullable
-    private Vec3d headwayAnchor;
     private int lastPathIndex = -1;
     private int pathNoAdvanceTicks = 0;
     // --- water entry trigger for boats ---
@@ -113,7 +110,6 @@ public class EntityAITravel extends EntityAIBase {
     // --- mounted rider meets water: see MountedLeadController (shared with the follow AIs) ---
     private int nextWaterProbeTick = 0;
     // Itinerary version the progress baselines were taken against (re-baselined when it changes)
-    private int progressItineraryVersion = -1;
     int nextItineraryReplanTick = 0;
     private static final int ITINERARY_REPLAN_COOLDOWN_TICKS = 10 * 20;
     private static final int ITINERARY_BACKLOG_CHECK_TICKS = 40;
@@ -288,7 +284,8 @@ public class EntityAITravel extends EntityAIBase {
         pushPathToWaypoint(true);
 
         this.lastPos = mob.getPositionVector();
-        resetStuckState();
+        stuck().beginEpisode(episodeKey());
+        resetLocalTracking();
 
 
         undergroundCacheRefreshTick = -999;
@@ -306,7 +303,7 @@ public class EntityAITravel extends EntityAIBase {
         this.currentWaypoint = null;
         mob.setCurrentWaypoint(null);
         clearNav();
-        resetStuckState();
+        resetLocalTracking();
         // Every normal boat-crossing exit goes through dismountAndDeleteBoat() (arrival, stuck
         // timeout...), which is also what restores MountMode.MOUNTED afterward - but a mutex-losing
         // preemption (a higher-priority task like the follow AI reclaiming the movement bits, e.g. an
@@ -620,29 +617,13 @@ public class EntityAITravel extends EntityAIBase {
         if (cachedUnderground) undergroundTicks++;
         else undergroundTicks = 0;
 
-        // ===== Stuck ladder: one progress measure, the remaining distance along the itinerary =====
-        if (mob.getItineraryState().version() != progressItineraryVersion) {
-            // A new or upgraded itinerary deserves a fresh chance; its along-route distance also jumped.
-            progressItineraryVersion = mob.getItineraryState().version();
-            bestRemaining = Double.MAX_VALUE;
-            stuckLadder.reset();
-        }
-        boolean progressed;
-        if (mob.isCatchupTravel()) {
-            // Moving goal: a unit falling behind a faster leader is not stuck. Headway is real
-            // displacement, so the ladder can never hop a follower toward its leader.
-            progressed = headwayAnchor == null || now.squareDistanceTo(headwayAnchor) >= PROGRESS_IMPROVE_BLOCKS * PROGRESS_IMPROVE_BLOCKS;
-            if (progressed) headwayAnchor = now;
-        } else {
-            double remaining = progressDist();
-            progressed = bestRemaining - remaining >= PROGRESS_IMPROVE_BLOCKS;
-            if (progressed || bestRemaining == Double.MAX_VALUE) bestRemaining = remaining;
-        }
+        // ===== Stuck ladder: progress = entering a cell not visited recently (see StuckRecord) =====
+        boolean progressed = stuck().visit(now.x, now.y, now.z);
 
         if (!mob.world.isRemote) {
             // Evidence gathered under the old mount state says nothing about the new one: no hop on the flip tick.
             boolean mountJustChanged = mob.wasRidingBondedMountLastTick() != mob.isMountedOnBondedMount();
-            TravelStuckLadder.Action action = stuckLadder.tick(progressed, noMoveTicks, undergroundTicks,
+            TravelStuckLadder.Action action = stuck().ladder.tick(progressed, noMoveTicks, undergroundTicks,
                     !mountJustChanged, ladderTimings());
             if (action != TravelStuckLadder.Action.NONE) {
                 runStuckAction(action);
@@ -650,6 +631,15 @@ public class EntityAITravel extends EntityAIBase {
             }
         }
         lastMovePos = now;
+    }
+
+    private StuckRecord stuck() {
+        return mob.getStuckRecord();
+    }
+
+    /** What a stuck episode is about: the stop for normal travel, catchup as a whole for a moving goal. */
+    private Object episodeKey() {
+        return mob.isCatchupTravel() ? StuckRecord.CATCHUP : targetVillage;
     }
 
     private static TravelStuckLadder.Timings ladderTimings() {
@@ -662,7 +652,7 @@ public class EntityAITravel extends EntityAIBase {
 
     private void runStuckAction(TravelStuckLadder.Action action) {
         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "ladder " + action
-                + " stall=" + stuckLadder.stallTicks() + " pin=" + noMoveTicks + " underground=" + undergroundTicks);
+                + " stall=" + stuck().ladder.stallTicks() + " pin=" + noMoveTicks + " underground=" + undergroundTicks);
         switch (action) {
             case REPATH:
                 // Is the horse the reason? Stepping down beats detouring around a wall a rider can't pass.
@@ -681,19 +671,21 @@ public class EntityAITravel extends EntityAIBase {
                     if (escape != null) {
                         currentWaypoint = escape;
                         mob.setCurrentWaypoint(escape);
+                    } else {
+                        com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "dead end: no reachable detour or escape");
+                        stuck().ladder.deadEnd(ladderTimings());
                     }
                 }
                 pushPathToWaypoint(true);
                 break;
             case REPLAN:
-                if (!abandonUnreachableGate()) {
-                    com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(mob, com.jubitus.travellers.debug.profile.MovementAnomaly.TRAVEL_STUCK_REPLAN);
-                    nextItineraryReplanTick = 0;
-                    replanItineraryFromHere("no headway for " + stuckLadder.stallTicks() + " ticks");
-                    currentWaypoint = null;
-                    mob.setCurrentWaypoint(null);
-                    clearNav();
-                }
+                if (abandonUnreachableGate()) break;
+                com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(mob, com.jubitus.travellers.debug.profile.MovementAnomaly.TRAVEL_STUCK_REPLAN);
+                nextItineraryReplanTick = 0;
+                replanItineraryFromHere("no headway for " + stuck().ladder.stallTicks() + " ticks");
+                currentWaypoint = null;
+                mob.setCurrentWaypoint(null);
+                clearNav();
                 break;
             case HOP:
                 if (!abandonUnreachableGate()) hop();
@@ -710,10 +702,21 @@ public class EntityAITravel extends EntityAIBase {
     /** A short, discreet hop: out of the water, up out of a hole, or a few blocks along the route. */
     private void hop() {
         com.jubitus.travellers.debug.trace.TravellerTracer.incident(mob, "stuck",
-                "hop firing pin=" + noMoveTicks + " stall=" + stuckLadder.stallTicks() + " underground=" + undergroundTicks);
+                "hop firing pin=" + noMoveTicks + " stall=" + stuck().ladder.stallTicks() + " underground=" + undergroundTicks);
+        // Each failed hop reaches further, so a unit is never left retrying the same impossible hop.
+        int failed = stuck().ladder.failedHops();
+        int maxHop = Math.max(TravellersConfig.TRAVEL.stuckHopBlocks, TravellersConfig.TRAVEL.stuckHopMaxBlocks);
         boolean rescued = mob.isInWater() && rescue.teleportToNearestShoreTowardTarget(8, 6);
-        if (!rescued) rescued = rescue.teleportToSurfaceRescue(5, 6);
-        if (!rescued) rescued = rescue.teleportToward(rescueAim(), TravellersConfig.TRAVEL.stuckHopBlocks);
+        if (!rescued) {
+            int step = Math.min(maxHop, TravellersConfig.TRAVEL.stuckHopBlocks * (1 + failed));
+            TravelRescue.HopResult r = rescue.teleportToResumePoint(resumeRoute(step));
+            if (r == TravelRescue.HopResult.DEFERRED) {
+                stuck().ladder.hopDeferred();
+                return;
+            }
+            rescued = r == TravelRescue.HopResult.MOVED;
+        }
+        if (!rescued) rescued = rescue.teleportToSurfaceRescue(Math.min(maxHop, 5 * (1 + failed)), failed == 0 ? 6 : 3);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop result=" + (rescued ? "moved" : "failed"));
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(mob, rescued
                 ? com.jubitus.travellers.debug.profile.MovementAnomaly.TRAVEL_RESCUE_TP
@@ -726,21 +729,57 @@ public class EntityAITravel extends EntityAIBase {
             pushPathToWaypoint();
             return;
         }
-        stuckLadder.hopFailed(ladderTimings());
-        if (tryDetourWide()) pushPathToWaypoint(true);
+        stuck().ladder.hopFailed(ladderTimings());
     }
 
-    /** Where a hop heads: a point along the itinerary just ahead, else the destination itself. */
-    private BlockPos rescueAim() {
+    /**
+     * Hop candidates along the way the unit means to go, nearest first: (landing column, onward point
+     * {@code TRAVEL.stuckHopOnwardBlocks} further on). The itinerary when it has one, else its current
+     * waypoint then its goal. Never a straight line at the destination past the waypoint.
+     */
+    private List<BlockPos[]> resumeRoute(int step) {
+        int onward = TravellersConfig.TRAVEL.stuckHopOnwardBlocks;
+        int[] dists = {step, step + 4, step + 8};
+        List<BlockPos[]> out = new ArrayList<>(dists.length);
+        int y = MathHelper.floor(mob.posY);
         ItineraryState st = mob.getItineraryState();
-        if (mob.isItineraryDriven() && st.isFor(targetVillage)) {
+        if (mob.isItineraryDriven() && targetVillage != null && st.isFor(targetVillage)) {
             Itinerary it = st.get();
             st.cursor.advance(it, mob.posX, mob.posZ);
-            st.cursor.computeCarrot(it, TravellersConfig.ROUTING.itineraryCarrotBlocks);
-            return new BlockPos(MathHelper.floor(st.cursor.carrotX), MathHelper.floor(mob.posY),
-                    MathHelper.floor(st.cursor.carrotZ));
+            for (int d : dists) {
+                st.cursor.computeCarrot(it, d);
+                BlockPos col = new BlockPos(MathHelper.floor(st.cursor.carrotX), y, MathHelper.floor(st.cursor.carrotZ));
+                st.cursor.computeCarrot(it, d + onward);
+                out.add(new BlockPos[]{col, new BlockPos(MathHelper.floor(st.cursor.carrotX), y, MathHelper.floor(st.cursor.carrotZ))});
+            }
+            return out;
         }
-        return targetVillage;
+        if (targetVillage == null) return out;
+        double[] xs, zs;
+        if (currentWaypoint != null) {
+            xs = new double[]{mob.posX, currentWaypoint.getX() + 0.5D, targetVillage.getX() + 0.5D};
+            zs = new double[]{mob.posZ, currentWaypoint.getZ() + 0.5D, targetVillage.getZ() + 0.5D};
+        } else {
+            xs = new double[]{mob.posX, targetVillage.getX() + 0.5D};
+            zs = new double[]{mob.posZ, targetVillage.getZ() + 0.5D};
+        }
+        for (int d : dists) {
+            out.add(new BlockPos[]{pointAlong(xs, zs, d, y), pointAlong(xs, zs, d + onward, y)});
+        }
+        return out;
+    }
+
+    private static BlockPos pointAlong(double[] xs, double[] zs, double dist, int y) {
+        for (int i = 0; i + 1 < xs.length; i++) {
+            double dx = xs[i + 1] - xs[i], dz = zs[i + 1] - zs[i];
+            double len = Math.sqrt(dx * dx + dz * dz);
+            if (dist <= len || i + 2 == xs.length) {
+                double t = len < 1e-6 ? 0.0 : Math.min(1.0, dist / len);
+                return new BlockPos(MathHelper.floor(xs[i] + dx * t), y, MathHelper.floor(zs[i] + dz * t));
+            }
+            dist -= len;
+        }
+        return new BlockPos(MathHelper.floor(xs[xs.length - 1]), y, MathHelper.floor(zs[zs.length - 1]));
     }
 
     void clearNav() {
@@ -787,8 +826,8 @@ public class EntityAITravel extends EntityAIBase {
     private void retarget(BlockPos newTarget) {
         this.targetVillage = newTarget;
         ensureItinerary(false);
-
-        resetStuckState(); // ok as long as we re-init below
+        // A moving catchup goal is the same episode; only a different destination clears the evidence.
+        stuck().beginEpisode(episodeKey());
 
         int near;
         if (mob.isCatchupTravel()) {
@@ -803,8 +842,6 @@ public class EntityAITravel extends EntityAIBase {
         moveWindowStart = lastMovePos;
         moveWindowTicks = 0;
         moveWindowInit = true;
-        noMoveTicks = 0;
-        undergroundTicks = 0;
 
         boats.allowBoatAgain();
     }
@@ -903,8 +940,12 @@ public class EntityAITravel extends EntityAIBase {
         }
         for (int s = carrot; s >= 8; s /= 2) {
             st.cursor.computeCarrot(it, s);
+            // On a road the itinerary knows the surface height (a bridge deck, not the gap under it);
+            // elsewhere the layer nearest our own height is the best guess.
+            int refY = st.cursor.carrotKind == Itinerary.ROAD
+                    ? MathHelper.floor(st.cursor.carrotY) + 1 : MathHelper.floor(mob.posY); // road Y is the surface block
             BlockPos ground = terrain.findGroundNear(new BlockPos(MathHelper.floor(st.cursor.carrotX),
-                    MathHelper.floor(mob.posY), MathHelper.floor(st.cursor.carrotZ)));
+                    refY, MathHelper.floor(st.cursor.carrotZ)), refY);
             if (ground != null && terrain.isNavigable(ground)) return ground;
         }
         return null;
@@ -949,11 +990,15 @@ public class EntityAITravel extends EntityAIBase {
 
 
 
+    /** The trap, if any, is behind (a hop landed, a boat crossing ended, another gate is tried). */
     void resetStuckState() {
-        stuckLadder.reset();
-        bestRemaining = progressDist();
-        headwayAnchor = mob.getPositionVector();
-        boats.resetStall(bestRemaining);
+        stuck().reset();
+        resetLocalTracking();
+    }
+
+    /** This task's own movement baselines; the stuck evidence itself lives on the entity and survives. */
+    private void resetLocalTracking() {
+        boats.resetStall(progressDist());
         consecutiveNoWaypoint = 0;
 
         lastMovePos = mob.getPositionVector();

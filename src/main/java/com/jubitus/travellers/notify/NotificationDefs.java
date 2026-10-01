@@ -101,7 +101,13 @@ public final class NotificationDefs {
     public static final NotificationDef WORKER_CARGO_ARRIVED_FULL = new NotificationDef(EVENT, "travellers.notify.worker.cargo_arrived_full", 0);
     public static final NotificationDef WORKER_CARGO_ARRIVED_PARTIAL = new NotificationDef(EVENT, "travellers.notify.worker.cargo_arrived_partial", 0);
     public static final NotificationDef WORKER_ALREADY_ON_JOB = new NotificationDef(INFO, "travellers.notify.worker.already_on_job", 0);
-    public static final NotificationDef WORKER_DIED = new NotificationDef(EVENT, "travellers.notify.worker.died", 0);
+    public static final NotificationDef WORKER_DIED = new NotificationDef(EVENT, "travellers.notify.worker.died", 1);
+    public static final NotificationDef WORKER_RESPAWNED = new NotificationDef(EVENT, "travellers.notify.worker.respawned", 1);
+    public static final NotificationDef WORKER_RESPAWN_CANCELLED = new NotificationDef(EVENT, "travellers.notify.worker.respawn_cancelled", 1);
+    // Second line of a death notice (see WorkerLifecycleNotifications)
+    public static final NotificationDef WORKER_DEATH_RESPAWN_DAYS = new NotificationDef(INFO, "travellers.notify.worker.death_respawn_days", 1);
+    public static final NotificationDef WORKER_DEATH_RESPAWN_TOMORROW = new NotificationDef(INFO, "travellers.notify.worker.death_respawn_tomorrow", 0);
+    public static final NotificationDef WORKER_DEATH_NO_BED = new NotificationDef(INFO, "travellers.notify.worker.death_no_bed", 0);
     public static final NotificationDef WORKER_RETALIATION_TARGET = new NotificationDef(WARNING, "travellers.notify.worker.retaliation_target", 1);
 
     // --- Trade / cargo (EntityTravellerWorker) ---
@@ -115,8 +121,5 @@ public final class NotificationDefs {
     public static final NotificationDef MOUNT_LED_LOW_HEALTH = new NotificationDef(WARNING, "travellers.notify.mount.led_low_health", 1);
 
     // --- Virtual battles (VirtualBattleManager) ---
-    // Both are also referenced as fallback i18n keys when a death's vanilla-forwarded message
-    // (see VanillaDeathMessage) isn't available - the argCount below matches that fallback usage.
     public static final NotificationDef BATTLE_UNDER_ATTACK = new NotificationDef(EVENT, "travellers.notify.battle.under_attack", 0);
-    public static final NotificationDef BATTLE_WORKER_KILLED = new NotificationDef(EVENT, "travellers.notify.battle.worker_killed", 1);
 }

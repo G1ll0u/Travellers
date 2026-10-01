@@ -142,8 +142,12 @@ public final class TravelTerrain {
      */
     @Nullable
     BlockPos findGroundNear(BlockPos xz) {
+        return findGroundNear(xz, MathHelper.floor(mob.posY));
+    }
+
+    /** {@link #findGroundNear(BlockPos)} with the layer chosen closest to {@code refY} instead of our own height. */
+    BlockPos findGroundNear(BlockPos xz, int refY) {
         if (!isAreaLoaded(xz, 1)) return null;
-        int refY = MathHelper.floor(mob.posY);
         int maxRing = TravellersConfig.TRAVEL.waypointGroundSearchRadius;
         BlockPos best = null;
         double bestScore = Double.MAX_VALUE;

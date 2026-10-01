@@ -13,7 +13,7 @@ import java.util.List;
 public final class ItineraryState {
 
     // Bump when the way itineraries are built changes enough that saved ones should be rebuilt.
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
 
     // An itinerary counts as "for" a destination within this many blocks of its end (XZ).
     private static final int SAME_DEST_BLOCKS = 16;
