@@ -1072,9 +1072,9 @@ public class VirtualTravellerManager extends WorldSavedData {
 
         boolean useWholeVillage = kind == com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE;
 
-        // Load only the specific chest chunks of the building — avoids spawning the entity
-        // and avoids pathfinding failure in unloaded terrain near the barracks.
-        com.jubitus.travellers.world.mill.WorkerEquipExchanger.forceLoadChestChunks(world, target, useWholeVillage);
+        // Load only the chest chunks, just for the swap, and release them right after.
+        java.util.List<net.minecraft.world.chunk.Chunk> loadedChunks =
+                com.jubitus.travellers.world.mill.WorkerEquipExchanger.loadChestChunks(world, target, useWholeVillage);
 
         // Temporary entity (not spawned) carries equipment state for the swap
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
@@ -1082,8 +1082,13 @@ public class VirtualTravellerManager extends WorldSavedData {
         worker.setUniqueId(r.uuid);
         worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
 
-        int[] equip = com.jubitus.travellers.world.mill.WorkerEquipExchanger
-                .exchangeWithFollowers(worker, world, target, useWholeVillage);
+        int[] equip;
+        try {
+            equip = com.jubitus.travellers.world.mill.WorkerEquipExchanger
+                    .exchangeWithFollowers(worker, world, target, useWholeVillage);
+        } finally {
+            com.jubitus.travellers.world.chunkmanager.LoadedChunks.release(world, loadedChunks);
+        }
         com.jubitus.travellers.notify.MissionNotifications.equipped(
                 world.getMinecraftServer(), r.followOwnerUUID, equip[0], equip[1]);
 

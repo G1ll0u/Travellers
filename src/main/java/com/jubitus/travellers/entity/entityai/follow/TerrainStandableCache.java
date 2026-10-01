@@ -1,11 +1,11 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
+import com.jubitus.travellers.world.ground.Footing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Predicate;
 
 /**
  * Shared per-world, per-tick cache for "can a worker stand here" checks. With hundreds of
@@ -24,7 +24,8 @@ final class TerrainStandableCache {
 
     private static final Map<World, WorldCache> CACHES = new HashMap<>();
 
-    static boolean isStandable(World world, BlockPos pos, Predicate<BlockPos> compute) {
+    /** {@link Footing#canStandAt}, remembered for the rest of the tick. */
+    static boolean isStandable(World world, BlockPos pos) {
         WorldCache cache = CACHES.computeIfAbsent(world, w -> new WorldCache());
 
         long now = world.getTotalWorldTime();
@@ -37,7 +38,7 @@ final class TerrainStandableCache {
         Boolean cached = cache.results.get(key);
         if (cached != null) return cached;
 
-        boolean result = compute.test(pos);
+        boolean result = Footing.canStandAt(world, pos);
         cache.results.put(key, result);
         return result;
     }

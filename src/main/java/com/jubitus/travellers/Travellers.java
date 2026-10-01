@@ -276,6 +276,7 @@ public class Travellers {
         // Static per-dimension caches keyed by dimension id alone would otherwise bleed into the next
         // world loaded in this same client session (two different save files can both use dimension 0).
         com.jubitus.travellers.world.zone.stable.StableCoordinator.resetAll();
+        com.jubitus.travellers.world.zone.ZoneRoleRescan.resetAll();
         com.jubitus.travellers.world.zone.stable.StableWatchLog.closeAll();
 
         com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.resetAll();

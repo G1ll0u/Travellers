@@ -1,37 +1,27 @@
 package com.jubitus.travellers.world.zone.stable;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
 import com.jubitus.travellers.world.zone.ZoneRoles;
 import com.jubitus.travellers.world.zone.ZonePlacement;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Spawns a dormant {@link StableHorseEntry} back into the world as a real {@code EntityHorse}, at the
- * pen's actual floor level (never a rooftop for an indoor Stable). Split out of
- * {@code StableCoordinator} so the reconciler stays focused on the scan/claim loop.
+ * Spawns a data-held {@link StableHorseEntry} back into the world as a real {@code EntityHorse}: at
+ * the spot it was captured at when that spot is still inside the pen and clear, else at the pen's
+ * real floor level (never a rooftop for an indoor Stable). The entry is linked before the spawn so
+ * {@link StableHorseLoadHandler} accepts the join.
  */
 final class StableMaterializer {
 
-    /** poolId -> world tick it was last materialized here. Lets the fuzzy relink in
-     * {@link StablePhysicalReconciler} avoid adopting a substitute it just spawned. Bounded by the
-     * pool size; entries are overwritten, never accumulate. */
-    private static final Map<UUID, Long> recentlySpawned = new ConcurrentHashMap<>();
-    static final long RECENT_SPAWN_WINDOW = 40L;
-
     private StableMaterializer() {
-    }
-
-    static boolean spawnedRecently(UUID poolId, long now) {
-        Long t = recentlySpawned.get(poolId);
-        return t != null && now - t < RECENT_SPAWN_WINDOW;
     }
 
     /** A snapshot with no positive health left describes a dead horse, not a dormant one. */
@@ -41,24 +31,50 @@ final class StableMaterializer {
 
     static EntityHorse materializeEntry(WorldServer world, PlayerZoneRecord zone, StableHorseEntry entry) {
         EntityHorse horse = new EntityHorse(world);
-        // A dormant pool entry has no player-facing identity to preserve, and entry.horseNbt may
-        // carry a UUID still alive elsewhere (knockback drift past the scan margin) - spawning with it
-        // would collide and WorldServer.canAddEntity silently refuses the join. Always spawn fresh.
         NBTTagCompound spawnNbt = entry.horseNbt.copy();
-        spawnNbt.removeTag("UUIDMost");
-        spawnNbt.removeTag("UUIDLeast");
+        StableCoordinator.sanitizeSnapshot(spawnNbt); // always a fresh UUID: never collide with a lingering copy
         horse.readFromNBT(spawnNbt);
         StableCoordinator.setPoolTag(horse, entry.poolId);
-        BlockPos spot = findClearSpot(world, zone);
-        horse.setLocationAndAngles(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, horse.rotationYaw, 0.0F);
-        // A snapshot can carry the source horse's motion / fall distance - clear it so the spawn
-        // doesn't drift or take fall damage on its first tick.
+
+        double[] saved = readPos(spawnNbt);
+        if (saved == null || !isInsideZone(zone, saved[0], saved[2])
+                || !fits(world, horse, saved[0], saved[1], saved[2])) {
+            BlockPos spot = findClearSpot(world, zone);
+            horse.setLocationAndAngles(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, horse.rotationYaw, 0.0F);
+        }
         horse.motionX = horse.motionY = horse.motionZ = 0.0D;
         horse.fallDistance = 0.0F;
         StableHorseAI.applyContainmentInvariants(horse, zone.center, zone.halfWidth, zone.halfDepth);
-        if (!world.spawnEntity(horse)) return null;
-        recentlySpawned.put(entry.poolId, world.getTotalWorldTime());
+
+        entry.liveEntityUUID = horse.getUniqueID();
+        if (!world.spawnEntity(horse)) {
+            entry.liveEntityUUID = null;
+            return null;
+        }
         return horse;
+    }
+
+    static double[] readPos(NBTTagCompound nbt) {
+        if (!nbt.hasKey("Pos", 9)) return null;
+        NBTTagList l = nbt.getTagList("Pos", 6);
+        if (l.tagCount() < 3) return null;
+        return new double[]{l.getDoubleAt(0), l.getDoubleAt(1), l.getDoubleAt(2)};
+    }
+
+    /** Inside the zone's box plus the containment margin (XZ). */
+    static boolean isInsideZone(PlayerZoneRecord zone, double x, double z) {
+        int m = TravellersConfig.STABLES.containmentMarginBlocks;
+        return x >= zone.center.getX() - zone.halfWidth - m && x <= zone.center.getX() + zone.halfWidth + 1 + m
+                && z >= zone.center.getZ() - zone.halfDepth - m && z <= zone.center.getZ() + zone.halfDepth + 1 + m;
+    }
+
+    /** Places {@code horse} at the point and reports whether its body is clear there (loaded ground,
+     * no block collision, no liquid). */
+    static boolean fits(WorldServer world, EntityHorse horse, double x, double y, double z) {
+        if (!world.isBlockLoaded(new BlockPos(x, y, z))) return false;
+        horse.setLocationAndAngles(x, y, z, horse.rotationYaw, 0.0F);
+        AxisAlignedBB bb = horse.getEntityBoundingBox();
+        return world.getCollisionBoxes(horse, bb).isEmpty() && !world.containsAnyLiquid(bb);
     }
 
     /** A standable spot inside the zone, searched ring by ring from the centre at the pen's real

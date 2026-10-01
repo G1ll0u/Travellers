@@ -94,8 +94,7 @@ public class MsgLeaderGetEquip implements IMessage {
                         EntityTravellerWorker leader = (EntityTravellerWorker) e;
                         if (!leader.isHiredFollower() || !ownerId.equals(leader.getFollowOwnerId())) return;
                         if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(leader)) {
-                            com.jubitus.travellers.notify.NotificationService.notify(player,
-                                    com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
+                            com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, leader);
                             return;
                         }
                         leader.startGetEquipMission(destPos, true, msg.kind);
@@ -109,8 +108,7 @@ public class MsgLeaderGetEquip implements IMessage {
                 VirtualTravellerRecord r = vwm.getRecord(leaderUUID);
                 if (r == null || !ownerId.equals(r.followOwnerUUID)) return;
                 if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(r)) {
-                    com.jubitus.travellers.notify.NotificationService.notify(player,
-                            com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
+                    com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, r);
                     return;
                 }
 

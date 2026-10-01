@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityai.travel;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
 import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -26,16 +27,11 @@ public final class TravellerBoats {
     private TravellerBoats() {
     }
 
-    public static boolean isVanillaWater(IBlockState s) {
-        Block b = s.getBlock();
-        return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
-    }
-
     /** True while the boat sits on (or just in) water; false once beached. Never loads a chunk. */
     public static boolean isOnWater(World world, EntityBoat boat) {
         BlockPos pos = new BlockPos(MathHelper.floor(boat.posX), MathHelper.floor(boat.posY - 0.2D), MathHelper.floor(boat.posZ));
         if (!world.isBlockLoaded(pos)) return false;
-        return isVanillaWater(world.getBlockState(pos)) || isVanillaWater(world.getBlockState(pos.down()));
+        return BlockRules.isVanillaWater(world.getBlockState(pos)) || BlockRules.isVanillaWater(world.getBlockState(pos.down()));
     }
 
     public static float yawToward(double dx, double dz) {

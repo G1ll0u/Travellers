@@ -133,7 +133,7 @@ final class TravelRescue {
                 boolean okSupport = terrain.isNaturalGroundSupport(surf.down());
                 if (!okSupport) {
                     IBlockState sup = mob.world.getBlockState(surf.down());
-                    okSupport = TravelTerrain.supportsStandingSurface(mob.world, surf.down(), sup);
+                    okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, surf.down(), sup);
                 }
                 if (!okSupport) continue;
 
@@ -228,7 +228,7 @@ final class TravelRescue {
                 if (!okSupport) {
                     // stage 3: allow man-made solids too (still reject leaves/liquids via terrain.isStandable())
                     IBlockState sup = mob.world.getBlockState(feet.down());
-                    okSupport = TravelTerrain.supportsStandingSurface(mob.world, feet.down(), sup);
+                    okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, feet.down(), sup);
                 }
                 if (!okSupport) continue;
 
@@ -311,7 +311,7 @@ final class TravelRescue {
                 BlockPos feet = terrain.adjustTreeTopToGround(top);
 
                 // We want DRY land only
-                if (!terrain.isDryStandableForBoatExit(feet)) continue;
+                if (!terrain.isStandable(feet)) continue;
                 if (MillFootprints.isForbiddenLanding(mob.world, feet.getX() + 0.5D,
                         terrain.teleportLandingY(feet), feet.getZ() + 0.5D)) continue;
 

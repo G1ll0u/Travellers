@@ -55,7 +55,6 @@ travellers.worker.zones.assigned_here=Assigned Here
 travellers.notify.duty.worker_grouped=This worker leads a group - it must have no followers before it can be assigned duty.
 travellers.notify.duty.assigned=Assigned to duty at %s.
 travellers.notify.duty.no_bed=%s has no free bed - place another bed in the Stable before assigning a palfrenier there.
-travellers.notify.stable.bed_destroyed=%s's bed at "%s" was destroyed. The palfrenier will keep watch but do no work until it has a bed again.
 travellers.notify.stable.horse_tamed=A horse was tamed at %s.
 travellers.notify.stable.horse_saddled=A horse was saddled at %s.
 travellers.notify.stable.foal_born=A foal was born at %s.
@@ -243,6 +242,7 @@ travellers.lone_barrack.prompt.half_width=width
 travellers.lone_barrack.prompt.half_depth=depth
 travellers.lone_barrack.prompt.half_height=height
 travellers.lone_barrack.error.overlaps=This area overlaps an existing zone.
+travellers.lone_barrack.error.invalid=This zone cannot be created here: stand closer, keep it within the size limits, and wait for the area to load.
 travellers.lone_barrack.created=Zone created!
 
 travellers.zone.prompt.validate=Create %s
@@ -326,9 +326,10 @@ travellers.notify.home.not_your_worker=Not your henchman.
 travellers.notify.home.none_assigned=No home assigned.
 travellers.notify.home.lone_barrack_not_found=Lone barrack not found.
 travellers.notify.home.lone_barrack_assigned=Lone Barrack assigned: %s
-travellers.notify.home.lone_barrack_bed_destroyed=%s's bed at "%s" was destroyed. Assign it a new bed.
+travellers.notify.home.lone_barrack_bed_destroyed=%s lost their bed at "%s" and no other bed is free there: they left the zone and are coming back to you.
 
 travellers.notify.order.worker_busy=This henchman is on a task and can't take new orders right now.
+travellers.notify.order.worker_on_duty=%s works at "%s" and takes no orders there. Unassign them from the zones menu first.
 travellers.notify.order.some_busy_skipped=%s henchmen were on a task and left alone.
 travellers.notify.goto.going_to=Henchman is going to: %s
 travellers.notify.goto.going_to_pos=Henchman is going to selected map position.

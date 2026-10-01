@@ -6,16 +6,9 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 
 /**
- * One horse tracked by a Stable's pool. {@link #horseNbt} is the entire virtual state - a pool horse
- * has no position/velocity to simulate offscreen, it is simply "at this stable" until claimed or
- * materialized. {@link #liveEntityUUID} is only meaningful while a real {@code EntityHorse} exists
- * for it in the world; when a scan can't find it, it goes stale for a grace period
- * ({@code STABLES.missingHorseGraceTicks}, tracked in {@code StableCoordinator#missingSince}) before
- * being cleared - a world just finishing loading can read a Stable's chunk as loaded for a tick or
- * two before that chunk's own entities have actually been added back into the world, and clearing
- * this eagerly on that false read let a fresh substitute be materialized from {@link #horseNbt} right
- * before the real horse caught up and appeared too (a real duplication bug, fixed by the grace
- * period).
+ * One horse tracked by a Stable's pool. Either {@link #liveEntityUUID} links the one real
+ * {@code EntityHorse} standing for it (the Stable is live), or it is null and {@link #horseNbt} is
+ * the whole horse, position included (the Stable is dormant) - see {@code StableCoordinator}.
  */
 public final class StableHorseEntry {
 

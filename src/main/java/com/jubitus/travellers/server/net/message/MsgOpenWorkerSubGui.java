@@ -6,7 +6,6 @@ import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;

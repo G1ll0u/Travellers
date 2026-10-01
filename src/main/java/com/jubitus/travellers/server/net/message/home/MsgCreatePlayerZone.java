@@ -1,5 +1,6 @@
 package com.jubitus.travellers.server.net.message.home;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.world.zone.BlockRoleRequirement;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
@@ -20,6 +21,9 @@ import java.util.List;
 /** Client -> server: create a new player zone of the chosen {@link ZoneType}. Validation is data-driven
  * off {@link ZoneTypeDef#requiredRoles} so a future zone type never needs a new hardcoded check here. */
 public class MsgCreatePlayerZone implements IMessage {
+
+    private static final double MAX_PLAYER_DISTANCE = 32.0D;
+    private static final int MAX_NAME_LENGTH = 32;
 
     private String name;
     private int x, y, z;
@@ -50,7 +54,8 @@ public class MsgCreatePlayerZone implements IMessage {
         halfWidth = buf.readInt();
         halfDepth = buf.readInt();
         halfHeight = buf.readInt();
-        type = ZoneType.values()[buf.readByte() & 0xFF];
+        int t = buf.readByte() & 0xFF;
+        type = t < ZoneType.values().length ? ZoneType.values()[t] : null;
     }
 
     @Override
@@ -72,6 +77,26 @@ public class MsgCreatePlayerZone implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 BlockPos center = new BlockPos(msg.x, msg.y, msg.z);
                 PlayerZoneManager mgr = PlayerZoneManager.get(player.world);
+
+                // Never trust the client: bounded box, next to the player, fully loaded (the role scan
+                // below must never load or generate a chunk).
+                int maxHalf = TravellersConfig.WORKER.zoneMaxHalfWidth;
+                int maxHeight = TravellersConfig.WORKER.zoneMaxHalfHeight;
+                if (msg.type == null
+                        || msg.halfWidth < 1 || msg.halfWidth > maxHalf
+                        || msg.halfDepth < 1 || msg.halfDepth > maxHalf
+                        || msg.halfHeight < 1 || msg.halfHeight > maxHeight
+                        || player.getDistanceSq(center) > MAX_PLAYER_DISTANCE * MAX_PLAYER_DISTANCE
+                        || !player.world.isAreaLoaded(
+                                center.add(-msg.halfWidth, -msg.halfHeight, -msg.halfDepth),
+                                center.add(msg.halfWidth, msg.halfHeight, msg.halfDepth))) {
+                    TravellerFollowNet.CHANNEL.sendTo(
+                        new MsgZoneActionResult(false, "travellers.lone_barrack.error.invalid"), player);
+                    return;
+                }
+                if (msg.name != null && msg.name.length() > MAX_NAME_LENGTH) {
+                    msg.name = msg.name.substring(0, MAX_NAME_LENGTH);
+                }
 
                 if (mgr.overlapsExisting(center, msg.halfWidth, msg.halfDepth)) {
                     TravellerFollowNet.CHANNEL.sendTo(

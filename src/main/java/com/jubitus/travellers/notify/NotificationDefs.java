@@ -57,17 +57,17 @@ public final class NotificationDefs {
     public static final NotificationDef HOME_NONE_ASSIGNED = new NotificationDef(ERROR, "travellers.notify.home.none_assigned", 0);
     public static final NotificationDef HOME_LONE_BARRACK_NOT_FOUND = new NotificationDef(ERROR, "travellers.notify.home.lone_barrack_not_found", 0);
     public static final NotificationDef HOME_LONE_BARRACK_ASSIGNED = new NotificationDef(INFO, "travellers.notify.home.lone_barrack_assigned", 1);
-    public static final NotificationDef HOME_LONE_BARRACK_BED_DESTROYED = new NotificationDef(WARNING, "travellers.notify.home.lone_barrack_bed_destroyed", 2);
+    public static final NotificationDef ZONE_BED_LOST = new NotificationDef(WARNING, "travellers.notify.home.lone_barrack_bed_destroyed", 2);
 
     // --- Order gating (a worker busy on a mission can't take Go / Get-Equipment / group orders) ---
     public static final NotificationDef ORDER_WORKER_BUSY = new NotificationDef(ERROR, "travellers.notify.order.worker_busy", 0);
+    public static final NotificationDef ORDER_WORKER_ON_DUTY = new NotificationDef(ERROR, "travellers.notify.order.worker_on_duty", 2);
     public static final NotificationDef ORDER_SOME_BUSY_SKIPPED = new NotificationDef(WARNING, "travellers.notify.order.some_busy_skipped", 1);
 
     // --- Duty zone assignment (MsgAssignWorkerDuty) ---
     public static final NotificationDef DUTY_WORKER_GROUPED = new NotificationDef(ERROR, "travellers.notify.duty.worker_grouped", 0);
     public static final NotificationDef DUTY_ASSIGNED = new NotificationDef(INFO, "travellers.notify.duty.assigned", 1);
     public static final NotificationDef DUTY_NO_BED = new NotificationDef(ERROR, "travellers.notify.duty.no_bed", 1);
-    public static final NotificationDef STABLE_BED_DESTROYED = new NotificationDef(WARNING, "travellers.notify.stable.bed_destroyed", 2);
     public static final NotificationDef STABLE_HORSE_TAMED = new NotificationDef(EVENT, "travellers.notify.stable.horse_tamed", 1);
     public static final NotificationDef STABLE_HORSE_SADDLED = new NotificationDef(EVENT, "travellers.notify.stable.horse_saddled", 1);
     public static final NotificationDef STABLE_FOAL_BORN = new NotificationDef(EVENT, "travellers.notify.stable.foal_born", 1);

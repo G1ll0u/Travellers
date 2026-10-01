@@ -90,39 +90,20 @@ public class TravelCommon {
         return isDryStandable(p) ? p : null;
     }
 
-    // “Dry standable” check (single authoritative version)
+    /** Standable (Footing), never on a Millénaire fire pit, and no dangerous liquid anywhere in the body's box. */
     public boolean isDryStandable(BlockPos feet) {
         World w = owner.getEntityWorld();
-        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
+        if (!com.jubitus.travellers.world.ground.Footing.canStandAt(w, feet)) return false;
 
-        // never stand on Millénaire fire pit itself
         Block campBlock = CampfireBlock.get();
         if (campBlock != null && w.getBlockState(feet).getBlock() == campBlock) return false;
 
-        IBlockState below = w.getBlockState(feet.down());
-        if (below.getMaterial().isLiquid()) return false;
-
-        // forbid non-water liquids intersecting our AABB
         AxisAlignedBB aabb = owner.getEntityBoundingBox().offset(
                 (feet.getX() + 0.5) - owner.posX,
                 (feet.getY()) - owner.posY,
                 (feet.getZ() + 0.5) - owner.posZ
         );
-        if (com.jubitus.travellers.entity.entityai.travel.TravelTerrain.intersectsForbiddenLiquid(w, aabb)) return false;
-
-        IBlockState atFeet = w.getBlockState(feet);
-        IBlockState atHead = w.getBlockState(feet.up());
-        boolean free = (atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(w, feet) == null)
-                && (atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(w, feet.up()) == null);
-
-        BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
-        boolean solidBelow = shape == BlockFaceShape.SOLID
-                || below.getBlock() == Blocks.SNOW_LAYER
-                || below.getBlock() == Blocks.GRASS_PATH
-                || below.getBlock() == Blocks.ICE
-                || below.getBlock() == Blocks.PACKED_ICE;
-
-        return free && solidBelow;
+        return !com.jubitus.travellers.entity.entityai.travel.TravelTerrain.intersectsForbiddenLiquid(w, aabb);
     }
 
     public BlockPos getTargetVillage() {

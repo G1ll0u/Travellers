@@ -138,21 +138,21 @@ public class GuiPlayerZonePrompt extends GuiScreen implements ITravellersGui {
         nameField.setFocused(true);
         cursor += 14 + GAP + 2;
 
-        int defaultHalfWidth  = clamp(TravellersConfig.WORKER.workerLoneBarrackHalfWidth,  4, 32);
-        int defaultHalfDepth  = clamp(TravellersConfig.WORKER.workerLoneBarrackHalfDepth,  4, 32);
-        int defaultHalfHeight = clamp(TravellersConfig.WORKER.workerLoneBarrackHalfHeight, 2, 64);
+        int defaultHalfWidth  = clamp(TravellersConfig.WORKER.workerLoneBarrackHalfWidth,  4, TravellersConfig.WORKER.zoneMaxHalfWidth);
+        int defaultHalfDepth  = clamp(TravellersConfig.WORKER.workerLoneBarrackHalfDepth,  4, TravellersConfig.WORKER.zoneMaxHalfWidth);
+        int defaultHalfHeight = clamp(TravellersConfig.WORKER.workerLoneBarrackHalfHeight, 2, TravellersConfig.WORKER.zoneMaxHalfHeight);
 
         halfWidthSlider = new GuiWorkerFormationSlider(
             bx, cursor, bw, 20, "travellers.lone_barrack.prompt.half_width",
-            4, 16, 1, defaultHalfWidth, v -> String.valueOf((int) v));
+            4, TravellersConfig.WORKER.zoneMaxHalfWidth, 1, defaultHalfWidth, v -> String.valueOf((int) v));
         cursor += 30;
         halfDepthSlider = new GuiWorkerFormationSlider(
             bx, cursor, bw, 20, "travellers.lone_barrack.prompt.half_depth",
-            4, 16, 1, defaultHalfDepth, v -> String.valueOf((int) v));
+            4, TravellersConfig.WORKER.zoneMaxHalfWidth, 1, defaultHalfDepth, v -> String.valueOf((int) v));
         cursor += 30;
         halfHeightSlider = new GuiWorkerFormationSlider(
             bx, cursor, bw, 20, "travellers.lone_barrack.prompt.half_height",
-            2, 32, 1, defaultHalfHeight, v -> String.valueOf((int) v));
+            2, TravellersConfig.WORKER.zoneMaxHalfHeight, 1, defaultHalfHeight, v -> String.valueOf((int) v));
         cursor += 30 + GAP;
 
         afterSlidersCursor = cursor;

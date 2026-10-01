@@ -223,7 +223,7 @@ public final class ChoirCoordinator {
         AxisAlignedBB box = targetWorker.getEntityBoundingBox().grow(r, 8, r);
         List<EntityTravellerWorker> nearby = world.getEntitiesWithinAABB(
                 EntityTravellerWorker.class, box,
-                w -> w != null && w.isEntityAlive() && !w.isChoirSinging()
+                w -> w != null && w.isEntityAlive() && !w.isChoirSinging() && !w.isOnDuty()
                      && w.isHiredFollower() && playerId.equals(w.getFollowOwnerId())
         );
 

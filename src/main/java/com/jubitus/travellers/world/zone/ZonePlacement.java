@@ -1,28 +1,17 @@
 package com.jubitus.travellers.world.zone;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import net.minecraft.util.EnumFacing;
+import com.jubitus.travellers.world.ground.Footing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nullable;
 
-/**
- * The one place any zone type answers "is this a spot something could stand on" / "find me a standable
- * spot near here". Replaces the several near-identical {@code standable()} helpers that had drifted
- * across {@code StableCoordinator}, {@code PlayerZoneManager} and {@code StableHandTask} - the same
- * "many disagreeing clearance models" trap CLAUDE.md calls out for the mount system.
- */
+/** Zone-side searches for a spot to put a worker or horse down, built on {@link Footing}. Never loads a chunk. */
 public final class ZonePlacement {
 
     private ZonePlacement() {
-    }
-
-    /** Solid top below, two air blocks at {@code p} - a single-column stand check, no body width. */
-    public static boolean isStandableColumn(World world, BlockPos p) {
-        return world.getBlockState(p.down()).isSideSolid(world, p.down(), EnumFacing.UP)
-                && world.isAirBlock(p) && world.isAirBlock(p.up());
     }
 
     /**
@@ -32,12 +21,12 @@ public final class ZonePlacement {
      */
     @Nullable
     public static BlockPos findStandableNear(World world, BlockPos anchor, int vTolerance) {
-        if (isStandableColumn(world, anchor)) return anchor;
+        if (Footing.canStandAt(world, anchor)) return anchor;
         for (int dy = 1; dy <= vTolerance; dy++) {
             BlockPos down = anchor.down(dy);
-            if (isStandableColumn(world, down)) return down;
+            if (Footing.canStandAt(world, down)) return down;
             BlockPos up = anchor.up(dy);
-            if (isStandableColumn(world, up)) return up;
+            if (Footing.canStandAt(world, up)) return up;
         }
         return null;
     }
@@ -60,7 +49,8 @@ public final class ZonePlacement {
                 if (horiz >= bestHoriz) continue;
                 for (int dy = 1; dy >= -2; dy--) {
                     BlockPos p = target.add(dx, dy, dz);
-                    if (!world.getBlockState(p.down()).isSideSolid(world, p.down(), EnumFacing.UP)) continue;
+                    if (!Footing.isColumnLoaded(world, p)) break;
+                    if (!Footing.isFloor(world, p.down(), world.getBlockState(p.down()))) continue;
                     if (!ref.fitsStandingAt(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D)) continue;
                     best = p;
                     bestHoriz = horiz;

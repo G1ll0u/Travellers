@@ -373,9 +373,8 @@ public class VirtualTravellerRecord {
             r.personalTravelGoal = new BlockPos(tag.getInteger("PTX"), tag.getInteger("PTY"), tag.getInteger("PTZ"));
         } else if (r.goingToDuty && r.dutyZoneCenter != null) {
             r.personalTravelGoal = r.dutyZoneCenter;
-        } else if (r.goingHome && entityData != null && entityData.hasKey("HomeX")) {
-            r.personalTravelGoal = new BlockPos(entityData.getInteger("HomeX"),
-                    entityData.getInteger("HomeY"), entityData.getInteger("HomeZ"));
+        } else if (r.goingHome && entityData != null && com.jubitus.travellers.world.zone.ZoneRef.read(entityData) != null) {
+            r.personalTravelGoal = com.jubitus.travellers.world.zone.ZoneRef.read(entityData).center;
         }
         r.virtualizedTick = tag.getLong("VT");
         // Backward-compat: if not saved yet, treat as not moved (use current pos as origin)

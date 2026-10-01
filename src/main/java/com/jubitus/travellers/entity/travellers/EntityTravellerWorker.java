@@ -24,7 +24,8 @@ import net.minecraft.entity.ai.EntityAITasks;
 import com.jubitus.travellers.entity.entityai.follow.*;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
+import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.world.zone.ZoneRef;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData;
@@ -189,19 +190,10 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     public UUID followOwnerId = null;
     public boolean hiredFollower = false;
+    // --- the one zone assignment: a Barrack (lodging) or a Stable (lodging + duty) ---
     @Nullable
-    BlockPos assignedHomePos = null;
-    int assignedHomeDim = 0;
-    String assignedHomeName = "";
-    com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType assignedHomeType =
-            com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
+    ZoneRef zone = null;
     boolean goingHome = false;
-    // --- duty zone assignment (independent of home - see the Stable zone system) ---
-    @Nullable
-    BlockPos dutyZoneCenter = null;
-    int dutyZoneDim = 0;
-    @Nullable
-    String dutyKind = null;
     boolean goingToDuty = false;
     private int anchorScanCooldown = 0;
     // --- dynamic owner catchup goal ---
@@ -585,43 +577,56 @@ public class EntityTravellerWorker extends EntityTraveller {
         return this.dataManager.get(HOME_NAME_DM);
     }
 
-    public void setAssignedHome(@Nullable BlockPos pos, int dim, String name,
-            com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType type) {
-        this.assignedHomePos = pos;
-        this.assignedHomeDim = dim;
-        this.assignedHomeName = name == null ? "" : name;
-        this.assignedHomeType = type == null
-                ? com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK
-                : type;
-
-        this.dataManager.set(
-                HOME_POS_DM,
-                pos == null
-                        ? com.google.common.base.Optional.absent()
-                        : com.google.common.base.Optional.of(pos)
-        );
+    /** Client side: the home shown in GUIs, from {@code MsgSyncWorkerHome}. */
+    public void setClientHome(@Nullable BlockPos pos, int dim, String name) {
+        this.dataManager.set(HOME_POS_DM, pos == null
+                ? com.google.common.base.Optional.absent()
+                : com.google.common.base.Optional.of(pos));
         this.dataManager.set(HOME_DIM_DM, dim);
-        this.dataManager.set(HOME_NAME_DM, this.assignedHomeName);
+        this.dataManager.set(HOME_NAME_DM, name == null ? "" : name);
     }
 
-    public com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType getAssignedHomeType() {
-        return assignedHomeType;
+    @Nullable
+    public ZoneRef getZoneRef() {
+        return zone;
     }
 
-    // --- Duty zone assignment (independent of Home - see the Stable zone system) ---
+    /** Binds this worker to {@code record} (its home, and its duty if the zone has one). Does not
+     * move it - the assign messages call {@link #startDutyTravel()} for a duty zone. */
+    public void assignZone(PlayerZoneRecord record, int dim) {
+        this.zone = ZoneRef.of(record, dim);
+        syncZoneDataParams();
+    }
+
+    private void syncZoneDataParams() {
+        this.dataManager.set(HOME_POS_DM, zone == null
+                ? com.google.common.base.Optional.absent()
+                : com.google.common.base.Optional.of(zone.center));
+        this.dataManager.set(HOME_DIM_DM, zone == null ? 0 : zone.dim);
+        this.dataManager.set(HOME_NAME_DM, zone == null ? "" : zone.name);
+    }
+
+    /** Server tick: an assignment read from a save older than zone ids gets its id once the zone's
+     * dimension is loaded. A zone that no longer exists is released by {@code ZoneAssignments.tickAudit}. */
+    private void resolveLegacyZoneRef() {
+        if (zone == null || zone.id != null || followOwnerId == null) return;
+        if (zone.resolve(followOwnerId) != null) syncZoneDataParams();
+    }
+
+    // --- Duty zone assignment: the duty side of the one zone assignment ---
 
     @Nullable
     public BlockPos getDutyZoneCenter() {
-        return dutyZoneCenter;
+        return zone != null && zone.isDuty() ? zone.center : null;
     }
 
     public int getDutyZoneDim() {
-        return dutyZoneDim;
+        return zone != null ? zone.dim : 0;
     }
 
     @Nullable
     public String getDutyKind() {
-        return dutyKind;
+        return zone != null ? zone.dutyKind() : null;
     }
 
     public boolean isGoingToDuty() {
@@ -641,21 +646,10 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
     @Nullable
     public BlockPos getActivePersonalTravelGoal() {
-        if (goingToDuty && dutyZoneCenter != null && dutyZoneDim == this.dimension) return dutyZoneCenter;
-        if (goingHome && assignedHomePos != null && assignedHomeDim == this.dimension) return assignedHomePos;
+        if (zone == null || zone.dim != this.dimension) return null;
+        if (goingToDuty && zone.isDuty()) return zone.center;
+        if (goingHome) return zone.center;
         return null;
-    }
-
-    /** Sets or clears which zone/duty this worker is assigned to. Does not move the worker - call
-     * {@link #startDutyTravel()} to actually send it there (the assignment message does both). */
-    public void assignDuty(@Nullable BlockPos zoneCenter, int dim, @Nullable String dutyKind) {
-        this.dutyZoneCenter = zoneCenter;
-        this.dutyZoneDim = dim;
-        this.dutyKind = zoneCenter == null ? null : dutyKind;
-        if (zoneCenter == null) {
-            this.goingToDuty = false;
-            if (this.mode == WorkerMode.ON_DUTY) this.mode = WorkerMode.IDLE;
-        }
     }
 
     /** Sends the worker to its assigned duty zone via the travel AI - mirrors {@link #startGoHome()}'s
@@ -663,8 +657,9 @@ public class EntityTravellerWorker extends EntityTraveller {
      * the ongoing state, not a one-shot destination). */
     public void startDutyTravel() {
         if (world.isRemote) return;
-        if (dutyZoneCenter == null) return;
-        if (dutyZoneDim != this.dimension) return;
+        BlockPos dutyCenter = getDutyZoneCenter();
+        if (dutyCenter == null) return;
+        if (zone.dim != this.dimension) return;
 
         this.mode = WorkerMode.ON_DUTY;
         this.goingToDuty = true;
@@ -679,32 +674,27 @@ public class EntityTravellerWorker extends EntityTraveller {
         TravelCommon tc = this.getTravelCommon();
         tc.route.clear();
         tc.routeIndex = 0;
-        tc.route.add(dutyZoneCenter);
+        tc.route.add(dutyCenter);
 
-        tc.setTargetVillage(dutyZoneCenter);
-        this.setTargetVillage(dutyZoneCenter);
+        tc.setTargetVillage(dutyCenter);
+        this.setTargetVillage(dutyCenter);
 
         tc.setCurrentWaypoint(null);
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);
     }
 
-    /** Drops any duty and home pointing at {@code zoneCenter}. A worker that was working, staying or
-     * heading there goes back to following its owner. Returns false if nothing pointed at the zone. */
-    public boolean releaseFromZone(BlockPos zoneCenter) {
-        boolean duty = zoneCenter.equals(dutyZoneCenter);
-        boolean home = zoneCenter.equals(assignedHomePos);
-        if (!duty && !home) return false;
-
-        boolean boundHere = (duty && (mode == WorkerMode.ON_DUTY || goingToDuty))
-                || (home && goingHome)
-                || zoneCenter.equals(idleAnchorPos);
-        if (duty) assignDuty(null, 0, null);
-        if (home) {
-            goingHome = false;
-            setAssignedHome(null, 0, "",
-                    com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK);
-        }
+    /** Drops the zone assignment. A worker that was working, staying or heading there goes back to
+     * following its owner. Returns false if it had none. */
+    public boolean releaseFromZone() {
+        if (zone == null) return false;
+        boolean boundHere = mode == WorkerMode.ON_DUTY || goingToDuty || goingHome
+                || zone.center.equals(idleAnchorPos);
+        this.zone = null;
+        this.goingHome = false;
+        this.goingToDuty = false;
+        if (this.mode == WorkerMode.ON_DUTY) this.mode = WorkerMode.IDLE;
+        syncZoneDataParams();
         if (boundHere) {
             stopAllTravelNow();
             this.returnUsingFollow = false;
@@ -1163,6 +1153,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 leaderCountCooldown = 100;
                 updateLeaderFollowerCount();
                 equipment.syncEquipmentFromInventory();
+                resolveLegacyZoneRef();
             }
 
             updateDynamicNavigation();
@@ -1212,9 +1203,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         TravelCommon tc = this.getTravelCommon();
 
-        if (!world.isRemote && goingHome && assignedHomePos != null && assignedHomeDim == this.dimension) {
-            int r = tc.arrivalRadiusBlocks(assignedHomePos);
-            if (this.getDistanceSqToCenter(assignedHomePos) <= (double) (r * r)) {
+        if (!world.isRemote && goingHome && zone != null && zone.dim == this.dimension) {
+            int r = tc.arrivalRadiusBlocks(zone.center);
+            if (this.getDistanceSqToCenter(zone.center) <= (double) (r * r)) {
 
                 goingHome = false;
 
@@ -1223,14 +1214,8 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                 // 2) now anchor at home (follow OFF)
                 this.followOrderActive = false;
-                this.idleAnchorPos = assignedHomePos;
+                this.idleAnchorPos = zone.center;
                 this.getNavigator().clearPath();
-
-                // OPTIONAL: if you truly need tc.targetVillage=home for chest-waiting logic,
-                // set it AFTER stopAllTravelNow(), and be sure AITravel won't run:
-                // tc.setTargetVillage(assignedHomePos);
-                // this.setTargetVillage(assignedHomePos);
-                // tc.setReadyToDepart(false);
 
                 EntityPlayer owner = getFollowOwner();
                 if (owner != null) {
@@ -1241,13 +1226,14 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // --- Duty zone arrival --- mirrors the Home arrival block above, except mode stays ON_DUTY:
         // the duty is the ongoing state once arrived, not a one-shot destination like Home is.
-        if (!world.isRemote && goingToDuty && dutyZoneCenter != null && dutyZoneDim == this.dimension) {
-            int r = tc.arrivalRadiusBlocks(dutyZoneCenter);
-            if (this.getDistanceSqToCenter(dutyZoneCenter) <= (double) (r * r)) {
+        BlockPos dutyCenter = getDutyZoneCenter();
+        if (!world.isRemote && goingToDuty && dutyCenter != null && zone.dim == this.dimension) {
+            int r = tc.arrivalRadiusBlocks(dutyCenter);
+            if (this.getDistanceSqToCenter(dutyCenter) <= (double) (r * r)) {
                 goingToDuty = false;
                 stopAllTravelNow();
                 this.followOrderActive = false;
-                this.idleAnchorPos = dutyZoneCenter;
+                this.idleAnchorPos = dutyCenter;
                 this.getNavigator().clearPath();
             }
         }
@@ -1692,31 +1678,12 @@ public class EntityTravellerWorker extends EntityTraveller {
                 NotificationService.notifyEventOfflineRaw(world.getMinecraftServer(), followOwnerId, i18nKey, summary, deathArgs);
             }
 
-            // Lone barrack bed respawn handling
-            if (hiredFollower
-                    && assignedHomeType == com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK
-                    && assignedHomePos != null) {
-                net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
-                net.minecraft.world.WorldServer bw = srv != null ? srv.getWorld(assignedHomeDim) : null;
-                if (followOwnerId != null && TravellersConfig.CONTROLLED_VILLAGE.workerRespawnInBarracks) {
-                    try {
-                        NBTTagCompound nbt = new NBTTagCompound();
-                        writeToNBT(nbt);
-                        stripInventoryNbt(nbt);
-                        if (bw != null) {
-                            com.jubitus.travellers.world.zone.PlayerZoneManager.get(bw)
-                                    .scheduleRespawn(followOwnerId, this.getUniqueID(), assignedHomePos, assignedHomeDim, nbt);
-                        }
-                    } catch (Exception e) {
-                        System.err.println("[Travellers] Failed to schedule lone barrack respawn: " + e.getMessage());
-                    }
-                } else {
-                    // Respawn disabled or no owner: free the bed slot immediately
-                    if (bw != null) {
-                        com.jubitus.travellers.world.zone.PlayerZoneManager.get(bw)
-                                .unassignWorker(this.getUniqueID());
-                    }
-                }
+            if (hiredFollower && zone != null && world.getMinecraftServer() != null) {
+                NBTTagCompound nbt = new NBTTagCompound();
+                writeToNBT(nbt);
+                stripInventoryNbt(nbt);
+                com.jubitus.travellers.world.zone.ZoneAssignments.onWorkerDied(
+                        world.getMinecraftServer(), getUniqueID(), followOwnerId, zone, nbt);
             }
         }
 
@@ -2589,7 +2556,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     /** Remove all inventory data from a worker NBT so the respawned entity starts empty. */
-    private static void stripInventoryNbt(NBTTagCompound nbt) {
+    public static void stripInventoryNbt(NBTTagCompound nbt) {
         // Vanilla equipment
         nbt.removeTag("HandItems");
         nbt.removeTag("ArmorItems");
@@ -3550,8 +3517,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public void startGoHome() {
         if (world.isRemote) return;
-        if (assignedHomePos == null) return;
-        if (assignedHomeDim != this.dimension) return;
+        if (zone == null) return;
+        if (zone.dim != this.dimension) return;
+        BlockPos home = zone.center;
 
         this.goingHome = true;
         this.routeLocked = true;
@@ -3569,10 +3537,10 @@ public class EntityTravellerWorker extends EntityTraveller {
         TravelCommon tc = this.getTravelCommon();
         tc.route.clear();
         tc.routeIndex = 0;
-        tc.route.add(assignedHomePos);
+        tc.route.add(home);
 
-        tc.setTargetVillage(assignedHomePos);
-        this.setTargetVillage(assignedHomePos);
+        tc.setTargetVillage(home);
+        this.setTargetVillage(home);
 
         tc.setCurrentWaypoint(null);
         tc.setReadyToDepart(true);
@@ -3770,7 +3738,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         RETURNING,
         RECRUITING,
         GET_EQUIPMENT,
-        /** Persistently assigned to a zone's duty (see {@link #dutyKind}), same lifecycle shape as a
+        /** Persistently assigned to a zone's duty (see {@link #getDutyKind}), same lifecycle shape as a
          * Barrack home but with an actual job to run once arrived - see EntityAIWorkerDuty. */
         ON_DUTY
     }
@@ -4115,23 +4083,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
             nbt.setTag("RecruitVillages", vlist);
 
-            if (assignedHomePos != null) {
-                nbt.setInteger("HomeX", assignedHomePos.getX());
-                nbt.setInteger("HomeY", assignedHomePos.getY());
-                nbt.setInteger("HomeZ", assignedHomePos.getZ());
-                nbt.setInteger("HomeDim", assignedHomeDim);
-                nbt.setString("HomeName", assignedHomeName);
-                nbt.setInteger("HomeType", assignedHomeType == null ? 2 : assignedHomeType.toNbt());
-            }
+            if (zone != null) zone.write(nbt);
             nbt.setBoolean("GoingHome", goingHome);
-
-            if (dutyZoneCenter != null) {
-                nbt.setInteger("DutyX", dutyZoneCenter.getX());
-                nbt.setInteger("DutyY", dutyZoneCenter.getY());
-                nbt.setInteger("DutyZ", dutyZoneCenter.getZ());
-                nbt.setInteger("DutyDim", dutyZoneDim);
-                if (dutyKind != null) nbt.setString("DutyKind", dutyKind);
-            }
             nbt.setBoolean("GoingToDuty", goingToDuty);
 
 
@@ -4295,54 +4248,26 @@ public class EntityTravellerWorker extends EntityTraveller {
                 }
             }
 
-            // HomeType 1 = removed Millenaire barracks building: drop the home, it is no longer valid
-            boolean legacyBarracksHome = nbt.getInteger("HomeType") == 1;
-            if (nbt.hasKey("HomeX") && !legacyBarracksHome) {
-                assignedHomePos = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
-                assignedHomeDim = nbt.getInteger("HomeDim");
-                assignedHomeName = nbt.getString("HomeName");
-                assignedHomeType = com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
-            } else {
-                assignedHomePos = null;
-                assignedHomeDim = 0;
-                assignedHomeName = "";
-                assignedHomeType = com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK;
-            }
-
-            if (!world.isRemote) {
-                dataManager.set(HOME_POS_DM, assignedHomePos == null
-                        ? com.google.common.base.Optional.absent()
-                        : com.google.common.base.Optional.of(assignedHomePos));
-                dataManager.set(HOME_DIM_DM, assignedHomeDim);
-                dataManager.set(HOME_NAME_DM, assignedHomeName == null ? "" : assignedHomeName);
-            }
-
+            zone = ZoneRef.read(nbt);
+            if (!world.isRemote) syncZoneDataParams();
 
             goingHome = nbt.getBoolean("GoingHome");
-            if (nbt.hasKey("DutyX")) {
-                dutyZoneCenter = new BlockPos(nbt.getInteger("DutyX"), nbt.getInteger("DutyY"), nbt.getInteger("DutyZ"));
-                dutyZoneDim = nbt.getInteger("DutyDim");
-                dutyKind = nbt.hasKey("DutyKind") ? nbt.getString("DutyKind") : null;
-            } else {
-                dutyZoneCenter = null;
-                dutyZoneDim = 0;
-                dutyKind = null;
-            }
             goingToDuty = nbt.getBoolean("GoingToDuty");
-            if (dutyZoneCenter != null) {
+            BlockPos dutyCenter = getDutyZoneCenter();
+            if (dutyCenter != null) {
                 // Duty is a persistent state, not a one-shot mission - mode must be restored
                 // unconditionally, whether the worker is still travelling there or already arrived.
                 mode = WorkerMode.ON_DUTY;
-                if (!world.isRemote && goingToDuty && dutyZoneDim == dimension) {
+                if (!world.isRemote && goingToDuty && zone.dim == dimension) {
                     TravelCommon dutyTc = getTravelCommon();
                     boolean dutyRouteMissing = dutyTc.route == null || dutyTc.route.isEmpty() || dutyTc.routeIndex < 0;
                     if (dutyRouteMissing) {
                         dutyTc.route.clear();
                         dutyTc.routeIndex = 0;
-                        dutyTc.route.add(dutyZoneCenter);
+                        dutyTc.route.add(dutyCenter);
 
-                        dutyTc.setTargetVillage(dutyZoneCenter);
-                        setTargetVillage(dutyZoneCenter);
+                        dutyTc.setTargetVillage(dutyCenter);
+                        setTargetVillage(dutyCenter);
 
                         dutyTc.setCurrentWaypoint(null);
                         dutyTc.setReadyToDepart(true);
@@ -4351,8 +4276,11 @@ public class EntityTravellerWorker extends EntityTraveller {
                         getNavigator().clearPath();
                     }
                 }
+            } else if (mode == WorkerMode.ON_DUTY) {
+                mode = WorkerMode.IDLE;
             }
-            if (!world.isRemote && goingHome && assignedHomePos != null && assignedHomeDim == dimension) {
+            if (!world.isRemote && goingHome && zone != null && zone.dim == dimension) {
+                BlockPos assignedHomePos = zone.center;
                 TravelCommon tc = getTravelCommon();
 
                 boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;

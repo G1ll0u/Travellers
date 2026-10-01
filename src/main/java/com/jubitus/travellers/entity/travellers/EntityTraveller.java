@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.travellers;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.world.mill.VillageVisitState;
 
 import com.jubitus.travellers.config.TravellersConfig;
@@ -1174,16 +1175,6 @@ public class EntityTraveller extends EntityCreature {
     public BlockPos topStandable(BlockPos guess) {
 
         return travelCommon.topStandable(guess);
-    }
-
-    // “Dry standable” check (single authoritative version)
-    public boolean isDryStandable(BlockPos feet) {
-
-        // never stand on Millénaire fire pit itself
-
-        // forbid non-water liquids intersecting our AABB
-
-        return travelCommon.isDryStandable(feet);
     }
 
     public boolean isAtTargetStopHys(boolean lastWasInside) {
@@ -2618,6 +2609,14 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.set(TEXTURE_INDEX, index);
     }
 
+    // Vanilla scales the cull distance by hitbox size, so small rolled scales vanished early and a rider before its horse.
+    @SideOnly(Side.CLIENT)
+    @Override
+    public boolean isInRangeToRenderDist(double distanceSq) {
+        double d = TravellersConfig.ENTITY_RENDER_LOD.entityRenderDistance * getRenderDistanceWeight();
+        return distanceSq < d * d;
+    }
+
     public float getRenderScale() {
         return this.dataManager.get(RENDER_SCALE);
     }
@@ -3071,15 +3070,8 @@ public class EntityTraveller extends EntityCreature {
             Block b = state.getBlock();
             Material mat = state.getMaterial();
 
-            if (mat.isLiquid() && mat != Material.WATER) return true;
-            if (b instanceof IFluidBlock && mat != Material.WATER) return true;
+            if (BlockRules.isHazard(state)) return true;
             if (b == Blocks.FIRE || b == Blocks.CACTUS) return true;
-
-            ResourceLocation rl = b.getRegistryName();
-            if (rl != null && TravellersDerivedConfig.CAMP_TERRAIN_HAZARD_BLACKLIST
-                    .contains(rl.toString().toLowerCase(Locale.ROOT))) {
-                return true;
-            }
         }
         return false;
     }

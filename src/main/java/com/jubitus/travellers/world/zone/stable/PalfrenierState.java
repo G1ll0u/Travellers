@@ -49,10 +49,6 @@ final class PalfrenierState {
     /** ON_BREAK only: the entity the palfrenier is watching for the current amble leg, or null to
      * look at the horizon direction in {@code idleLookX/Z} instead. */
     UUID breakLookUUID;
-    /** Set while a nearby player is holding the palfrenier's gaze ({@code EntityAIStopAndLookAtPlayer}
-     * running): the chore is frozen, and on resume every watchdog anchor is shifted by the elapsed
-     * pause so a look-at-player interaction can never trip the stuck/teleport logic. 0 = not paused. */
-    long pauseSince = 0L;
 
     Phase phase = Phase.DECIDE;
     /** The horse currently being worked (taming/saddling/ambient-pet target). */

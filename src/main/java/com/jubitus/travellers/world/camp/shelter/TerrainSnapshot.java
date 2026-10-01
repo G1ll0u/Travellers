@@ -1,5 +1,6 @@
 package com.jubitus.travellers.world.camp.shelter;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -50,7 +51,7 @@ public class TerrainSnapshot {
                 for (int dx = 0; dx < sizeX; dx++, i++) {
                     BlockPos p = origin.add(dx, dy, dz);
                     IBlockState bs = world.getBlockState(p);
-                    if (isFoliage(bs.getMaterial())) {
+                    if (BlockRules.isTreePart(bs) || BlockRules.isVegetation(bs)) {
                         s.stateIds[i] = 0; // restore to air — don't re-plant trees or foliage on teardown
                     } else {
                         s.stateIds[i] = Block.getStateId(bs);
@@ -61,15 +62,6 @@ public class TerrainSnapshot {
             }
         }
         return s;
-    }
-
-    private static boolean isFoliage(net.minecraft.block.material.Material m) {
-        return m == net.minecraft.block.material.Material.LEAVES
-            || m == net.minecraft.block.material.Material.PLANTS
-            || m == net.minecraft.block.material.Material.VINE
-            || m == net.minecraft.block.material.Material.CACTUS
-            || m == net.minecraft.block.material.Material.GOURD
-            || m == net.minecraft.block.material.Material.WOOD;
     }
 
     public void restore(World world) {
@@ -175,7 +167,7 @@ public class TerrainSnapshot {
         if (com.jubitus.travellers.world.mill.MillVillageIndex.isPlanarInsideAnyZone(zones, p.getX(), p.getZ())) {
             return true;
         }
-        return com.jubitus.travellers.world.camp.CampTerrainValidator.isMillenaireBlock(world.getBlockState(p));
+        return com.jubitus.travellers.world.ground.BlockRules.isMillenaireBlock(world.getBlockState(p));
     }
 
     /**

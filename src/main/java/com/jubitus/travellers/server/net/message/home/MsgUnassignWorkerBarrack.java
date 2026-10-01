@@ -46,22 +46,15 @@ public class MsgUnassignWorkerBarrack implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 UUID ownerId = player.getUniqueID();
                 WorldServer world = player.getServerWorld();
-                BlockPos home = null;
                 Entity e = world.getEntityFromUuid(msg.workerUUID);
                 if (e instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    if (!ownerId.equals(w.getFollowOwnerId())) return;
-                    home = w.getAssignedHomePos();
+                    if (!ownerId.equals(((EntityTravellerWorker) e).getFollowOwnerId())) return;
                 } else {
                     VirtualTravellerRecord rec = VirtualTravellerManager.get(world.getMinecraftServer().getWorld(0))
                             .getRecord(msg.workerUUID);
                     if (rec == null || !ownerId.equals(rec.followOwnerUUID)) return;
-                    NBTTagCompound nbt = rec.entityNbt;
-                    if (nbt != null && nbt.hasKey("HomeX")) {
-                        home = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
-                    }
                 }
-                if (home != null) ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, home);
+                ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, null);
 
                 TravellerFollowNet.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);
             });

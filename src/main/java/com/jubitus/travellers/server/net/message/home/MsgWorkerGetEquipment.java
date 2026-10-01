@@ -102,8 +102,7 @@ public class MsgWorkerGetEquipment implements IMessage {
                         EntityTravellerWorker worker = (EntityTravellerWorker) e;
                         if (!worker.isHiredFollower() || !ownerId.equals(worker.getFollowOwnerId())) return;
                         if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(worker)) {
-                            com.jubitus.travellers.notify.NotificationService.notify(player,
-                                    com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
+                            com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, worker);
                             return;
                         }
                         com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
@@ -118,8 +117,7 @@ public class MsgWorkerGetEquipment implements IMessage {
                 VirtualTravellerRecord r = vwm.getRecord(msg.workerUUID);
                 if (r == null || !ownerId.equals(r.followOwnerUUID)) return;
                 if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(r)) {
-                    com.jubitus.travellers.notify.NotificationService.notify(player,
-                            com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
+                    com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, r);
                     return;
                 }
 

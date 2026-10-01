@@ -1,5 +1,6 @@
 package com.jubitus.travellers.world.camp;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.world.camp.shelter.ShelterPlacer;
 import com.jubitus.travellers.world.camp.shelter.ShelterTemplate;
@@ -954,24 +955,17 @@ public class CampsiteManager extends WorldSavedData {
         if (world.getBlockState(top).getMaterial().isLiquid()) return null;
         BlockPos ground = top.down();
         net.minecraft.block.state.IBlockState groundState = world.getBlockState(ground);
-        if (!isValidGround(groundState.getMaterial())) return null;
+        if (!isValidGround(groundState)) return null;
         // Modded fluids (quicksand-like custom liquids) and configured hazard blocks: never valid
         // ground, even when they read as a solid non-liquid Material.
-        if (groundState.getBlock() instanceof net.minecraftforge.fluids.IFluidBlock) return null;
-        net.minecraft.util.ResourceLocation groundId = groundState.getBlock().getRegistryName();
-        if (groundId != null && com.jubitus.travellers.config.TravellersDerivedConfig.CAMP_TERRAIN_HAZARD_BLACKLIST
-                .contains(groundId.toString().toLowerCase(java.util.Locale.ROOT))) {
-            return null;
-        }
+        if (BlockRules.isHazard(groundState)) return null;
         return top;
     }
 
-    private static boolean isValidGround(Material m) {
-        if (m.isLiquid() || !m.isSolid()) return false;
-        return m != Material.LEAVES && m != Material.WOOD && m != Material.PLANTS
-                && m != Material.VINE && m != Material.CACTUS && m != Material.GOURD
-                && m != Material.CLOTH && m != Material.GLASS && m != Material.WEB
-                && m != Material.SPONGE && m != Material.ICE && m != Material.PACKED_ICE;
+    // Natural ground, but never ice: a shelter should not sit on a frozen pond.
+    private static boolean isValidGround(net.minecraft.block.state.IBlockState s) {
+        Material m = s.getMaterial();
+        return BlockRules.isNaturalGround(s) && m != Material.ICE && m != Material.PACKED_ICE;
     }
 
     private static EnumFacing facingToward(int fromX, int fromZ, BlockPos to) {

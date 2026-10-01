@@ -33,9 +33,6 @@ public class TravellersDerivedConfig {
     public static final TravellerBlacklist TRAVELLER_AGGRO_BLACKLIST = new TravellerBlacklist();
     public static final TravellerBlacklist RAIDER_AGGRO_BLACKLIST = new TravellerBlacklist();
 
-    // Registry names (e.g. "somemod:quicksand") from CAMP_EVENTS.terrainHazardBlacklist, lowercased.
-    public static final Set<String> CAMP_TERRAIN_HAZARD_BLACKLIST = new HashSet<>();
-
     // Client-only: last value received from server for GUI display. -1/NaN = unknown (not received yet).
     public static int workerHireCostDeniersServerCache = -1;
     public static int recruitFeeFlatServerCache = -1;
@@ -69,12 +66,7 @@ public class TravellersDerivedConfig {
                 TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistIds,
                 TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistClasses);
 
-        CAMP_TERRAIN_HAZARD_BLACKLIST.clear();
-        for (String id : TravellersConfig.CAMP_EVENTS.terrainHazardBlacklist) {
-            if (id == null) continue;
-            String s = id.trim().toLowerCase(Locale.ROOT);
-            if (!s.isEmpty()) CAMP_TERRAIN_HAZARD_BLACKLIST.add(s);
-        }
+        com.jubitus.travellers.world.ground.BlockRules.clearCache();
     }
 
     public static void syncServerCostCachesFromConfig() {

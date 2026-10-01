@@ -66,7 +66,7 @@ public final class HorseInteractLock {
         if (!TravellersConfig.STABLES.enabled) return null;
         com.jubitus.travellers.world.zone.stable.StableCoordinator sc =
                 com.jubitus.travellers.world.zone.stable.StableCoordinator.get(world);
-        if (!sc.isStableTracked(horse.getUniqueID())) return null;
+        if (!com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) return null;
         UUID owner = sc.getPoolOwner(world, horse);
         return owner != null ? owner : NOBODY;
     }

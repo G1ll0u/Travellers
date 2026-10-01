@@ -24,6 +24,8 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
     @Override
     public boolean shouldExecute() {
         if (!worker.isHiredFollower()) return false;
+        // Defensive posture (on duty): never joins the owner's own attacks, only retaliates.
+        if (worker.isCampingPassive()) return false;
         // Low health: don't assist owner's offensive targeting, focus on healing
         if (worker.isLowHealth()) return false;
 

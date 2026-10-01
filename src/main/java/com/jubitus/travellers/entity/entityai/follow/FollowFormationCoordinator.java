@@ -1141,7 +1141,7 @@ public final class FollowFormationCoordinator {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
                     BlockPos p = new BlockPos(top.getX() + dx, top.getY(), top.getZ() + dz);
-                    if (FollowRecoveryHelper.isStandable(world, p)) {
+                    if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p)) {
                         return new GroundAnchor(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D, true);
                     }
                 }

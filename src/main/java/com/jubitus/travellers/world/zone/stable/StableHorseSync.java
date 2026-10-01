@@ -18,6 +18,7 @@ public final class StableHorseSync {
     }
 
     public static void pushEntryOntoHorse(StableHorseEntry entry, EntityHorse horse, UUID ownerUUID) {
+        StableCoordinator.sanitizeLive(horse);
         if (entry.tamed && !horse.isTame()) {
             horse.setHorseTamed(true);
             horse.setOwnerUniqueId(ownerUUID);

@@ -12,6 +12,7 @@ import net.minecraft.entity.ai.EntityAIBase;
 public class EntityAIWorkerDuty extends EntityAIBase {
 
     private final EntityTravellerWorker worker;
+    private WorkerDutyBehavior running;
 
     public EntityAIWorkerDuty(EntityTravellerWorker worker) {
         this.worker = worker;
@@ -37,6 +38,7 @@ public class EntityAIWorkerDuty extends EntityAIBase {
         worker.setCampingPassive(true);
 
         WorkerDutyBehavior behavior = DutyDefs.get(worker.getDutyKind());
+        running = behavior;
         if (behavior != null) behavior.tick(worker);
     }
 
@@ -44,5 +46,7 @@ public class EntityAIWorkerDuty extends EntityAIBase {
     public void resetTask() {
         worker.setCampingPassive(false);
         if (worker.isSleepingInBed()) worker.wakeUpTraveller();
+        if (running != null) running.stop(worker);
+        running = null;
     }
 }

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityai.travel.mount;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -39,11 +40,6 @@ public final class MountedLeadController {
     /** Straight-line probe distance (blocks) for un-fordable water ahead on the bearing to the aim. */
     public static final int LOOKAHEAD = 6;
 
-    private static boolean isVanillaWater(IBlockState s) {
-        Block b = s.getBlock();
-        return b == Blocks.WATER || b == Blocks.FLOWING_WATER; // 1.12.2
-    }
-
     /** Ford depth this body can wade without swimming. */
     private static int fordDepth() {
         return Math.max(1, TravellersConfig.MOUNTS.mountedMaxFordDepth);
@@ -65,7 +61,7 @@ public final class MountedLeadController {
         for (int y = topY; y >= bottomY; y--) {
             p.setPos(bx, y, bz);
             IBlockState s = mob.world.getBlockState(p);
-            if (isVanillaWater(s)) {
+            if (BlockRules.isVanillaWater(s)) {
                 if (waterTop == Integer.MIN_VALUE) waterTop = y;
                 continue;
             }

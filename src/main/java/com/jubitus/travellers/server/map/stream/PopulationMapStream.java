@@ -124,7 +124,7 @@ public class PopulationMapStream {
                         || !(zone.data instanceof com.jubitus.travellers.world.zone.stable.StableZoneData)) {
                     continue;
                 }
-                boolean loaded = coord.isZoneFullyLoaded(ws, zone);
+                boolean loaded = coord.isZoneLive(zone);
                 String zn = (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
                 MsgMapPopulationUpdate.Entry se = new MsgMapPopulationUpdate.Entry();
                 se.dim = dim;

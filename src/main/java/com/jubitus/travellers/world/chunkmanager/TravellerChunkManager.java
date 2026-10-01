@@ -91,6 +91,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
         // Virtual battles: encounter detection, offscreen combat sim, deferred loot
         com.jubitus.travellers.world.battle.VirtualBattleManager.get(ws).tick(ws, now);
+        com.jubitus.travellers.world.zone.ZoneRoleRescan.tick(ws, now);
         com.jubitus.travellers.world.zone.stable.StableCoordinator.get(ws).tick(ws, now);
         if (ws.provider.getDimension() == 0) com.jubitus.travellers.world.zone.ZoneAssignments.tickAudit(ws, now);
 

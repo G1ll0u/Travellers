@@ -13,11 +13,8 @@ import java.util.UUID;
 
 /**
  * The authoritative "this pool horse is actually gone" signal, mirroring {@code MountDeathHandler}
- * for bonded mounts. Without this, a dead horse's pool entry just goes dormant (liveEntityUUID
- * cleared by the next reconcile pass) while its horseNbt snapshot - now continuously kept fresh by
- * {@code StableCoordinator.reconcilePhysical} - survives, and the materialize-one-dormant-entry-per-pass
- * logic spawns a brand new entity from it: a horse "resurrecting" after death. Removing the entry
- * outright on death is also what keeps a dead horse from counting against the owner's cap forever.
+ * for bonded mounts: a dead pool horse's entry is removed outright, so it is never respawned from
+ * its snapshot and never counts against the caps.
  */
 @Mod.EventBusSubscriber(modid = "travellers")
 public final class StableHorseDeathHandler {
@@ -33,7 +30,7 @@ public final class StableHorseDeathHandler {
 
         WorldServer world = (WorldServer) event.getEntity().world;
         UUID id = event.getEntity().getUniqueID();
-        if (!StableCoordinator.get(world).isStableTracked(id)) return;
+        if (!StableCoordinator.isPoolHorse(event.getEntity())) return;
 
         PlayerZoneManager mgr = PlayerZoneManager.get(world);
         for (PlayerZoneRecord zone : mgr.getAll()) {
@@ -43,7 +40,6 @@ public final class StableHorseDeathHandler {
             if (entry == null) continue;
 
             data.pool.remove(entry);
-            StableCoordinator.get(world).forgetLiveHorse(id);
             mgr.markDirty();
             StableWatchLog.record(world, zone, StableWatchLog.Kind.LEAVE,
                     StableWatchLog.shortId(entry.poolId) + " died", true);

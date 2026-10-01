@@ -49,10 +49,8 @@ public final class StableZoneData implements ZoneTypeData, ZoneBedData {
     public StableHorseEntry addCapturedHorse(WorldServer world, NBTTagCompound nbt,
                                              StableHorseEntry.Origin origin, long now) {
         NBTTagCompound stored = nbt.copy();
-        stored.removeTag("UUIDMost");
-        stored.removeTag("UUIDLeast");
-        stored.removeTag("Leash");
-        com.jubitus.travellers.world.zone.stable.StableCoordinator.stripPoolTag(stored);
+        StableCoordinator.sanitizeSnapshot(stored);
+        StableCoordinator.stripPoolTag(stored);
 
         EntityHorse scratch = new EntityHorse(world);
         scratch.readFromNBT(stored);

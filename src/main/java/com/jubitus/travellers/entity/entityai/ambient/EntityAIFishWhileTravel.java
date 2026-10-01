@@ -1,5 +1,7 @@
 package com.jubitus.travellers.entity.entityai.ambient;
 
+import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.world.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
@@ -85,22 +87,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         this.startChancePerTick = startChancePerTick;
 
         this.setMutexBits(1 | 2);
-    }
-
-    private static boolean isLeafBlock(World w, BlockPos pos, IBlockState s) {
-        Block b = s.getBlock();
-        if (b instanceof net.minecraft.block.BlockLeaves) return true;
-        try {
-            return b.isLeaves(s, w, pos);
-        } catch (Throwable ignore) {
-            return false;
-        }
-    }
-
-    // Dry standable = feet cell is standable AND not liquid.
-    private boolean isDryStandable(BlockPos feet) {
-        if (!isStandable(feet)) return false;
-        return !mob.world.getBlockState(feet).getMaterial().isLiquid();
     }
 
     @Override
@@ -416,7 +402,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                     BlockPos probe = col.down(dy);
                     IBlockState s = w.getBlockState(probe);
                     IBlockState above = w.getBlockState(probe.up());
-                    if (isVanillaWater(s) && (isVanillaWater(above) || above.getMaterial().isReplaceable())) {
+                    if (BlockRules.isVanillaWater(s) && (BlockRules.isVanillaWater(above) || above.getMaterial().isReplaceable())) {
                         double d2 = around.distanceSq(probe);
                         if (d2 < bestD2) {
                             bestD2 = d2;
@@ -453,11 +439,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
 
     // --- environment checks (vanilla water only; no chunk loads) ---
 
-    private boolean isVanillaWater(IBlockState s) {
-        Block b = s.getBlock();
-        return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
-    }
-
     private void playCastSound() {
         mob.playSound(SoundEvents.ENTITY_BOBBER_THROW, 0.6F, 0.95F + mob.getRNG().nextFloat() * 0.1F);
     }
@@ -477,35 +458,11 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     }
 
     private boolean isStandable(BlockPos feet) {
-        World w = mob.world;
-        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
-        IBlockState below = w.getBlockState(feet.down());
-        if (isLeafBlock(w, feet.down(), below)) return false;
-        if (below.getMaterial().isLiquid()) return false;
-        BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
-        boolean solidBelow = shape == BlockFaceShape.SOLID || below.getBlock() == Blocks.SNOW_LAYER
-                || below.getBlock() == Blocks.ICE || below.getBlock() == Blocks.PACKED_ICE || below.getBlock() == Blocks.FROSTED_ICE
-                || below.getBlock() == Blocks.GLASS || below.getBlock() == Blocks.STAINED_GLASS;
-        IBlockState atFeet = w.getBlockState(feet);
-        IBlockState atHead = w.getBlockState(feet.up());
-        boolean free = (atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(w, feet) == null)
-                && (atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(w, feet.up()) == null);
-        return solidBelow && free;
+        return Footing.canStandAt(mob.world, feet);
     }
 
     private boolean isSwimmable(BlockPos feet) {
-        World w = mob.world;
-        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down())) return false;
-        IBlockState f = w.getBlockState(feet);
-        IBlockState h = w.getBlockState(feet.up());
-        IBlockState b = w.getBlockState(feet.down());
-        return isVanillaWater(f) && (isVanillaWater(h) || h.getMaterial().isReplaceable())
-                && !isForbiddenLiquid(f) && !isForbiddenLiquid(h) && !isForbiddenLiquid(b);
-    }
-
-    private boolean isForbiddenLiquid(IBlockState s) {
-        if (!s.getMaterial().isLiquid()) return false;
-        return !isVanillaWater(s); // forbid all non-vanilla liquids for safety
+        return Footing.canSwimAt(mob.world, feet);
     }
 
     /**
@@ -532,7 +489,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                 // Resolve Y to a *dry standable* spot only (don’t accept swimmable here)
                 BlockPos y = findSurfaceY(guessXZ);
                 if (y == null) continue;
-                if (!isDryStandable(y)) continue;
+                if (!isStandable(y)) continue;
 
                 // Must be next to fishable water (can be below ledge)
                 if (!hasFishableWaterFrom(y)) continue;
@@ -563,7 +520,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                     BlockPos probe = col.down(dy);
                     IBlockState s = w.getBlockState(probe);
                     IBlockState above = w.getBlockState(probe.up());
-                    if (isVanillaWater(s) && (isVanillaWater(above) || above.getMaterial().isReplaceable())) {
+                    if (BlockRules.isVanillaWater(s) && (BlockRules.isVanillaWater(above) || above.getMaterial().isReplaceable())) {
                         return true;
                     }
                 }

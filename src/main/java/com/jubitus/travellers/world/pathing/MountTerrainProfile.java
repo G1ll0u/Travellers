@@ -1,5 +1,6 @@
 package com.jubitus.travellers.world.pathing;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -134,7 +135,7 @@ public final class MountTerrainProfile {
             pos.setPos(x, y, z);
             IBlockState state = world.getBlockState(pos);
             Material material = state.getMaterial();
-            if (material == Material.LAVA) return Double.NaN;
+            if (BlockRules.isHazard(state)) return Double.NaN;
             if (material == Material.WATER && waterTop == Integer.MIN_VALUE) waterTop = y;
             AxisAlignedBB bb = state.getCollisionBoundingBox(world, pos);
             if (bb == null) continue;

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityai.travel;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
 import com.jubitus.travellers.entity.entityai.flight.ElytraOpportunityScanner;
@@ -433,8 +434,8 @@ final class TravelBoatMode {
         IBlockState feet = w.getBlockState(boatCol);
         IBlockState below = w.getBlockState(boatCol.down());
 
-        boolean feetWater = TravelTerrain.isVanillaWater(feet);
-        boolean belowWater = TravelTerrain.isVanillaWater(below);
+        boolean feetWater = BlockRules.isVanillaWater(feet);
+        boolean belowWater = BlockRules.isVanillaWater(below);
 
         // 1) If we’re not over water at all, we beached / hit land/ice
         if (!feetWater && !belowWater) {
@@ -477,7 +478,7 @@ final class TravelBoatMode {
         IBlockState aFeet = w.getBlockState(ahead);
         IBlockState aBelow = w.getBlockState(ahead.down());
 
-        boolean aheadWater = TravelTerrain.isVanillaWater(aFeet) || TravelTerrain.isVanillaWater(aBelow);
+        boolean aheadWater = BlockRules.isVanillaWater(aFeet) || BlockRules.isVanillaWater(aBelow);
 
         // If ahead column is not water, we’re about to grind shoreline
         return !aheadWater;
@@ -564,7 +565,7 @@ final class TravelBoatMode {
         IBlockState feet = w.getBlockState(from);
         IBlockState below = w.getBlockState(from.down());
 
-        if (!TravelTerrain.isVanillaWater(feet) && !TravelTerrain.isVanillaWater(below) && dir != null) {
+        if (!BlockRules.isVanillaWater(feet) && !BlockRules.isVanillaWater(below) && dir != null) {
             int stepX = (int) Math.signum(dir.x);
             int stepZ = (int) Math.signum(dir.z);
             if (stepX != 0 || stepZ != 0) {
@@ -586,7 +587,7 @@ final class TravelBoatMode {
             if (!w.isBlockLoaded(p)) break;
             IBlockState s = w.getBlockState(p);
 
-            if (TravelTerrain.isVanillaWater(s)) {
+            if (BlockRules.isVanillaWater(s)) {
                 topWater = p; // keep updating as we go up
             } else if (topWater != null) {
                 // we left the water column; topWater is the surface water
@@ -600,7 +601,7 @@ final class TravelBoatMode {
                 BlockPos p = new BlockPos(x, y, z);
                 if (!w.isBlockLoaded(p)) break;
                 IBlockState s = w.getBlockState(p);
-                if (TravelTerrain.isVanillaWater(s)) {
+                if (BlockRules.isVanillaWater(s)) {
                     topWater = p;
                     break;
                 }

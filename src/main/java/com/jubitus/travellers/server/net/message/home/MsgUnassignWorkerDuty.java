@@ -46,20 +46,15 @@ public class MsgUnassignWorkerDuty implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 UUID ownerId = player.getUniqueID();
                 WorldServer world = player.getServerWorld();
-                BlockPos dutyCenter = null;
                 Entity e = world.getEntityFromUuid(msg.workerUUID);
                 if (e instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    if (!ownerId.equals(w.getFollowOwnerId())) return;
-                    dutyCenter = w.getDutyZoneCenter();
+                    if (!ownerId.equals(((EntityTravellerWorker) e).getFollowOwnerId())) return;
                 } else {
                     VirtualTravellerRecord rec = VirtualTravellerManager.get(world.getMinecraftServer().getWorld(0))
                             .getRecord(msg.workerUUID);
                     if (rec == null || !ownerId.equals(rec.followOwnerUUID)) return;
-                    dutyCenter = rec.dutyZoneCenter;
                 }
-                // The Stable bed is also its home (pinned at assign), so releasing the zone clears both.
-                if (dutyCenter != null) ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, dutyCenter);
+                ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, null);
 
                 TravellerFollowNet.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);
             });

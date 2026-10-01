@@ -1,5 +1,6 @@
 package com.jubitus.travellers.world.pathing.terrain;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -109,8 +110,7 @@ public final class TerrainChunkScanner {
             IBlockState st = chunk.getBlockState(x, y, z);
             Material m = st.getMaterial();
             if (m == Material.AIR) continue;
-            if (st.getBlock() instanceof BlockLeaves) continue; // modded leaves whose material isn't LEAVES
-            if (TerrainSurface.isFoliage(m)) continue;
+            if (BlockRules.isTreePart(st) || BlockRules.isVegetation(st)) continue;
             int surfaceY = y + 1;
             return m.isLiquid() ? -surfaceY : surfaceY;
         }

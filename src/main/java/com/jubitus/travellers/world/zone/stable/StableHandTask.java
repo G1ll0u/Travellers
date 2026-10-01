@@ -96,11 +96,11 @@ public final class StableHandTask implements WorkerDutyBehavior {
         WorldServer ws = (WorldServer) world;
         long now = world.getTotalWorldTime();
 
-        BlockPos zoneCenter = worker.getDutyZoneCenter();
+        com.jubitus.travellers.world.zone.ZoneRef ref = worker.getZoneRef();
         UUID ownerId = worker.getFollowOwnerId();
-        if (zoneCenter == null || ownerId == null) return;
+        if (ref == null || !ref.isDuty() || ownerId == null) return;
 
-        PlayerZoneRecord zone = PlayerZoneManager.get(ws).getByOwnerAndCenter(ownerId, zoneCenter);
+        PlayerZoneRecord zone = ref.resolve(ownerId);
         if (zone == null || zone.type != ZoneType.STABLE || !(zone.data instanceof StableZoneData)) return;
         StableZoneData data = (StableZoneData) zone.data;
 
@@ -114,6 +114,13 @@ public final class StableHandTask implements WorkerDutyBehavior {
             this.tickWorld = null;
             this.tickZone = null;
         }
+    }
+
+    @Override
+    public void stop(EntityTravellerWorker worker) {
+        PalfrenierState st = STATES.get(worker.getUniqueID());
+        if (st != null && worker.world instanceof WorldServer) abandonChore((WorldServer) worker.world, worker, st);
+        else dismountIfRidingLoose(worker);
     }
 
     private void tickBody(WorldServer ws, EntityTravellerWorker worker, PlayerZoneRecord zone,
@@ -154,29 +161,14 @@ public final class StableHandTask implements WorkerDutyBehavior {
         // ---- Session rhythm: alternate timed WORKING and ON_BREAK ----
         advanceSession(ws, worker, st, now);
         if (st.session == PalfrenierState.Session.ON_BREAK) {
-            st.pauseSince = 0L;
             tickBreak(ws, worker, zone, st, now);
             return;
         }
 
         // ---- WORKING ----
-        // A nearby player holding the palfrenier's gaze (EntityAIStopAndLookAtPlayer, which clears
-        // the navigator every tick) freezes the chore instead of starving its watchdogs into a
-        // spurious teleport. On resume, every watchdog anchor is shifted by the paused span.
-        if (isBeingWatched(worker)) {
-            if (st.pauseSince == 0L) {
-                st.pauseSince = now;
-                worker.getNavigator().clearPath();
-            }
-            return;
-        }
-        if (st.pauseSince != 0L) resumeFromPause(st, now);
-
-        boolean canWork = myBed != null;
-
         switch (st.phase) {
             case DECIDE:
-                decide(ws, worker, zone, data, st, now, canWork);
+                decide(ws, worker, zone, data, st, now);
                 break;
             case FETCH_FEED:
                 fetchFeed(ws, worker, zone, data, st, now);
@@ -249,7 +241,6 @@ public final class StableHandTask implements WorkerDutyBehavior {
             st.session = PalfrenierState.Session.ON_BREAK;
             st.sessionUntilTick = now + rollSession(worker, TravellersConfig.STABLES.breakDurationTicks);
             st.breakNextMoveTick = now;
-            st.pauseSince = 0L;
             logHand(worker, "taking a break (" + ((st.sessionUntilTick - now) / 20L) + "s)");
         } else {
             st.session = PalfrenierState.Session.WORKING;
@@ -320,28 +311,6 @@ public final class StableHandTask implements WorkerDutyBehavior {
         return best;
     }
 
-    /** True while {@code EntityAIStopAndLookAtPlayer} is the running task holding this worker's gaze. */
-    private static boolean isBeingWatched(EntityTravellerWorker worker) {
-        for (EntityAITasks.EntityAITaskEntry e : worker.tasks.taskEntries) {
-            if (e.using && e.action instanceof EntityAIStopAndLookAtPlayer) return true;
-        }
-        return false;
-    }
-
-    /** Shift every chore watchdog anchor forward by the span the chore was paused for, so a
-     * look-at-player interruption can never make an approach/give-up/wait timer fire early. */
-    private void resumeFromPause(PalfrenierState st, long now) {
-        long delta = now - st.pauseSince;
-        st.pauseSince = 0L;
-        if (delta <= 0L) return;
-        if (st.phaseEndTick > 0L) st.phaseEndTick += delta;
-        if (st.targetSince > 0L) st.targetSince += delta;
-        if (st.approachStartTick > 0L) st.approachStartTick += delta;
-        if (st.nextDecideTick > 0L) st.nextDecideTick += delta;
-        if (st.nextBreedCheckTick > 0L) st.nextBreedCheckTick += delta;
-        if (st.bedApproachStartTick > 0L) st.bedApproachStartTick += delta;
-    }
-
     // -------------------------------------------------------------------------
     // Night: walk to the assigned bed and lie down (cosmetic pose, like camps)
     // -------------------------------------------------------------------------
@@ -387,68 +356,66 @@ public final class StableHandTask implements WorkerDutyBehavior {
     // -------------------------------------------------------------------------
 
     private void decide(WorldServer world, EntityTravellerWorker worker, PlayerZoneRecord zone,
-                        StableZoneData data, PalfrenierState st, long now, boolean canWork) {
+                        StableZoneData data, PalfrenierState st, long now) {
         if (now < st.nextDecideTick) return;
 
-        if (canWork) {
-            Set<UUID> claimed = claimedHorsesByOthers(world, worker);
+        Set<UUID> claimed = claimedHorsesByOthers(world, worker);
 
-            EntityHorse untamed = findNearest(world, zone, worker,
-                    h -> !h.isTame() && poolEntry(data, h) != null
+        EntityHorse untamed = findNearest(world, zone, worker,
+                h -> !h.isTame() && poolEntry(data, h) != null
+                        && !claimed.contains(h.getUniqueID())
+                        && !isAvoided(st, h.getUniqueID(), now));
+        List<BlockPos> chests = zone.getRolePositions(ZoneRoles.CHEST);
+        if (untamed != null) {
+            boolean fetch = !chests.isEmpty() && countItem(world, zone, Items.WHEAT) > 0;
+            startTarget(st, untamed.getUniqueID(),
+                    fetch ? PalfrenierState.Phase.FETCH_FEED : PalfrenierState.Phase.MOVE_TO_HORSE, now);
+            if (fetch) st.targetChest = nearestChest(worker, chests);
+            return;
+        }
+
+        // Only walk to the chest when a saddle is actually there right now.
+        if (!chests.isEmpty() && countItem(world, zone, Items.SADDLE) > 0) {
+            EntityHorse unsaddled = findNearest(world, zone, worker,
+                    h -> h.isTame() && !h.isChild() && !h.isHorseSaddled()
+                            && poolEntry(data, h) != null
                             && !claimed.contains(h.getUniqueID())
                             && !isAvoided(st, h.getUniqueID(), now));
-            List<BlockPos> chests = zone.getRolePositions(ZoneRoles.CHEST);
-            if (untamed != null) {
-                boolean fetch = !chests.isEmpty() && countItem(world, zone, Items.WHEAT) > 0;
-                startTarget(st, untamed.getUniqueID(),
-                        fetch ? PalfrenierState.Phase.FETCH_FEED : PalfrenierState.Phase.MOVE_TO_HORSE, now);
-                if (fetch) st.targetChest = nearestChest(worker, chests);
+            if (unsaddled != null) {
+                st.targetChest = nearestChest(worker, chests);
+                startTarget(st, unsaddled.getUniqueID(), PalfrenierState.Phase.MOVE_TO_CHEST_FOR_SADDLE, now);
                 return;
-            }
-
-            // Only walk to the chest when a saddle is actually there right now.
-            if (!chests.isEmpty() && countItem(world, zone, Items.SADDLE) > 0) {
-                EntityHorse unsaddled = findNearest(world, zone, worker,
-                        h -> h.isTame() && !h.isChild() && !h.isHorseSaddled()
-                                && poolEntry(data, h) != null
-                                && !claimed.contains(h.getUniqueID())
-                                && !isAvoided(st, h.getUniqueID(), now));
-                if (unsaddled != null) {
-                    st.targetChest = nearestChest(worker, chests);
-                    startTarget(st, unsaddled.getUniqueID(), PalfrenierState.Phase.MOVE_TO_CHEST_FOR_SADDLE, now);
-                    return;
-                }
-            }
-
-            // Deliberate breeding - throttled like the offscreen timer's own check, not every decide.
-            // The caps (player-wide + per-pen area) are checked HERE, before any chest trip or heart
-            // animation, so a palfrenier at cap never mimes a breeding StableWork.breed would refuse.
-            if (now >= st.nextBreedCheckTick) {
-                st.nextBreedCheckTick = now + TravellersConfig.STABLES.breedingCheckIntervalTicks;
-                if (StableWork.canBreedNow(world, zone, data, now) && breedingFeedAvailable(world, zone)) {
-                    StableHorseEntry[] pair = StableWork.firstEligiblePair(data, now);
-                    if (pair != null) {
-                        st.breedPoolIdA = pair[0].poolId;
-                        st.breedPoolIdB = pair[1].poolId;
-                        st.breedFeedBeats = 0L;
-                        st.targetChest = chests.isEmpty() ? null : nearestChest(worker, chests);
-                        st.phase = st.targetChest != null
-                                ? PalfrenierState.Phase.FETCH_CARROTS : PalfrenierState.Phase.MOVE_TO_PAIR;
-                        st.phaseEndTick = 0L;
-                        st.chestOpen = false;
-                        st.targetSince = now;
-                        st.approachStartTick = -1L;
-                        logHand(worker, "breeding a pair");
-                        return;
-                    }
-                } else if (StableWork.eligiblePairExists(data, now)) {
-                    // A pair is ready but a cap blocks it - note it once per check interval.
-                    StableWatchLog.record(world, zone, StableWatchLog.Kind.HELD, "breeding: cap reached", true);
-                }
             }
         }
 
-        // Nothing pressing (or no bed = no labour): stay a palfrenier without inventing busywork.
+        // Deliberate breeding - throttled like the offscreen timer's own check, not every decide.
+        // The caps (player-wide + per-pen area) are checked HERE, before any chest trip or heart
+        // animation, so a palfrenier at cap never mimes a breeding StableWork.breed would refuse.
+        if (now >= st.nextBreedCheckTick) {
+            st.nextBreedCheckTick = now + TravellersConfig.STABLES.breedingCheckIntervalTicks;
+            if (StableWork.canBreedNow(world, zone, data, now) && breedingFeedAvailable(world, zone)) {
+                StableHorseEntry[] pair = StableWork.firstEligiblePair(data, now);
+                if (pair != null) {
+                    st.breedPoolIdA = pair[0].poolId;
+                    st.breedPoolIdB = pair[1].poolId;
+                    st.breedFeedBeats = 0L;
+                    st.targetChest = chests.isEmpty() ? null : nearestChest(worker, chests);
+                    st.phase = st.targetChest != null
+                            ? PalfrenierState.Phase.FETCH_CARROTS : PalfrenierState.Phase.MOVE_TO_PAIR;
+                    st.phaseEndTick = 0L;
+                    st.chestOpen = false;
+                    st.targetSince = now;
+                    st.approachStartTick = -1L;
+                    logHand(worker, "breeding a pair");
+                    return;
+                }
+            } else if (StableWork.eligiblePairExists(data, now)) {
+                // A pair is ready but a cap blocks it - note it once per check interval.
+                StableWatchLog.record(world, zone, StableWatchLog.Kind.HELD, "breeding: cap reached", true);
+            }
+        }
+
+        // Nothing pressing: stay a palfrenier without inventing busywork.
         EntityHorse anyHorse = findNearest(world, zone, worker, h -> true);
         if (anyHorse != null && worker.getRNG().nextBoolean()) {
             st.targetHorseUUID = anyHorse.getUniqueID();
@@ -807,11 +774,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
                 // Let StableMaterializer place it (ring search from the pen centre, well inside the
                 // loaded area) - teleporting it next to a parent risked dropping it near the zone
                 // edge where vanilla's 32-block tick gate freezes it: no gravity, no AI, floating.
-                EntityHorse spawned = StableMaterializer.materializeEntry(world, zone, foal);
-                if (spawned != null) {
-                    foal.liveEntityUUID = spawned.getUniqueID();
-                    StableCoordinator.get(world).trackLiveHorse(spawned.getUniqueID());
-                }
+                StableMaterializer.materializeEntry(world, zone, foal);
                 spawnHearts(world, a);
                 spawnHearts(world, b);
             }
@@ -959,7 +922,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
         st.breedPoolIdB = null;
         st.breedFeedBeats = 0L;
         // avoidHorseUUID / avoidUntil deliberately kept - they self-expire.
-        // session / sessionUntilTick / pauseSince are NOT chore state - left untouched here.
+        // session / sessionUntilTick are NOT chore state - left untouched here.
     }
 
     /** Cleanly drop whatever chore is mid-flight: shut any chest this palfrenier left open, put down

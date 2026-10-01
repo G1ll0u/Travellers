@@ -1,5 +1,7 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
+import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.world.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry;
 import com.jubitus.travellers.entity.entityai.travel.mount.MountedLeadController;
@@ -1087,10 +1089,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         return best;
     }
 
-    private boolean isBlockLoadedNoForce(BlockPos pos) {
-        return follower.world.isBlockLoaded(pos, false);
-    }
-
     private double scoreStandableCandidate(EntityLivingBase leader,
                                            FollowFormationCoordinator.SlotAssignment slot,
                                            BlockPos pos,
@@ -2058,69 +2056,13 @@ public class EntityAIFollowLeader extends EntityAIBase {
     }
 
     private boolean isStandableFast(BlockPos feet) {
-        return TerrainStandableCache.isStandable(follower.world, feet, this::computeStandable);
+        return TerrainStandableCache.isStandable(follower.world, feet);
     }
 
-    private boolean computeStandable(BlockPos feet) {
-        World world = follower.world;
-        BlockPos down = feet.down();
-        BlockPos up = feet.up();
-
-        if (!isBlockLoadedNoForce(down) || !isBlockLoadedNoForce(feet) || !isBlockLoadedNoForce(up)) {
-            return false;
-        }
-
-        IBlockState below = world.getBlockState(down);
-        if (below.getMaterial().isLiquid()) return false;
-
-        BlockFaceShape shape = below.getBlockFaceShape(world, down, EnumFacing.UP);
-        if (shape != BlockFaceShape.SOLID) return false;
-
-        IBlockState atFeet = world.getBlockState(feet);
-        IBlockState atHead = world.getBlockState(up);
-
-        // Water is Material.isReplaceable() == true (same as air) — without this explicit check
-        // a solid floor sitting under a water column reads as "standable", sending goals/steering
-        // toward positions the follower would suffocate at. Same fix as FollowRecoveryHelper.isStandable.
-        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
-
-        if (!(atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(world, feet) == null)) {
-            return false;
-        }
-
-        return atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(world, up) == null;
-    }
-
-    /**
-     * Same "can a follower occupy this column" question as {@link #isStandableFast}, but also
-     * accepts an open-water column when {@code waterIsSafe} is true (the leader is itself
-     * swimming). Without this, the goal search behind {@link #findBestStandableGoal} can never
-     * place a slot in open water - every candidate in a lake/river fails the dry-land-only check,
-     * so a follower's goal always resolves back to the nearest shore even while its leader swims
-     * on, stranding the whole formation at the water's edge instead of following across.
-     */
+    // Open water is also a valid goal while the leader itself swims, or the formation strands at the shore.
     private boolean isStandableOrSwimmable(BlockPos feet, boolean waterIsSafe) {
         if (isStandableFast(feet)) return true;
-        return waterIsSafe && isSwimmableFast(feet);
-    }
-
-    /**
-     * Not routed through {@link TerrainStandableCache} - that cache is keyed on block position
-     * alone and shared world-wide for the tick, but "is this water column OK" depends on whether
-     * THIS follower's leader is swimming, which can differ between two formations in the same
-     * tick. Only reached while a leader is actually swimming, so it isn't a hot path.
-     */
-    private boolean isSwimmableFast(BlockPos feet) {
-        World world = follower.world;
-        BlockPos up = feet.up();
-        if (!isBlockLoadedNoForce(feet) || !isBlockLoadedNoForce(up)) return false;
-
-        IBlockState atFeet = world.getBlockState(feet);
-        if (!isVanillaWater(atFeet)) return false;
-
-        IBlockState atHead = world.getBlockState(up);
-        return atHead.getMaterial().isReplaceable() || atHead.getMaterial().isLiquid()
-                || atHead.getCollisionBoundingBox(world, up) == null;
+        return waterIsSafe && Footing.canSwimAt(follower.world, feet);
     }
 
     /**
@@ -2154,11 +2096,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         while (angle > Math.PI) angle -= Math.PI * 2.0D;
         while (angle < -Math.PI) angle += Math.PI * 2.0D;
         return angle;
-    }
-
-    private static boolean isVanillaWater(IBlockState state) {
-        Block block = state.getBlock();
-        return block == Blocks.WATER || block == Blocks.FLOWING_WATER;
     }
 
     private static final class GoalCandidate {

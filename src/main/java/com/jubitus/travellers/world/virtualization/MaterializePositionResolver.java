@@ -1,7 +1,9 @@
 package com.jubitus.travellers.world.virtualization;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockLeaves;
+import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.world.ground.ColumnGround;
+import com.jubitus.travellers.world.ground.Footing;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -413,16 +415,8 @@ public final class MaterializePositionResolver {
             if (!Double.isNaN(surf)) return surf;
         }
 
-        int refY = (int) Math.floor(referenceY);
-        int maxY = world.getActualHeight() - 3;
-        for (int offset = 0; offset <= FROZEN_Y_SEARCH_RADIUS; offset++) {
-            int yDown = refY - offset;
-            if (yDown >= 1 && isSafeFloor(world, bx, yDown, bz)) return yDown + 1.0;
-            if (offset > 0) {
-                int yUp = refY + offset;
-                if (yUp <= maxY && isSafeFloor(world, bx, yUp, bz)) return yUp + 1.0;
-            }
-        }
+        int near = ColumnGround.nearestStandable(world, bx, bz, (int) Math.floor(referenceY), FROZEN_Y_SEARCH_RADIUS);
+        if (near != ColumnGround.NONE) return near;
 
         double surf = columnGroundY(world, bx, bz);
         if (!Double.isNaN(surf)) return surf;
@@ -516,48 +510,23 @@ public final class MaterializePositionResolver {
         if (!chunkLoaded(world, x, z)) return null;
         double y = columnGroundY(world, x, z);
         if (Double.isNaN(y)) return null;
-        boolean natural = CampTerrainValidator.isCellNatural(world, new BlockPos(x, (int) y - 1, z));
+        boolean natural = BlockRules.isNaturalGround(world.getBlockState(new BlockPos(x, (int) y - 1, z)));
         return new Ground(x, y, z, natural);
     }
 
-    /**
-     * Feet Y of the ground surface of the column at (bx, bz), NaN if the column has none usable.
-     * <p>
-     * Descends from the heightmap through everything an entity can stand in (air, grass, flowers,
-     * torches, tree canopy) <em>and through any tree part</em> (a branch, a trunk, a Dynamic Trees
-     * trunk-shell) to the real ground beneath, then stops at the FIRST genuine collision block. It
-     * deliberately never keeps descending past <em>that</em>: doing so is what dropped entities into
-     * caves at y≈14, since a plain "two air blocks above" test fails on any column with a tuft of
-     * grass on it. Skipping tree parts is what stops a stray branch crossing high overhead from
-     * making the whole column read as "no ground here" (NaN) - the miss that pushed resolution onto
-     * the {@code ensureNotInSolid} fallback, which then climbed the trunk and perched the entity in
-     * the canopy.
-     */
-    /** Y just above the column's top block when that block is water (open water surface), else NaN. */
+    /** Y just above the column's open water surface (the top layer is water), else NaN. */
     public static double waterSurfaceY(WorldServer world, int bx, int bz) {
-        if (!chunkLoaded(world, bx, bz)) return Double.NaN;
-        int maxY = world.getActualHeight() - 3;
-        for (int y = Math.min(maxY, world.getHeight(bx, bz) + 2); y > 0; y--) {
-            BlockPos p = new BlockPos(bx, y, bz);
-            IBlockState st = world.getBlockState(p);
-            if (st.getBlock().isAir(st, world, p)) continue;
-            return st.getMaterial() == Material.WATER && world.isAirBlock(p.up()) ? y + 1.0 : Double.NaN;
+        int y = ColumnGround.topLayer(world, bx, bz, true);
+        if (y == ColumnGround.NONE || !BlockRules.isVanillaWater(world.getBlockState(new BlockPos(bx, y, bz)))) {
+            return Double.NaN;
         }
-        return Double.NaN;
+        return y + 1.0;
     }
 
+    /** Feet Y of the column's highest standing layer (a roof counts), NaN if none. See {@link ColumnGround}. */
     public static double columnGroundY(WorldServer world, int bx, int bz) {
-        if (!chunkLoaded(world, bx, bz)) return Double.NaN; // never pull a chunk in to answer this
-        int maxY = world.getActualHeight() - 3;
-        int startY = Math.min(maxY, world.getHeight(bx, bz) + 2);
-        boolean canopyGuard = TravellersConfig.MATERIALIZATION.avoidTreeCanopy;
-        for (int y = startY; y > 0; y--) {
-            BlockPos p = new BlockPos(bx, y, bz);
-            if (isStandSpace(world, p)) continue;
-            if (canopyGuard && isCanopyPassThrough(world.getBlockState(p))) continue;
-            return isSafeFloor(world, bx, y, bz) ? y + 1.0 : Double.NaN;
-        }
-        return Double.NaN;
+        int y = ColumnGround.topLayer(world, bx, bz, false);
+        return y == ColumnGround.NONE ? Double.NaN : y;
     }
 
     /**
@@ -572,89 +541,13 @@ public final class MaterializePositionResolver {
         if (st.getMaterial().isLiquid() || b instanceof IFluidBlock) return false;
         // Match by material as well as class so modded trees (Dynamic Trees etc.) count as canopy
         // the descent passes through, not as a floor.
-        if (st.getMaterial() == Material.LEAVES || b instanceof BlockLeaves) return true;
+        if (BlockRules.isLeaves(null, null, st)) return true;
         return st.getCollisionBoundingBox(world, p) == null;
     }
 
+    // The block at y is a floor a unit can stand on (Footing), feet at y + 1.
     private static boolean isSafeFloor(WorldServer world, int bx, int y, int bz) {
-        BlockPos floor = new BlockPos(bx, y, bz);
-        IBlockState st = world.getBlockState(floor);
-        if (st.getBlock().isAir(st, world, floor)) return false;
-        if (TravellersConfig.MATERIALIZATION.avoidTreeCanopy && !isStableFloorMaterial(st.getMaterial())) {
-            return false;
-        }
-        // A liquid block reads as "not air" and would otherwise pass as a floor with air above it -
-        // an entity resolved to stand there has nothing solid underneath and drops straight in
-        // (fatal on lava). Mirrors CampTerrainValidator.isCellNatural's hazard gate.
-        if (TravellersConfig.MATERIALIZATION.avoidHazardLiquids && isHazardBlock(st.getBlock(), st)) {
-            return false;
-        }
-        return isStandSpace(world, floor.up()) && isStandSpace(world, floor.up(2));
-    }
-
-    /** Liquids (vanilla or modded) and any block registry-name-listed as a camp terrain hazard. */
-    private static boolean isHazardBlock(Block b, IBlockState st) {
-        if (st.getMaterial().isLiquid() || b instanceof IFluidBlock) return true;
-        ResourceLocation blockId = b.getRegistryName();
-        return blockId != null && TravellersDerivedConfig.CAMP_TERRAIN_HAZARD_BLACKLIST
-                .contains(blockId.toString().toLowerCase(java.util.Locale.ROOT));
-    }
-
-    /**
-     * Rejects tree canopy and other foliage as a landing floor (a leaf block is solid enough to
-     * pass the plain air check above, so without this a materializing entity could land standing
-     * on top of a tree instead of the ground beneath it).
-     */
-    private static boolean isStableFloorMaterial(Material m) {
-        return m != Material.LEAVES
-                && m != Material.WOOD
-                && m != Material.PLANTS
-                && m != Material.VINE
-                && m != Material.CACTUS
-                && m != Material.GOURD;
-    }
-
-    /**
-     * True for a block that is part of a tree - leaves, vines, a vanilla log, or a Dynamic Trees
-     * branch / trunk-shell / dynamic-leaf / surface root (all {@code Material.WOOD}/{@code LEAVES} in
-     * the {@code dynamictrees} namespace). Used to (a) descend past it to the real ground and (b)
-     * refuse it as a place an entity is left standing on or perched in.
-     * <p>
-     * Deliberately narrower than {@link #isStableFloorMaterial}'s blanket {@code Material.WOOD}
-     * reject: a plank floor, a dock, a wooden bridge are all {@code Material.WOOD} and an entity
-     * <em>should</em> stand on those, so a trunk is told apart from planks by namespace, not by
-     * material alone. {@code rootydirt} (the soil under a DT tree) is {@code Material.GROUND} and is
-     * correctly not matched here - it is genuine ground.
-     * <p>
-     * Public: this is the one clearance-model predicate for "is this canopy, not real ground" -
-     * {@code FollowRecoveryHelper}'s rescue-teleport search reuses it directly instead of running its
-     * own, canopy-blind ground test (see that class's {@code isStandable}).
-     */
-    public static boolean isFoliageOrTreePart(IBlockState st) {
-        Block b = st.getBlock();
-        if (b instanceof BlockLeaves || b instanceof BlockLog) return true;
-        Material m = st.getMaterial();
-        if (m == Material.LEAVES || m == Material.VINE) return true;
-        if (m != Material.WOOD) return false;
-        ResourceLocation id = b.getRegistryName();
-        return id != null && id.getNamespace().startsWith("dynamictrees");
-    }
-
-    /**
-     * Narrower than {@link #isFoliageOrTreePart}: blocks {@link #columnGroundY} descends <em>through</em>
-     * on the way to the real ground beneath a tree. Deliberately excludes a bare vanilla
-     * {@code BlockLog} - a player's log pillar / cabin floor is one, and tunnelling through it to
-     * "the ground below" would place an entity a block into that build. Dynamic Trees trunk parts
-     * carry their own namespace so they stay covered; leaves and vines are always foliage.
-     */
-    private static boolean isCanopyPassThrough(IBlockState st) {
-        Block b = st.getBlock();
-        if (b instanceof BlockLeaves) return true;
-        Material m = st.getMaterial();
-        if (m == Material.LEAVES || m == Material.VINE) return true;
-        if (m != Material.WOOD) return false;
-        ResourceLocation id = b.getRegistryName();
-        return id != null && id.getNamespace().startsWith("dynamictrees");
+        return Footing.canStandAt(world, new BlockPos(bx, y + 1, bz));
     }
 
     /**
@@ -669,14 +562,13 @@ public final class MaterializePositionResolver {
     public static double ensureNotInSolid(WorldServer world, int bx, double spawnY, int bz) {
         int y = (int) Math.floor(spawnY);
         int maxY = world.getActualHeight() - 2;
-        boolean canopyGuard = TravellersConfig.MATERIALIZATION.avoidTreeCanopy;
         int firstGap = Integer.MIN_VALUE;
         for (int i = 0; y + i <= maxY; i++) {
             if (isStandSpace(world, new BlockPos(bx, y + i, bz))
                     && isStandSpace(world, new BlockPos(bx, y + i + 1, bz))) {
                 if (firstGap == Integer.MIN_VALUE) firstGap = y + i;
-                if (canopyGuard && y + i - 1 >= 1
-                        && isFoliageOrTreePart(world.getBlockState(new BlockPos(bx, y + i - 1, bz)))) {
+                if (y + i - 1 >= 1
+                        && BlockRules.isTreePart(world.getBlockState(new BlockPos(bx, y + i - 1, bz)))) {
                     continue;
                 }
                 return y + i;
@@ -697,22 +589,21 @@ public final class MaterializePositionResolver {
      * is actually present in the column below - so a genuine cliff edge or a 1-block pillar over open
      * ground (air underfoot, no tree) is left untouched for gravity. Bounded: if no real ground is
      * found in range the original Y is kept, so a unit is never left un-materialized over awkward
-     * terrain. No-op when {@code avoidTreeCanopy} is off or the entity is already on real ground.
+     * terrain. No-op when the entity is already on real ground.
      */
     public static double sinkToRealGround(WorldServer world, int bx, double spawnY, int bz, int maxDrop) {
-        if (!TravellersConfig.MATERIALIZATION.avoidTreeCanopy) return spawnY;
         int feetY = (int) Math.floor(spawnY);
         int floorY = feetY - 1;
         if (floorY < 1) return spawnY;
         if (isSafeFloor(world, bx, floorY, bz)) return spawnY; // already on genuine ground
 
-        boolean sawTree = isCanopyPassThrough(world.getBlockState(new BlockPos(bx, floorY, bz)));
+        boolean sawTree = BlockRules.isCanopy(world.getBlockState(new BlockPos(bx, floorY, bz)));
         for (int d = 1; d <= Math.max(0, maxDrop); d++) {
             int y = floorY - d;
             if (y < 1) break;
             IBlockState st = world.getBlockState(new BlockPos(bx, y, bz));
             if (isSafeFloor(world, bx, y, bz)) return sawTree ? y + 1.0 : spawnY;
-            if (isCanopyPassThrough(st)) sawTree = true;
+            if (BlockRules.isCanopy(st)) sawTree = true;
         }
         return spawnY;
     }
@@ -726,17 +617,16 @@ public final class MaterializePositionResolver {
      */
     @Nullable
     private static BlockPos escapeCanopyColumn(WorldServer world, int bx, int bz, double feetY, int radius) {
-        if (!TravellersConfig.MATERIALIZATION.avoidTreeCanopy) return null;
         int fy = (int) Math.floor(feetY) - 1;
         if (fy >= 1
-                && !isFoliageOrTreePart(world.getBlockState(new BlockPos(bx, fy, bz)))
+                && !BlockRules.isTreePart(world.getBlockState(new BlockPos(bx, fy, bz)))
                 && isSafeFloor(world, bx, fy, bz)) {
             return null; // already on genuine ground
         }
         Ground g = findNaturalGround(world, bx, bz, radius);
         if (g == null) return null;
         int gfy = (int) Math.floor(g.y) - 1;
-        if (gfy < 1 || isFoliageOrTreePart(world.getBlockState(new BlockPos(g.x, gfy, g.z)))) return null;
+        if (gfy < 1 || BlockRules.isTreePart(world.getBlockState(new BlockPos(g.x, gfy, g.z)))) return null;
         return new BlockPos(g.x, (int) Math.floor(g.y), g.z);
     }
 
@@ -792,8 +682,8 @@ public final class MaterializePositionResolver {
      * question.
      * <p>
      * With {@code bestEffort} false, returns {@code null} if no fully-clear spot exists within
-     * {@code maxRadius}. With it true, never returns {@code null} while any column at all was
-     * reachable: it keeps the least-embedded candidate seen (fewest colliding block cells), lifts its
+     * {@code maxRadius}. With it true, never returns {@code null} while any column standing on a real
+     * floor was reachable: it keeps the least-embedded candidate seen (fewest colliding block cells), lifts its
      * box clear of whatever it overlaps, and returns that - so a horse on a rough mountainside
      * appears standing on the least-bad ledge rather than suffocating at the rider's exact column.
      */
@@ -826,8 +716,8 @@ public final class MaterializePositionResolver {
      * {@code rider} null = test the horse body alone; non-null = the full horse+rider silhouette.
      * <p>
      * With {@code bestEffort} false, returns {@code null} if no fully-clear spot exists within
-     * {@code maxRadius}. With it true, never returns {@code null} while any column at all was
-     * reachable: it keeps the least-embedded candidate seen, lifts its box clear (capped tight, so a
+     * {@code maxRadius}. With it true, never returns {@code null} while any column standing on a real
+     * floor was reachable: it keeps the least-embedded candidate seen, lifts its box clear (capped tight, so a
      * refused spot never ends up level with a tree canopy), and returns that.
      */
     @Nullable
@@ -863,15 +753,11 @@ public final class MaterializePositionResolver {
                             TravellersConfig.MATERIALIZATION.canopySinkMaxDrop);
                     if (MillFootprints.isForbiddenLanding(world, x + 0.5D, groundY, z + 0.5D)) continue;
 
-                    // A column that still resolves onto foliage / a tree part (the tree's own trunk
-                    // column, canopy the sink couldn't clear) is not a landing spot at any hit count
-                    // - skip it entirely so the spiral reaches real ground and the best-effort lift
-                    // never settles a horse in a treetop.
+                    // The hooves must rest on a real floor: never a tree part, vegetation, liquid or
+                    // the air between two branches (a trunk column falls back to the seed height,
+                    // which may be canopy level). Such columns are skipped at any hit count.
                     int fY = MathHelper.floor(groundY) - 1;
-                    if (TravellersConfig.MATERIALIZATION.avoidTreeCanopy && fY >= 1
-                            && isFoliageOrTreePart(world.getBlockState(new BlockPos(x, fY, z)))) {
-                        continue;
-                    }
+                    if (fY < 1 || !isSafeFloor(world, x, fY, z)) continue;
 
                     AxisAlignedBB box = mountBox(x, z, groundY, half, horse, rider);
                     int hits = world.getCollisionBoxes(null, box).size();

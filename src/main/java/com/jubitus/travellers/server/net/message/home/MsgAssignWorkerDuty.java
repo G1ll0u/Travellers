@@ -8,6 +8,7 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
+import com.jubitus.travellers.world.zone.ZoneAssignments;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
 import com.jubitus.travellers.world.zone.ZoneType;
 import com.jubitus.travellers.world.zone.ZoneTypeDef;
@@ -76,89 +77,18 @@ public class MsgAssignWorkerDuty implements IMessage {
                 String dutyKind = def.dutyKind;
                 if (dutyKind == null) return;
 
-                int dim = world.provider.getDimension();
-                BlockPos zoneCenter = zone.center;
                 String zoneName = (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
-
-                // A palfrenier needs a bed to sleep in - refuse the assignment if the Stable has none
-                // free. Reserved immediately so two assignments in the same tick can't take one bed.
-                com.jubitus.travellers.world.zone.stable.StableZoneData sdata =
-                        (zone.data instanceof com.jubitus.travellers.world.zone.stable.StableZoneData)
-                                ? (com.jubitus.travellers.world.zone.stable.StableZoneData) zone.data : null;
-                BlockPos bed = zone.pickFreeBed();
-                if (bed == null) {
+                ZoneAssignments.AssignResult res = ZoneAssignments.assign(player, msg.workerUUID, zone);
+                if (res == ZoneAssignments.AssignResult.NO_BED) {
                     NotificationService.notify(player, NotificationDefs.DUTY_NO_BED, zoneName);
                     return;
                 }
-
-                Entity e = world.getEntityFromUuid(msg.workerUUID);
-                if (e instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    if (!ownerId.equals(w.getFollowOwnerId())) return;
-                    if (com.jubitus.travellers.world.zone.ZoneAssignments.isBoundElsewhere(w, zoneCenter)) return;
-                    // A grouped worker (leader or follower) leaves its group automatically on
-                    // assignment - there is no separate "unassign first" step in the Duty GUI, and
-                    // the two movement systems (follow AI, duty travel) must never share one worker.
-                    // A leader takes its whole group down with it (comeBackGroup); a plain follower
-                    // just detaches (comeBackMembers). Both leave the worker itself untouched
-                    // otherwise, so assignDuty below still applies to the same live entity.
-                    if (w.isVisualLeader()) {
-                        WorkerGroupService.comeBackGroup(player, w.getUniqueID());
-                    } else if (w.hasEscortLeader()) {
-                        WorkerGroupService.comeBackMembers(player, Collections.singletonList(w.getUniqueID()));
-                    }
-                    w.assignDuty(zoneCenter, dim, dutyKind);
-                    w.startDutyTravel();
-                    if (sdata != null) sdata.bedByWorker.put(w.getUniqueID(), bed);
-                    // A Stable bed is also this palfrenier's home: it respawns beside it on death and
-                    // it counts as housing, exactly like a Barrack bed. Overrides any prior Barrack
-                    // home (Home and Duty are otherwise independent axes; Duty pins the home here).
-                    w.setAssignedHome(zoneCenter, dim, zoneName,
-                            com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK);
-                    TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
-                } else {
-                    WorldServer overworld = srv.getWorld(0);
-                    VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
-                    VirtualTravellerRecord rec = vwm.getRecord(msg.workerUUID);
-                    if (rec == null || !ownerId.equals(rec.followOwnerUUID)) return;
-                    EntityTravellerWorker probe = new EntityTravellerWorker(overworld);
-                    probe.readFromNBT(rec.entityNbt);
-                    if (com.jubitus.travellers.world.zone.ZoneAssignments.isBoundElsewhere(probe, zoneCenter)) return;
-                    boolean isLeader = WorkerGroupService.countFollowers(srv, ownerId, rec.uuid) > 0;
-                    if (isLeader) {
-                        WorkerGroupService.comeBackGroup(player, rec.uuid);
-                    } else if (rec.escortLeaderUUID != null) {
-                        WorkerGroupService.comeBackMembers(player, Collections.singletonList(rec.uuid));
-                    }
-
-                    EntityTravellerWorker temp = new EntityTravellerWorker(overworld);
-                    temp.readFromNBT(rec.entityNbt);
-                    temp.setUniqueId(rec.uuid);
-                    temp.setPositionAndRotation(rec.posX, rec.posY, rec.posZ, rec.rotYaw, 0);
-                    temp.assignDuty(zoneCenter, dim, dutyKind);
-                    temp.startDutyTravel();
-                    temp.setAssignedHome(zoneCenter, dim, zoneName,
-                            com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager.HomeType.LONE_BARRACK);
-
-                    NBTTagCompound updated = new NBTTagCompound();
-                    temp.writeToNBT(updated);
-                    rec.entityNbt = updated;
-                    rec.dutyKind = dutyKind;
-                    rec.dutyZoneCenter = zoneCenter;
-                    rec.followOrderActive = false;
-                    // Mirror the in-transit travel state onto the record itself so the offscreen goal
-                    // refresh actually walks it to a far, unloaded Stable (see
-                    // VirtualTravellerManager.refreshGoal / virtualizeWorker).
-                    rec.workerMode = temp.getMode().name();
-                    rec.goingToDuty = true;
-                    rec.goingHome = false;
-                    rec.personalTravelGoal = zoneCenter;
-                    rec.goal = zoneCenter;
-                    vwm.markDirty();
-                    if (sdata != null) sdata.bedByWorker.put(rec.uuid, bed);
+                if (res == ZoneAssignments.AssignResult.BUSY) {
+                    NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+                    return;
                 }
+                if (res != ZoneAssignments.AssignResult.OK) return;
 
-                PlayerZoneManager.get(world).markDirty();
                 NotificationService.notify(player, NotificationDefs.DUTY_ASSIGNED, zoneName);
                 TravellerFollowNet.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);
             });

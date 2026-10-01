@@ -682,6 +682,15 @@ public class VirtualBattleManager extends WorldSavedData {
             CampsiteManager.get(world).releaseOccupant(rec.uuid);
         }
 
+        // Same bed rule as a loaded death: back beside its bed later, or the bed is freed.
+        if (rec.isHiredFollower && "WORKER".equals(rec.entityClass) && rec.entityNbt != null
+                && world.getMinecraftServer() != null) {
+            NBTTagCompound nbt = rec.entityNbt.copy();
+            com.jubitus.travellers.entity.travellers.EntityTravellerWorker.stripInventoryNbt(nbt);
+            com.jubitus.travellers.world.zone.ZoneAssignments.onWorkerDied(world.getMinecraftServer(), rec.uuid,
+                    rec.followOwnerUUID, com.jubitus.travellers.world.zone.ZoneRef.read(nbt), nbt);
+        }
+
         // A virtually-dying rider's mount has no physical presence to leave abandoned offscreen (no
         // chunk to spawn a loose horse into without force-loading it) - its NBT is simply dropped with
         // the record, same as a loaded rider's mount is left as an ordinary loose horse where it died.

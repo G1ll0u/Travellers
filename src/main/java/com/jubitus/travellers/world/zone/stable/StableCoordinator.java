@@ -1,6 +1,7 @@
 package com.jubitus.travellers.world.zone.stable;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.world.camp.CampsiteManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
@@ -16,46 +17,40 @@ import net.minecraft.world.WorldServer;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Per-tick driver for every Stable zone. Owns only the pieces that must be shared across passes -
- * the transient "which live horses belong to a stable" set (used by {@code MountTheftGuard}), the
- * per-entry stale-link grace timers, and the whole-zone settle gate - and delegates the actual work:
- * <ul>
- *   <li>{@link StableAging} - dormant-entry growth, load-agnostic.</li>
- *   <li>{@link StableWork} - taming/saddling/breeding rules; its {@code timerPass} runs here only
- *       while no loaded palfrenier is working the zone.</li>
- *   <li>{@link StableContainmentSweep} - per-tick containment for known pool horses, ungated.</li>
- *   <li>{@link StablePhysicalReconciler} - the heavy scan/claim/materialize pass, settle-gated.</li>
- *   <li>{@link StableBedService} - palfrenier presence count + bed break/recovery.</li>
- * </ul>
- * Ticked unconditionally from {@code TravellerChunkManager}; all real work is internally throttled
- * off {@code TravellersConfig.STABLES}. Holds no persisted state - the pool lives in
- * {@code PlayerZoneManager}'s records.
+ * Per-tick driver for every Stable zone. A Stable is either <b>live</b> (vanilla ticks its box: every
+ * pool horse is a real entity) or <b>dormant</b> (every pool horse is data on its entry), never both
+ * for one horse: going dormant captures and removes the entities, a chunk unloading captures the pool
+ * horses in it before the chunk is saved ({@link StableChunkUnloadHandler}), and a pool horse joining
+ * the world is only accepted if its entry links exactly that entity ({@link StableHorseLoadHandler}).
+ * Live: containment, intake and live sync ({@link StablePhysicalReconciler}), work done by loaded
+ * palfreniers. Dormant: growth ({@link StableAging}) and the elapsed-time {@link StableWork#timerPass}.
+ * Transient state only - the pool lives in {@code PlayerZoneManager}'s records.
  */
 public final class StableCoordinator {
 
     /** Custom entity-data key (persisted via {@code Entity}'s "ForgeData" tag) marking a live horse
-     * as belonging to a {@link StableHorseEntry#poolId}. Identity that survives any race a raw
-     * Minecraft-UUID match could not - see {@link StableHorseLoadHandler} and
-     * {@link StablePhysicalReconciler}. */
+     * as belonging to a {@link StableHorseEntry#poolId}. */
     private static final String POOL_ID_TAG = "TravellersStablePoolId";
+
+    /** Extra blocks around the containment box whose chunks must be loaded before a Stable goes live
+     * (a horse may drift a few blocks past the margin before containment brings it back). */
+    private static final int LIVE_CHUNK_SLACK = 8;
 
     private static final Map<Integer, StableCoordinator> INSTANCES = new ConcurrentHashMap<>();
 
-    private final Set<UUID> trackedLiveHorses = ConcurrentHashMap.newKeySet();
-    /** How long each pool entry's live horse has been missing from a reconcile scan, keyed by
-     * {@code poolId} - the stale-link grace period. */
-    private final Map<UUID, Long> missingSince = new ConcurrentHashMap<>();
-    /** World tick a zone's chunks were first observed fully loaded, keyed by {@code PlayerZoneRecord.id}
-     * - the reconcile settle gate. Cleared the instant any chunk reads unloaded again. */
-    private final Map<UUID, Long> zoneLoadedSince = new ConcurrentHashMap<>();
-    /** Last world tick each Stable's beds were rescanned, keyed by {@code PlayerZoneRecord.id}. */
-    private final Map<UUID, Long> lastBedScan = new ConcurrentHashMap<>();
+    /** Zones whose pool horses are live entities right now, keyed by {@code PlayerZoneRecord.id}. */
+    private final Set<UUID> liveZones = ConcurrentHashMap.newKeySet();
+    /** World tick each zone was first seen ticking, for the go-live debounce. */
+    private final Map<UUID, Long> tickingSince = new ConcurrentHashMap<>();
+    /** Live-linked entries whose horse was missing on the last live pass, keyed by poolId. */
+    private final Set<UUID> missingOnce = ConcurrentHashMap.newKeySet();
     /** Last logged load/scheduler state per zone, so {@link StableWatchLog} only records transitions. */
     private final Map<UUID, String> lastZoneState = new ConcurrentHashMap<>();
 
@@ -67,31 +62,14 @@ public final class StableCoordinator {
     }
 
     /** Called on server shutdown - {@link #INSTANCES} is keyed by dimension id, which two different
-     * save files loaded in one client session can both reuse (dimension 0), so leaving it populated
-     * would leak one world's tick-clock-relative timers into the next. */
+     * save files loaded in one client session can both reuse. */
     public static void resetAll() {
         INSTANCES.clear();
     }
 
     // -------------------------------------------------------------------------
-    // Tracked-set + tag helpers (shared with the split helpers and MountTheftGuard)
+    // Tag helpers
     // -------------------------------------------------------------------------
-
-    public boolean isStableTracked(UUID liveEntityUUID) {
-        return trackedLiveHorses.contains(liveEntityUUID);
-    }
-
-    public void trackLiveHorse(UUID liveEntityUUID) {
-        trackedLiveHorses.add(liveEntityUUID);
-    }
-
-    public void forgetLiveHorse(UUID liveEntityUUID) {
-        trackedLiveHorses.remove(liveEntityUUID);
-    }
-
-    Map<UUID, Long> missingSince() {
-        return missingSince;
-    }
 
     /** Strips the pool marker from a horse NBT snapshot about to be respawned as something else
      * (a worker's bonded mount via Get Equipment, or a released pen horse). */
@@ -115,14 +93,44 @@ public final class StableCoordinator {
         horse.getEntityData().removeTag(POOL_ID_TAG + "Least");
     }
 
-    /** The Stable a live horse belongs to, found by its persisted {@link #POOL_ID_TAG} - used by
-     * {@link StableHorseLoadHandler} to relink a pool horse the instant its chunk loads. */
+    public static boolean isPoolHorse(Entity e) {
+        return e instanceof EntityHorse && e.getEntityData().hasUniqueId(POOL_ID_TAG);
+    }
+
+    // A pool horse is never a mount: a leftover bond or orphan marker lets the mount system release,
+    // claim or clean it up while the pool still owns it.
+    public static void sanitizeLive(EntityHorse horse) {
+        TravellerMountSupport.dropBondFromHorse(horse);
+    }
+
+    /** Snapshot counterpart of {@link #sanitizeLive}, plus identity and leash. */
+    public static void sanitizeSnapshot(NBTTagCompound horseNbt) {
+        horseNbt.removeTag("UUIDMost");
+        horseNbt.removeTag("UUIDLeast");
+        horseNbt.removeTag("Leash");
+        if (horseNbt.hasKey("ForgeData", 10)) {
+            TravellerMountSupport.clearMountMarkers(horseNbt.getCompoundTag("ForgeData"));
+        }
+    }
+
+    /** A pool horse leaves the pool for good and stays in the world as an ordinary horse. */
+    static void makeOrdinary(EntityHorse horse) {
+        stripPoolTagFromEntity(horse);
+        sanitizeLive(horse);
+        StableHorseAI.restoreVanillaAI(horse);
+    }
+
+    /** The Stable whose pool holds {@code poolId}, or null. */
     public PlayerZoneRecord findZoneForPoolHorse(WorldServer world, UUID poolId) {
         for (PlayerZoneRecord zone : PlayerZoneManager.get(world).getAll()) {
             if (zone.type != ZoneType.STABLE || !(zone.data instanceof StableZoneData)) continue;
             if (((StableZoneData) zone.data).findByPoolId(poolId) != null) return zone;
         }
         return null;
+    }
+
+    public boolean isZoneLive(PlayerZoneRecord zone) {
+        return liveZones.contains(zone.id);
     }
 
     // -------------------------------------------------------------------------
@@ -134,119 +142,193 @@ public final class StableCoordinator {
         if (now % TravellersConfig.STABLES.containmentCheckIntervalTicks != 0) return;
 
         PlayerZoneManager mgr = PlayerZoneManager.get(world);
+        StableRelease.processPending(world, mgr);
+
         for (PlayerZoneRecord zone : mgr.getAll()) {
             if (zone.type != ZoneType.STABLE || !(zone.data instanceof StableZoneData)) continue;
             StableZoneData data = (StableZoneData) zone.data;
 
-            // Dormant-entry growth is load-agnostic - always runs.
             boolean dirty = StableAging.advance(world, zone, data, now);
-            boolean zoneLoaded = isZoneFullyLoaded(world, zone);
             boolean night = CampsiteManager.isNight(world);
+            boolean live = liveZones.contains(zone.id);
 
-            // Exactly one scheduler advances the pool. If a loaded palfrenier is on station, the
-            // palfrenier AI (StableHandTask) does the work itself with real effects, and the
-            // offscreen timer pass stays off so the two can never advance the same pool at once.
-            // Otherwise, only when the zone is fully unloaded, a virtual palfrenier on station
-            // drives the elapsed-time timer pass against the chest mirror.
-            int loadedHands = night ? 0
-                    : StableBedService.countLoadedPalfreniersOnStation(world, zone, data);
-            int virtualHands = 0;
-            if (loadedHands == 0 && !night && !zoneLoaded) {
-                virtualHands = StableBedService.countVirtualPalfreniersOnStation(world, zone, data);
-                if (virtualHands > 0) dirty |= StableWork.timerPass(world, zone, data, now, virtualHands);
-            }
-            StableWatchLog.maybeSnapshot(world, zone, data, zoneLoaded, loadedHands, virtualHands);
-            logZoneStateChange(world, zone, zoneLoaded, night, loadedHands, virtualHands);
-
-            // Ungated containment for horses we already track - never waits for the settle gate.
-            if (world.isBlockLoaded(zone.center)) {
-                StableContainmentSweep.run(world, zone, data, this);
-            }
-
-            // Settle gate: the heavy reconcile pass (claim/relink/stale-link/materialize) must not
-            // run until every chunk touching the zone box has been continuously loaded for the grace
-            // window, or a lagging entity repopulation makes the scan miss real horses and the pool
-            // doubles. See StablePhysicalReconciler.
-            if (zoneLoaded) {
-                Long since = zoneLoadedSince.get(zone.id);
-                if (since == null) {
-                    zoneLoadedSince.put(zone.id, now);
-                } else if (now - since >= TravellersConfig.STABLES.missingHorseGraceTicks) {
-                    Long lastBeds = lastBedScan.get(zone.id);
-                    boolean bedsDue = lastBeds == null
-                            || now - lastBeds >= StableBedService.BED_RESCAN_INTERVAL;
-                    if (bedsDue) lastBedScan.put(zone.id, now);
-                    // reconcile marks dirty for its own changes; `dirty` still carries any
-                    // aging/sim change it didn't make, so leave the final markDirty below to run.
-                    StablePhysicalReconciler.reconcile(world, mgr, zone, this, bedsDue);
+            if (isZoneTicking(world, zone)) {
+                Long since = tickingSince.putIfAbsent(zone.id, now);
+                if (!live && now - (since == null ? now : since)
+                        >= TravellersConfig.MATERIALIZATION.materializeChunkStableTicks) {
+                    goLive(world, zone, data);
+                    live = true;
                 }
             } else {
-                zoneLoadedSince.remove(zone.id);
+                tickingSince.remove(zone.id);
+                if (live) {
+                    dirty |= goDormant(world, zone, data);
+                    live = false;
+                }
             }
+
+            int loadedHands = 0;
+            int virtualHands = 0;
+            if (live) {
+                loadedHands = night ? 0 : StableBedService.countLoadedPalfreniersOnStation(world, zone, data);
+                StableContainmentSweep.run(world, zone, data);
+                StablePhysicalReconciler.reconcile(world, mgr, zone, this);
+            } else if (!night) {
+                // Dormant: nobody can act on the horses, so every palfrenier on station (a frozen
+                // loaded body included) counts as a hand for the elapsed-time pass.
+                virtualHands = StableBedService.countVirtualPalfreniersOnStation(world, zone, data)
+                        + StableBedService.countLoadedPalfreniersOnStation(world, zone, data);
+                if (virtualHands > 0) dirty |= StableWork.timerPass(world, zone, data, now, virtualHands);
+            }
+            StableWatchLog.maybeSnapshot(world, zone, data, live, loadedHands, virtualHands);
+            logZoneStateChange(world, zone, live, night, loadedHands, virtualHands);
 
             if (dirty) mgr.markDirty();
         }
     }
 
-    /** Whether every chunk touching this zone's scan box is currently loaded - not just the centre
-     * chunk, which a zone wider than one chunk can pass while a far corner is still unloaded.
-     * {@code chunkExists} never force-loads. */
-    public boolean isZoneFullyLoaded(WorldServer world, PlayerZoneRecord zone) {
+    /** Whether vanilla ticks this Stable's whole containment box: every chunk around it loaded and
+     * no corner frozen by vanilla's entity-ticking gates. Never loads a chunk. */
+    public boolean isZoneTicking(WorldServer world, PlayerZoneRecord zone) {
         int margin = TravellersConfig.STABLES.containmentMarginBlocks;
-        int minCx = (zone.center.getX() - zone.halfWidth - margin) >> 4;
-        int maxCx = (zone.center.getX() + zone.halfWidth + margin) >> 4;
-        int minCz = (zone.center.getZ() - zone.halfDepth - margin) >> 4;
-        int maxCz = (zone.center.getZ() + zone.halfDepth + margin) >> 4;
-        for (int cx = minCx; cx <= maxCx; cx++) {
-            for (int cz = minCz; cz <= maxCz; cz++) {
-                if (!world.getChunkProvider().chunkExists(cx, cz)) return false;
+        int ex = zone.halfWidth + margin + LIVE_CHUNK_SLACK;
+        int ez = zone.halfDepth + margin + LIVE_CHUNK_SLACK;
+        int cx = zone.center.getX(), cz = zone.center.getZ();
+        for (int x = (cx - ex) >> 4; x <= (cx + ex) >> 4; x++) {
+            for (int z = (cz - ez) >> 4; z <= (cz + ez) >> 4; z++) {
+                if (!world.getChunkProvider().chunkExists(x, z)) return false;
             }
         }
-        return true;
+        int bx = zone.halfWidth + margin, bz = zone.halfDepth + margin;
+        return !VirtualTravellerManager.isFrozenByVanillaAt(world, cx - bx, cz - bz)
+                && !VirtualTravellerManager.isFrozenByVanillaAt(world, cx + bx, cz - bz)
+                && !VirtualTravellerManager.isFrozenByVanillaAt(world, cx - bx, cz + bz)
+                && !VirtualTravellerManager.isFrozenByVanillaAt(world, cx + bx, cz + bz);
+    }
+
+    /** Dormant -> live. A link that no longer resolves (a crash between saves) falls back to the
+     * entry's data; the reconcile pass right after spawns every data entry. */
+    private void goLive(WorldServer world, PlayerZoneRecord zone, StableZoneData data) {
+        for (StableHorseEntry entry : data.pool) {
+            if (entry.liveEntityUUID == null) continue;
+            Entity ent = world.getEntityFromUuid(entry.liveEntityUUID);
+            if (!(ent instanceof EntityHorse) || ent.isDead) entry.liveEntityUUID = null;
+        }
+        liveZones.add(zone.id);
+    }
+
+    /** Live -> dormant: every live pool horse becomes data on its entry and leaves the world. */
+    private boolean goDormant(WorldServer world, PlayerZoneRecord zone, StableZoneData data) {
+        boolean changed = false;
+        for (StableHorseEntry entry : data.pool) {
+            if (entry.liveEntityUUID == null) continue;
+            Entity ent = world.getEntityFromUuid(entry.liveEntityUUID);
+            // Not in the world: its chunk already left, and the chunk copy stays the linked one.
+            if (!(ent instanceof EntityHorse) || ent.isDead) continue;
+            capture(world, entry, (EntityHorse) ent);
+            changed = true;
+        }
+        liveZones.remove(zone.id);
+        missingOnce.clear();
+        return changed;
+    }
+
+    /** One live pool horse becomes data on its entry (position kept) and is removed from the world. */
+    void capture(WorldServer world, StableHorseEntry entry, EntityHorse horse) {
+        horse.removePassengers();
+        NBTTagCompound nbt = new NBTTagCompound();
+        horse.writeToNBT(nbt);
+        sanitizeSnapshot(nbt);
+        entry.horseNbt = nbt;
+        entry.tamed = horse.isTame();
+        entry.saddled = horse.isHorseSaddled();
+        entry.temper = horse.getTemper();
+        entry.growingAge = horse.getGrowingAge();
+        entry.lastAgeSyncTick = world.getTotalWorldTime();
+        entry.liveEntityUUID = null;
+        horse.setDead();
+    }
+
+    /** A chunk holding a pool horse is unloading (before it is saved). */
+    void onPoolHorseChunkUnload(WorldServer world, EntityHorse horse) {
+        UUID poolId = getPoolTag(horse);
+        PlayerZoneRecord zone = poolId != null ? findZoneForPoolHorse(world, poolId) : null;
+        if (zone == null) {
+            makeOrdinary(horse);
+            return;
+        }
+        StableHorseEntry entry = ((StableZoneData) zone.data).findByPoolId(poolId);
+        if (horse.getUniqueID().equals(entry.liveEntityUUID)) {
+            capture(world, entry, horse); // the next tick sees the zone no longer ticking and puts the rest to sleep
+        } else {
+            horse.setDead(); // a stale copy: the entry holds the horse elsewhere or as data
+        }
+        PlayerZoneManager.get(world).markDirty();
+    }
+
+    /** Live pass: a linked horse gone from the world without dying or unloading (removed by some
+     * other means) is dropped from the pool after two consecutive misses. */
+    boolean dropVanishedHorses(WorldServer world, PlayerZoneRecord zone, StableZoneData data) {
+        boolean changed = false;
+        Iterator<StableHorseEntry> it = data.pool.iterator();
+        while (it.hasNext()) {
+            StableHorseEntry entry = it.next();
+            if (entry.liveEntityUUID == null) continue;
+            Entity ent = world.getEntityFromUuid(entry.liveEntityUUID);
+            if (ent instanceof EntityHorse && !ent.isDead) {
+                missingOnce.remove(entry.poolId);
+                continue;
+            }
+            if (missingOnce.add(entry.poolId)) continue;
+            missingOnce.remove(entry.poolId);
+            it.remove();
+            changed = true;
+            StableWatchLog.record(world, zone, StableWatchLog.Kind.LEAVE,
+                    StableWatchLog.shortId(entry.poolId) + " vanished", true);
+        }
+        return changed;
     }
 
     // -------------------------------------------------------------------------
     // Zone deletion
     // -------------------------------------------------------------------------
 
-    /** Frees the horse pool of a Stable being deleted: every live pool horse becomes an ordinary owned
-     * tame horse again. Workers are released beforehand by {@code ZoneAssignments.onZoneDeleted}. */
+    /** Frees the horse pool of a Stable being deleted: live horses become ordinary horses where they
+     * stand, data horses are queued to appear as ordinary horses at their spot once that ground
+     * ticks. Workers are released beforehand by {@code ZoneAssignments.onZoneDeleted}. */
     public void releaseZone(WorldServer world, PlayerZoneRecord zone) {
         StableZoneData data = (zone.data instanceof StableZoneData) ? (StableZoneData) zone.data : null;
         if (data == null) return;
 
-        for (StableHorseEntry entry : new ArrayList<>(data.pool)) {
-            if (entry.liveEntityUUID == null) continue;
-            Entity ent = world.getEntityFromUuid(entry.liveEntityUUID);
-            trackedLiveHorses.remove(entry.liveEntityUUID);
-            if (!(ent instanceof EntityHorse) || ent.isDead) continue;
-            NBTTagCompound nbt = new NBTTagCompound();
-            ent.writeToNBT(nbt);
-            nbt.removeTag("UUIDMost");
-            nbt.removeTag("UUIDLeast");
-            stripPoolTag(nbt);
-            ent.setDead();
-            EntityHorse fresh = new EntityHorse(world);
-            fresh.readFromNBT(nbt);
-            world.spawnEntity(fresh);
+        PlayerZoneManager mgr = PlayerZoneManager.get(world);
+        for (StableHorseEntry entry : data.pool) {
+            if (entry.liveEntityUUID != null) {
+                Entity ent = world.getEntityFromUuid(entry.liveEntityUUID);
+                if (ent instanceof EntityHorse && !ent.isDead) makeOrdinary((EntityHorse) ent);
+                // Not loaded: its chunk copy loses the pool tag when it joins (no zone any more).
+                continue;
+            }
+            if (entry.horseNbt == null || StableMaterializer.isDeadSnapshot(entry.horseNbt)) continue;
+            mgr.addPendingHorseRelease(StableRelease.releaseSnapshot(entry.horseNbt, zone));
         }
         data.pool.clear();
+        mgr.markDirty();
 
-        zoneLoadedSince.remove(zone.id);
-        lastBedScan.remove(zone.id);
+        liveZones.remove(zone.id);
+        tickingSince.remove(zone.id);
         lastZoneState.remove(zone.id);
         StableWatchLog.forget(zone.id);
     }
 
-    /** Records a {@link StableWatchLog} ZONE line only when a Stable's load state or which scheduler
-     * is driving its pool actually changes - the observability half of "exactly one scheduler runs". */
-    private void logZoneStateChange(WorldServer world, PlayerZoneRecord zone, boolean zoneLoaded,
+    /** Records a {@link StableWatchLog} ZONE line only when a Stable's state or which scheduler is
+     * driving its pool actually changes. */
+    private void logZoneStateChange(WorldServer world, PlayerZoneRecord zone, boolean live,
                                     boolean night, int loadedHands, int virtualHands) {
         String scheduler = night ? "night (idle)"
                 : loadedHands > 0 ? "loaded palfrenier x" + loadedHands
                 : virtualHands > 0 ? "offscreen timer x" + virtualHands
                 : "idle";
-        String state = (zoneLoaded ? "loaded" : "unloaded") + " | " + scheduler;
+        String state = (live ? "live" : "dormant") + " | " + scheduler;
         String prev = lastZoneState.put(zone.id, state);
         if (prev != null && !prev.equals(state)) {
             StableWatchLog.zone(world, zone, state + "  (was: " + prev + ")");
@@ -261,15 +343,15 @@ public final class StableCoordinator {
     public String debugSummary(WorldServer world, PlayerZoneRecord zone) {
         if (!(zone.data instanceof StableZoneData)) return "(not a stable)";
         StableZoneData data = (StableZoneData) zone.data;
-        boolean loaded = isZoneFullyLoaded(world, zone);
+        boolean loaded = isZoneLive(zone);
         int hl = CampsiteManager.isNight(world) ? 0
                 : StableBedService.countLoadedPalfreniersOnStation(world, zone, data);
         int hv = StableBedService.countVirtualPalfreniersOnStation(world, zone, data);
         return StableWatchLog.summary(data, loaded, hl, hv);
     }
 
-    /** Cross-checks a loaded Stable's pool entries against the real horses in its box - orphan live
-     * horses, dead links, count mismatches. "OK" as the first line means the two agree. */
+    /** Checks the live-XOR-data invariant of a Stable against the world. "OK" as the first line
+     * means the pool and the world agree. */
     public java.util.List<String> debugVerify(WorldServer world, PlayerZoneRecord zone) {
         java.util.List<String> out = new ArrayList<>();
         if (!(zone.data instanceof StableZoneData)) {
@@ -277,57 +359,43 @@ public final class StableCoordinator {
             return out;
         }
         StableZoneData data = (StableZoneData) zone.data;
-        if (!world.isBlockLoaded(zone.center)) {
-            out.add("zone not loaded - " + data.pool.size() + " pool entries, cannot check against live entities");
-            return out;
-        }
-        int m = TravellersConfig.STABLES.containmentMarginBlocks + 2;
-        net.minecraft.util.math.AxisAlignedBB box = new net.minecraft.util.math.AxisAlignedBB(
-                zone.center.getX() - zone.halfWidth - m, zone.center.getY() - zone.halfHeight - m,
-                zone.center.getZ() - zone.halfDepth - m,
-                zone.center.getX() + zone.halfWidth + 1 + m, zone.center.getY() + zone.halfHeight + 1 + m,
-                zone.center.getZ() + zone.halfDepth + 1 + m);
+        boolean live = isZoneLive(zone);
 
-        Set<UUID> taggedInWorld = new HashSet<>();
-        for (EntityHorse h : world.getEntitiesWithinAABB(EntityHorse.class, box)) {
-            if (h.isDead) continue;
-            UUID tag = getPoolTag(h);
-            if (tag == null) continue;
-            taggedInWorld.add(h.getUniqueID());
-            StableHorseEntry e = data.findByPoolId(tag);
-            if (e == null) {
-                out.add("ORPHAN LIVE: horse " + StableWatchLog.shortId(h.getUniqueID())
-                        + " carries tag " + StableWatchLog.shortId(tag) + " with no pool entry");
-            } else if (!h.getUniqueID().equals(e.liveEntityUUID)) {
-                out.add("LINK MISMATCH: entry " + StableWatchLog.shortId(tag) + " links "
-                        + StableWatchLog.shortId(e.liveEntityUUID) + " but the tagged horse is "
-                        + StableWatchLog.shortId(h.getUniqueID()));
-            }
-        }
-
-        int liveLinked = 0, dormant = 0, deadLinks = 0;
+        int linked = 0, asData = 0;
         for (StableHorseEntry e : data.pool) {
             if (e.liveEntityUUID == null) {
-                dormant++;
-                if (e.horseNbt == null) out.add("NO-NBT DORMANT: entry " + StableWatchLog.shortId(e.poolId));
+                asData++;
+                if (e.horseNbt == null) out.add("NO DATA: entry " + StableWatchLog.shortId(e.poolId) + " has neither a horse nor a snapshot");
                 continue;
             }
-            liveLinked++;
+            linked++;
             Entity ent = world.getEntityFromUuid(e.liveEntityUUID);
-            if (!(ent instanceof EntityHorse) || ent.isDead) {
-                deadLinks++;
-                out.add("DEAD LINK: entry " + StableWatchLog.shortId(e.poolId) + " links "
-                        + StableWatchLog.shortId(e.liveEntityUUID) + " - not a live horse");
+            boolean present = ent instanceof EntityHorse && !ent.isDead;
+            if (live && !present) {
+                out.add("MISSING: entry " + StableWatchLog.shortId(e.poolId) + " links "
+                        + StableWatchLog.shortId(e.liveEntityUUID) + " but no such horse is in the world");
+            } else if (!live && present) {
+                out.add("LIVE WHILE DORMANT: entry " + StableWatchLog.shortId(e.poolId) + " still has a horse in the world");
+            }
+        }
+        if (live && asData > 0) out.add(asData + " entries held as data while live (spawned on the next pass)");
+
+        int tagged = 0;
+        for (Entity ent : new ArrayList<>(world.loadedEntityList)) {
+            if (!(ent instanceof EntityHorse) || ent.isDead) continue;
+            UUID tag = getPoolTag((EntityHorse) ent);
+            if (tag == null) continue;
+            StableHorseEntry e = data.findByPoolId(tag);
+            if (e == null) continue;
+            tagged++;
+            if (!ent.getUniqueID().equals(e.liveEntityUUID)) {
+                out.add("SECOND COPY: horse " + StableWatchLog.shortId(ent.getUniqueID()) + " carries entry "
+                        + StableWatchLog.shortId(tag) + " but is not the linked one");
             }
         }
 
-        out.add(String.format(java.util.Locale.ROOT,
-                "pool=%d (%d live-linked, %d dormant, %d dead links) | world=%d pool-tagged horses in box",
-                data.pool.size(), liveLinked, dormant, deadLinks, taggedInWorld.size()));
-        if (liveLinked - deadLinks != taggedInWorld.size()) {
-            out.add("COUNT MISMATCH: " + (liveLinked - deadLinks) + " healthy live-linked entries vs "
-                    + taggedInWorld.size() + " tagged horses in the world");
-        }
+        out.add(String.format(java.util.Locale.ROOT, "%s | pool=%d (%d linked, %d as data) | %d pool horses in the world",
+                live ? "live" : "dormant", data.pool.size(), linked, asData, tagged));
         if (out.size() == 1) out.add(0, "OK - pool and world agree");
         return out;
     }
@@ -389,15 +457,12 @@ public final class StableCoordinator {
             if (entry == null) entry = data.findByLiveEntity(horse.getUniqueID());
             if (entry != null) {
                 data.pool.remove(entry);
-                missingSince.remove(entry.poolId);
                 PlayerZoneManager.get(world).markDirty();
                 StableWatchLog.record(world, zone, StableWatchLog.Kind.LEAVE,
                         StableWatchLog.shortId(entry.poolId) + " taken by owner", true);
             }
         }
-        trackedLiveHorses.remove(horse.getUniqueID());
-        stripPoolTagFromEntity(horse);
-        StableHorseAI.restoreVanillaAI(horse);
+        makeOrdinary(horse);
     }
 
     /** The owner dismounted a tame horse they own inside one of their Stable zones: fold it into
@@ -418,13 +483,13 @@ public final class StableCoordinator {
         entry.reservedAtTick = now;
         entry.lastAgeSyncTick = now;
         entry.lastTameProgressTick = now;
+        sanitizeLive(horse);
         NBTTagCompound nbt = new NBTTagCompound();
         horse.writeToNBT(nbt);
         entry.horseNbt = nbt;
         data.pool.add(entry);
 
         setPoolTag(horse, entry.poolId);
-        trackLiveHorse(horse.getUniqueID());
         StableHorseAI.applyContainmentInvariants(horse, zone.center, zone.halfWidth, zone.halfDepth);
         StableContainmentGuard.enforce(horse, zone.center, zone.halfWidth, zone.halfDepth);
         PlayerZoneManager.get(world).markDirty();

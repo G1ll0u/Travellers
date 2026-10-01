@@ -103,7 +103,7 @@ public final class WorkerGroupService {
         Set<UUID> set = new HashSet<>(memberUuids);
 
         if (leaderBusy(server, owner, leaderId)) {
-            NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+            WorkerOrderGuard.notifyRefused(player, leaderId);
             return;
         }
 
@@ -184,7 +184,7 @@ public final class WorkerGroupService {
         UUID owner = player.getUniqueID();
 
         if (targetLeaderId != null && leaderBusy(server, owner, targetLeaderId)) {
-            NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+            WorkerOrderGuard.notifyRefused(player, targetLeaderId);
             return;
         }
 
@@ -219,7 +219,7 @@ public final class WorkerGroupService {
         UUID owner = player.getUniqueID();
 
         if (leaderBusy(server, owner, leaderId)) {
-            NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+            WorkerOrderGuard.notifyRefused(player, leaderId);
             return;
         }
 
@@ -296,7 +296,7 @@ public final class WorkerGroupService {
         EntityTravellerWorker loadedLeader = findLoaded(server, owner, leaderId);
         if (loadedLeader != null) {
             if (WorkerOrderGuard.isBusy(loadedLeader)) {
-                NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+                WorkerOrderGuard.notifyRefused(player, loadedLeader);
                 return;
             }
             loadedLeader.setFollowOrderActive(false);
@@ -305,7 +305,7 @@ public final class WorkerGroupService {
             VirtualTravellerRecord r = vwm(server).getRecord(leaderId);
             if (r == null || !owner.equals(r.followOwnerUUID)) return;
             if (WorkerOrderGuard.isBusy(r)) {
-                NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+                WorkerOrderGuard.notifyRefused(player, r);
                 return;
             }
             r.goOrderActive = true;
@@ -328,12 +328,12 @@ public final class WorkerGroupService {
         UUID owner = player.getUniqueID();
 
         if (leaderBusy(server, owner, sourceLeaderId)) {
-            NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+            WorkerOrderGuard.notifyRefused(player, sourceLeaderId);
             return;
         }
         if (targetId != null) {
             if (leaderBusy(server, owner, targetId)) {
-                NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+                WorkerOrderGuard.notifyRefused(player, targetId);
                 return;
             }
             // Cycle guard: the target must not already (transitively) follow the source, or the two
@@ -371,7 +371,7 @@ public final class WorkerGroupService {
         UUID owner = player.getUniqueID();
 
         if (leaderBusy(server, owner, leaderId)) {
-            NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+            WorkerOrderGuard.notifyRefused(player, leaderId);
             return;
         }
 

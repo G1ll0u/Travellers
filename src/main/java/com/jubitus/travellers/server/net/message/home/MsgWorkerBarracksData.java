@@ -1,7 +1,6 @@
 package com.jubitus.travellers.server.net.message.home;
 
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiver;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
@@ -97,9 +96,7 @@ public class MsgWorkerBarracksData implements IMessage {
                 we.cultureId = w.getCultureId();
                 we.textureIndex = w.getTextureIndex();
                 we.ownerColor = w.getOwnerMarkColor();
-                BlockPos homePos = (w.getAssignedHomeType() == TravellerHomeManager.HomeType.LONE_BARRACK)
-                        ? w.getAssignedHomePos() : null;
-                we.assignedCenter = (homePos != null && validBarrackCenters.contains(homePos)) ? homePos : null;
+                we.assignedCenter = barrackCenter(w.getZoneRef(), validBarrackCenters);
                 we.pos = w.getPosition();
                 msg.workers.add(we);
                 seen.add(we.uuid);
@@ -122,10 +119,7 @@ public class MsgWorkerBarracksData implements IMessage {
                 we.cultureId = nbt != null ? nbt.getString("CultureId") : "";
                 we.textureIndex = nbt != null ? nbt.getInteger("TextureIdx") : 0;
                 we.ownerColor = r.ownerColor;
-                if (nbt != null && nbt.hasKey("HomeX") && nbt.getInteger("HomeType") == 2) {
-                    BlockPos homePos = new BlockPos(nbt.getInteger("HomeX"), nbt.getInteger("HomeY"), nbt.getInteger("HomeZ"));
-                    if (validBarrackCenters.contains(homePos)) we.assignedCenter = homePos;
-                }
+                we.assignedCenter = nbt != null ? barrackCenter(com.jubitus.travellers.world.zone.ZoneRef.read(nbt), validBarrackCenters) : null;
                 we.pos = new BlockPos(r.posX, r.posY, r.posZ);
                 msg.workers.add(we);
                 seen.add(we.uuid);
@@ -155,28 +149,16 @@ public class MsgWorkerBarracksData implements IMessage {
             }
         }
 
-        // Lone barracks owned by the player (per-world storage, current dimension).
-        // Reconcile each barrack's bed assignments against the actual worker assignments.
+        // Lone barracks owned by the player (per-world storage, current dimension). Read-only: beds
+        // are taken at assignment and kept in sync by ZoneRoleRescan.
         WorldServer pworld = player.getServerWorld();
         PlayerZoneManager lbMgr = PlayerZoneManager.get(pworld);
         for (PlayerZoneRecord r : lbMgr.getByOwner(ownerId)) {
             if (r.type != com.jubitus.travellers.world.zone.ZoneType.BARRACK) continue;
-            lbMgr.refreshBeds(pworld, ownerId, r.center); // rescan beds if loaded; prune broken-bed assignments
-
             java.util.Set<UUID> assignedHere = new java.util.HashSet<>();
             for (WorkerEntry we : msg.workers) {
                 if (r.center.equals(we.assignedCenter)) assignedHere.add(we.uuid);
             }
-            java.util.Map<UUID, BlockPos> bedByWorker = r.barrackData().bedByWorker;
-            boolean changed = bedByWorker.keySet().retainAll(assignedHere);
-            for (UUID wu : assignedHere) {
-                if (bedByWorker.containsKey(wu)) continue;
-                BlockPos free = r.pickFreeBed();
-                if (free == null) break; // over capacity (e.g. beds broken): worker stays bedless
-                bedByWorker.put(wu, free);
-                changed = true;
-            }
-            if (changed) lbMgr.markDirty();
 
             BarrackEntry b = new BarrackEntry();
             b.center = r.center;
@@ -187,6 +169,12 @@ public class MsgWorkerBarracksData implements IMessage {
         }
 
         return msg;
+    }
+
+    @Nullable
+    private static BlockPos barrackCenter(@Nullable com.jubitus.travellers.world.zone.ZoneRef ref, java.util.Set<BlockPos> valid) {
+        if (ref == null || ref.type != com.jubitus.travellers.world.zone.ZoneType.BARRACK) return null;
+        return valid.contains(ref.center) ? ref.center : null;
     }
 
     @Override

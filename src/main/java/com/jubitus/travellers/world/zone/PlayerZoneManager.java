@@ -1,7 +1,6 @@
 package com.jubitus.travellers.world.zone;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
@@ -45,6 +44,8 @@ public class PlayerZoneManager extends WorldSavedData {
     private final List<PlayerZoneRecord> records = new ArrayList<>();
     // worker UUID -> pending bed respawn (Barrack-only)
     private final Map<UUID, PendingRespawn> pendingRespawns = new HashMap<>();
+    // horses of deleted Stables waiting for their ground to tick (see StableRelease)
+    private final List<NBTTagCompound> pendingHorseReleases = new ArrayList<>();
 
     public PlayerZoneManager() {
         super(DATA_NAME);
@@ -96,17 +97,12 @@ public class PlayerZoneManager extends WorldSavedData {
         markDirty();
     }
 
-    /** Refreshes this zone's chest positions and marks dirty. Name kept from the Barrack-only era;
-     * works for any zone type since it just rescans the CHEST role. */
-    public void refreshCoffers(World world, UUID ownerUUID, BlockPos center) {
+    @Nullable
+    public PlayerZoneRecord getById(UUID id) {
         for (PlayerZoneRecord r : records) {
-            if (ownerUUID.equals(r.ownerUUID) && center.equals(r.center)) {
-                r.setRolePositions(ZoneRoles.CHEST,
-                        scanRole(world, r.center, r.halfWidth, r.halfDepth, r.halfHeight, BlockRoleScanners.CHEST));
-                markDirty();
-                return;
-            }
+            if (id.equals(r.id)) return r;
         }
+        return null;
     }
 
     @Nullable
@@ -115,96 +111,6 @@ public class PlayerZoneManager extends WorldSavedData {
             if (ownerUUID.equals(r.ownerUUID) && center.equals(r.center)) return r;
         }
         return null;
-    }
-
-    /** Rescans beds for the matching Barrack and prunes bed assignments whose bed was removed.
-     * No-op if unloaded. Barrack-only. */
-    public void refreshBeds(World world, UUID ownerUUID, BlockPos center) {
-        if (!world.isBlockLoaded(center)) return; // never force-load chunks
-        PlayerZoneRecord r = getByOwnerAndCenter(ownerUUID, center);
-        if (r == null || r.type != ZoneType.BARRACK) return;
-        List<BlockPos> fresh = scanRole(world, r.center, r.halfWidth, r.halfDepth, r.halfHeight, BlockRoleScanners.BED);
-        Set<BlockPos> valid = new HashSet<>(fresh);
-        List<BlockPos> lost = new ArrayList<>();
-        for (BlockPos bed : r.getRolePositions(ZoneRoles.BED)) {
-            if (!valid.contains(bed)) lost.add(bed);
-        }
-        r.setRolePositions(ZoneRoles.BED, fresh);
-        WorldServer ws = (world instanceof WorldServer) ? (WorldServer) world : null;
-        for (BlockPos bed : lost) {
-            pruneBedAssignment(ws, r, bed);
-        }
-        markDirty();
-    }
-
-    /**
-     * Called from {@link BarrackBedGuards} the instant a tracked bed is broken, so the owner is
-     * notified immediately instead of only on the next barracks-GUI open (which drives {@link #refreshBeds}).
-     */
-    public void onBedBroken(WorldServer world, BlockPos headPos) {
-        for (PlayerZoneRecord r : records) {
-            if (!r.getRolePositions(ZoneRoles.BED).contains(headPos)) continue;
-            if (r.type == ZoneType.STABLE && r.data instanceof com.jubitus.travellers.world.zone.stable.StableZoneData) {
-                // A Stable palfrenier keeps its duty assignment on a bed break - it just does ambient
-                // behaviour with no labour until a bed is restored (auto-recovered by the coordinator's
-                // bed rescan). Different from a Barrack, where losing your bed means losing your home.
-                com.jubitus.travellers.world.zone.stable.StableBedService.onStableBedBroken(
-                        world, this, r, (com.jubitus.travellers.world.zone.stable.StableZoneData) r.data, headPos);
-                return;
-            }
-            if (r.type != ZoneType.BARRACK) continue;
-            List<BlockPos> beds = new ArrayList<>(r.getRolePositions(ZoneRoles.BED));
-            if (!beds.remove(headPos)) continue;
-            r.setRolePositions(ZoneRoles.BED, beds);
-            pruneBedAssignment(world, r, headPos);
-            markDirty();
-            return; // a bed belongs to at most one zone
-        }
-    }
-
-    /**
-     * Removes a worker's reservation of a now-missing bed, fully clears its home assignment (so it
-     * shows up as unassigned/homeless rather than still counting against the zone's capacity),
-     * and notifies the owner. Does not touch bed positions.
-     */
-    private void pruneBedAssignment(@Nullable WorldServer world, PlayerZoneRecord r, BlockPos bed) {
-        UUID workerUUID = null;
-        for (Map.Entry<UUID, BlockPos> e : r.barrackData().bedByWorker.entrySet()) {
-            if (bed.equals(e.getValue())) {
-                workerUUID = e.getKey();
-                break;
-            }
-        }
-        if (workerUUID == null) return;
-        r.barrackData().bedByWorker.remove(workerUUID);
-        if (world == null || world.getMinecraftServer() == null) return;
-        String workerName = resolveWorkerName(world, workerUUID);
-        String barrackName = (r.name == null || r.name.isEmpty()) ? "Barrack" : r.name;
-        NotificationService.notifyOffline(world.getMinecraftServer(), r.ownerUUID,
-                NotificationDefs.HOME_LONE_BARRACK_BED_DESTROYED, workerName, barrackName);
-        PendingRespawn pr = pendingRespawns.get(workerUUID);
-        if (pr != null && r.center.equals(pr.center)) pendingRespawns.remove(workerUUID);
-        ZoneAssignments.release(world.getMinecraftServer(), workerUUID, r.center);
-    }
-
-    /** Best-effort display name for a worker UUID: live entity, then virtual record, then a pending respawn's saved NBT. */
-    private String resolveWorkerName(WorldServer world, UUID workerUUID) {
-        Entity e = world.getEntityFromUuid(workerUUID);
-        if (e instanceof EntityTravellerWorker && e.getName() != null && !e.getName().isEmpty()) {
-            return e.getName();
-        }
-        MinecraftServer srv = world.getMinecraftServer();
-        WorldServer overworld = srv != null ? srv.getWorld(0) : null;
-        if (overworld != null) {
-            VirtualTravellerRecord rec = VirtualTravellerManager.get(overworld).getRecord(workerUUID);
-            if (rec != null && rec.name != null && !rec.name.isEmpty()) return rec.name;
-        }
-        PendingRespawn pr = pendingRespawns.get(workerUUID);
-        if (pr != null && pr.workerNbt != null && pr.workerNbt.hasKey("CustomName")) {
-            String n = pr.workerNbt.getString("CustomName");
-            if (!n.isEmpty()) return n;
-        }
-        return "Worker";
     }
 
     // -------------------------------------------------------------------------
@@ -241,13 +147,22 @@ public class PlayerZoneManager extends WorldSavedData {
     // Bed respawn (Barrack-only)
     // -------------------------------------------------------------------------
 
+    public List<NBTTagCompound> getPendingHorseReleases() {
+        return pendingHorseReleases;
+    }
+
+    public void addPendingHorseRelease(NBTTagCompound horseNbt) {
+        pendingHorseReleases.add(horseNbt);
+        markDirty();
+    }
+
     public Map<UUID, PendingRespawn> getPendingRespawnsView() {
         return Collections.unmodifiableMap(pendingRespawns);
     }
 
     /** Drops every pending bed respawn scheduled for a zone that is being deleted. */
-    public void dropPendingRespawnsForZone(BlockPos zoneCenter) {
-        if (pendingRespawns.values().removeIf(pr -> zoneCenter.equals(pr.center))) markDirty();
+    public void dropPendingRespawnsForZone(PlayerZoneRecord zone) {
+        if (pendingRespawns.values().removeIf(pr -> pr.isFor(zone))) markDirty();
     }
 
     /** Removes a worker's bed assignment and any pending respawn (unassign or death with respawn disabled). */
@@ -259,12 +174,14 @@ public class PlayerZoneManager extends WorldSavedData {
         markDirty();
     }
 
-    public void scheduleRespawn(UUID ownerUUID, UUID workerUUID, BlockPos center, int dim, NBTTagCompound workerNbt) {
+    public void scheduleRespawn(UUID ownerUUID, UUID workerUUID, ZoneRef zone, NBTTagCompound workerNbt) {
         PendingRespawn pr = new PendingRespawn();
         pr.workerUUID = workerUUID;
         pr.ownerUUID = ownerUUID;
-        pr.center = center;
-        pr.dimension = dim;
+        zone.resolve(ownerUUID);
+        pr.zoneId = zone.id;
+        pr.center = zone.center;
+        pr.dimension = zone.dim;
         pr.workerNbt = workerNbt.copy();
         pr.daysRemaining = Math.max(1, TravellersConfig.WORKER.workerBarrackRespawnDays);
         pendingRespawns.put(workerUUID, pr);
@@ -288,7 +205,7 @@ public class PlayerZoneManager extends WorldSavedData {
             markDirty();
             if (pr.daysRemaining > 0) continue;
 
-            PlayerZoneRecord rec = getByOwnerAndCenter(pr.ownerUUID, pr.center);
+            PlayerZoneRecord rec = pr.zoneId != null ? getById(pr.zoneId) : getByOwnerAndCenter(pr.ownerUUID, pr.center);
             BlockPos bed = (rec != null && rec.data instanceof ZoneBedData)
                     ? ((ZoneBedData) rec.data).bedByWorker().get(wid) : null;
             if (rec == null || bed == null) {
@@ -339,11 +256,11 @@ public class PlayerZoneManager extends WorldSavedData {
         // Try horizontal neighbors at bed level and one below — never above to avoid rooftop
         for (EnumFacing d : EnumFacing.HORIZONTALS) {
             BlockPos p = bed.offset(d);
-            if (ZonePlacement.isStandableColumn(world, p)) return p;
-            if (ZonePlacement.isStandableColumn(world, p.down())) return p.down();
+            if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p)) return p;
+            if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p.down())) return p.down();
         }
         // Neighbors are walls: stand on top of the bed itself (stays indoors)
-        if (ZonePlacement.isStandableColumn(world, bed.up())) return bed.up();
+        if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, bed.up())) return bed.up();
         // Last resort: the bed block (server physics will push entity to nearest air)
         return bed;
     }
@@ -361,6 +278,9 @@ public class PlayerZoneManager extends WorldSavedData {
     public void readFromNBT(NBTTagCompound nbt) {
         records.clear();
         pendingRespawns.clear();
+        pendingHorseReleases.clear();
+        NBTTagList horses = nbt.getTagList("PendingHorseReleases", 10);
+        for (int i = 0; i < horses.tagCount(); i++) pendingHorseReleases.add(horses.getCompoundTagAt(i));
         NBTTagList list = nbt.getTagList("Records", 10);
         for (int i = 0; i < list.tagCount(); i++) {
             records.add(PlayerZoneRecord.readFromNBT(list.getCompoundTagAt(i)));
@@ -372,6 +292,7 @@ public class PlayerZoneManager extends WorldSavedData {
             pr.workerUUID = rt.getUniqueId("WID");
             pr.ownerUUID = rt.getUniqueId("OID");
             pr.center = new BlockPos(rt.getInteger("CX"), rt.getInteger("CY"), rt.getInteger("CZ"));
+            pr.zoneId = rt.hasUniqueId("ZoneId") ? rt.getUniqueId("ZoneId") : null;
             pr.dimension = rt.getInteger("Dim");
             pr.workerNbt = rt.getCompoundTag("Nbt");
             pr.daysRemaining = rt.hasKey("Days") ? rt.getInteger("Days") : 1;
@@ -394,6 +315,7 @@ public class PlayerZoneManager extends WorldSavedData {
             NBTTagCompound rt = new NBTTagCompound();
             rt.setUniqueId("WID", pr.workerUUID);
             rt.setUniqueId("OID", pr.ownerUUID);
+            if (pr.zoneId != null) rt.setUniqueId("ZoneId", pr.zoneId);
             rt.setInteger("CX", pr.center.getX());
             rt.setInteger("CY", pr.center.getY());
             rt.setInteger("CZ", pr.center.getZ());
@@ -403,15 +325,25 @@ public class PlayerZoneManager extends WorldSavedData {
             respawns.appendTag(rt);
         }
         nbt.setTag("PendingRespawns", respawns);
+
+        NBTTagList horses = new NBTTagList();
+        for (NBTTagCompound h : pendingHorseReleases) horses.appendTag(h);
+        nbt.setTag("PendingHorseReleases", horses);
         return nbt;
     }
 
     public static class PendingRespawn {
         public UUID workerUUID;
         public UUID ownerUUID;
+        /** Null for an entry saved before zone ids: matched by owner + centre. */
+        @Nullable public UUID zoneId;
         public BlockPos center;
         public int dimension;
         public NBTTagCompound workerNbt;
         public int daysRemaining = 1;
+
+        public boolean isFor(PlayerZoneRecord zone) {
+            return zoneId != null ? zoneId.equals(zone.id) : center.equals(zone.center) && ownerUUID.equals(zone.ownerUUID);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
+import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.entity.entityai.travel.TravellerBoats;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
@@ -356,7 +357,7 @@ final class FollowBoatController {
 
                 IBlockState feet = follower.world.getBlockState(p);
                 IBlockState above = follower.world.getBlockState(p.up());
-                if (!isVanillaWater(feet)) continue;
+                if (!BlockRules.isVanillaWater(feet)) continue;
                 if (!(above.getMaterial().isReplaceable() || above.getCollisionBoundingBox(follower.world, p.up()) == null)) continue;
 
                 double distFollowerSq = p.distanceSq(center);
@@ -509,7 +510,7 @@ final class FollowBoatController {
                 if (!follower.world.isBlockLoaded(pos)) continue;
 
                 IBlockState state = follower.world.getBlockState(pos);
-                if (!isVanillaWater(state)) continue;
+                if (!BlockRules.isVanillaWater(state)) continue;
                 if (!follower.world.isAirBlock(pos.up())) continue;
 
                 double distSq = pos.distanceSq(center);
@@ -559,44 +560,7 @@ final class FollowBoatController {
     }
 
     private boolean isStandableFast(BlockPos feet) {
-        return TerrainStandableCache.isStandable(follower.world, feet, this::computeStandable);
+        return TerrainStandableCache.isStandable(follower.world, feet);
     }
 
-    private boolean computeStandable(BlockPos feet) {
-        World world = follower.world;
-        BlockPos down = feet.down();
-        BlockPos up = feet.up();
-
-        if (!isBlockLoadedNoForce(down) || !isBlockLoadedNoForce(feet) || !isBlockLoadedNoForce(up)) {
-            return false;
-        }
-
-        IBlockState below = world.getBlockState(down);
-        if (below.getMaterial().isLiquid()) return false;
-
-        net.minecraft.block.state.BlockFaceShape shape = below.getBlockFaceShape(world, down, EnumFacing.UP);
-        if (shape != net.minecraft.block.state.BlockFaceShape.SOLID) return false;
-
-        IBlockState atFeet = world.getBlockState(feet);
-        IBlockState atHead = world.getBlockState(up);
-
-        // Water is Material.isReplaceable() == true (same as air) — without this explicit check
-        // a solid floor sitting under a water column reads as "standable", sending goals/steering
-        // toward positions the follower would suffocate at. Same fix as FollowRecoveryHelper.isStandable.
-        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
-
-        if (!(atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(world, feet) == null)) {
-            return false;
-        }
-
-        return atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(world, up) == null;
-    }
-
-    private boolean isBlockLoadedNoForce(BlockPos pos) {
-        return follower.world.isBlockLoaded(pos, false);
-    }
-
-    private static boolean isVanillaWater(IBlockState state) {
-        return TravellerBoats.isVanillaWater(state);
-    }
 }

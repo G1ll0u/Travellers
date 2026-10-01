@@ -1,6 +1,5 @@
 package com.jubitus.travellers.server.net.message.home;
 
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerHomeManager;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
@@ -63,49 +62,16 @@ public class MsgAssignWorkerBarrack implements IMessage {
                 }
                 if (barrack == null) return;
 
-                int dim = world.provider.getDimension();
-                String name = (barrack.name == null || barrack.name.isEmpty()) ? "Barrack" : barrack.name;
-                lbMgr.refreshCoffers(world, ownerId, barrack.center);
-
-                // Capacity check: one worker per bed. The snapshot refreshes beds and gives current assignments.
-                MsgWorkerBarracksData snap = MsgWorkerBarracksData.buildFor(player);
-                int beds = barrack.getRolePositions(ZoneRoles.BED).size();
-                int assigned = 0;
-                boolean alreadyHere = false;
-                for (MsgWorkerBarracksData.WorkerEntry we : snap.workers) {
-                    if (barrack.center.equals(we.assignedCenter)) {
-                        assigned++;
-                        if (we.uuid.equals(msg.workerUUID)) alreadyHere = true;
-                    }
-                }
-                if (!alreadyHere && assigned >= beds) {
+                ZoneAssignments.AssignResult res = ZoneAssignments.assign(player, msg.workerUUID, barrack);
+                if (res == ZoneAssignments.AssignResult.NO_BED) {
+                    MsgWorkerBarracksData snap = MsgWorkerBarracksData.buildFor(player);
                     snap.notification = "travellers.worker.barracks.full";
                     TravellerFollowNet.CHANNEL.sendTo(snap, player);
                     return;
                 }
-
-                // Live worker
-                Entity e = world.getEntityFromUuid(msg.workerUUID);
-                if (e instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    if (!ownerId.equals(w.getFollowOwnerId())) return;
-                    if (ZoneAssignments.isBoundElsewhere(w, barrack.center)) return;
-                    w.setAssignedHome(barrack.center, dim, name, TravellerHomeManager.HomeType.LONE_BARRACK);
-                    TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(w), player);
-                } else {
-                    // Virtual worker
-                    VirtualTravellerManager vwm = VirtualTravellerManager.get(world);
-                    VirtualTravellerRecord rec = vwm.getRecord(msg.workerUUID);
-                    if (rec == null || !ownerId.equals(rec.followOwnerUUID)) return;
-                    EntityTravellerWorker temp = new EntityTravellerWorker(world);
-                    temp.readFromNBT(rec.entityNbt);
-                    temp.setUniqueId(rec.uuid);
-                    if (ZoneAssignments.isBoundElsewhere(temp, barrack.center)) return;
-                    temp.setAssignedHome(barrack.center, dim, name, TravellerHomeManager.HomeType.LONE_BARRACK);
-                    NBTTagCompound updated = new NBTTagCompound();
-                    temp.writeToNBT(updated);
-                    rec.entityNbt = updated;
-                    vwm.markDirty();
+                if (res == ZoneAssignments.AssignResult.BUSY) {
+                    com.jubitus.travellers.notify.NotificationService.notify(player,
+                            com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
                 }
 
                 TravellerFollowNet.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);

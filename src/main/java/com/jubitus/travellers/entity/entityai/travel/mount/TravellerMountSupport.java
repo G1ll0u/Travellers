@@ -73,6 +73,31 @@ public final class TravellerMountSupport {
         horse.getEntityData().setInteger(NBT_MOUNT_GEN, gen);
     }
 
+    /** A horse that must stop being a mount (a Stable pool horse): its loaded rider lets go of it and
+     * every mount marker is removed. */
+    public static void dropBondFromHorse(EntityHorse horse) {
+        UUID owner = getBondedOwner(horse);
+        if (owner != null && horse.world instanceof WorldServer) {
+            Entity o = ((WorldServer) horse.world).getEntityFromUuid(owner);
+            if (o instanceof EntityTraveller && horse.getUniqueID().equals(((EntityTraveller) o).getMountUUID())) {
+                EntityTraveller rider = (EntityTraveller) o;
+                if (rider.getRidingEntity() == horse) rider.dismountRidingEntity();
+                setLeashed(horse, null);
+                rider.setMountUUID(null);
+                rider.setMountSnapshotNbt(null);
+            }
+        }
+        clearMountMarkers(horse.getEntityData());
+    }
+
+    /** Removes every mount-system marker (bond, generation, orphan timer) from a horse's ForgeData. */
+    public static void clearMountMarkers(NBTTagCompound forgeData) {
+        forgeData.removeTag(NBT_BONDED_OWNER + "Most");
+        forgeData.removeTag(NBT_BONDED_OWNER + "Least");
+        forgeData.removeTag(NBT_MOUNT_GEN);
+        OrphanMountCleanup.clearOrphanTag(forgeData);
+    }
+
     @Nullable
     public static UUID getBondedOwner(Entity e) {
         if (!(e instanceof EntityHorse)) return null;
@@ -126,6 +151,7 @@ public final class TravellerMountSupport {
         if (!TravellersConfig.MOUNTS.enabled) return false;
         if (rider.getMountUUID() != null) return false;
         if (horse.isDead || isBondedMount(horse)) return false;
+        if (com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) return false;
 
         horse.setHorseTamed(true);
         horse.getEntityData().setUniqueId(NBT_BONDED_OWNER, rider.getUniqueID());

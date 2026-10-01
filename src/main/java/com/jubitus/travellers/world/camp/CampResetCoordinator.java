@@ -125,15 +125,20 @@ public class CampResetCoordinator {
                 || rec.occupants.values().stream().anyMatch(o -> o.snapshot != null);
 
         if (hasTerrain) {
-            for (ChunkPos cp : CampsiteManager.footprintChunks(rec)) {
-                world.getChunkProvider().provideChunk(cp.x, cp.z); // temporary load; unloads naturally afterward
+            java.util.List<net.minecraft.world.chunk.Chunk> loaded = new java.util.ArrayList<>();
+            try {
+                for (ChunkPos cp : CampsiteManager.footprintChunks(rec)) {
+                    com.jubitus.travellers.world.chunkmanager.LoadedChunks.loadTemporarily(world, cp.x, cp.z, loaded);
+                }
+                for (TerrainSnapshot s : rec.pendingTeardowns) s.restore(world);
+                for (TerrainSnapshot s : rec.orphans.values()) s.restore(world);
+                for (CampOccupant o : rec.occupants.values()) {
+                    if (o.snapshot != null) o.snapshot.restore(world);
+                }
+                if (rec.firepitBuilt && rec.firepitSnapshot != null) rec.firepitSnapshot.restore(world);
+            } finally {
+                com.jubitus.travellers.world.chunkmanager.LoadedChunks.release(world, loaded);
             }
-            for (TerrainSnapshot s : rec.pendingTeardowns) s.restore(world);
-            for (TerrainSnapshot s : rec.orphans.values()) s.restore(world);
-            for (CampOccupant o : rec.occupants.values()) {
-                if (o.snapshot != null) o.snapshot.restore(world);
-            }
-            if (rec.firepitBuilt && rec.firepitSnapshot != null) rec.firepitSnapshot.restore(world);
         }
 
         rec.pendingTeardowns.clear();

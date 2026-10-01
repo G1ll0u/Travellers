@@ -115,8 +115,8 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
     private boolean isDisabledForHiredWorker() {
         if (this.traveller instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) this.traveller;
-            // Hired follower, NOT currently on a job → companion mode
-            return w.isHiredFollower() && !w.isJobActive();
+            // Hired follower in companion mode, or at work at its duty zone (the duty AI owns it)
+            return w.isHiredFollower() && (!w.isJobActive() || w.isOnDuty());
         }
         return false;
     }

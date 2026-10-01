@@ -39,19 +39,13 @@ public final class StablePlayerHorseAccess {
         StableCoordinator coord = StableCoordinator.get(world);
 
         if (event.isMounting()) {
-            // isPoolHorseOwnedBy is the authoritative, persisted check (walks the zone pool
-            // directly) - it alone used to gate on isStableTracked too, a transient cache only
-            // warmed by the periodic containment sweep or the horse's own join event. Mounting
-            // before that cache was warm (e.g. right after a world (re)start) silently skipped the
-            // detach below: the horse kept its live pool entry, and containment would teleport it
-            // back to the zone the next time the sweep ran, however far the player had ridden it.
             if (!coord.isPoolHorseOwnedBy(world, horse, player.getUniqueID())) return;
             coord.detachHorseFromPool(world, horse);
             return;
         }
 
         // Dismount: only fold a horse in if it isn't already a pool horse.
-        if (coord.isStableTracked(horse.getUniqueID())) return;
+        if (StableCoordinator.isPoolHorse(horse)) return;
         if (!horse.isTame() || horse.isChild()) return;
         if (!player.getUniqueID().equals(horse.getOwnerUniqueId())) return;
         PlayerZoneRecord zone = coord.findOwnStableAt(world, player.getUniqueID(), horse.getPosition());

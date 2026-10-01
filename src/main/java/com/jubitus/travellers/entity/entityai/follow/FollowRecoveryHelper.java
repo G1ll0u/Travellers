@@ -1,6 +1,8 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
 
+import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.world.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
@@ -113,7 +115,7 @@ public final class FollowRecoveryHelper {
             IBlockState state = world.getBlockState(above);
             Material mat = state.getMaterial();
             if (mat.isReplaceable()) continue;
-            if (mat == Material.LEAVES || mat == Material.VINE) continue;
+            if (BlockRules.isTreePart(state) || BlockRules.isVegetation(state)) continue;
             // DynamicTrees branches and similar partial blocks have low opacity — treat as foliage
             if (state.getBlock().getLightOpacity(state) < 10) continue;
             return false;
@@ -279,7 +281,7 @@ public final class FollowRecoveryHelper {
             for (int dz = -radius; dz <= radius; dz++) {
                 for (int dy = -6; dy <= 6; dy++) {
                     BlockPos pos = new BlockPos(xi + dx, yi + dy, zi + dz);
-                    if (!isStandable(world, pos)) continue;
+                    if (!Footing.canStandAt(world, pos)) continue;
                     if (requireUnderground && world.canSeeSky(pos)) continue;
                     if (!leaderInBuilding && MillFootprints.isForbiddenLanding(world,
                             pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D)) continue;
@@ -340,41 +342,6 @@ public final class FollowRecoveryHelper {
                 riderSpot.getX() + 0.5D, riderSpot.getY(), riderSpot.getZ() + 0.5D,
                 null, 6, true);
         return spot != null ? spot : riderSpot;
-    }
-
-    public static boolean isStandable(World world, BlockPos feet) {
-        if (!world.isBlockLoaded(feet) || !world.isBlockLoaded(feet.up()) || !world.isBlockLoaded(feet.down())) {
-            return false;
-        }
-
-        IBlockState below = world.getBlockState(feet.down());
-        if (below.getMaterial().isLiquid()) return false;
-
-        // A tree canopy floor (leaves, a Dynamic Trees branch/trunk-shell) is solid enough to pass
-        // every check below, but it is not real ground - without this a rescue teleport (mounted or
-        // not) could land a follower standing on top of a tree instead of the forest floor beneath
-        // it. Same predicate MaterializePositionResolver uses for materialize placement - one
-        // clearance model, not a second one reimplemented here.
-        if (TravellersConfig.MATERIALIZATION.avoidTreeCanopy
-                && MaterializePositionResolver.isFoliageOrTreePart(below)) {
-            return false;
-        }
-
-        IBlockState atFeet = world.getBlockState(feet);
-        IBlockState atHead = world.getBlockState(feet.up());
-
-        // Water is Material.isReplaceable() == true (same as air), so without this explicit
-        // check a solid floor sitting under a water column (a seabed, a submerged ledge) reads
-        // as "standable" here — this is what let teleport rescue land workers underwater to
-        // suffocate. isWorkerRescueFeetSpot below already guards against this; this method didn't.
-        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
-
-        boolean freeFeet = atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(world, feet) == null;
-        boolean freeHead = atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(world, feet.up()) == null;
-        if (!freeFeet || !freeHead) return false;
-
-        BlockFaceShape shape = below.getBlockFaceShape(world, feet.down(), EnumFacing.UP);
-        return shape == BlockFaceShape.SOLID;
     }
 
     /**
@@ -654,25 +621,9 @@ public final class FollowRecoveryHelper {
 
     private static boolean isWorkerRescueFeetSpot(EntityTraveller worker, BlockPos feet) {
         World world = worker.world;
-        if (feet == null) return false;
-        if (!world.isBlockLoaded(feet) || !world.isBlockLoaded(feet.up()) || !world.isBlockLoaded(feet.down())) return false;
+        if (feet == null || !Footing.canStandAt(world, feet)) return false;
 
-        IBlockState below = world.getBlockState(feet.down());
-        IBlockState atFeet = world.getBlockState(feet);
-        IBlockState atHead = world.getBlockState(feet.up());
-
-        if (!below.getMaterial().isSolid()) return false;
-        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
-
-        boolean freeFeet = atFeet.getMaterial().isReplaceable()
-                || atFeet.getCollisionBoundingBox(world, feet) == null
-                || atFeet.getBlock() == Blocks.SNOW_LAYER;
-        boolean freeHead = atHead.getMaterial().isReplaceable()
-                || atHead.getCollisionBoundingBox(world, feet.up()) == null
-                || atHead.getBlock() == Blocks.SNOW_LAYER;
-
-        if (!freeFeet || !freeHead) return false;
-
+        // The worker's real (render-scaled) body must fit too, not just a 1x2 column.
         AxisAlignedBB bb = worker.getEntityBoundingBox().offset(
                 (feet.getX() + 0.5D) - worker.posX,
                 feet.getY() - worker.posY,

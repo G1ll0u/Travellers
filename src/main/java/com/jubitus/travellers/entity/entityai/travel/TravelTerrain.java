@@ -1,5 +1,7 @@
 package com.jubitus.travellers.entity.entityai.travel;
 
+import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.world.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
 import com.jubitus.travellers.entity.entityai.flight.ElytraOpportunityScanner;
@@ -73,43 +75,6 @@ public final class TravelTerrain {
         return v.normalize();
     }
 
-    /**
-     * True if the block at `pos` can support standing on top (accepts ice).
-     */
-    static boolean supportsStandingSurface(World w, BlockPos pos, IBlockState st) {
-        if (!w.isBlockLoaded(pos)) return false;
-
-        // NEW: never stand on leaves
-        if (isLeafBlock(w, pos, st)) return false;
-
-        if (st.getMaterial().isLiquid()) return false;
-
-        BlockFaceShape shape = st.getBlockFaceShape(w, pos, EnumFacing.UP);
-        if (shape == BlockFaceShape.SOLID) return true;
-
-        AxisAlignedBB bb = st.getBoundingBox(w, pos);
-        if (bb != Block.NULL_AABB && (bb.maxY - bb.minY) > 0.001) return true;
-
-        Block b = st.getBlock();
-        if (b == Blocks.SNOW_LAYER) return true;
-
-        return b == Blocks.ICE || b == Blocks.PACKED_ICE || b == Blocks.FROSTED_ICE
-                || b == Blocks.GLASS || b == Blocks.STAINED_GLASS;
-    }
-
-    // BoP quicksand: user said it's registered as biomesoplenty:sand
-    static boolean isBoPQuicksand(IBlockState s) {
-        ResourceLocation rl = s.getBlock().getRegistryName();
-        return rl != null && "biomesoplenty".equals(rl.getNamespace()) && "sand".equals(rl.getPath());
-    }
-
-    // Any liquid other than vanilla water is forbidden (lava, mod fluids, quicksand, etc.)
-    static boolean isForbiddenLiquid(IBlockState s) {
-        if (isBoPQuicksand(s)) return true;
-        if (!s.getMaterial().isLiquid()) return false;
-        return !isVanillaWater(s);
-    }
-
     // AxisAlignedBB check that ignores vanilla water but flags any forbidden liquid
     public static boolean intersectsForbiddenLiquid(World w, AxisAlignedBB aabb) {
         int minX = MathHelper.floor(aabb.minX);
@@ -127,22 +92,11 @@ public final class TravelTerrain {
 // ✅ DO NOT LOAD CHUNKS just to check fluids
                     if (!w.isBlockLoaded(pos)) return true; // treat unknown as unsafe
                     IBlockState s = w.getBlockState(pos);
-                    if (isForbiddenLiquid(s)) return true;
+                    if (BlockRules.isHazard(s)) return true;
                 }
             }
         }
         return false;
-    }
-
-    // ---- Leaves helper (1.12.2 + modded leaves support) ----
-    static boolean isLeafBlock(World w, BlockPos pos, IBlockState s) {
-        Block b = s.getBlock();
-        if (b instanceof net.minecraft.block.BlockLeaves) return true;
-        try {
-            return b.isLeaves(s, w, pos); // many mods override this
-        } catch (Throwable ignore) {
-            return false;
-        }
     }
 
     // --- Snow height helpers (1.12.2) ---
@@ -200,7 +154,7 @@ public final class TravelTerrain {
                     BlockPos c = groundInColumn(xz.getX() + dx, xz.getZ() + dz, refY);
                     if (c == null) continue;
                     double score = Math.abs(c.getY() - refY) + r * 2.0
-                            + (isTreePart(c.down()) ? WAYPOINT_TREE_PENALTY : 0.0);
+                            + (BlockRules.isTreePart(mob.world, c.down(), mob.world.getBlockState(c.down())) ? WAYPOINT_TREE_PENALTY : 0.0);
                     if (score < bestScore) {
                         bestScore = score;
                         best = c;
@@ -225,7 +179,7 @@ public final class TravelTerrain {
         for (int y = top; y >= bottom; y--) {
             if (best != null && refY - y > bestDy) break;
             p.setPos(x, y, z);
-            if (isVanillaWater(mob.world.getBlockState(p))) {
+            if (BlockRules.isVanillaWater(mob.world.getBlockState(p))) {
                 BlockPos surface = snapToWaterSurface(p.toImmutable());
                 if (surface != null && isSwimmable(surface) && Math.abs(surface.getY() - refY) < bestDy) {
                     bestDy = Math.abs(surface.getY() - refY);
@@ -245,18 +199,6 @@ public final class TravelTerrain {
             if (mob.world.getBlockState(below).getMaterial().blocksMovement() && isNaturalGroundSupport(below)) break;
         }
         return best;
-    }
-
-    boolean isTreePart(BlockPos pos) {
-        IBlockState s = mob.world.getBlockState(pos);
-        Block b = s.getBlock();
-        if (b instanceof net.minecraft.block.BlockLog || isLeafBlock(mob.world, pos, s)) return true;
-        try {
-            if (b.isWood(mob.world, pos)) return true;
-        } catch (Throwable ignored) {
-        }
-        ResourceLocation rl = b.getRegistryName();
-        return rl != null && "dynamictrees".equals(rl.getNamespace());
     }
 
     Vec3d rotateY(Vec3d v, double radians) {
@@ -338,67 +280,12 @@ public final class TravelTerrain {
         return isStandable(feet) || isSwimmable(feet);
     }
 
-    /**
-     * “Can the mob stand with feet at `feet`?” (land version)
-     */
     boolean isStandable(BlockPos feet) {
-        World world = mob.world;
-
-
-        if (!isBlockSafeLoaded(world, feet) ||
-                !isBlockSafeLoaded(world, feet.up()) ||
-                !isBlockSafeLoaded(world, feet.down())) {
-            return false;
-        }
-
-        final IBlockState below = world.getBlockState(feet.down());
-        final IBlockState atFeet = world.getBlockState(feet);
-        final IBlockState atHead = world.getBlockState(feet.up());
-
-        if (isLeafBlock(world, feet.down(), below)) return false;
-
-        if (atFeet.getMaterial().isLiquid() || atHead.getMaterial().isLiquid()) return false;
-        if (!supportsStandingSurface(world, feet.down(), below)) return false;
-
-
-        boolean feetOk =
-                atFeet.getBlock() == Blocks.SNOW_LAYER
-                        || atFeet.getMaterial().isReplaceable()
-                        || atFeet.getCollisionBoundingBox(world, feet) == null;
-
-        boolean headOk =
-                atHead.getMaterial().isReplaceable()
-                        || atHead.getCollisionBoundingBox(world, feet.up()) == null
-                        || atHead.getBlock() == Blocks.SNOW_LAYER;
-
-        return feetOk && headOk;
+        return Footing.canStandAt(mob.world, feet);
     }
 
-    boolean isSwimmable(BlockPos feetPos) {
-        World world = mob.world;
-        if (!world.isBlockLoaded(feetPos) ||
-                !world.isBlockLoaded(feetPos.up()) ||
-                !world.isBlockLoaded(feetPos.down())) {
-            return false;
-        }
-
-        IBlockState feet = world.getBlockState(feetPos);
-        IBlockState head = world.getBlockState(feetPos.up());
-        IBlockState below = world.getBlockState(feetPos.down());
-
-        // Feet must be vanilla water
-        if (!isVanillaWater(feet)) return false;
-
-        // Absolutely forbid any non-water liquids / quicksand / lava
-        if (isForbiddenLiquid(feet) || isForbiddenLiquid(head) || isForbiddenLiquid(below)) {
-            return false;
-        }
-
-        // Head can be air OR water; just don't allow solid, non-replaceable stuff there.
-        // solid block right in front of face → not a swimming cell
-        return head.getMaterial().isReplaceable() || head.getMaterial().isLiquid();
-
-        // If you really want to forbid "head in lava / mod fluids", that’s already covered by isForbiddenLiquid above.
+    boolean isSwimmable(BlockPos feet) {
+        return Footing.canSwimAt(mob.world, feet);
     }
 
     // Forward component (in blocks) from 'from' to 'p' along the direction to the target (XZ only)
@@ -429,8 +316,8 @@ public final class TravelTerrain {
             IBlockState feet = mob.world.getBlockState(surf);
             IBlockState below = mob.world.getBlockState(surf.down());
 
-            boolean waterFeet = isVanillaWater(feet);
-            boolean waterBelow = isVanillaWater(below);
+            boolean waterFeet = BlockRules.isVanillaWater(feet);
+            boolean waterBelow = BlockRules.isVanillaWater(below);
 
             if (waterFeet || waterBelow) waterCount++;
             samples++;
@@ -450,7 +337,7 @@ public final class TravelTerrain {
         BlockPos surf = findSurfaceOrWaterY(guess);
         if (surf == null || !isAreaLoaded(surf, 1)) return null;
 
-        if (isVanillaWater(mob.world.getBlockState(surf))) {
+        if (BlockRules.isVanillaWater(mob.world.getBlockState(surf))) {
             BlockPos snapped = snapToWaterSurface(surf);
             if (snapped != null) surf = snapped;
         }
@@ -461,57 +348,22 @@ public final class TravelTerrain {
     }
 
     /**
-     * True if feet cell is solid/walkable land (not liquid).
-     */
-    boolean isDryStandable(BlockPos feet) {
-        return isStandable(feet) && !mob.world.getBlockState(feet).getMaterial().isLiquid();
-    }
-
-    /**
      * Try to get a land surface at/near XZ (without loading chunks).
      */
     @Nullable
     BlockPos findDrySurfaceNear(BlockPos guess) {
         BlockPos surf = findSurfaceOrWaterY(guess);
         if (surf == null) return null;
-        if (isDryStandable(surf)) return surf;
+        if (isStandable(surf)) return surf;
 
         // small lateral nudge to hop off pond tiles (±1 in a plus pattern)
         final int[][] off = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int[] d : off) {
             BlockPos n = new BlockPos(surf.getX() + d[0], surf.getY(), surf.getZ() + d[1]);
             if (!isAreaLoaded(n, 1)) continue;
-            if (isDryStandable(n)) return n;
+            if (isStandable(n)) return n;
         }
         return null;
-    }
-
-    /**
-     * True if this block is likely part of a natural tree (log or leaf).
-     * We still allow standing on wood floors for buildings – this is just a heuristic,
-     * used only when we ask for "ground-ish" surface for waypoints.
-     */
-    boolean isTreeSupportBlock(World w, BlockPos pos, IBlockState s) {
-        Block b = s.getBlock();
-
-        // Vanilla & basic mod detection first
-        if (b instanceof net.minecraft.block.BlockLog) return true;
-        if (b instanceof net.minecraft.block.BlockLeaves) return true;
-
-        // Millénaire / Modded overrides (instance methods)
-        try {
-            if (b.isLeaves(s, w, pos)) return true;
-        } catch (Throwable ignored) {
-        }
-
-        try {
-            if (b.isWood(w, pos)) return true;
-        } catch (Throwable ignored) {
-        }
-
-        // Fallback on material
-        Material m = s.getMaterial();
-        return (m == Material.WOOD || m == Material.LEAVES);
     }
 
     /**
@@ -526,7 +378,7 @@ public final class TravelTerrain {
         if (!w.isBlockLoaded(below)) return standPos;
 
         IBlockState under = w.getBlockState(below);
-        if (!isTreeSupportBlock(w, below, under)) {
+        if (!BlockRules.isTreePart(w, below, under)) {
             // Already standing on something non-tree-like
             return standPos;
         }
@@ -561,44 +413,12 @@ public final class TravelTerrain {
         return st.getBlock() instanceof IBlockPath;
     }
 
-    // ---- Liquid filters: only vanilla water is allowed ----
-    static boolean isVanillaWater(IBlockState s) {
-        return TravellerBoats.isVanillaWater(s);
-    }
-
     float yawFromDirection(Vec3d dir) {
         // Minecraft yaw: 0 = south (+Z), 90 = west (-X)
         // Standard conversion:
         // yaw = atan2(z, x) * 180/PI - 90
         double yawRad = Math.atan2(dir.z, dir.x);
         return (float) (yawRad * (180D / Math.PI) - 90.0D);
-    }
-
-    boolean isDryStandableForBoatExit(BlockPos feet) {
-        World w = mob.world;
-
-        if (!w.isBlockLoaded(feet) || !w.isBlockLoaded(feet.up()) || !w.isBlockLoaded(feet.down()))
-            return false;
-
-        IBlockState below = w.getBlockState(feet.down());
-        if (below.getMaterial().isLiquid()) return false;
-
-        IBlockState atFeet = w.getBlockState(feet);
-        IBlockState atHead = w.getBlockState(feet.up());
-
-        boolean free =
-                (atFeet.getMaterial().isReplaceable() || atFeet.getCollisionBoundingBox(w, feet) == null)
-                        && (atHead.getMaterial().isReplaceable() || atHead.getCollisionBoundingBox(w, feet.up()) == null);
-
-        BlockFaceShape shape = below.getBlockFaceShape(w, feet.down(), EnumFacing.UP);
-        boolean solidBelow =
-                shape == BlockFaceShape.SOLID
-                        || below.getBlock() == Blocks.SNOW_LAYER
-                        || below.getBlock() == Blocks.GRASS_PATH
-                        || below.getBlock() == Blocks.ICE
-                        || below.getBlock() == Blocks.PACKED_ICE;
-
-        return free && solidBelow;
     }
 
     /**
@@ -637,7 +457,7 @@ public final class TravelTerrain {
             IBlockState s = w.getBlockState(surf);
 
             // corridor is only valid if the *surface* is vanilla water
-            if (!isVanillaWater(s)) {
+            if (!BlockRules.isVanillaWater(s)) {
                 return false; // solid/ice/etc. -> obstacle
             }
         }
@@ -661,54 +481,6 @@ public final class TravelTerrain {
         return roofDelta >= 8;
 
         // Otherwise: deep under something with low skylight -> cave-like
-    }
-
-    boolean isNaturalGroundSupport(BlockPos supportPos) {
-        World w = mob.world;
-        if (!w.isBlockLoaded(supportPos)) return false;
-
-        IBlockState s = w.getBlockState(supportPos);
-        Block b = s.getBlock();
-
-        // Never tree blocks
-        if (b instanceof net.minecraft.block.BlockLog) return false;
-        if (b instanceof net.minecraft.block.BlockLeaves) return false;
-        try {
-            if (b.isWood(w, supportPos)) return false;
-        } catch (Throwable ignore) {
-        }
-        try {
-            if (b.isLeaves(s, w, supportPos)) return false;
-        } catch (Throwable ignore) {
-        }
-
-        // Reject "construction-ish" blocks by class
-        if (b instanceof net.minecraft.block.BlockStairs) return false;
-        if (b instanceof net.minecraft.block.BlockSlab) return false;
-        if (b instanceof net.minecraft.block.BlockFence) return false;
-        if (b instanceof net.minecraft.block.BlockWall) return false;
-        if (b instanceof net.minecraft.block.BlockGlass) return false;
-
-        // Reject by registry name keyword (catches stonebrick, mod bricks, etc.)
-        ResourceLocation rl = b.getRegistryName();
-        if (rl != null) {
-            String p = rl.getPath();
-            if (p.contains("brick") || p.contains("stonebrick") || p.contains("stairs") || p.contains("slab")
-                    || p.contains("plank") || p.contains("wood") || p.contains("log")
-                    || p.contains("cobble") || p.contains("wall") || p.contains("fence")) {
-                return false;
-            }
-        }
-
-        // Allow only “natural-ish” materials
-        Material m = s.getMaterial();
-        return (m == Material.GRASS
-                || m == Material.GROUND
-                || m == Material.SAND
-                || m == Material.ROCK
-                || m == Material.CLAY
-                || m == Material.SNOW
-                || m == Material.ICE);
     }
 
     /**
@@ -742,8 +514,8 @@ public final class TravelTerrain {
             if (!mob.world.isBlockLoaded(feet) || !mob.world.isBlockLoaded(head)) return false;
 
             // Lava or other forbidden liquids at feet/head level
-            if (isForbiddenLiquid(mob.world.getBlockState(feet))) return false;
-            if (isForbiddenLiquid(mob.world.getBlockState(head))) return false;
+            if (BlockRules.isHazard(mob.world.getBlockState(feet))) return false;
+            if (BlockRules.isHazard(mob.world.getBlockState(head))) return false;
 
             // Cliff: require solid ground (or vanilla water) within 3 blocks below
             boolean hasSupport = false;
@@ -751,7 +523,7 @@ public final class TravelTerrain {
                 BlockPos check = new BlockPos(nx, mobY + dy, nz);
                 if (!mob.world.isBlockLoaded(check)) { hasSupport = true; break; }
                 IBlockState s = mob.world.getBlockState(check);
-                if (isVanillaWater(s)) { hasSupport = true; break; }
+                if (BlockRules.isVanillaWater(s)) { hasSupport = true; break; }
                 if (!s.getMaterial().isLiquid() && s.getMaterial().blocksMovement()) {
                     hasSupport = true;
                     break;
@@ -760,6 +532,11 @@ public final class TravelTerrain {
             if (!hasSupport) return false;
         }
         return true;
+    }
+
+    /** Natural terrain under a loaded position (BlockRules.isNaturalGround); false when not loaded. */
+    boolean isNaturalGroundSupport(BlockPos supportPos) {
+        return mob.world.isBlockLoaded(supportPos) && BlockRules.isNaturalGround(mob.world.getBlockState(supportPos));
     }
 
     double feetYOnTopOf(BlockPos ground) {
@@ -810,12 +587,12 @@ public final class TravelTerrain {
         BlockPos q = p;
 
         // If we're not actually in water, don't try to "surface" it.
-        if (!isVanillaWater(w.getBlockState(q))) return q;
+        if (!BlockRules.isVanillaWater(w.getBlockState(q))) return q;
 
         int maxY = w.getActualHeight() - 1;
 
         // Climb up through water until the next block is NOT water
-        while (q.getY() < maxY && isVanillaWater(w.getBlockState(q.up()))) {
+        while (q.getY() < maxY && BlockRules.isVanillaWater(w.getBlockState(q.up()))) {
             q = q.up();
             if (!isAreaLoaded(q, 1)) return null;
         }

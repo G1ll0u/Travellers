@@ -76,6 +76,10 @@ public class MsgWorkerSetDestination implements IMessage {
             if (worker.getDistanceSq(player) > 64.0D) {
                 return; // too far
             }
+            if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(worker)) {
+                com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, worker);
+                return;
+            }
 
             BlockPos villageCenter = msg.targetCenter;
 

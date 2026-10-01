@@ -42,6 +42,11 @@ public final class MountBondLoadHandler {
 
         EntityHorse horse = (EntityHorse) event.getEntity();
         if (!TravellerMountSupport.isBondedMount(horse)) return;
+        if (com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) {
+            // A pool horse is never a mount: drop the stale bond instead of releasing it loose.
+            TravellerMountSupport.dropBondFromHorse(horse);
+            return;
+        }
         WorldServer world = (WorldServer) event.getWorld();
 
         switch (verdict(world, horse)) {

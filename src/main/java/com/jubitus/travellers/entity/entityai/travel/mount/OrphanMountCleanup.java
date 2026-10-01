@@ -41,25 +41,30 @@ public final class OrphanMountCleanup {
 
     /** Marks a horse as an unclaimed leftover from a dead rider, starting its cleanup grace period. */
     public static void markOrphaned(EntityHorse horse, long now) {
+        // A Stable pool horse belongs to its pool, never to the loose-horse cleanup.
+        if (com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) return;
         horse.getEntityData().setLong(NBT_ORPHANED_TICK, now);
     }
 
     /** Clears the orphan marker - a player has claimed this horse, it is never cleaned up. */
     public static void clearOrphanTag(Entity e) {
-        if (e.getEntityData().hasKey(NBT_ORPHANED_TICK)) {
-            e.getEntityData().removeTag(NBT_ORPHANED_TICK);
-        }
+        clearOrphanTag(e.getEntityData());
+    }
+
+    public static void clearOrphanTag(NBTTagCompound forgeData) {
+        forgeData.removeTag(NBT_ORPHANED_TICK);
     }
 
     public static boolean isOrphaned(Entity e) {
-        return e.getEntityData().hasKey(NBT_ORPHANED_TICK);
+        return e.getEntityData().hasKey(NBT_ORPHANED_TICK)
+                && !com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(e);
     }
 
     /** Whether this orphaned horse has sat unclaimed long enough to be removed - distance to any
      * player is the caller's separate responsibility (see the two call sites in the class doc). */
     private static boolean graceElapsed(EntityHorse horse, long now) {
+        if (!isOrphaned(horse)) return false;
         NBTTagCompound data = horse.getEntityData();
-        if (!data.hasKey(NBT_ORPHANED_TICK)) return false;
         return now - data.getLong(NBT_ORPHANED_TICK) >= TravellersConfig.MOUNTS.looseMountCleanupGraceTicks;
     }
 

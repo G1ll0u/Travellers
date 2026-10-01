@@ -244,6 +244,7 @@ travellers.lone_barrack.prompt.half_width=largeur
 travellers.lone_barrack.prompt.half_depth=profondeur
 travellers.lone_barrack.prompt.half_height=hauteur
 travellers.lone_barrack.error.overlaps=Cette zone chevauche une zone existante.
+travellers.lone_barrack.error.invalid=Impossible de créer cette zone ici : rapprochez-vous, respectez la taille maximale et attendez que la zone soit chargée.
 travellers.lone_barrack.created=Zone créée !
 
 travellers.zone.prompt.validate=Créer : %s
@@ -328,9 +329,10 @@ travellers.notify.home.not_your_worker=Ce n'est pas votre homme de main.
 travellers.notify.home.none_assigned=Aucun foyer assigné.
 travellers.notify.home.lone_barrack_not_found=Caserne isolée non trouvée.
 travellers.notify.home.lone_barrack_assigned=Caserne isolée assignée : %s
-travellers.notify.home.lone_barrack_bed_destroyed=Le lit de %s à "%s" a été détruit. Assignez-lui un nouveau lit.
+travellers.notify.home.lone_barrack_bed_destroyed=%s a perdu son lit à "%s" et aucun autre lit n'est libre : il quitte la zone et revient vers vous.
 
 travellers.notify.order.worker_busy=Cet homme de main est occupé et ne peut pas recevoir d'ordres pour le moment.
+travellers.notify.order.worker_on_duty=%s travaille à "%s" et n'y reçoit pas d'ordres. Désassignez-le d'abord depuis le menu des zones.
 travellers.notify.order.some_busy_skipped=%s hommes de main étaient occupés et ont été ignorés.
 travellers.notify.goto.going_to=L'homme de main se rend à : %s
 travellers.notify.goto.going_to_pos=L'homme de main se rend à la position sélectionnée sur la carte.

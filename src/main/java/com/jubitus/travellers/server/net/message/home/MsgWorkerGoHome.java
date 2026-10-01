@@ -51,7 +51,7 @@ public class MsgWorkerGoHome implements IMessage {
 
                 // A worker busy on a mission can't be sent home until it finishes.
                 if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(w)) {
-                    NotificationService.notify(player, NotificationDefs.ORDER_WORKER_BUSY);
+                    com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, w);
                     return;
                 }
 

@@ -98,8 +98,6 @@ public final class MountTheftGuard {
         if (!TravellersConfig.STABLES.enabled) return false;
         if (!(target instanceof net.minecraft.entity.passive.EntityHorse)) return false;
         if (!(target.world instanceof net.minecraft.world.WorldServer)) return false;
-        return com.jubitus.travellers.world.zone.stable.StableCoordinator
-                .get((net.minecraft.world.WorldServer) target.world)
-                .isStableTracked(target.getUniqueID());
+        return com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(target);
     }
 }

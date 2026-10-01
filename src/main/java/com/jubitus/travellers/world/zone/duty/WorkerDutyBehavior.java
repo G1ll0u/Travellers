@@ -13,4 +13,8 @@ public interface WorkerDutyBehavior {
     /** Called every tick the worker is on duty and has actually arrived (not mid-travel there).
      * Implementations throttle their own real work internally. */
     void tick(EntityTravellerWorker worker);
+
+    /** The duty task stopped (pre-empted, released, going offscreen): drop any chore mid-flight. */
+    default void stop(EntityTravellerWorker worker) {
+    }
 }

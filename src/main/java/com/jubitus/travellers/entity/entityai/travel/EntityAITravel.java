@@ -1971,7 +1971,7 @@ public class EntityAITravel extends EntityAIBase {
                         if (!terrain.isStandable(feet)) continue;
 
                         IBlockState below = mob.world.getBlockState(feet.down());
-                        if (!terrain.isNaturalGroundSupport(feet.down()) && !TravelTerrain.supportsStandingSurface(mob.world, feet.down(), below)) {
+                        if (!terrain.isNaturalGroundSupport(feet.down()) && !com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, feet.down(), below)) {
                             continue;
                         }
                     }

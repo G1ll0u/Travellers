@@ -22,6 +22,8 @@ public final class StableContainmentGuard {
     private static final double TELEPORT_ESCALATION_BLOCKS = 4.0D;
 
     public static void enforce(EntityHorse horse, BlockPos center, int halfWidth, int halfDepth) {
+        // Never move a horse someone is riding or leading: the rider or holder would be dragged along.
+        if (horse.isBeingRidden() || horse.getLeashed()) return;
         int margin = TravellersConfig.STABLES.containmentMarginBlocks;
         double minX = center.getX() - halfWidth - margin;
         double maxX = center.getX() + halfWidth + 1 + margin;

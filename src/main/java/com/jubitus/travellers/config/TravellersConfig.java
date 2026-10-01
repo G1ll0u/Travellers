@@ -257,6 +257,10 @@ public class TravellersConfig {
     }
 
     public static class EntityRenderLod {
+        @Config.Comment("How far away (in blocks, at normal render distance) travellers, raiders and workers stay visible. Grows with your render distance like other creatures. A horse stays visible around 94.")
+        @Config.RangeInt(min = 32, max = 256)
+        public int entityRenderDistance = 96;
+
         @Config.Comment("Master switch for distance-based LOD on traveller/raider/worker entity rendering (cosmetic overlay layers + held item). Reduces GPU/CPU cost when many are visible at once. Purely cosmetic beyond the configured distances.")
         public boolean enabled = false;
 
@@ -1532,9 +1536,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 5)
         public int campFootprintMargin = 1;
 
-        @Config.Comment("Stop travellers/raiders/workers from appearing on top of, or perched in, tree leaves, logs, branches or plants when they reappear near a player. Recognises Dynamic Trees branches / trunk-shells as well as vanilla foliage.")
-        public boolean avoidTreeCanopy = true;
-
         @Config.Comment("When someone reappears standing on foliage (a leaf block, a modded tree branch), how far straight down (in blocks) to look for the real ground beneath before giving up and leaving them where they are. Needs to clear the tallest trees in the pack - big Dynamic Trees dark oak / jungle can be 25+ blocks. Keeps travellers off tree canopy without ever leaving them stuck offscreen.")
         @Config.RangeInt(min = 0, max = 48)
         public int canopySinkMaxDrop = 32;
@@ -1549,9 +1550,6 @@ public class TravellersConfig {
         @Config.Comment("When a traveller/raider/worker would reappear on a roof, a man-made surface, or in a tree's own trunk column, how far around it (in blocks) to look for natural ground to put it on instead. 0 turns the search off.")
         @Config.RangeInt(min = 0, max = 24)
         public int naturalGroundSearchRadius = 20;
-
-        @Config.Comment("Stop travellers/raiders/workers from appearing on top of lava, water, or other hazardous liquids when they reappear near a player.")
-        public boolean avoidHazardLiquids = true;
 
         @Config.Comment("When someone you left inside a building would reappear well above the floor it was standing on (typically pushed up onto the roof by a wall in the way), how far around it (in blocks) to look for free space back on its own floor. 0 turns the search off.")
         @Config.RangeInt(min = 0, max = 16)
@@ -2010,9 +2008,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 10)
         public int minPoolReserve = 2;
 
-        @Config.Comment("How long (in ticks) a tracked horse must be missing from its Stable before it's treated as actually gone and a replacement can be spawned from its saved data. Too short risks spawning a duplicate right as the world finishes loading the real one back in.")
-        @Config.RangeInt(min = 20, max = 1200)
-        public int missingHorseGraceTicks = 100;
 
         @Config.Comment("How long (in ticks) a palfrenier stays mounted on a horse it's taming before dismounting, as part of the taming ritual.")
         @Config.RangeInt(min = 10, max = 200)
@@ -2272,6 +2267,9 @@ public class TravellersConfig {
 
         @Config.Comment("Log every non-trivial hazard nudge applied to the server log. Very spammy - only for diagnosing edge/lava incidents.")
         public boolean debugHazardRepulsion = false;
+
+        @Config.Comment("Blocks (registry names, e.g. 'somemod:quicksand') treated as dangerous everywhere: travellers avoid walking and reappearing on them, horses refuse them and camps are never built on them. Lava and modded liquids are always dangerous and need no entry here.")
+        public String[] hazardBlocks = new String[]{"biomesoplenty:sand"};
     }
 
     public static class Sound {
@@ -2617,9 +2615,6 @@ public class TravellersConfig {
         @Config.Comment("Maximum ground height difference (blocks) allowed in front of a shelter's entrance compared to its floor. A bigger drop/rise is treated as a cliff and that entrance direction is rejected.")
         @Config.RangeInt(min = 1, max = 8)
         public int entranceMaxStepDiff = 2;
-
-        @Config.Comment("Extra block IDs (registry names, e.g. 'somemod:quicksand') that camps must never be built on, in addition to the automatic checks for liquids and modded fluid blocks. Use this for hazards (quicksand, gas, acid, etc.) that aren't detected automatically. Leave empty for no extra restrictions.")
-        public String[] terrainHazardBlacklist = new String[]{};
     }
 
     public static class BattleEvents {
@@ -2799,6 +2794,18 @@ public class TravellersConfig {
         @Config.Comment("Default half-height for lone barracks detection.")
         @Config.RangeInt(min = 2, max = 64)
         public int workerLoneBarrackHalfHeight = 4;
+
+        @Config.Comment("Largest zone (barrack, stable) a player can create, measured from its centre to its side.")
+        @Config.RangeInt(min = 4, max = 32)
+        public int zoneMaxHalfWidth = 16;
+
+        @Config.Comment("Tallest zone a player can create, measured from its centre up or down.")
+        @Config.RangeInt(min = 2, max = 64)
+        public int zoneMaxHalfHeight = 32;
+
+        @Config.Comment("How often zones check their beds and chests for changes nobody reported (pistons, other mods...).")
+        @Config.RangeInt(min = 20, max = 6000)
+        public int zoneRescanIntervalTicks = 100;
 
         @Config.Comment("Cost to hire a worker (in deniers). 1 argent = 64 deniers.")
         @Config.RangeInt(min = 0, max = 10000000)

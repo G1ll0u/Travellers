@@ -17,6 +17,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import com.jubitus.travellers.world.chunkmanager.LoadedChunks;
 import org.millenaire.common.entity.TileEntityLockedChest;
 import org.millenaire.common.utilities.Point;
 import org.millenaire.common.village.Building;
@@ -103,10 +104,11 @@ public final class WorkerEquipExchanger {
     }
 
     /**
-     * Force-loads the chunks needed for a virtual equipment exchange.
-     * Tries Millénaire building first, then lone barrack fallback.
+     * Loads the chest chunks a virtual equipment exchange needs (Millénaire building first, then lone
+     * barrack). Returns the chunks it had to load; release them with LoadedChunks.release afterwards.
      */
-    public static void forceLoadChestChunks(WorldServer world, BlockPos homePos, boolean useWholeVillage) {
+    public static List<net.minecraft.world.chunk.Chunk> loadChestChunks(WorldServer world, BlockPos homePos, boolean useWholeVillage) {
+        List<net.minecraft.world.chunk.Chunk> loaded = new java.util.ArrayList<>();
         MillWorldData wd = MillVillageIndex.getWD(world);
         if (wd != null) {
             Point homePoint = new Point(homePos.getX(), homePos.getY(), homePos.getZ());
@@ -129,26 +131,27 @@ public final class WorkerEquipExchanger {
                         int cz = p.getiZ() >> 4;
                         long key = ((long) cx << 32) | ((long) cz & 0xFFFFFFFFL);
                         if (seen.add(key)) {
-                            world.getChunkProvider().provideChunk(cx, cz);
+                            LoadedChunks.loadTemporarily(world, cx, cz, loaded);
                         }
                     }
                 }
-                return;
+                return loaded;
             }
         }
 
         // Lone barrack: force-load every chunk covered by the detection box
         PlayerZoneRecord rec = findLoneBarrackAt(world, homePos);
-        if (rec == null) return;
+        if (rec == null) return loaded;
         int cx1 = (rec.center.getX() - rec.halfWidth)  >> 4;
         int cx2 = (rec.center.getX() + rec.halfWidth)  >> 4;
         int cz1 = (rec.center.getZ() - rec.halfDepth)  >> 4;
         int cz2 = (rec.center.getZ() + rec.halfDepth)  >> 4;
         for (int cx = cx1; cx <= cx2; cx++) {
             for (int cz = cz1; cz <= cz2; cz++) {
-                world.getChunkProvider().provideChunk(cx, cz);
+                LoadedChunks.loadTemporarily(world, cx, cz, loaded);
             }
         }
+        return loaded;
     }
 
     private static List<IInventory> buildChestList(BlockPos homePos, World world, boolean useWholeVillage) {
