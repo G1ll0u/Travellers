@@ -22,7 +22,7 @@ import java.util.zip.InflaterInputStream;
  * Framed binary file per region: {@code <dim>/r.<rx>.<rz>.tpg}. All reads and writes run on one
  * dedicated daemon thread (performance contract §2.4) - never the server thread.
  *
- * <p>Lazily (re)created like {@code server/map/pyramid/PyramidIOExecutor}: an integrated server
+ * <p>Lazily (re)created like {@code worldmap/pyramid/PyramidIOExecutor}: an integrated server
  * quitting to title then loading another world runs a fresh {@code IntegratedServer} in the same
  * JVM, and {@link #shutdownAndAwait()} permanently terminates the executor at server stop.
  */

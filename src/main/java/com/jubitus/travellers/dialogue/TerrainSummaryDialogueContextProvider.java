@@ -12,7 +12,7 @@ import net.minecraft.world.WorldServer;
 /**
  * Cheap text terrain summary (roughness + nearby water) around the traveller, so it has some sense
  * of the ground around it without needing a vision-capable model. Reuses the same coarse per-chunk
- * grid ({@code world/pathing/terrain/}) Plan A route-planning already maintains — a chunk load is
+ * grid ({@code pathing/terrain/}) Plan A route-planning already maintains — a chunk load is
  * never triggered by this: {@link TerrainProfileGrid#ensureEstimated} only fills cells from biome
  * estimates, mirroring how it's already used by the {@code terrain export} debug command.
  *

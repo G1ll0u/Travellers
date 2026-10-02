@@ -10,7 +10,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 /**
  * Lifecycle hooks for the terrain profile grid, mirroring
- * {@code server/map/pyramid/MapPyramidPersistenceEvents}: create per-dimension state on world load,
+ * {@code worldmap/pyramid/MapPyramidPersistenceEvents}: create per-dimension state on world load,
  * flush dirty regions asynchronously on every save-all, one final synchronous flush on unload.
  */
 @Mod.EventBusSubscriber(modid = Tags.MOD_ID)
