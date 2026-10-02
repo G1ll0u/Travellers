@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
@@ -211,7 +212,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
             lastFee = EntityTravellerWorker.computeRecruitFee(dist, route.size());
         }
 
-        int money = MillCommonUtilities.countMoney(player.inventory);
+        int money = MillMoney.countPlayerMoney(player);
         startButton.enabled = money >= lastFee;
     }
 
@@ -333,8 +334,8 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
     private void drawVillageList(int mouseX, int mouseY) {
         TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
 
-        int money = MillCommonUtilities.countMoney(player.inventory);
-        String feeStr = MillCommonUtilities.getShortPrice(lastFee);
+        int money = MillMoney.countPlayerMoney(player);
+        String feeStr = MillMoney.format(lastFee);
         int col = money >= lastFee ? TravellersGuiTheme.COL_AFFORD : TravellersGuiTheme.COL_CANNOT;
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.recruit.fee", feeStr),

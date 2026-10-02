@@ -4,9 +4,15 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import org.millenaire.common.utilities.MillCommonUtilities;
 
-public final class TravellerMoney {
+/** The player's Millénaire money: the one place that counts, spends, gives and formats deniers. */
+public final class MillMoney {
 
-    private TravellerMoney() {
+    private MillMoney() {
+    }
+
+    /** Millénaire's short price text (e.g. "1o 2a 3d"). */
+    public static String format(int deniers) {
+        return MillCommonUtilities.getShortPrice(deniers);
     }
 
     public static int countPlayerMoney(EntityPlayer player) {

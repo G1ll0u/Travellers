@@ -7,7 +7,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.net.TravellersNetwork;
-import com.jubitus.travellers.village.TravellerMoney;
+import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.village.MillSettlements;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -83,16 +83,16 @@ public class MsgHireWorker implements IMessage {
                 }
 
                 int costInDeniers = TravellersDerivedConfig.workerHireCostDeniersServerCache;
-                int playerMoneyBefore = TravellerMoney.countPlayerMoney(player);
+                int playerMoneyBefore = MillMoney.countPlayerMoney(player);
 
                 if (playerMoneyBefore < costInDeniers) {
                     NotificationService.notify(player, NotificationDefs.HIRE_NOT_ENOUGH_MONEY,
-                            MillCommonUtilities.getShortPrice(costInDeniers));
-                    TravellerMoney.syncPlayerInventory(player);
+                            MillMoney.format(costInDeniers));
+                    MillMoney.syncPlayerInventory(player);
                     return;
                 }
 
-                if (!TravellerMoney.trySpendPlayerMoney(player, costInDeniers)) {
+                if (!MillMoney.trySpendPlayerMoney(player, costInDeniers)) {
                     NotificationService.notify(player, NotificationDefs.HIRE_PAYMENT_FAILED);
                     return;
                 }

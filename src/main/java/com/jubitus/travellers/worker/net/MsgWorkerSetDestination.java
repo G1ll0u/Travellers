@@ -4,7 +4,7 @@ import com.jubitus.travellers.worker.inventory.ContainerWorker;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.village.TravellerMoney;
+import com.jubitus.travellers.village.MillMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -93,16 +93,16 @@ public class MsgWorkerSetDestination implements IMessage {
             int cost = EntityTravellerWorker.computeTravelCost(distance, usedSlots);
 
             if (cost > 0) {
-                int playerMoney = TravellerMoney.countPlayerMoney(player);
+                int playerMoney = MillMoney.countPlayerMoney(player);
 
                 if (playerMoney < cost) {
                     NotificationService.notify(player, NotificationDefs.GOTO_NOT_ENOUGH_MONEY,
-                            MillCommonUtilities.getShortPrice(cost));
-                    TravellerMoney.syncPlayerInventory(player);
+                            MillMoney.format(cost));
+                    MillMoney.syncPlayerInventory(player);
                     return;
                 }
 
-                if (!TravellerMoney.trySpendPlayerMoney(player, cost)) {
+                if (!MillMoney.trySpendPlayerMoney(player, cost)) {
                     NotificationService.notify(player, NotificationDefs.GOTO_PAYMENT_FAILED);
                     return;
                 }
@@ -113,7 +113,7 @@ public class MsgWorkerSetDestination implements IMessage {
             com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startVillageDeliveryJob(player, villageCenter, msg.donate);
 
-            String costStr = MillCommonUtilities.getShortPrice(cost);
+            String costStr = MillMoney.format(cost);
 
             if (cost <= 0) {
                 NotificationService.notify(player, NotificationDefs.GOTO_DELIVERY_STARTED_FREE, msg.label);

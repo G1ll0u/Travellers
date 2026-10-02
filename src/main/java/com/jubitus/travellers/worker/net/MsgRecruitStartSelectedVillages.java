@@ -6,7 +6,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.village.TravellerMoney;
+import com.jubitus.travellers.village.MillMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -96,15 +96,15 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
             int dist = EntityTravellerWorker.computeRouteDistance2D(start, msg.route, end);
             int fee = EntityTravellerWorker.computeRecruitFee(dist, msg.route.size());
 
-            int money = TravellerMoney.countPlayerMoney(player);
+            int money = MillMoney.countPlayerMoney(player);
             if (money < fee) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_ROUTE_NOT_ENOUGH_FEE,
-                        MillCommonUtilities.getShortPrice(fee));
-                TravellerMoney.syncPlayerInventory(player);
+                        MillMoney.format(fee));
+                MillMoney.syncPlayerInventory(player);
                 return;
             }
 
-            if (!TravellerMoney.trySpendPlayerMoney(player, fee)) {
+            if (!MillMoney.trySpendPlayerMoney(player, fee)) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_PAYMENT_FAILED);
                 return;
             }

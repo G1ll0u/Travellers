@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.google.common.base.Optional;
@@ -1886,7 +1887,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                     String.valueOf(totalItems), String.valueOf(totalRep), items.toString());
         } else {
             NotificationService.notify(employer, NotificationDefs.TRADE_SOLD_SUMMARY, villageName,
-                    String.valueOf(totalItems), MillCommonUtilities.getShortPrice(totalMoney),
+                    String.valueOf(totalItems), MillMoney.format(totalMoney),
                     String.valueOf(totalRep), items.toString());
         }
     }

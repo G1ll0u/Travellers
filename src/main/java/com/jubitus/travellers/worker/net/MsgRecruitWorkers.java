@@ -4,7 +4,7 @@ import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.village.TravellerMoney;
+import com.jubitus.travellers.village.MillMoney;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -76,21 +76,21 @@ public class MsgRecruitWorkers implements IMessage {
             int routeDist = EntityTravellerWorker.computeRouteDistance2D(player.getPosition(), villages, returnPos);
             int fee = EntityTravellerWorker.computeRecruitFee(routeDist, villages.size());
 
-            int money = TravellerMoney.countPlayerMoney(player);
+            int money = MillMoney.countPlayerMoney(player);
             if (money < fee) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_NOT_ENOUGH_FEE,
-                        MillCommonUtilities.getShortPrice(fee), MillCommonUtilities.getShortPrice(money));
-                TravellerMoney.syncPlayerInventory(player);
+                        MillMoney.format(fee), MillMoney.format(money));
+                MillMoney.syncPlayerInventory(player);
                 return;
             }
 
-            if (!TravellerMoney.trySpendPlayerMoney(player, fee)) {
+            if (!MillMoney.trySpendPlayerMoney(player, fee)) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_PAYMENT_FAILED);
                 return;
             }
 
             NotificationService.notify(player, NotificationDefs.RECRUIT_MISSION_STARTED,
-                    MillCommonUtilities.getShortPrice(fee));
+                    MillMoney.format(fee));
 
             com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startRecruitMission(player, villages, returnPos);

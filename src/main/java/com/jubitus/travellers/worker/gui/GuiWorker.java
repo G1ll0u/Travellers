@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.gui.ITravellersGui;
@@ -269,9 +270,9 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                 costLabel = I18n.format("travellers.worker.cost_unknown");
                 color = COL_TEXT_DIM;
             } else {
-                String costStr = MillCommonUtilities.getShortPrice(lastCost);
+                String costStr = MillMoney.format(lastCost);
                 costLabel = I18n.format("travellers.worker.cost", costStr);
-                int playerMoney = MillCommonUtilities.countMoney(this.player.inventory);
+                int playerMoney = MillMoney.countPlayerMoney(this.player);
                 color = playerMoney >= lastCost ? 0x00FF00 : 0xFF5555; // Garde le indicateurs de prix vert/rouge
             }
             this.fontRenderer.drawString(costLabel, listX, listY - 10, color);
@@ -309,11 +310,11 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             GlStateManager.popMatrix();
         }
 
-        String costStr = MillCommonUtilities.getShortPrice(0);
+        String costStr = MillMoney.format(0);
         if (selectedIndex >= 0 && selectedIndex < villages.size()) {
             int usedSlots = getUsedCargoSlotsClient();
             int cost = EntityTravellerWorker.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
-            costStr = MillCommonUtilities.getShortPrice(cost);
+            costStr = MillMoney.format(cost);
         }
         this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10, COL_TEXT);
     }
@@ -404,7 +405,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                 this.lastCost = cost;
                 this.validatedVillageIdx = selectedIndex;
                 this.costValid = true;
-                int playerMoney = MillCommonUtilities.countMoney(this.player.inventory);
+                int playerMoney = MillMoney.countPlayerMoney(this.player);
                 boolean canAfford = cost == 0 || playerMoney >= cost;
                 this.sendButton.enabled = canAfford;
                 this.donateButton.enabled = canAfford;

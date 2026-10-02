@@ -1,5 +1,6 @@
 package com.jubitus.travellers.gui;
 
+import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.gui.hub.WorkerHubContext;
 import com.jubitus.travellers.gui.hub.WorkerHubLayout;
 import com.jubitus.travellers.gui.hub.WorkerHubMenu;
@@ -447,7 +448,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
         if (hireButton != null) {
             if (ctx.isFree()) {
                 int cost = TravellersDerivedConfig.workerHireCostDeniersServerCache;
-                String price = cost >= 0 ? MillCommonUtilities.getShortPrice(cost) : "?";
+                String price = cost >= 0 ? MillMoney.format(cost) : "?";
                 hireButton.displayString = net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire", price);
                 hireButton.enabled = true;
             } else {
