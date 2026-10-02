@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat;
 
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.ai.EntityAIBase;

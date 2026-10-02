@@ -15,7 +15,7 @@ import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.zone.MsgSyncWorkerHome;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
-import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
+import com.jubitus.travellers.combat.net.MsgSyncWorkerHostileList;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.mojang.authlib.GameProfile;
@@ -52,7 +52,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
         java.util.List<String> out = new java.util.ArrayList<>();
         MinecraftServer srv = player.getServer();
         if (srv != null) {
-            for (UUID id : com.jubitus.travellers.world.data.PlayerEnemyRelations.get(player.world)
+            for (UUID id : com.jubitus.travellers.combat.PlayerEnemyRelations.get(player.world)
                     .getHostiles(player.getUniqueID())) {
                 GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(id);
                 out.add(gp != null && gp.getName() != null ? gp.getName() : id.toString());

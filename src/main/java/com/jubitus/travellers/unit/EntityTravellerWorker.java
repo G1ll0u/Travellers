@@ -11,13 +11,13 @@ import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendOwnerProactively;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIOwnerHurtByTargetTraveller;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIOwnerHurtTargetTraveller;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIWorkerHurtByTargetTraveller;
-import com.jubitus.travellers.entity.entityai.combat.ThrottledAttackTargetAI;
-import com.jubitus.travellers.combat.TravellerHurtByTarget;
+import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
+import com.jubitus.travellers.combat.ai.EntityAIDefendOwnerProactively;
+import com.jubitus.travellers.combat.ai.EntityAIOwnerHurtByTargetTraveller;
+import com.jubitus.travellers.combat.ai.EntityAIOwnerHurtTargetTraveller;
+import com.jubitus.travellers.combat.ai.EntityAIWorkerHurtByTargetTraveller;
+import com.jubitus.travellers.combat.ai.ThrottledAttackTargetAI;
+import com.jubitus.travellers.combat.ai.TravellerHurtByTarget;
 import net.minecraft.entity.ai.EntityAITasks;
 import com.jubitus.travellers.follow.EntityAIFollowLeader;
 import com.jubitus.travellers.follow.FollowFormationCoordinator;
@@ -3951,7 +3951,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (attackerOwner.equals(myOwner)) return false;
             if (!(world instanceof WorldServer)) return false;
 
-            return com.jubitus.travellers.world.data.PlayerEnemyRelations.get(world)
+            return com.jubitus.travellers.combat.PlayerEnemyRelations.get(world)
                     .isHostile(attackerOwner, myOwner);
         }
 

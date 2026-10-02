@@ -9,12 +9,12 @@ import com.jubitus.travellers.unit.culture.VillagerFilterRules;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
-import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
-import com.jubitus.travellers.entity.entityai.combat.EntityAIRangedBowTravellerSafe;
+import com.jubitus.travellers.combat.ai.EntityAIAttackMeleeCustom;
+import com.jubitus.travellers.combat.TravellerCombatLogic;
+import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
+import com.jubitus.travellers.combat.ai.EntityAIRangedBowTravellerSafe;
 import com.jubitus.travellers.travel.EntityAITravel;
-import com.jubitus.travellers.combat.TravellerHurtByTarget;
+import com.jubitus.travellers.combat.ai.TravellerHurtByTarget;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
 import net.minecraft.entity.Entity;
@@ -91,7 +91,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         //    with no priority bias between target types.
         this.targetTasks.addTask(
                 4,
-                new com.jubitus.travellers.entity.entityai.combat.RaiderAttackTargetAI<>(
+                new com.jubitus.travellers.combat.ai.RaiderAttackTargetAI<>(
                         this,
                         EntityLivingBase.class,
                         10,

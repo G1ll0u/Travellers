@@ -1,9 +1,10 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat.ai;
 
 import com.google.common.base.Predicate;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
+import com.jubitus.travellers.combat.CombatTargetScanScheduler;
 
 /**
  * Target-scanning AI for raiders. Wraps EntityAINearestAttackableTarget with two additions:

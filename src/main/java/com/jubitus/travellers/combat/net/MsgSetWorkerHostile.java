@@ -1,11 +1,11 @@
-package com.jubitus.travellers.server.net.message.workerplayer;
+package com.jubitus.travellers.combat.net;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.world.data.PlayerEnemyRelations;
+import com.jubitus.travellers.combat.PlayerEnemyRelations;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;

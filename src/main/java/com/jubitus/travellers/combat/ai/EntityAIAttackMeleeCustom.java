@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat.ai;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.follow.formations.WorkerAttitude;
@@ -15,6 +15,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
+import com.jubitus.travellers.combat.TravellerItemDamage;
+import com.jubitus.travellers.combat.CombatPathScheduler;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 

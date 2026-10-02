@@ -1,4 +1,4 @@
-package com.jubitus.travellers.world.data;
+package com.jubitus.travellers.combat;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;

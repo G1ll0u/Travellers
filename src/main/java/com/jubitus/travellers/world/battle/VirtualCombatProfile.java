@@ -2,8 +2,8 @@ package com.jubitus.travellers.world.battle;
 
 import com.google.common.collect.Multimap;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
-import com.jubitus.travellers.entity.entityai.combat.TravellerItemDamage;
+import com.jubitus.travellers.combat.TravellerCombatLogic;
+import com.jubitus.travellers.combat.TravellerItemDamage;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.AttributeModifier;

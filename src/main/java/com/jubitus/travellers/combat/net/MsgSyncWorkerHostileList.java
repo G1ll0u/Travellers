@@ -1,4 +1,4 @@
-package com.jubitus.travellers.server.net.message.workerplayer;
+package com.jubitus.travellers.combat.net;
 
 import com.jubitus.travellers.client.gui.behavior.GuiWorkerEnemies;
 import io.netty.buffer.ByteBuf;

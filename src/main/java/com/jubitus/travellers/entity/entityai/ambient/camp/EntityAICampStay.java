@@ -783,7 +783,7 @@ public class EntityAICampStay extends EntityAIBase {
 
     /**
      * True if a hostile (or cross-faction traveller) is within range — mirrors
-     * {@link com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose}'s candidate
+     * {@link com.jubitus.travellers.combat.ai.EntityAIDefendIfClose}'s candidate
      * filter, scoped small and local since it's only used to interrupt sleep, not to pick a target.
      */
     private boolean hasNearbyThreat(double radius) {

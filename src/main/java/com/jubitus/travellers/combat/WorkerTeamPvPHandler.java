@@ -1,9 +1,8 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.world.data.PlayerEnemyRelations;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;

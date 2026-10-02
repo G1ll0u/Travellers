@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;

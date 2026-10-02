@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat.ai;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
@@ -17,6 +17,8 @@ import net.minecraft.util.math.AxisAlignedBB;
 
 import java.util.List;
 import java.util.UUID;
+import com.jubitus.travellers.combat.AttackTargetLimiter;
+import com.jubitus.travellers.combat.CombatTargetScanScheduler;
 
 /**
  * Traveller will defensively aggro the nearest non-blacklisted IMob that gets close.

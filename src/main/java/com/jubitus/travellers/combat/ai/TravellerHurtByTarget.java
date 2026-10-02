@@ -1,4 +1,4 @@
-package com.jubitus.travellers.combat;
+package com.jubitus.travellers.combat.ai;
 
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -115,7 +115,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
         // (this used to make every single hit ripple out to a dozen more allies regardless of
         // how many were already fighting).
         boolean enoughAlreadyEngaged = attacker != null
-                && com.jubitus.travellers.entity.entityai.combat.AttackTargetLimiter.getAttackerCount(attacker)
+                && com.jubitus.travellers.combat.AttackTargetLimiter.getAttackerCount(attacker)
                         >= com.jubitus.travellers.config.TravellersConfig.COMBAT.callForHelpSkipIfAttackersAtLeast;
 
         if (this.callForHelp && attacker != null && attacker.isEntityAlive() && !enoughAlreadyEngaged) {

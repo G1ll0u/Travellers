@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat.ai;
 
 import com.google.common.base.Predicate;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -8,6 +8,7 @@ import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 import net.minecraft.util.math.AxisAlignedBB;
 
 import java.util.List;
+import com.jubitus.travellers.combat.CombatTargetScanScheduler;
 
 /**
  * Throttled version of EntityAINearestAttackableTarget for workers.

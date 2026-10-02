@@ -69,12 +69,12 @@ import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoToPos;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerSetDestination;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgHireWorker;
-import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestPlayerHostileList;
+import com.jubitus.travellers.combat.net.MsgRequestPlayerHostileList;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestServerCosts;
-import com.jubitus.travellers.server.net.message.workerplayer.MsgSetWorkerHostile;
+import com.jubitus.travellers.combat.net.MsgSetWorkerHostile;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncServerCosts;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
-import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
+import com.jubitus.travellers.combat.net.MsgSyncWorkerHostileList;
 import com.jubitus.travellers.server.net.message.recruit.MsgRecruitStartSelectedVillages;
 import com.jubitus.travellers.server.net.message.recruit.MsgRecruitWorkers;
 import com.jubitus.travellers.server.net.message.choir.MsgWorkerChoirToggle;
@@ -136,8 +136,8 @@ public final class TravellerFollowNet {
         CHANNEL.registerMessage(MsgClearEscortLeader.Handler.class, MsgClearEscortLeader.class, id++, Side.SERVER);
         CHANNEL.registerMessage(MsgSetWorkerHostile.Handler.class, MsgSetWorkerHostile.class, id++, Side.SERVER);
         CHANNEL.registerMessage(
-                com.jubitus.travellers.server.net.message.workerplayer.MsgRequestPlayerHostileList.Handler.class,
-                com.jubitus.travellers.server.net.message.workerplayer.MsgRequestPlayerHostileList.class,
+                com.jubitus.travellers.combat.net.MsgRequestPlayerHostileList.Handler.class,
+                com.jubitus.travellers.combat.net.MsgRequestPlayerHostileList.class,
                 id++, Side.SERVER);
         CHANNEL.registerMessage(MsgOpenWorkerSubGui.Handler.class,
                 MsgOpenWorkerSubGui.class, id++, Side.SERVER);

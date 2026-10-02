@@ -1,4 +1,4 @@
-package com.jubitus.travellers.server.net.message.workerplayer;
+package com.jubitus.travellers.combat.net;
 
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;

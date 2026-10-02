@@ -1,4 +1,4 @@
-package com.jubitus.travellers.entity.entityai.combat;
+package com.jubitus.travellers.combat.ai;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -10,6 +10,8 @@ import net.minecraft.util.math.AxisAlignedBB;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import com.jubitus.travellers.combat.AttackTargetLimiter;
+import com.jubitus.travellers.combat.CombatTargetScanScheduler;
 
 /**
  * Proactive defense: scans around the player owner AND the escort worker-leader.

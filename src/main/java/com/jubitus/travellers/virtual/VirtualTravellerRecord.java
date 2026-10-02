@@ -229,7 +229,7 @@ public class VirtualTravellerRecord {
     /** Owner UUIDs this hired worker's owner has declared hostile (account-wide, see PlayerEnemyRelations). */
     public java.util.Set<UUID> getDeclaredHostileOwners(net.minecraft.world.WorldServer world) {
         if (followOwnerUUID == null) return java.util.Collections.emptySet();
-        return com.jubitus.travellers.world.data.PlayerEnemyRelations.get(world).getHostiles(followOwnerUUID);
+        return com.jubitus.travellers.combat.PlayerEnemyRelations.get(world).getHostiles(followOwnerUUID);
     }
 
     public VirtualTravellerRecord(UUID uuid, double posX, double posY, double posZ, float rotYaw,
