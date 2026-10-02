@@ -1,6 +1,6 @@
 package com.jubitus.travellers.zone.net;
 
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

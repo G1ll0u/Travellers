@@ -3,7 +3,7 @@ package com.jubitus.travellers.zone;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.follow.group.WorkerOrderGuard;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.zone.net.MsgSyncWorkerHome;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;

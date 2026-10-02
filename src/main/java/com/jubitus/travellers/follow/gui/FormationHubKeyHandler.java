@@ -1,6 +1,6 @@
 package com.jubitus.travellers.follow.gui;
 
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.follow.net.MsgRequestFormationHub;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;

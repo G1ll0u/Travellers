@@ -1,20 +1,20 @@
 package com.jubitus.travellers.village.gui;
 
-import com.jubitus.travellers.client.gui.GuiTravellersButton;
-import com.jubitus.travellers.client.gui.ITravellersGui;
-import com.jubitus.travellers.client.gui.TravellersGuiTheme;
+import com.jubitus.travellers.gui.GuiTravellersButton;
+import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
-import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
-import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
+import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
+import com.jubitus.travellers.worldmap.gui.WorldMapController;
+import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
+import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
+import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.village.net.MsgSetVillageEnemy;
 import com.jubitus.travellers.village.net.MsgWorkerRequestVillageRelations;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
@@ -256,7 +256,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 mc.displayGuiScreen(returnTo);
             } else if (worker != null) {
                 // Opened from a worker's hub (server-side, so there is no parent screen to hold).
-                com.jubitus.travellers.server.net.handler.TravellerFollowNet.CHANNEL.sendToServer(
+                com.jubitus.travellers.net.TravellerFollowNet.CHANNEL.sendToServer(
                         new com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui(
                                 worker.getEntityId(),
                                 com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui.Type.HUB));

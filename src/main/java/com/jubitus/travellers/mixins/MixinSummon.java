@@ -1,7 +1,7 @@
 package com.jubitus.travellers.mixins;
 
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.client.gui.TravellersGuiIds;
+import com.jubitus.travellers.gui.TravellersGuiIds;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;

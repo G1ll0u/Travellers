@@ -2,7 +2,7 @@ package com.jubitus.travellers.travel;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.client.sound.ModSounds;
+import com.jubitus.travellers.sound.ModSounds;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.camp.CampfireBlock;

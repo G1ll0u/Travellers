@@ -1,6 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
-import com.jubitus.travellers.client.gui.GuiWorkerHub;
+import com.jubitus.travellers.gui.GuiWorkerHub;
 import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
 import com.jubitus.travellers.worker.gui.GuiWorkerGo;

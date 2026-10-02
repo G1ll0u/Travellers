@@ -3,10 +3,10 @@ package com.jubitus.travellers.unit.culture;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.client.sound.ModSounds;
-import com.jubitus.travellers.client.sound.RaiderVoiceIndex;
-import com.jubitus.travellers.client.sound.VoiceIndex;
-import com.jubitus.travellers.client.sound.VoicePersonality;
+import com.jubitus.travellers.sound.ModSounds;
+import com.jubitus.travellers.sound.RaiderVoiceIndex;
+import com.jubitus.travellers.sound.VoiceIndex;
+import com.jubitus.travellers.sound.VoicePersonality;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.item.Item;

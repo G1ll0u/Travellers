@@ -4,8 +4,8 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.google.common.base.Optional;
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.client.gui.TravellersGuiIds;
-import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
+import com.jubitus.travellers.gui.TravellersGuiIds;
+import com.jubitus.travellers.marker.WorkerMarkStyle;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
@@ -30,9 +30,9 @@ import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.zone.ZoneRef;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData;
+import com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData;
 import com.jubitus.travellers.worker.net.MsgOpenClientWorkerGui;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.combat.PlayerHostility;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
 import com.jubitus.travellers.village.TravellerVillageRelations;
@@ -253,7 +253,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         removeTaskOfType(EntityAIFollowLeader.class);
         removeTaskOfType(EntityAIStopAndLookAtPlayer.class);
         // Priority 0 = highest; mutex 3 blocks all other move+look AI when freeze is active
-        this.tasks.addTask(0, new com.jubitus.travellers.entity.entityai.choir.EntityAIChoirFreeze(this));
+        this.tasks.addTask(0, new com.jubitus.travellers.choir.EntityAIChoirFreeze(this));
         this.tasks.addTask(10, new EntityAIStopAndLookAtPlayer(this));
         // Base EntityTraveller.initEntityAI() (run via super() above) already registered
         // EntityAIDefendIfClose at priority 1 and TravellerHurtByTarget at priority 2 — pull

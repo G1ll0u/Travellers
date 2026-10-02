@@ -10,8 +10,8 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.unit.backpack.BackpackRegistry;
 import com.jubitus.travellers.unit.backpack.IBackpackStyle;
-import com.jubitus.travellers.client.sound.ModSounds;
-import com.jubitus.travellers.client.sound.TravellerCrowdSoundLimiter;
+import com.jubitus.travellers.sound.ModSounds;
+import com.jubitus.travellers.sound.TravellerCrowdSoundLimiter;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.TravellerAppearance;
@@ -41,10 +41,10 @@ import net.minecraft.entity.passive.EntityHorse;
 import com.jubitus.travellers.combat.ai.TravellerHurtByTarget;
 import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
-import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
-import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
+import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.choir.net.MsgChoirSingerMute;
+import com.jubitus.travellers.sound.net.MsgPlayTravellerVoice;
+import com.jubitus.travellers.sound.net.MsgStopTravellerVoice;
 import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.pathing.GapJumpEvaluator;
 import com.jubitus.travellers.pathing.GapJumpResult;
@@ -180,8 +180,8 @@ public class EntityTraveller extends EntityCreature {
     // Current leg's itinerary + cursor, shared with the virtual record at virtualize/materialize.
     private com.jubitus.travellers.pathing.itinerary.ItineraryState itineraryState =
             new com.jubitus.travellers.pathing.itinerary.ItineraryState();
-    public final com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore dialogueMemory =
-            new com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore();
+    public final com.jubitus.travellers.dialogue.memory.TravellerMemoryStore dialogueMemory =
+            new com.jubitus.travellers.dialogue.memory.TravellerMemoryStore();
     private final int retargetPhase = this.rand.nextInt(10); // 0..9
     private final Map<UUID, Integer> ignoreTargetsUntil = new java.util.HashMap<>();
     public int nextTravelAmbientTick = 0;  // you already had this
@@ -224,7 +224,7 @@ public class EntityTraveller extends EntityCreature {
 
     public TravelMotive getTravelMotive() {
         if (travelMotive == null && !world.isRemote) {
-            travelMotive = com.jubitus.travellers.server.dialogue.TravelMotiveDialogueContextProvider.rollMotive(this);
+            travelMotive = com.jubitus.travellers.dialogue.TravelMotiveDialogueContextProvider.rollMotive(this);
         }
         return travelMotive;
     }
@@ -2346,7 +2346,7 @@ public class EntityTraveller extends EntityCreature {
         setTextureIndex(this.rand.nextInt(Math.max(1, tCount <= 0 ? 1 : tCount)));
         rollRenderScale(getActiveAppearance());
         if (!world.isRemote) {
-            travelMotive = com.jubitus.travellers.server.dialogue.TravelMotiveDialogueContextProvider.rollMotive(this);
+            travelMotive = com.jubitus.travellers.dialogue.TravelMotiveDialogueContextProvider.rollMotive(this);
         }
 
         // Reset move attr base and make sure no swim boost lingers
@@ -2422,13 +2422,13 @@ public class EntityTraveller extends EntityCreature {
         // dialogue GUI, regardless of whether this specific player has configured Ollama yet - the
         // server can't know that, so the client itself decides what to show once the GUI is open.
         if (com.jubitus.travellers.config.TravellersConfig.DIALOGUE.enabled) {
-            com.jubitus.travellers.server.dialogue.DialogueContext context =
-                    com.jubitus.travellers.server.dialogue.DialogueContextBuilder.build(this, player);
+            com.jubitus.travellers.dialogue.DialogueContext context =
+                    com.jubitus.travellers.dialogue.DialogueContextBuilder.build(this, player);
             // Built from state as of BEFORE this visit (metPlayerBefore reflects prior encounters,
             // never this one) - marked met only after the context is built.
             dialogueMemory.markMet(player.getUniqueID(), world.getTotalWorldTime());
-            com.jubitus.travellers.server.net.handler.TravellerFollowNet.sendToPlayer(player,
-                    new com.jubitus.travellers.server.net.message.dialogue.MsgOpenTravellerDialogue(
+            com.jubitus.travellers.net.TravellerFollowNet.sendToPlayer(player,
+                    new com.jubitus.travellers.dialogue.net.MsgOpenTravellerDialogue(
                             this.getEntityId(), context));
             return true;
         }
@@ -4420,8 +4420,8 @@ public void fall(float distance, float damageMultiplier) {
         voiceLockUntilTick = ticksExisted;
         voiceKindNow = VoiceKind.NONE;
         if (!world.isRemote) {
-            com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice stop =
-                    new com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice(this);
+            com.jubitus.travellers.sound.net.MsgStopTravellerVoice stop =
+                    new com.jubitus.travellers.sound.net.MsgStopTravellerVoice(this);
             NetworkRegistry.TargetPoint tp = new NetworkRegistry.TargetPoint(
                     dimension, posX, posY, posZ, 96.0);
             TravellerFollowNet.CHANNEL.sendToAllAround(stop, tp);

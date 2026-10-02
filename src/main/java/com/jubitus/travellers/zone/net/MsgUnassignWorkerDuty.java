@@ -1,7 +1,7 @@
 package com.jubitus.travellers.zone.net;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.zone.ZoneAssignments;

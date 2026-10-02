@@ -1,6 +1,6 @@
 package com.jubitus.travellers.zone.net;
 
-import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerZoneDutyReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerZoneDutyReceiver;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;

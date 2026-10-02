@@ -77,8 +77,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             java.util.List<String> lines =
                     com.jubitus.travellers.debug.trace.TravellerTracer.buildHudLines(ws, ids);
             if (!lines.isEmpty()) {
-                com.jubitus.travellers.server.net.handler.TravellerFollowNet.CHANNEL.sendToDimension(
-                        new com.jubitus.travellers.server.net.message.debug.MsgTraceHud(lines, ids[0]),
+                com.jubitus.travellers.net.TravellerFollowNet.CHANNEL.sendToDimension(
+                        new com.jubitus.travellers.debug.net.MsgTraceHud(lines, ids[0]),
                         ws.provider.getDimension());
             }
         }
@@ -107,10 +107,10 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         com.jubitus.travellers.travel.TravellerDoorways.tick(ws, now);
 
         // Worldmap: continuous re-sampling of currently-loaded chunks (terrain edits, growing villages)
-        com.jubitus.travellers.server.map.pyramid.MapLoadedChunkResampler.INSTANCE.tick(ws, now);
+        com.jubitus.travellers.worldmap.pyramid.MapLoadedChunkResampler.INSTANCE.tick(ws, now);
 
         // Paced physical resweep job started by "/travellersdebug map resweep", if one is running
-        com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.tick(ws, now);
+        com.jubitus.travellers.worldmap.pyramid.MapResweepCoordinator.INSTANCE.tick(ws, now);
 
         // Dead hired workers coming back beside their bed (once per in-game morning, persisted)
         com.jubitus.travellers.zone.PlayerZoneManager.get(ws).tickRespawns(ws);

@@ -1,6 +1,6 @@
 package com.jubitus.travellers.zone.net;
 
-import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerBarracksReceiver;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
@@ -141,7 +141,7 @@ public class MsgWorkerBarracksData implements IMessage {
                 we.name = nbt != null && nbt.hasKey("CustomName") ? nbt.getString("CustomName") : "Worker";
                 we.cultureId = nbt != null ? nbt.getString("CultureId") : "";
                 we.textureIndex = nbt != null ? nbt.getInteger("TextureIdx") : 0;
-                we.ownerColor = com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData.get(ws).getFor(ownerId).color;
+                we.ownerColor = com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData.get(ws).getFor(ownerId).color;
                 we.assignedCenter = pr.center;
                 we.pos = pr.center;
                 msg.workers.add(we);

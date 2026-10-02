@@ -1,6 +1,6 @@
 package com.jubitus.travellers.unit.render;
 
-import com.jubitus.travellers.client.render.marker.LayerTravellerArmband;
+import com.jubitus.travellers.marker.render.LayerTravellerArmband;
 import com.jubitus.travellers.unit.render.models.ModelSimpleHumanoid;
 import com.jubitus.travellers.unit.render.textures.LayerTravellerBackpack;
 import com.jubitus.travellers.unit.render.textures.LayerTravellerClothes;

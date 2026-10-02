@@ -8,7 +8,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.MissionNotifications;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgSyncLeaderFollowerCount;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;

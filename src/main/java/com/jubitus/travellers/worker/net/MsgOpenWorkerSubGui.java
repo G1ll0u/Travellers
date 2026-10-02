@@ -1,7 +1,7 @@
 package com.jubitus.travellers.worker.net;
 
 import com.jubitus.travellers.Travellers;
-import com.jubitus.travellers.client.gui.TravellersGuiIds;
+import com.jubitus.travellers.gui.TravellersGuiIds;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeResolver;
@@ -10,7 +10,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
 import com.jubitus.travellers.zone.net.MsgSyncWorkerHome;

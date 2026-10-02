@@ -1,22 +1,22 @@
 package com.jubitus.travellers.worker.gui;
 
-import com.jubitus.travellers.client.gui.GuiTravellersButton;
+import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
-import com.jubitus.travellers.client.gui.ITravellersGui;
-import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
-import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver;
-import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
+import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
+import com.jubitus.travellers.gui.TravellersGuiTheme;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
+import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
+import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
+import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
+import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worker.net.MsgRecruitStartSelectedVillages;
 import com.jubitus.travellers.worker.net.MsgWorkerRequestVillages;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
@@ -250,7 +250,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         int minD = TravellersConfig.RECRUITMENT.recruitMinVillageDistance;
         int dist = villages.get(idx).distance;
         if (dist < minD) {
-            com.jubitus.travellers.client.notify.ClientNotificationCache.push(
+            com.jubitus.travellers.notify.client.ClientNotificationCache.push(
                     com.jubitus.travellers.notify.NotificationType.ERROR,
                     I18n.format("travellers.worker.recruit.too_close", minD),
                     Minecraft.getMinecraft().world != null ? Minecraft.getMinecraft().world.getTotalWorldTime() : 0L);

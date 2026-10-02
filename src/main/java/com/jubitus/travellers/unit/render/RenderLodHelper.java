@@ -21,7 +21,7 @@ public final class RenderLodHelper {
         }
         // A GUI portrait must always show the full outfit, however far the entity has wandered
         // while the menu was open (the game keeps running behind it).
-        if (com.jubitus.travellers.client.gui.hub.WorkerPortraitRenderer.isRenderingPortrait()) {
+        if (com.jubitus.travellers.gui.hub.WorkerPortraitRenderer.isRenderingPortrait()) {
             return false;
         }
         EntityPlayer player = Minecraft.getMinecraft().player;

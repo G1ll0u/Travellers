@@ -1,16 +1,16 @@
 package com.jubitus.travellers.zone.gui;
 
-import com.jubitus.travellers.client.gui.GuiTravellersButton;
-import com.jubitus.travellers.client.gui.ITravellersGui;
-import com.jubitus.travellers.client.gui.TravellersGuiTheme;
+import com.jubitus.travellers.gui.GuiTravellersButton;
+import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.follow.gui.GuiWorkerFormationSlider;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
-import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
+import com.jubitus.travellers.worldmap.gui.WorldMapController;
+import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.zone.net.MsgCreatePlayerZone;
 import com.jubitus.travellers.zone.net.MsgOpenZonePrompt;
-import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
+import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.zone.BlockRoleRequirement;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.ZoneType;

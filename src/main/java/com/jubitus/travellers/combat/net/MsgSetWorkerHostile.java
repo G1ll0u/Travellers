@@ -3,7 +3,7 @@ package com.jubitus.travellers.combat.net;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.combat.PlayerEnemyRelations;
 import com.mojang.authlib.GameProfile;

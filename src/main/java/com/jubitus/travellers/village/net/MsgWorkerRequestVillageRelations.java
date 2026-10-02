@@ -2,7 +2,7 @@ package com.jubitus.travellers.village.net;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import com.jubitus.travellers.village.MillSettlements;
 import io.netty.buffer.ByteBuf;

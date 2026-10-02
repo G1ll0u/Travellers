@@ -1,11 +1,11 @@
 package com.jubitus.travellers.worker.gui;
 
-import com.jubitus.travellers.client.gui.GuiTravellersButton;
-import com.jubitus.travellers.client.gui.ITravellersGui;
-import com.jubitus.travellers.client.gui.TravellersGuiTheme;
+import com.jubitus.travellers.gui.GuiTravellersButton;
+import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellerFollowNet;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;

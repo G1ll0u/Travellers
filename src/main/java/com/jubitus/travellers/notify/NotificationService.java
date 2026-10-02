@@ -1,9 +1,9 @@
 package com.jubitus.travellers.notify;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.message.notify.MsgJournalEntryAdded;
-import com.jubitus.travellers.server.net.message.notify.MsgShowNotification;
+import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.notify.net.MsgJournalEntryAdded;
+import com.jubitus.travellers.notify.net.MsgShowNotification;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;

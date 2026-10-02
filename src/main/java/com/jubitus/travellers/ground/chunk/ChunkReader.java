@@ -2,8 +2,8 @@ package com.jubitus.travellers.ground.chunk;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.server.map.pyramid.MapChunkPainter;
-import com.jubitus.travellers.server.map.pyramid.MapPyramidStore;
+import com.jubitus.travellers.worldmap.pyramid.MapChunkPainter;
+import com.jubitus.travellers.worldmap.pyramid.MapPyramidStore;
 import com.jubitus.travellers.pathing.terrain.TerrainWorldState;
 import it.unimi.dsi.fastutil.longs.Long2ByteLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
