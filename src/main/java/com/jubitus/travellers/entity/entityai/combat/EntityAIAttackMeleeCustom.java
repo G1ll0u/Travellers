@@ -31,9 +31,6 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private static final int REPATH_INTERVAL_FAR = 4;
     private static final int REPATH_INTERVAL_NEAR = 2;
 
-    // Nouveau : cadence d'attaque plus nerveuse
-    private static final int ATTACK_COOLDOWN_TICKS = 24;
-
     private final double extraReach;
 
     private final double meleeCommitSq;
@@ -359,36 +356,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         return new Vec3d(tgt.posX + nx * curve * side, tgt.posY, tgt.posZ + nz * curve * side);
     }
 
-    private static double gapToAABBSq(Entity e, AxisAlignedBB bb) {
-        double px = e.posX, py = e.posY + (e.height * 0.5D), pz = e.posZ;
-        double dx = (px < bb.minX) ? (bb.minX - px) : (px > bb.maxX ? px - bb.maxX : 0.0D);
-        double dy = (py < bb.minY) ? (bb.minY - py) : (py > bb.maxY ? py - bb.maxY : 0.0D);
-        double dz = (pz < bb.minZ) ? (bb.minZ - pz) : (pz > bb.maxZ ? pz - bb.maxZ : 0.0D);
-        return dx * dx + dy * dy + dz * dz;
-    }
-
     private static float lerp(float a, float b, float t) {
         return a + (b - a) * t;
-    }
-
-    private boolean isTouchingForMelee(EntityLivingBase tgt) {
-        AxisAlignedBB bb = tgt.getEntityBoundingBox();
-
-        double px = attacker.posX;
-        double pz = attacker.posZ;
-        double dx = (px < bb.minX) ? (bb.minX - px) : (px > bb.maxX ? px - bb.maxX : 0.0D);
-        double dz = (pz < bb.minZ) ? (bb.minZ - pz) : (pz > bb.maxZ ? pz - bb.maxZ : 0.0D);
-        double gapXZSq = dx * dx + dz * dz;
-
-        if (gapXZSq > (0.6D * 0.6D)) return false;
-
-        double myFeet = attacker.posY;
-        double myHead = attacker.posY + attacker.height;
-        double vGap = 0.0D;
-        if (myHead < bb.minY) vGap = bb.minY - myHead;
-        else if (myFeet > bb.maxY) vGap = myFeet - bb.maxY;
-
-        return vGap <= 1.5D;
     }
 
     private boolean shouldForgivePlayerChaseForAI(EntityCreature attacker, EntityPlayer p) {

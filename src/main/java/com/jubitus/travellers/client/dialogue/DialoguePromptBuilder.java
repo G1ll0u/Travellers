@@ -238,9 +238,6 @@ public final class DialoguePromptBuilder {
                         ? "You are currently staying in " + descr + " for a while."
                         : "You are currently staying put for a while.");
                 break;
-            case FOLLOWING_SOMEONE:
-                sb.append("You are currently travelling together with someone else, and can't stop to talk for long.");
-                break;
             case ROAMING:
             default:
                 sb.append("You are currently wandering, with no fixed destination right now.");

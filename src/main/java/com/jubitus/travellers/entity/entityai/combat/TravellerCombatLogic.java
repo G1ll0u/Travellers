@@ -69,11 +69,6 @@ public class TravellerCombatLogic {
     private static final int ENTITY_HIT_GRACE_TICKS = 20;
     private int lastEntityHitTick = Integer.MIN_VALUE / 2;
 
-    /** Marks that a living entity (as opposed to environmental damage) just hit us. */
-    public void recordEntityHit() {
-        lastEntityHitTick = entity.ticksExisted;
-    }
-
     public boolean isInCombatRaw() {
         return entity.getAttackTarget() != null
                 || entity.getRevengeTarget() != null
@@ -103,25 +98,6 @@ public class TravellerCombatLogic {
     // -------------------------------------------------------------------------
     // Target validation
     // -------------------------------------------------------------------------
-
-    /**
-     * Returns true if this entity is allowed to engage the given target at all.
-     * Does not check faction rules — use {@link #isCrossFaction(EntityTraveller)} for that.
-     */
-    public boolean canEngageTarget(@Nullable EntityLivingBase target) {
-        if (target == null || !target.isEntityAlive()) return false;
-        if (TravellersDerivedConfig.isPeacefulBlocked(entity.world)) return false;
-
-        TravellerBlacklist blacklist = entity.getAggroBlacklist();
-        if (blacklist != null && blacklist.isBlacklisted(target)) return false;
-
-        if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
-                && !entity.isInPlayerViewDistance()
-                && !(target instanceof EntityPlayer)) {
-            return false;
-        }
-        return true;
-    }
 
     /** True only when the two entities belong to opposing factions. */
     public boolean isCrossFaction(EntityTraveller other) {

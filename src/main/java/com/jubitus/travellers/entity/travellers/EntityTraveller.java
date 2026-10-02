@@ -138,7 +138,6 @@ public class EntityTraveller extends EntityCreature {
     // The biped model spans ~2.01 blocks from feet to top of head at scale 1.0, hence the default
     // height being taller than vanilla's 1.8 - it must contain the head, not just the body.
     // ---- GAP / CLIFF handling ----
-    private static final String SWIM_BOOST_NAME = "TravellerSwimBoost";
     private static final DataParameter<Boolean> AIMING_BOW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     // --- Camp sleep pose (synced for render only, never persisted to NBT: virtualization must
@@ -185,13 +184,6 @@ public class EntityTraveller extends EntityCreature {
     public final com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore dialogueMemory =
             new com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore();
     private final int retargetPhase = this.rand.nextInt(10); // 0..9
-    // per-player last hello tick (server-authoritative)
-    // ---- GAP / CLIFF handling control ----
-    private final boolean wasInWater = false;
-    private final int noPathTicks = 0;
-    private final float baseWaterPenalty = 6.0F;
-    // NEW: cultural aggression toggle (per entity, persisted)
-    private final boolean aggressiveToCultures = false;
     private final Map<UUID, Integer> ignoreTargetsUntil = new java.util.HashMap<>();
     public int nextTravelAmbientTick = 0;  // you already had this
     EntityAIAutoEat autoEatTask;
@@ -781,12 +773,7 @@ public class EntityTraveller extends EntityCreature {
     private boolean lastPathCheckResult = false;
     private boolean wasInCombatPrev = false;
     private int combatSilenceUntilTick = 0;
-    private final int debugNextTargetTraceTick = 0;
     private ForgeChunkManager.Ticket travelTicket;
-    // --- Caravan / follow-other-travellers state ---
-    @Nullable
-    private UUID followLeaderId = null;
-    private int followTimeoutTicks = 0;
     private int speakCooldown = 0;
     private int forcedSwingTicks = 0;
     private int hurtAnimCooldown = 0;
@@ -803,12 +790,9 @@ public class EntityTraveller extends EntityCreature {
     private static final java.util.concurrent.ConcurrentHashMap<Long, Long> DEATH_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean choirSinging = false;   // managed by ChoirCoordinator, server-side only
     private int travelTorchCooldown = 0;
-    // --- spawn helper flags ---
-    private boolean checkedCompanionSpawn = false;   // only run logic once
     private int stuckTargetTicks = 0;
     private double lastTargetDistSq = -1.0D;
     @Nullable
-    private int currentFollowers = 0;
     // Set/cleared each tick by EntityAICampStay while peacefully occupying a camp (building, wandering,
     // napping, sleeping). Never persisted: purely a same-tick "don't proactively engage" signal for
     // EntityAIDefendIfClose / RaiderAttackTargetAI. Retaliation (TravellerHurtByTarget) ignores this flag.
@@ -1774,7 +1758,6 @@ public class EntityTraveller extends EntityCreature {
             if (rec > 0) {
                 travelCommon.setTravelRecoverTicks(rec - 1);
             }
-            tickFollowTimer();
 
             EntityLivingBase tgtNow = this.getAttackTarget();
             if (tgtNow != null && !tgtNow.isEntityAlive()) {
@@ -2451,13 +2434,7 @@ public class EntityTraveller extends EntityCreature {
             return true;
         }
 
-        // Keep your existing “I’m following / village idle / announce heading” messages:
-        if (isFollowingSomeone()) {
-            ITextComponent travellingMsg = new TextComponentTranslation("travellers.dialogue.travelling_with_someone");
-            travellingMsg.getStyle().setColor(TextFormatting.WHITE);
-            player.sendMessage(travellingMsg);
-            return true;
-        }
+        // Keep your existing “village idle / announce heading” messages:
         if (travelCommon.isVillageIdling()) {
             String stayName = travelCommon.lookupNearestVillageNameOrCoords();
             ITextComponent stayNameComp = new TextComponentString(stayName)
@@ -3176,10 +3153,6 @@ public class EntityTraveller extends EntityCreature {
         this.forcedSwingTicks = 6; // matches your handleStatusUpdate()
     }
 
-    public boolean isFollowingSomeone() {
-        return this.hasFollowLeader() && this.getFollowLeader() != null;
-    }
-
     public String debugId() {
         return "[Traveller " + this.getEntityId() + " " +
                 (world != null && world.isRemote ? "CLIENT" : "SERVER") + "]";
@@ -3232,14 +3205,6 @@ public class EntityTraveller extends EntityCreature {
         voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
         voiceKindNow = kind;
         return true;
-    }
-
-    @Nullable
-    public EntityTraveller getFollowLeader() {
-        if (followLeaderId == null) return null;
-        List<EntityTraveller> list = this.world.getEntities(EntityTraveller.class, e ->
-                e != null && e.isEntityAlive() && e.getUniqueID().equals(followLeaderId));
-        return list.isEmpty() ? null : list.get(0);
     }
 
     @Nullable
@@ -3743,22 +3708,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public void setVillageIdleTicks(int villageIdleTicks) {
         travelCommon.setVillageIdleTicks(villageIdleTicks);
-    }
-
-    public void startFollowing(EntityTraveller leader, int durationTicks) {
-        this.followLeaderId = leader.getUniqueID();
-        this.followTimeoutTicks = durationTicks;
-    }
-
-    public void stopFollowing() {
-        this.followLeaderId = null;
-        this.followTimeoutTicks = 0;
-        this.getNavigator().clearPath();
-    }
-
-    public void tickFollowTimer() {
-        if (followTimeoutTicks > 0) followTimeoutTicks--;
-        else if (hasFollowLeader()) stopFollowing();
     }
 
     // Some path related getters
@@ -4707,37 +4656,7 @@ public void fall(float distance, float damageMultiplier) {
         return this.ticksExisted;
     }
 
-    public int getFollowerCount() {
-        return currentFollowers;
-    }
 
-    protected void onFollowerStarted() {
-        currentFollowers++;
-    }
-
-    protected void onFollowerStopped() {
-        if (currentFollowers > 0) currentFollowers--;
-    }
-
-    /**
-     * Number of travellers currently following this one.
-     * Uses followLeaderId directly (cheap) instead of calling getFollowLeader().
-     */
-    public int getCurrentFollowerCount() {
-        UUID myId = this.getUniqueID();
-        List<EntityTraveller> followers = this.world.getEntities(EntityTraveller.class, e ->
-                e != null
-                        && e.isEntityAlive()
-                        && e.hasFollowLeader()
-                        && myId.equals(e.followLeaderId)      // access is OK here: same class
-        );
-        return followers.size();
-    }
-
-    // Follower things
-    public boolean hasFollowLeader() {
-        return followLeaderId != null;
-    }
 
     public boolean isDifferentCulture(EntityTraveller other) {
         return !isSameCulture(other);

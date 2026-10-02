@@ -18,8 +18,6 @@ public final class DialogueFallbackText {
 
     public static String forContext(DialogueContext context) {
         switch (context.activity) {
-            case FOLLOWING_SOMEONE:
-                return I18n.format("travellers.dialogue.travelling_with_someone");
             case IDLING_IN_VILLAGE:
                 return context.activityVillageName != null
                         ? I18n.format("travellers.dialogue.staying_in_village", context.activityVillageName)

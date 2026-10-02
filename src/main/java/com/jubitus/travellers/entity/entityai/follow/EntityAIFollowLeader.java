@@ -90,9 +90,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
     private double cachedDeflectDirZ;
     private boolean hasCachedDeflectDir;
 
-    private static final double GOAL_REEVAL_LEADER_MOVE_SQ = 1.5D * 1.5D;
-    private static final double GOAL_REEVAL_WORKER_MOVE_SQ = 1.0D * 1.0D;
-
     private int goalRefreshCooldown;
     private double lastGoalEvalLeaderX, lastGoalEvalLeaderY, lastGoalEvalLeaderZ;
     private double lastGoalEvalWorkerX, lastGoalEvalWorkerY, lastGoalEvalWorkerZ;
@@ -150,9 +147,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
     private int recoveryCooldown;
     private int nextWaterLeadProbeTick;
 
-    private double lastProgressX;
-    private double lastProgressY;
-    private double lastProgressZ;
     private boolean hasProgressAnchor;
 
     /**
@@ -1220,15 +1214,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         return null;
     }
 
-    @Nullable
-    private BlockPos findLocalGround(BlockPos feet) {
-        for (int dy = 2; dy >= -2; dy--) {
-            BlockPos p = feet.add(0, dy, 0);
-            if (isStandableFast(p)) return p;
-        }
-        return null;
-    }
-
     private double computeSettleRadius(FollowFormationCoordinator.SlotAssignment slot, GoalCandidate goal, FollowMode mode) {
         double radius = slot.arriveRadius;
 
@@ -1258,9 +1243,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         double goalDistSq = distanceSq(follower.posX, follower.posY, follower.posZ, goal.x, goal.y, goal.z);
 
         if (!hasProgressAnchor) {
-            lastProgressX = follower.posX;
-            lastProgressY = follower.posY;
-            lastProgressZ = follower.posZ;
             bestGoalDistSq = goalDistSq;
             hasProgressAnchor = true;
             stagnationTicks = 0;
@@ -1280,10 +1262,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // Stagnation is the entity's shared stuck evidence (new cells, see StuckRecord): jostling or
         // pacing never fakes it, and it survives target changes and follow/travel hand-offs.
         stagnationTicks = follower.getStuckRecord().tickFollow(follower.posX, follower.posY, follower.posZ, tryingToMove);
-
-        lastProgressX = follower.posX;
-        lastProgressY = follower.posY;
-        lastProgressZ = follower.posZ;
 
         if (!tryingToMove && failedAllowedPathTicks > 0) {
             failedAllowedPathTicks--;
@@ -1419,33 +1397,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
                         && activePathTicks >= cfg.rescue.minActivePathTicks * 2;
 
         return outsideVsUnderground || aboveLeader || extremeFailure;
-    }
-
-    private boolean isNaturalCaveProgressStillHappening(EntityLivingBase target,
-                                                        GoalCandidate goal,
-                                                        FollowRuntimeConfig cfg) {
-        double distToLeader = follower.getDistance(target);
-        double dyToLeader = Math.abs(follower.posY - target.posY);
-
-        if (distToLeader <= cfg.rescue.caveNoTeleportLeaderDistance + 4.0D
-                && dyToLeader <= cfg.rescue.caveNoTeleportVerticalGap + 2.0D) {
-            return true;
-        }
-
-        double dx = follower.posX - goal.x;
-        double dy = follower.posY - goal.y;
-        double dz = follower.posZ - goal.z;
-        double distToGoalSq = dx * dx + dy * dy + dz * dz;
-
-        if (distToGoalSq <= (cfg.rescue.caveNoTeleportGoalDistance + 2.0D) * (cfg.rescue.caveNoTeleportGoalDistance + 2.0D)) {
-            return true;
-        }
-
-        return activePathTicks > 0 && stagnationTicks < 40 && failedAllowedPathTicks < 16;
-    }
-
-    private boolean sameOwner(EntityTravellerWorker other) {
-        return other != null && Objects.equals(follower.getFollowOwnerId(), other.getFollowOwnerId());
     }
 
     /**

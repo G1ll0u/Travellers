@@ -91,7 +91,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
     /** Only plain travel or idling is paused; anything else the traveller is busy with goes on. */
     private boolean canPauseNow() {
         if (traveller.isSleepingInBed() || traveller.isInCombat() || traveller.isAutoEating()) return false;
-        if (traveller.hasFollowLeader() || traveller.hasPlayerPassenger() || traveller.isVisitingVillage()) return false;
+        if (traveller.hasPlayerPassenger() || traveller.isVisitingVillage()) return false;
         // A group member stops with its leader, not on its own; a catching-up follower keeps going.
         if (traveller.getGroupLeaderUUID() != null || traveller.isCatchupTravel()) return false;
         // Pausing resets the travel task, which would undo a crossing, a flight or a terrain dismount.

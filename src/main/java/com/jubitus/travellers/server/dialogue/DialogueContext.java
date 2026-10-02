@@ -29,7 +29,6 @@ public final class DialogueContext {
     public enum ActivityKind {
         TRAVELLING_TO_VILLAGE,
         IDLING_IN_VILLAGE,
-        FOLLOWING_SOMEONE,
         ROAMING
     }
 

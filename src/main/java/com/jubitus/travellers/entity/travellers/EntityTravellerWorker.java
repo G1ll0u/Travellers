@@ -117,7 +117,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     // --- anchor defense ---
     private static final double ANCHOR_DEFEND_RADIUS = 12.0D; // blocks
     private static final int ANCHOR_SCAN_INTERVAL_TICKS = 20; // 1 time per second
-    private static final int CATCHUP_REFRESH_TICKS = 20 * 10; // 10 seconds
     private static final double MOTION_EPSILON = 0.0004D;
     private static final DataParameter<Boolean> USING_TRAVEL_AI =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
@@ -127,8 +126,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
     static final DataParameter<Optional<UUID>> FOLLOW_OWNER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
-    // --- assigned home sync (server -> client) ---
-    private static final long NO_HOME = Long.MIN_VALUE;
     // --- assigned home sync ---
     static final DataParameter<com.google.common.base.Optional<BlockPos>> HOME_POS_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_BLOCK_POS);
@@ -153,16 +150,11 @@ public class EntityTravellerWorker extends EntityTraveller {
     public double choirFreezeLookX, choirFreezeLookZ;
 
     private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist; // tweak (24–40 works well)
-    // How often to refresh the catchup target (ticks)
-    private static final int CATCHUP_REPATH_INTERVAL_TICKS = 40; // 2s
     // How long to wait after loot pickup before saying goodbye & roaming again
     private static final int POST_JOB_FAREWELL_TICKS = 0; // 5 seconds (tweak)
     // How often (in ticks) to refresh target when returning
     private static final int RETURN_REPATH_INTERVAL_TICKS = 200; // ~10 seconds
-    private static final int WORKER_SLOTS = 18; // cargo slots
     public final PlayerHostility playerHostility = new PlayerHostility(this);
-    private final Set<ChunkPos> forced = new java.util.HashSet<>();
-    private final int lastTravelTick = 0;
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
     // --- recruit mission state ---
@@ -187,7 +179,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private int leaderCountCooldown = 0;
     private int stuckAtVillageTicks = 0;
     private boolean returnUsingFollow = false;
-    private int catchupRepathCooldown = 0;
     // recruit mission return phase: follow owner home
     boolean recruitReturningToOwner = false;
     // NEW: whether follow AI is currently active (player’s "Follow" order)
@@ -196,8 +187,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     BlockPos idleAnchorPos = null;
     // NEW: leader logic – if non-null, this worker follows another worker instead of the player
-    @Nullable
-    private UUID escortLeaderUUID = null;
     int postJobFarewellTicks = 0;
     boolean postJobFarewellActive = false;
     private double baseFollowRange;
@@ -794,7 +783,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.nextCatchupRefreshTick = 0;
 
         this.catchupTravel = true;
-        this.catchupRepathCooldown = 0;
 
         if (this.isHiredFollower()) {
             this.setFollowOrderActive(true);
@@ -1718,8 +1706,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (wouldCreateEscortCycle(id)) {
             id = null;
         }
-
-        this.escortLeaderUUID = id; // optional local cache
 
         if (!world.isRemote) {
             this.dataManager.set(ESCORT_LEADER_DM, id == null ? Optional.absent() : Optional.of(id));
@@ -3044,7 +3030,6 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public void stopCatchupTravel() {
         this.catchupTravel = false;
-        this.catchupRepathCooldown = 0;
 
         this.catchupTargetUUID = null;
         this.cachedCatchupGoal = null;
@@ -3729,9 +3714,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             UUID leaderId = nbt.hasUniqueId("EscortLeaderUUID")
                     ? nbt.getUniqueId("EscortLeaderUUID")
                     : null;
-
-// Keep local field in sync (optional, but fine)
-            escortLeaderUUID = leaderId;
 
 // IMPORTANT: set the synced DataParameter on the server
             if (!world.isRemote) {

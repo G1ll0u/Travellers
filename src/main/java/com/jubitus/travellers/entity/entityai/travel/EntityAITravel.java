@@ -73,7 +73,6 @@ public class EntityAITravel extends EntityAIBase {
     private final TravelBoatMode boats;
     private final double reachDistSq;
     private final int recalcTicks;
-    private final int stuckCheckTicks;
     private int nextTravelSlotTick = 0;   // scheduler pacing (global)
     private int nextComputePathTick = 0;  // actual expensive path compute pacing (per mob)
     private Vec3d moveWindowStart = Vec3d.ZERO;
@@ -100,8 +99,6 @@ public class EntityAITravel extends EntityAIBase {
     BlockPos currentWaypoint;
     BlockPos targetVillage;
     private boolean arriveInside = false;
-    // Stuck detection
-    private Vec3d lastPos = Vec3d.ZERO;
     // near-radius cache for the current target
     private int targetNearSq = 0;
     // simple guard so we don't spam boat spawning
@@ -123,7 +120,6 @@ public class EntityAITravel extends EntityAIBase {
         this.stepBlocks = Math.max(8, stepBlocks);
         this.reachDistSq = 3.0 * 3.0;
         this.recalcTicks = 12;
-        this.stuckCheckTicks = 60;
         this.setMutexBits(1 | 2); // MOVE (1) + LOOK (2) so nothing else steals the head while travelling
     }
 
@@ -282,7 +278,6 @@ public class EntityAITravel extends EntityAIBase {
         debugMark(this.currentWaypoint);
         pushPathToWaypoint(true);
 
-        this.lastPos = mob.getPositionVector();
         stuck().beginEpisode(episodeKey());
         resetLocalTracking();
 
@@ -2057,8 +2052,4 @@ public class EntityAITravel extends EntityAIBase {
         MillLog.major(mob, "[TravelDebug][" + tag + "][id=" + mob.getEntityId() + "] " + message);
     }
 
-    @Nullable
-    public BlockPos getTargetForDiagnostics() {
-        return targetVillage;
-    }
 }

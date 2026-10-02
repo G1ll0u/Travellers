@@ -98,18 +98,6 @@ public final class TravelTerrain {
         return false;
     }
 
-    // --- Snow height helpers (1.12.2) ---
-    static int snowLayers(IBlockState s) {
-        // BlockSnow (the thin "layer") has LAYERS 1..8; BlockSnow (full block) is Blocks.SNOW
-        if (s.getBlock() == Blocks.SNOW_LAYER) {
-            try {
-                return s.getValue(net.minecraft.block.BlockSnow.LAYERS);
-            } catch (Throwable ignore) {
-            }
-        }
-        return 0;
-    }
-
     static boolean isChunkSafeLoaded(World world, int cx, int cz) {
         return world instanceof WorldServer && ((WorldServer) world).getChunkProvider().chunkExists(cx, cz);
     }

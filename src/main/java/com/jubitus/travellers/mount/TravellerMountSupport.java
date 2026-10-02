@@ -293,23 +293,6 @@ public final class TravellerMountSupport {
         return new MountSpawnPos(hf.getX() + 0.5D, hf.getY(), hf.getZ() + 0.5D, true, false);
     }
 
-    /**
-     * Rolls the per-type config chance and bonds a mount on success. Called once per fresh spawn.
-     *
-     * <p><b>Not yet wired into the real population/group spawn path</b> (deliberately - v1 scope is
-     * pathfinding only, see TravellerMountSupport class doc). When it is: the roll must happen once
-     * per <em>group</em>, not once per member, and on success every member of that group gets a
-     * mount - a leader/follower group with only some of its riders mounted looks broken and would
-     * also desync formation slot speed (mounted vs on-foot members can't keep pace with each other).
-     */
-    public static void maybeBondMount(EntityTraveller traveller) {
-        if (!TravellersConfig.MOUNTS.enabled) return;
-        if (traveller.getMountUUID() != null) return;
-        int chance = chanceFor(traveller);
-        if (chance <= 0 || traveller.world.rand.nextInt(100) >= chance) return;
-        bondNewMount(traveller);
-    }
-
     private static int chanceFor(EntityTraveller traveller) {
         if (traveller instanceof EntityTravellerWorker) return TravellersConfig.MOUNTS.workerMountChancePercent;
         if (traveller instanceof EntityTravellerRaider) return TravellersConfig.MOUNTS.raiderMountChancePercent;

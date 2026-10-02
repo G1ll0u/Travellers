@@ -51,12 +51,10 @@ import java.util.List;
  */
 public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
-    private static final double BLOCK_WIDTH = 0.75D; // shot safety tube
     // --- accuracy tuning ---
     private static final float ARROW_VEL = 3.2F;     // was 2.3F
     private static final float INACC_NEAR = 1.5F;    // close-range spread
     private static final float INACC_FAR = 3.1F;    // long-range spread
-    private static final double LEAD_FACTOR = 0.85;  // 0.7–1.0; how hard to lead target
     private static final int LOS_REACQUIRE_GRACE_TICKS = 6; // brief hold-still before committing to reposition
     private static final double APPROACH_SPEED = 0.34D; // base speed when relocating for LOS
     private static final int REPATH_INTERVAL_TICKS = 10; // throttle blind-repositioning pathfinding calls
@@ -89,8 +87,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private final double maxDistSq;
     private final double meleeHandOffSq; // slightly > minDistSq recommended
     private final int shootIntervalTicks; // cadence
-    // Strafing knobs (feel free to tune)
-    private final float strafeSpeed = 0.32f;     // 0.28–0.40 feels good in 1.12
+    // Strafing knobs
     private final int strafeMinTicks = 14;
     private final int strafeMaxTicks = 28;
     private final float strafeInput = 0.25f;      // [-1..1] input strength

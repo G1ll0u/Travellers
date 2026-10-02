@@ -137,11 +137,4 @@ public class PlayerHostility {
         return isOwnerDeclaredHostile(ownerId) || localHostilePlayers.contains(ownerId);
     }
 
-    // GUI display: union of declared + local for THIS worker's owner
-    public Set<UUID> getHostilesForGui() {
-        Set<UUID> out = new HashSet<>(declaredHostilePlayers());
-        out.addAll(localHostilePlayers);
-        return out;
-    }
-
 }

@@ -58,11 +58,6 @@ public final class TraceSample {
     // AI / FOLLOW
     public String runningTasks = "";
     public int steeringBlockedTicks = -1;
-    /** -1 = no EntityAIFollowLeader running / no leader currently resolved; 0 = leader tracked
-     *  virtually; 1 = leader is a loaded entity. Flip-flopping between 0 and 1 tick to tick is exactly
-     *  the "leader keeps materializing/virtualizing" signature. */
-    public int followLeaderLoaded = -1;
-    public double followLeaderX, followLeaderY, followLeaderZ;
 
     /**
      * Fills this sample from the entity's current state. Cheap getters only - runs every few ticks
@@ -147,7 +142,6 @@ public final class TraceSample {
     private void captureTasks(EntityTraveller entity) {
         StringBuilder sb = new StringBuilder();
         this.steeringBlockedTicks = -1;
-        this.followLeaderLoaded = -1;
         for (EntityAITasks.EntityAITaskEntry entry : entity.tasks.taskEntries) {
             if (!entry.using) continue;
             if (sb.length() > 0) sb.append('+');
@@ -210,19 +204,8 @@ public final class TraceSample {
         if (channels.contains(TraceChannel.AI)) {
             sb.append(" | ai=").append(runningTasks);
         }
-        if (channels.contains(TraceChannel.FOLLOW) && (steeringBlockedTicks >= 0 || followLeaderLoaded >= 0)) {
-            sb.append(" | follow:");
-            boolean any = false;
-            if (steeringBlockedTicks >= 0) {
-                sb.append("blocked=").append(steeringBlockedTicks);
-                any = true;
-            }
-            if (followLeaderLoaded >= 0) {
-                if (any) sb.append(' ');
-                sb.append("leader=").append(followLeaderLoaded == 1 ? "LOADED" : "VIRTUAL")
-                        .append('@').append(f2(followLeaderX)).append(',').append(f2(followLeaderY))
-                        .append(',').append(f2(followLeaderZ));
-            }
+        if (channels.contains(TraceChannel.FOLLOW) && steeringBlockedTicks >= 0) {
+            sb.append(" | follow:blocked=").append(steeringBlockedTicks);
         }
         return sb.toString();
     }
@@ -241,8 +224,6 @@ public final class TraceSample {
         horseAttr = o.horseAttr; horseDxz = o.horseDxz;
         horseCollided = o.horseCollided; horseOnGround = o.horseOnGround; mountWedged = o.mountWedged;
         runningTasks = o.runningTasks; steeringBlockedTicks = o.steeringBlockedTicks;
-        followLeaderLoaded = o.followLeaderLoaded;
-        followLeaderX = o.followLeaderX; followLeaderY = o.followLeaderY; followLeaderZ = o.followLeaderZ;
     }
 
     /** True when the entity is asking to move and getting nowhere - the shape of every stuck report. */

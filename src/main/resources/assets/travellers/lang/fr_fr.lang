@@ -390,7 +390,6 @@ travellers.gui.history.battle_tooltip.casualty_hurt=%s a survécu (%s PV restant
 travellers.gui.history.battle_tooltip.attackers=Attaquants :
 
 travellers.dialogue.worker_farewell=J'ai fait ce que j'avais à faire. Laissez-moi me reposer un peu.
-travellers.dialogue.travelling_with_someone=Je voyage avec quelqu'un en ce moment. Reposez-moi la question plus tard.
 
 travellers.dialogue.staying_in_village=Je reste à %s pour un moment.
 travellers.dialogue.no_destination=Je n'ai pas de destination pour le moment.

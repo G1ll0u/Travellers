@@ -154,25 +154,6 @@ public final class FollowRecoveryHelper {
         return horizSq <= maxHorizontal * maxHorizontal && dy >= minVertical;
     }
 
-    @Nullable
-    public static TeleportCandidate findCaveEntryTeleport(EntityTraveller worker,
-                                                          EntityLivingBase leader,
-                                                          double minLeaderDistance,
-                                                          double maxLeaderDistance) {
-        return findBestSpotNear(
-                worker,
-                leader.posX, leader.posY, leader.posZ,
-                leader.posX,
-                leader.posY,
-                leader.posZ,
-                6,
-                true,
-                minLeaderDistance,
-                maxLeaderDistance,
-                10.0D
-        );
-    }
-
     /**
      * Leader position is passed as raw coordinates (not an {@link EntityLivingBase}) purely for
      * scoring/distance-filtering purposes - it's only ever read as X/Y/Z, so a virtual (offscreen)

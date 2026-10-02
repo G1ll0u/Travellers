@@ -100,9 +100,6 @@ public class TravellersConfig {
         @Config.Comment("Enable debug logging.")
         public boolean debug = false;
 
-        @Config.Comment("Enable MPB road-routing debug logs (route planning and road-following events).")
-        public boolean mpbDebugLog = false;
-
         @Config.Comment("Allow travellers to open fence gates.")
         public boolean enableTravellerOpenFenceGates = true;
 
@@ -412,63 +409,13 @@ public class TravellersConfig {
     }
 
     public static class GroupFollow {
-        @Config.Comment("Give each follower its own small spot near the leader instead of everyone aiming for the exact same point. Reduces crowding and followers getting stuck on each other.")
-        public boolean spreadFollowEnabled = true;
-
-        @Config.Comment("How close (blocks) a follower must get to its spot before it stops and waits there.")
-        @Config.RangeDouble(min = 0.5, max = 8.0)
-        public double stopDistance = 2.0;
-
         @Config.Comment("Distance (blocks) from the leader beyond which a follower starts speeding up to catch up.")
         @Config.RangeDouble(min = 2.0, max = 32.0)
         public double catchUpTriggerDistance = 8.0;
 
-        @Config.Comment("Distance (blocks) from the leader at which a follower reaches its maximum catch-up speed.")
-        @Config.RangeDouble(min = 4.0, max = 64.0)
-        public double catchUpMaxDistance = 16.0;
-
         @Config.Comment("How much faster (multiplier) a follower moves at maximum catch-up speed. 1.0 = no speed boost.")
         @Config.RangeDouble(min = 1.0, max = 3.0)
         public double catchUpSpeedMultiplier = 1.18;
-
-        @Config.Comment("Followers visibly sprint while catching up from far behind.")
-        public boolean sprintWhileCatchingUp = true;
-
-        @Config.Comment("How often (ticks) a follower re-checks its path while calmly keeping pace with the leader.")
-        @Config.RangeInt(min = 2, max = 40)
-        public int repathTicksNormal = 8;
-
-        @Config.Comment("How often (ticks) a follower re-checks its path while catching up from far behind. Lower keeps it closer to the leader but costs more performance.")
-        @Config.RangeInt(min = 1, max = 20)
-        public int repathTicksCatchup = 3;
-
-        @Config.Comment("How long (ticks) to wait before retrying pathfinding after a failed attempt.")
-        @Config.RangeInt(min = 2, max = 40)
-        public int repathTicksFailed = 7;
-
-        @Config.Comment("How long (ticks) a follower can be stuck making no progress before it teleports partway toward the group. 160 = about 8 seconds.")
-        @Config.RangeInt(min = 20, max = 1200)
-        public int stagnationTeleportTicks = 120;
-
-        @Config.Comment("Maximum distance (blocks) a stuck follower teleports in one jump. Followers hop gradually toward the group instead of jumping straight onto the leader.")
-        @Config.RangeDouble(min = 2.0, max = 32.0)
-        public double teleportMaxStep = 10.0;
-
-        @Config.Comment("A stuck follower only teleports if it is at least this far (blocks) from its spot. Below this it just keeps walking.")
-        @Config.RangeDouble(min = 1.0, max = 16.0)
-        public double teleportMinTriggerDistance = 6.0;
-
-        @Config.Comment("Beyond this distance (blocks) to the leader, a follower stops trying to pathfind straight to the leader's exact spot (which usually fails and causes repeated teleport-hops) and instead walks there step by step, like the normal travel AI does.")
-        @Config.RangeDouble(min = 16.0, max = 128.0)
-        public double directPathMaxDistance = 40.0;
-
-        @Config.Comment("How far (blocks) each walking step aims when a follower is too far to pathfind straight to the leader (see directPathMaxDistance).")
-        @Config.RangeDouble(min = 8.0, max = 48.0)
-        public double catchupStepDistance = 24.0;
-
-        @Config.Comment("Widens the stop distance and catch-up trigger/max distances for a mounted group follower (traveller/raider). Horseback naturally covers more ground between checks than walking does, so the same distances tuned for walking made a mounted follower catch up far too eagerly and skid to a stop right on top of its spot. 1.0 = same distances as walking.")
-        @Config.RangeDouble(min = 1.0, max = 5.0)
-        public double mountedFollowDistanceScale = 2.5;
     }
 
 
@@ -528,10 +475,6 @@ public class TravellersConfig {
         @Config.Comment("Blocks per path step for normal traveller travel.")
         @Config.RangeInt(min = 1, max = 128)
         public int stepBlocks = 24;
-
-        @Config.Comment("Global cap on total assigned worker orders across the world.")
-        @Config.RangeInt(min = 1, max = 65536)
-        public int workerGlobalAssignedCap = 4096;
     }
 
     public static class Speed {
@@ -643,14 +586,6 @@ public class TravellersConfig {
         @Config.Comment("Max number of entities allowed to run a full target-acquisition scan (nearby-enemy AABB search) in the same tick, world-wide. Prevents CPU spikes during mass battles with many hired workers. Entities that miss the budget simply retry next tick.")
         @Config.RangeInt(min = 4, max = 500)
         public int combatTargetScanBudgetPerTick = 40;
-
-        @Config.Comment("Base view boost radius (blocks).")
-        @Config.RangeDouble(min = 0.0, max = 512.0)
-        public double travellerViewBoostBaseRadius = 128.0;
-
-        @Config.Comment("Additional view bonus (blocks) while in combat.")
-        @Config.RangeDouble(min = 0.0, max = 512.0)
-        public double travellerViewBoostCombatBonus = 128.0;
 
         @Config.Comment("Minimum distance before travellers uses a bow.")
         @Config.RangeDouble(min = 1.0, max = 64.0)
@@ -1037,17 +972,6 @@ public class TravellersConfig {
         @Config.Comment("Most shared paths remembered at once, world-wide. Oldest ones are dropped first once this is exceeded.")
         @Config.RangeInt(min = 32, max = 2000)
         public int sharedRouteCorridorMaxCachedRoutes = 256;
-
-        @Config.Comment("Deprecated - replaced by HazardSafety, which applies the same kind of nudge to every traveller/raider/worker, not just hired formation followers. Kept only so old config files don't break; no longer read by any code.")
-        public boolean lavaRepulsionEnabled = true;
-
-        @Config.Comment("Deprecated - see lavaRepulsionEnabled.")
-        @Config.RangeDouble(min = 0.5, max = 3.0)
-        public double lavaRepulsionRadius = 1.3;
-
-        @Config.Comment("Deprecated - see lavaRepulsionEnabled.")
-        @Config.RangeDouble(min = 0.0, max = 0.2)
-        public double lavaRepulsionStrength = 0.045;
 
         @Config.Comment("Let a worker that's fully blocked by an obstacle (no detour, no shared path) ask for a real route sooner instead of waiting.")
         public boolean steeringBlockedFastEscalationEnabled = true;
@@ -1462,26 +1386,8 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.01, max = 1.0)
         public double emptyServerSpeedMultiplier = 0.25;
 
-        @Config.Comment("Teleport distance (blocks) per off-screen hop.")
-        @Config.RangeInt(min = 0, max = 1000)
-        public int travellerOffscreenHopStepBlocks = 24;
-
         @Config.Comment("When true, travellers ignore mobs and incoming attacks while off-screen.")
         public boolean travellerNoAggroOffscreen = false;
-
-        @Config.Comment("Damage multiplier for travellers when off-screen (0 = immune, 1 = normal).")
-        @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float travellerOffscreenDamageScale = 0.2f;
-
-        @Config.Comment("Use simplified travel logic when off-screen.")
-        public boolean travellerSimpleOffscreenTravel = false;
-
-        @Config.Comment("Minimum player distance for simple off-screen travel to activate.")
-        @Config.RangeDouble(min = 0.0, max = 1024.0)
-        public double travellerSimpleOffscreenMinPlayerDist = 64.0;
-
-        @Config.Comment("Allow travellers to chunk-load areas along their path.")
-        public boolean allowTravellerChunkLoading = true;
 
         @Config.Comment("Enable the world-wide global population controller that keeps travellers and raiders populated across all settlements, even when chunks are unloaded.")
         public boolean globalPopulationEnabled = true;
@@ -1963,10 +1869,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 200, max = 24000)
         public int breedingCooldownTicks = 6000;
 
-        @Config.Comment("How far apart (in ticks) a Stable rescans its box for horses when nobody's nearby to trigger it directly - a slow safety net, not the main reconcile path.")
-        @Config.RangeInt(min = 200, max = 12000)
-        public int passiveRescanIntervalTicks = 2400;
-
         @Config.Comment("Notify the owner when their Stable successfully tames a wild horse.")
         public boolean notifyOnTame = true;
 
@@ -2259,9 +2161,6 @@ public class TravellersConfig {
     }
 
     public static class Sound {
-        @Config.Comment("If true, travellers play a voice line when right-clicked.")
-        public boolean travellerSpeaks = true;
-
         @Config.Comment("If true, travellers occasionally mutter while travelling.")
         public boolean travellerAmbient = true;
 
@@ -2700,14 +2599,6 @@ public class TravellersConfig {
         @Config.Comment("If true, player must be chief of at least one Millenaire village to hire workers.")
         public boolean requireControlledVillageToHire = false;
 
-        @Config.Comment("Worker slots per barracks building. Set 0 to disable hay bale requirement.")
-        @Config.RangeInt(min = 0, max = 64)
-        public int barracksSlotsPerBuilding = 5;
-
-        @Config.Comment("Radius (blocks) of a worker barracks building area.")
-        @Config.RangeInt(min = 4, max = 32)
-        public int workerBarracksRadius = 10;
-
     }
 
     public static class Worker {
@@ -2841,10 +2732,6 @@ public class TravellersConfig {
         @Config.Comment("Additional fee per visited village (in deniers).")
         @Config.RangeInt(min = 0, max = 1000000)
         public int recruitFeePerVillage = 1280;
-
-        @Config.Comment("Radius (blocks) to assign/clear escort leader.")
-        @Config.RangeInt(min = 0, max = 100000)
-        public int recruitLeaderAssignRadius = 12000;
 
         @Config.Comment("Minimum distance between recruitment target villages.")
         @Config.RangeInt(min = 0, max = 10000)
@@ -3025,9 +2912,6 @@ public class TravellersConfig {
         @Config.Comment("Show the event history panel in the Formation & Groups screen.")
         public boolean historyPanelEnabled = true;
 
-        @Config.Comment("Where the history panel appears relative to the Formation & Groups panel. Options: ABOVE, BELOW.")
-        public String historyPanelPosition = "BELOW";
-
         @Config.Comment("Height (pixels) of the history panel.")
         @Config.RangeInt(min = 40, max = 220)
         public int historyPanelHeight = 96;
@@ -3169,9 +3053,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 3, max = 24)
         public int gateApproachBlocks = 8;
 
-        @Config.Comment("Advanced: use detailed routing near ground you have already explored.")
-        public boolean enableFineRouteTier = false;
-
         @Config.Comment("How far ahead a traveller plans a route at once, in blocks.")
         @Config.RangeInt(min = 200, max = 20000)
         public int legCapBlocks = 2000;
@@ -3191,18 +3072,6 @@ public class TravellersConfig {
         @Config.Comment("Advanced: how much the coarse search box is inflated past the straight line, as a fraction.")
         @Config.RangeDouble(min = 0.0, max = 2.0)
         public double coarseBoxInflation = 0.30;
-
-        @Config.Comment("Advanced: spacing between search nodes for the detailed route search, in blocks.")
-        @Config.RangeInt(min = 4, max = 64)
-        public int fineNodeSpacing = 16;
-
-        @Config.Comment("Advanced: hard cap on how many nodes the detailed route search may expand.")
-        @Config.RangeInt(min = 64, max = 4000)
-        public int fineNodeBudget = 600;
-
-        @Config.Comment("Advanced: how close to explored terrain a route segment must be for the detailed search to run, in blocks.")
-        @Config.RangeInt(min = 16, max = 1024)
-        public int fineSegmentBlocks = 192;
 
         @Config.Comment("Background threads used for route planning.")
         @Config.RangeInt(min = 1, max = 8)

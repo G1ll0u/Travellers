@@ -43,9 +43,7 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
 
         BlockPos activityVillagePos = null;
         boolean travellingToVillage = false;
-        if (traveller.isFollowingSomeone()) {
-            builder.activity(DialogueContext.ActivityKind.FOLLOWING_SOMEONE);
-        } else if (travelCommon != null && travelCommon.isVillageIdling()) {
+        if (travelCommon != null && travelCommon.isVillageIdling()) {
             builder.activity(DialogueContext.ActivityKind.IDLING_IN_VILLAGE);
             activityVillagePos = travelCommon.getNearestVillage();
         } else {
