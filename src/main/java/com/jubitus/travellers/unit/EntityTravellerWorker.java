@@ -9,7 +9,7 @@ import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
+import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
 import com.jubitus.travellers.combat.ai.EntityAIDefendOwnerProactively;
@@ -26,18 +26,18 @@ import com.jubitus.travellers.follow.FollowRecoveryHelper;
 import com.jubitus.travellers.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.travel.TravelCommon;
-import com.jubitus.travellers.world.zone.PlayerZoneRecord;
-import com.jubitus.travellers.world.zone.ZoneRef;
+import com.jubitus.travellers.zone.PlayerZoneRecord;
+import com.jubitus.travellers.zone.ZoneRef;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.marker.WorkerOwnerVisualsSavedData;
-import com.jubitus.travellers.server.net.message.MsgOpenClientWorkerGui;
+import com.jubitus.travellers.worker.net.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.combat.PlayerHostility;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
-import com.jubitus.travellers.world.data.TravellerVillageRelations;
-import com.jubitus.travellers.world.mill.MillSettlements;
-import com.jubitus.travellers.world.mill.MillGoods;
+import com.jubitus.travellers.village.TravellerVillageRelations;
+import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.village.MillGoods;
 import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
 import com.jubitus.travellers.spawn.TravellerVillageRegistry;
 import net.minecraft.block.state.IBlockState;
@@ -338,7 +338,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         ));
 
         // Duty zone work (Stable palfrenier, and any future duty) - no-ops unless actually on duty.
-        this.tasks.addTask(13, new com.jubitus.travellers.world.zone.duty.EntityAIWorkerDuty(this));
+        this.tasks.addTask(13, new com.jubitus.travellers.zone.duty.EntityAIWorkerDuty(this));
 
         // Lowest priority on purpose - only ever runs when nothing above wants the move+look mutex,
         // i.e. the worker is genuinely idle.
@@ -1227,30 +1227,30 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                 if (mode == WorkerMode.GET_EQUIPMENT) {
                     if (getEquipTargetKind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE) {
-                        com.jubitus.travellers.world.zone.PlayerZoneManager zoneMgr =
-                                com.jubitus.travellers.world.zone.PlayerZoneManager.get(world);
-                        com.jubitus.travellers.world.zone.PlayerZoneRecord zone =
+                        com.jubitus.travellers.zone.PlayerZoneManager zoneMgr =
+                                com.jubitus.travellers.zone.PlayerZoneManager.get(world);
+                        com.jubitus.travellers.zone.PlayerZoneRecord zone =
                                 zoneMgr.getByOwnerAndCenter(this.getFollowOwnerId(), goOrderTargetPos);
                         if (zone != null) {
                             boolean wantedHorse = this.getMountUUID() == null;
                             if (wantedHorse) {
-                                NBTTagCompound horseNbt = com.jubitus.travellers.world.equip.WorkerHorsePickup
+                                NBTTagCompound horseNbt = com.jubitus.travellers.zone.stable.WorkerHorsePickup
                                         .claimReadyHorse((net.minecraft.world.WorldServer) world, zone);
                                 if (horseNbt != null && !com.jubitus.travellers.mount.TravellerMountSupport
                                         .bondSpecificMount(this, horseNbt)) {
                                     // Spawn genuinely failed (a UUID collision this couldn't avoid) -
                                     // don't just lose the horse from the pool's own count.
-                                    com.jubitus.travellers.world.equip.WorkerHorsePickup.returnUnclaimedHorse(
+                                    com.jubitus.travellers.zone.stable.WorkerHorsePickup.returnUnclaimedHorse(
                                             (net.minecraft.world.WorldServer) world, zone, horseNbt);
                                 }
                             }
                             // Whoever this order was sent to arriving is what unlocks the whole group -
                             // same precedent WorkerEquipExchanger already set for chest gear: followers
                             // don't each need to travel here individually.
-                            int followerHorses = com.jubitus.travellers.world.equip.WorkerHorsePickup.claimForGroupFollowers(
+                            int followerHorses = com.jubitus.travellers.zone.stable.WorkerHorsePickup.claimForGroupFollowers(
                                     (net.minecraft.world.WorldServer) world, zone, this.getUniqueID());
                             if (wantedHorse && this.getMountUUID() == null) {
-                                com.jubitus.travellers.world.equip.WorkerHorsePickup.notifyNothingToEquip(
+                                com.jubitus.travellers.zone.stable.WorkerHorsePickup.notifyNothingToEquip(
                                         world, zone, this.getFollowOwnerId());
                             }
                             int horses = followerHorses + (wantedHorse && this.getMountUUID() != null ? 1 : 0);
@@ -1606,7 +1606,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 // Same two syncs as the HUB case of MsgOpenWorkerSubGui: the hub displays the hire
                 // state and the authoritative follower count as soon as it opens.
                 TravellerFollowNet.CHANNEL.sendTo(
-                        new com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState(this),
+                        new com.jubitus.travellers.worker.net.MsgSyncWorkerHireState(this),
                         (EntityPlayerMP) player
                 );
                 TravellerFollowNet.CHANNEL.sendTo(
@@ -1641,13 +1641,13 @@ public class EntityTravellerWorker extends EntityTraveller {
                 NBTTagCompound nbt = new NBTTagCompound();
                 writeToNBT(nbt);
                 stripInventoryNbt(nbt);
-                com.jubitus.travellers.world.zone.ZoneAssignments.onWorkerDied(
+                com.jubitus.travellers.zone.ZoneAssignments.onWorkerDied(
                         world.getMinecraftServer(), getUniqueID(), followOwnerId, zone, nbt);
             }
 
             // A battle participant's notice comes from VirtualBattleManager.onParticipantDeath (via super.onDeath).
             if (hiredFollower && followOwnerId != null && world instanceof WorldServer
-                    && !com.jubitus.travellers.world.battle.VirtualBattleManager.get((WorldServer) world)
+                    && !com.jubitus.travellers.battle.VirtualBattleManager.get((WorldServer) world)
                             .isParticipant(this.getUniqueID())) {
                 com.jubitus.travellers.notify.WorkerLifecycleNotifications.died(world.getMinecraftServer(),
                         followOwnerId, getUniqueID(), getName(),

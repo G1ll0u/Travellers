@@ -42,7 +42,7 @@ public final class OrphanMountCleanup {
     /** Marks a horse as an unclaimed leftover from a dead rider, starting its cleanup grace period. */
     public static void markOrphaned(EntityHorse horse, long now) {
         // A Stable pool horse belongs to its pool, never to the loose-horse cleanup.
-        if (com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) return;
+        if (com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) return;
         horse.getEntityData().setLong(NBT_ORPHANED_TICK, now);
     }
 
@@ -57,7 +57,7 @@ public final class OrphanMountCleanup {
 
     public static boolean isOrphaned(Entity e) {
         return e.getEntityData().hasKey(NBT_ORPHANED_TICK)
-                && !com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(e);
+                && !com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(e);
     }
 
     /** Whether this orphaned horse has sat unclaimed long enough to be removed - distance to any

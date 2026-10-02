@@ -1,9 +1,7 @@
 package com.jubitus.travellers.zone;
 
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.message.zone.MsgOpenZonePrompt;
-import com.jubitus.travellers.world.zone.PlayerZoneManager;
-import com.jubitus.travellers.world.zone.PlayerZoneRecord;
+import com.jubitus.travellers.zone.net.MsgOpenZonePrompt;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;

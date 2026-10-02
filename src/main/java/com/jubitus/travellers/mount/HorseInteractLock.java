@@ -64,9 +64,9 @@ public final class HorseInteractLock {
     @Nullable
     private static UUID stablePoolLock(WorldServer world, EntityHorse horse) {
         if (!TravellersConfig.STABLES.enabled) return null;
-        com.jubitus.travellers.world.zone.stable.StableCoordinator sc =
-                com.jubitus.travellers.world.zone.stable.StableCoordinator.get(world);
-        if (!com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) return null;
+        com.jubitus.travellers.zone.stable.StableCoordinator sc =
+                com.jubitus.travellers.zone.stable.StableCoordinator.get(world);
+        if (!com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) return null;
         UUID owner = sc.getPoolOwner(world, horse);
         return owner != null ? owner : NOBODY;
     }

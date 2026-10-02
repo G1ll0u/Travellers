@@ -1,7 +1,7 @@
 package com.jubitus.travellers.client.gui.worldmap;
 
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
-import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
+import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;

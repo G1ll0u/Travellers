@@ -5,7 +5,7 @@ import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.TravelMotive;
-import com.jubitus.travellers.world.mill.MillRelations;
+import com.jubitus.travellers.village.MillRelations;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;

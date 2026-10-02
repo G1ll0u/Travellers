@@ -18,9 +18,9 @@ import net.minecraftforge.fluids.IFluidBlock;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
-import com.jubitus.travellers.world.camp.CampTerrainValidator;
-import com.jubitus.travellers.world.camp.CampsiteManager;
-import com.jubitus.travellers.world.mill.MillFootprints;
+import com.jubitus.travellers.camp.CampTerrainValidator;
+import com.jubitus.travellers.camp.CampsiteManager;
+import com.jubitus.travellers.village.MillFootprints;
 
 import javax.annotation.Nullable;
 import java.util.Map;

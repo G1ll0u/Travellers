@@ -5,7 +5,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mixins.MixinResManagerPointsAccessor;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.debug.MsgVillageDebugView;
-import com.jubitus.travellers.world.mill.MillFootprints;
+import com.jubitus.travellers.village.MillFootprints;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;

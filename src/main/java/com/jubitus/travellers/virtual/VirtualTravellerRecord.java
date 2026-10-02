@@ -172,7 +172,7 @@ public class VirtualTravellerRecord {
     // them instead of always dropping the rider into the saddle.
     @Nullable public String mountMode;
     /** The current village stay, moved here from the entity at virtualize (see VillageVisitState). */
-    @Nullable public com.jubitus.travellers.world.visit.VillageVisitState visit;
+    @Nullable public com.jubitus.travellers.village.visit.VillageVisitState visit;
 
     // Camp occupation cache (P3). The campsite occupant is the source of truth; these are re-derived
     // on virtualize. When set, the entity halts its route and sits at its slot.
@@ -197,16 +197,16 @@ public class VirtualTravellerRecord {
     @Nullable public UUID battleId;
 
     // Transient cache derived from entityNbt (never persisted)
-    private transient com.jubitus.travellers.world.battle.VirtualCombatProfile combatProfile;
+    private transient com.jubitus.travellers.battle.VirtualCombatProfile combatProfile;
 
     // Transient: world-tick when this worker last performed a virtual donation. Not persisted.
     /** Not saved: last world tick the offscreen village stay was advanced (see tickVirtualVisit). */
     public long visitClockTick = -1L;
 
     /** Combat stats derived once from the frozen entity NBT (recomputed if entityNbt is replaced). */
-    public com.jubitus.travellers.world.battle.VirtualCombatProfile getCombatProfile() {
+    public com.jubitus.travellers.battle.VirtualCombatProfile getCombatProfile() {
         if (combatProfile == null) {
-            combatProfile = com.jubitus.travellers.world.battle.VirtualCombatProfile
+            combatProfile = com.jubitus.travellers.battle.VirtualCombatProfile
                     .fromEntityNbt(entityNbt, entityClass);
         }
         return combatProfile;
@@ -371,8 +371,8 @@ public class VirtualTravellerRecord {
             r.personalTravelGoal = new BlockPos(tag.getInteger("PTX"), tag.getInteger("PTY"), tag.getInteger("PTZ"));
         } else if (r.goingToDuty && r.dutyZoneCenter != null) {
             r.personalTravelGoal = r.dutyZoneCenter;
-        } else if (r.goingHome && entityData != null && com.jubitus.travellers.world.zone.ZoneRef.read(entityData) != null) {
-            r.personalTravelGoal = com.jubitus.travellers.world.zone.ZoneRef.read(entityData).center;
+        } else if (r.goingHome && entityData != null && com.jubitus.travellers.zone.ZoneRef.read(entityData) != null) {
+            r.personalTravelGoal = com.jubitus.travellers.zone.ZoneRef.read(entityData).center;
         }
         r.virtualizedTick = tag.getLong("VT");
         // Backward-compat: if not saved yet, treat as not moved (use current pos as origin)
@@ -400,7 +400,7 @@ public class VirtualTravellerRecord {
         r.mounted = tag.getBoolean("Mounted");
         if (tag.hasKey("MountData")) r.mountNbt = tag.getCompoundTag("MountData");
         if (tag.hasKey("MountMode")) r.mountMode = tag.getString("MountMode");
-        r.visit = com.jubitus.travellers.world.visit.VillageVisitState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
+        r.visit = com.jubitus.travellers.village.visit.VillageVisitState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
         if (tag.hasKey("CampSite")) {
             r.campSiteId = UUID.fromString(tag.getString("CampSite"));
             r.campSlotIndex = tag.getInteger("CampSlot");

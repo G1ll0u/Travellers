@@ -1,7 +1,7 @@
 package com.jubitus.travellers.spawn;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.village.MillSettlements;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 

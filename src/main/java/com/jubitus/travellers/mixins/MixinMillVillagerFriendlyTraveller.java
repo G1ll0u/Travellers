@@ -1,6 +1,6 @@
 package com.jubitus.travellers.mixins;
 
-import com.jubitus.travellers.world.mill.MillVillagerTravellerGuard;
+import com.jubitus.travellers.village.MillVillagerTravellerGuard;
 import net.minecraft.entity.EntityLivingBase;
 import org.millenaire.common.entity.MillVillager;
 import org.millenaire.common.village.Building;

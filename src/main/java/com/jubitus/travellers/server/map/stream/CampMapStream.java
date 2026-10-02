@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.map.stream;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.world.build.BuildStep;
-import com.jubitus.travellers.world.camp.CampBuildCoordinator;
-import com.jubitus.travellers.world.camp.CampOccupant;
-import com.jubitus.travellers.world.camp.CampsiteManager;
-import com.jubitus.travellers.world.camp.CampsiteRecord;
-import com.jubitus.travellers.world.camp.ShelterSlot;
+import com.jubitus.travellers.camp.build.BuildStep;
+import com.jubitus.travellers.camp.CampBuildCoordinator;
+import com.jubitus.travellers.camp.CampOccupant;
+import com.jubitus.travellers.camp.CampsiteManager;
+import com.jubitus.travellers.camp.CampsiteRecord;
+import com.jubitus.travellers.camp.ShelterSlot;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;

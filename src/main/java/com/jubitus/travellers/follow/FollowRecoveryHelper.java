@@ -6,7 +6,7 @@ import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.world.mill.MillFootprints;
+import com.jubitus.travellers.village.MillFootprints;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;

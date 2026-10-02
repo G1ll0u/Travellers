@@ -1,10 +1,10 @@
 package com.jubitus.travellers.unit.equipment;
 
-import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.world.zone.PlayerZoneManager;
-import com.jubitus.travellers.world.zone.PlayerZoneRecord;
-import com.jubitus.travellers.world.zone.ZoneRoles;
+import com.jubitus.travellers.zone.PlayerZoneManager;
+import com.jubitus.travellers.zone.PlayerZoneRecord;
+import com.jubitus.travellers.zone.ZoneRoles;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.inventory.EntityEquipmentSlot;

@@ -2,8 +2,8 @@ package com.jubitus.travellers.server.dialogue.tools;
 
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.server.dialogue.DialoguePhrasing;
-import com.jubitus.travellers.world.mill.MillRelations;
-import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.village.MillRelations;
+import com.jubitus.travellers.village.MillSettlements;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;

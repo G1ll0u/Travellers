@@ -8,7 +8,7 @@ import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.VillagerFilterRules;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
+import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
 import com.jubitus.travellers.combat.ai.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.combat.TravellerCombatLogic;
 import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
@@ -149,7 +149,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
             // New camp event system: same task as travellers (faction separation is enforced by
             // CampsiteRecord.canClaim, not by the AI).
-            this.tasks.addTask(6, new com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampStay(this));
+            this.tasks.addTask(6, new com.jubitus.travellers.camp.EntityAICampStay(this));
         }
 
         // === TRAVEL / ROAMING / FOLLOWING ====================================================

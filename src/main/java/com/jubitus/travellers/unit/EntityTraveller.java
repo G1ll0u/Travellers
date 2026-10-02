@@ -1,7 +1,7 @@
 package com.jubitus.travellers.unit;
 
 import com.jubitus.travellers.ground.BlockRules;
-import com.jubitus.travellers.world.visit.VillageVisitState;
+import com.jubitus.travellers.village.visit.VillageVisitState;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
@@ -18,7 +18,7 @@ import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
+import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
 import com.jubitus.travellers.combat.TravellerCombatLogic;
@@ -45,7 +45,7 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
 import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
-import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.pathing.GapJumpEvaluator;
 import com.jubitus.travellers.pathing.GapJumpResult;
 import com.jubitus.travellers.pathing.PathBody;
@@ -677,8 +677,8 @@ public class EntityTraveller extends EntityCreature {
      * place together.
      */
     private String buildingLabel(double x, double y, double z) {
-        com.jubitus.travellers.world.mill.MillFootprints.Footprint f =
-                com.jubitus.travellers.world.mill.MillFootprints.at(world, x, y, z, 0);
+        com.jubitus.travellers.village.MillFootprints.Footprint f =
+                com.jubitus.travellers.village.MillFootprints.at(world, x, y, z, 0);
         return f == null ? "-" : f.planKey();
     }
 
@@ -1140,8 +1140,8 @@ public class EntityTraveller extends EntityCreature {
         if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !usesVillageVisit()) return false;
         BlockPos stop = getLeaderVisitStop();
         if (stop == null) return false;
-        com.jubitus.travellers.world.mill.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.world.mill.VillageVisitIndex.get(world, stop);
+        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
+                com.jubitus.travellers.village.VillageVisitIndex.get(world, stop);
         if (s == null) return false;
         double dx = posX - (s.center.getX() + 0.5D);
         double dz = posZ - (s.center.getZ() + 0.5D);
@@ -1320,7 +1320,7 @@ public class EntityTraveller extends EntityCreature {
 
         if (com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.enabled) {
             // New camp event system: keep occupants at their slot (build is handled by the manager).
-            this.tasks.addTask(6, new com.jubitus.travellers.entity.entityai.ambient.camp.EntityAICampStay(this));
+            this.tasks.addTask(6, new com.jubitus.travellers.camp.EntityAICampStay(this));
         }
 
         this.tasks.addTask(9, new EntityAIStopAndLookAtPlayer(this));
@@ -1563,7 +1563,7 @@ public class EntityTraveller extends EntityCreature {
             // Loaded-vs-loaded fight tracking: the offscreen scanner never sees entities that were
             // already loaded when the fight started, so notification/journal coverage needs this hook too.
             if (target instanceof EntityTraveller && prev != target) {
-                com.jubitus.travellers.world.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
+                com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
                         .onLoadedEngagement((net.minecraft.world.WorldServer) world, this, (EntityTraveller) target);
             }
         }
@@ -3326,7 +3326,7 @@ public class EntityTraveller extends EntityCreature {
 
         if (src instanceof org.millenaire.common.entity.MillVillager) {
             org.millenaire.common.entity.MillVillager mv = (org.millenaire.common.entity.MillVillager) src;
-            if (!com.jubitus.travellers.world.mill.MillVillagerTravellerGuard.shouldFightMillVillager(this, mv)) {
+            if (!com.jubitus.travellers.village.MillVillagerTravellerGuard.shouldFightMillVillager(this, mv)) {
                 // Absorb hit from a non-enemy millager without retaliating
                 return true;
             }
@@ -3403,10 +3403,10 @@ public void fall(float distance, float damageMultiplier) {
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             TravellerMountSupport.releaseMountOnRiderDeath(this);
             // Camp event system: free this traveller's slot so the camp updates / can be reused.
-            com.jubitus.travellers.world.camp.CampsiteManager.get((net.minecraft.world.WorldServer) world)
+            com.jubitus.travellers.camp.CampsiteManager.get((net.minecraft.world.WorldServer) world)
                     .releaseOccupant(this.getUniqueID());
             // Virtual battles: mark this pawn dead so the offscreen sim stays consistent.
-            com.jubitus.travellers.world.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
+            com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
                     .onParticipantDeath((net.minecraft.world.WorldServer) world, this, cause);
         }
         tryPlayDeathSound();

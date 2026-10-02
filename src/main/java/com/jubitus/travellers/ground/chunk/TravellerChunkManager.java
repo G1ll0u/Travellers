@@ -84,16 +84,16 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         }
 
         // Campsite discovery probes + camp lifecycle (budgeted, no chunk force-loading)
-        com.jubitus.travellers.world.camp.CampsiteManager.get(ws).tick(ws, now);
+        com.jubitus.travellers.camp.CampsiteManager.get(ws).tick(ws, now);
 
         // Paced physical reset job started by "/travellersdebug camp reset", if one is running
-        com.jubitus.travellers.world.camp.CampResetCoordinator.INSTANCE.tick(ws, now);
+        com.jubitus.travellers.camp.CampResetCoordinator.INSTANCE.tick(ws, now);
 
         // Virtual battles: encounter detection, offscreen combat sim, deferred loot
-        com.jubitus.travellers.world.battle.VirtualBattleManager.get(ws).tick(ws, now);
-        com.jubitus.travellers.world.zone.ZoneRoleRescan.tick(ws, now);
-        com.jubitus.travellers.world.zone.stable.StableCoordinator.get(ws).tick(ws, now);
-        if (ws.provider.getDimension() == 0) com.jubitus.travellers.world.zone.ZoneAssignments.tickAudit(ws, now);
+        com.jubitus.travellers.battle.VirtualBattleManager.get(ws).tick(ws, now);
+        com.jubitus.travellers.zone.ZoneRoleRescan.tick(ws, now);
+        com.jubitus.travellers.zone.stable.StableCoordinator.get(ws).tick(ws, now);
+        if (ws.provider.getDimension() == 0) com.jubitus.travellers.zone.ZoneAssignments.tickAudit(ws, now);
 
         // Loose ex-mounts left by a dead traveller/raider/worker with nowhere to send their horse:
         // remove the ones past their grace period, but only once no player is close enough to notice.
@@ -113,7 +113,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         com.jubitus.travellers.server.map.pyramid.MapResweepCoordinator.INSTANCE.tick(ws, now);
 
         // Dead hired workers coming back beside their bed (once per in-game morning, persisted)
-        com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws).tickRespawns(ws);
+        com.jubitus.travellers.zone.PlayerZoneManager.get(ws).tickRespawns(ws);
     }
 
     private WorldState getOrCreateState(WorldServer ws) {

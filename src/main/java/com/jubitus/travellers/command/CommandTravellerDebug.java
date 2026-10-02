@@ -375,7 +375,7 @@ public class CommandTravellerDebug extends CommandBase {
         if (sub.equals("show")) {
             com.jubitus.travellers.debug.village.VillageDebugView.show(player);
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Village debug view on ("
-                    + com.jubitus.travellers.world.mill.MillFootprints.count(player.world)
+                    + com.jubitus.travellers.village.MillFootprints.count(player.world)
                     + " Millénaire buildings known). "
                     + TextFormatting.GOLD + "orange" + TextFormatting.RESET + " = building, "
                     + TextFormatting.RED + "red" + TextFormatting.RESET + " = town hall, "
@@ -387,15 +387,15 @@ public class CommandTravellerDebug extends CommandBase {
             return;
         }
         if (sub.equals("here")) {
-            com.jubitus.travellers.world.mill.MillFootprints.Footprint f =
-                    com.jubitus.travellers.world.mill.MillFootprints.at(player.world, player.posX, player.posY, player.posZ, 0);
+            com.jubitus.travellers.village.MillFootprints.Footprint f =
+                    com.jubitus.travellers.village.MillFootprints.at(player.world, player.posX, player.posY, player.posZ, 0);
             if (f == null) {
                 sender.sendMessage(new TextComponentString(TextFormatting.GRAY
                         + "Not inside any Millénaire building (roof and walls included)."));
-                com.jubitus.travellers.world.mill.MillFootprints.Footprint nearest = null;
+                com.jubitus.travellers.village.MillFootprints.Footprint nearest = null;
                 double best = Double.MAX_VALUE;
-                for (com.jubitus.travellers.world.mill.MillFootprints.Footprint c
-                        : com.jubitus.travellers.world.mill.MillFootprints.near(player.world, player.posX, player.posZ, 48)) {
+                for (com.jubitus.travellers.village.MillFootprints.Footprint c
+                        : com.jubitus.travellers.village.MillFootprints.near(player.world, player.posX, player.posZ, 48)) {
                     double dx = (c.minX + c.maxX + 1) * 0.5D - player.posX, dz = (c.minZ + c.maxZ + 1) * 0.5D - player.posZ;
                     if (dx * dx + dz * dz < best) {
                         best = dx * dx + dz * dz;
@@ -432,7 +432,7 @@ public class CommandTravellerDebug extends CommandBase {
     }
 
     /** Raw Millénaire placement data of a building next to the box we derive from it, to check the two agree. */
-    private static void sendFootprintDiag(ICommandSender sender, com.jubitus.travellers.world.mill.MillFootprints.Footprint f,
+    private static void sendFootprintDiag(ICommandSender sender, com.jubitus.travellers.village.MillFootprints.Footprint f,
                                           EntityPlayerMP player) {
         org.millenaire.common.village.BuildingLocation loc = f.building.location;
         org.millenaire.common.buildingplan.BuildingPlan plan = loc.getPlan();
@@ -469,14 +469,14 @@ public class CommandTravellerDebug extends CommandBase {
 
     /** What the nearest settlement still needs for its constructions, and what it holds already. */
     private void describeNeeds(ICommandSender sender, WorldServer world, net.minecraft.util.math.BlockPos pos) {
-        com.jubitus.travellers.world.mill.MillSettlements.Settlement s =
-                com.jubitus.travellers.world.mill.MillSettlements.nearest(world, pos, 256);
+        com.jubitus.travellers.village.MillSettlements.Settlement s =
+                com.jubitus.travellers.village.MillSettlements.nearest(world, pos, 256);
         org.millenaire.common.village.Building th = s == null ? null : s.townHall(world);
         if (th == null) {
             sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "No Millénaire settlement within 256 blocks."));
             return;
         }
-        java.util.List<String> lines = com.jubitus.travellers.world.mill.MillGoods.describeNeeds(world, th);
+        java.util.List<String> lines = com.jubitus.travellers.village.MillGoods.describeNeeds(world, th);
         sender.sendMessage(new TextComponentString(TextFormatting.GOLD + s.displayName() + TextFormatting.RESET
                 + " pop " + s.population(world) + ", goal " + th.buildingGoal + ", "
                 + lines.size() + " construction item(s) needed"));
@@ -512,7 +512,7 @@ public class CommandTravellerDebug extends CommandBase {
     }
 
     private static void sendVisit(ICommandSender sender, String who,
-                                  @javax.annotation.Nullable com.jubitus.travellers.world.visit.VillageVisitState st, String horse) {
+                                  @javax.annotation.Nullable com.jubitus.travellers.village.visit.VillageVisitState st, String horse) {
         String visit = st == null ? "not visiting"
                 : "stop " + fmtPos(st.stop) + (st.asFollower ? " (with group)" : "")
                 + (st.isLeaving() ? " leaving" : " left=" + st.remainingTicks / 20 + "s")
@@ -531,8 +531,8 @@ public class CommandTravellerDebug extends CommandBase {
         World w = sender.getEntityWorld();
         if (!(w instanceof WorldServer)) throw new CommandException("Server world required.");
         WorldServer ws = (WorldServer) w;
-        com.jubitus.travellers.world.battle.VirtualBattleManager mgr =
-                com.jubitus.travellers.world.battle.VirtualBattleManager.get(ws);
+        com.jubitus.travellers.battle.VirtualBattleManager mgr =
+                com.jubitus.travellers.battle.VirtualBattleManager.get(ws);
         String sub = args.length >= 2 ? args[1].toLowerCase() : "list";
 
         if (sub.equals("spawnfight")) {
@@ -554,14 +554,14 @@ public class CommandTravellerDebug extends CommandBase {
             return;
         }
 
-        java.util.List<com.jubitus.travellers.world.battle.BattleRecord> list = new java.util.ArrayList<>();
-        for (com.jubitus.travellers.world.battle.BattleRecord b : mgr.getBattlesView()) list.add(b);
+        java.util.List<com.jubitus.travellers.battle.BattleRecord> list = new java.util.ArrayList<>();
+        for (com.jubitus.travellers.battle.BattleRecord b : mgr.getBattlesView()) list.add(b);
 
         if (sub.equals("info") || sub.equals("end")) {
             int idx = args.length >= 3 ? Integer.parseInt(args[2]) : 0;
             if (idx < 0 || idx >= list.size()) throw new CommandException("No battle #" + idx
                     + " (" + list.size() + " active).");
-            com.jubitus.travellers.world.battle.BattleRecord b = list.get(idx);
+            com.jubitus.travellers.battle.BattleRecord b = list.get(idx);
             if (sub.equals("end")) {
                 mgr.debugEndBattle(ws, b);
                 sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Battle #" + idx + " ended."));
@@ -582,7 +582,7 @@ public class CommandTravellerDebug extends CommandBase {
         }
     }
 
-    private static String describeBattle(WorldServer ws, com.jubitus.travellers.world.battle.BattleRecord b,
+    private static String describeBattle(WorldServer ws, com.jubitus.travellers.battle.BattleRecord b,
                                          boolean detailed) {
         StringBuilder sb = new StringBuilder();
         sb.append("Battle @ ").append(b.center.getX()).append(",").append(b.center.getZ())
@@ -592,7 +592,7 @@ public class CommandTravellerDebug extends CommandBase {
         if (b.campAnchorId != null) sb.append(" [camp assault]");
         if (detailed) {
             VirtualTravellerManager vtm = VirtualTravellerManager.get(ws);
-            for (com.jubitus.travellers.world.battle.BattleParticipant p : b.participants.values()) {
+            for (com.jubitus.travellers.battle.BattleParticipant p : b.participants.values()) {
                 com.jubitus.travellers.virtual.VirtualTravellerRecord r =
                         vtm.getRecord(p.uuid);
                 sb.append("\n  [").append(p.side == 0 ? "A" : "B").append("] ")
@@ -714,13 +714,13 @@ public class CommandTravellerDebug extends CommandBase {
         }
         EntityPlayerMP player = (EntityPlayerMP) sender;
         WorldServer ws = player.getServerWorld();
-        com.jubitus.travellers.world.camp.CampsiteManager mgr =
-                com.jubitus.travellers.world.camp.CampsiteManager.get(ws);
+        com.jubitus.travellers.camp.CampsiteManager mgr =
+                com.jubitus.travellers.camp.CampsiteManager.get(ws);
         net.minecraft.util.math.BlockPos origin = player.getPosition();
         int dim = ws.provider.getDimension();
 
         if (args.length >= 2 && args[1].equalsIgnoreCase("here")) {
-            com.jubitus.travellers.world.camp.CampsiteRecord rec = mgr.forceCreateAt(ws, origin);
+            com.jubitus.travellers.camp.CampsiteRecord rec = mgr.forceCreateAt(ws, origin);
             if (rec == null) {
                 sender.sendMessage(new TextComponentString(TextFormatting.RED
                         + "Could not create a campsite here (bad ground or too close to another)."));
@@ -737,7 +737,7 @@ public class CommandTravellerDebug extends CommandBase {
             return;
         }
         if (args.length >= 2 && args[1].equalsIgnoreCase("join")) {
-            com.jubitus.travellers.world.camp.CampsiteRecord rec = mgr.nearest(dim, origin, 256);
+            com.jubitus.travellers.camp.CampsiteRecord rec = mgr.nearest(dim, origin, 256);
             if (rec == null || !rec.slotsComputed) {
                 sender.sendMessage(new TextComponentString(TextFormatting.RED + "No campsite with slots within 256b."));
                 return;
@@ -760,22 +760,22 @@ public class CommandTravellerDebug extends CommandBase {
             return;
         }
         if (args.length >= 2 && args[1].equalsIgnoreCase("leave")) {
-            com.jubitus.travellers.world.camp.CampsiteRecord rec = mgr.nearest(dim, origin, 256);
+            com.jubitus.travellers.camp.CampsiteRecord rec = mgr.nearest(dim, origin, 256);
             if (rec == null) {
                 sender.sendMessage(new TextComponentString(TextFormatting.RED + "No campsite within 256b."));
                 return;
             }
             long now = ws.getTotalWorldTime();
             int n = rec.occupants.size();
-            for (com.jubitus.travellers.world.camp.CampOccupant o : rec.occupants.values()) o.departTick = now;
+            for (com.jubitus.travellers.camp.CampOccupant o : rec.occupants.values()) o.departTick = now;
             mgr.markDirty();
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Forced " + n
                     + " occupant(s) to leave; camp tears down on the next camp tick."));
             return;
         }
 
-        java.util.List<com.jubitus.travellers.world.camp.CampsiteRecord> near = new java.util.ArrayList<>();
-        for (com.jubitus.travellers.world.camp.CampsiteRecord r : mgr.getAll()) {
+        java.util.List<com.jubitus.travellers.camp.CampsiteRecord> near = new java.util.ArrayList<>();
+        for (com.jubitus.travellers.camp.CampsiteRecord r : mgr.getAll()) {
             if (r.dimension == dim && r.center.distanceSq(origin) <= 512 * 512) near.add(r);
         }
         near.sort(java.util.Comparator.comparingDouble(r -> r.center.distanceSq(origin)));
@@ -783,7 +783,7 @@ public class CommandTravellerDebug extends CommandBase {
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Campsites within 512b: "
                 + TextFormatting.YELLOW + near.size() + TextFormatting.GRAY + " (total " + mgr.getAll().size() + ")"));
         int shown = 0;
-        for (com.jubitus.travellers.world.camp.CampsiteRecord r : near) {
+        for (com.jubitus.travellers.camp.CampsiteRecord r : near) {
             if (shown++ >= 10) break;
             int dist = (int) Math.sqrt(r.center.distanceSq(origin));
             sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "  " + r.center.getX() + "," + r.center.getY()
@@ -794,7 +794,7 @@ public class CommandTravellerDebug extends CommandBase {
 
     /**
      * Full physical camp reset across every dimension: restores all campsite terrain to its
-     * pre-camp state (paced across ticks by {@link com.jubitus.travellers.world.camp.CampResetCoordinator},
+     * pre-camp state (paced across ticks by {@link com.jubitus.travellers.camp.CampResetCoordinator},
      * no player presence required). Plain "camp reset" keeps campsite records/slots so they don't
      * need rediscovery; "camp reset all" additionally deletes every campsite so the world starts
      * from zero (rediscovered from scratch as chunks load again). Progress is reported to
@@ -803,11 +803,11 @@ public class CommandTravellerDebug extends CommandBase {
     private void executeCampReset(MinecraftServer server, ICommandSender sender, boolean deleteAll) {
         int alreadyRunning = 0;
         for (WorldServer ws : server.worlds) {
-            if (com.jubitus.travellers.world.camp.CampResetCoordinator.INSTANCE.isActive(ws.provider.getDimension())) {
+            if (com.jubitus.travellers.camp.CampResetCoordinator.INSTANCE.isActive(ws.provider.getDimension())) {
                 alreadyRunning++;
                 continue;
             }
-            com.jubitus.travellers.world.camp.CampResetCoordinator.INSTANCE.start(ws, sender, deleteAll);
+            com.jubitus.travellers.camp.CampResetCoordinator.INSTANCE.start(ws, sender, deleteAll);
         }
         if (alreadyRunning > 0) {
             sender.sendMessage(new TextComponentString(TextFormatting.RED
@@ -853,7 +853,7 @@ public class CommandTravellerDebug extends CommandBase {
         if (reset) {
             MapFillStats.reset();
             ChunkReader.resetCounters();
-            com.jubitus.travellers.world.camp.CampsiteManager.resetDiscoveryCounters();
+            com.jubitus.travellers.camp.CampsiteManager.resetDiscoveryCounters();
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Map fill counters reset."));
             return;
         }
@@ -864,7 +864,7 @@ public class CommandTravellerDebug extends CommandBase {
                 ChunkReader.readCount(), ChunkReader.readAtUnloadCount(), ChunkReader.lostCount(),
                 ChunkReader.readNanos() / 1e6));
         msg(sender, TextFormatting.GRAY + "  " + ChunkReader.changeStats());
-        msg(sender, TextFormatting.GRAY + "  camps: " + com.jubitus.travellers.world.camp.CampsiteManager.discoveryStats());
+        msg(sender, TextFormatting.GRAY + "  camps: " + com.jubitus.travellers.camp.CampsiteManager.discoveryStats());
         msg(sender, TextFormatting.AQUA + "Worldmap");
         msg(sender, TextFormatting.GRAY + String.format(
                 "  chunks painted %d  nothing new %d  paint time %.0f ms",
@@ -1287,12 +1287,12 @@ public class CommandTravellerDebug extends CommandBase {
         java.util.UUID owner = player.getUniqueID();
         String sub = args.length >= 2 ? args[1].toLowerCase() : "list";
 
-        java.util.List<com.jubitus.travellers.world.zone.PlayerZoneRecord> stables = new java.util.ArrayList<>();
+        java.util.List<com.jubitus.travellers.zone.PlayerZoneRecord> stables = new java.util.ArrayList<>();
         for (WorldServer ws : server.worlds) {
-            for (com.jubitus.travellers.world.zone.PlayerZoneRecord zone :
-                    com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws)
-                            .getByOwnerAndType(owner, com.jubitus.travellers.world.zone.ZoneType.STABLE)) {
-                if (zone.data instanceof com.jubitus.travellers.world.zone.stable.StableZoneData) stables.add(zone);
+            for (com.jubitus.travellers.zone.PlayerZoneRecord zone :
+                    com.jubitus.travellers.zone.PlayerZoneManager.get(ws)
+                            .getByOwnerAndType(owner, com.jubitus.travellers.zone.ZoneType.STABLE)) {
+                if (zone.data instanceof com.jubitus.travellers.zone.stable.StableZoneData) stables.add(zone);
             }
         }
         if (stables.isEmpty()) {
@@ -1301,19 +1301,19 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
         WorldServer overworld = server.getWorld(0);
-        com.jubitus.travellers.world.zone.stable.StableCoordinator coord =
-                com.jubitus.travellers.world.zone.stable.StableCoordinator.get(overworld);
+        com.jubitus.travellers.zone.stable.StableCoordinator coord =
+                com.jubitus.travellers.zone.stable.StableCoordinator.get(overworld);
 
         if ("list".equals(sub)) {
-            int hired = com.jubitus.travellers.world.zone.stable.StableCapacity.hiredWorkerCount(overworld, owner);
+            int hired = com.jubitus.travellers.zone.stable.StableCapacity.hiredWorkerCount(overworld, owner);
             int cap = hired * com.jubitus.travellers.config.TravellersConfig.STABLES.horseCapPerWorker;
-            int total = com.jubitus.travellers.world.zone.stable.StableCapacity.currentHorseCount(overworld, owner);
+            int total = com.jubitus.travellers.zone.stable.StableCapacity.currentHorseCount(overworld, owner);
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW
                     + "Stable horses: " + total + " / " + cap + "  (" + hired + " hired x "
                     + com.jubitus.travellers.config.TravellersConfig.STABLES.horseCapPerWorker
                     + ")   " + stables.size() + " stable(s).  dump/log/verify <n>"));
             for (int i = 0; i < stables.size(); i++) {
-                com.jubitus.travellers.world.zone.PlayerZoneRecord z = stables.get(i);
+                com.jubitus.travellers.zone.PlayerZoneRecord z = stables.get(i);
                 String name = (z.name == null || z.name.isEmpty()) ? "Stable" : z.name;
                 sender.sendMessage(new TextComponentString(TextFormatting.AQUA + " [" + i + "] " + name
                         + " @ " + z.center.getX() + "," + z.center.getY() + "," + z.center.getZ()));
@@ -1330,15 +1330,15 @@ public class CommandTravellerDebug extends CommandBase {
             throw new CommandException("Expected a stable index (see /travellersdebug stable list).");
         }
         if (idx < 0 || idx >= stables.size()) throw new CommandException("No stable [" + idx + "].");
-        com.jubitus.travellers.world.zone.PlayerZoneRecord zone = stables.get(idx);
-        com.jubitus.travellers.world.zone.stable.StableZoneData data =
-                (com.jubitus.travellers.world.zone.stable.StableZoneData) zone.data;
+        com.jubitus.travellers.zone.PlayerZoneRecord zone = stables.get(idx);
+        com.jubitus.travellers.zone.stable.StableZoneData data =
+                (com.jubitus.travellers.zone.stable.StableZoneData) zone.data;
 
         switch (sub) {
             case "dump": {
                 sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + "[" + idx + "] "
                         + coord.debugSummary((WorldServer) w, zone)));
-                for (com.jubitus.travellers.world.zone.stable.StableHorseEntry e : data.pool) {
+                for (com.jubitus.travellers.zone.stable.StableHorseEntry e : data.pool) {
                     String state = e.liveEntityUUID != null ? "LIVE   " : (e.horseNbt != null ? "dormant" : "no-nbt ");
                     sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  " + shortId(e.poolId)
                             + "  " + state + "  " + pad(e.origin.toString(), 18)
@@ -1355,7 +1355,7 @@ public class CommandTravellerDebug extends CommandBase {
                 } catch (NumberFormatException ignored) {
                 }
                 java.util.List<String> lines =
-                        com.jubitus.travellers.world.zone.stable.StableWatchLog.tail(zone.id, n);
+                        com.jubitus.travellers.zone.stable.StableWatchLog.tail(zone.id, n);
                 if (lines.isEmpty()) {
                     sender.sendMessage(new TextComponentString(TextFormatting.GRAY
                             + "No events logged yet for [" + idx + "] (since last server start)."));
@@ -1724,7 +1724,7 @@ public class CommandTravellerDebug extends CommandBase {
         int hz = (int) Math.floor(parseCoord(sender, args[2], false));
         int dx = (int) Math.floor(parseCoord(sender, args[3], true));
         int dz = (int) Math.floor(parseCoord(sender, args[4], false));
-        Integer rel = com.jubitus.travellers.world.mill.MillRelations.getRelation(
+        Integer rel = com.jubitus.travellers.village.MillRelations.getRelation(
                 w, new net.minecraft.util.math.BlockPos(hx, 0, hz),
                 new net.minecraft.util.math.BlockPos(dx, 0, dz), w.getTotalWorldTime());
         String bucket;

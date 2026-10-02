@@ -181,7 +181,7 @@ public final class ChunkReader {
             MapChunkPainter.paint(world, chunk);
         }
         if (TravellersConfig.CAMP_EVENTS.enabled) {
-            com.jubitus.travellers.world.camp.CampsiteManager.get(world).onChunkRead(world, chunk.x, chunk.z);
+            com.jubitus.travellers.camp.CampsiteManager.get(world).onChunkRead(world, chunk.x, chunk.z);
         }
         readNanos += System.nanoTime() - t0;
         read++;

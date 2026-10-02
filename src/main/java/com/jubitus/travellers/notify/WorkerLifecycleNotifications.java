@@ -1,7 +1,7 @@
 package com.jubitus.travellers.notify;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.zone.ZoneAssignments;
+import com.jubitus.travellers.zone.ZoneAssignments;
 import net.minecraft.server.MinecraftServer;
 
 import javax.annotation.Nullable;

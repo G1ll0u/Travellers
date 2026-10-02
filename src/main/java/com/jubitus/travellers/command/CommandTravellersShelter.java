@@ -1,14 +1,14 @@
 package com.jubitus.travellers.command;
 
-import com.jubitus.travellers.world.build.BuildStep;
-import com.jubitus.travellers.world.build.IncrementalStructureBuilder;
-import com.jubitus.travellers.world.camp.CampsiteManager;
-import com.jubitus.travellers.world.camp.CampsiteRecord;
-import com.jubitus.travellers.world.camp.ShelterSlot;
-import com.jubitus.travellers.world.camp.shelter.ShelterPlacer;
-import com.jubitus.travellers.world.camp.shelter.ShelterTemplate;
-import com.jubitus.travellers.world.camp.shelter.ShelterTemplateRegistry;
-import com.jubitus.travellers.world.camp.shelter.TerrainSnapshot;
+import com.jubitus.travellers.camp.build.BuildStep;
+import com.jubitus.travellers.camp.build.IncrementalStructureBuilder;
+import com.jubitus.travellers.camp.CampsiteManager;
+import com.jubitus.travellers.camp.CampsiteRecord;
+import com.jubitus.travellers.camp.ShelterSlot;
+import com.jubitus.travellers.camp.shelter.ShelterPlacer;
+import com.jubitus.travellers.camp.shelter.ShelterTemplate;
+import com.jubitus.travellers.camp.shelter.ShelterTemplateRegistry;
+import com.jubitus.travellers.camp.shelter.TerrainSnapshot;
 import net.minecraft.block.BlockColored;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.command.CommandBase;
@@ -161,7 +161,7 @@ public class CommandTravellersShelter extends CommandBase {
         List<TerrainSnapshot> placedList = LAST_TEST.computeIfAbsent(player.getUniqueID(), k -> new java.util.ArrayList<>());
         // Place the firepit at the center on the first test placement, so the camp layout is visible.
         if (placedList.isEmpty()) {
-            TerrainSnapshot fireSnap = com.jubitus.travellers.world.camp.CampFirepit.place(world, camp.firepitPos);
+            TerrainSnapshot fireSnap = com.jubitus.travellers.camp.CampFirepit.place(world, camp.firepitPos);
             if (fireSnap != null) placedList.add(fireSnap);
         }
         int placedCount = 0;

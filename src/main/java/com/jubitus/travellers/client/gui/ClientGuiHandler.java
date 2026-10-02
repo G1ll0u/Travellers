@@ -1,13 +1,13 @@
 package com.jubitus.travellers.client.gui;
 
-import com.jubitus.travellers.client.gui.behavior.GuiWorkerBehavior;
-import com.jubitus.travellers.client.gui.behavior.relations.ContainerWorkerVillageRelations;
-import com.jubitus.travellers.client.gui.behavior.relations.GuiWorkerVillageRelations;
-import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
-import com.jubitus.travellers.client.gui.home.GuiPlayerZonePrompt;
-import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
-import com.jubitus.travellers.client.gui.transport.GuiWorker;
-import com.jubitus.travellers.client.gui.transport.GuiWorkerInventory;
+import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
+import com.jubitus.travellers.village.ContainerWorkerVillageRelations;
+import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
+import com.jubitus.travellers.worker.gui.GuiWorkerGo;
+import com.jubitus.travellers.zone.gui.GuiPlayerZonePrompt;
+import com.jubitus.travellers.worker.gui.GuiWorkerRecruit;
+import com.jubitus.travellers.worker.gui.GuiWorker;
+import com.jubitus.travellers.worker.gui.GuiWorkerInventory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import net.minecraft.entity.Entity;

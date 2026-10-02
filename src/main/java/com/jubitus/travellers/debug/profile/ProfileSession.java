@@ -7,7 +7,7 @@ import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.village.MillSettlements;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;

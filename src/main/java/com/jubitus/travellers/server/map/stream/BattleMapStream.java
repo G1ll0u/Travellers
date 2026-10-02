@@ -2,9 +2,9 @@ package com.jubitus.travellers.server.map.stream;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.battle.BattleParticipant;
-import com.jubitus.travellers.world.battle.BattleRecord;
-import com.jubitus.travellers.world.battle.VirtualBattleManager;
+import com.jubitus.travellers.battle.BattleParticipant;
+import com.jubitus.travellers.battle.BattleRecord;
+import com.jubitus.travellers.battle.VirtualBattleManager;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;

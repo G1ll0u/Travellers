@@ -4,8 +4,8 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.world.camp.CampOccupant;
-import com.jubitus.travellers.world.camp.CampsiteManager;
+import com.jubitus.travellers.camp.CampOccupant;
+import com.jubitus.travellers.camp.CampsiteManager;
 import com.jubitus.travellers.virtual.MaterializePositionResolver;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.Entity;
@@ -151,7 +151,7 @@ public final class TravellerMountSupport {
         if (!TravellersConfig.MOUNTS.enabled) return false;
         if (rider.getMountUUID() != null) return false;
         if (horse.isDead || isBondedMount(horse)) return false;
-        if (com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(horse)) return false;
+        if (com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) return false;
 
         horse.setHorseTamed(true);
         horse.getEntityData().setUniqueId(NBT_BONDED_OWNER, rider.getUniqueID());
@@ -1176,15 +1176,15 @@ public final class TravellerMountSupport {
         if (!TravellersConfig.MOUNTS.hitchMountInVillages || rider.isInCombat()) return;
         BlockPos stop = rider.getUpcomingVisitStop();
         if (stop == null) return;
-        com.jubitus.travellers.world.mill.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.world.mill.VillageVisitIndex.get(rider.world, stop);
+        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
+                com.jubitus.travellers.village.VillageVisitIndex.get(rider.world, stop);
         if (s == null) return;
         double dx = rider.posX - (s.center.getX() + 0.5D);
         double dz = rider.posZ - (s.center.getZ() + 0.5D);
         double r = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
         if (dx * dx + dz * dz > r * r) return;
         if (!horse.onGround || horse.isInWater() || isSwimming(horse)) return;
-        if (com.jubitus.travellers.world.mill.MillFootprints.isForbiddenLanding(rider.world,
+        if (com.jubitus.travellers.village.MillFootprints.isForbiddenLanding(rider.world,
                 horse.posX, horse.posY, horse.posZ)) return;
         setMountMode(rider, MountMode.HITCHED);
         rider.setVillageHitchStop(stop);
@@ -1211,7 +1211,7 @@ public final class TravellerMountSupport {
             return rider.isCachedNearVillage();
         }
         rider.setNextVillageProximityCheckTick(rider.ticksExisted + VILLAGE_PROXIMITY_CHECK_INTERVAL);
-        boolean near = com.jubitus.travellers.world.mill.MillSettlements.isInside(
+        boolean near = com.jubitus.travellers.village.MillSettlements.isInside(
                 rider.world, rider.getPosition());
         rider.setCachedNearVillage(near);
         return near;

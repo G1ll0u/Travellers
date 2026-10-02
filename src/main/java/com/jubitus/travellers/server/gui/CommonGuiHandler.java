@@ -2,8 +2,8 @@ package com.jubitus.travellers.server.gui;
 
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
-import com.jubitus.travellers.client.gui.transport.ContainerWorker;
-import com.jubitus.travellers.client.gui.transport.ContainerWorkerInventory;
+import com.jubitus.travellers.worker.inventory.ContainerWorker;
+import com.jubitus.travellers.worker.inventory.ContainerWorkerInventory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;

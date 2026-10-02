@@ -2,7 +2,7 @@ package com.jubitus.travellers.client.gui.hub;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.entity.player.EntityPlayer;

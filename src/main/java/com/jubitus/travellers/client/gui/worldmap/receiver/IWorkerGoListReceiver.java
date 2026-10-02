@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.gui.worldmap.receiver;
 
-import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
+import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 
 import java.util.List;
 

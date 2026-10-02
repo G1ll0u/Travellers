@@ -17,7 +17,7 @@ import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
-import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncServerCosts;
+import com.jubitus.travellers.worker.net.MsgSyncServerCosts;
 import com.jubitus.travellers.command.CommandDumpCultureItems;
 import com.jubitus.travellers.command.CommandFollowTraveller;
 import com.jubitus.travellers.command.CommandGlowTravellers;
@@ -31,7 +31,7 @@ import com.jubitus.travellers.command.CommandTravellerRouteDump;
 import com.jubitus.travellers.command.CommandTravellersShelter;
 import com.jubitus.travellers.command.TravellerCommandChunks;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.handler.TravellerWorkerLootHandler;
+import com.jubitus.travellers.worker.TravellerWorkerLootHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksClientHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
@@ -273,9 +273,9 @@ public class Travellers {
 
         // Static per-dimension caches keyed by dimension id alone would otherwise bleed into the next
         // world loaded in this same client session (two different save files can both use dimension 0).
-        com.jubitus.travellers.world.zone.stable.StableCoordinator.resetAll();
-        com.jubitus.travellers.world.zone.ZoneRoleRescan.resetAll();
-        com.jubitus.travellers.world.zone.stable.StableWatchLog.closeAll();
+        com.jubitus.travellers.zone.stable.StableCoordinator.resetAll();
+        com.jubitus.travellers.zone.ZoneRoleRescan.resetAll();
+        com.jubitus.travellers.zone.stable.StableWatchLog.closeAll();
 
         com.jubitus.travellers.travel.destination.TravelDestinationChooser.resetAll();
         com.jubitus.travellers.debug.destination.DestinationChoiceLog.close();

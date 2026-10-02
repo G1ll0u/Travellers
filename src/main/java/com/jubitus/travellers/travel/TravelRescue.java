@@ -8,7 +8,7 @@ import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.MountedLeadController;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.pathing.TravellerNavigateGround;
-import com.jubitus.travellers.world.mill.MillFootprints;
+import com.jubitus.travellers.village.MillFootprints;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerBoat;
 import com.jubitus.travellers.unit.EntityTravellerWorker;

@@ -78,7 +78,7 @@ public final class MountTheftGuard {
             net.minecraft.entity.player.EntityPlayer p = event.getEntityPlayer();
             if (p != null && target instanceof EntityHorse
                     && target.world instanceof net.minecraft.world.WorldServer
-                    && com.jubitus.travellers.world.zone.stable.StableCoordinator
+                    && com.jubitus.travellers.zone.stable.StableCoordinator
                     .get((net.minecraft.world.WorldServer) target.world)
                     .isPoolHorseOwnedBy((net.minecraft.world.WorldServer) target.world,
                             (EntityHorse) target, p.getUniqueID())) {
@@ -98,6 +98,6 @@ public final class MountTheftGuard {
         if (!TravellersConfig.STABLES.enabled) return false;
         if (!(target instanceof net.minecraft.entity.passive.EntityHorse)) return false;
         if (!(target.world instanceof net.minecraft.world.WorldServer)) return false;
-        return com.jubitus.travellers.world.zone.stable.StableCoordinator.isPoolHorse(target);
+        return com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(target);
     }
 }

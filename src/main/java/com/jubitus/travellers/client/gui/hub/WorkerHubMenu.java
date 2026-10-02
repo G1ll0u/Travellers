@@ -1,14 +1,14 @@
 package com.jubitus.travellers.client.gui.hub;
 
-import com.jubitus.travellers.client.gui.behavior.GuiWorkerEnemies;
+import com.jubitus.travellers.worker.gui.GuiWorkerEnemies;
 import com.jubitus.travellers.client.gui.hub.WorkerHubNode.Column;
 import com.jubitus.travellers.client.gui.hub.WorkerHubNode.Kind;
-import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
+import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.choir.MsgWorkerChoirToggle;
 import com.jubitus.travellers.follow.net.MsgClearEscortLeader;
 import com.jubitus.travellers.follow.net.MsgMakeWorkerLeader;
 import com.jubitus.travellers.follow.net.MsgToggleWorkerFollow;
-import com.jubitus.travellers.server.net.message.workerplayer.MsgHireWorker;
+import com.jubitus.travellers.worker.net.MsgHireWorker;
 import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;

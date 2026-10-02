@@ -6,7 +6,7 @@ import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -606,7 +606,7 @@ public final class TravellerSoftSpawner {
     private static BlockPos resolveVirtualSpawnY(WorldServer ws, BlockPos xzPos) {
         // Never land a virtual spawn point on/inside a Millénaire building (e.g. a worker's home
         // village center is the Town Hall itself). Pure metadata check, works without chunk loading.
-        BlockPos safeXZ = com.jubitus.travellers.world.mill.MillFootprints.pushOutside(ws, xzPos);
+        BlockPos safeXZ = com.jubitus.travellers.village.MillFootprints.pushOutside(ws, xzPos);
         if (chunkExists(ws, safeXZ)) {
             BlockPos top = ws.getTopSolidOrLiquidBlock(safeXZ);
             if (top != null && top.getY() > 0) return top;

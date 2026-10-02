@@ -1,7 +1,7 @@
 package com.jubitus.travellers.gaze;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
+import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
 import com.jubitus.travellers.follow.EntityAIFollowLeader;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.unit.EntityTraveller;

@@ -116,12 +116,12 @@ public class PopulationMapStream {
 
         for (WorldServer ws : server.worlds) {
             int dim = ws.provider.getDimension();
-            com.jubitus.travellers.world.zone.stable.StableCoordinator coord =
-                    com.jubitus.travellers.world.zone.stable.StableCoordinator.get(ws);
-            for (com.jubitus.travellers.world.zone.PlayerZoneRecord zone :
-                    com.jubitus.travellers.world.zone.PlayerZoneManager.get(ws).getAll()) {
-                if (zone.type != com.jubitus.travellers.world.zone.ZoneType.STABLE
-                        || !(zone.data instanceof com.jubitus.travellers.world.zone.stable.StableZoneData)) {
+            com.jubitus.travellers.zone.stable.StableCoordinator coord =
+                    com.jubitus.travellers.zone.stable.StableCoordinator.get(ws);
+            for (com.jubitus.travellers.zone.PlayerZoneRecord zone :
+                    com.jubitus.travellers.zone.PlayerZoneManager.get(ws).getAll()) {
+                if (zone.type != com.jubitus.travellers.zone.ZoneType.STABLE
+                        || !(zone.data instanceof com.jubitus.travellers.zone.stable.StableZoneData)) {
                     continue;
                 }
                 boolean loaded = coord.isZoneLive(zone);
