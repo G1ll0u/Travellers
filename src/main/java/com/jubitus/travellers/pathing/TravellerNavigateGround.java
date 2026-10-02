@@ -187,7 +187,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
      * skating through at near-full jump speed, which is what carried entities clean off a small
      * landing (a narrow pillar, a tight obstacle course) before anything got a chance to react.
      * This is a stateful check, not a pure getter, but it's called at most meaningfully once per
-     * tick (whichever AI task is currently executing - {@link com.jubitus.travellers.entity.entityai.travel.EntityAITravel}
+     * tick (whichever AI task is currently executing - {@link com.jubitus.travellers.travel.EntityAITravel}
      * or the follower AI - already calls this once at its own top-of-tick guard); extra calls in
      * the same tick (e.g. also from {@link #pathFollow()}) are safe no-ops once the transition has
      * already been handled.

@@ -2,8 +2,8 @@ package com.jubitus.travellers.entity.entityai.ambient;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
-import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
-import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
+import com.jubitus.travellers.gaze.TravellerGaze;
+import com.jubitus.travellers.follow.FollowRecoveryHelper;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;

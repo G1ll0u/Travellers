@@ -77,18 +77,18 @@ public class VirtualTravellerRecord {
         if (entityNbt.hasKey("Wanderlust")) wanderlust = entityNbt.getFloat("Wanderlust");
         if (entityNbt.hasKey("ExploreChance")) exploreChance = entityNbt.getFloat("ExploreChance");
         if (entityNbt.hasKey("RecentDests", 11)) {
-            recentDestinations = com.jubitus.travellers.entity.entityai.travel.travelcommon
+            recentDestinations = com.jubitus.travellers.travel.destination
                     .RecentDestinationRing.fromIntPairs(entityNbt.getIntArray("RecentDests"));
         }
     }
 
     /** Records a freshly chosen destination on the ring and mirrors it into entityNbt for materialize. */
     public void noteChosenDestination(BlockPos dest, int maxN) {
-        recentDestinations = com.jubitus.travellers.entity.entityai.travel.travelcommon
+        recentDestinations = com.jubitus.travellers.travel.destination
                 .RecentDestinationRing.push(recentDestinations, dest, maxN);
         if (entityNbt != null) {
-            entityNbt.setIntArray("RecentDests", com.jubitus.travellers.entity.entityai.travel
-                    .travelcommon.RecentDestinationRing.toIntPairs(recentDestinations));
+            entityNbt.setIntArray("RecentDests", com.jubitus.travellers.travel.destination
+                    .RecentDestinationRing.toIntPairs(recentDestinations));
         }
     }
 
@@ -314,7 +314,7 @@ public class VirtualTravellerRecord {
         if (campCooldownUntil > 0L) tag.setLong("CampCooldown", campCooldownUntil);
         if (cultureId != null) tag.setString("Cult", cultureId);
         if (recentDestinations.length > 0) {
-            tag.setIntArray("RcD", com.jubitus.travellers.entity.entityai.travel.travelcommon
+            tag.setIntArray("RcD", com.jubitus.travellers.travel.destination
                     .RecentDestinationRing.toIntPairs(recentDestinations));
         }
         if (wanderlust != 0f) tag.setFloat("Wl", wanderlust);
@@ -385,7 +385,7 @@ public class VirtualTravellerRecord {
         r.entityClass = tag.hasKey("EC") ? tag.getString("EC") : "WORKER";
         r.cultureId = tag.hasKey("Cult") ? tag.getString("Cult") : null;
         if (tag.hasKey("RcD", 11)) {
-            r.recentDestinations = com.jubitus.travellers.entity.entityai.travel.travelcommon
+            r.recentDestinations = com.jubitus.travellers.travel.destination
                     .RecentDestinationRing.fromIntPairs(tag.getIntArray("RcD"));
         }
         r.wanderlust = tag.getFloat("Wl");

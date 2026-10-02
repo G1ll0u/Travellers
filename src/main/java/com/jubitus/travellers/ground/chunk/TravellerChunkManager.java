@@ -104,7 +104,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         com.jubitus.travellers.mount.MountSyncReconciler.tick(ws, now);
 
         // Close doors / fence gates behind travellers once nobody still needs them held open
-        com.jubitus.travellers.entity.entityai.travel.TravellerDoorways.tick(ws, now);
+        com.jubitus.travellers.travel.TravellerDoorways.tick(ws, now);
 
         // Worldmap: continuous re-sampling of currently-loaded chunks (terrain edits, growing villages)
         com.jubitus.travellers.server.map.pyramid.MapLoadedChunkResampler.INSTANCE.tick(ws, now);

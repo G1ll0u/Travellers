@@ -1,8 +1,8 @@
 package com.jubitus.travellers.debug.profile;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader;
-import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
+import com.jubitus.travellers.follow.EntityAIFollowLeader;
+import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;

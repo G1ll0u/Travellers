@@ -1069,7 +1069,7 @@ public final class TravellerMountSupport {
         // the horse stands still that one tick rather than spending it on a doomed search.
         if (rider.ticksExisted < rider.getLedPacerNavUntilTick()) {
             if (horse.getNavigator().noPath()
-                    && com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler
+                    && com.jubitus.travellers.travel.TravelPathScheduler
                             .tryAcquire(horse.world, rider.getEntityId(), 1)) {
                 horse.getNavigator().tryMoveToEntityLiving(rider, pace);
             }
@@ -1095,7 +1095,7 @@ public final class TravellerMountSupport {
                 // a denied search here is picked up by the budgeted retry above on a later tick, the
                 // jam signal itself must not be lost.
                 rider.setLedPacerNavUntilTick(rider.ticksExisted + TravellersConfig.MOUNTS.ledFollowPathfindTicks);
-                if (com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler
+                if (com.jubitus.travellers.travel.TravelPathScheduler
                         .tryAcquire(horse.world, rider.getEntityId(), 1)) {
                     horse.getNavigator().tryMoveToEntityLiving(rider, pace);
                 }

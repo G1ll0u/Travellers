@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
+import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.world.mill.MillRelations;
 import com.jubitus.travellers.world.mill.MillSettlements;

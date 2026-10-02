@@ -1,14 +1,14 @@
 package com.jubitus.travellers;
 
-import com.jubitus.travellers.client.input.FormationHubKeyHandler;
+import com.jubitus.travellers.follow.gui.FormationHubKeyHandler;
 import com.jubitus.travellers.client.input.WorldMapKeyHandler;
 import com.jubitus.travellers.unit.EntityTravellerBoat;
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.ZoneInteractionHandler;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerOffscreenHandler;
+import com.jubitus.travellers.zone.ZoneInteractionHandler;
+import com.jubitus.travellers.combat.TravellerOffscreenHandler;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerBoat;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
@@ -277,7 +277,7 @@ public class Travellers {
         com.jubitus.travellers.world.zone.ZoneRoleRescan.resetAll();
         com.jubitus.travellers.world.zone.stable.StableWatchLog.closeAll();
 
-        com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.resetAll();
+        com.jubitus.travellers.travel.destination.TravelDestinationChooser.resetAll();
         com.jubitus.travellers.debug.destination.DestinationChoiceLog.close();
 
         if (server == null) return;

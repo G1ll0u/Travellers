@@ -93,7 +93,7 @@ public class MsgRecruitWorkers implements IMessage {
             NotificationService.notify(player, NotificationDefs.RECRUIT_MISSION_STARTED,
                     MillCommonUtilities.getShortPrice(fee));
 
-            com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
+            com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startRecruitMission(player, villages, returnPos);
         }
     }

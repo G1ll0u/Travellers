@@ -57,8 +57,8 @@ public class MsgWorkerGoToPos implements IMessage {
                 }
 
                 // A worker busy on a mission can't take a Go order (loaded + virtual share this rule).
-                if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(w)) {
-                    com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, w);
+                if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(w)) {
+                    com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, w);
                     return;
                 }
 
@@ -68,7 +68,7 @@ public class MsgWorkerGoToPos implements IMessage {
                 BlockPos top = player.world.getHeight(new BlockPos(target.getX(), 0, target.getZ()));
                 target = new BlockPos(target.getX(), top.getY(), target.getZ());
 
-                com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, w.getUniqueID());
+                com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, w.getUniqueID());
                 BlockPos from = w.getPosition();
                 w.startGoToDestination(target, w.dimension);
                 com.jubitus.travellers.notify.MissionNotifications.goOrdered(player, w.getUniqueID(), from, target,

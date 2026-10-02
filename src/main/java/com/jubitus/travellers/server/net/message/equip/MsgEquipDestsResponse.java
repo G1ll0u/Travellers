@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.equip;
 
-import com.jubitus.travellers.client.gui.formation.GuiWorkerFormationHub;
+import com.jubitus.travellers.follow.gui.GuiWorkerFormationHub;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;

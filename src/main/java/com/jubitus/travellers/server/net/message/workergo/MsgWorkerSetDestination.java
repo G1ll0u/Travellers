@@ -76,8 +76,8 @@ public class MsgWorkerSetDestination implements IMessage {
             if (worker.getDistanceSq(player) > 64.0D) {
                 return; // too far
             }
-            if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(worker)) {
-                com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, worker);
+            if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(worker)) {
+                com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, worker);
                 return;
             }
 
@@ -110,7 +110,7 @@ public class MsgWorkerSetDestination implements IMessage {
             if (player.openContainer instanceof ContainerWorker) {
                 ((ContainerWorker) player.openContainer).markJobStarted();
             }
-            com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
+            com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startVillageDeliveryJob(player, villageCenter, msg.donate);
 
             String costStr = MillCommonUtilities.getShortPrice(cost);

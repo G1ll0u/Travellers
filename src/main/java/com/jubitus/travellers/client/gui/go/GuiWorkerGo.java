@@ -18,7 +18,7 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
-import com.jubitus.travellers.server.net.message.group.MsgLeaderGoTo;
+import com.jubitus.travellers.follow.net.MsgLeaderGoTo;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoTo;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoToPos;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList;

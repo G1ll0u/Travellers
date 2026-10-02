@@ -10,7 +10,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIStopAndLookAtPlayer;
+import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendOwnerProactively;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIOwnerHurtByTargetTraveller;
@@ -19,13 +19,13 @@ import com.jubitus.travellers.entity.entityai.combat.EntityAIWorkerHurtByTargetT
 import com.jubitus.travellers.entity.entityai.combat.ThrottledAttackTargetAI;
 import com.jubitus.travellers.combat.TravellerHurtByTarget;
 import net.minecraft.entity.ai.EntityAITasks;
-import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader;
-import com.jubitus.travellers.entity.entityai.follow.FollowFormationCoordinator;
-import com.jubitus.travellers.entity.entityai.follow.FollowMode;
-import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
-import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
-import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
+import com.jubitus.travellers.follow.EntityAIFollowLeader;
+import com.jubitus.travellers.follow.FollowFormationCoordinator;
+import com.jubitus.travellers.follow.FollowMode;
+import com.jubitus.travellers.follow.FollowRecoveryHelper;
+import com.jubitus.travellers.follow.FollowRuntimeConfig;
+import com.jubitus.travellers.travel.EntityAITravel;
+import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
 import com.jubitus.travellers.world.zone.ZoneRef;
 import com.jubitus.travellers.notify.NotificationDefs;
@@ -97,8 +97,8 @@ public class EntityTravellerWorker extends EntityTraveller {
      * ticksExisted%20 block) — the single cheap read path for combat AI, never read the saved data
      * directly from per-tick code.
      */
-    private com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude cachedAttitude =
-            com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude.ATTACK;
+    private com.jubitus.travellers.follow.formations.WorkerAttitude cachedAttitude =
+            com.jubitus.travellers.follow.formations.WorkerAttitude.ATTACK;
     /** See {@link #cachedAttitude} - same refresh cadence, same reasoning. */
     private double cachedPlayerCohesion = 0.4D;
 
@@ -1258,7 +1258,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                                 net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
                                 UUID ownerId = this.getFollowOwnerId();
                                 int total = 1 + (srv != null && ownerId != null
-                                        ? com.jubitus.travellers.server.group.WorkerGroupService
+                                        ? com.jubitus.travellers.follow.group.WorkerGroupService
                                         .countFollowers(srv, ownerId, this.getUniqueID()) : 0);
                                 com.jubitus.travellers.notify.MissionNotifications.equipped(srv, ownerId, horses, total);
                             }
@@ -1613,7 +1613,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                         new MsgOpenClientWorkerGui(this.getEntityId(), MsgOpenClientWorkerGui.Type.HUB),
                         (EntityPlayerMP) player
                 );
-                com.jubitus.travellers.server.group.WorkerGroupService.syncLeaderFollowerCount(
+                com.jubitus.travellers.follow.group.WorkerGroupService.syncLeaderFollowerCount(
                         (EntityPlayerMP) player, this.getUniqueID());
             }
         }
@@ -2401,7 +2401,7 @@ public class EntityTravellerWorker extends EntityTraveller {
      * the saved data directly. */
     private void refreshCachedAttitude() {
         if (!isHiredFollower()) {
-            cachedAttitude = com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude.ATTACK;
+            cachedAttitude = com.jubitus.travellers.follow.formations.WorkerAttitude.ATTACK;
             cachedPlayerCohesion = 0.4D;
             return;
         }
@@ -2412,19 +2412,19 @@ public class EntityTravellerWorker extends EntityTraveller {
         // is a different group's settings entirely. isVisualLeader() is the same cheap loaded-only
         // "do I have followers" signal already used for the armband texture - fine here too, this is
         // just an AI-behaviour heuristic, not authoritative state.
-        com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey scope = isVisualLeader()
-                ? new com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey(
-                        com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey.Type.WORKER,
+        com.jubitus.travellers.follow.formations.WorkerFormationScopeKey scope = isVisualLeader()
+                ? new com.jubitus.travellers.follow.formations.WorkerFormationScopeKey(
+                        com.jubitus.travellers.follow.formations.WorkerFormationScopeKey.Type.WORKER,
                         getUniqueID())
-                : com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver
+                : com.jubitus.travellers.follow.formations.WorkerFormationScopeResolver
                         .resolveRuntimeScope(getEffectiveFollowTarget());
         if (scope == null) {
-            cachedAttitude = com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude.ATTACK;
+            cachedAttitude = com.jubitus.travellers.follow.formations.WorkerAttitude.ATTACK;
             cachedPlayerCohesion = 0.4D;
             return;
         }
-        com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings settings =
-                com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData
+        com.jubitus.travellers.follow.formations.WorkerFormationSettings settings =
+                com.jubitus.travellers.follow.formations.WorkerFormationSavedData
                         .get(world).getSettings(scope);
         cachedAttitude = settings.attitude;
         cachedPlayerCohesion = settings.playerCohesion;
@@ -3175,7 +3175,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public int getCachedGroupSize() { return cachedGroupSize; }
     public void setCachedGroupSize(int size) { cachedGroupSize = Math.max(1, size); }
 
-    public com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude getCachedAttitude() {
+    public com.jubitus.travellers.follow.formations.WorkerAttitude getCachedAttitude() {
         return cachedAttitude;
     }
 

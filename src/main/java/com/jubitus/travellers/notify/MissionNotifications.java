@@ -1,7 +1,7 @@
 package com.jubitus.travellers.notify;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.server.group.WorkerGroupService;
+import com.jubitus.travellers.follow.group.WorkerGroupService;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;

@@ -5,7 +5,7 @@ import net.minecraft.world.World;
 
 /**
  * World-wide admission budget for new route-planning jobs, a sibling of
- * {@code entity/entityai/travel/travelcommon/TravelPathScheduler}: same shape (static
+ * {@code travel/TravelPathScheduler}: same shape (static
  * {@code tryAcquire}, per-tick counter that self-resets on tick change). A unit denied a slot uses
  * its straight-line fallback and retries on its next replan.
  *

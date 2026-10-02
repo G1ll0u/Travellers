@@ -1,13 +1,13 @@
 package com.jubitus.travellers.virtual;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
-import com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle;
+import com.jubitus.travellers.follow.FollowRuntimeConfig;
+import com.jubitus.travellers.follow.formations.FormationGeometry;
+import com.jubitus.travellers.follow.formations.WorkerAttitude;
+import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
+import com.jubitus.travellers.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.follow.formations.WorkerFormationStyle;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;

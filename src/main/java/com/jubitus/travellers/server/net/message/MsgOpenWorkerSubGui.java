@@ -2,17 +2,17 @@ package com.jubitus.travellers.server.net.message;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.client.gui.TravellersGuiIds;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
+import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.follow.formations.WorkerFormationScopeResolver;
+import com.jubitus.travellers.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.server.group.WorkerGroupService;
+import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
-import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
+import com.jubitus.travellers.follow.net.FormationLeaderInfo;
+import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
 import com.jubitus.travellers.server.net.message.zone.MsgSyncWorkerHome;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
@@ -208,7 +208,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                                     WorkerFormationScopeResolver.resolveOpenScope(worker, player);
                             WorkerFormationScopeKey initialScope = openScope != null ? openScope.scope
                                     : new WorkerFormationScopeKey(WorkerFormationScopeKey.Type.PLAYER, player.getUniqueID());
-                            com.jubitus.travellers.server.group.WorkerGroupService.sendHubForWorker(
+                            com.jubitus.travellers.follow.group.WorkerGroupService.sendHubForWorker(
                                     player, worker.getEntityId(), initialScope);
                         }
                         return;

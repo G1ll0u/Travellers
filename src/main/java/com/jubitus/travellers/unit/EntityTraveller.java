@@ -16,10 +16,10 @@ import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.culture.VoiceSet;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIAutoEat;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIFishWhileTravel;
+import com.jubitus.travellers.ambient.EntityAIAutoEat;
+import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIStopAndLookAtPlayer;
+import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.entity.entityai.combat.AttackTargetLimiter;
 import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
@@ -27,14 +27,14 @@ import com.jubitus.travellers.entity.entityai.combat.TravellerItemDamage;
 import com.jubitus.travellers.unit.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.entity.entityai.flight.ElytraFlightController;
-import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
-import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
-import com.jubitus.travellers.entity.entityai.follow.PathScheduler;
-import com.jubitus.travellers.entity.entityai.travel.EntityAIPassDoor;
-import com.jubitus.travellers.entity.entityai.travel.TravellerDoorways;
-import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
+import com.jubitus.travellers.flight.ElytraFlightController;
+import com.jubitus.travellers.follow.FollowRecoveryHelper;
+import com.jubitus.travellers.follow.FollowRuntimeConfig;
+import com.jubitus.travellers.follow.PathScheduler;
+import com.jubitus.travellers.travel.EntityAIPassDoor;
+import com.jubitus.travellers.travel.TravellerDoorways;
+import com.jubitus.travellers.travel.EntityAITravel;
+import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import net.minecraft.entity.passive.EntityHorse;
@@ -57,11 +57,11 @@ import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.*;
-import com.jubitus.travellers.entity.entityai.gaze.TravellerBodyHelper;
-import com.jubitus.travellers.entity.entityai.gaze.Greetings;
-import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
-import com.jubitus.travellers.entity.entityai.gaze.TravellerGreeter;
-import com.jubitus.travellers.entity.entityai.gaze.TravellerLookHelper;
+import com.jubitus.travellers.gaze.TravellerBodyHelper;
+import com.jubitus.travellers.gaze.Greetings;
+import com.jubitus.travellers.gaze.TravellerGaze;
+import com.jubitus.travellers.gaze.TravellerGreeter;
+import com.jubitus.travellers.gaze.TravellerLookHelper;
 import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraft.entity.ai.*;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
@@ -190,7 +190,7 @@ public class EntityTraveller extends EntityCreature {
     EntityAIAttackMeleeCustom aiMelee;
     EntityAIDefendIfClose aiDefendIfClose;
     EntityAITravel aiTravel;
-    com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader aiFollowGroupLeader;
+    com.jubitus.travellers.follow.EntityAIFollowLeader aiFollowGroupLeader;
 
     // UUID of the group leader this entity follows (null = leader or solo)
     @Nullable private UUID groupLeaderUUID;
@@ -201,16 +201,16 @@ public class EntityTraveller extends EntityCreature {
      * traveller/raider or a follower (kept only so it round-trips cleanly through NBT/virtualize
      * regardless of role - simpler than a nullable field with role-dependent meaning).
      */
-    private com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle groupFormationStyle =
-            com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle.RING;
+    private com.jubitus.travellers.follow.formations.WorkerFormationStyle groupFormationStyle =
+            com.jubitus.travellers.follow.formations.WorkerFormationStyle.RING;
 
-    public com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle getGroupFormationStyle() {
+    public com.jubitus.travellers.follow.formations.WorkerFormationStyle getGroupFormationStyle() {
         return groupFormationStyle;
     }
 
-    public void setGroupFormationStyle(com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle style) {
+    public void setGroupFormationStyle(com.jubitus.travellers.follow.formations.WorkerFormationStyle style) {
         this.groupFormationStyle = style == null
-                ? com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle.RING : style;
+                ? com.jubitus.travellers.follow.formations.WorkerFormationStyle.RING : style;
     }
 
     /**
@@ -1306,7 +1306,7 @@ public class EntityTraveller extends EntityCreature {
         aiMelee = new EntityAIAttackMeleeCustom(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking, true, 0.00);
         this.tasks.addTask(4, aiMelee);
 
-        aiFollowGroupLeader = new com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader(
+        aiFollowGroupLeader = new com.jubitus.travellers.follow.EntityAIFollowLeader(
                 this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 1.0F, 1.0F);
         this.tasks.addTask(5, aiFollowGroupLeader);
 
@@ -1942,7 +1942,7 @@ public class EntityTraveller extends EntityCreature {
             compound.setFloat("ExploreChance", travelCommon.exploreChance);
             if (travelCommon.recentDestinations.length > 0) {
                 compound.setIntArray("RecentDests",
-                        com.jubitus.travellers.entity.entityai.travel.travelcommon.RecentDestinationRing
+                        com.jubitus.travellers.travel.destination.RecentDestinationRing
                                 .toIntPairs(travelCommon.recentDestinations));
             }
             compound.setFloat("HopPreference", travelCommon.hopPreference);
@@ -2051,7 +2051,7 @@ public class EntityTraveller extends EntityCreature {
         if (compound.hasKey("ExploreChance")) travelCommon.exploreChance = compound.getFloat("ExploreChance");
         if (compound.hasKey("RecentDests", 11)) {
             travelCommon.recentDestinations =
-                    com.jubitus.travellers.entity.entityai.travel.travelcommon.RecentDestinationRing
+                    com.jubitus.travellers.travel.destination.RecentDestinationRing
                             .fromIntPairs(compound.getIntArray("RecentDests"));
         }
         if (compound.hasKey("HopPreference")) travelCommon.hopPreference = compound.getFloat("HopPreference");
@@ -2090,13 +2090,13 @@ public class EntityTraveller extends EntityCreature {
         groupLeaderUUID = compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null;
         if (compound.hasKey("GroupFormationStyle")) {
             try {
-                groupFormationStyle = com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle
+                groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle
                         .valueOf(compound.getString("GroupFormationStyle"));
             } catch (IllegalArgumentException ignored) {
-                groupFormationStyle = com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle.RING;
+                groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle.RING;
             }
         } else {
-            groupFormationStyle = com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle.RING;
+            groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle.RING;
         }
         // null (unset) is a real, valid state here (see the field doc) - an old save with no tag
         // lazy-rolls on first read rather than getting a migration pass.
@@ -4094,8 +4094,8 @@ public void fall(float distance, float damageMultiplier) {
         BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
         if (leaderPos == null) return;
 
-        com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry.SlotOffset off =
-                com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry.computeRingOffset(getUniqueID());
+        com.jubitus.travellers.follow.formations.FormationGeometry.SlotOffset off =
+                com.jubitus.travellers.follow.formations.FormationGeometry.computeRingOffset(getUniqueID());
         virtualLeaderSlot = resolveVirtualSlot(leaderPos.getX() + 0.5D + off.dx, leaderPos.getZ() + 0.5D + off.dz);
 
         if (!isCatchupTravel() && getDistanceSqToCenter(virtualLeaderSlot)
@@ -4216,9 +4216,9 @@ public void fall(float distance, float damageMultiplier) {
      * "The ground I am trying to walk onto is not loaded, so hand off to the offscreen simulation
      * instead of milling about at the boundary." Returns true if this call virtualized the entity.
      *
-     * <p><b>Only for {@link com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader}
+     * <p><b>Only for {@link com.jubitus.travellers.follow.EntityAIFollowLeader}
      * followers</b> (see {@link #getEdgeProbeGoal()}) - a worker escorting a leader, or a traveller/raider
-     * following its group leader. That AI never hands off to {@link com.jubitus.travellers.entity.entityai.travel.EntityAITravel}
+     * following its group leader. That AI never hands off to {@link com.jubitus.travellers.travel.EntityAITravel}
      * even when catching up over a long distance (it re-implements its own stepped waypoints instead),
      * so it has no equivalent of that task's progress-based stuck backstop and would otherwise only ever
      * leave via an actual chunk unload. Ordinary travel, go orders, missions and owner-catchup all end up
@@ -4296,7 +4296,7 @@ public void fall(float distance, float damageMultiplier) {
      * exempts an idle unit standing in loaded terrain from ever being probed out of the world.
      *
      * <p>Deliberately does NOT look at {@link TravelCommon}'s waypoint/target village here - that goal
-     * belongs to {@link com.jubitus.travellers.entity.entityai.travel.EntityAITravel}, which has its own,
+     * belongs to {@link com.jubitus.travellers.travel.EntityAITravel}, which has its own,
      * more reliable stuck detection (see {@link #tickEdgeVirtualizeProbe}'s class doc). Only a group
      * leader to follow - the one case with no such backstop - is a reason for this probe to run.
      */
@@ -4818,10 +4818,10 @@ public void fall(float distance, float damageMultiplier) {
         return this.aiTravel;
     }
 
-    private final com.jubitus.travellers.entity.entityai.travel.StuckRecord stuckRecord =
-            new com.jubitus.travellers.entity.entityai.travel.StuckRecord();
+    private final com.jubitus.travellers.travel.StuckRecord stuckRecord =
+            new com.jubitus.travellers.travel.StuckRecord();
 
-    public com.jubitus.travellers.entity.entityai.travel.StuckRecord getStuckRecord() {
+    public com.jubitus.travellers.travel.StuckRecord getStuckRecord() {
         return stuckRecord;
     }
 

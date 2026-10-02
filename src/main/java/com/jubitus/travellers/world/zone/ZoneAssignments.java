@@ -1,8 +1,8 @@
 package com.jubitus.travellers.world.zone;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.group.WorkerGroupService;
-import com.jubitus.travellers.server.group.WorkerOrderGuard;
+import com.jubitus.travellers.follow.group.WorkerGroupService;
+import com.jubitus.travellers.follow.group.WorkerOrderGuard;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.zone.MsgSyncWorkerHome;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;

@@ -1,6 +1,6 @@
 package com.jubitus.travellers.debug.trace;
 
-import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader;
+import com.jubitus.travellers.follow.EntityAIFollowLeader;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.Entity;

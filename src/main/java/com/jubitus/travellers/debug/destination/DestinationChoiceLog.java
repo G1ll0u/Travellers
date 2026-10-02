@@ -1,7 +1,7 @@
 package com.jubitus.travellers.debug.destination;
 
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.ChosenDestination;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.Row;
+import com.jubitus.travellers.travel.destination.TravelDestinationChooser.ChosenDestination;
+import com.jubitus.travellers.travel.destination.TravelDestinationChooser.Row;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 

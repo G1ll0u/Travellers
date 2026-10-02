@@ -101,11 +101,11 @@ public class MsgWorkerGetEquipment implements IMessage {
                     if (e instanceof EntityTravellerWorker) {
                         EntityTravellerWorker worker = (EntityTravellerWorker) e;
                         if (!worker.isHiredFollower() || !ownerId.equals(worker.getFollowOwnerId())) return;
-                        if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(worker)) {
-                            com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, worker);
+                        if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(worker)) {
+                            com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, worker);
                             return;
                         }
-                        com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
+                        com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
                         worker.startGetEquipMission(msg.homePos, msg.stayThere, msg.kind);
                         return;
                     }
@@ -116,8 +116,8 @@ public class MsgWorkerGetEquipment implements IMessage {
                 VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
                 VirtualTravellerRecord r = vwm.getRecord(msg.workerUUID);
                 if (r == null || !ownerId.equals(r.followOwnerUUID)) return;
-                if (com.jubitus.travellers.server.group.WorkerOrderGuard.isBusy(r)) {
-                    com.jubitus.travellers.server.group.WorkerOrderGuard.notifyRefused(player, r);
+                if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(r)) {
+                    com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, r);
                     return;
                 }
 
@@ -125,7 +125,7 @@ public class MsgWorkerGetEquipment implements IMessage {
                 temp.readFromNBT(r.entityNbt);
                 temp.setUniqueId(r.uuid);
                 temp.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-                com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, r.uuid);
+                com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, r.uuid);
                 temp.clearEscortLeader();
                 temp.startGetEquipMission(msg.homePos, msg.stayThere, msg.kind);
 

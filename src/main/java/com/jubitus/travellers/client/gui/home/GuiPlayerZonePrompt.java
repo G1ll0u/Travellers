@@ -3,7 +3,7 @@ package com.jubitus.travellers.client.gui.home;
 import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
-import com.jubitus.travellers.client.gui.formation.GuiWorkerFormationSlider;
+import com.jubitus.travellers.follow.gui.GuiWorkerFormationSlider;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
 import com.jubitus.travellers.config.TravellersConfig;

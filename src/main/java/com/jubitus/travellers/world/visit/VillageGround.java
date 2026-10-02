@@ -1,7 +1,7 @@
 package com.jubitus.travellers.world.visit;
 
 import com.jubitus.travellers.world.mill.MillFootprints;
-import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
+import com.jubitus.travellers.follow.FollowRecoveryHelper;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 

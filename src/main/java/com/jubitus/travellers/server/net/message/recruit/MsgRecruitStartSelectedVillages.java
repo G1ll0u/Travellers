@@ -116,7 +116,7 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
             }
 
             // Start mission with EXACT villages chosen
-            com.jubitus.travellers.server.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
+            com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.startRecruitMission(player, msg.route, null);
         }
     }

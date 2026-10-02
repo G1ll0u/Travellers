@@ -2,7 +2,7 @@ package com.jubitus.travellers.server.net.message.zone;
 
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerZoneDutyReceiver;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.group.WorkerGroupService;
+import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;

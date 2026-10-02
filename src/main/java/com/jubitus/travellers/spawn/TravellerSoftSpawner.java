@@ -2,7 +2,7 @@ package com.jubitus.travellers.spawn;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
+import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -46,7 +46,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import static com.jubitus.travellers.entity.entityai.travel.TravelTerrain.intersectsForbiddenLiquid;
+import static com.jubitus.travellers.travel.TravelTerrain.intersectsForbiddenLiquid;
 
 @Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public final class TravellerSoftSpawner {
@@ -443,7 +443,7 @@ public final class TravellerSoftSpawner {
         r.mounted = TravellerMountSupport.rollGroupMount(ws.rand, entityClass);
         // Group-atomic formation-style roll, same reasoning as the mount roll above: decided once
         // here, copied to every follower, so the group's shape doesn't depend on materialize order.
-        r.groupFormationStyle = com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle
+        r.groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle
                 .randomGroupStyle(ws.rand).name();
         mgr.addRecord(r);
 

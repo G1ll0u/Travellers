@@ -6,7 +6,7 @@ import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.culture.VoiceSet;
-import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
+import com.jubitus.travellers.flight.ElytraCapability;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -1601,7 +1601,7 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
         EntityTraveller t = resolveTraceTarget(sender, args, 1);
-        String dump = com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser
+        String dump = com.jubitus.travellers.travel.destination.TravelDestinationChooser
                 .lastDebug(t.getUniqueID());
         if (dump == null) {
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + t.getName()
@@ -1644,8 +1644,8 @@ public class CommandTravellerDebug extends CommandBase {
                 : BlockPos.ORIGIN;
 
         long t0 = System.currentTimeMillis();
-        java.util.List<com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.OriginStat> rows =
-                com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser
+        java.util.List<com.jubitus.travellers.travel.destination.TravelDestinationChooser.OriginStat> rows =
+                com.jubitus.travellers.travel.destination.TravelDestinationChooser
                         .dryRunReport(w, near, maxOrigins, trials);
         long ms = System.currentTimeMillis() - t0;
 
@@ -1656,14 +1656,14 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
         // Per-kind aggregates (mean of the per-origin deltas).
-        for (com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind kind :
-                new com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind[]{
-                        com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind.TRAVELLER,
-                        com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind.RAIDER}) {
+        for (com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind kind :
+                new com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind[]{
+                        com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind.TRAVELLER,
+                        com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind.RAIDER}) {
             int n = 0;
             double dSame = 0, pickDist = 0, poolDist = 0, pickPop = 0, poolPop = 0,
                     pickRel = 0, poolRel = 0, dRoad = 0, eps = 0;
-            for (com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.OriginStat s : rows) {
+            for (com.jubitus.travellers.travel.destination.TravelDestinationChooser.OriginStat s : rows) {
                 if (s.kind != kind) continue;
                 n++;
                 dSame += s.pickSameCultureRate - s.poolSameCultureFrac;
@@ -1698,7 +1698,7 @@ public class CommandTravellerDebug extends CommandBase {
                     + "pickSameCultureRate\tpoolSameCultureFrac\tmeanPickDistFrac\tmeanPoolDistFrac\t"
                     + "meanPickPop\tmeanPoolPop\tmeanPickRelation\tmeanPoolRelation\t"
                     + "pickRoadRate\tpoolRoadFrac\tepsilonRate\tladderNonFull");
-            for (com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.OriginStat s : rows) {
+            for (com.jubitus.travellers.travel.destination.TravelDestinationChooser.OriginStat s : rows) {
                 pw.println(String.format(java.util.Locale.ROOT,
                         "%s\t%d\t%d\t%s\t%d\t%d\t%.4f\t%.4f\t%.4f\t%.4f\t%.2f\t%.2f\t%.2f\t%.2f\t%.4f\t%.4f\t%.4f\t%d",
                         s.kind, s.origin.getX(), s.origin.getZ(), s.culture, s.trials, s.poolCount,

@@ -137,7 +137,7 @@ public final class PathTestManager {
      *
      * @param forceWaypoints when true and marks exist, the entity is force-fed the hand-marked route
      *                       instead of letting the automatic picker choose - see
-     *                       {@link com.jubitus.travellers.entity.entityai.travel.EntityAITravel#setForcedWaypoints}.
+     *                       {@link com.jubitus.travellers.travel.EntityAITravel#setForcedWaypoints}.
      */
     public static String startTest(EntityPlayerMP player, boolean mount, boolean forceWaypoints) throws CommandException {
         State st = state(player);

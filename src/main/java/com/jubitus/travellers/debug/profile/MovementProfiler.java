@@ -1,6 +1,6 @@
 package com.jubitus.travellers.debug.profile;
 
-import com.jubitus.travellers.entity.entityai.follow.PathScheduler;
+import com.jubitus.travellers.follow.PathScheduler;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.pathfinding.Path;

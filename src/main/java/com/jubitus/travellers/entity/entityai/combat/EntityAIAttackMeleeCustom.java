@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.combat;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude;
+import com.jubitus.travellers.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;

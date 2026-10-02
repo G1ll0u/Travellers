@@ -1,13 +1,13 @@
 package com.jubitus.travellers.virtual;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIAutoEat;
+import com.jubitus.travellers.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
+import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.pathing.MPBIntegration;
 import com.jubitus.travellers.pathing.PathBody;
 import com.jubitus.travellers.pathing.itinerary.Itinerary;
@@ -506,7 +506,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     /**
-     * Offscreen counterpart to {@link com.jubitus.travellers.entity.entityai.ambient.EntityAIAutoEat}:
+     * Offscreen counterpart to {@link com.jubitus.travellers.ambient.EntityAIAutoEat}:
      * gradually heals a virtual record using the same threshold/lockout knobs as the physical AI, so a
      * traveller/worker that fought (and survived) a virtual battle recovers HP while offscreen instead
      * of staying wounded until a player happens to materialize it. Raiders are excluded (they don't
@@ -1133,7 +1133,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             }
             int horses = followerHorses + (wantedHorse && r.mounted ? 1 : 0);
             if (horses > 0 && r.followOwnerUUID != null) {
-                int total = 1 + com.jubitus.travellers.server.group.WorkerGroupService
+                int total = 1 + com.jubitus.travellers.follow.group.WorkerGroupService
                         .countFollowers(world.getMinecraftServer(), r.followOwnerUUID, r.uuid);
                 com.jubitus.travellers.notify.MissionNotifications.equipped(
                         world.getMinecraftServer(), r.followOwnerUUID, horses, total);
@@ -1180,7 +1180,7 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     /**
      * Picks a fresh roam destination for a virtual traveller/raider/roaming worker via the single
-     * {@link com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser}
+     * {@link com.jubitus.travellers.travel.destination.TravelDestinationChooser}
      * authority (Plan B). Budget-gated: a denied {@link ItineraryPlanner#tryAcquire} returns {@code null} so
      * the caller leaves the record dwelling and retries on the next goal refresh.
      */
@@ -1200,16 +1200,16 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     @Nullable
     private BlockPos chooseRoamDestination(WorldServer world, VirtualTravellerRecord r, BlockPos origin) {
-        com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.DestinationContext ctx =
-                new com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.DestinationContext();
+        com.jubitus.travellers.travel.destination.TravelDestinationChooser.DestinationContext ctx =
+                new com.jubitus.travellers.travel.destination.TravelDestinationChooser.DestinationContext();
         ctx.originCentre = origin;
         ctx.homeVillage = r.homeVillage;
         ctx.cultureId = r.cultureId;
         ctx.kind = "RAIDER".equals(r.entityClass)
-                ? com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind.RAIDER
+                ? com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind.RAIDER
                 : "WORKER".equals(r.entityClass)
-                ? com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind.WORKER
-                : com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.EntityKind.TRAVELLER;
+                ? com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind.WORKER
+                : com.jubitus.travellers.travel.destination.TravelDestinationChooser.EntityKind.TRAVELLER;
         ctx.wanderlust = r.wanderlust;
         ctx.exploreChance = r.exploreChance;
         ctx.recentDestinations = r.recentDestinations;
@@ -1218,8 +1218,8 @@ public class VirtualTravellerManager extends WorldSavedData {
         ctx.badVillages = null;
         ctx.debugId = r.uuid;
 
-        com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.ChosenDestination chosen =
-                com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelDestinationChooser.choose(world, ctx);
+        com.jubitus.travellers.travel.destination.TravelDestinationChooser.ChosenDestination chosen =
+                com.jubitus.travellers.travel.destination.TravelDestinationChooser.choose(world, ctx);
         if (chosen == null) return null;
         r.noteChosenDestination(chosen.dest, TravellersConfig.DESTINATIONS.recentDestMemory);
         return chosen.dest;
@@ -2100,7 +2100,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // so VirtualFormationSimulator keeps the worker in the same slot instead of appending it
         // at the back of the line the moment it goes virtual.
         if (r.escortLeaderUUID != null && r.formationOrdinal < 0) {
-            r.formationOrdinal = com.jubitus.travellers.entity.entityai.follow.FollowFormationCoordinator
+            r.formationOrdinal = com.jubitus.travellers.follow.FollowFormationCoordinator
                     .snapshotOrdinal(r.escortLeaderUUID, world.provider.getDimension(), worker.getUniqueID());
         }
 
@@ -2546,11 +2546,11 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (r.groupFormationStyle != null) {
                 try {
                     entity.setGroupFormationStyle(
-                            com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle
+                            com.jubitus.travellers.follow.formations.WorkerFormationStyle
                                     .valueOf(r.groupFormationStyle));
                 } catch (IllegalArgumentException ignored) {
                     entity.setGroupFormationStyle(
-                            com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle.RING);
+                            com.jubitus.travellers.follow.formations.WorkerFormationStyle.RING);
                 }
             }
         }
@@ -2722,7 +2722,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     // Group / leader reassignment (create, assign, come back, merge, make-leader, go-to) and the Hub
-    // leader-list build all live in com.jubitus.travellers.server.group.WorkerGroupService now, so
+    // leader-list build all live in com.jubitus.travellers.follow.group.WorkerGroupService now, so
     // the loaded and virtual sides are handled by one shared path. The old cmd*/buildLeaderList
     // helpers were removed with that centralization.
 

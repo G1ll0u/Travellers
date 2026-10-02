@@ -7,13 +7,13 @@ import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.VillagerFilterRules;
 import com.jubitus.travellers.unit.culture.VoiceSet;
-import com.jubitus.travellers.entity.entityai.ambient.EntityAIFishWhileTravel;
+import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIVillageVisit;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
+import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.combat.TravellerHurtByTarget;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
@@ -140,7 +140,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // Follow a group leader (raider groups, same mechanism as travellers - see EntityTraveller).
         // Must run before EntityAICampStay below so its "yield while leader camps" check actually
         // takes effect (see EntityAIFollowLeader's own shouldExecute comment).
-        aiFollowGroupLeader = new com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader(
+        aiFollowGroupLeader = new com.jubitus.travellers.follow.EntityAIFollowLeader(
                 this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 1.0F, 1.0F);
         this.tasks.addTask(4, aiFollowGroupLeader);
 
@@ -172,7 +172,7 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // Open gates and doors, close them behind (shared with EntityTraveller - mirrored here
         // because this initEntityAI() fully replaces the base task list with no super call).
-        this.tasks.addTask(9, new com.jubitus.travellers.entity.entityai.travel.EntityAIPassDoor(this));
+        this.tasks.addTask(9, new com.jubitus.travellers.travel.EntityAIPassDoor(this));
         // Looking around is the gaze's job (TravellerGaze), not an AI task.
 
         // === OPTIONAL / DISABLED FEATURES ====================================================
