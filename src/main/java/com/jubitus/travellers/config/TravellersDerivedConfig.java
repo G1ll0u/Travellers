@@ -4,8 +4,7 @@ package com.jubitus.travellers.config;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.combat.lists.AttackList;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.World;
@@ -23,11 +22,11 @@ import java.util.Set;
  */
 public class TravellersDerivedConfig {
 
-    public static final AttackList RAIDER_ATTACK_LIST = new AttackList();
-    public static final AttackList TRAVELLER_ATTACK_LIST = new AttackList();
-    public static final AttackList WORKER_ATTACK_LIST = new AttackList();
-    public static final TravellerBlacklist TRAVELLER_AGGRO_BLACKLIST = new TravellerBlacklist();
-    public static final TravellerBlacklist RAIDER_AGGRO_BLACKLIST = new TravellerBlacklist();
+    public static final EntityRuleList RAIDER_ATTACK_LIST = new EntityRuleList();
+    public static final EntityRuleList TRAVELLER_ATTACK_LIST = new EntityRuleList();
+    public static final EntityRuleList WORKER_ATTACK_LIST = new EntityRuleList();
+    public static final EntityRuleList TRAVELLER_AGGRO_BLACKLIST = new EntityRuleList();
+    public static final EntityRuleList RAIDER_AGGRO_BLACKLIST = new EntityRuleList();
 
     // Client-only: last value received from server for GUI display. -1/NaN = unknown (not received yet).
     public static int workerHireCostDeniersServerCache = -1;

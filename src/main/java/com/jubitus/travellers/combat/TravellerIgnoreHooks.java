@@ -4,7 +4,7 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
@@ -59,10 +59,10 @@ public class TravellerIgnoreHooks {
         if (!(target instanceof EntityTraveller)) return false;
 
         boolean raider = target instanceof EntityTravellerRaider;
-        TravellerBlacklist list = raider
+        EntityRuleList list = raider
                 ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
                 : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-        return list.isBlacklisted(mob);
+        return list.matches(mob);
     }
 
     /**

@@ -34,7 +34,7 @@ import com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData;
 import com.jubitus.travellers.worker.net.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.combat.PlayerHostility;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.village.MillGoods;
@@ -310,8 +310,8 @@ public class EntityTravellerWorker extends EntityTraveller {
                     // MillVillager falls through to shouldAttackExtraEntity() below, same as
                     // the attack-list case — kept in one place instead of duplicated here.
 
-                    TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-                    if (blacklist != null && blacklist.isBlacklisted(e)) return false;
+                    EntityRuleList blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
+                    if (blacklist != null && blacklist.matches(e)) return false;
 
                     return (e instanceof net.minecraft.entity.monster.IMob) || this.shouldAttackExtraEntity(e);
                 }
@@ -911,8 +911,8 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Blacklist
         if (target != null) {
-            TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-            if (blacklist != null && blacklist.isBlacklisted(target)) {
+            EntityRuleList blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
+            if (blacklist != null && blacklist.matches(target)) {
                 super.setAttackTarget(null);
                 return;
             }
@@ -1654,8 +1654,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Workers get their own configurable attack list; falls back to the traveller list
         // when no worker-specific rule was ever configured.
         if (com.jubitus.travellers.config.TravellersDerivedConfig.WORKER_ATTACK_LIST.hasRules()) {
-            if (com.jubitus.travellers.config.TravellersDerivedConfig.WORKER_ATTACK_LIST.isListed(e)) return true;
-        } else if (com.jubitus.travellers.config.TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.isListed(e)) {
+            if (com.jubitus.travellers.config.TravellersDerivedConfig.WORKER_ATTACK_LIST.matches(e)) return true;
+        } else if (com.jubitus.travellers.config.TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.matches(e)) {
             return true;
         }
         // Ancient Warfare 2 - always consulted independently of the attack-list branch above.

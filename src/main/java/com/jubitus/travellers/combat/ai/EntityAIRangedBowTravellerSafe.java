@@ -6,7 +6,7 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -80,7 +80,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private static final double RELEASE_LATENCY_TICKS = 2.0; // add ~2 ticks to time-of-flight
     private static final int LEAD_ITERS = 3; // 2→3 helps convergence for long shots
     private final EntityTraveller mob;
-    private final TravellerBlacklist blacklist;
+    private final EntityRuleList blacklist;
     private final double minDist;
     private final double maxDist;
     private final double minDistSq;
@@ -581,7 +581,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             // Only care about allies / protected entities
             boolean protectedAlly =
                     (e instanceof EntityTraveller)
-                            || (e instanceof EntityLivingBase && blacklist != null && blacklist.isBlacklisted(e));
+                            || (e instanceof EntityLivingBase && blacklist != null && blacklist.matches(e));
 
             if (!protectedAlly) continue;
 

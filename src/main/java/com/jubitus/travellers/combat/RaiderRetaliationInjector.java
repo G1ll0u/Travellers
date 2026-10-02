@@ -33,7 +33,7 @@ public final class RaiderRetaliationInjector {
         if (living instanceof EntityTravellerRaider) return;
 
         // Only touch entities that are in your RAIDER_ATTACK_LIST (id, namespace, or class match)
-        if (!TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(living)) return;
+        if (!TravellersDerivedConfig.RAIDER_ATTACK_LIST.matches(living)) return;
 
         // Avoid double-injecting on chunk reloads
         NBTTagCompound tag = living.getEntityData();

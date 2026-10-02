@@ -61,7 +61,7 @@ public final class PlayerDefenseHandler {
             if (t.isAggressiveToTravellers()) continue;
             if (t.isCampingPassive() || t.isSleepingInBed()) continue;
             if (t.getAttackTarget() == mob) continue;
-            if (t.getAggroBlacklist().isBlacklisted(mob)) continue;
+            if (t.getAggroBlacklist().matches(mob)) continue;
             if (!t.getEntitySenses().canSee(mob)) continue;
             if (t.trySetAttackTargetLimited(mob)) {
                 t.rememberThreat(mob, TravellersConfig.COMBAT.threatForSeeAttack);

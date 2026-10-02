@@ -1,7 +1,7 @@
 package com.jubitus.travellers.combat.lists;
 
-// Generic attack-list helper, reusable for raiders, normal travellers, etc.
-public class AttackList {
+/** Entities matched by config rules: exact id, "modid:*" namespace, or class (subclasses included). */
+public class EntityRuleList {
 
     private final java.util.Set<String> namespaceWildcards = new java.util.HashSet<>();
     private final java.util.Set<net.minecraft.util.ResourceLocation> idSet = new java.util.HashSet<>();
@@ -61,7 +61,7 @@ public class AttackList {
     /**
      * True if this concrete entity is listed (by ID, namespace wildcard, or class).
      */
-    public boolean isListed(net.minecraft.entity.Entity e) {
+    public boolean matches(net.minecraft.entity.Entity e) {
         // ID matching
         net.minecraft.util.ResourceLocation key = net.minecraft.entity.EntityList.getKey(e);
         if (key != null) {
@@ -74,5 +74,10 @@ public class AttackList {
             if (cls.isInstance(e)) return true;
         }
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return "EntityRuleList{nsWildcards=" + namespaceWildcards + ", ids=" + idSet + ", classes=" + classSet + "}";
     }
 }

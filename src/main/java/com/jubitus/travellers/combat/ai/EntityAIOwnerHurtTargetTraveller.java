@@ -3,7 +3,7 @@ package com.jubitus.travellers.combat.ai;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAITarget;
 import net.minecraft.entity.player.EntityPlayer;
@@ -62,8 +62,8 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
             return false;
         }
 
-        TravellerBlacklist blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-        if (blacklist != null && blacklist.isBlacklisted(target)) return false;
+        EntityRuleList blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
+        if (blacklist != null && blacklist.matches(target)) return false;
 
         // Assist owner if:
         // - target is a hostile mob, OR

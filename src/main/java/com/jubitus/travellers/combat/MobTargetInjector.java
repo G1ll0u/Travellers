@@ -5,7 +5,7 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
@@ -37,12 +37,12 @@ public class MobTargetInjector {
                             public boolean apply(@javax.annotation.Nullable EntityTraveller t) {
                                 if (t == null || !t.isEntityAlive() || t.isInvisible()) return false;
 
-                                TravellerBlacklist list = (t instanceof EntityTravellerRaider)
+                                EntityRuleList list = (t instanceof EntityTravellerRaider)
                                         ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
                                         : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
 
                                 // Only allow targeting if THIS mob type is NOT blacklisted for that Traveller kind.
-                                return !list.isBlacklisted(mob);
+                                return !list.matches(mob);
                             }
                         }
                 )

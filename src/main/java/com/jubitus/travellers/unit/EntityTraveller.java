@@ -41,7 +41,7 @@ import com.jubitus.travellers.mount.TravellerMountSupport;
 import net.minecraft.entity.passive.EntityHorse;
 import com.jubitus.travellers.combat.ai.TravellerHurtByTarget;
 import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.choir.net.MsgChoirSingerMute;
 import com.jubitus.travellers.sound.net.MsgPlayTravellerVoice;
@@ -1434,8 +1434,8 @@ public class EntityTraveller extends EntityCreature {
         }
 
         if (target != null) {
-            TravellerBlacklist blacklist = getAggroBlacklist();
-            if (blacklist.isBlacklisted(target)) {
+            EntityRuleList blacklist = getAggroBlacklist();
+            if (blacklist.matches(target)) {
                 ignoreTarget(target, 20 * 60);
                 rejectTarget();
                 return;
@@ -2182,8 +2182,8 @@ public class EntityTraveller extends EntityCreature {
         if (!world.isRemote) {
             EntityLivingBase revenge = this.getRevengeTarget();
             if (revenge != null) {
-                TravellerBlacklist aggroBl = getAggroBlacklist();
-                if (aggroBl != null && aggroBl.isBlacklisted(revenge)) {
+                EntityRuleList aggroBl = getAggroBlacklist();
+                if (aggroBl != null && aggroBl.matches(revenge)) {
                     setRevengeTarget(null);
                 }
             }
@@ -3556,7 +3556,7 @@ public void fall(float distance, float damageMultiplier) {
         combat.rememberThreat(e, addScore);
     }
 
-    public TravellerBlacklist getAggroBlacklist() {
+    public EntityRuleList getAggroBlacklist() {
         return (this instanceof EntityTravellerRaider)
                 ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
                 : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
@@ -3574,10 +3574,10 @@ public void fall(float distance, float damageMultiplier) {
         // First, global per-faction config
         if (this.isAggressiveToTravellers()) {
             // Raiders
-            return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(e);
+            return TravellersDerivedConfig.RAIDER_ATTACK_LIST.matches(e);
         } else {
             // Normal/friendly travellers
-            if (TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.isListed(e)) return true;
+            if (TravellersDerivedConfig.TRAVELLER_ATTACK_LIST.matches(e)) return true;
             return checkAncientWarfare2Hostility(e);
         }
 

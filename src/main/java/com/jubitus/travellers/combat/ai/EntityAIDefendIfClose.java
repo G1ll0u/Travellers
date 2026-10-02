@@ -7,7 +7,7 @@ import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.combat.TravellerHostilityHelper;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -56,7 +56,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                                  boolean requireLOS,
                                  int tickRate,
                                  int tickPhase,
-                                 TravellerBlacklist blacklist) {
+                                 EntityRuleList blacklist) {
         this.mob = mob;
         this.requireLOS = requireLOS;
         this.tickRate = Math.max(3, tickRate);
@@ -78,7 +78,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         this.closeHoldSq = hold * hold;
     }
 
-    private static TravellerBlacklist defaultAggroList(EntityTraveller mob) {
+    private static EntityRuleList defaultAggroList(EntityTraveller mob) {
         return (mob instanceof EntityTravellerRaider)
                 ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
                 : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
@@ -255,7 +255,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         EntityLivingBase pick = null;
         double bestScore = Double.POSITIVE_INFINITY;
         boolean bestWasEmergency = false;
-        TravellerBlacklist bl = currentBlacklist();
+        EntityRuleList bl = currentBlacklist();
 
         for (EntityLivingBase e : list) {
             // AW2 diagnostic trace - only for AW2 faction NPC candidates, logs why each one was
@@ -268,7 +268,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                         mob.getName(), e.getName(), e.getUniqueID());
             }
 
-            if (bl != null && bl.isBlacklisted(e)) {
+            if (bl != null && bl.matches(e)) {
                 if (awDebug) logAwSkip(mob, e, "blacklisted");
                 continue;
             }
@@ -405,7 +405,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         return rangeLin * rangeLin;
     }
 
-    private TravellerBlacklist currentBlacklist() {
+    private EntityRuleList currentBlacklist() {
         return (mob instanceof EntityTravellerRaider)
                 ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
                 : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;

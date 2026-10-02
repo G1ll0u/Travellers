@@ -110,7 +110,7 @@ public class EntityTravellerRaider extends EntityTraveller {
                                                 && e != this
                                                 && this.isAggressiveToTravellers() != ((EntityTraveller) e).isAggressiveToTravellers())
                                         || (!(e instanceof EntityTraveller)
-                                                && !TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST.isBlacklisted(e)
+                                                && !TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST.matches(e)
                                                 && this.shouldAttackExtraEntity(e))
                                 )
                 )

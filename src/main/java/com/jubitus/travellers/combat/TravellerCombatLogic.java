@@ -5,7 +5,7 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.combat.lists.TravellerBlacklist;
+import com.jubitus.travellers.combat.lists.EntityRuleList;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.monster.IMob;
@@ -254,8 +254,8 @@ public class TravellerCombatLogic {
 
     public void rememberThreat(EntityLivingBase e, int addScore) {
         if (e == null || !e.isEntityAlive()) return;
-        TravellerBlacklist bl = entity.getAggroBlacklist();
-        if (bl != null && bl.isBlacklisted(e)) return;
+        EntityRuleList bl = entity.getAggroBlacklist();
+        if (bl != null && bl.matches(e)) return;
         if (!entity.shouldAttackExtraEntity(e) && !(e instanceof IMob)) return;
 
         if (e instanceof EntityTraveller) {

@@ -36,8 +36,8 @@ public class TravellerHurtByTarget extends EntityAITarget {
 
         // Blacklisted attacker: clear revenge target immediately and ignore
         if (owner instanceof EntityTraveller) {
-            com.jubitus.travellers.combat.lists.TravellerBlacklist bl = ((EntityTraveller) owner).getAggroBlacklist();
-            if (bl != null && bl.isBlacklisted(attacker)) {
+            com.jubitus.travellers.combat.lists.EntityRuleList bl = ((EntityTraveller) owner).getAggroBlacklist();
+            if (bl != null && bl.matches(attacker)) {
                 this.revengeTimerOld = revengeTimer;
                 owner.setRevengeTarget(null);
                 return false;
