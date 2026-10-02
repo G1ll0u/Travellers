@@ -1,0 +1,240 @@
+# Grand nettoyage — feature packages, one authority per question, giant classes split
+
+**Status (2026-10-02)**: plan validated. Phases 0–2 done (root Code map awaiting the user's OK); next: phase 3.
+
+## Goal
+
+Make the mod cheap for Claude to explore and change: one system = one folder, one behaviour = one place, no two
+copies of the same logic drifting apart. Centralisation also makes later performance work easier.
+
+## Decisions taken with the user
+
+- **Feature packages**, not layers: each system owns its client, server, network and AI code in one folder, so its
+  `CLAUDE.md` covers the whole system. Verified safe for saves: virtual records store the unit kind as a string
+  (`"WORKER"`, `"RAIDER"`…), entities are registered by fixed ids, mixins only target vanilla/Millénaire classes;
+  the root package, `mixins/`, `TravellersCoremodPlugin` and `TravellersMixinConfigPlugin` never move
+  (named in `gradle.properties` and the mixin JSONs).
+- **Config**: delete the 35 dead fields only. Every live field stays in config, even internal tuning (a future
+  "advanced" mode in jubiconfig will hide those). Live fields never change category or name.
+- **Merging diverging copies**: the strictest version wins by default, but each merge with a visible effect is
+  confirmed with the user at its phase.
+- **Bugs found during the inventory**: a separate phase 0, one commit per bug.
+- **`VillageRelationsCombatHooks`** (never ran: non-static handler never registered): delete, keep today's
+  retaliate-only behaviour.
+- **Follow stuck counters**: unify onto the travel stuck ladder inside this plan, as the last phase, with in-game
+  tests between steps.
+- **Virtual record duplicate keys**: keep one source per value; old keys are still read on load (saves compatible).
+- **Path budgets**: one budget for every A* user, same numbers as today, and fix the three cross-wirings.
+- The remaining phase 4 of `travel-ai-unified-itinerary-plan.md` (shrink `EntityAITravel`) is absorbed by phase 11.
+
+## Rules for every phase
+
+- Each phase (and each numbered step) ends with `./gradlew build` green and the mod playable; one commit per step.
+- Pure moves and splits change no behaviour. Anything that can change what a player sees is listed under
+  "Visible" and confirmed with the user before it is coded.
+- When a system moves, its `CLAUDE.md` moves with it; root "Code map" / "Single authorities" lines are proposed
+  to the user, then written.
+- Network message ids are assigned by registration order: client and server always run the same jar, so a new
+  order is fine, but the order stays deterministic (one fixed list per feature, features in a fixed order).
+
+## Target package tree (root `com.jubitus.travellers`)
+
+| Package | Takes over |
+|---|---|
+| `unit/` | `entity/travellers/*` + components extracted in phase 9 |
+| `unit/culture/` | `entity/culture/*` (choir defs move to `choir/`) |
+| `unit/equipment/` | `entity/equipment/*`, `world/equip/{WorkerEquipExchanger,EquipTargetKind}` |
+| `unit/render/` | `client/render/{RenderTraveller,RenderLodHelper,models,textures,backpack}` |
+| `virtual/` | `world/virtualization/*` |
+| `spawn/` | `world/spawn/*` |
+| `ground/` | `world/ground/*`, `world/chunkmanager/*` |
+| `pathing/` | `world/pathing/**` (sub-packages kept) |
+| `travel/` | `entity/entityai/travel/**` (`travelcommon` → `travel/destination` + `travel/`) |
+| `follow/` | `entity/entityai/follow/**`, `server/group/*`, `client/gui/formation/*` → `follow/gui`, formation messages |
+| `combat/` | `combat/**`, `entity/entityai/combat/*`, `world/data/PlayerEnemyRelations`, `workerplayer` hostility messages |
+| `flight/`, `gaze/` | `entity/entityai/flight/*`; `entity/entityai/gaze/*` + `EntityAIStopAndLookAtPlayer` |
+| `ambient/` | `EntityAIAutoEat`, `EntityAIFishWhileTravel`, `VillageConversation` |
+| `village/` | `world/mill/*`, `world/visit/*`, `EntityAIVillageVisit`, `world/data/TravellerVillageRelations`, `economy/TravellerMoney` (→ `MillMoney`), relations/villages messages + GUI |
+| `camp/` | `world/camp/**`, `world/build/*`, `EntityAICampStay` |
+| `battle/` | `world/battle/*` |
+| `horse/` | new shared core for `mount/` and `zone/stable/` (phase 8) |
+| `mount/` | `mount/*` |
+| `zone/` | `world/zone/**` (`duty/`, `stable/` kept), `world/equip/WorkerHorsePickup` → `zone/stable`, zone messages, `client/gui/home/*` → `zone/gui` |
+| `worker/` | hire, recruit, go orders, missions (phase 9); `workergo`, `recruit`, `workerplayer` (non-hostility) messages; worker screens (`go`, `recruit`, `transport`, `behavior`) → `worker/gui` |
+| `dialogue/` | `server/dialogue/**`, `client/dialogue/*` → `dialogue/client`, `client/gui/dialogue/*` → `dialogue/gui`, dialogue messages |
+| `worldmap/` | `server/map/**`, `client/map/*` → `worldmap/client`, `client/gui/worldmap/**` → `worldmap/gui`, map messages (incl. the 9 `Msg*` in `server/map/stream`) |
+| `notify/` | `notify/*`, `client/notify/*` → `notify/client`, notify messages |
+| `marker/` | `server/marker/*`, `client/marker/*`, `client/render/marker/*`, `client/gui/mark/*`, marker messages |
+| `sound/`, `choir/` | `client/sound/*`, sound messages; `entity/entityai/choir/*`, `entity/culture/choir/*`, choir messages |
+| `gui/` | shell only: theme, buttons, context menu, hub, `ClientGuiHandler`, `CommonGuiHandler`, `TravellersGuiIds`, JEI |
+| `debug/` | `debug/**`, `client/debug/*`, debug messages, `CommandTravellerDebug` (split in phase 11) |
+| `command/`, `config/`, `mixins/` | unchanged |
+| `net/` | the channel and the ordered registry only (`TravellerFollowNet` → `net/TravellersNetwork`, plus `Travellers.NETWORK` chunk packets) |
+
+Inside a feature, client-only code lives in a `client` (or `gui`) sub-package; message classes live in `<feature>/net`.
+Classes in `client/` that common code uses (`ModSounds`, `VoiceIndex`, `RaiderVoiceIndex`, `VoicePersonality`,
+`TravellerCrowdSoundLimiter`, `BackpackRegistry`, `IBackpackStyle`, `WorkerMarkStyle`, `TravellersGuiIds`,
+`ContainerWorker`) land in the common part of their feature.
+
+## Phases (ordered by gain / risk)
+
+### Phase 0 — Bug fixes — status: done (one commit: the fixes share files)
+
+| # | Bug (verified) | Fix | Visible |
+|---|---|---|---|
+| 0.1 | A raider coming back from virtual gets `travellerMaxHealth` (`EntityTraveller.onConfigReload` :3810, called by `VirtualTravellerManager` :2498; raider has no override) | done: one `applyConfiguredAttributes()` fed by `configuredMaxHealth()`/`configuredFollowRange()`; the raider constructor override and the reload loop's own copy removed | raiders now use `raiderMaxHealth` (default 20, was effectively 25) |
+| 0.2 | A worker can be virtualized mid elytra flight (`EntityTravellerWorker.canVirtualizeIgnoringCombat` :3033 lost the parent's `elytraFlight.isActive()` check, `EntityTraveller` :4265) | done | none (no more mid-air vanish) |
+| 0.3 | Worker follow range drift: `* 2.0` in `applyEntityAttributes` (:907) vs `* 4.0` in `onConfigReload` (:1712) | done: ×2 (user), one `refreshFollowRanges()` | most workers drop from 256 to 128 blocks of A* range |
+| 0.4 | `TravellersDerivedConfig.TRAVELLER_BLACKLIST` is never filled; `EntityAIRangedBowTravellerSafe` :129 and `TravellerIgnoreHooks` :71 use it | done | archers no longer shoot through a blacklisted mob |
+| 0.5 | `PlayerDefenseHandler` calls raw `setAttackTarget` on every traveller within 20 blocks: bypasses the attacker limiter, the blacklist, camping-passive, and peaceful | done (user: filtered): raiders, camping/sleeping and blacklisted excluded, limiter, peaceful both ways | fewer travellers pile in |
+| 0.6 | `MobTargetInjector` registered three ways (`@EventBusSubscriber`, `Travellers.java` :144 and :245) | done: static `@EventBusSubscriber` only | none |
+| 0.7 | `MsgToggleFollow.Handler` (uses `Minecraft`) instantiated on the server (`TravellerFollowNet` :75) | done | none |
+| 0.8 | `EntityTravellerRaider.shouldAttackExtraEntity(EntityLivingBase)` :189 is an overload, never reached by callers typed `EntityTraveller` | done | none |
+| 0.9 | `TravellerMountSupport.applyMountedGroundSpeed` (:159, :177, :1997) writes a flat speed on the horse, against `mount/CLAUDE.md` | no change: it is the led/hitched horse's speed (no rider to mirror), documented | none |
+
+### Phase 1 — Dead code — status: done
+
+Zero visible change. Every item re-checked by usage search before deletion.
+- `VillageRelationsCombatHooks` (whole class).
+- 35 dead config fields (list in the inventory): `GENERAL.mpbDebugLog`; 13 of `GROUP_FOLLOW` (the two live
+  fields `catchUpTriggerDistance`/`catchUpSpeedMultiplier` stay where they are); `ATTRIBUTES.workerGlobalAssignedCap`;
+  `COMBAT.travellerViewBoost*` (2); `WORKER_FORMATION.lavaRepulsion*` (3); 5 `OFFSCREEN`; `STABLES.passiveRescanIntervalTicks`;
+  `SOUND.travellerSpeaks`; `CONTROLLED_VILLAGE.barracksSlotsPerBuilding`/`workerBarracksRadius`;
+  `RECRUITMENT.recruitLeaderAssignRadius`; `NOTIFICATIONS.historyPanelPosition`; `ROUTING` fine-tier (4).
+- Dead fields/methods: `EntityTraveller` (7 unused + `followTimeoutTicks` write-only), `EntityTravellerWorker`
+  (6 unused, `catchupRepathCooldown`, shadow `escortLeaderUUID`), `EntityAIFollowLeader` (`findLocalGround`,
+  `isNaturalCaveProgressStillHappening`, `sameOwner`, `frontness`, `lastProgress*`, 2 constants),
+  `FollowRecoveryHelper.findCaveEntryTeleport`, `EntityAITravel` (`getTargetForDiagnostics`, `lastPos`, `stuckCheckTicks`),
+  `TravelTerrain.snowLayers`, `TravellerMountSupport.maybeBondMount`, combat (`canEngageTarget`, `recordEntityHit`,
+  `getHostilesForGui`, `isBlacklistMob`, melee `gapToAABBSq`/`isTouchingForMelee`, bow constants),
+  `TraceSample.followLeaderLoaded` + leader position.
+- Also removed (found while verifying): the never-started "caravan" follow system in `EntityTraveller`
+  (`followLeaderId`, `startFollowing`… — `startFollowing` had no caller) and, with the user's agreement, its
+  dialogue leftovers (`travelling_with_someone` line, `ActivityKind.FOLLOWING_SOMEONE`). `frontness` and
+  `followTimeoutTicks` were wrongly reported dead by the inventory.
+
+### Phase 2 — Feature packages — status: done (root CLAUDE.md Code map to write once approved)
+
+Pure moves (git mv + package/import rewrite, tests in `src/test` follow). No logic change. One step per feature,
+each building: 2.1 `ground` + `pathing` → 2.2 `unit`, `virtual`, `spawn` → 2.3 `travel`, `follow`, `flight`, `gaze`,
+`ambient` → 2.4 `combat` → 2.5 `village`, `camp`, `battle`, `zone`, `mount`, `worker` → 2.6 `dialogue`, `worldmap`,
+`notify`, `marker`, `sound`, `choir`, `gui`, `debug` → 2.7 network registry split per feature (`<feature>/net/*Messages.register`,
+called in a fixed order from `net/TravellersNetwork`; the mid-method `registered = true` goes to the end).
+Each step moves the matching `CLAUDE.md` and updates the root Code map. Visible: none.
+Done as planned, with these mechanical deviations from the table: `ground/chunk/` holds the chunk classes;
+combat AI tasks sit in `combat/ai/`; `VillageConversation` (package-private, only used by the visit) went to
+`village/visit/`; `BackpackRegistry`/`IBackpackStyle` → `unit/backpack/`; worker containers → `worker/inventory/`;
+`ClientProxy` → root; `TravellerActivationHandler` → `unit/`, `TravellerOffscreenHandler` → `combat/`,
+`ZoneInteractionHandler` → `zone/`; `gui/` keeps the common `CommonGuiHandler`/`TravellersGuiIds` beside the
+client shell. Step 2.7 also moved the debug chunk packets from the second `travellers` channel onto the main one
+and replaced the 54 per-message `NoopHandler` classes with one shared no-op.
+
+### Phase 3 — Shared small helpers — status: todo
+
+- `WorkerLookup`: worker by UUID (loaded in any world, else virtual record) — replaces `WorkerGroupService.findLoaded`,
+  `ZoneAssignments.findLoaded`, `WorkerFormationScopeResolver.findWorker` and 4 inline copies.
+- `WorkerOrderGuard.requireOwnedWorker(player, id|uuid)` used by every worker message (≈20 hand-written checks;
+  some skip `isHiredFollower` today → strictest wins, **confirm**). Merges `isValidEquipTarget` (×2) and the
+  duplicated Barrack/Zone data builders.
+- `LoadedChunks.isLoaded(world, pos)` replaces 8 private is-loaded helpers; `MapResweepCoordinator` loads through
+  `LoadedChunks` (keeps its own job budget).
+- `NbtCodecs` / `BufCodecs` for BlockPos and UUID (≈30 hand-written copies).
+- One `distSqXZ`/`distXZ` (6 identical named copies; inline expressions left alone).
+- `AttackList` + `TravellerBlacklist` → one list class.
+- `PlayerZoneRecord.box()` / `contains()` (6 rebuilds); `WorldTime.isNight` out of `CampsiteManager`.
+- `MillMoney` replaces `TravellerMoney` and the 15 direct Millénaire money calls.
+- `TravelCommon.resetRoute()` replaces the 7-line route reset pasted 23 times.
+Visible: none.
+
+### Phase 4 — GUI shared pieces — status: todo
+
+`WorkerMapScreenSupport` (map subscription, entry lists, dimension filter, marker rebuild — 7 screens),
+`WorldMapController.drawTooltip`, `WorldMapNavButtons`, one `ScrollList` + `TravellersGuiTheme.drawScrollbar`
+(3 scrollbars, 4+ list copies), `VillageRowList` (row loop, `shortenNameWithSuffix` ×3, `VillageRow` ×2),
+`GuiClip` (3 scissor copies), `GuiWorldMapPanel` transforms made public (controller copy deleted).
+Split `GuiWorkerFormationHub` into journal panel, orders menu builder, selection model, leader list, settings.
+Visible: none (`GuiWorker` switches its hand-drawn borders to the theme — pixel-identical expected).
+
+### Phase 5 — Terrain authorities completed — status: todo
+
+- Ground: the 20 `getTopSolidOrLiquidBlock` sites and the custom ground loops (`findGroundBelow`, `findSurfaceY`,
+  `columnSurface`, `surfaceYIgnoringFoliage`, `MaterializePositionResolver` family…) → `ColumnGround`.
+- Block kinds: hard-coded hazard/snow/ice/canopy/water checks (68 sites; follow's LAVA/FIRE/WATER ×3) → `BlockRules`.
+- New authority **`LandingSpots`**: "safe spot for this body near X" (mount-aware, `MillFootprints`, hazards) replaces
+  the 8 implementations (`TravelTerrain.findGroundNear`, `TravelRescue.landingAt`, `FollowRecoveryHelper.findBestSpotNear`,
+  `MaterializePositionResolver.findSpotAtLevel`/`findClearMountSpot`, `ZonePlacement.findHitboxStandableNear`,
+  `VillageGround.nearestOutdoor`, `EntityAIVillageVisit.spreadSpot`), plus one water-surface and one dry-shore finder.
+- New authority **`Relocate.teleport(unit, pos)`**: zero motion, clear navigator, carry the led horse (≥12 copies).
+Visible: possible small differences in where a unit lands (strictest wins); **each merge confirmed**.
+
+### Phase 6 — One path budget — status: todo
+
+`PathBudget.tryAcquire(world, client, key, priority)`: one row per client (travel, follow, combat, combat scan,
+route, itinerary, elytra scan, stuck hop, mount) with today's numbers; follow keeps its per-owner bucket as a policy
+and its detailed result. Fixes: combat paths off the follow scheduler; horse paths on a mount row (no 9-in-10
+stagger denial); bridge jobs counted once; travel acquires after its cooldown check. **To decide at the phase**:
+whether the ungated A* callers (travel reachability probes, camp, village visit, stable, bow, fishing) join the budget.
+Visible: possibly steadier recompute pacing.
+
+### Phase 7 — One hostility answer — status: todo
+
+`Hostility.isEnemy(self, other)` (faction rule, blacklist, extra entities, worker enemies) replaces the faction XOR
+(≈10 copies), the blacklist ternary (×4) and the 4 differing worker enemy predicates; one call-for-help helper
+(×3). The `combat/` split between handlers and AI disappears in the single `combat/` package (phase 2).
+Visible: the worker predicates disagree today — **the merged rule is confirmed with the user**.
+
+### Phase 8 — Horse core — status: todo
+
+`horse/HorseMarkers` (pool tag + bond tag), `horse/HorseSnapshots` (capture / spawn from NBT, ≈10 sites),
+`horse/HorseAIProfiles` (bond invariants, stable containment, vanilla restore); one death / join / chunk-unload
+entry per horse dispatching to mount or stable. Removes the mount ↔ stable dependency cycle. Stable is unpublished,
+so its save format may change. Visible: none intended.
+
+### Phase 9 — Unit classes split — status: todo
+
+- `EntityTraveller` (5 177 lines): mount runtime state → `TravellerMountState`; voice → `TravellerVoice`; NBT →
+  codec; sleep; hazard/cliff repulsion; virtualization eligibility → `VirtualizationGate` (one rule, subclass hooks);
+  combat upkeep → `TravellerCombatLogic`; passthrough getters to `TravelCommon` removed; the 14
+  `instanceof EntityTravellerWorker` checks become overridable hooks.
+- Shared `FollowCatchup` for traveller and worker (removes the 9 duplicated catch-up pieces and 5 shadowed fields).
+- `EntityTravellerWorker` (4 218 lines): `WorkerMissions` (go-home, duty, go order, get-equipment, delivery return),
+  `RecruitMission`, `DeliveryJob`; escort and follower counting → `WorkerGroupService` (cycle check and counter
+  already exist there); `WorkerNbtComponent` top-level.
+Target: no unit class above ~1 500 lines. Visible: none.
+
+### Phase 10 — Virtualization split and record cleanup — status: todo
+
+`VirtualTravellerManager` (2 808 lines) → tick driver + `VirtualMover`, `VirtualTripSimulator`, `VirtualWorkerMissions`,
+`VirtualSnapshot` (capture and restore from one field list, so a captured field is always restored).
+One goal resolver shared by the loaded worker (`getVirtualGoal`) and the record (`refreshGoal`); mission kind as an
+enum, not a string. Record: drop the ≈20 duplicate keys, still read the old ones. Visible: none; a Barrack save
+must load (in-game check).
+
+### Phase 11 — AI and command giants split — status: todo
+
+Mechanical splits, behaviour unchanged:
+- `EntityAITravel` → waypoint picker, itinerary, path driver, mount policy, stuck actions (closes the itinerary plan's phase 4).
+- `EntityAIFollowLeader` → `FollowState` (one reset instead of 5), goal resolver, path requester, speed policy,
+  direct steering, idle-at-slot.
+- `FollowFormationCoordinator` → leader registry, heading smoother (shared with `GroupFormationTracker`), crowd grid,
+  slot assigner, cave geometry; private `SlotOffset` and `wrapToPi` copies removed.
+- `TravellerMountSupport` → bond, ticker, riding physics, led-horse driver, mode machine (one `enterFallbackLed`
+  instead of 6 pastes), lifecycle, persistence.
+- Travel/follow shared bits: gap-jump guard, rider-meets-water probe, one `PARTIAL_PATH_TOLERANCE`; boats: one stall
+  watchdog, one `landAshore`.
+- `EntityAIRangedBowTravellerSafe` → ballistics, shot-line check, archer movement; `StableHandTask` → chores,
+  mount ritual, ambient/night.
+- `CommandTravellerDebug` → one class per subcommand. **To decide at the phase**: fold `/travellerChunks`,
+  route dump and shelter commands into `/travellersdebug` (player-visible command names).
+
+### Phase 12 — Follow stuck handling onto the ladder — status: todo
+
+The follow AI's 8 stuck counters become one `StuckRecord` evidence feeding `TravelStuckLadder`, following the
+lessons in memory (progress = entered a new cell; partial path = failure; no new reset path). Instrument first
+with `/travellersdebug trace`, then steps each confirmed in game. **To decide at the phase**: whether the camp,
+village-visit, stable and led-horse progress windows join too. Visible: yes — this is a behaviour redesign.
+
+### Phase 13 — Wrap-up — status: todo
+
+Root `CLAUDE.md` (Code map, Single authorities: `LandingSpots`, `Relocate`, `PathBudget`, `Hostility`,
+`WorkerLookup`, horse core), memory update, plan to `docs/archive/`.
