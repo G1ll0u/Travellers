@@ -2,7 +2,7 @@ package com.jubitus.travellers.sound.client;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.choir.net.MsgChoirSoundDone;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
@@ -163,7 +163,7 @@ public final class TravellerVoiceClientBus {
         }
 
         if (snd.isChoir && !snd.stoppedExternally) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgChoirSoundDone(snd.getEntityId()));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgChoirSoundDone(snd.getEntityId()));
         }
     }
 }

@@ -53,9 +53,4 @@ public class MsgZoneActionResult implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgZoneActionResult, IMessage> {
-        @Override
-        public IMessage onMessage(MsgZoneActionResult msg, MessageContext ctx) { return null; }
-    }
 }

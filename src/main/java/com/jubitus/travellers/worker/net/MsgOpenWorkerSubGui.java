@@ -10,7 +10,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
 import com.jubitus.travellers.zone.net.MsgSyncWorkerHome;
@@ -112,7 +112,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_TRANSPORT);
                             return;
                         }
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
                         player.openGui(
                                 Travellers.INSTANCE,
                                 TravellersGuiIds.WORKER,
@@ -141,8 +141,8 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_BEHAVIOR);
                             return;
                         }
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.BEHAVIOR),
                                 player
                         );
@@ -153,8 +153,8 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_RECRUIT);
                             return;
                         }
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.RECRUIT),
                                 player
                         );
@@ -166,18 +166,18 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             return;
                         }
 
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.HOME),
                                 player
                         );
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHome(worker), player);
                         return;
 
                     case HUB:
                         // The hub shows the hire state and the "Lead" follower count itself, so both
                         // have to be authoritative before it opens.
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.HUB),
                                 player
                         );
@@ -189,8 +189,8 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_GO);
                             return;
                         }
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.GO),
                                 player
                         );
@@ -217,8 +217,8 @@ public class MsgOpenWorkerSubGui implements IMessage {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_VILLAGE_RELATIONS);
                             return;
                         }
-                        TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                        TravellersNetwork.CHANNEL.sendTo(
                                 new MsgOpenClientWorkerGui(worker.getEntityId(), MsgOpenClientWorkerGui.Type.VILLAGE_RELATIONS),
                                 player
                         );
@@ -229,14 +229,6 @@ public class MsgOpenWorkerSubGui implements IMessage {
                 }
 
             });
-            return null;
-        }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenWorkerSubGui, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOpenWorkerSubGui msg, MessageContext ctx) {
-            // client side: do nothing
             return null;
         }
     }

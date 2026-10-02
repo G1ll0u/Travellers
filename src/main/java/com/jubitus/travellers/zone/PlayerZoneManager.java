@@ -6,7 +6,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.notify.WorkerLifecycleNotifications;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.net.MsgSyncWorkerHome;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;

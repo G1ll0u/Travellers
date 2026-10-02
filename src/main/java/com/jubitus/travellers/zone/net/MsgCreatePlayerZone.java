@@ -1,7 +1,7 @@
 package com.jubitus.travellers.zone.net;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.BlockRoleRequirement;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
@@ -90,7 +90,7 @@ public class MsgCreatePlayerZone implements IMessage {
                         || !player.world.isAreaLoaded(
                                 center.add(-msg.halfWidth, -msg.halfHeight, -msg.halfDepth),
                                 center.add(msg.halfWidth, msg.halfHeight, msg.halfDepth))) {
-                    TravellerFollowNet.CHANNEL.sendTo(
+                    TravellersNetwork.CHANNEL.sendTo(
                         new MsgZoneActionResult(false, "travellers.lone_barrack.error.invalid"), player);
                     return;
                 }
@@ -99,7 +99,7 @@ public class MsgCreatePlayerZone implements IMessage {
                 }
 
                 if (mgr.overlapsExisting(center, msg.halfWidth, msg.halfDepth)) {
-                    TravellerFollowNet.CHANNEL.sendTo(
+                    TravellersNetwork.CHANNEL.sendTo(
                         new MsgZoneActionResult(false, "travellers.lone_barrack.error.overlaps"), player);
                     return;
                 }
@@ -112,7 +112,7 @@ public class MsgCreatePlayerZone implements IMessage {
                     List<BlockPos> found = PlayerZoneManager.scanRole(
                         player.world, center, msg.halfWidth, msg.halfDepth, msg.halfHeight, req.scanner);
                     if (found.size() < req.minCount) {
-                        TravellerFollowNet.CHANNEL.sendTo(
+                        TravellersNetwork.CHANNEL.sendTo(
                             new MsgZoneActionResult(false, req.missingErrorKey), player);
                         return;
                     }
@@ -121,15 +121,10 @@ public class MsgCreatePlayerZone implements IMessage {
 
                 mgr.add(record);
 
-                TravellerFollowNet.CHANNEL.sendTo(
+                TravellersNetwork.CHANNEL.sendTo(
                     new MsgZoneActionResult(true, "travellers.lone_barrack.created"), player);
             });
             return null;
         }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgCreatePlayerZone, IMessage> {
-        @Override
-        public IMessage onMessage(MsgCreatePlayerZone msg, MessageContext ctx) { return null; }
     }
 }

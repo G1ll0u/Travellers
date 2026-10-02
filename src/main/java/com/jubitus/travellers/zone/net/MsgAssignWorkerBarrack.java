@@ -1,7 +1,7 @@
 package com.jubitus.travellers.zone.net;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.zone.ZoneRoles;
@@ -66,7 +66,7 @@ public class MsgAssignWorkerBarrack implements IMessage {
                 if (res == ZoneAssignments.AssignResult.NO_BED) {
                     MsgWorkerBarracksData snap = MsgWorkerBarracksData.buildFor(player);
                     snap.notification = "travellers.worker.barracks.full";
-                    TravellerFollowNet.CHANNEL.sendTo(snap, player);
+                    TravellersNetwork.CHANNEL.sendTo(snap, player);
                     return;
                 }
                 if (res == ZoneAssignments.AssignResult.BUSY) {
@@ -74,7 +74,7 @@ public class MsgAssignWorkerBarrack implements IMessage {
                             com.jubitus.travellers.notify.NotificationDefs.ORDER_WORKER_BUSY);
                 }
 
-                TravellerFollowNet.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);
+                TravellersNetwork.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);
             });
             return null;
         }

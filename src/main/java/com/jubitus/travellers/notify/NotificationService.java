@@ -1,7 +1,7 @@
 package com.jubitus.travellers.notify;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.notify.net.MsgJournalEntryAdded;
 import com.jubitus.travellers.notify.net.MsgShowNotification;
 import net.minecraft.entity.player.EntityPlayer;
@@ -76,13 +76,13 @@ public final class NotificationService {
         if (type == NotificationType.EVENT) {
             JournalEntry entry = new JournalEntry(type, i18nKey, args, worldTime, summary, place, detail);
             NotificationJournalData.get(server.getWorld(0)).append(ownerId, entry);
-            if (online != null) TravellerFollowNet.sendToPlayer(online, new MsgJournalEntryAdded(entry));
+            if (online != null) TravellersNetwork.sendToPlayer(online, new MsgJournalEntryAdded(entry));
         }
 
         if (!isTypeEnabled(type)) return;
 
         if (online != null) {
-            TravellerFollowNet.sendToPlayer(online, new MsgShowNotification(type, i18nKey, args, worldTime, place, detail));
+            TravellersNetwork.sendToPlayer(online, new MsgShowNotification(type, i18nKey, args, worldTime, place, detail));
         } else {
             NotificationQueueData.get(server.getWorld(0)).enqueue(ownerId, type, i18nKey, args, worldTime, place, detail);
         }

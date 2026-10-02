@@ -27,8 +27,4 @@ public class MsgOpenPopulationMap implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenPopulationMap, IMessage> {
-        @Override public IMessage onMessage(MsgOpenPopulationMap msg, MessageContext ctx) { return null; }
-    }
 }

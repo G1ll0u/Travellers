@@ -5,7 +5,7 @@ import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeResolver;
 import com.jubitus.travellers.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
@@ -40,10 +40,5 @@ public class MsgRequestFormationHub implements IMessage {
                     com.jubitus.travellers.follow.group.WorkerGroupService.sendHub(player, false));
             return null;
         }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgRequestFormationHub, IMessage> {
-        @Override
-        public IMessage onMessage(MsgRequestFormationHub msg, MessageContext ctx) { return null; }
     }
 }

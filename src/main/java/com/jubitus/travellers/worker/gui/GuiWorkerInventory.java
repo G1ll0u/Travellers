@@ -3,7 +3,7 @@ package com.jubitus.travellers.worker.gui;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -49,7 +49,7 @@ public class GuiWorkerInventory extends GuiContainer implements ITravellersGui {
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == backButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
+            TravellersNetwork.CHANNEL.sendToServer(
                     new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             return;
         }

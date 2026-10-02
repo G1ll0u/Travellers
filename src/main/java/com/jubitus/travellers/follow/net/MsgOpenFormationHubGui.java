@@ -140,9 +140,4 @@ public class MsgOpenFormationHubGui implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenFormationHubGui, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOpenFormationHubGui msg, MessageContext ctx) { return null; }
-    }
 }

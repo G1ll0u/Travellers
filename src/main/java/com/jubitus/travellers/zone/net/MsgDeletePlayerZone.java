@@ -57,9 +57,4 @@ public class MsgDeletePlayerZone implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgDeletePlayerZone, IMessage> {
-        @Override
-        public IMessage onMessage(MsgDeletePlayerZone msg, MessageContext ctx) { return null; }
-    }
 }

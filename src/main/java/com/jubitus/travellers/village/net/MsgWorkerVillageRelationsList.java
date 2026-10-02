@@ -90,10 +90,4 @@ public class MsgWorkerVillageRelationsList implements IMessage {
             }
         }
     }
-    public static class NoopHandler implements IMessageHandler<MsgWorkerVillageRelationsList, IMessage> {
-        @Override
-        public IMessage onMessage(MsgWorkerVillageRelationsList message, MessageContext ctx) {
-            return null;
-        }
-    }
 }

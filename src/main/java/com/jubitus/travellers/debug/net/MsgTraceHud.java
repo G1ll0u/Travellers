@@ -67,11 +67,4 @@ public class MsgTraceHud implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgTraceHud, IMessage> {
-        @Override
-        public IMessage onMessage(MsgTraceHud msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

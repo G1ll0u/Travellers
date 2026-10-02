@@ -2,7 +2,7 @@ package com.jubitus.travellers.dialogue.net;
 
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.dialogue.tools.DialogueToolRegistry;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -74,14 +74,7 @@ public class MsgDialogueToolQuery implements IMessage {
                         msg.args != null ? msg.args : new NBTTagCompound());
                 error = false;
             }
-            TravellerFollowNet.sendToPlayer(player, new MsgDialogueToolResult(msg.requestId, resultText, error));
-        }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgDialogueToolQuery, IMessage> {
-        @Override
-        public IMessage onMessage(MsgDialogueToolQuery message, MessageContext ctx) {
-            return null;
+            TravellersNetwork.sendToPlayer(player, new MsgDialogueToolResult(msg.requestId, resultText, error));
         }
     }
 }

@@ -43,14 +43,6 @@ public class MsgToggleFollow implements IMessage {
         }
     }
 
-    // server no-op handler (exists only so the server knows the discriminator)
-    public static class NoopHandler implements IMessageHandler<MsgToggleFollow, IMessage> {
-        @Override
-        public IMessage onMessage(MsgToggleFollow msg, MessageContext ctx) {
-            return null;
-        }
-    }
-
 }
 
 

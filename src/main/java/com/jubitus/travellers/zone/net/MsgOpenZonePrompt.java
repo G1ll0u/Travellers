@@ -87,9 +87,4 @@ public class MsgOpenZonePrompt implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenZonePrompt, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOpenZonePrompt msg, MessageContext ctx) { return null; }
-    }
 }

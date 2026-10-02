@@ -14,7 +14,7 @@ import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worker.net.MsgRecruitStartSelectedVillages;
@@ -113,17 +113,17 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
                 Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
                 "travellers_recruit_map", worker.getPosition());
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestServerCosts());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestServerCosts());
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     @Override
@@ -279,7 +279,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == backButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
+            TravellersNetwork.CHANNEL.sendToServer(
                     new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             return;
         }
@@ -292,7 +292,7 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
             for (int idx : sel) {
                 if (idx >= 0 && idx < villages.size()) route.add(villages.get(idx).center);
             }
-            TravellerFollowNet.CHANNEL.sendToServer(
+            TravellersNetwork.CHANNEL.sendToServer(
                     new MsgRecruitStartSelectedVillages(worker.getEntityId(), route));
             mc.player.closeScreen();
             return;

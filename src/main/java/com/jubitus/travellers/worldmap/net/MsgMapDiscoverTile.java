@@ -44,8 +44,4 @@ public class MsgMapDiscoverTile implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgMapDiscoverTile, IMessage> {
-        @Override public IMessage onMessage(MsgMapDiscoverTile msg, MessageContext ctx) { return null; }
-    }
 }

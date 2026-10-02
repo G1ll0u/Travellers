@@ -77,7 +77,7 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
             java.util.List<String> lines =
                     com.jubitus.travellers.debug.trace.TravellerTracer.buildHudLines(ws, ids);
             if (!lines.isEmpty()) {
-                com.jubitus.travellers.net.TravellerFollowNet.CHANNEL.sendToDimension(
+                com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendToDimension(
                         new com.jubitus.travellers.debug.net.MsgTraceHud(lines, ids[0]),
                         ws.provider.getDimension());
             }

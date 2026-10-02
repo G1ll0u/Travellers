@@ -231,7 +231,7 @@ public class CommandTravellerDebug extends CommandBase {
         if (args.length >= 2 && args[0].equalsIgnoreCase("dialogue") && args[1].equalsIgnoreCase("setup")) {
             // Temporary entry point - see MsgOpenDialogueSetupGui's class doc.
             if (sender instanceof EntityPlayerMP) {
-                com.jubitus.travellers.net.TravellerFollowNet.CHANNEL.sendTo(
+                com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendTo(
                         new com.jubitus.travellers.dialogue.net.MsgOpenDialogueSetupGui(),
                         (EntityPlayerMP) sender);
             }

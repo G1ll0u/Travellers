@@ -118,11 +118,4 @@ public class MsgItineraryDebugMap implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgItineraryDebugMap, IMessage> {
-        @Override
-        public IMessage onMessage(MsgItineraryDebugMap msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

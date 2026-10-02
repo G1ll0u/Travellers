@@ -567,7 +567,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
                     public void onDone() {
                         ParsedMemory parsed = parseFactsAndSummary(accumulated.toString(), maxFacts, summaryEnabled);
                         if (!parsed.facts.isEmpty() || !parsed.summary.isEmpty()) {
-                            com.jubitus.travellers.net.TravellerFollowNet.CHANNEL.sendToServer(
+                            com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendToServer(
                                     new com.jubitus.travellers.dialogue.net.MsgSubmitDialogueMemory(
                                             entityId, parsed.facts, parsed.summary));
                         }

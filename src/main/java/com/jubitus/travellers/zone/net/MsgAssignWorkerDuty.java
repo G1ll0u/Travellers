@@ -4,7 +4,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.zone.PlayerZoneManager;
@@ -90,13 +90,9 @@ public class MsgAssignWorkerDuty implements IMessage {
                 if (res != ZoneAssignments.AssignResult.OK) return;
 
                 NotificationService.notify(player, NotificationDefs.DUTY_ASSIGNED, zoneName);
-                TravellerFollowNet.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);
+                TravellersNetwork.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);
             });
             return null;
         }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgAssignWorkerDuty, IMessage> {
-        @Override public IMessage onMessage(MsgAssignWorkerDuty msg, MessageContext ctx) { return null; }
     }
 }

@@ -201,7 +201,7 @@ public class ForeignUnitMapStream {
     }
 
     private static void sendForeignUnits(EntityPlayerMP player, List<MsgMapForeignUnitsUpdate.Entry> out) {
-        com.jubitus.travellers.net.TravellerFollowNet.sendToPlayer(player, new MsgMapForeignUnitsUpdate(out));
+        com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player, new MsgMapForeignUnitsUpdate(out));
     }
 
     private static List<Candidate> nearbyCandidates(Map<Long, List<Candidate>> cells, int dim,

@@ -17,7 +17,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgHireWorker;
 import com.jubitus.travellers.worker.net.MsgRequestServerCosts;
 import net.minecraft.client.gui.GuiButton;
@@ -104,7 +104,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
         this.layoutSignature = "";
         refreshInfoLines();
         rebuild();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestServerCosts());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestServerCosts());
     }
 
     @Override
@@ -481,7 +481,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
             return;
         }
         if (button == hireButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgHireWorker(workerId));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgHireWorker(workerId));
             return;
         }
         if (button instanceof NodeButton) {

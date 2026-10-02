@@ -124,8 +124,4 @@ public class MsgWorkerGoList implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgWorkerGoList, IMessage> {
-        @Override public IMessage onMessage(MsgWorkerGoList msg, MessageContext ctx) { return null; }
-    }
 }

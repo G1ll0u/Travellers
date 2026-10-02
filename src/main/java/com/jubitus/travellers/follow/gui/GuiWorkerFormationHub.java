@@ -28,7 +28,7 @@ import com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate;
 import com.jubitus.travellers.worldmap.net.MsgMapForeignUnitsUpdate;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgRequestFormationHub;
@@ -231,16 +231,16 @@ public class GuiWorkerFormationHub extends GuiScreen
                 "travellers_formation_hub_map", center);
         mapController.panel.setZoomBlocksPerPixel(bpp);
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(
                 representativeEntityId >= 0 ? representativeEntityId : -1));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestEquipDests());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestEquipDests());
 
         historyPinnedToBottom = true;
         historyScroll = Integer.MAX_VALUE;
         lastHistoryCount = -1;
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestJournalHistory());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestJournalHistory());
 
         refreshButtons();
     }
@@ -293,7 +293,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     public void onGuiClosed() {
         super.onGuiClosed();
         flushPendingSync(true);
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     // ── Live refresh (MsgOpenFormationHubGui while open) ─────────────────────
@@ -356,7 +356,7 @@ public class GuiWorkerFormationHub extends GuiScreen
 
         if (++leaderListRefreshTicks >= LEADER_LIST_REFRESH_INTERVAL_TICKS) {
             leaderListRefreshTicks = 0;
-            if (!menu.isOpen()) TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+            if (!menu.isOpen()) TravellersNetwork.CHANNEL.sendToServer(new MsgRequestFormationHub());
         }
     }
 
@@ -779,7 +779,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (button == closeButton) {
             flushPendingSync(true);
             if (standalone) mc.displayGuiScreen(null);
-            else TravellerFollowNet.CHANNEL.sendToServer(new MsgOpenWorkerSubGui(representativeEntityId, MsgOpenWorkerSubGui.Type.HUB));
+            else TravellersNetwork.CHANNEL.sendToServer(new MsgOpenWorkerSubGui(representativeEntityId, MsgOpenWorkerSubGui.Type.HUB));
         } else if (button == barracksButton) {
             mc.displayGuiScreen(new GuiWorkerBarracks(player, this));
         } else if (button == behaviorButton) {
@@ -1072,8 +1072,8 @@ public class GuiWorkerFormationHub extends GuiScreen
         } else if (unit != null && unit.kind == TargetKind.PLAYER) {
             menu.header(unit.name);
             addGo(src, unit.pos, busy);
-            menu.itemUnless(busy, tr("follow_me"), () -> TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupFollow(src, null)));
-            menu.itemUnless(busy, tr("merge_escort"), () -> TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupMerge(src, null)));
+            menu.itemUnless(busy, tr("follow_me"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgGroupFollow(src, null)));
+            menu.itemUnless(busy, tr("merge_escort"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgGroupMerge(src, null)));
             goOffered = true;
             menuTargets.add(unit.pos);
         } else if (unit != null && unit.kind == TargetKind.LEADER) {
@@ -1082,8 +1082,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             UUID dst = unit.uuid;
             menu.header(unit.name);
             addGo(src, unit.pos, busy);
-            menu.itemUnless(why, tr("follow_group"), () -> TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupFollow(src, dst)));
-            menu.itemUnless(why, tr("merge_group"), () -> TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupMerge(src, dst)));
+            menu.itemUnless(why, tr("follow_group"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgGroupFollow(src, dst)));
+            menu.itemUnless(why, tr("merge_group"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgGroupMerge(src, dst)));
             goOffered = true;
             menuTargets.add(unit.pos);
         }
@@ -1107,7 +1107,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     private void setLeaderFollow(FormationLeaderInfo group, boolean follow) {
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSetLeaderFollow(group.uuid, follow));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSetLeaderFollow(group.uuid, follow));
         // shown at once; the next list refresh corrects a refusal
         group.followActive = follow;
         group.goActive = false;
@@ -1115,13 +1115,13 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     private void addGo(UUID leader, BlockPos pos, @Nullable String busy) {
         menu.itemUnless(busy, tr("go"), () -> {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGoTo(leader, pos));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGoTo(leader, pos));
             showDestination(pos);
         });
     }
 
     private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, boolean stay) {
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGetEquip(leader, dest.pos, dest.kind, stay));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGetEquip(leader, dest.pos, dest.kind, stay));
         showDestination(dest.pos);
     }
 
@@ -1162,13 +1162,13 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     private void sendFollowers(MsgGroupCreate.Action action, List<UUID> sel, @Nullable UUID leader) {
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgGroupCreate(action, sel, leader));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgGroupCreate(action, sel, leader));
         selectPlayerRow();
     }
 
     private void createGroup(List<UUID> sel, @Nullable BlockPos goTo) {
         pendingSelectFromFollowers = new HashSet<>(sel);
-        TravellerFollowNet.CHANNEL.sendToServer(goTo != null
+        TravellersNetwork.CHANNEL.sendToServer(goTo != null
                 ? MsgGroupCreate.createAndGo(sel, goTo)
                 : new MsgGroupCreate(MsgGroupCreate.Action.CREATE_GROUP, sel, null));
         if (goTo != null) showDestination(goTo);
@@ -1379,7 +1379,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         lastSendMs = now;
         pendingSync = false;
         settingsByScope.put(selectedScope.asMapKey(), currentSettings.copy().clamp());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgUpdateFormationByScope(selectedScope, currentSettings.copy().clamp()));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgUpdateFormationByScope(selectedScope, currentSettings.copy().clamp()));
     }
 
     private void refreshButtons() {

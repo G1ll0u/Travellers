@@ -5,7 +5,7 @@ import com.jubitus.travellers.worldmap.pyramid.MapDiscoverySavedData;
 import com.jubitus.travellers.worldmap.pyramid.MapPyramidStore;
 import com.jubitus.travellers.worldmap.pyramid.MapTileGenerator;
 import com.jubitus.travellers.worldmap.pyramid.TileKey;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -88,7 +88,7 @@ public class MsgRequestMapTiles implements IMessage {
                         if (level > 0) continue;
                         compressed = EMPTY_TILE;
                     }
-                    TravellerFollowNet.CHANNEL.sendTo(new MsgMapTileData(level, tx, tz, compressed), p);
+                    TravellersNetwork.CHANNEL.sendTo(new MsgMapTileData(level, tx, tz, compressed), p);
                     sent++;
                 }
             });

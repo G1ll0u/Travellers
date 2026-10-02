@@ -6,7 +6,7 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.TravellerMoney;
 import com.jubitus.travellers.village.MillSettlements;
 import io.netty.buffer.ByteBuf;
@@ -61,7 +61,7 @@ public class MsgHireWorker implements IMessage {
                     NotificationService.notify(player, NotificationDefs.DISMISS_FOLLOWER);
 
                     // sync to client
-                    TravellerFollowNet.CHANNEL.sendTo(
+                    TravellersNetwork.CHANNEL.sendTo(
                             new MsgSyncWorkerHireState(worker),
                             player
                     );
@@ -100,7 +100,7 @@ public class MsgHireWorker implements IMessage {
                 worker.hireAsFollower(player);
 
 
-                TravellerFollowNet.CHANNEL.sendTo(
+                TravellersNetwork.CHANNEL.sendTo(
                         new MsgSyncWorkerHireState(worker),
                         player
                 );

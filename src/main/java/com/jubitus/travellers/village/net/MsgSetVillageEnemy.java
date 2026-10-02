@@ -1,6 +1,6 @@
 package com.jubitus.travellers.village.net;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -60,7 +60,7 @@ public class MsgSetVillageEnemy implements IMessage {
             // send refreshed list to client
             MsgWorkerVillageRelationsList reply =
                     MsgWorkerRequestVillageRelations.Handler.buildList(ws, player.getPosition(), pid);
-            TravellerFollowNet.sendToPlayer(player, reply);
+            TravellersNetwork.sendToPlayer(player, reply);
         }
     }
 }

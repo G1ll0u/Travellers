@@ -3,7 +3,7 @@ package com.jubitus.travellers.debug.village;
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mixins.MixinResManagerPointsAccessor;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.debug.net.MsgVillageDebugView;
 import com.jubitus.travellers.village.MillFootprints;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -43,7 +43,7 @@ public final class VillageDebugView {
 
     public static void hide(EntityPlayerMP player) {
         VIEWERS.remove(player.getUniqueID());
-        TravellerFollowNet.sendToPlayer(player, new MsgVillageDebugView());
+        TravellersNetwork.sendToPlayer(player, new MsgVillageDebugView());
     }
 
     public static boolean isShown(EntityPlayerMP player) {
@@ -75,7 +75,7 @@ public final class VillageDebugView {
                 TravellersConfig.VILLAGE_VISIT.debugViewRadius)) {
             msg.buildings.add(describe(f));
         }
-        TravellerFollowNet.sendToPlayer(player, msg);
+        TravellersNetwork.sendToPlayer(player, msg);
     }
 
     private static MsgVillageDebugView.Building describe(MillFootprints.Footprint f) {

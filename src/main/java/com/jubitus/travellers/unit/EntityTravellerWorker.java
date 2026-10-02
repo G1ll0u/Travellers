@@ -32,7 +32,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData;
 import com.jubitus.travellers.worker.net.MsgOpenClientWorkerGui;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.combat.PlayerHostility;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
 import com.jubitus.travellers.village.TravellerVillageRelations;
@@ -1605,11 +1605,11 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (player instanceof EntityPlayerMP) {
                 // Same two syncs as the HUB case of MsgOpenWorkerSubGui: the hub displays the hire
                 // state and the authoritative follower count as soon as it opens.
-                TravellerFollowNet.CHANNEL.sendTo(
+                TravellersNetwork.CHANNEL.sendTo(
                         new com.jubitus.travellers.worker.net.MsgSyncWorkerHireState(this),
                         (EntityPlayerMP) player
                 );
-                TravellerFollowNet.CHANNEL.sendTo(
+                TravellersNetwork.CHANNEL.sendTo(
                         new MsgOpenClientWorkerGui(this.getEntityId(), MsgOpenClientWorkerGui.Type.HUB),
                         (EntityPlayerMP) player
                 );

@@ -56,9 +56,4 @@ public class MsgJournalHistoryData implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgJournalHistoryData, IMessage> {
-        @Override
-        public IMessage onMessage(MsgJournalHistoryData msg, MessageContext ctx) { return null; }
-    }
 }

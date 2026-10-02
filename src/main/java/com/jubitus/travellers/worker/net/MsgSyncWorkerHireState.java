@@ -98,11 +98,4 @@ public class MsgSyncWorkerHireState implements IMessage {
         }
     }
 
-    public static class NoopHandler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSyncWorkerHireState msg, MessageContext ctx) {
-            return null;
-        }
-    }
-
 }

@@ -70,8 +70,4 @@ public class MsgEquipDestsResponse implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgEquipDestsResponse, IMessage> {
-        @Override public IMessage onMessage(MsgEquipDestsResponse msg, MessageContext ctx) { return null; }
-    }
 }

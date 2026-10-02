@@ -3,7 +3,7 @@ package com.jubitus.travellers.notify.net;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.notify.JournalEntry;
 import com.jubitus.travellers.notify.NotificationJournalData;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -34,14 +34,9 @@ public class MsgRequestJournalHistory implements IMessage {
                 int cap = TravellersConfig.NOTIFICATIONS.historyPanelMaxEntries;
                 List<JournalEntry> capped = all.size() > cap ? all.subList(all.size() - cap, all.size()) : all;
 
-                TravellerFollowNet.CHANNEL.sendTo(new MsgJournalHistoryData(capped), player);
+                TravellersNetwork.CHANNEL.sendTo(new MsgJournalHistoryData(capped), player);
             });
             return null;
         }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgRequestJournalHistory, IMessage> {
-        @Override
-        public IMessage onMessage(MsgRequestJournalHistory msg, MessageContext ctx) { return null; }
     }
 }

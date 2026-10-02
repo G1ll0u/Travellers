@@ -101,11 +101,4 @@ public class MsgTerrainDebugMap implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgTerrainDebugMap, IMessage> {
-        @Override
-        public IMessage onMessage(MsgTerrainDebugMap msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

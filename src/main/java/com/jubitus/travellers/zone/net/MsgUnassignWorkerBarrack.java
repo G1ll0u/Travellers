@@ -1,7 +1,7 @@
 package com.jubitus.travellers.zone.net;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.zone.ZoneAssignments;
@@ -56,7 +56,7 @@ public class MsgUnassignWorkerBarrack implements IMessage {
                 }
                 ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, null);
 
-                TravellerFollowNet.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);
+                TravellersNetwork.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player);
             });
             return null;
         }

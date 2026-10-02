@@ -104,8 +104,4 @@ public class MsgMapCampUpdate implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgMapCampUpdate, IMessage> {
-        @Override public IMessage onMessage(MsgMapCampUpdate msg, MessageContext ctx) { return null; }
-    }
 }

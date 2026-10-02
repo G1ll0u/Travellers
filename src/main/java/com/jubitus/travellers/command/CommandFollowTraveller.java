@@ -1,7 +1,7 @@
 package com.jubitus.travellers.command;
 
 import com.jubitus.travellers.unit.EntityTraveller;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.debug.net.MsgToggleFollow;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
@@ -31,7 +31,7 @@ public class CommandFollowTraveller extends CommandBase {
 
         // /followtraveller stop
         if (args.length >= 1 && "stop".equalsIgnoreCase(args[0])) {
-            TravellerFollowNet
+            TravellersNetwork
                     .sendToPlayer(p, new MsgToggleFollow(-1));
             p.sendMessage(new TextComponentString("Follow mode disabled."));
             return;
@@ -62,7 +62,7 @@ public class CommandFollowTraveller extends CommandBase {
         }
         if (best == null) throw new CommandException("No valid travellers found.");
 
-        TravellerFollowNet
+        TravellersNetwork
                 .sendToPlayer(p, new MsgToggleFollow(best.getEntityId()));
 
         p.sendMessage(new TextComponentString(

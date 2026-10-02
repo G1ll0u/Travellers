@@ -108,11 +108,4 @@ public class MsgVillageDebugView implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgVillageDebugView, IMessage> {
-        @Override
-        public IMessage onMessage(MsgVillageDebugView msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

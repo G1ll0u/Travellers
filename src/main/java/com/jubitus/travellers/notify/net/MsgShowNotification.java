@@ -99,11 +99,4 @@ public class MsgShowNotification implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgShowNotification, IMessage> {
-        @Override
-        public IMessage onMessage(MsgShowNotification msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

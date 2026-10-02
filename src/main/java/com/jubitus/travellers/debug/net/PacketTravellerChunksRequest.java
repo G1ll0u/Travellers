@@ -44,7 +44,7 @@ public class PacketTravellerChunksRequest implements IMessage {
                 TravellerChunkSnapshot snapshot =
                         TravellerChunkSnapshot.create(world, center, message.radiusBlocks);
 
-                Travellers.NETWORK.sendTo(
+                com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendTo(
                         new PacketTravellerChunks(snapshot),
                         player
                 );

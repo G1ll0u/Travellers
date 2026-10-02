@@ -1,7 +1,7 @@
 package com.jubitus.travellers.zone.net;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.zone.ZoneAssignments;
@@ -56,14 +56,10 @@ public class MsgUnassignWorkerDuty implements IMessage {
                 }
                 ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, null);
 
-                TravellerFollowNet.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);
+                TravellersNetwork.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);
             });
             return null;
         }
 
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgUnassignWorkerDuty, IMessage> {
-        @Override public IMessage onMessage(MsgUnassignWorkerDuty msg, MessageContext ctx) { return null; }
     }
 }

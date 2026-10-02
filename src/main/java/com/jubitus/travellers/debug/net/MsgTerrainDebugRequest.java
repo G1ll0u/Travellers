@@ -1,6 +1,6 @@
 package com.jubitus.travellers.debug.net;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport;
 import com.jubitus.travellers.pathing.terrain.TerrainWorldState;
 import io.netty.buffer.ByteBuf;
@@ -69,7 +69,7 @@ public class MsgTerrainDebugRequest implements IMessage {
                 int[] argb = TerrainProfileImageExport.sampleArea(
                         state.getGrid(), modes[msg.mode], msg.minCellX, msg.minCellZ, w, h);
 
-                TravellerFollowNet.CHANNEL.sendTo(
+                TravellersNetwork.CHANNEL.sendTo(
                         new MsgTerrainDebugMap(msg.minCellX, msg.minCellZ, w, h, msg.mode, argb), player);
             });
             return null;

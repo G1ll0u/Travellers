@@ -92,11 +92,4 @@ public class MsgSubmitDialogueMemory implements IMessage {
             }
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgSubmitDialogueMemory, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSubmitDialogueMemory message, MessageContext ctx) {
-            return null;
-        }
-    }
 }

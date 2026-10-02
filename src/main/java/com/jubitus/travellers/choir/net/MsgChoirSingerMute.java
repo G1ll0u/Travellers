@@ -41,9 +41,4 @@ public class MsgChoirSingerMute implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgChoirSingerMute, IMessage> {
-        @Override
-        public IMessage onMessage(MsgChoirSingerMute msg, MessageContext ctx) { return null; }
-    }
 }

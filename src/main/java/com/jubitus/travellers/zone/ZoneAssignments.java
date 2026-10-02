@@ -3,7 +3,7 @@ package com.jubitus.travellers.zone;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.follow.group.WorkerOrderGuard;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.net.MsgSyncWorkerHome;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
@@ -68,7 +68,7 @@ public final class ZoneAssignments {
         if (live != null) {
             live.assignZone(zone, dim);
             if (duty) live.startDutyTravel();
-            TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(live), player);
+            TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHome(live), player);
         } else {
             WorldServer overworld = server.getWorld(0);
             EntityTravellerWorker temp = new EntityTravellerWorker(overworld);
@@ -103,7 +103,7 @@ public final class ZoneAssignments {
             live.releaseFromZone();
             EntityPlayerMP owner = live.getFollowOwnerId() != null
                     ? server.getPlayerList().getPlayerByUUID(live.getFollowOwnerId()) : null;
-            if (owner != null) TravellerFollowNet.CHANNEL.sendTo(new MsgSyncWorkerHome(live), owner);
+            if (owner != null) TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHome(live), owner);
             return true;
         }
 

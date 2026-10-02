@@ -15,7 +15,7 @@ import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
 import com.jubitus.travellers.combat.ai.EntityAIRangedBowTravellerSafe;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.combat.ai.TravellerHurtByTarget;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.sound.net.MsgStopTravellerVoice;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;

@@ -110,11 +110,4 @@ public class MsgPlayTravellerVoice implements IMessage {
         }
     }
 
-    public static class NoopHandler implements IMessageHandler<MsgPlayTravellerVoice, IMessage> {
-        @Override
-        public IMessage onMessage(MsgPlayTravellerVoice msg, MessageContext ctx) {
-            return null;
-        }
-    }
-
 }

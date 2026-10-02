@@ -8,7 +8,7 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.MissionNotifications;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgSyncLeaderFollowerCount;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
@@ -635,7 +635,7 @@ public final class WorkerGroupService {
         if (representativeOverride != null) representativeId = representativeOverride;
         WorkerFormationScopeKey initialScope = initialScopeOverride != null ? initialScopeOverride : playerScope;
 
-        TravellerFollowNet.CHANNEL.sendTo(
+        TravellersNetwork.CHANNEL.sendTo(
                 new MsgOpenFormationHubGui(representativeId, standalone, updateOnly, initialScope, leaders, settingsByScope),
                 player);
     }
@@ -689,7 +689,7 @@ public final class WorkerGroupService {
         EntityTravellerWorker leader = findLoaded(server, player.getUniqueID(), leaderId);
         if (leader == null) return;
         int count = countFollowers(server, player.getUniqueID(), leaderId);
-        TravellerFollowNet.CHANNEL.sendTo(
+        TravellersNetwork.CHANNEL.sendTo(
                 new MsgSyncLeaderFollowerCount(leader.getEntityId(), count),
                 player);
     }

@@ -36,11 +36,4 @@ public class MsgStopTravellerVoice implements IMessage {
         }
     }
 
-    public static class NoopHandler implements IMessageHandler<MsgStopTravellerVoice, IMessage> {
-        @Override
-        public IMessage onMessage(MsgStopTravellerVoice msg, MessageContext ctx) {
-            return null;
-        }
-    }
-
 }

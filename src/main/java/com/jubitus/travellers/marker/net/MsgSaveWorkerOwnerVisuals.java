@@ -2,7 +2,7 @@ package com.jubitus.travellers.marker.net;
 
 import com.jubitus.travellers.marker.WorkerMarkStyle;
 import com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -50,20 +50,13 @@ public class MsgSaveWorkerOwnerVisuals implements IMessage {
                         safeColor,
                         safeStyle
                 );
-                TravellerFollowNet.sendToPlayer(player, new MsgOwnerVisualsSync(safeColor, safeStyle));
+                TravellersNetwork.sendToPlayer(player, new MsgOwnerVisualsSync(safeColor, safeStyle));
 
                 player.sendStatusMessage(
                         new TextComponentTranslation("travellers.worker.mark.saved"),
                         true
                 );
             });
-            return null;
-        }
-    }
-
-    public static class NoopHandler implements IMessageHandler<MsgSaveWorkerOwnerVisuals, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSaveWorkerOwnerVisuals message, MessageContext ctx) {
             return null;
         }
     }

@@ -61,8 +61,4 @@ public class MsgMapTileData implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgMapTileData, IMessage> {
-        @Override public IMessage onMessage(MsgMapTileData msg, MessageContext ctx) { return null; }
-    }
 }

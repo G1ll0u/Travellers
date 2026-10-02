@@ -12,7 +12,7 @@ import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worker.net.MsgWorkerRequestVillages;
@@ -150,17 +150,17 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                 Minecraft.getMinecraft(), mapX, guiTop, MAP_W, ySize,
                 "travellers_worker_transport_map", worker.getPosition());
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
         if (hiredByMe)
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     @Override
@@ -371,7 +371,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == backButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
+            TravellersNetwork.CHANNEL.sendToServer(
                     new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             return;
         }
@@ -379,7 +379,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         if (button == sendButton) {
             if (sendButton.enabled && selectedIndex >= 0 && selectedIndex < villages.size()) {
                 VillageRow row = villages.get(selectedIndex);
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgWorkerSetDestination(worker.getEntityId(), row.center, row.display, false));
                 mc.player.closeScreen();
             }
@@ -389,7 +389,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         if (button == donateButton) {
             if (donateButton.enabled && selectedIndex >= 0 && selectedIndex < villages.size()) {
                 VillageRow row = villages.get(selectedIndex);
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgWorkerSetDestination(worker.getEntityId(), row.center, row.display, true));
                 mc.player.closeScreen();
             }

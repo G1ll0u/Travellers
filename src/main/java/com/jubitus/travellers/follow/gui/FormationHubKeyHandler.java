@@ -1,6 +1,6 @@
 package com.jubitus.travellers.follow.gui;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.follow.net.MsgRequestFormationHub;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
@@ -29,6 +29,6 @@ public class FormationHubKeyHandler {
         if (!KEY.isPressed()) return;
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.currentScreen != null || mc.player == null) return;
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestFormationHub());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestFormationHub());
     }
 }

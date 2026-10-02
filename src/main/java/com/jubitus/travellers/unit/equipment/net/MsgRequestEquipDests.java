@@ -2,7 +2,7 @@ package com.jubitus.travellers.unit.equipment.net;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.village.MillSettlements;
@@ -52,7 +52,7 @@ public class MsgRequestEquipDests implements IMessage {
                             com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE, name));
                 }
 
-                TravellerFollowNet.CHANNEL.sendTo(new MsgEquipDestsResponse(dests), player);
+                TravellersNetwork.CHANNEL.sendTo(new MsgEquipDestsResponse(dests), player);
             });
             return null;
         }

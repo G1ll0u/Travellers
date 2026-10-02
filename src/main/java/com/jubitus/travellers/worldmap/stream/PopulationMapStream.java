@@ -85,10 +85,10 @@ public class PopulationMapStream {
                     all, viewDim, en -> en.dim, en -> en.pos, cx, cz, rangeSq, MAX_ENTRIES_PER_PACKET);
 
             if (visible.isEmpty()) {
-                com.jubitus.travellers.net.TravellerFollowNet.sendToPlayer(player,
+                com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
                         new MsgMapPopulationUpdate(Collections.emptyList()));
             } else {
-                com.jubitus.travellers.net.TravellerFollowNet.sendToPlayer(player,
+                com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
                         new MsgMapPopulationUpdate(visible));
             }
         }

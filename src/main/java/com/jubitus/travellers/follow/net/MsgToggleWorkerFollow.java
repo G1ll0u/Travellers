@@ -1,7 +1,7 @@
 package com.jubitus.travellers.follow.net;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgSyncWorkerHireState;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -51,7 +51,7 @@ public class MsgToggleWorkerFollow implements IMessage {
                 w.setFollowOrderActive(!w.isFollowOrderActive());
 
                 // 🔁 Sync new state back to this client so GUI updates
-                TravellerFollowNet.CHANNEL.sendTo(
+                TravellersNetwork.CHANNEL.sendTo(
                         new MsgSyncWorkerHireState(w),
                         player
                 );

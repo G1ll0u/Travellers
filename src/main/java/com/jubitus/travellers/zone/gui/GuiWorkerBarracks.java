@@ -13,7 +13,7 @@ import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.zone.net.MsgAssignWorkerBarrack;
 import com.jubitus.travellers.zone.net.MsgAssignWorkerDuty;
@@ -210,10 +210,10 @@ public class GuiWorkerBarracks extends GuiScreen
         mapController = new WorldMapController(Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
                 "travellers_barracks_map", center);
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestWorkerBarracksData());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestWorkerZoneData());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerBarracksData());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerZoneData());
 
         rebuildWorkerPanels();
     }
@@ -221,7 +221,7 @@ public class GuiWorkerBarracks extends GuiScreen
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     @Override
@@ -397,7 +397,7 @@ public class GuiWorkerBarracks extends GuiScreen
             if (returnTo != null) {
                 mc.displayGuiScreen(returnTo);
             } else if (worker != null) {
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             } else {
                 mc.player.closeScreen();
@@ -509,8 +509,8 @@ public class GuiWorkerBarracks extends GuiScreen
     }
 
     private void refreshAll() {
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestWorkerBarracksData());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestWorkerZoneData());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerBarracksData());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerZoneData());
     }
 
     @Override
@@ -524,7 +524,7 @@ public class GuiWorkerBarracks extends GuiScreen
 
         int bIdx = rowAt(mouseX, mouseY, zoneListY, zoneListH, zoneScroll, zoneRows.size());
         if (bIdx >= 0 && mouseX >= listX + listW - DELETE_ICON_W) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgDeletePlayerZone(zoneRows.get(bIdx).center));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgDeletePlayerZone(zoneRows.get(bIdx).center));
             if (selectedZoneIndex == bIdx) selectedZoneIndex = -1;
             refreshAll();
             return;
@@ -573,18 +573,18 @@ public class GuiWorkerBarracks extends GuiScreen
             if (dragFromAssigned && overUnassigned) {
                 // Unassign: route by what the worker is currently assigned to.
                 if (dragWorker.assignedType == ZoneType.STABLE) {
-                    TravellerFollowNet.CHANNEL.sendToServer(new MsgUnassignWorkerDuty(dragWorker.uuid));
+                    TravellersNetwork.CHANNEL.sendToServer(new MsgUnassignWorkerDuty(dragWorker.uuid));
                 } else if (dragWorker.assignedType == ZoneType.BARRACK) {
-                    TravellerFollowNet.CHANNEL.sendToServer(new MsgUnassignWorkerBarrack(dragWorker.uuid));
+                    TravellersNetwork.CHANNEL.sendToServer(new MsgUnassignWorkerBarrack(dragWorker.uuid));
                 }
                 refreshAll();
             } else if (!dragFromAssigned && overSelected && selectedZoneIndex >= 0
                     && selectedZoneIndex < zoneRows.size()) {
                 ZoneRow z = zoneRows.get(selectedZoneIndex);
                 if (z.type == ZoneType.STABLE) {
-                    TravellerFollowNet.CHANNEL.sendToServer(new MsgAssignWorkerDuty(dragWorker.uuid, z.center));
+                    TravellersNetwork.CHANNEL.sendToServer(new MsgAssignWorkerDuty(dragWorker.uuid, z.center));
                 } else {
-                    TravellerFollowNet.CHANNEL.sendToServer(new MsgAssignWorkerBarrack(dragWorker.uuid, z.center));
+                    TravellersNetwork.CHANNEL.sendToServer(new MsgAssignWorkerBarrack(dragWorker.uuid, z.center));
                 }
                 refreshAll();
             }

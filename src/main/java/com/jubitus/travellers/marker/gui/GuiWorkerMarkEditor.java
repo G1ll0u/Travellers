@@ -4,7 +4,7 @@ import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.marker.WorkerMarkStyle;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.marker.net.MsgSaveWorkerOwnerVisuals;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -104,7 +104,7 @@ public class GuiWorkerMarkEditor extends GuiScreen implements ITravellersGui {
             return;
         }
         if (button == saveButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(
+            TravellersNetwork.CHANNEL.sendToServer(
                     new MsgSaveWorkerOwnerVisuals(getCurrentColor(), getCurrentStyle().id)
             );
             mc.displayGuiScreen(parent);

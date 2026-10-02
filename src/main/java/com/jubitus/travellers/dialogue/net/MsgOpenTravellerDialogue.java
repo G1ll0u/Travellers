@@ -71,11 +71,4 @@ public class MsgOpenTravellerDialogue implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenTravellerDialogue, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOpenTravellerDialogue msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

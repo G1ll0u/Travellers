@@ -111,8 +111,4 @@ public class MsgMapWorkersUpdate implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgMapWorkersUpdate, IMessage> {
-        @Override public IMessage onMessage(MsgMapWorkersUpdate msg, MessageContext ctx) { return null; }
-    }
 }

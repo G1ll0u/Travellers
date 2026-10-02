@@ -49,12 +49,4 @@ public class MsgSyncWorkerHostileList implements IMessage {
             return null;
         }
     }
-
-    // SERVER noop
-    public static class NoopHandler implements IMessageHandler<MsgSyncWorkerHostileList, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSyncWorkerHostileList msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

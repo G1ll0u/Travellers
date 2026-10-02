@@ -7,7 +7,7 @@ import com.jubitus.travellers.follow.gui.GuiWorkerFormationSlider;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.net.MsgCreatePlayerZone;
 import com.jubitus.travellers.zone.net.MsgOpenZonePrompt;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
@@ -167,7 +167,7 @@ public class GuiPlayerZonePrompt extends GuiScreen implements ITravellersGui {
             "lone_barrack_prompt_map", center);
         mapController.panel.addMarker(WorldMapMarkerFactory.player(center, player.getName(), 0xFFFFFF, player.rotationYaw));
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
     }
 
     /** Switches the zone type being configured: resets the scan cache (a different type has
@@ -260,7 +260,7 @@ public class GuiPlayerZonePrompt extends GuiScreen implements ITravellersGui {
             int hw = (int) halfWidthSlider.getValue();
             int hd = (int) halfDepthSlider.getValue();
             int hh = (int) halfHeightSlider.getValue();
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgCreatePlayerZone(name, center, hw, hd, hh, selectedType));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgCreatePlayerZone(name, center, hw, hd, hh, selectedType));
             return;
         }
         super.actionPerformed(button);

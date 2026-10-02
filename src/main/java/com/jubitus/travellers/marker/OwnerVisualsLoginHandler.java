@@ -1,6 +1,6 @@
 package com.jubitus.travellers.marker;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.marker.net.MsgOwnerVisualsSync;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.Mod;
@@ -20,6 +20,6 @@ public final class OwnerVisualsLoginHandler {
         EntityPlayerMP player = (EntityPlayerMP) event.player;
 
         WorkerOwnerVisualsSavedData.Entry entry = WorkerOwnerVisualsSavedData.get(player.world).getFor(player.getUniqueID());
-        TravellerFollowNet.sendToPlayer(player, new MsgOwnerVisualsSync(entry.color, entry.styleId));
+        TravellersNetwork.sendToPlayer(player, new MsgOwnerVisualsSync(entry.color, entry.styleId));
     }
 }

@@ -2,7 +2,7 @@ package com.jubitus.travellers.worldmap.stream;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -260,7 +260,7 @@ public class WorkerMapStream {
 
             List<WorkerInfo> mine = byOwner.get(playerId);
             if (mine == null || mine.isEmpty()) {
-                TravellerFollowNet.sendToPlayer(player, new MsgMapWorkersUpdate(Collections.emptyList()));
+                TravellersNetwork.sendToPlayer(player, new MsgMapWorkersUpdate(Collections.emptyList()));
                 continue;
             }
 
@@ -288,7 +288,7 @@ public class WorkerMapStream {
             }
 
             if (visible.isEmpty()) {
-                TravellerFollowNet.sendToPlayer(player, new MsgMapWorkersUpdate(Collections.emptyList()));
+                TravellersNetwork.sendToPlayer(player, new MsgMapWorkersUpdate(Collections.emptyList()));
                 continue;
             }
 
@@ -325,7 +325,7 @@ public class WorkerMapStream {
                 out.add(en);
             }
 
-            TravellerFollowNet.sendToPlayer(player, new MsgMapWorkersUpdate(out));
+            TravellersNetwork.sendToPlayer(player, new MsgMapWorkersUpdate(out));
         }
     }
 }

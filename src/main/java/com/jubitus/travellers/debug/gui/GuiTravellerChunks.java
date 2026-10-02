@@ -191,7 +191,7 @@ public class GuiTravellerChunks extends net.minecraft.client.gui.GuiScreen {
             tickCounter = 0;
 
             // Ask server for an updated snapshot, centered on the player
-            Travellers.NETWORK.sendToServer(
+            com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendToServer(
                     new PacketTravellerChunksRequest(snapshot.radiusBlocks)
             );
         }

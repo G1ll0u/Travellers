@@ -56,11 +56,5 @@ public class MsgSyncServerCosts implements IMessage {
             return null;
         }
     }
-    public static class NoopHandler implements IMessageHandler<MsgSyncServerCosts, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSyncServerCosts message, MessageContext ctx) {
-            return null;
-        }
-    }
 }
 

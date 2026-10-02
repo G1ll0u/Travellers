@@ -46,11 +46,4 @@ public class MsgDialogueToolResult implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgDialogueToolResult, IMessage> {
-        @Override
-        public IMessage onMessage(MsgDialogueToolResult message, MessageContext ctx) {
-            return null;
-        }
-    }
 }

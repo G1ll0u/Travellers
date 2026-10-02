@@ -3,7 +3,7 @@ package com.jubitus.travellers.worldmap.gui;
 import com.jubitus.travellers.worldmap.client.ClientTileCache;
 import com.jubitus.travellers.worldmap.pyramid.MapTileGenerator;
 import com.jubitus.travellers.worldmap.pyramid.TileKey;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapTiles;
 import com.jubitus.travellers.worldmap.net.MsgWorkerMapView;
 import net.minecraft.client.Minecraft;
@@ -202,7 +202,7 @@ public class WorldMapController {
         long[] keys = new long[Math.min(max, missing.size())];
         for (int i = 0; i < keys.length; i++) keys[i] = missing.get(i)[0];
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapTiles(level, keys));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapTiles(level, keys));
     }
 
     private static long distSq(int x, int z, int cx, int cz) {
@@ -219,7 +219,7 @@ public class WorldMapController {
         BlockPos c = panel.getCenter();
         float bpp = panel.getZoomBlocksPerPixel();
         int range = Math.round(Math.max(mapW / 2f * bpp, mapH / 2f * bpp)) + 256;
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerMapView(dim, c.getX(), c.getZ(), range));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerMapView(dim, c.getX(), c.getZ(), range));
     }
 
     private static int floorDiv(int a, int b) {

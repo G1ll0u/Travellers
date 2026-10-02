@@ -5,7 +5,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.worldmap.pyramid.MapDiscoverySavedData;
 import com.jubitus.travellers.worldmap.pyramid.MapPyramidStore;
 import com.jubitus.travellers.worldmap.pyramid.TileKey;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worldmap.net.MsgMapDiscoverTile;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -64,7 +64,7 @@ public class MapDiscoveryEvents {
         }
         for (LongIterator it = CHANGED.iterator(); it.hasNext(); ) {
             long key = it.nextLong();
-            TravellerFollowNet.sendToPlayer(p, new MsgMapDiscoverTile(TileKey.unpackX(key), TileKey.unpackZ(key), masks.get(key)));
+            TravellersNetwork.sendToPlayer(p, new MsgMapDiscoverTile(TileKey.unpackX(key), TileKey.unpackZ(key), masks.get(key)));
         }
     }
 

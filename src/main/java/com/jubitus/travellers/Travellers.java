@@ -30,11 +30,8 @@ import com.jubitus.travellers.command.CommandTravellerReload;
 import com.jubitus.travellers.command.CommandTravellerRouteDump;
 import com.jubitus.travellers.command.CommandTravellersShelter;
 import com.jubitus.travellers.command.TravellerCommandChunks;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.TravellerWorkerLootHandler;
-import com.jubitus.travellers.debug.net.PacketTravellerChunksClientHandler;
-import com.jubitus.travellers.debug.net.PacketTravellerChunks;
-import com.jubitus.travellers.debug.net.PacketTravellerChunksRequest;
 import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
 import com.jubitus.travellers.spawn.TravellerSoftSpawner;
 import net.minecraft.entity.EnumCreatureType;
@@ -67,9 +64,6 @@ import java.util.List;
         dependencies = "required-after:millenaire",
         guiFactory = "com.jubitus.travellers.shadow.jubiconfig.factory.ModGuiFactory")
 public class Travellers {
-    public static final SimpleNetworkWrapper NETWORK =
-            NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
-
     /**
      * Tracking range (blocks) for every entity this mod registers - and, through
      * {@code MixinEntityTracker}, for the bonded horses they ride.
@@ -86,7 +80,6 @@ public class Travellers {
     public static final int ENTITY_UPDATE_FREQUENCY = 2;
     @Mod.Instance(Tags.MOD_ID)
     public static Travellers INSTANCE;
-    private static int nextId = 0;
 
     public static void broadcastServerCostsToAllPlayers() {
         MinecraftServer srv = net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
@@ -100,7 +93,7 @@ public class Travellers {
         );
 
         for (net.minecraft.entity.player.EntityPlayerMP p : srv.getPlayerList().getPlayers()) {
-            TravellerFollowNet.CHANNEL.sendTo(packet, p);
+            TravellersNetwork.CHANNEL.sendTo(packet, p);
         }
     }
 
@@ -123,14 +116,14 @@ public class Travellers {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        TravellerFollowNet.init();               // <-- runs on both sides
+        TravellersNetwork.init();               // <-- runs on both sides
         boolean isClient = event.getSide().isClient();
 
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
         JubiConfig.register(
                 "travellers", "Travellers", "travellersconfig",
-                TravellersConfig.class, TravellerFollowNet.CHANNEL,
+                TravellersConfig.class, TravellersNetwork.CHANNEL,
                 () -> {
                     TravellersDerivedConfig.refresh();
                     TravellersDerivedConfig.applyRuntimeEffects();
@@ -178,20 +171,6 @@ public class Travellers {
             WorldMapKeyHandler.register();
             MinecraftForge.EVENT_BUS.register(worldMapKeyHandler);
         }
-        NETWORK.registerMessage(
-                isClient ? PacketTravellerChunksClientHandler.class
-                        : PacketTravellerChunks.NoopHandler.class,
-                PacketTravellerChunks.class,
-                nextId++,
-                Side.CLIENT
-        );
-
-        NETWORK.registerMessage(
-                PacketTravellerChunksRequest.Handler.class,
-                PacketTravellerChunksRequest.class,
-                nextId++,
-                Side.SERVER
-        );
 
 
         // --- Register travellers entities if enabled in config ---

@@ -96,7 +96,7 @@ public class BattleMapStream {
                 visible.add(en);
             }
 
-            com.jubitus.travellers.net.TravellerFollowNet.sendToPlayer(player,
+            com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
                     new MsgMapBattleUpdate(visible.isEmpty() ? Collections.emptyList() : visible));
         }
     }

@@ -2,7 +2,7 @@ package com.jubitus.travellers.village.net;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.TravellerVillageRelations;
 import com.jubitus.travellers.village.MillSettlements;
 import io.netty.buffer.ByteBuf;
@@ -33,7 +33,7 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
             WorldServer ws = player.getServerWorld();
 
             MsgWorkerVillageRelationsList reply = buildList(ws, player.getPosition(), player.getUniqueID());
-            TravellerFollowNet.sendToPlayer(player, reply);
+            TravellersNetwork.sendToPlayer(player, reply);
         }
 
         public static MsgWorkerVillageRelationsList buildList(WorldServer ws, BlockPos fromPos, UUID playerId) {

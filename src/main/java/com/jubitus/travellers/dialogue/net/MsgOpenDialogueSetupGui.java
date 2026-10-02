@@ -36,11 +36,4 @@ public class MsgOpenDialogueSetupGui implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenDialogueSetupGui, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOpenDialogueSetupGui msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

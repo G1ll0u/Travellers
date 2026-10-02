@@ -41,7 +41,7 @@ import net.minecraft.entity.passive.EntityHorse;
 import com.jubitus.travellers.combat.ai.TravellerHurtByTarget;
 import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.choir.net.MsgChoirSingerMute;
 import com.jubitus.travellers.sound.net.MsgPlayTravellerVoice;
 import com.jubitus.travellers.sound.net.MsgStopTravellerVoice;
@@ -2427,7 +2427,7 @@ public class EntityTraveller extends EntityCreature {
             // Built from state as of BEFORE this visit (metPlayerBefore reflects prior encounters,
             // never this one) - marked met only after the context is built.
             dialogueMemory.markMet(player.getUniqueID(), world.getTotalWorldTime());
-            com.jubitus.travellers.net.TravellerFollowNet.sendToPlayer(player,
+            com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
                     new com.jubitus.travellers.dialogue.net.MsgOpenTravellerDialogue(
                             this.getEntityId(), context));
             return true;
@@ -3240,7 +3240,7 @@ public class EntityTraveller extends EntityCreature {
 
         NetworkRegistry.TargetPoint tp =
                 new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
-        TravellerFollowNet.CHANNEL.sendToAllAround(msg, tp);
+        TravellersNetwork.CHANNEL.sendToAllAround(msg, tp);
     }
 
     // was: updateTargetVillage()
@@ -3272,7 +3272,7 @@ public class EntityTraveller extends EntityCreature {
         if (choirSinging) {
             // Keep the OGG stream alive; just mute the sound on clients for 8 seconds so
             // when unmuted the singer is back at the correct position in the song.
-            TravellerFollowNet.CHANNEL.sendToAllAround(
+            TravellersNetwork.CHANNEL.sendToAllAround(
                     new MsgChoirSingerMute(getEntityId(), 8000),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             // Don't touch voiceLockUntilTick so the coordinator keeps the session alive.
@@ -3398,7 +3398,7 @@ public void fall(float distance, float damageMultiplier) {
                 AttackTargetLimiter.notifyAttackerDied(at); // signals target is dangerous → raises cap
                 AttackTargetLimiter.leave(this, at);
             }
-            TravellerFollowNet.CHANNEL.sendToAllAround(
+            TravellersNetwork.CHANNEL.sendToAllAround(
                     new MsgStopTravellerVoice(this),
                     new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
             TravellerMountSupport.releaseMountOnRiderDeath(this);
@@ -4424,7 +4424,7 @@ public void fall(float distance, float damageMultiplier) {
                     new com.jubitus.travellers.sound.net.MsgStopTravellerVoice(this);
             NetworkRegistry.TargetPoint tp = new NetworkRegistry.TargetPoint(
                     dimension, posX, posY, posZ, 96.0);
-            TravellerFollowNet.CHANNEL.sendToAllAround(stop, tp);
+            TravellersNetwork.CHANNEL.sendToAllAround(stop, tp);
         }
     }
 

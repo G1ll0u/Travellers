@@ -58,11 +58,4 @@ public class MsgSyncLeaderFollowerCount implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgSyncLeaderFollowerCount, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSyncLeaderFollowerCount msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

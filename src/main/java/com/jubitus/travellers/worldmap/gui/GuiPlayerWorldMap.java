@@ -10,7 +10,7 @@ import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
@@ -90,15 +90,15 @@ public class GuiPlayerWorldMap extends GuiScreen
         backButton     = this.addButton(new GuiTravellersButton(9, mapX + mapW - 122, zTop, 58, 20,
                 I18n.format(contextWorkerId < 0 ? "travellers.gui.close" : "travellers.gui.back")));
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(contextWorkerId));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(contextWorkerId));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     @Override
@@ -162,7 +162,7 @@ public class GuiPlayerWorldMap extends GuiScreen
             if (contextWorkerId < 0) {
                 mc.displayGuiScreen(null);
             } else {
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgOpenWorkerSubGui(contextWorkerId, MsgOpenWorkerSubGui.Type.HUB));
             }
             return;

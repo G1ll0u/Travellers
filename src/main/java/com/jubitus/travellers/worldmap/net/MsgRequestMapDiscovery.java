@@ -2,7 +2,7 @@ package com.jubitus.travellers.worldmap.net;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.worldmap.pyramid.MapDiscoverySavedData;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -21,7 +21,7 @@ public class MsgRequestMapDiscovery implements IMessage {
             EntityPlayerMP p = ctx.getServerHandler().player;
             p.getServerWorld().addScheduledTask(() -> {
                 MapDiscoverySavedData saved = MapDiscoverySavedData.get(p.world);
-                TravellerFollowNet.CHANNEL.sendTo(new MsgMapDiscoverySync(saved.getMasks(p.getUniqueID()),
+                TravellersNetwork.CHANNEL.sendTo(new MsgMapDiscoverySync(saved.getMasks(p.getUniqueID()),
                         TravellersConfig.WORLDMAP.showFullMap), p);
             });
             return null;

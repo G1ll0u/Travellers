@@ -3,7 +3,7 @@ package com.jubitus.travellers.worker.gui;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.combat.net.MsgRequestPlayerHostileList;
 import com.jubitus.travellers.combat.net.MsgSetWorkerHostile;
 import net.minecraft.client.gui.GuiButton;
@@ -108,12 +108,12 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
         String name = nameField.getText().trim();
 
         if (button == addButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(name, true));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgSetWorkerHostile(name, true));
             nameField.setText("");
             return;
         }
         if (button == removeButton) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgSetWorkerHostile(name, false));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgSetWorkerHostile(name, false));
             nameField.setText("");
             return;
         }
@@ -164,7 +164,7 @@ public class GuiWorkerEnemies extends GuiScreen implements ITravellersGui {
         this.listX = cx + 120;        // push to the right of your center controls
         this.listY = cy - 60;         // vertically aligned
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestPlayerHostileList());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestPlayerHostileList());
     }
 
     @Override

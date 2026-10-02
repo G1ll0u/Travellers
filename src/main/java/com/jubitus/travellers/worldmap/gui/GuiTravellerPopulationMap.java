@@ -12,7 +12,7 @@ import com.jubitus.travellers.worldmap.net.MsgSubscribeCampMap;
 import com.jubitus.travellers.worldmap.net.MsgSubscribePopulationMap;
 import com.jubitus.travellers.debug.client.ClientItineraryDebugOverlay;
 import com.jubitus.travellers.debug.client.ClientTerrainDebugOverlay;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.debug.net.MsgItineraryDebugRequest;
 import com.jubitus.travellers.debug.net.MsgTerrainDebugRequest;
@@ -120,16 +120,16 @@ public class GuiTravellerPopulationMap extends GuiScreen
                 I18n.format("travellers.map.spawn_worker", "Spawn worker")));
         routeButton = this.addButton(new GuiTravellersButton(14, mapX + 3 * (sbw + 4), zTop2, sbw, 20, routeLabel()));
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribePopulationMap(true));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeCampMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribePopulationMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeCampMap(true));
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribePopulationMap(false));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeCampMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribePopulationMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeCampMap(false));
         if (mapController != null && mapController.panel != null) {
             mapController.panel.debugBackgroundOverlay = null;
         }
@@ -147,7 +147,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         java.util.UUID id = ClientItineraryDebugOverlay.selected();
         if (id == null) return;
         lastRouteReqMs = Minecraft.getSystemTime();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgItineraryDebugRequest(0, 0, 0, id));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgItineraryDebugRequest(0, 0, 0, id));
     }
 
     private String terrainLabel() {
@@ -193,7 +193,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
             minCellZ = Math.floorDiv(cz, 16) - cap / 2;
             hCells = cap;
         }
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgTerrainDebugRequest(
+        TravellersNetwork.CHANNEL.sendToServer(new MsgTerrainDebugRequest(
                 minCellX, minCellZ, wCells, hCells, (byte) terrainMode.ordinal()));
     }
 
@@ -311,25 +311,25 @@ public class GuiTravellerPopulationMap extends GuiScreen
             net.minecraft.util.math.BlockPos target = mapController.screenToWorld(mouseX, mouseY);
             switch (clickMode) {
                 case TELEPORT:
-                    TravellerFollowNet.CHANNEL.sendToServer(
+                    TravellersNetwork.CHANNEL.sendToServer(
                             new com.jubitus.travellers.debug.net.MsgTeleportToPos(target.getX(), target.getZ()));
                     break;
                 case SPAWN_TRAVELLER:
-                    TravellerFollowNet.CHANNEL.sendToServer(new com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos(
+                    TravellersNetwork.CHANNEL.sendToServer(new com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos(
                             target.getX(), target.getZ(), com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos.TYPE_TRAVELLER));
                     break;
                 case SPAWN_WORKER:
-                    TravellerFollowNet.CHANNEL.sendToServer(new com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos(
+                    TravellersNetwork.CHANNEL.sendToServer(new com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos(
                             target.getX(), target.getZ(), com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos.TYPE_WORKER));
                     break;
                 case SPAWN_RAIDER:
-                    TravellerFollowNet.CHANNEL.sendToServer(new com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos(
+                    TravellersNetwork.CHANNEL.sendToServer(new com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos(
                             target.getX(), target.getZ(), com.jubitus.travellers.debug.net.MsgSpawnEntityAtPos.TYPE_RAIDER));
                     break;
                 case ROUTE:
                     int radius = Math.max(8, Math.round(mapController.panel.getZoomBlocksPerPixel() * 12));
                     lastRouteReqMs = Minecraft.getSystemTime();
-                    TravellerFollowNet.CHANNEL.sendToServer(
+                    TravellersNetwork.CHANNEL.sendToServer(
                             new MsgItineraryDebugRequest(target.getX(), target.getZ(), radius, null));
                     break;
                 default:

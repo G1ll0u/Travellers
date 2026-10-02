@@ -1,7 +1,7 @@
 package com.jubitus.travellers.worldmap.pyramid;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worldmap.net.MsgMapTileData;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
@@ -171,7 +171,7 @@ public class MapLoadedChunkResampler {
         long t0 = System.nanoTime();
         byte[] compressed = TileCompression.deflate(rawData);
         MapFillStats.pushDeflateNanos += System.nanoTime() - t0;
-        TravellerFollowNet.CHANNEL.sendToAllAround(
+        TravellersNetwork.CHANNEL.sendToAllAround(
                 new MsgMapTileData(level, tileX, tileZ, compressed),
                 new NetworkRegistry.TargetPoint(dim, centerX, 64.0, centerZ, radius));
 

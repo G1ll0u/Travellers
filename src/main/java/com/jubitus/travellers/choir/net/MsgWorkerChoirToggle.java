@@ -44,11 +44,4 @@ public class MsgWorkerChoirToggle implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgWorkerChoirToggle, IMessage> {
-        @Override
-        public IMessage onMessage(MsgWorkerChoirToggle msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

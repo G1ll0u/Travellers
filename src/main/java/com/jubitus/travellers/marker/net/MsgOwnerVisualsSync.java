@@ -42,11 +42,4 @@ public class MsgOwnerVisualsSync implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOwnerVisualsSync, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOwnerVisualsSync msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

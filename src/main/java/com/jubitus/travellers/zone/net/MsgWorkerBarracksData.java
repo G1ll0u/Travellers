@@ -243,8 +243,4 @@ public class MsgWorkerBarracksData implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgWorkerBarracksData, IMessage> {
-        @Override public IMessage onMessage(MsgWorkerBarracksData msg, MessageContext ctx) { return null; }
-    }
 }

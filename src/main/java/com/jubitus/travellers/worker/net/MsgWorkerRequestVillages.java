@@ -3,7 +3,7 @@ package com.jubitus.travellers.worker.net;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.village.MillSettlements;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
@@ -117,15 +117,7 @@ public class MsgWorkerRequestVillages implements IMessage {
                     sortedDistances
             );
 
-            TravellerFollowNet.sendToPlayer(player, reply);
-        }
-    }
-
-    // client-side handler is a no-op (we never receive this on client)
-    public static class NoopHandler implements IMessageHandler<MsgWorkerRequestVillages, IMessage> {
-        @Override
-        public IMessage onMessage(MsgWorkerRequestVillages msg, MessageContext ctx) {
-            return null;
+            TravellersNetwork.sendToPlayer(player, reply);
         }
     }
 }

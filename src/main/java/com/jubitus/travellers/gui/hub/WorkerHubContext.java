@@ -1,7 +1,7 @@
 package com.jubitus.travellers.gui.hub;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
@@ -57,7 +57,7 @@ public final class WorkerHubContext {
     // ── Actions ──────────────────────────────────────────────────────────────
 
     public void send(IMessage message) {
-        TravellerFollowNet.CHANNEL.sendToServer(message);
+        TravellersNetwork.CHANNEL.sendToServer(message);
     }
 
     /**

@@ -14,7 +14,7 @@ import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
@@ -191,15 +191,15 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
         int listRequestId = repEntityId >= 0 ? repEntityId : -1;
         if (listRequestId >= 0)
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(listRequestId));
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(listRequestId));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     @Override
@@ -436,7 +436,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             if (leaderMode && returnTo != null) {
                 mc.displayGuiScreen(returnTo);
             } else {
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             }
             return;
@@ -459,7 +459,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             if (leaderMode && returnTo != null) {
                 mc.displayGuiScreen(returnTo);
             } else if (!leaderMode && worker != null) {
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
             }
             return;
@@ -494,17 +494,17 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 if (dest == null && selectedIndex >= 0 && selectedIndex < rows.size())
                     dest = rows.get(selectedIndex).pos;
                 if (dest == null) return;
-                TravellerFollowNet.CHANNEL.sendToServer(new MsgLeaderGoTo(leaderUUID, dest));
+                TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGoTo(leaderUUID, dest));
                 mc.player.closeScreen();
                 return;
             }
             if (selectedMapPos != null) {
-                TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerGoToPos(worker.getEntityId(), selectedMapPos));
+                TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerGoToPos(worker.getEntityId(), selectedMapPos));
                 mc.player.closeScreen();
                 return;
             }
             if (selectedIndex < 0) return;
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerGoTo(worker.getEntityId(), selectedIndex));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerGoTo(worker.getEntityId(), selectedIndex));
             mc.player.closeScreen();
             return;
         }
@@ -545,7 +545,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                         : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK;
         UUID targetUUID = leaderMode ? leaderUUID : (worker != null ? worker.getUniqueID() : null);
         if (targetUUID == null || r.pos == null) return;
-        TravellerFollowNet.CHANNEL.sendToServer(
+        TravellersNetwork.CHANNEL.sendToServer(
                 new com.jubitus.travellers.unit.equipment.net.MsgWorkerGetEquipment(
                         targetUUID, stay, kind, r.pos));
     }

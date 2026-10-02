@@ -1,6 +1,6 @@
 package com.jubitus.travellers.notify;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.notify.net.MsgShowNotification;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.Mod;
@@ -24,7 +24,7 @@ public final class NotificationLoginHandler {
 
         List<QueuedNotice> queued = NotificationQueueData.get(player.world).take(player.getUniqueID());
         for (QueuedNotice n : queued) {
-            TravellerFollowNet.sendToPlayer(player,
+            TravellersNetwork.sendToPlayer(player,
                     new MsgShowNotification(n.type, n.i18nKey, n.args, n.worldTime, n.place, n.detail));
         }
     }

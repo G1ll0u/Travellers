@@ -94,8 +94,4 @@ public class MsgMapForeignUnitsUpdate implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgMapForeignUnitsUpdate, IMessage> {
-        @Override public IMessage onMessage(MsgMapForeignUnitsUpdate msg, MessageContext ctx) { return null; }
-    }
 }

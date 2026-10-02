@@ -1,6 +1,6 @@
 package com.jubitus.travellers.dialogue.client;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.dialogue.net.MsgDialogueToolQuery;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
@@ -49,7 +49,7 @@ public final class DialogueToolQueryDispatcher {
     public static void query(int entityId, String toolName, NBTTagCompound args, ResultCallback callback) {
         int requestId = REQUEST_COUNTER.incrementAndGet();
         PENDING.put(requestId, callback);
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgDialogueToolQuery(requestId, entityId, toolName, args));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgDialogueToolQuery(requestId, entityId, toolName, args));
         TIMEOUT_EXECUTOR.schedule(() -> {
             ResultCallback pending = PENDING.remove(requestId);
             if (pending == null) return;

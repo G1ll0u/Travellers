@@ -5,7 +5,7 @@ import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -97,7 +97,7 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
             if (returnTo != null) {
                 mc.displayGuiScreen(returnTo);
             } else if (worker != null) {
-                TravellerFollowNet.CHANNEL.sendToServer(
+                TravellersNetwork.CHANNEL.sendToServer(
                         new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB)
                 );
             } else {

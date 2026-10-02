@@ -12,7 +12,7 @@ import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.village.net.MsgSetVillageEnemy;
@@ -116,18 +116,18 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 Minecraft.getMinecraft(), mapX, mapY, MAP_W, ySize,
                 "travellers_village_relations_map", referencePos());
 
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
         if (worker != null) {
-            TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
         }
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgWorkerRequestVillageRelations());
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillageRelations());
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
     }
 
     // ── IWorkerGoListReceiver ─────────────────────────────────────────────────
@@ -238,7 +238,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         if (index < 0 || index >= centers.size()) return;
         boolean newEnemy = !enemies.get(index);
         enemies.set(index, newEnemy);
-        TravellerFollowNet.CHANNEL.sendToServer(new MsgSetVillageEnemy(centers.get(index), newEnemy));
+        TravellersNetwork.CHANNEL.sendToServer(new MsgSetVillageEnemy(centers.get(index), newEnemy));
         rebuildMapMarkers();
     }
 
@@ -256,7 +256,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 mc.displayGuiScreen(returnTo);
             } else if (worker != null) {
                 // Opened from a worker's hub (server-side, so there is no parent screen to hold).
-                com.jubitus.travellers.net.TravellerFollowNet.CHANNEL.sendToServer(
+                com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendToServer(
                         new com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui(
                                 worker.getEntityId(),
                                 com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui.Type.HUB));

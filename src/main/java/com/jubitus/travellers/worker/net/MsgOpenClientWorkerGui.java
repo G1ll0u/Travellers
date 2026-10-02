@@ -129,11 +129,4 @@ public class MsgOpenClientWorkerGui implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgOpenClientWorkerGui, IMessage> {
-        @Override
-        public IMessage onMessage(MsgOpenClientWorkerGui message, MessageContext ctx) {
-            return null;
-        }
-    }
 }

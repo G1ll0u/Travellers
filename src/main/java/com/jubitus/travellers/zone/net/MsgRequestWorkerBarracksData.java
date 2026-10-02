@@ -1,6 +1,6 @@
 package com.jubitus.travellers.zone.net;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -20,7 +20,7 @@ public class MsgRequestWorkerBarracksData implements IMessage {
         public IMessage onMessage(MsgRequestWorkerBarracksData msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() ->
-                    TravellerFollowNet.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player));
+                    TravellersNetwork.CHANNEL.sendTo(MsgWorkerBarracksData.buildFor(player), player));
             return null;
         }
     }

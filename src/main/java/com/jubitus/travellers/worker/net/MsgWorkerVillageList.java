@@ -113,12 +113,5 @@ public class MsgWorkerVillageList implements IMessage {
         }
     }
 
-    public static class NoopHandler implements IMessageHandler<MsgWorkerVillageList, IMessage> {
-        @Override
-        public IMessage onMessage(MsgWorkerVillageList msg, MessageContext ctx) {
-            return null;
-        }
-    }
-
 }
 

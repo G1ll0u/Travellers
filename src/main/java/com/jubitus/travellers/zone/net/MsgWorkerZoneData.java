@@ -217,8 +217,4 @@ public class MsgWorkerZoneData implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgWorkerZoneData, IMessage> {
-        @Override public IMessage onMessage(MsgWorkerZoneData msg, MessageContext ctx) { return null; }
-    }
 }

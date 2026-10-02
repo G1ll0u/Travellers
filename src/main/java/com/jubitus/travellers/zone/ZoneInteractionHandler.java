@@ -1,6 +1,6 @@
 package com.jubitus.travellers.zone;
 
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.net.MsgOpenZonePrompt;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -41,7 +41,7 @@ public class ZoneInteractionHandler {
                     r.center.getX(), r.center.getZ(), r.halfWidth, r.halfDepth, r.name));
             }
 
-            TravellerFollowNet.CHANNEL.sendTo(
+            TravellersNetwork.CHANNEL.sendTo(
                 new MsgOpenZonePrompt(playerPos, existing),
                 (EntityPlayerMP) player
             );

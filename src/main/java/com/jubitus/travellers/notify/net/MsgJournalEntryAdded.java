@@ -43,9 +43,4 @@ public class MsgJournalEntryAdded implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgJournalEntryAdded, IMessage> {
-        @Override
-        public IMessage onMessage(MsgJournalEntryAdded msg, MessageContext ctx) { return null; }
-    }
 }

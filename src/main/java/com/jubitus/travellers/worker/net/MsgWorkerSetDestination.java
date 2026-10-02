@@ -125,12 +125,4 @@ public class MsgWorkerSetDestination implements IMessage {
         }
 
     }
-
-    // client no-op
-    public static class NoopHandler implements IMessageHandler<MsgWorkerSetDestination, IMessage> {
-        @Override
-        public IMessage onMessage(MsgWorkerSetDestination message, MessageContext ctx) {
-            return null;
-        }
-    }
 }

@@ -65,11 +65,4 @@ public class MsgSyncWorkerHome implements IMessage {
             return null;
         }
     }
-
-    public static class NoopHandler implements IMessageHandler<MsgSyncWorkerHome, IMessage> {
-        @Override
-        public IMessage onMessage(MsgSyncWorkerHome msg, MessageContext ctx) {
-            return null;
-        }
-    }
 }

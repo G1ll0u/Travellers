@@ -1,7 +1,7 @@
 package com.jubitus.travellers.debug.net;
 
 import com.jubitus.travellers.unit.EntityTraveller;
-import com.jubitus.travellers.net.TravellerFollowNet;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.pathing.itinerary.Itinerary;
 import com.jubitus.travellers.pathing.itinerary.ItineraryState;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
@@ -71,7 +71,7 @@ public class MsgItineraryDebugRequest implements IMessage {
                 MsgItineraryDebugMap reply = msg.selected != null
                         ? describe(world, msg.selected)
                         : describeNearest(world, msg.x, msg.z, Math.max(4, Math.min(512, msg.radius)));
-                TravellerFollowNet.CHANNEL.sendTo(reply != null ? reply : MsgItineraryDebugMap.none(), player);
+                TravellersNetwork.CHANNEL.sendTo(reply != null ? reply : MsgItineraryDebugMap.none(), player);
             });
             return null;
         }
