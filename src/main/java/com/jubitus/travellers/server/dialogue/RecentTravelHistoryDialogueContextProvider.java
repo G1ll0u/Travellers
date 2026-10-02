@@ -41,7 +41,7 @@ public final class RecentTravelHistoryDialogueContextProvider implements Dialogu
             if (excludeKey != null && packed == excludeKey) continue;
             int x = (int) (packed >> 32);
             int z = (int) packed;
-            String name = DialogueVillageNaming.resolveVillageName(world, new BlockPos(x, y, z));
+            String name = com.jubitus.travellers.world.mill.MillSettlements.nameOrNull(world, new BlockPos(x, y, z));
             if (name != null && seen.add(name)) {
                 builder.addRecentlyVisitedVillage(name);
             }

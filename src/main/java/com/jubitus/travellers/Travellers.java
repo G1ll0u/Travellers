@@ -3,7 +3,7 @@ package com.jubitus.travellers;
 import com.jubitus.travellers.client.input.FormationHubKeyHandler;
 import com.jubitus.travellers.client.input.WorldMapKeyHandler;
 import com.jubitus.travellers.client.render.ClientProxy;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
@@ -50,7 +50,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.jubitus.travellers.world.mill.VillageDataLoader.loadVillageCenters;
 
 @Mod(modid = Tags.MOD_ID, name = Tags.MOD_NAME, version = Tags.VERSION,
         dependencies = "required-after:millenaire",
@@ -58,7 +57,6 @@ import static com.jubitus.travellers.world.mill.VillageDataLoader.loadVillageCen
 public class Travellers {
     public static final SimpleNetworkWrapper NETWORK =
             NetworkRegistry.INSTANCE.newSimpleChannel("travellers");
-    public static List<BlockPos> VILLAGE_CENTERS = new ArrayList<>();
 
     /**
      * Tracking range (blocks) for every entity this mod registers - and, through
@@ -96,7 +94,6 @@ public class Travellers {
 
     @Mod.EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
-        event.registerServerCommand(new CommandSpawnTraveller());
         event.registerServerCommand(new CommandGlowTravellers());
         event.registerServerCommand(new CommandTravellerReload());
         event.registerServerCommand(new CommandFollowTraveller());
@@ -105,11 +102,6 @@ public class Travellers {
         event.registerServerCommand(new CommandTravellerDebug());
         event.registerServerCommand(new com.jubitus.travellers.command.CommandTravellersShelter());
         event.registerServerCommand(new CommandDumpCultureItems());
-        event.registerServerCommand(new CommandMillDump());
-        event.registerServerCommand(new CommandMillNearestVillageDump());
-        event.registerServerCommand(new CommandTravellerMap());
-        event.registerServerCommand(new CommandTravellerInfo());
-        event.registerServerCommand(new CommandVillageNeeds());
         event.registerServerCommand(new TravellerCommandChunks());
         event.registerServerCommand(new CommandSummonWorkers());
         event.registerServerCommand(new CommandSummonRaiders());
@@ -119,8 +111,6 @@ public class Travellers {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        File millenaireFolder = new File("millenaire");
-        VILLAGE_CENTERS = loadVillageCenters(millenaireFolder);
         TravellerFollowNet.init();               // <-- runs on both sides
         boolean isClient = event.getSide().isClient();
 

@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.travellers;
 
 import com.jubitus.travellers.world.ground.BlockRules;
-import com.jubitus.travellers.world.mill.VillageVisitState;
+import com.jubitus.travellers.world.visit.VillageVisitState;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
@@ -28,7 +28,6 @@ import com.jubitus.travellers.entity.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIRangedBowTravellerSafe;
 import com.jubitus.travellers.entity.entityai.flight.ElytraFlightController;
-import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowGroupLeader;
 import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
 import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.entity.entityai.follow.PathScheduler;
@@ -36,9 +35,9 @@ import com.jubitus.travellers.entity.entityai.travel.EntityAIPassDoor;
 import com.jubitus.travellers.entity.entityai.travel.TravellerDoorways;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.mount.TravellerMountSupport;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import net.minecraft.entity.passive.EntityHorse;
 import com.jubitus.travellers.combat.TravellerHurtByTarget;
 import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
@@ -47,7 +46,7 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
 import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.world.pathing.GapJumpEvaluator;
 import com.jubitus.travellers.world.pathing.GapJumpResult;
 import com.jubitus.travellers.world.pathing.PathBody;
@@ -677,7 +676,7 @@ public class EntityTraveller extends EntityCreature {
 
     /**
      * Every follow/travel rescue teleport in this mod goes through {@code setPositionAndUpdate}
-     * (see {@code FollowRecoveryHelper.teleportWorker}, {@code EntityAIFollowGroupLeader.tryHopTowardTarget},
+     * (see {@code FollowRecoveryHelper.teleportWorker}, {@code EntityAIFollowLeader.tryHopTowardTarget},
      * {@code EntityAITravel}'s surface-rescue hops, {@code MaterializePositionResolver.unstickEntitiesInVolume}...).
      * None of them know about mounts - left alone, a rescue would move only the rider, and
      * {@code AbstractHorse.updatePassenger()} would snap it straight back onto the horse's own
@@ -1028,14 +1027,6 @@ public class EntityTraveller extends EntityCreature {
     // --- Home Override? Dunno if useful since I don't extend villager ---
     @Override
     public boolean hasHome() {
-        return false;
-    }
-
-    public static boolean isNearAnyVillage(World world, BlockPos pos, int radius) {
-        long r2 = (long) radius * (long) radius;
-        for (BlockPos v : MillVillageIndex.getAllVillageCenters(world)) {
-            if (v.distanceSq(pos) <= r2) return true;
-        }
         return false;
     }
 
@@ -1648,7 +1639,7 @@ public class EntityTraveller extends EntityCreature {
     public void onUpdate() {
         dropBoatIfOffscreen();
         super.onUpdate();
-        // Edge probe for EntityAIFollowGroupLeader followers only - see tickEdgeVirtualizeProbe's class
+        // Edge probe for EntityAIFollowLeader followers only - see tickEdgeVirtualizeProbe's class
         // doc. getEdgeProbeGoal() returns null for everyone else, making this a no-op for them.
         if (!world.isRemote && tickEdgeVirtualizeProbe(getEdgeProbeGoal())) return;
         if (!world.isRemote && voiceKindNow != VoiceKind.NONE && this.ticksExisted >= voiceLockUntilTick) {
@@ -1996,6 +1987,7 @@ public class EntityTraveller extends EntityCreature {
             // MOUNTED instead; if the ground here really is still impassable, the next failed path
             // re-arms LED properly on load. HITCHED is a stable intent with its own distance-based
             // recall and is kept.
+            // INVARIANT: LED is never persisted.
             MountMode savedMode = (mountMode == MountMode.LED) ? MountMode.MOUNTED : mountMode;
             compound.setString("MountMode", savedMode.name());
             if (mountSnapshotNbt != null) compound.setTag("MountSnapshot", mountSnapshotNbt);
@@ -2341,7 +2333,7 @@ public class EntityTraveller extends EntityCreature {
         // 2) If we still don't have a culture, try village-based pick around our spawn position.
         if (cid == null || cid.isEmpty()) {
             // Uses the same logic as your soft spawner (weighted by nearby Millénaire mill).
-            String villageCid = MillVillageIndex.pickCultureForTravellerSpawn(this.world, this.getPosition(), this.rand);
+            String villageCid = com.jubitus.travellers.world.spawn.SpawnCulture.pickNear(this.world, this.getPosition(), this.rand);
             if (villageCid != null && !villageCid.isEmpty()) {
                 cid = villageCid;
                 // Make sure vanilla group spawns copy this culture as SpawnData.
@@ -3204,10 +3196,8 @@ public class EntityTraveller extends EntityCreature {
             return;
         }
 
-        // Resolve via MillVillageIndex only
-        MillVillageIndex.VillageInfo vi = MillVillageIndex.findExact(this.world, target);
-        if (vi == null) vi = MillVillageIndex.findNearest3D(this.world, target, 128);
-        if (vi == null) vi = MillVillageIndex.findNearest2D(this.world, target, 160);
+        // Resolve via the settlement registry
+        MillSettlements.Settlement vi = MillSettlements.resolve(this.world, target);
 
         // Use the resolved center if we have one, otherwise keep the raw target
         BlockPos center = (vi != null) ? vi.center : target;
@@ -3306,6 +3296,7 @@ public class EntityTraveller extends EntityCreature {
         // hands the drop the exact same ItemStack reference still sitting in the equipment slot,
         // it never copies it. Damaging armor after that point would silently over-wear the item
         // that's already on the ground instead of anything still worn by this entity.
+        // INVARIANT: no wear after a possibly lethal hit - the drop shares this ItemStack.
         if (getHealth() > 0.0F) {
             TravellerItemDamage.damageArmorOnHit(this, amount);
         }
@@ -4279,7 +4270,7 @@ public void fall(float distance, float damageMultiplier) {
      * "The ground I am trying to walk onto is not loaded, so hand off to the offscreen simulation
      * instead of milling about at the boundary." Returns true if this call virtualized the entity.
      *
-     * <p><b>Only for {@link com.jubitus.travellers.entity.entityai.follow.EntityAIFollowGroupLeader}
+     * <p><b>Only for {@link com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader}
      * followers</b> (see {@link #getEdgeProbeGoal()}) - a worker escorting a leader, or a traveller/raider
      * following its group leader. That AI never hands off to {@link com.jubitus.travellers.entity.entityai.travel.EntityAITravel}
      * even when catching up over a long distance (it re-implements its own stepped waypoints instead),

@@ -1,7 +1,7 @@
 package com.jubitus.travellers.world.virtualization;
 
-import com.jubitus.travellers.entity.entityai.travel.mount.OrphanMountCleanup;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.OrphanMountCleanup;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.EntityHorse;

@@ -32,7 +32,8 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.combat.PlayerHostility;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
 import com.jubitus.travellers.world.data.TravellerVillageRelations;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
+import com.jubitus.travellers.world.mill.MillGoods;
 import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.world.spawn.TravellerVillageRegistry;
 import net.minecraft.block.state.IBlockState;
@@ -110,7 +111,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     // The formation slot of an offscreen escort leader; catchup travel drives toward it.
     @Nullable private BlockPos virtualEscortSlot;
 
-    private static final int MIN_REP_TO_TRADE = -1024;
     // --- anchor guard tuning ---
     private static final double ANCHOR_GUARD_RADIUS = 192.0D;     // can fight within this radius of anchor
     private static final double ANCHOR_HARD_LEASH = 256.0D;     // if worker itself goes beyond this, disengage & return
@@ -173,6 +173,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     public UUID followOwnerId = null;
     public boolean hiredFollower = false;
+    // Client copy of the home village's name, sent with the hire state (village data is server-only).
+    public String clientHomeVillageName = "";
     // --- the one zone assignment: a Barrack (lodging) or a Stable (lodging + duty) ---
     @Nullable
     ZoneRef zone = null;
@@ -223,8 +225,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     boolean jobDelivered = false;
     // GET_EQUIPMENT mission flags
     private boolean getEquipStay = false;
-    private com.jubitus.travellers.world.mill.EquipTargetKind getEquipTargetKind =
-            com.jubitus.travellers.world.mill.EquipTargetKind.LONE_BARRACK;
+    private com.jubitus.travellers.world.equip.EquipTargetKind getEquipTargetKind =
+            com.jubitus.travellers.world.equip.EquipTargetKind.LONE_BARRACK;
     // "Employer" = player who hired this worker for the current/last job
     @Nullable
     UUID employerId;
@@ -347,7 +349,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Lowest priority on purpose - only ever runs when nothing above wants the move+look mutex,
         // i.e. the worker is genuinely idle.
-        this.tasks.addTask(14, new com.jubitus.travellers.entity.entityai.travel.mount.EntityAIClaimLooseMount(this));
+        this.tasks.addTask(14, new com.jubitus.travellers.mount.EntityAIClaimLooseMount(this));
     }
 
     public boolean isOwner(@Nullable EntityLivingBase target) {
@@ -1229,7 +1231,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 this.getNavigator().clearPath();
 
                 if (mode == WorkerMode.GET_EQUIPMENT) {
-                    if (getEquipTargetKind == com.jubitus.travellers.world.mill.EquipTargetKind.STABLE) {
+                    if (getEquipTargetKind == com.jubitus.travellers.world.equip.EquipTargetKind.STABLE) {
                         com.jubitus.travellers.world.zone.PlayerZoneManager zoneMgr =
                                 com.jubitus.travellers.world.zone.PlayerZoneManager.get(world);
                         com.jubitus.travellers.world.zone.PlayerZoneRecord zone =
@@ -1237,23 +1239,23 @@ public class EntityTravellerWorker extends EntityTraveller {
                         if (zone != null) {
                             boolean wantedHorse = this.getMountUUID() == null;
                             if (wantedHorse) {
-                                NBTTagCompound horseNbt = com.jubitus.travellers.world.mill.WorkerHorsePickup
+                                NBTTagCompound horseNbt = com.jubitus.travellers.world.equip.WorkerHorsePickup
                                         .claimReadyHorse((net.minecraft.world.WorldServer) world, zone);
-                                if (horseNbt != null && !com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport
+                                if (horseNbt != null && !com.jubitus.travellers.mount.TravellerMountSupport
                                         .bondSpecificMount(this, horseNbt)) {
                                     // Spawn genuinely failed (a UUID collision this couldn't avoid) -
                                     // don't just lose the horse from the pool's own count.
-                                    com.jubitus.travellers.world.mill.WorkerHorsePickup.returnUnclaimedHorse(
+                                    com.jubitus.travellers.world.equip.WorkerHorsePickup.returnUnclaimedHorse(
                                             (net.minecraft.world.WorldServer) world, zone, horseNbt);
                                 }
                             }
                             // Whoever this order was sent to arriving is what unlocks the whole group -
                             // same precedent WorkerEquipExchanger already set for chest gear: followers
                             // don't each need to travel here individually.
-                            int followerHorses = com.jubitus.travellers.world.mill.WorkerHorsePickup.claimForGroupFollowers(
+                            int followerHorses = com.jubitus.travellers.world.equip.WorkerHorsePickup.claimForGroupFollowers(
                                     (net.minecraft.world.WorldServer) world, zone, this.getUniqueID());
                             if (wantedHorse && this.getMountUUID() == null) {
-                                com.jubitus.travellers.world.mill.WorkerHorsePickup.notifyNothingToEquip(
+                                com.jubitus.travellers.world.equip.WorkerHorsePickup.notifyNothingToEquip(
                                         world, zone, this.getFollowOwnerId());
                             }
                             int horses = followerHorses + (wantedHorse && this.getMountUUID() != null ? 1 : 0);
@@ -1268,8 +1270,8 @@ public class EntityTravellerWorker extends EntityTraveller {
                         }
                     } else {
                         boolean useWholeVillage = getEquipTargetKind
-                                == com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE;
-                        int[] equip = com.jubitus.travellers.world.mill.WorkerEquipExchanger
+                                == com.jubitus.travellers.world.equip.EquipTargetKind.CONTROLLED_VILLAGE;
+                        int[] equip = com.jubitus.travellers.world.equip.WorkerEquipExchanger
                                 .exchangeWithFollowers(this, world, goOrderTargetPos, useWholeVillage);
                         com.jubitus.travellers.notify.MissionNotifications.equipped(
                                 world.getMinecraftServer(), this.getFollowOwnerId(), equip[0], equip[1]);
@@ -1915,239 +1917,22 @@ public class EntityTravellerWorker extends EntityTraveller {
      * Else -> normal selling (money + base reputation).
      */
     public void donateInventoryToVillage(BlockPos villageCenter) {
-        World world = this.world;
-        if (world.isRemote) return;
-
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null) return;
-
-        Building th = MillVillageIndex.getTownHallBuilding(wd, villageCenter);
-        if (th == null) return;
-
+        if (!(world instanceof net.minecraft.world.WorldServer)) return;
         EntityPlayer employer = getEmployer();
-        if (employer == null) {
-            simpleStoreCargoToVillage(th);
-            onJobDelivered();
-            return;
-        }
-
-        // ✅ NEW: seller-style gate (rep/day/attack/chestLocked)
-        if (!canWorkerTradeWithVillage(th, employer)) {
-            this.hasUnsoldGoods = true; // ensures “I couldn’t sell everything” message
-            NotificationService.notify(employer, NotificationDefs.TRADE_REFUSED);
-
-            // Return to employer with all cargo untouched
-            onJobDelivered();
-            return;
-        }
 
         com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "trade-before");
-        processCargoTradeWithVillage(th, employer, this.donationJob);
+        MillGoods.Delivery d = MillGoods.deliverCargo((net.minecraft.world.WorldServer) world, villageCenter,
+                getTravelInventory(), employer, this.donationJob);
+        if (!d.reached) return;
         com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "trade-after");
+
+        if (d.unsold) this.hasUnsoldGoods = true;
+        if (d.refused) NotificationService.notify(employer, NotificationDefs.TRADE_REFUSED);
+        if (d.reputation != 0 && employer != null && TravellersConfig.WORKER.workerNotifyOnVillageTrade) {
+            notifyTradeSummary(d.villageName, employer, this.donationJob, d.items, d.money, d.reputation, d.traded);
+        }
+        if (!this.donationJob && d.money > 0) addMoneyToWorkerInventory(d.money);
         onJobDelivered();
-    }
-
-    /**
-     * Simple legacy behaviour: just dump cargo into town hall without money/rep.
-     */
-    private void simpleStoreCargoToVillage(Building th) {
-        ItemStackHandler inv = this.getTravelInventory();
-
-        for (int slot = 0; slot < inv.getSlots(); slot++) {
-            ItemStack stack = inv.getStackInSlot(slot);
-            if (stack.isEmpty()) continue;
-
-            Item item = stack.getItem();
-            int meta = stack.getMetadata();
-            int count = stack.getCount();
-
-            int stored = th.storeGoods(item, meta, count);
-            if (stored > 0) {
-                inv.extractItem(slot, stored, false);
-            }
-        }
-    }
-
-    /**
-     * Emulate Millénaire's "player sells to village" or "player donates to village"
-     * logic for all items in the worker's cargo.
-     * <p>
-     * SELL MODE (donateMode == false):
-     * - Village buys items at TradeGood.getCalculatedBuyingPrice().
-     * - Reputation: price * qty.
-     * - Money: converted to coins and placed in the worker's cargo inventory.
-     * <p>
-     * DONATE MODE (donateMode == true):
-     * - Village receives items.
-     * - Reputation: price * qty * DONATION_REP_MULTIPLIER.
-     * - No money is given.
-     */
-    private void processCargoTradeWithVillage(Building building, EntityPlayer employer, boolean donateMode) {
-        ItemStackHandler inv = this.getTravelInventory();
-
-
-        if (!canWorkerTradeWithVillage(building, employer)) {
-            this.hasUnsoldGoods = true;
-            MillLog.major(this, "[TravellersWorker] Trade refused by village (rep/day/attack/chestLocked gate).");
-            return;
-        }
-
-        MillLog.major(this, "[TravellersWorker] Starting cargo trade at "
-                + building.getVillageQualifiedName()
-                + " donateMode=" + donateMode);
-        MillLog.major(this, "[TravellersWorker] World isRemote=" + building.world.isRemote);
-
-        Building townHall = building.getTownHall();
-        if (townHall == null) {
-            MillLog.major(this, "[TravellersWorker] No town hall found; dumping cargo without money/rep.");
-            simpleStoreCargoToVillage(building);
-            return;
-        }
-
-        Culture culture = townHall.culture;
-        if (culture == null) {
-            MillLog.major(this, "[TravellersWorker] No culture on town hall; dumping cargo.");
-            simpleStoreCargoToVillage(building);
-            return;
-        }
-
-        int totalMoney = 0; // in deniers
-        int totalRep = 0; // reputation points
-        int totalItems = 0;
-        // display name -> {quantity, value}, insertion-ordered so ties stay stable
-        Map<String, int[]> tradedByName = new LinkedHashMap<>();
-
-        for (int slot = 0; slot < inv.getSlots(); slot++) {
-            ItemStack stack = inv.getStackInSlot(slot);
-            if (stack.isEmpty()) continue;
-
-            Item item = stack.getItem();
-            int meta = stack.getMetadata();
-
-            String regName = (item.getRegistryName() != null
-                    ? item.getRegistryName().toString()
-                    : item.toString());
-
-            MillLog.major(this, "[TravellersWorker] Slot " + slot + " stack="
-                    + stack.getDisplayName() + " (" + regName + ":" + meta + ") count=" + stack.getCount());
-
-            InvItem invItem = InvItem.createInvItem(item, meta);
-
-            TradeGood good = culture.getTradeGood(invItem);
-            boolean canSell = false;
-            int unitPrice = 0;
-
-            if (good != null) {
-                // Dynamic price
-                int unitPriceCalc;
-                try {
-                    unitPriceCalc = good.getCalculatedBuyingPrice(building, employer);
-                } catch (NullPointerException npe) {
-                    // Millénaire can NPE if shopBuys entry exists but has no price for this TradeGood
-                    unitPriceCalc = 0;
-                    MillLog.major(this, "[TravellersWorker] getCalculatedBuyingPrice NPE for good="
-                            + good.key + " item=" + invItem + " building=" + building + " player=" + employer.getName());
-                }
-
-                // Basic price, using villageType overrides if any
-                int unitPriceBasicWithBuilding = good.getBasicBuyingPrice(townHall);
-
-                // Raw TradeGood.buyingPrice
-                int unitPriceBasicRaw = good.getBasicBuyingPrice(null);
-
-                unitPrice = unitPriceCalc;
-                if (unitPrice <= 0) unitPrice = unitPriceBasicWithBuilding;
-                if (unitPrice <= 0) unitPrice = unitPriceBasicRaw;
-
-                MillLog.major(this,
-                        "[TravellersWorker]  TradeGood matched: " + good.key +
-                                " calc=" + unitPriceCalc +
-                                " basicWithBuilding=" + unitPriceBasicWithBuilding +
-                                " basicRaw=" + unitPriceBasicRaw +
-                                " -> chosen unitPrice=" + unitPrice);
-
-                canSell = unitPrice > 0;
-            } else {
-                MillLog.major(this, "[TravellersWorker]  No TradeGood for this item.");
-            }
-
-            // SELL JOB: if no TradeGood or no positive price -> keep item, give it back later
-            if (!donateMode && !canSell) {
-                this.hasUnsoldGoods = true;
-                MillLog.major(this, "[TravellersWorker]  Village will not buy this, keeping it for return.");
-                // Do NOT store, do NOT extract; it stays in cargo
-                continue;
-            }
-
-            // Now we know either:
-            //  - donateMode == true (donation job), or
-            //  - sell job with canSell == true and a valid unitPrice
-
-            int qty = stack.getCount();
-            int stored = building.storeGoods(item, meta, qty);
-            if (stored <= 0) {
-                MillLog.major(this, "[TravellersWorker]  storeGoods returned " + stored + " – nothing stored.");
-                if (!donateMode) {
-                    this.hasUnsoldGoods = true; // couldn't deliver, keep it
-                }
-                continue;
-            }
-
-            inv.extractItem(slot, stored, false);
-
-            int repGain = 0;
-            int moneyGain = 0;
-
-            if (!donateMode && canSell) {
-                int baseValue = unitPrice * stored;
-                repGain = baseValue; // same as normal selling rep
-                moneyGain = baseValue;
-            } else if (donateMode && good != null && unitPrice > 0) {
-                int baseValue = unitPrice * stored;
-                int repMult = ContainerTrade.DONATION_REP_MULTIPLIER;
-                repGain = baseValue * repMult;
-            }
-
-            totalRep += repGain;
-            totalMoney += moneyGain;
-
-            townHall.adjustLanguage(employer, stored);
-
-            if (repGain != 0 || moneyGain != 0) {
-                totalItems += stored;
-                int[] agg = tradedByName.computeIfAbsent(stack.getDisplayName(), k -> new int[2]);
-                agg[0] += stored;
-                agg[1] += Math.max(moneyGain, repGain);
-            }
-        }
-
-        // Apply reputation once
-        if (totalRep != 0) {
-            MillLog.major(this, "[TravellersWorker] Applying reputation change: " + totalRep);
-            building.adjustReputation(employer, totalRep);
-            if (TravellersConfig.WORKER.workerNotifyOnVillageTrade) {
-                notifyTradeSummary(building.getVillageQualifiedName(), employer, donateMode,
-                        totalItems, totalMoney, totalRep, tradedByName);
-            }
-        } else {
-            MillLog.major(this, "[TravellersWorker] No reputation change (totalRep == 0).");
-        }
-
-        // Money (SELL mode only) into worker cargo as coins
-        if (!donateMode && totalMoney > 0) {
-            MillLog.major(this, "[TravellersWorker] Total money in deniers: " + totalMoney);
-
-            addMoneyToWorkerInventory(totalMoney);
-        } else if (!donateMode) {
-            MillLog.major(this, "[TravellersWorker] No money earned (totalMoney == 0).");
-        } else {
-            MillLog.major(this, "[TravellersWorker] Donation mode: no money given.");
-        }
-
-        building.invalidateInventoryCache();
-        if (!building.world.isRemote) {
-            building.sendChestPackets(employer);
-        }
     }
 
     /** One toast per transaction: totals plus the three most valuable items (2nd line), "(+N)" for the rest. */
@@ -2749,7 +2534,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         int minN = TravellersConfig.RECRUITMENT.recruitVillagesMin;
         int maxN = TravellersConfig.RECRUITMENT.recruitVillagesMax;
 
-        List<BlockPos> centers = MillVillageIndex.getAllVillageCenters(world);
+        List<BlockPos> centers = MillSettlements.snapshot(world).villageCenters;
         List<BlockPos> inRange = new ArrayList<>();
 
         for (BlockPos c : centers) {
@@ -2910,8 +2695,7 @@ public class EntityTravellerWorker extends EntityTraveller {
      * Best-effort village name lookup for player-facing recruit notifications.
      */
     private String resolveVillageName(BlockPos villageCenter) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        Building th = wd != null ? MillVillageIndex.getTownHallBuilding(wd, villageCenter) : null;
+        Building th = MillSettlements.townHall(world, villageCenter);
         return th != null ? th.getVillageQualifiedName() : "a village";
     }
 
@@ -3572,19 +3356,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return super.isOnSameTeam(entityIn);
     }
 
-    private boolean canWorkerTradeWithVillage(Building building, @Nullable EntityPlayer player) {
-        if (building == null || player == null) return false;
-
-        // checkSeller(): only runs during daytime and not under attack
-        if (building.underAttack) return false;
-
-        // checkSeller(): requires locked chests
-        if (!building.chestLocked) return false;
-
-        // checkSeller(): rep gate
-        return building.getReputation(player) >= MIN_REP_TO_TRADE;
-    }
-
     public enum WorkerMode {
         IDLE,
         TO_VILLAGE,
@@ -3749,12 +3520,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public void startGetEquipMission(BlockPos target, boolean stay,
-                                      com.jubitus.travellers.world.mill.EquipTargetKind kind) {
+                                      com.jubitus.travellers.world.equip.EquipTargetKind kind) {
         if (world.isRemote || target == null) return;
 
         this.getEquipStay = stay;
         this.getEquipTargetKind = kind == null
-                ? com.jubitus.travellers.world.mill.EquipTargetKind.LONE_BARRACK : kind;
+                ? com.jubitus.travellers.world.equip.EquipTargetKind.LONE_BARRACK : kind;
         this.mode = WorkerMode.GET_EQUIPMENT;
 
         this.goingHome = false;
@@ -3928,11 +3699,11 @@ public class EntityTravellerWorker extends EntityTraveller {
             mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
             getEquipStay = nbt.getBoolean("GetEquipStay");
             getEquipTargetKind = nbt.hasKey("GetEquipTargetKind")
-                    ? com.jubitus.travellers.world.mill.EquipTargetKind.fromNbt(nbt.getString("GetEquipTargetKind"))
+                    ? com.jubitus.travellers.world.equip.EquipTargetKind.fromNbt(nbt.getString("GetEquipTargetKind"))
                     // Legacy saves stored a boolean instead - true meant CONTROLLED_VILLAGE, false LONE_BARRACK.
                     : (nbt.getBoolean("GetEquipWholeVillage")
-                        ? com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE
-                        : com.jubitus.travellers.world.mill.EquipTargetKind.LONE_BARRACK);
+                        ? com.jubitus.travellers.world.equip.EquipTargetKind.CONTROLLED_VILLAGE
+                        : com.jubitus.travellers.world.equip.EquipTargetKind.LONE_BARRACK);
             jobDelivered = nbt.getBoolean("JobDelivered");
             routeLocked = nbt.getBoolean("RouteLocked");
             donationJob = nbt.getBoolean("DonationJob"); // NEW
@@ -4379,14 +4150,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     private BlockPos resolveRecruitTownHallAnchor(BlockPos villageCenter) {
         if (world == null || world.isRemote || villageCenter == null) return villageCenter;
 
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null) return villageCenter;
-
-        Building th = MillVillageIndex.getTownHallBuilding(wd, villageCenter);
-        if (th == null || th.getPos() == null) return villageCenter;
-
-        Point p = th.getPos();
-        return new BlockPos(p.getiX(), p.getiY(), p.getiZ());
+        MillSettlements.Settlement s = MillSettlements.at(world, villageCenter);
+        return s != null ? s.center : villageCenter;
     }
 
     private BlockPos resolveRecruitStopPos(BlockPos villageCenter) {

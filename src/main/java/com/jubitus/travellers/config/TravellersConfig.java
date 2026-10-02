@@ -285,53 +285,6 @@ public class TravellersConfig {
         @Config.Comment("Enable culture-weighted spawning (cultures near spawn get higher weight).")
         public boolean travellerCultureWeightedSpawn = true;
 
-        // --- Everything below only feeds the /travellersmap debug heatmap visualization.
-        // It does not influence where or how many travellers/raiders/workers actually spawn —
-        // real spawning is entirely driven by SpawnTravellers/SpawnRaiders/SpawnWorkers below.
-
-        @Config.Comment("[Debug map only] Radius (blocks) around a Millenaire village shown as traveller density on /travellersmap.")
-        @Config.RangeInt(min = 0, max = 5000)
-        public int travellerVillageInfluenceRadius = 1000;
-
-        @Config.Comment("[Debug map only] Radius (blocks) around a lone building shown as traveller density on /travellersmap.")
-        @Config.RangeInt(min = 0, max = 5000)
-        public int travellerLoneInfluenceRadius = 600;
-
-        @Config.Comment("[Debug map only] Strength of village influence on the /travellersmap density display (1.0 = normal).")
-        @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float travellerVillageWeight = 0.3f;
-
-        @Config.Comment("[Debug map only] Strength of lone building influence on the /travellersmap density display.")
-        @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float travellerLoneWeight = 0.2f;
-
-        @Config.Comment("[Debug map only] Falloff curve shape for the /travellersmap density display: 1 = linear, >1 = steeper near edge, <1 = flatter.")
-        @Config.RangeDouble(min = 0.1, max = 10.0)
-        public float travellerFalloffPower = 1.0f;
-
-        @Config.Comment("[Debug map only] Max combined density shown on /travellersmap when multiple village halos overlap.")
-        @Config.RangeDouble(min = 0.1, max = 50.0)
-        public float travellerMaxDensity = 1.8f;
-
-        @Config.Comment("[Debug map only] Baseline density shown on /travellersmap outside of any village/lone-building influence (0 = none).")
-        @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float travellerOutsideVillageBaseDensity = 0.10f;
-
-        @Config.Comment("[Debug map only] Enable the population-based density boost on /travellersmap.")
-        public boolean travellerPopulationWeightEnabled = true;
-
-        @Config.Comment("[Debug map only] Radius (blocks) to search for the host village when computing the /travellersmap population density boost.")
-        @Config.RangeInt(min = 64, max = 10000)
-        public int travellerPopulationWeightRadius = 700;
-
-        @Config.Comment("[Debug map only] Extra density per villager on /travellersmap (0.05 = +5% per villager).")
-        @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float travellerPopulationWeightPerVillager = 0.05f;
-
-        @Config.Comment("[Debug map only] Max overall density multiplier from population on /travellersmap.")
-        @Config.RangeDouble(min = 0.1, max = 10.0)
-        public float travellerPopulationWeightMaxMultiplier = 0.1f;
-
         @Config.Comment("Radius (blocks) to scan for village cultures when picking spawn culture.")
         @Config.RangeInt(min = 64, max = 10000)
         public int travellerCultureScanRadius = 1024;
@@ -360,10 +313,6 @@ public class TravellersConfig {
         @Config.Comment("How many travellers appear around a standalone building that isn't part of a full village.")
         @Config.RangeInt(min = 0, max = 4)
         public int travellerCapPerLoneBuilding = 2;
-
-        @Config.Comment("Radius (blocks) used by /travellersinfo to show nearby traveller counts. Display only, does not affect spawning.")
-        @Config.RangeInt(min = 128, max = 8000)
-        public int travellerRegionalRadius = 1200;
 
         @Config.Comment("Minimum distance (blocks) from its home village/lone building a freshly spawned traveller can appear.")
         @Config.RangeInt(min = 0, max = 2000)
@@ -410,10 +359,6 @@ public class TravellersConfig {
         @Config.Comment("How many raiders appear around a standalone building that isn't part of a full village.")
         @Config.RangeInt(min = 0, max = 4)
         public int raiderCapPerLoneBuilding = 1;
-
-        @Config.Comment("Radius (blocks) used by /travellersinfo to show nearby raider counts. Display only, does not affect spawning.")
-        @Config.RangeInt(min = 128, max = 8000)
-        public int raiderRegionalRadius = 1200;
 
         @Config.Comment("If true, raiders travel along the Ultreia/MPB road network like travellers do. If false, raiders roam freely off-road.")
         public boolean raidersUseUltreiaPaths = true;
@@ -1402,13 +1347,9 @@ public class TravellersConfig {
     }
 
     public static class Destinations {
-        @Config.Comment("Distance (blocks) considered 'arrived' at a village.")
+        @Config.Comment("How close a traveller must get to a destination that isn't a village or lone building to count as arrived.")
         @Config.RangeInt(min = 1, max = 256)
         public int villageNear = 16;
-
-        @Config.Comment("Distance (blocks) considered 'arrived' at a lone building.")
-        @Config.RangeInt(min = 1, max = 256)
-        public int lonebuildingNear = 16;
 
         @Config.Comment("Max radius (blocks) within which travellers pick next village destination.")
         @Config.RangeInt(min = 100, max = 10000)
@@ -1512,6 +1453,10 @@ public class TravellersConfig {
 
         @Config.Comment("Instead of putting it on hold, let the off-screen simulation keep running slowly while nobody is connected. Ignored when the option above is on.")
         public boolean slowWhenServerEmpty = false;
+
+        @Config.Comment("How many off-screen deliveries, village gifts or equipment pickups may open village chests at the same moment. Lower is smoother.")
+        @Config.RangeInt(min = 1, max = 20)
+        public int chestJobsPerTick = 1;
 
         @Config.Comment("How fast the off-screen simulation runs while nobody is connected, when the slow-down option is on. 1.0 = normal speed, 0.25 = four times slower.")
         @Config.RangeDouble(min = 0.01, max = 1.0)

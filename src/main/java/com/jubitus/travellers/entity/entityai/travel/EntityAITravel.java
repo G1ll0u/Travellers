@@ -5,14 +5,13 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
 import com.jubitus.travellers.entity.entityai.flight.ElytraOpportunityScanner;
 import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountedLeadController;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.mount.MountedLeadController;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.world.pathing.route.TravelPlan;
 import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
@@ -431,7 +430,7 @@ public class EntityAITravel extends EntityAIBase {
         // the small real sideways moves a mob makes while pinned at the edge (loaded space still exists
         // on every side except toward the destination) don't fool it the way they'd fool a plain
         // no-movement timer. Removed once EntityTraveller.tickEdgeVirtualizeProbe was scoped down to
-        // EntityAIFollowGroupLeader followers only, the one case with no equivalent of this backstop.
+        // EntityAIFollowLeader followers only, the one case with no equivalent of this backstop.
         // -----------------------------------------
         // Elytra: is the ground ahead worth gliding over? Ordered after the arrival and edge checks
         // so we never take off on top of the destination or toward unloaded terrain. The cheap gates

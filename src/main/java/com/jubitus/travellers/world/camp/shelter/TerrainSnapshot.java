@@ -115,7 +115,7 @@ public class TerrainSnapshot {
     /**
      * Same as {@link #restore} but never touches a column (x,z) that falls inside a Millénaire
      * building's reserved zone (real footprint metadata via
-     * {@link com.jubitus.travellers.world.mill.MillVillageIndex#collectBuildingZonesPlanar} —
+     * {@link com.jubitus.travellers.world.mill.MillFootprints#reservedIn} —
      * not block identity, since Millénaire buildings are frequently made of plain vanilla blocks),
      * nor a cell that already holds a literal Millénaire block (belt-and-braces for decorative
      * blocks placed slightly outside the computed zone box). Used when a camp is force-evacuated
@@ -123,10 +123,10 @@ public class TerrainSnapshot {
      * but the village's own territory — whatever it's physically built from — must never be cleared
      * or overwritten.
      */
-    public void restoreSkippingVillageZone(net.minecraft.world.WorldServer world, int villageSearchRadius) {
+    public void restoreSkippingVillageZone(net.minecraft.world.WorldServer world) {
         if (stateIds == null) return;
-        List<int[]> zones = com.jubitus.travellers.world.mill.MillVillageIndex.collectBuildingZonesPlanar(
-                world, origin, origin.add(sizeX - 1, 0, sizeZ - 1), villageSearchRadius);
+        List<com.jubitus.travellers.world.mill.MillFootprints.Footprint> zones =
+                com.jubitus.travellers.world.mill.MillFootprints.reservedIn(world, origin, origin.add(sizeX - 1, 0, sizeZ - 1));
         IBlockState air = Blocks.AIR.getDefaultState();
         for (int dy = 0; dy < sizeY; dy++) {
             for (int dz = 0; dz < sizeZ; dz++) {
@@ -163,8 +163,8 @@ public class TerrainSnapshot {
                 world, origin, origin.add(sizeX - 1, sizeY - 1, sizeZ - 1));
     }
 
-    private static boolean isProtected(World world, List<int[]> zones, BlockPos p) {
-        if (com.jubitus.travellers.world.mill.MillVillageIndex.isPlanarInsideAnyZone(zones, p.getX(), p.getZ())) {
+    private static boolean isProtected(World world, List<com.jubitus.travellers.world.mill.MillFootprints.Footprint> zones, BlockPos p) {
+        if (com.jubitus.travellers.world.mill.MillFootprints.anyReservedContains(zones, p.getX(), p.getZ())) {
             return true;
         }
         return com.jubitus.travellers.world.ground.BlockRules.isMillenaireBlock(world.getBlockState(p));

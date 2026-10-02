@@ -93,7 +93,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             this.entitySizeY = MathHelper.floor(this.body.height + 1.0F);
             this.stackClearance = PathBody.clearanceHeight(entityIn);
             this.mountJumpHeight = this.body instanceof net.minecraft.entity.passive.EntityHorse
-                    ? com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport
+                    ? com.jubitus.travellers.mount.TravellerMountSupport
                         .jumpHeightOf((net.minecraft.entity.passive.EntityHorse) this.body)
                     : 0.0D;
         }

@@ -20,7 +20,6 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgHireWorker;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestServerCosts;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
@@ -751,13 +750,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
 
     /** Empty string means "resolved, and there is none" — so it is only looked up once. */
     private String resolveHomeVillageName() {
-        try {
-            BlockPos home = worker.getHomeVillage();
-            String name = home != null ? MillVillageIndex.villageNameFor(mc.world, home) : null;
-            return name != null ? name : "";
-        } catch (Exception ex) {
-            return "";
-        }
+        return worker.clientHomeVillageName != null ? worker.clientHomeVillageName : "";
     }
 
     /**

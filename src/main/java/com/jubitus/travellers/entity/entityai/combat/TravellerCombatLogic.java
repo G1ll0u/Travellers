@@ -223,6 +223,7 @@ public class TravellerCombatLogic {
         // reference (vanilla never copies on drop) — damaging it after that would over-wear the
         // already-dropped item instead of anything this entity still holds. See EntityTraveller's
         // matching guard around damageArmorOnHit for the same root cause.
+        // INVARIANT: no wear after a possibly lethal hit - the drop shares this ItemStack.
         if (entity.getHealth() > 0.0F) {
             TravellerItemDamage.damageWeaponOnHit(entity);
         }

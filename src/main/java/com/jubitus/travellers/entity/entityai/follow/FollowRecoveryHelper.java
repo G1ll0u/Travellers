@@ -254,7 +254,7 @@ public final class FollowRecoveryHelper {
      * routinely too narrow for the wider horse standing on it (a slope, a one-block niche in a cliff
      * face) - reported as a horse reappearing embedded in solid rock and suffocating, on steep
      * mountainside terrain specifically. Reuses the same mount-aware footprint search materialize/
-     * virtualize placement already relies on (see {@code EntityAIFollowGroupLeader.resolveHopSafeSpot},
+     * virtualize placement already relies on (see {@code EntityAIFollowLeader.resolveHopSafeSpot},
      * fixed the same way for group followers) instead of adding a second, disagreeing clearance model.
      * Best-effort, so it only ever refines the already-found rider spot, never rejects it outright.
      */

@@ -2,8 +2,8 @@ package com.jubitus.travellers.entity.entityai.combat;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerAttitude;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.Entity;

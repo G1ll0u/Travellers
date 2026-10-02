@@ -13,12 +13,10 @@ import com.jubitus.travellers.entity.entityai.combat.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.entity.entityai.combat.TravellerCombatLogic;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIDefendIfClose;
 import com.jubitus.travellers.entity.entityai.combat.EntityAIRangedBowTravellerSafe;
-import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowGroupLeader;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.combat.TravellerHurtByTarget;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityLivingData;
@@ -72,6 +70,7 @@ public class EntityTravellerRaider extends EntityTraveller {
     // they spawn exclusively through the virtual population controller (TravellerSoftSpawner), which
     // never calls this. See CLAUDE.md / Travellers.java preInit for the removal.
 
+    // INVARIANT: no super call - every AI task added to EntityTraveller must be mirrored here by hand.
     @Override
     protected void initEntityAI() {
         // Reset AI
@@ -244,7 +243,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // 2) If we still don't have a culture, try village-based pick around our spawn position.
         if (cid == null || cid.isEmpty()) {
             // Uses the same logic as your soft spawner (weighted by nearby Millénaire mill).
-            String villageCid = MillVillageIndex.pickCultureForTravellerSpawn(this.world, this.getPosition(), this.rand);
+            String villageCid = com.jubitus.travellers.world.spawn.SpawnCulture.pickNear(this.world, this.getPosition(), this.rand);
             if (villageCid != null && !villageCid.isEmpty()) {
                 cid = villageCid;
                 // Make sure vanilla group spawns copy this culture as SpawnData.

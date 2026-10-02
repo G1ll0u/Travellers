@@ -13,7 +13,22 @@ import java.util.List;
  */
 public final class LoadedChunks {
 
+    private static long jobTick = Long.MIN_VALUE;
+    private static int jobsThisTick;
+
     private LoadedChunks() {
+    }
+
+    /** World-wide pace for offscreen jobs that load chunks temporarily: false means try again on a later tick. */
+    public static boolean tryAcquireJob(WorldServer world) {
+        long now = world.getTotalWorldTime();
+        if (now != jobTick) {
+            jobTick = now;
+            jobsThisTick = 0;
+        }
+        if (jobsThisTick >= Math.max(1, com.jubitus.travellers.config.TravellersConfig.OFFSCREEN.chestJobsPerTick)) return false;
+        jobsThisTick++;
+        return true;
     }
 
     /** The loaded chunk at these chunk coordinates, or null. Never loads, never delays an unload. */

@@ -51,7 +51,7 @@ dependencies {
     // Shaded (not embed'd) so it can be package-relocated below — see the relocate comment further
     // down. Each mod embedding jubiconfig this way can independently use its own jubiconfig
     // version with zero risk of classloader collisions with another mod's copy.
-    shade files('libs/jubiconfig-2.3.0.jar')
+    shade files('libs/jubiconfig-2.5.0.jar')
     implementation files('libs/millenaire-8.1.2.jar')
     implementation files('libs/millmix-1.1.6.jar')
     implementation files('libs/DramaticTrees-1.12.2-0.13.4.jar')

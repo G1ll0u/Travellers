@@ -57,7 +57,7 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
         if (target == worker.getFollowOwner()) return false;
         // Owner just tapped a bonded horse (routine when riding near one) - never assist onto it.
         if (target instanceof net.minecraft.entity.passive.EntityHorse
-                && com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport
+                && com.jubitus.travellers.mount.TravellerMountSupport
                 .isBondedMount((net.minecraft.entity.passive.EntityHorse) target)) {
             return false;
         }

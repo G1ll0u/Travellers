@@ -4,19 +4,18 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
 import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.mixins.MixinResManagerPointsAccessor;
 import com.jubitus.travellers.world.mill.MillFootprints;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
-import com.jubitus.travellers.world.mill.TravellerMillHelper;
-import com.jubitus.travellers.world.mill.VillageGround;
+import com.jubitus.travellers.world.mill.MillGoods;
+import com.jubitus.travellers.world.visit.VillageGround;
 import com.jubitus.travellers.world.mill.VillageVisitIndex;
-import com.jubitus.travellers.world.mill.VillageVisitState;
-import com.jubitus.travellers.world.mill.VisitOccupancy;
+import com.jubitus.travellers.world.visit.VillageVisitState;
+import com.jubitus.travellers.world.visit.VisitOccupancy;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.state.IBlockState;
@@ -650,13 +649,10 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private void donate(BlockPos stop) {
-        MillWorldData wd = MillVillageIndex.getWD(mob.world);
-        Building b = wd == null ? null : MillVillageIndex.findBuildingForDonation(wd, stop, 64);
-        if (b == null) {
+        if (!(mob.world instanceof net.minecraft.world.WorldServer)) return;
+        if (!MillGoods.donateToConstruction((net.minecraft.world.WorldServer) mob.world, stop)) {
             mob.getTravelCommon().markVillageBad(stop);
-            return;
         }
-        TravellerMillHelper.donateToConstruction(b);
     }
 
     // ---------------------------------------------------------------- walking a leg

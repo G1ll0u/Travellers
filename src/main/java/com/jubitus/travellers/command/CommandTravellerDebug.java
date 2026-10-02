@@ -7,7 +7,7 @@ import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.culture.VoiceSet;
 import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.debug.path.PathExporter;
@@ -114,7 +114,7 @@ public class CommandTravellerDebug extends CommandBase {
                 case "terrain":
                     return getListOfStringsMatchingLastWord(args, "region", "export");
                 case "village":
-                    return getListOfStringsMatchingLastWord(args, "show", "hide", "here", "visit");
+                    return getListOfStringsMatchingLastWord(args, "show", "hide", "here", "visit", "needs");
                 case "dialogue":
                     // "setup" is temporary: opens GuiDialogueSetup directly, ahead of the real entry
                     // point the dialogue plan's Part C builds. See MsgOpenDialogueSetupGui's class doc.
@@ -392,8 +392,20 @@ public class CommandTravellerDebug extends CommandBase {
             if (f == null) {
                 sender.sendMessage(new TextComponentString(TextFormatting.GRAY
                         + "Not inside any Millénaire building (roof and walls included)."));
+                com.jubitus.travellers.world.mill.MillFootprints.Footprint nearest = null;
+                double best = Double.MAX_VALUE;
+                for (com.jubitus.travellers.world.mill.MillFootprints.Footprint c
+                        : com.jubitus.travellers.world.mill.MillFootprints.near(player.world, player.posX, player.posZ, 48)) {
+                    double dx = (c.minX + c.maxX + 1) * 0.5D - player.posX, dz = (c.minZ + c.maxZ + 1) * 0.5D - player.posZ;
+                    if (dx * dx + dz * dz < best) {
+                        best = dx * dx + dz * dz;
+                        nearest = c;
+                    }
+                }
+                if (nearest != null) sendFootprintDiag(sender, nearest, player);
                 return;
             }
+            sendFootprintDiag(sender, f, player);
             String tags;
             try {
                 tags = String.join(", ", f.building.getTags());
@@ -412,7 +424,63 @@ public class CommandTravellerDebug extends CommandBase {
             describeVisit(sender, (WorldServer) player.world, String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)));
             return;
         }
-        throw new CommandException("Usage: /travellersdebug village show|hide|here|visit <name>");
+        if (sub.equals("needs")) {
+            describeNeeds(sender, (WorldServer) player.world, player.getPosition());
+            return;
+        }
+        throw new CommandException("Usage: /travellersdebug village show|hide|here|needs|visit <name>");
+    }
+
+    /** Raw Millénaire placement data of a building next to the box we derive from it, to check the two agree. */
+    private static void sendFootprintDiag(ICommandSender sender, com.jubitus.travellers.world.mill.MillFootprints.Footprint f,
+                                          EntityPlayerMP player) {
+        org.millenaire.common.village.BuildingLocation loc = f.building.location;
+        org.millenaire.common.buildingplan.BuildingPlan plan = loc.getPlan();
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[diag] " + f.planKey()
+                + " pos " + loc.pos + " orient " + loc.orientation + " level " + loc.level
+                + " loc LxW " + loc.length + "x" + loc.width
+                + (plan == null ? " plan=null" : " plan LxW " + plan.length + "x" + plan.width
+                + " off " + plan.lengthOffset + "/" + plan.widthOffset + " startLevel " + plan.startLevel
+                + " floors " + plan.nbfloors)));
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[diag] mill x " + loc.minx + ".." + loc.maxx
+                + " z " + loc.minz + ".." + loc.maxz + " y " + loc.miny + ".." + loc.maxy
+                + " | ours x " + f.minX + ".." + f.maxX + " z " + f.minZ + ".." + f.maxZ + " y " + f.minY + ".." + f.maxY
+                + " | you " + (int) Math.floor(player.posX) + "," + (int) Math.floor(player.posY) + "," + (int) Math.floor(player.posZ)));
+
+        // Ground truth: bounding box of built blocks around our box (loaded ground only, above the floor row).
+        int pad = 4, bx0 = Integer.MAX_VALUE, bx1 = Integer.MIN_VALUE, bz0 = Integer.MAX_VALUE, bz1 = Integer.MIN_VALUE;
+        net.minecraft.util.math.BlockPos.MutableBlockPos mp = new net.minecraft.util.math.BlockPos.MutableBlockPos();
+        for (int x = f.minX - pad; x <= f.maxX + pad; x++) {
+            for (int z = f.minZ - pad; z <= f.maxZ + pad; z++) {
+                if (!player.world.isBlockLoaded(mp.setPos(x, f.minY, z))) continue;
+                for (int y = f.minY + 1; y <= f.maxY + 2; y++) {
+                    if (!com.jubitus.travellers.world.ground.BlockRules.isBuilt(player.world.getBlockState(mp.setPos(x, y, z)))) continue;
+                    bx0 = Math.min(bx0, x);
+                    bx1 = Math.max(bx1, x);
+                    bz0 = Math.min(bz0, z);
+                    bz1 = Math.max(bz1, z);
+                    break;
+                }
+            }
+        }
+        sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "[diag] built blocks x " + bx0 + ".." + bx1
+                + " z " + bz0 + ".." + bz1 + " (searched " + pad + " blocks around)"));
+    }
+
+    /** What the nearest settlement still needs for its constructions, and what it holds already. */
+    private void describeNeeds(ICommandSender sender, WorldServer world, net.minecraft.util.math.BlockPos pos) {
+        com.jubitus.travellers.world.mill.MillSettlements.Settlement s =
+                com.jubitus.travellers.world.mill.MillSettlements.nearest(world, pos, 256);
+        org.millenaire.common.village.Building th = s == null ? null : s.townHall(world);
+        if (th == null) {
+            sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "No Millénaire settlement within 256 blocks."));
+            return;
+        }
+        java.util.List<String> lines = com.jubitus.travellers.world.mill.MillGoods.describeNeeds(world, th);
+        sender.sendMessage(new TextComponentString(TextFormatting.GOLD + s.displayName() + TextFormatting.RESET
+                + " pop " + s.population(world) + ", goal " + th.buildingGoal + ", "
+                + lines.size() + " construction item(s) needed"));
+        for (String line : lines) sender.sendMessage(new TextComponentString("  " + line));
     }
 
     /** Where a unit is in its village stay (loaded or offscreen), and where its horse is. */
@@ -444,7 +512,7 @@ public class CommandTravellerDebug extends CommandBase {
     }
 
     private static void sendVisit(ICommandSender sender, String who,
-                                  @javax.annotation.Nullable com.jubitus.travellers.world.mill.VillageVisitState st, String horse) {
+                                  @javax.annotation.Nullable com.jubitus.travellers.world.visit.VillageVisitState st, String horse) {
         String visit = st == null ? "not visiting"
                 : "stop " + fmtPos(st.stop) + (st.asFollower ? " (with group)" : "")
                 + (st.isLeaving() ? " leaving" : " left=" + st.remainingTicks / 20 + "s")
@@ -1183,11 +1251,11 @@ public class CommandTravellerDebug extends CommandBase {
             if (closest.getMountUUID() == null) {
                 throw new CommandException(closest.getName() + " has no bonded mount.");
             }
-            com.jubitus.travellers.entity.entityai.travel.mount.MountMode mode =
-                    sub.equals("ride") ? com.jubitus.travellers.entity.entityai.travel.mount.MountMode.MOUNTED
-                            : sub.equals("lead") ? com.jubitus.travellers.entity.entityai.travel.mount.MountMode.LED
-                            : com.jubitus.travellers.entity.entityai.travel.mount.MountMode.HITCHED;
-            com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport.setMountMode(closest, mode);
+            com.jubitus.travellers.mount.MountMode mode =
+                    sub.equals("ride") ? com.jubitus.travellers.mount.MountMode.MOUNTED
+                            : sub.equals("lead") ? com.jubitus.travellers.mount.MountMode.LED
+                            : com.jubitus.travellers.mount.MountMode.HITCHED;
+            com.jubitus.travellers.mount.TravellerMountSupport.setMountMode(closest, mode);
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN
                     + closest.getName() + " mount mode -> " + mode.name()));
             return;
@@ -1197,7 +1265,7 @@ public class CommandTravellerDebug extends CommandBase {
             throw new CommandException(closest.getName() + " already has a bonded mount.");
         }
 
-        if (com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport.bondNewMount(closest)) {
+        if (com.jubitus.travellers.mount.TravellerMountSupport.bondNewMount(closest)) {
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN
                     + "Bonded a horse to " + closest.getName() + "."));
         } else {

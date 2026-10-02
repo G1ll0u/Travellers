@@ -3,7 +3,7 @@ package com.jubitus.travellers.server.dialogue.tools;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.server.dialogue.DialoguePhrasing;
 import com.jubitus.travellers.world.mill.MillRelations;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
@@ -22,8 +22,8 @@ public final class VillageRelationToolHandler implements DialogueToolHandler {
         String nameA = args.getString("villageA");
         String nameB = args.getString("villageB");
 
-        MillVillageIndex.VillageInfo villageA = MillVillageIndex.findVillageByName(world, nameA);
-        MillVillageIndex.VillageInfo villageB = MillVillageIndex.findVillageByName(world, nameB);
+        MillSettlements.Settlement villageA = MillSettlements.villageByName(world, nameA);
+        MillSettlements.Settlement villageB = MillSettlements.villageByName(world, nameB);
 
         if (villageA == null) return "You have never heard of a place called " + safeName(nameA) + ".";
         if (villageB == null) return "You have never heard of a place called " + safeName(nameB) + ".";

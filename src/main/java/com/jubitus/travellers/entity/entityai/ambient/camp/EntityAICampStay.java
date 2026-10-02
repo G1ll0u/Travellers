@@ -11,8 +11,8 @@ import com.jubitus.travellers.world.camp.CampOccupant;
 import com.jubitus.travellers.world.camp.CampsiteManager;
 import com.jubitus.travellers.world.camp.CampsiteRecord;
 import com.jubitus.travellers.world.camp.ShelterSlot;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.combat.TravellerHostilityHelper;
 import com.jubitus.travellers.world.virtualization.MaterializePositionResolver;
 import net.minecraft.entity.EntityLivingBase;
@@ -49,7 +49,7 @@ import java.util.UUID;
  *
  * Combat (higher priority) preempts this task; departure resumes cleanly on the next execution since
  * all build/teardown progress lives on the persisted CampOccupant, not on this AI instance.
- * EntityAIFollowGroupLeader yields to this task when the leader is camping.
+ * EntityAIFollowLeader yields to this task when the leader is camping.
  */
 public class EntityAICampStay extends EntityAIBase {
 

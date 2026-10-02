@@ -7,7 +7,7 @@ import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.notify.WorkerLifecycleNotifications;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.server.net.message.home.MsgSyncWorkerHome;
+import com.jubitus.travellers.server.net.message.zone.MsgSyncWorkerHome;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import net.minecraft.block.state.IBlockState;

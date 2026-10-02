@@ -1,10 +1,10 @@
 package com.jubitus.travellers.entity.entityai.travel;
 
 import com.jubitus.travellers.world.ground.BlockRules;
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;

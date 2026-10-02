@@ -1,8 +1,7 @@
 package com.jubitus.travellers.debug.trace;
 
-import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowGroupLeader;
 import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -59,7 +58,7 @@ public final class TraceSample {
     // AI / FOLLOW
     public String runningTasks = "";
     public int steeringBlockedTicks = -1;
-    /** -1 = no EntityAIFollowGroupLeader running / no leader currently resolved; 0 = leader tracked
+    /** -1 = no EntityAIFollowLeader running / no leader currently resolved; 0 = leader tracked
      *  virtually; 1 = leader is a loaded entity. Flip-flopping between 0 and 1 tick to tick is exactly
      *  the "leader keeps materializing/virtualizing" signature. */
     public int followLeaderLoaded = -1;
@@ -155,17 +154,6 @@ public final class TraceSample {
             sb.append(entry.action.getClass().getSimpleName());
             if (entry.action instanceof EntityAIFollowLeader) {
                 this.steeringBlockedTicks = ((EntityAIFollowLeader) entry.action).getSteeringBlockedTicks();
-            } else if (entry.action instanceof EntityAIFollowGroupLeader) {
-                EntityAIFollowGroupLeader task = (EntityAIFollowGroupLeader) entry.action;
-                this.steeringBlockedTicks = task.getSteeringBlockedTicks();
-                Boolean loaded = task.isLeaderLoaded();
-                net.minecraft.util.math.Vec3d pos = task.getLeaderPosition();
-                if (loaded != null && pos != null) {
-                    this.followLeaderLoaded = loaded ? 1 : 0;
-                    this.followLeaderX = pos.x;
-                    this.followLeaderY = pos.y;
-                    this.followLeaderZ = pos.z;
-                }
             }
         }
         this.runningTasks = sb.length() == 0 ? "idle" : sb.toString();

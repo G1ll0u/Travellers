@@ -97,11 +97,11 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
 
         // Loose ex-mounts left by a dead traveller/raider/worker with nowhere to send their horse:
         // remove the ones past their grace period, but only once no player is close enough to notice.
-        com.jubitus.travellers.entity.entityai.travel.mount.OrphanMountCleanup.tick(ws, now);
+        com.jubitus.travellers.mount.OrphanMountCleanup.tick(ws, now);
 
         // Riders left on a vehicle that no longer exists, and clients that never learned who is
         // sitting on which horse. Both are invisible to the rider's own tick - see the class doc.
-        com.jubitus.travellers.entity.entityai.travel.mount.MountSyncReconciler.tick(ws, now);
+        com.jubitus.travellers.mount.MountSyncReconciler.tick(ws, now);
 
         // Close doors / fence gates behind travellers once nobody still needs them held open
         com.jubitus.travellers.entity.entityai.travel.TravellerDoorways.tick(ws, now);

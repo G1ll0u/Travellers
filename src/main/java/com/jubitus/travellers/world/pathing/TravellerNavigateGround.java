@@ -500,7 +500,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
             stack = PathBody.clearanceHeight(this.entity);
             if (TravellersConfig.MOUNTS.mountedReactiveJumpEnabled
                     && body instanceof net.minecraft.entity.passive.EntityHorse) {
-                double jump = com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport
+                double jump = com.jubitus.travellers.mount.TravellerMountSupport
                         .jumpHeightOf((net.minecraft.entity.passive.EntityHorse) body) - 0.2D;
                 stepRise = Math.max(stepRise,
                         Math.min(jump, TravellersConfig.MOUNTS.mountedMaxStraightRise));

@@ -172,7 +172,7 @@ public class VirtualTravellerRecord {
     // them instead of always dropping the rider into the saddle.
     @Nullable public String mountMode;
     /** The current village stay, moved here from the entity at virtualize (see VillageVisitState). */
-    @Nullable public com.jubitus.travellers.world.mill.VillageVisitState visit;
+    @Nullable public com.jubitus.travellers.world.visit.VillageVisitState visit;
 
     // Camp occupation cache (P3). The campsite occupant is the source of truth; these are re-derived
     // on virtualize. When set, the entity halts its route and sits at its slot.
@@ -400,7 +400,7 @@ public class VirtualTravellerRecord {
         r.mounted = tag.getBoolean("Mounted");
         if (tag.hasKey("MountData")) r.mountNbt = tag.getCompoundTag("MountData");
         if (tag.hasKey("MountMode")) r.mountMode = tag.getString("MountMode");
-        r.visit = com.jubitus.travellers.world.mill.VillageVisitState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
+        r.visit = com.jubitus.travellers.world.visit.VillageVisitState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
         if (tag.hasKey("CampSite")) {
             r.campSiteId = UUID.fromString(tag.getString("CampSite"));
             r.campSlotIndex = tag.getInteger("CampSlot");

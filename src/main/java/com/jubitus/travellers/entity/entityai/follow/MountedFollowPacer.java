@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.world.pathing.PathBody;
 import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 /**
  * Continuous pace-matching for a MOUNTED follower behind a moving leader - the third shared follow
  * helper next to {@link FollowBoatController} and {@link FollowFlightController}, wired into both
- * {@code EntityAIFollowLeader} and {@code EntityAIFollowGroupLeader} the same way.
+ * {@code EntityAIFollowLeader} the same way.
  *
  * <p><b>Why it exists:</b> the normal follow logic is a position servo with hysteresis - settle on
  * the slot, clear the path, wait until the leader has moved past a threshold, then path again. For a

@@ -2,7 +2,7 @@ package com.jubitus.travellers.world.chunkmanager;
 
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import net.minecraft.entity.Entity;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;

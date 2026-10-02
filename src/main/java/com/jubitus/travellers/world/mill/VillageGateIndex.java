@@ -59,10 +59,7 @@ public final class VillageGateIndex {
 
     @Nullable
     private static Ring compute(World world, BlockPos villageCenter) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null) return null;
-
-        Building townHall = MillVillageIndex.getTownHallBuilding(wd, villageCenter);
+        Building townHall = MillSettlements.townHall(world, villageCenter);
         if (townHall == null || townHall.buildingProjects == null) return null;
 
         List<BuildingProject> wallProjects =

@@ -3,7 +3,7 @@ package com.jubitus.travellers.entity.entityai.follow;
 import com.jubitus.travellers.world.ground.BlockRules;
 import com.jubitus.travellers.entity.entityai.travel.TravellerBoats;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.others.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLivingBase;
@@ -23,7 +23,7 @@ import java.util.List;
  * Shared boat-following logic: a follower keeps pace with a target that may cross water by boat,
  * either boarding the target's own boat (room permitting) or spawning/steering its own alongside it.
  * Used by both worker escort following ({@link EntityAIFollowLeader}) and traveller/raider
- * group following ({@link EntityAIFollowGroupLeader}) - extracted so the two never diverge on boat
+ * group following ({@link EntityAIFollowLeader}) - extracted so the two never diverge on boat
  * behavior instead of maintaining two copies.
  *
  * Lifecycle invariants this class enforces everywhere it dismounts/finishes with a boat:

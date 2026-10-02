@@ -1,6 +1,6 @@
 package com.jubitus.travellers.debug;
 
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import net.minecraft.util.math.BlockPos;
@@ -70,7 +70,7 @@ public class TravellerChunkSnapshot {
         }
 
         // Village centers near the player
-        List<BlockPos> allVillages = MillVillageIndex.getAllVillageCenters(world);
+        List<BlockPos> allVillages = MillSettlements.snapshot(world).villageCenters;
         List<BlockPos> villages = new ArrayList<>();
         int r2Blocks = radiusBlocks * radiusBlocks;
 

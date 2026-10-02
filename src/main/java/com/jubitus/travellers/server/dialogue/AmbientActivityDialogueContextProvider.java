@@ -4,7 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.world.mill.MillRelations;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.world.pathing.terrain.BiomeTerrainEstimator;
 import com.jubitus.travellers.world.pathing.terrain.BiomeWaterClass;
 import net.minecraft.entity.player.EntityPlayer;
@@ -60,14 +60,14 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
         }
 
         if (activityVillagePos != null) {
-            MillVillageIndex.VillageInfo vi = DialogueVillageNaming.resolveVillage(world, activityVillagePos);
-            if (vi != null) {
+            MillSettlements.Settlement vi = MillSettlements.resolve(world, activityVillagePos);
+            if (vi != null && !vi.name.isEmpty()) {
                 builder.activityVillageName(vi.name)
                         .activityVillageCultureId(vi.cultureKey == null || vi.cultureKey.isEmpty() ? null : vi.cultureKey)
                         .activityVillageIsLoneBuilding(!vi.isVillage);
                 if (vi.isVillage) {
                     builder.activityVillagePopulationTier(
-                            DialoguePhrasing.populationTier(MillVillageIndex.countVillagersInVillage(world, vi.center)));
+                            DialoguePhrasing.populationTier(vi.population(world)));
                 }
                 if (home != null) {
                     builder.activityVillageRelationToHome(DialoguePhrasing.relationTier(
@@ -101,7 +101,7 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
         BlockPos home = traveller.getHomeVillage();
         int adjacentRadius = TravellersConfig.DIALOGUE.villageAdjacentRadius;
 
-        MillVillageIndex.VillageInfo vi = MillVillageIndex.findNearest2D(world, self, adjacentRadius);
+        MillSettlements.Settlement vi = MillSettlements.nearest(world, self, adjacentRadius);
         if (vi == null) return;
 
         double dist = Math.sqrt(squaredPlanarDistance(vi.center, self));
@@ -110,7 +110,7 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
                 vi.cultureKey == null ? "" : vi.cultureKey,
                 bucket(vi.center.getX() - self.getX()),
                 bucket(vi.center.getZ() - self.getZ()),
-                vi.isVillage ? DialoguePhrasing.populationTier(MillVillageIndex.countVillagersInVillage(world, vi.center)) : null,
+                vi.isVillage ? DialoguePhrasing.populationTier(vi.population(world)) : null,
                 home == null ? null : DialoguePhrasing.relationTier(
                         MillRelations.getRelation(world, home, vi.center, world.getTotalWorldTime())),
                 DialoguePhrasing.villageDistanceTier(dist, !vi.isVillage),
@@ -140,26 +140,24 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
         BlockPos home = traveller.getHomeVillage();
         long radiusSq = (long) radius * (long) radius;
 
-        List<BlockPos> candidates = new ArrayList<>();
-        for (BlockPos centre : MillVillageIndex.getAllSettlementCentersCached(world)) {
-            long dx = centre.getX() - self.getX();
-            long dz = centre.getZ() - self.getZ();
-            long distSq = dx * dx + dz * dz;
+        List<MillSettlements.Settlement> candidates = new ArrayList<>();
+        for (MillSettlements.Settlement s : MillSettlements.all(world)) {
+            long distSq = squaredPlanarDistance(s.center, self);
             if (distSq > 0 && distSq <= radiusSq) {
-                candidates.add(centre);
+                candidates.add(s);
             }
         }
-        candidates.sort(Comparator.comparingLong(c ->
-                squaredPlanarDistance(c, self)));
+        candidates.sort(Comparator.comparingLong(s ->
+                squaredPlanarDistance(s.center, self)));
 
         // Millénaire's procedural name pool can hand two unrelated settlements the same name - shown
         // twice under one name reads as a duplication bug to a player skimming the debug log, and
         // isn't useful context for the model either. Keep only the nearest of each name.
         Set<String> namesSeen = new HashSet<>();
-        for (BlockPos centre : candidates) {
+        for (MillSettlements.Settlement vi : candidates) {
             if (result.size() >= maxCount) break;
-            MillVillageIndex.VillageInfo vi = MillVillageIndex.findExact(world, centre);
-            if (vi == null || vi.name == null || vi.name.isEmpty()) continue;
+            BlockPos centre = vi.center;
+            if (vi.name.isEmpty()) continue;
             if (!namesSeen.add(vi.name)) continue;
             double dist = Math.sqrt(squaredPlanarDistance(centre, self));
             result.add(new DialogueContext.NearbySettlementBlurb(
@@ -168,7 +166,7 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
                     bucket(centre.getX() - self.getX()),
                     bucket(centre.getZ() - self.getZ()),
                     // A lone building isn't a "village" of any size - never give it a population tier.
-                    vi.isVillage ? DialoguePhrasing.populationTier(MillVillageIndex.countVillagersInVillage(world, centre)) : null,
+                    vi.isVillage ? DialoguePhrasing.populationTier(vi.population(world)) : null,
                     home == null ? null : DialoguePhrasing.relationTier(
                             MillRelations.getRelation(world, home, centre, world.getTotalWorldTime())),
                     DialoguePhrasing.villageDistanceTier(dist, !vi.isVillage),

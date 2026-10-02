@@ -18,7 +18,7 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.recruit.MsgRecruitStartSelectedVillages;
-import com.jubitus.travellers.server.net.message.villageshomes.MsgWorkerRequestVillages;
+import com.jubitus.travellers.server.net.message.villages.MsgWorkerRequestVillages;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerGoList;
 import com.jubitus.travellers.server.net.message.workergo.MsgWorkerRequestGoList;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgRequestServerCosts;

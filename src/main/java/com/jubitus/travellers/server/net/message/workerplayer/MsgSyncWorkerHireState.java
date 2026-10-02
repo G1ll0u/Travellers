@@ -3,7 +3,10 @@ package com.jubitus.travellers.server.net.message.workerplayer;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
@@ -17,6 +20,7 @@ public class MsgSyncWorkerHireState implements IMessage {
     private boolean hired;
     private UUID ownerId;
     private boolean followOrderActive;
+    private String homeVillageName = "";
 
     public MsgSyncWorkerHireState() {
     }
@@ -26,6 +30,9 @@ public class MsgSyncWorkerHireState implements IMessage {
         this.hired = worker.isHiredFollower();
         this.ownerId = worker.getFollowOwnerId();
         this.followOrderActive = worker.isFollowOrderActive();
+        BlockPos home = worker.getHomeVillage();
+        String name = home != null ? MillSettlements.nameOrNull(worker.world, home) : null;
+        this.homeVillageName = name != null ? name : "";
     }
 
     @Override
@@ -43,6 +50,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         }
 
         this.followOrderActive = buf.readBoolean();
+        this.homeVillageName = ByteBufUtils.readUTF8String(buf);
     }
 
     @Override
@@ -59,6 +67,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         }
 
         buf.writeBoolean(followOrderActive);
+        ByteBufUtils.writeUTF8String(buf, homeVillageName);
     }
 
     public static class Handler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
@@ -83,6 +92,7 @@ public class MsgSyncWorkerHireState implements IMessage {
                 }
 
                 w.setFollowOrderActive(msg.followOrderActive);
+                w.clientHomeVillageName = msg.homeVillageName;
             });
             return null;
         }

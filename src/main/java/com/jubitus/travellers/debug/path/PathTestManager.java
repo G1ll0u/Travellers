@@ -2,7 +2,7 @@ package com.jubitus.travellers.debug.path;
 
 import com.jubitus.travellers.debug.trace.TraceSession;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.command.CommandException;

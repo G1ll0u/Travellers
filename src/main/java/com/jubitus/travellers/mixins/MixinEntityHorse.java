@@ -1,7 +1,7 @@
 package com.jubitus.travellers.mixins;
 
 import com.google.common.base.Optional;
-import com.jubitus.travellers.entity.entityai.travel.mount.HorseInteractLock;
+import com.jubitus.travellers.mount.HorseInteractLock;
 import net.minecraft.entity.passive.AbstractHorse;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.network.datasync.DataParameter;

@@ -10,7 +10,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
-import com.jubitus.travellers.server.net.message.leadfollow.MsgSyncLeaderFollowerCount;
+import com.jubitus.travellers.server.net.message.group.MsgSyncLeaderFollowerCount;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;

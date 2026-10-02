@@ -5,7 +5,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -65,11 +65,9 @@ public class MsgWorkerGoTo implements IMessage {
 
                 BlockPos origin = player.getPosition();
 
-                List<BlockPos> villages = MillVillageIndex.getAllVillageCenters(player.world);
-                for (BlockPos v : villages) {
-                    int dist = EntityTravellerWorker.dist2D(origin, v);
-                    String label = MillVillageIndex.nameForApprox(player.world, v);
-                    list.add(MsgWorkerGoList.Entry.village(v, label, dist));
+                for (MillSettlements.Settlement v : MillSettlements.villages(player.world)) {
+                    int dist = EntityTravellerWorker.dist2D(origin, v.center);
+                    list.add(MsgWorkerGoList.Entry.village(v.center, v.displayName(), dist));
                 }
 
                 PlayerZoneManager lbMgr = PlayerZoneManager.get(player.world);

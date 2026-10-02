@@ -15,7 +15,7 @@ import javax.annotation.Nullable;
  * Shared "my leader just took off" logic: a follower wearing an elytra launches with whoever it is
  * following and chases them through the air. Used by both worker escort following
  * ({@link EntityAIFollowLeader}) and traveller/raider group following
- * ({@link EntityAIFollowGroupLeader}) - extracted for the same reason {@link FollowBoatController}
+ * ({@link EntityAIFollowLeader}) - extracted for the same reason {@link FollowBoatController}
  * was, so the two can never drift apart.
  *
  * <p>No opportunity scan is involved here, unlike the travel AI's own takeoffs: the reason to fly is

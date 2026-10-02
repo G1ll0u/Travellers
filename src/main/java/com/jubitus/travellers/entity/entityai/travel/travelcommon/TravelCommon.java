@@ -11,8 +11,7 @@ import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.world.mill.MillFootprints;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
-import com.jubitus.travellers.world.mill.MillenaireVillageDirectory;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
@@ -141,7 +140,7 @@ public class TravelCommon {
     public String lookupNearestVillageNameOrCoords() {
         BlockPos near = getNearestVillage();
         if (near == null) return "this area";
-        return MillVillageIndex.nameForApprox(owner.getEntityWorld(), near);
+        return MillSettlements.nameOf(owner.getEntityWorld(), near);
     }
 
     @Nullable
@@ -417,7 +416,7 @@ public class TravelCommon {
 
     public List<BlockPos> getVillagesCached() {
         if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
-            List<BlockPos> raw = MillVillageIndex.getAllSettlementCenters(owner.getEntityWorld());
+            List<BlockPos> raw = MillSettlements.snapshot(owner.getEntityWorld()).centers;
 
             if (badVillages.isEmpty()) {
                  cachedVillages = raw;
@@ -502,10 +501,10 @@ public class TravelCommon {
 
     private StopKind stopKindFor(BlockPos target) {
         if (!target.equals(stopKindTarget)) {
-            if (owner.world == null || MillVillageIndex.getWD(owner.world) == null) return StopKind.OTHER;
+            if (owner.world == null || MillSettlements.wd(owner.world) == null) return StopKind.OTHER;
             stopKindTarget = target;
-            Boolean village = MillVillageIndex.settlementKindXZ(owner.world, target.getX(), target.getZ());
-            stopKind = village == null ? StopKind.OTHER : village ? StopKind.VILLAGE : StopKind.LONE_BUILDING;
+            MillSettlements.Settlement s = MillSettlements.at(owner.world, target);
+            stopKind = s == null ? StopKind.OTHER : s.isVillage ? StopKind.VILLAGE : StopKind.LONE_BUILDING;
         }
         return stopKind;
     }
@@ -519,8 +518,7 @@ public class TravelCommon {
             default:
                 // Workers' non-settlement targets (home chests, employer positions).
                 if (owner instanceof EntityTravellerWorker) return 8;
-                int r = MillenaireVillageDirectory.nearRadiusFor(target);
-                return r > 0 ? r : TravellersConfig.DESTINATIONS.villageNear;
+                return TravellersConfig.DESTINATIONS.villageNear;
         }
     }
 

@@ -537,16 +537,16 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private void sendGetEquipment(boolean stay) {
         if (selectedIndex < 0 || selectedIndex >= rows.size()) return;
         Row r = rows.get(selectedIndex);
-        com.jubitus.travellers.world.mill.EquipTargetKind kind =
+        com.jubitus.travellers.world.equip.EquipTargetKind kind =
                 r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
-                        ? com.jubitus.travellers.world.mill.EquipTargetKind.CONTROLLED_VILLAGE
+                        ? com.jubitus.travellers.world.equip.EquipTargetKind.CONTROLLED_VILLAGE
                         : r.kind == MsgWorkerGoList.Kind.STABLE
-                        ? com.jubitus.travellers.world.mill.EquipTargetKind.STABLE
-                        : com.jubitus.travellers.world.mill.EquipTargetKind.LONE_BARRACK;
+                        ? com.jubitus.travellers.world.equip.EquipTargetKind.STABLE
+                        : com.jubitus.travellers.world.equip.EquipTargetKind.LONE_BARRACK;
         UUID targetUUID = leaderMode ? leaderUUID : (worker != null ? worker.getUniqueID() : null);
         if (targetUUID == null || r.pos == null) return;
         TravellerFollowNet.CHANNEL.sendToServer(
-                new com.jubitus.travellers.server.net.message.home.MsgWorkerGetEquipment(
+                new com.jubitus.travellers.server.net.message.equip.MsgWorkerGetEquipment(
                         targetUUID, stay, kind, r.pos));
     }
 

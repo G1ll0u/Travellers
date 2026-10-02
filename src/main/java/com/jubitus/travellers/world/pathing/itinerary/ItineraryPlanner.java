@@ -11,7 +11,7 @@ import com.jubitus.travellers.world.pathing.route.TravelPlan;
 import com.jubitus.travellers.world.pathing.route.TravelRouteJob;
 import com.jubitus.travellers.world.pathing.route.TravelRoutePlanner;
 import com.jubitus.travellers.world.pathing.route.WallRings;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.world.mill.VillageGateIndex;
 import com.jubitus.travellers.world.pathing.terrain.TerrainGridView;
 import com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid;
@@ -156,7 +156,7 @@ public final class ItineraryPlanner {
     /** The wall ring of the village nearest {@code p} (villages only), or null when it has no gates. */
     @Nullable
     private static ItineraryGates.Ring ringNear(WorldServer world, BlockPos p, int radius) {
-        MillVillageIndex.VillageInfo v = MillVillageIndex.findNearest2D(world, p, radius);
+        MillSettlements.Settlement v = MillSettlements.nearest(world, p, radius);
         if (v == null || !v.isVillage) return null;
         return toRing(VillageGateIndex.ringFor(world, v.center));
     }
@@ -169,10 +169,9 @@ public final class ItineraryPlanner {
     /** Every walled village whose ring reaches into the box, as search obstacles. */
     private static WallRings wallsIn(WorldServer world, int[] box) {
         if (!TravellersConfig.TRAVEL.routeThroughVillageGates) return WallRings.EMPTY;
-        MillVillageIndex.SettlementSnapshot snap = MillVillageIndex.getSettlementSnapshotCached(world);
+        MillSettlements.Snapshot snap = MillSettlements.snapshot(world);
         java.util.List<VillageGateIndex.Ring> found = null;
-        for (BlockPos c : snap.centers) {
-            if (!snap.isVillage(c)) continue;
+        for (BlockPos c : snap.villageCenters) {
             if (c.getX() < box[0] - RING_LOOKUP_BLOCKS || c.getX() > box[2] + RING_LOOKUP_BLOCKS
                     || c.getZ() < box[1] - RING_LOOKUP_BLOCKS || c.getZ() > box[3] + RING_LOOKUP_BLOCKS) continue;
             VillageGateIndex.Ring r = VillageGateIndex.ringFor(world, c);

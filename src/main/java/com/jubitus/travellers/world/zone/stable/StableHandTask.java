@@ -3,7 +3,7 @@ package com.jubitus.travellers.world.zone.stable;
 import com.google.common.base.Predicate;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.ambient.EntityAIStopAndLookAtPlayer;
-import com.jubitus.travellers.entity.entityai.travel.mount.TravellerMountSupport;
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.world.camp.CampsiteManager;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;

@@ -6,8 +6,7 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
-import com.jubitus.travellers.world.mill.MillControlledVillageHelper;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -50,16 +49,16 @@ public class MsgWorkerRequestGoList implements IMessage {
                 }
 
                 List<MsgWorkerGoList.Entry> out = new ArrayList<>();
-                List<BlockPos> villages = MillVillageIndex.getAllVillageCenters(player.world);
                 BlockPos origin = player.getPosition();
 
                 java.util.Set<BlockPos> controlledVillages = TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
-                        ? MillControlledVillageHelper.getControlledVillageCenters(player.world, player)
+                        ? MillSettlements.controlledBy(player.world, player)
                         : java.util.Collections.emptySet();
 
-                for (BlockPos v : villages) {
+                for (MillSettlements.Settlement s : MillSettlements.villages(player.world)) {
+                    BlockPos v = s.center;
                     int dist = EntityTravellerWorker.dist2D(origin, v);
-                    String label = MillVillageIndex.nameForApprox(player.world, v);
+                    String label = s.displayName();
                     out.add(controlledVillages.contains(v)
                             ? MsgWorkerGoList.Entry.controlledVillage(v, label, dist)
                             : MsgWorkerGoList.Entry.village(v, label, dist));

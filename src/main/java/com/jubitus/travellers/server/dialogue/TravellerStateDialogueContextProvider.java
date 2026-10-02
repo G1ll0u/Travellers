@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.dialogue;
 
-import com.jubitus.travellers.entity.entityai.travel.mount.MountMode;
+import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import net.minecraft.entity.player.EntityPlayer;
 

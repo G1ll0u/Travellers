@@ -100,12 +100,11 @@ public final class VillageVisitIndex {
 
     @Nullable
     private static Settlement build(World world, BlockPos stop) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null) return null;
-        Building th = MillVillageIndex.getTownHallBuilding(wd, stop);
+        MillSettlements.Settlement settlement = MillSettlements.at(world, stop);
+        Building th = settlement == null ? null : settlement.townHall(world);
         if (th == null) return null;
 
-        boolean lone = MillVillageIndex.isLoneBuildingStop(world, stop);
+        boolean lone = !settlement.isVillage;
         int radius = th.villageType != null && th.villageType.radius > 0 ? th.villageType.radius : 32;
 
         Set<Building> all = new LinkedHashSet<>();

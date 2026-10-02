@@ -8,7 +8,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.economy.TravellerMoney;
-import com.jubitus.travellers.world.mill.MillControlledVillageHelper;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -77,7 +77,7 @@ public class MsgHireWorker implements IMessage {
                 // --- Case 3: not hired yet -> try to hire ---
                 if (TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
                         && TravellersConfig.CONTROLLED_VILLAGE.requireControlledVillageToHire
-                        && !MillControlledVillageHelper.isPlayerVillageChief(world, player)) {
+                        && MillSettlements.controlledBy(world, player).isEmpty()) {
                     NotificationService.notify(player, NotificationDefs.HIRE_NEEDS_VILLAGE_CHIEF);
                     return;
                 }

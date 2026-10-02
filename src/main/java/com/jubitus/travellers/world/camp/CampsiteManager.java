@@ -6,7 +6,8 @@ import com.jubitus.travellers.world.camp.shelter.ShelterPlacer;
 import com.jubitus.travellers.world.camp.shelter.ShelterTemplate;
 import com.jubitus.travellers.world.camp.shelter.ShelterTemplateRegistry;
 import com.jubitus.travellers.world.camp.shelter.TerrainSnapshot;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillFootprints;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
@@ -234,7 +235,7 @@ public class CampsiteManager extends WorldSavedData {
 
     /**
      * A village or lone building can spawn/grow within a campsite's protected radius after that
-     * campsite was already discovered (and possibly built on) — {@link MillVillageIndex#isNearAnySettlement}
+     * campsite was already discovered (and possibly built on) — {@link MillSettlements#isNear}
      * is only ever checked once, at discovery time. This re-checks it whenever the campsite's own
      * footprint chunks are loaded (piggybacking on the same player-proximity gate as
      * {@link #reconcilePhysical}) and, on a violation, force-evacuates the whole record: any built or
@@ -246,7 +247,7 @@ public class CampsiteManager extends WorldSavedData {
      * @return true if the record was evacuated and removed.
      */
     private boolean revalidateVillageProximity(WorldServer world, CampsiteRecord rec) {
-        if (!MillVillageIndex.isNearAnySettlement(world, rec.center,
+        if (!MillSettlements.isNear(world, rec.center,
                 TravellersConfig.CAMP_EVENTS.campsiteMinVillageDistance)) {
             return false;
         }
@@ -254,15 +255,15 @@ public class CampsiteManager extends WorldSavedData {
         int searchRadius = TravellersConfig.CAMP_EVENTS.campsiteMinVillageDistance;
         for (CampOccupant occ : rec.occupants.values()) {
             deindexOccupant(occ.travellerUUID);
-            if (occ.snapshot != null) occ.snapshot.restoreSkippingVillageZone(world, searchRadius);
+            if (occ.snapshot != null) occ.snapshot.restoreSkippingVillageZone(world);
         }
         rec.occupants.clear();
-        for (TerrainSnapshot s : rec.pendingTeardowns) s.restoreSkippingVillageZone(world, searchRadius);
+        for (TerrainSnapshot s : rec.pendingTeardowns) s.restoreSkippingVillageZone(world);
         rec.pendingTeardowns.clear();
-        for (TerrainSnapshot s : rec.orphans.values()) s.restoreSkippingVillageZone(world, searchRadius);
+        for (TerrainSnapshot s : rec.orphans.values()) s.restoreSkippingVillageZone(world);
         rec.orphans.clear();
         if (rec.firepitBuilt && rec.firepitSnapshot != null) {
-            rec.firepitSnapshot.restoreSkippingVillageZone(world, searchRadius);
+            rec.firepitSnapshot.restoreSkippingVillageZone(world);
         }
         rec.firepitBuilt = false;
         rec.firepitSnapshot = null;
@@ -290,7 +291,7 @@ public class CampsiteManager extends WorldSavedData {
         // run once per record, not once per occupied slot.
         BlockPos recMin = rec.center.add(-rec.radius, 0, -rec.radius);
         BlockPos recMax = rec.center.add(rec.radius, 0, rec.radius);
-        List<int[]> zones = MillVillageIndex.collectBuildingZonesPlanar(world, recMin, recMax, searchRadius);
+        List<MillFootprints.Footprint> zones = MillFootprints.reservedIn(world, recMin, recMax);
         if (zones.isEmpty()) return; // fast path: no village/lone-building anywhere near this camp
 
         for (java.util.Iterator<Map.Entry<Integer, CampOccupant>> it = rec.occupants.entrySet().iterator(); it.hasNext(); ) {
@@ -300,11 +301,11 @@ public class CampsiteManager extends WorldSavedData {
             ShelterSlot slot = rec.slots.get(slotIndex);
             BlockPos min = slot.origin;
             BlockPos max = slot.origin.add(ShelterSlot.FOOTPRINT - 1, 0, ShelterSlot.FOOTPRINT - 1);
-            if (!MillVillageIndex.anyZoneOverlapsPlanar(zones, min, max)) continue;
+            if (!MillFootprints.anyReserved(zones, min, max)) continue;
 
             CampOccupant occ = e.getValue();
             deindexOccupant(occ.travellerUUID);
-            if (occ.snapshot != null) occ.snapshot.restoreSkippingVillageZone(world, searchRadius);
+            if (occ.snapshot != null) occ.snapshot.restoreSkippingVillageZone(world);
             slot.disabled = true;
             it.remove();
             markDirty();
@@ -683,14 +684,14 @@ public class CampsiteManager extends WorldSavedData {
 
         // Reject if too close to a village or another campsite.
         int villageSearchRadius = TravellersConfig.CAMP_EVENTS.campsiteMinVillageDistance;
-        if (MillVillageIndex.isNearAnySettlement(world, centerGround, villageSearchRadius)) return;
+        if (MillSettlements.isNear(world, centerGround, villageSearchRadius)) return;
         if (tooCloseToExisting(centerGround, world.provider.getDimension())) return;
 
         // Reject if the candidate footprint overlaps a Millénaire building's reserved zone — real
         // footprint metadata, not block identity, since a building can be made of plain vanilla
         // blocks. Cheap here: runs once per discovered chunk, not per tick.
-        if (MillVillageIndex.anyBuildingZoneOverlapsPlanar(world,
-                centerGround.add(-radius, 0, -radius), centerGround.add(radius, 0, radius), villageSearchRadius)) {
+        if (MillFootprints.overlapsReserved(world,
+                centerGround.add(-radius, 0, -radius), centerGround.add(radius, 0, radius))) {
             return;
         }
 
@@ -783,9 +784,8 @@ public class CampsiteManager extends WorldSavedData {
         // One village/lone-building zone scan for the whole record, reused by every candidate slot
         // below — the only part of this whose cost scales with total village count, so it must run
         // once per computeSlots call, not once per candidate grid cell.
-        int villageSearchRadius = TravellersConfig.CAMP_EVENTS.campsiteMinVillageDistance;
-        List<int[]> zones = MillVillageIndex.collectBuildingZonesPlanar(world,
-                fire.add(-radius, 0, -radius), fire.add(radius, 0, radius), villageSearchRadius);
+        List<MillFootprints.Footprint> zones = MillFootprints.reservedIn(world,
+                fire.add(-radius, 0, -radius), fire.add(radius, 0, radius));
 
         List<ShelterSlot> accepted = new ArrayList<>();
         // Walk a grid of footprint origins around the center.
@@ -802,7 +802,7 @@ public class CampsiteManager extends WorldSavedData {
 
     @Nullable
     private ShelterSlot tryBuildSlot(WorldServer world, CampsiteRecord rec, int ox, int oz, List<ShelterSlot> accepted,
-                                      List<int[]> villageZones) {
+                                      List<MillFootprints.Footprint> villageZones) {
         BlockPos fire = rec.firepitPos;
         int half = ShelterSlot.FOOTPRINT / 2;
         int centerX = ox + half;
@@ -835,7 +835,7 @@ public class CampsiteManager extends WorldSavedData {
 
         // Reject footprints overlapping a Millénaire building's reserved zone (real footprint
         // metadata, catches buildings made of plain vanilla blocks that the check above would miss).
-        if (MillVillageIndex.anyZoneOverlapsPlanar(villageZones,
+        if (MillFootprints.anyReserved(villageZones,
                 new BlockPos(ox, 0, oz), new BlockPos(ox + ShelterSlot.FOOTPRINT - 1, 0, oz + ShelterSlot.FOOTPRINT - 1))) {
             return null;
         }

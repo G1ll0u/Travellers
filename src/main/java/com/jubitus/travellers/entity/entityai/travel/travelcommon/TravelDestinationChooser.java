@@ -3,8 +3,7 @@ package com.jubitus.travellers.entity.entityai.travel.travelcommon;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.world.mill.MillRelations;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
-import com.jubitus.travellers.world.mill.VillagePopulationCache;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.world.pathing.MPBIntegration;
 import com.jubitus.travellers.world.pathing.terrain.TerrainProfile;
 import com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid;
@@ -109,7 +108,7 @@ public final class TravelDestinationChooser {
     @Nullable
     public static ChosenDestination choose(World world, DestinationContext ctx) {
         long now = world.getTotalWorldTime();
-        MillVillageIndex.SettlementSnapshot snap = MillVillageIndex.getSettlementSnapshotCached(world);
+        MillSettlements.Snapshot snap = MillSettlements.snapshot(world);
         if (snap.centers.isEmpty()) return null;
 
         WorldServer ws = world instanceof WorldServer ? (WorldServer) world : null;
@@ -669,12 +668,7 @@ public final class TravelDestinationChooser {
     }
 
     private static int resolvePopulation(World world, @Nullable WorldServer ws, BlockPos centre) {
-        int pop = MillVillageIndex.countVillagersInVillage(world, centre);
-        if (pop <= 0 && ws != null) {
-            int last = VillagePopulationCache.get(ws).getLastKnown(centre);
-            if (last > 0) pop = last;
-        }
-        return pop;
+        return MillSettlements.population(world, centre);
     }
 
     /** Clears the per-dimension caches at server stop (two saves can share a dimension id). */
@@ -709,7 +703,7 @@ public final class TravelDestinationChooser {
      * waiting for real legs to complete. Server thread; a one-shot admin command drives it.
      */
     public static List<OriginStat> dryRunReport(World world, BlockPos near, int maxOrigins, int trials) {
-        MillVillageIndex.SettlementSnapshot snap = MillVillageIndex.getSettlementSnapshotCached(world);
+        MillSettlements.Snapshot snap = MillSettlements.snapshot(world);
         List<BlockPos> origins = new ArrayList<>(snap.centers);
         origins.sort(Comparator.comparingLong(c -> distSqXZ(near, c)));
 
@@ -727,7 +721,7 @@ public final class TravelDestinationChooser {
         return out;
     }
 
-    private static OriginStat runOriginTrials(World world, MillVillageIndex.SettlementSnapshot snap,
+    private static OriginStat runOriginTrials(World world, MillSettlements.Snapshot snap,
                                               BlockPos origin, String culture, EntityKind kind, int trials) {
         OriginStat st = new OriginStat();
         st.origin = origin;

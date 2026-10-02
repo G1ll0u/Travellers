@@ -108,8 +108,7 @@ public final class CampBuildCoordinator {
         // and player builds) and reserved-zone metadata (catches a village building placed there out
         // of plain vanilla blocks, which the block-identity check alone would miss). Either one veto's.
         boolean villageZoneHit = world instanceof net.minecraft.world.WorldServer
-                && com.jubitus.travellers.world.mill.MillVillageIndex.anyBuildingZoneOverlapsPlanar(
-                        world, vol[0], vol[1], com.jubitus.travellers.config.TravellersConfig.CAMP_EVENTS.campsiteMinVillageDistance);
+                && com.jubitus.travellers.world.mill.MillFootprints.overlapsReserved(world, vol[0], vol[1]);
         if (villageZoneHit || !CampTerrainValidator.isVolumeNatural(world, vol[0], vol[1])) {
             slot.disabled = true;
             rec.occupants.remove(occ.slotIndex);

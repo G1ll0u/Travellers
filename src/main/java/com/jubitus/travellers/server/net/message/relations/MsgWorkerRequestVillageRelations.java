@@ -4,7 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.world.data.TravellerVillageRelations;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
+import com.jubitus.travellers.world.mill.MillSettlements;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
@@ -43,15 +43,12 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
             TravellerVillageRelations rel = TravellerVillageRelations.get(ws);
             int dim = ws.provider.getDimension();
 
-            Map<MillVillageIndex.VillageInfo, Integer> pops = MillVillageIndex.countVillagersPerVillage(ws);
-
             List<BlockPos> centers = new ArrayList<>();
             List<String> labels = new ArrayList<>();
             List<Integer> distances = new ArrayList<>();
             List<Boolean> enemies = new ArrayList<>();
 
-            for (Map.Entry<MillVillageIndex.VillageInfo, Integer> entry : pops.entrySet()) {
-                MillVillageIndex.VillageInfo vi = entry.getKey();
+            for (MillSettlements.Settlement vi : MillSettlements.villages(ws)) {
                 BlockPos center = vi.center;
 
                 double dx = center.getX() + 0.5D - fromPos.getX();
@@ -59,10 +56,7 @@ public class MsgWorkerRequestVillageRelations implements IMessage {
                 int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
                 if (dist > maxRadius) continue;
 
-                String name = vi.name;
-                if (name == null || name.isEmpty()) {
-                    name = MillVillageIndex.nameForApprox(ws, center);
-                }
+                String name = vi.displayName();
 
                 boolean enemy = rel.isEnemy(playerId, dim, center);
 

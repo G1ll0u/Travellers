@@ -70,10 +70,8 @@ public final class MillRelations {
 
     @Nullable
     private static Integer resolve(World world, BlockPos homeCentre, BlockPos destCentre) {
-        MillWorldData wd = MillVillageIndex.getWD(world);
-        if (wd == null) return null;
-        Building homeTh = MillVillageIndex.getTownHallBuilding(wd, homeCentre);
-        Building destTh = MillVillageIndex.getTownHallBuilding(wd, destCentre);
+        Building homeTh = MillSettlements.townHall(world, homeCentre);
+        Building destTh = MillSettlements.townHall(world, destCentre);
         if (homeTh == null || destTh == null) return null;
 
         Point destPos = destTh.getPos();

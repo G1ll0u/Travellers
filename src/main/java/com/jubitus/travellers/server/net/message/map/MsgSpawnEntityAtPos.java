@@ -3,7 +3,6 @@ package com.jubitus.travellers.server.net.message.map;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.mill.MillVillageIndex;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
@@ -82,7 +81,7 @@ public class MsgSpawnEntityAtPos implements IMessage {
                 e.setPosition(px, py, pz);
 
                 Random rand = ws.rand;
-                String cultureId = MillVillageIndex.pickCultureForTravellerSpawn(ws, new BlockPos(msg.x, y, msg.z), rand);
+                String cultureId = com.jubitus.travellers.world.spawn.SpawnCulture.pickNear(ws, new BlockPos(msg.x, y, msg.z), rand);
                 DifficultyInstance diff = new DifficultyInstance(ws.getDifficulty(), ws.getWorldTime(), 0, 0.5f);
                 e.onInitialSpawn(diff, cultureId != null ? new EntityTraveller.SpawnData(cultureId) : null);
 

@@ -44,6 +44,7 @@ public final class FollowRouteCache {
      * elsewhere in this codebase). Once nothing on any nearby route qualifies beyond this floor,
      * {@link #findNearestUsableWaypoint} returns {@code null} and the caller falls through to a
      * real pathfind - the intended "last resort" behaviour, not an indefinite substitute for one. */
+    // INVARIANT: never hand a follower a waypoint under its own feet (vanilla underfoot spin).
     private static final double MIN_SNAP_DISTANCE = 2.0D;
     private static final double MIN_SNAP_DISTANCE_SQ = MIN_SNAP_DISTANCE * MIN_SNAP_DISTANCE;
 
