@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.dialogue;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.mixins.MixinCultureLoadedLanguagesAccessor;
 import net.minecraft.entity.player.EntityPlayer;
 import org.millenaire.common.culture.Culture;

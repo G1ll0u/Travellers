@@ -17,11 +17,11 @@ public class MsgEquipDestsResponse implements IMessage {
 
     public static class EquipDestInfo {
         public BlockPos pos;
-        public com.jubitus.travellers.world.equip.EquipTargetKind kind;
+        public com.jubitus.travellers.unit.equipment.EquipTargetKind kind;
         public String name;
 
         public EquipDestInfo() {}
-        public EquipDestInfo(BlockPos pos, com.jubitus.travellers.world.equip.EquipTargetKind kind, String name) {
+        public EquipDestInfo(BlockPos pos, com.jubitus.travellers.unit.equipment.EquipTargetKind kind, String name) {
             this.pos = pos;
             this.kind = kind;
             this.name = name;
@@ -40,7 +40,7 @@ public class MsgEquipDestsResponse implements IMessage {
         for (int i = 0; i < n; i++) {
             EquipDestInfo d = new EquipDestInfo();
             d.pos = BlockPos.fromLong(buf.readLong());
-            d.kind = com.jubitus.travellers.world.equip.EquipTargetKind.values()[buf.readByte() & 0xFF];
+            d.kind = com.jubitus.travellers.unit.equipment.EquipTargetKind.values()[buf.readByte() & 0xFF];
             d.name = ByteBufUtils.readUTF8String(buf);
             dests.add(d);
         }

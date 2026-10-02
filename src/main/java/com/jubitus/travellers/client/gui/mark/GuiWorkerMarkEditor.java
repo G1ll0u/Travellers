@@ -3,7 +3,7 @@ import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.render.marker.WorkerMarkStyle;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.marker.MsgSaveWorkerOwnerVisuals;
 import net.minecraft.client.gui.GuiButton;

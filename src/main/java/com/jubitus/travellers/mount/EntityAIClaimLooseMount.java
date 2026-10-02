@@ -1,7 +1,7 @@
 package com.jubitus.travellers.mount;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.util.math.AxisAlignedBB;

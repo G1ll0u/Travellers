@@ -11,7 +11,7 @@ import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapMarkerFactory;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
@@ -537,12 +537,12 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private void sendGetEquipment(boolean stay) {
         if (selectedIndex < 0 || selectedIndex >= rows.size()) return;
         Row r = rows.get(selectedIndex);
-        com.jubitus.travellers.world.equip.EquipTargetKind kind =
+        com.jubitus.travellers.unit.equipment.EquipTargetKind kind =
                 r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
-                        ? com.jubitus.travellers.world.equip.EquipTargetKind.CONTROLLED_VILLAGE
+                        ? com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE
                         : r.kind == MsgWorkerGoList.Kind.STABLE
-                        ? com.jubitus.travellers.world.equip.EquipTargetKind.STABLE
-                        : com.jubitus.travellers.world.equip.EquipTargetKind.LONE_BARRACK;
+                        ? com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE
+                        : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK;
         UUID targetUUID = leaderMode ? leaderUUID : (worker != null ? worker.getUniqueID() : null);
         if (targetUUID == null || r.pos == null) return;
         TravellerFollowNet.CHANNEL.sendToServer(

@@ -107,7 +107,7 @@ public class TerrainSnapshot {
             CampLighting.refresh(ws, origin, sizeX, sizeY, sizeZ);
             // Restoring original terrain can raise solid ground back up under anyone standing in the
             // footprint (e.g. the departing occupant finishing its walk) — pop them back onto solid ground.
-            com.jubitus.travellers.world.virtualization.MaterializePositionResolver.unstickEntitiesInVolume(
+            com.jubitus.travellers.virtual.MaterializePositionResolver.unstickEntitiesInVolume(
                     ws, origin, origin.add(sizeX - 1, sizeY - 1, sizeZ - 1));
         }
     }
@@ -159,7 +159,7 @@ public class TerrainSnapshot {
             }
         }
         CampLighting.refresh(world, origin, sizeX, sizeY, sizeZ);
-        com.jubitus.travellers.world.virtualization.MaterializePositionResolver.unstickEntitiesInVolume(
+        com.jubitus.travellers.virtual.MaterializePositionResolver.unstickEntitiesInVolume(
                 world, origin, origin.add(sizeX - 1, sizeY - 1, sizeZ - 1));
     }
 

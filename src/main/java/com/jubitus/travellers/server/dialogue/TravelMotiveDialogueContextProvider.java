@@ -1,10 +1,10 @@
 package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.culture.TravellerAppearance;
+import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.TravelMotive;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.TravelMotive;
 import com.jubitus.travellers.world.mill.MillRelations;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;

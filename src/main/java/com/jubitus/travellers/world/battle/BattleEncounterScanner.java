@@ -3,8 +3,8 @@ package com.jubitus.travellers.world.battle;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.world.camp.CampsiteRecord;
 import com.jubitus.travellers.world.camp.CampsiteManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 

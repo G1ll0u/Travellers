@@ -10,7 +10,7 @@ import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiv
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerZoneDutyReceiver;
 import com.jubitus.travellers.client.marker.ClientOwnerVisualsCache;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;

@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.zone;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.ground.Footing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;

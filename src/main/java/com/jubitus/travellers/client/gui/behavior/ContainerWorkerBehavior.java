@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.gui.behavior;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;

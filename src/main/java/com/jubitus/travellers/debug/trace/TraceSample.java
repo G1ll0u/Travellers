@@ -2,7 +2,7 @@ package com.jubitus.travellers.debug.trace;
 
 import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAITasks;

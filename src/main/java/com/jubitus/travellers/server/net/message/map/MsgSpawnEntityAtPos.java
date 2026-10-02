@@ -1,10 +1,10 @@
 package com.jubitus.travellers.server.net.message.map;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
@@ -81,7 +81,7 @@ public class MsgSpawnEntityAtPos implements IMessage {
                 e.setPosition(px, py, pz);
 
                 Random rand = ws.rand;
-                String cultureId = com.jubitus.travellers.world.spawn.SpawnCulture.pickNear(ws, new BlockPos(msg.x, y, msg.z), rand);
+                String cultureId = com.jubitus.travellers.spawn.SpawnCulture.pickNear(ws, new BlockPos(msg.x, y, msg.z), rand);
                 DifficultyInstance diff = new DifficultyInstance(ws.getDifficulty(), ws.getWorldTime(), 0, 0.5f);
                 e.onInitialSpawn(diff, cultureId != null ? new EntityTraveller.SpawnData(cultureId) : null);
 

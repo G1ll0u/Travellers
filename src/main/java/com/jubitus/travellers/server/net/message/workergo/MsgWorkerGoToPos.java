@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.workergo;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import io.netty.buffer.ByteBuf;

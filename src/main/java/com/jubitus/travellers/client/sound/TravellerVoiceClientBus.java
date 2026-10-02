@@ -1,7 +1,7 @@
 package com.jubitus.travellers.client.sound;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.sounds.MsgChoirSoundDone;
 import net.minecraft.client.Minecraft;

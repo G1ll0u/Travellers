@@ -2,7 +2,7 @@ package com.jubitus.travellers.entity.entityai.follow;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.pathing.PathBody;
 import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import net.minecraft.entity.EntityLivingBase;

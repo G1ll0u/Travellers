@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.mount.MountMode;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.player.EntityPlayer;
 
 /**

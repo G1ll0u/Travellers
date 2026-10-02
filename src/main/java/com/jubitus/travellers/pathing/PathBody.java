@@ -1,6 +1,6 @@
 package com.jubitus.travellers.pathing;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.Entity;
 
 /**

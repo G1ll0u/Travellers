@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.flight;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;

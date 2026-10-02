@@ -2,9 +2,9 @@ package com.jubitus.travellers.server.net.message.equip;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
@@ -21,13 +21,13 @@ public class MsgWorkerGetEquipment implements IMessage {
 
     private UUID workerUUID;
     private boolean stayThere;
-    private com.jubitus.travellers.world.equip.EquipTargetKind kind;
+    private com.jubitus.travellers.unit.equipment.EquipTargetKind kind;
     private BlockPos homePos;
 
     public MsgWorkerGetEquipment() {}
 
     public MsgWorkerGetEquipment(UUID workerUUID, boolean stayThere,
-                                  com.jubitus.travellers.world.equip.EquipTargetKind kind, BlockPos homePos) {
+                                  com.jubitus.travellers.unit.equipment.EquipTargetKind kind, BlockPos homePos) {
         this.workerUUID = workerUUID;
         this.stayThere = stayThere;
         this.kind = kind;
@@ -41,7 +41,7 @@ public class MsgWorkerGetEquipment implements IMessage {
         workerUUID = new UUID(msb, lsb);
         byte flags = buf.readByte();
         stayThere = (flags & 1) != 0;
-        kind = com.jubitus.travellers.world.equip.EquipTargetKind.values()[(flags >> 1) & 0x0F];
+        kind = com.jubitus.travellers.unit.equipment.EquipTargetKind.values()[(flags >> 1) & 0x0F];
         homePos = BlockPos.fromLong(buf.readLong());
     }
 
@@ -55,7 +55,7 @@ public class MsgWorkerGetEquipment implements IMessage {
     }
 
     private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos,
-                                               com.jubitus.travellers.world.equip.EquipTargetKind kind) {
+                                               com.jubitus.travellers.unit.equipment.EquipTargetKind kind) {
         if (pos == null) return false;
         java.util.UUID ownerId = player.getUniqueID();
         switch (kind) {

@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.net.message.zone;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.group.WorkerGroupService;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.ZoneAssignments;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;

@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.choir;
 
 import com.jubitus.travellers.entity.culture.choir.ChoirSongDef;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.util.math.Vec3d;
 
 import javax.annotation.Nullable;

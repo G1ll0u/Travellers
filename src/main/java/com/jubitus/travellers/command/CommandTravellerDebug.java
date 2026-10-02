@@ -2,14 +2,14 @@ package com.jubitus.travellers.command;
 
 import com.jubitus.travellers.server.map.pyramid.MapFillStats;
 import com.jubitus.travellers.ground.chunk.ChunkReader;
-import com.jubitus.travellers.entity.culture.CultureDef;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.culture.TravellerAppearance;
-import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.unit.culture.CultureDef;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.TravellerAppearance;
+import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.debug.path.PathExporter;
 import com.jubitus.travellers.debug.path.PathMarkerViz;
 import com.jubitus.travellers.debug.path.PathTestManager;
@@ -17,7 +17,7 @@ import com.jubitus.travellers.debug.profile.MovementProfiler;
 import com.jubitus.travellers.debug.trace.TraceChannel;
 import com.jubitus.travellers.debug.trace.TraceSession;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -77,7 +77,7 @@ public class CommandTravellerDebug extends CommandBase {
 
         if (args.length == 2 && args[0].equalsIgnoreCase("equip")) {
             List<String> ids = new java.util.ArrayList<>();
-            for (com.jubitus.travellers.entity.culture.CultureDef c : CultureRegistry.all()) {
+            for (com.jubitus.travellers.unit.culture.CultureDef c : CultureRegistry.all()) {
                 if (c != null && c.id != null) ids.add(c.id);
             }
             return getListOfStringsMatchingLastWord(args, ids);
@@ -487,9 +487,9 @@ public class CommandTravellerDebug extends CommandBase {
     private void describeVisit(ICommandSender sender, WorldServer world, String name) {
         String needle = name.toLowerCase(java.util.Locale.ROOT);
         for (net.minecraft.entity.Entity e : world.loadedEntityList) {
-            if (!(e instanceof com.jubitus.travellers.entity.travellers.EntityTraveller) || e.isDead) continue;
+            if (!(e instanceof com.jubitus.travellers.unit.EntityTraveller) || e.isDead) continue;
             if (!e.getName().toLowerCase(java.util.Locale.ROOT).contains(needle)) continue;
-            com.jubitus.travellers.entity.travellers.EntityTraveller t = (com.jubitus.travellers.entity.travellers.EntityTraveller) e;
+            com.jubitus.travellers.unit.EntityTraveller t = (com.jubitus.travellers.unit.EntityTraveller) e;
             String horse;
             if (t.getMountUUID() == null) horse = "none";
             else if (t.getPendingMountNbt() != null) horse = "held as data, post " + fmtPos(t.getPendingMountPos());
@@ -500,8 +500,8 @@ public class CommandTravellerDebug extends CommandBase {
             sendVisit(sender, "LOADED " + t.getName(), t.getVillageVisitState(), horse);
             return;
         }
-        for (com.jubitus.travellers.world.virtualization.VirtualTravellerRecord r
-                : com.jubitus.travellers.world.virtualization.VirtualTravellerManager.get(world).getAllRecords()) {
+        for (com.jubitus.travellers.virtual.VirtualTravellerRecord r
+                : com.jubitus.travellers.virtual.VirtualTravellerManager.get(world).getAllRecords()) {
             if (r.name == null || !r.name.toLowerCase(java.util.Locale.ROOT).contains(needle)) continue;
             String horse = r.mountNbt != null ? "data on the record (" + r.mountMode + ")"
                     : r.visit != null && r.visit.horseAtPost ? "live at its post" : r.mounted ? "bonded, not held" : "none";
@@ -593,7 +593,7 @@ public class CommandTravellerDebug extends CommandBase {
         if (detailed) {
             VirtualTravellerManager vtm = VirtualTravellerManager.get(ws);
             for (com.jubitus.travellers.world.battle.BattleParticipant p : b.participants.values()) {
-                com.jubitus.travellers.world.virtualization.VirtualTravellerRecord r =
+                com.jubitus.travellers.virtual.VirtualTravellerRecord r =
                         vtm.getRecord(p.uuid);
                 sb.append("\n  [").append(p.side == 0 ? "A" : "B").append("] ")
                         .append(p.groupKey)
@@ -627,14 +627,14 @@ public class CommandTravellerDebug extends CommandBase {
                                         net.minecraft.world.DifficultyInstance diff,
                                         boolean raider, int x, int y, int z) {
         EntityTraveller e = raider
-                ? new com.jubitus.travellers.entity.travellers.EntityTravellerRaider(ws)
+                ? new com.jubitus.travellers.unit.EntityTravellerRaider(ws)
                 : new EntityTraveller(ws);
         e.setPosition(x + 0.5, y, z + 0.5);
         e.onInitialSpawn(diff, null);
         net.minecraft.nbt.NBTTagCompound nbt = new net.minecraft.nbt.NBTTagCompound();
         e.writeToNBT(nbt);
-        com.jubitus.travellers.world.virtualization.VirtualTravellerRecord r =
-                new com.jubitus.travellers.world.virtualization.VirtualTravellerRecord(
+        com.jubitus.travellers.virtual.VirtualTravellerRecord r =
+                new com.jubitus.travellers.virtual.VirtualTravellerRecord(
                         e.getUniqueID(), x + 0.5, y, z + 0.5, 0f, ws.provider.getDimension(), nbt);
         r.entityClass = raider ? "RAIDER" : "TRAVELLER";
         r.name = e.getName();
@@ -1879,23 +1879,23 @@ public class CommandTravellerDebug extends CommandBase {
         }
         CultureRegistry.bootstrapAllMillenaireCultures();
         String id = args[1].toLowerCase();
-        com.jubitus.travellers.entity.culture.CultureDef def = CultureRegistry.get(id);
+        com.jubitus.travellers.unit.culture.CultureDef def = CultureRegistry.get(id);
         if (def == null) {
             sender.sendMessage(new TextComponentString(TextFormatting.RED + "Unknown culture: " + id));
             return;
         }
 
-        java.util.Map<com.jubitus.travellers.entity.equipment.TravellerMillPriorities.Bucket, java.util.List<ItemStack>> byBucket =
-                new java.util.EnumMap<>(com.jubitus.travellers.entity.equipment.TravellerMillPriorities.Bucket.class);
+        java.util.Map<com.jubitus.travellers.unit.equipment.TravellerMillPriorities.Bucket, java.util.List<ItemStack>> byBucket =
+                new java.util.EnumMap<>(com.jubitus.travellers.unit.equipment.TravellerMillPriorities.Bucket.class);
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (java.util.List<ItemStack> list : def.getAllCultureItems().values()) {
             for (ItemStack s : list) {
                 if (s == null || s.isEmpty()) continue;
-                com.jubitus.travellers.entity.equipment.TravellerMillPriorities.Bucket b =
-                        com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.bucketFor(s, null);
+                com.jubitus.travellers.unit.equipment.TravellerMillPriorities.Bucket b =
+                        com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy.bucketFor(s, null);
                 if (b == null) continue;
-                if (com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.isForbidden(s)) continue;
-                if (!com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.cultureAllows(id, false, s, null, false)) continue;
+                if (com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy.isForbidden(s)) continue;
+                if (!com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy.cultureAllows(id, false, s, null, false)) continue;
                 String key = s.getItem().getRegistryName() + "#" + b;
                 if (!seen.add(key)) continue;
                 byBucket.computeIfAbsent(b, k -> new java.util.ArrayList<>()).add(s);
@@ -1903,17 +1903,17 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
         sender.sendMessage(new TextComponentString(TextFormatting.GOLD + "=== Equipment kit for culture '" + id + "' ==="));
-        for (com.jubitus.travellers.entity.equipment.TravellerMillPriorities.Bucket b :
-                com.jubitus.travellers.entity.equipment.TravellerMillPriorities.Bucket.values()) {
+        for (com.jubitus.travellers.unit.equipment.TravellerMillPriorities.Bucket b :
+                com.jubitus.travellers.unit.equipment.TravellerMillPriorities.Bucket.values()) {
             java.util.List<ItemStack> list = byBucket.get(b);
             if (list == null || list.isEmpty()) continue;
             list.sort((x, y) -> Double.compare(
-                    com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.quality(y, b),
-                    com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.quality(x, b)));
+                    com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy.quality(y, b),
+                    com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy.quality(x, b)));
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW + b.name() + ":"));
             for (ItemStack s : list) {
-                Integer raw = com.jubitus.travellers.entity.equipment.TravellerMillPriorities.rawPriority(s, b);
-                double q = com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy.quality(s, b);
+                Integer raw = com.jubitus.travellers.unit.equipment.TravellerMillPriorities.rawPriority(s, b);
+                double q = com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy.quality(s, b);
                 sender.sendMessage(new TextComponentString(TextFormatting.GRAY + "  " + s.getItem().getRegistryName()
                         + TextFormatting.DARK_GRAY + "  q=" + String.format("%.0f", q)
                         + (raw == null ? " (fallback)" : " (mill)")));

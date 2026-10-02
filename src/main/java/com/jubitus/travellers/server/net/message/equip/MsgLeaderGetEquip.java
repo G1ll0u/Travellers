@@ -2,14 +2,14 @@ package com.jubitus.travellers.server.net.message.equip;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.equip.EquipTargetKind;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.equipment.EquipTargetKind;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
 import com.jubitus.travellers.world.zone.ZoneType;
 import com.jubitus.travellers.world.mill.MillSettlements;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;

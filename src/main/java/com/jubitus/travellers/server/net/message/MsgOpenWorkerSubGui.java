@@ -6,7 +6,7 @@ import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.group.WorkerGroupService;
@@ -16,8 +16,8 @@ import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubG
 import com.jubitus.travellers.server.net.message.zone.MsgSyncWorkerHome;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHostileList;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.mojang.authlib.GameProfile;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;

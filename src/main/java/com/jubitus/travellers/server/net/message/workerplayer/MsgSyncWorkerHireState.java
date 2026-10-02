@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.workerplayer;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import com.jubitus.travellers.world.mill.MillSettlements;

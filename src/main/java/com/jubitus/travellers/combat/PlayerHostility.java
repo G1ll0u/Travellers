@@ -1,7 +1,7 @@
 package com.jubitus.travellers.combat;
 
 import com.google.common.base.Optional;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.world.data.PlayerEnemyRelations;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;

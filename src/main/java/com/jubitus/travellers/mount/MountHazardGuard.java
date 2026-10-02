@@ -1,7 +1,7 @@
 package com.jubitus.travellers.mount;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.util.DamageSource;

@@ -1,10 +1,10 @@
 package com.jubitus.travellers.client.render.marker;
 
-import com.jubitus.travellers.client.render.RenderLodHelper;
-import com.jubitus.travellers.client.render.RenderTraveller;
+import com.jubitus.travellers.unit.render.RenderLodHelper;
+import com.jubitus.travellers.unit.render.RenderTraveller;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.layers.LayerRenderer;

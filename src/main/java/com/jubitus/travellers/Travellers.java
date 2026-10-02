@@ -2,18 +2,17 @@ package com.jubitus.travellers;
 
 import com.jubitus.travellers.client.input.FormationHubKeyHandler;
 import com.jubitus.travellers.client.input.WorldMapKeyHandler;
-import com.jubitus.travellers.client.render.ClientProxy;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.unit.EntityTravellerBoat;
 import com.jubitus.travellers.client.gui.ClientGuiHandler;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import com.jubitus.travellers.client.sound.ModSounds;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.ZoneInteractionHandler;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerOffscreenHandler;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerBoat;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -37,7 +36,7 @@ import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksCli
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
 import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
-import com.jubitus.travellers.world.spawn.TravellerSoftSpawner;
+import com.jubitus.travellers.spawn.TravellerSoftSpawner;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
@@ -158,7 +157,7 @@ public class Travellers {
         // Virtualizes travellers/raiders/workers the instant their chunk unloads (the mirror of
         // VirtualTravellerManager materializing them when a chunk loads).
         MinecraftForge.EVENT_BUS.register(
-                com.jubitus.travellers.world.virtualization.ChunkUnloadVirtualizeHandler.class);
+                com.jubitus.travellers.virtual.ChunkUnloadVirtualizeHandler.class);
 
 
         if (event.getSide().isClient()) {

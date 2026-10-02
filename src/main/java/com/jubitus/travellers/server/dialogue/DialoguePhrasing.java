@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.equipment.TravellerEquipmentPolicy;
+import com.jubitus.travellers.unit.equipment.TravellerEquipmentPolicy;
 import net.minecraft.item.ItemStack;
 import org.millenaire.common.config.MillConfigValues;
 

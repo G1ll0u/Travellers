@@ -1,7 +1,7 @@
 package com.jubitus.travellers.command;
 
-import com.jubitus.travellers.entity.culture.CultureDef;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.CultureDef;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.item.ItemStack;

@@ -1,7 +1,7 @@
 package com.jubitus.travellers.combat;
 
 import com.jubitus.travellers.config.TravellersDerivedConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAITarget;

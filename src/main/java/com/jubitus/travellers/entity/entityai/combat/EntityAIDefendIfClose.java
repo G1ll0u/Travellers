@@ -3,9 +3,9 @@ package com.jubitus.travellers.entity.entityai.combat;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.combat.TravellerHostilityHelper;
 import com.jubitus.travellers.combat.lists.TravellerBlacklist;
 import net.minecraft.entity.EntityLivingBase;

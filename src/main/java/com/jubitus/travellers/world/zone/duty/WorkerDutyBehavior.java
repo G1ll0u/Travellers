@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.zone.duty;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 
 /**
  * What a worker actually does once it has arrived and is on duty at its assigned zone. One

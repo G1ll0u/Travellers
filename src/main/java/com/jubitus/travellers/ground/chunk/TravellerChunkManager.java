@@ -2,7 +2,7 @@ package com.jubitus.travellers.ground.chunk;
 
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.ForgeChunkManager;

@@ -2,7 +2,7 @@ package com.jubitus.travellers.pathing.itinerary;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.pathing.MPBIntegration;
 import com.jubitus.travellers.pathing.route.RouteCacheKeys;
 import com.jubitus.travellers.pathing.route.RoadLayer;
@@ -16,7 +16,7 @@ import com.jubitus.travellers.world.mill.VillageGateIndex;
 import com.jubitus.travellers.pathing.terrain.TerrainGridView;
 import com.jubitus.travellers.pathing.terrain.TerrainProfileGrid;
 import com.jubitus.travellers.pathing.terrain.TerrainWorldState;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;

@@ -1,12 +1,12 @@
 package com.jubitus.travellers.server.net.message.zone;
 
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerBarracksReceiver;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
 import com.jubitus.travellers.world.zone.ZoneRoles;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;

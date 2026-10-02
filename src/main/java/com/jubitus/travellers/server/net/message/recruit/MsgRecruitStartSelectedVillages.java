@@ -2,7 +2,7 @@ package com.jubitus.travellers.server.net.message.recruit;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.economy.TravellerMoney;

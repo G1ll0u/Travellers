@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.zone.stable;
 
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.world.zone.PlayerZoneManager;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
 import com.jubitus.travellers.world.zone.ZoneType;

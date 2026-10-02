@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.dialogue;
 
-import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

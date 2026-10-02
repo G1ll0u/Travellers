@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.group;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncWorkerHireState;
 import io.netty.buffer.ByteBuf;

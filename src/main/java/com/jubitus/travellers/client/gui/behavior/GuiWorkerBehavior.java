@@ -4,7 +4,7 @@ import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.behavior.relations.GuiWorkerVillageRelations;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.MsgOpenWorkerSubGui;
 import net.minecraft.client.gui.GuiButton;

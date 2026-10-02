@@ -1,9 +1,9 @@
 package com.jubitus.travellers.mixins;
 
 import com.jubitus.travellers.TravellersMixinConfigPlugin;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;

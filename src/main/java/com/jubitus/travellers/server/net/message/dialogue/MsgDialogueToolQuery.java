@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.dialogue;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.server.dialogue.tools.DialogueToolRegistry;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import io.netty.buffer.ByteBuf;

@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityLivingBase;
 
 public final class FollowModeSelector {

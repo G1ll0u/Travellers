@@ -2,11 +2,11 @@ package com.jubitus.travellers.entity.entityai.choir;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.choir.ChoirRegistry;
 import com.jubitus.travellers.entity.culture.choir.ChoirSongDef;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.World;

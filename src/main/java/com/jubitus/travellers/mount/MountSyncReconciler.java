@@ -2,7 +2,7 @@ package com.jubitus.travellers.mount;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.play.server.SPacketSetPassengers;
 import net.minecraft.world.WorldServer;

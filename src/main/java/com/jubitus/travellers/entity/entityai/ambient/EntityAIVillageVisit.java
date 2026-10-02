@@ -6,9 +6,9 @@ import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
 import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.mixins.MixinResManagerPointsAccessor;
 import com.jubitus.travellers.world.mill.MillFootprints;
 import com.jubitus.travellers.world.mill.MillGoods;
@@ -537,7 +537,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private boolean isTicking(BlockPos p) {
-        return mob.world.isBlockLoaded(p) && !com.jubitus.travellers.world.virtualization.VirtualTravellerManager
+        return mob.world.isBlockLoaded(p) && !com.jubitus.travellers.virtual.VirtualTravellerManager
                 .isFrozenByVanillaAt((net.minecraft.world.WorldServer) mob.world, p.getX() + 0.5D, p.getZ() + 0.5D);
     }
 

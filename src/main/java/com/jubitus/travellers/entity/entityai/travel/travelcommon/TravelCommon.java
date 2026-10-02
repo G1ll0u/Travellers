@@ -3,13 +3,13 @@ package com.jubitus.travellers.entity.entityai.travel.travelcommon;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.client.sound.ModSounds;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.world.camp.CampfireBlock;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.world.mill.MillFootprints;
 import com.jubitus.travellers.world.mill.MillSettlements;
 import net.minecraft.block.Block;

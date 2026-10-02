@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.sounds;
 
 import com.jubitus.travellers.client.sound.TravellerVoiceClientBus;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;

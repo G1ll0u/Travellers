@@ -6,7 +6,7 @@ import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.player.EntityPlayer;

@@ -1,8 +1,8 @@
 package com.jubitus.travellers.entity.entityai.travel.travelcommon;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerBoat;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;

@@ -9,7 +9,7 @@ import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerGoListReceiver
 import com.jubitus.travellers.client.gui.worldmap.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapContentPopulator;
 import com.jubitus.travellers.client.gui.worldmap.WorldMapController;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.map.stream.MsgMapWorkersUpdate;
 import com.jubitus.travellers.server.map.stream.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;

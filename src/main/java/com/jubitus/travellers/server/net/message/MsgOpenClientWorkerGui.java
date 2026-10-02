@@ -6,7 +6,7 @@ import com.jubitus.travellers.client.gui.behavior.relations.GuiWorkerVillageRela
 import com.jubitus.travellers.client.gui.go.GuiWorkerGo;
 import com.jubitus.travellers.client.gui.home.GuiWorkerBarracks;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;

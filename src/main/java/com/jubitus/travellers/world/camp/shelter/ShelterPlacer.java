@@ -124,7 +124,7 @@ public final class ShelterPlacer {
             CampLighting.refresh(ws, snapOrigin, a.sizeX, snapTotalHeight, a.sizeZ);
             // Clearing can leave anyone standing in the footprint mid-air/embedded (e.g. the builder
             // itself, approaching before the reach/LOS gate catches up) — pop them back onto solid ground.
-            com.jubitus.travellers.world.virtualization.MaterializePositionResolver.unstickEntitiesInVolume(
+            com.jubitus.travellers.virtual.MaterializePositionResolver.unstickEntitiesInVolume(
                     ws, snapOrigin, snapOrigin.add(a.sizeX - 1, snapTotalHeight - 1, a.sizeZ - 1));
         }
 

@@ -1,9 +1,9 @@
 package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.culture.JobLabelFormatter;
-import com.jubitus.travellers.entity.culture.TravellerAppearance;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.culture.JobLabelFormatter;
+import com.jubitus.travellers.unit.culture.TravellerAppearance;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.player.EntityPlayer;
 
 /**

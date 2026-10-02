@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityai.choir;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.ai.EntityAIBase;
 
 /**

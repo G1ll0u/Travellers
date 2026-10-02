@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.dialogue;
 
 import com.jubitus.travellers.client.gui.dialogue.GuiTravellerDialogue;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.server.dialogue.DialogueContext;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;

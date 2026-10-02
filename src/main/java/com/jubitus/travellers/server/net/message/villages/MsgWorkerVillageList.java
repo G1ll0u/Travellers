@@ -2,7 +2,7 @@ package com.jubitus.travellers.server.net.message.villages;
 
 import com.jubitus.travellers.client.gui.transport.GuiWorker;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;

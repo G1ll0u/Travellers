@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.zone.duty;
 
-import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
+import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.world.WorldServer;
 
 /**

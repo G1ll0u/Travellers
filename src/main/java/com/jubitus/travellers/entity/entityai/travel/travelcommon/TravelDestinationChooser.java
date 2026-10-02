@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.travel.travelcommon;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.world.mill.MillRelations;
 import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.pathing.MPBIntegration;

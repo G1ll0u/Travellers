@@ -2,7 +2,7 @@ package com.jubitus.travellers.client.gui.hub;
 
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;

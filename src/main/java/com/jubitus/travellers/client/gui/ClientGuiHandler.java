@@ -8,7 +8,7 @@ import com.jubitus.travellers.client.gui.home.GuiPlayerZonePrompt;
 import com.jubitus.travellers.client.gui.recruit.GuiWorkerRecruit;
 import com.jubitus.travellers.client.gui.transport.GuiWorker;
 import com.jubitus.travellers.client.gui.transport.GuiWorkerInventory;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.gui.CommonGuiHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;

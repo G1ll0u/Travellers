@@ -1,12 +1,12 @@
 package com.jubitus.travellers.mount;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.world.camp.CampOccupant;
 import com.jubitus.travellers.world.camp.CampsiteManager;
-import com.jubitus.travellers.world.virtualization.MaterializePositionResolver;
+import com.jubitus.travellers.virtual.MaterializePositionResolver;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -820,7 +820,7 @@ public final class TravellerMountSupport {
         NBTTagCompound nbt = rider.getPendingMountNbt();
         BlockPos post = rider.getPendingMountPos();
         boolean tied = post != null && rider.getMountMode() == MountMode.HITCHED && rider.getVillageHitchStop() != null;
-        if (tied && (!world.isBlockLoaded(post) || com.jubitus.travellers.world.virtualization.VirtualTravellerManager
+        if (tied && (!world.isBlockLoaded(post) || com.jubitus.travellers.virtual.VirtualTravellerManager
                 .isFrozenByVanillaAt(world, post.getX() + 0.5D, post.getZ() + 0.5D))) {
             return;
         }
@@ -1584,8 +1584,8 @@ public final class TravellerMountSupport {
             return;
         }
 
-        com.jubitus.travellers.world.virtualization.VirtualTravellerManager vtm =
-                com.jubitus.travellers.world.virtualization.VirtualTravellerManager.get(world);
+        com.jubitus.travellers.virtual.VirtualTravellerManager vtm =
+                com.jubitus.travellers.virtual.VirtualTravellerManager.get(world);
         if (vtm.isVirtual(riderUUID)) {
             setLeashed(horse, null);
             NBTTagCompound mountNbt = new NBTTagCompound();
@@ -1626,7 +1626,7 @@ public final class TravellerMountSupport {
         }
         // Rider is offscreen: clear the same thing on its virtual record instead, or it would
         // materialize later still expecting a horse that no longer exists.
-        com.jubitus.travellers.world.virtualization.VirtualTravellerManager.get(world)
+        com.jubitus.travellers.virtual.VirtualTravellerManager.get(world)
                 .clearRecordMount(ownerUUID);
     }
 

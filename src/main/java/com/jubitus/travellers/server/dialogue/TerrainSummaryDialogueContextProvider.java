@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.pathing.terrain.TerrainProfile;
 import com.jubitus.travellers.pathing.terrain.TerrainProfileGrid;
 import com.jubitus.travellers.pathing.terrain.TerrainWorldState;

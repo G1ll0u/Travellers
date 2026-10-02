@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.net.message.choir;
 
 import com.jubitus.travellers.entity.entityai.choir.ChoirCoordinator;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;

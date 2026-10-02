@@ -1,9 +1,9 @@
 package com.jubitus.travellers.client.sound;
 
 import com.jubitus.travellers.Tags;
-import com.jubitus.travellers.entity.culture.CultureDef;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.unit.culture.CultureDef;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.entity.culture.choir.ChoirIndex;
 import com.jubitus.travellers.entity.culture.choir.ChoirRegistry;
 import net.minecraft.util.ResourceLocation;

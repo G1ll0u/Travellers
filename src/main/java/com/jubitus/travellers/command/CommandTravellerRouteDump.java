@@ -1,7 +1,7 @@
 package com.jubitus.travellers.command;
 
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.pathing.MPBIntegration;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;

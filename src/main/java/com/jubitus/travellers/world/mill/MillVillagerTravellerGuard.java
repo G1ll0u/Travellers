@@ -1,7 +1,7 @@
 package com.jubitus.travellers.world.mill;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.world.data.TravellerVillageRelations;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.BlockPos;

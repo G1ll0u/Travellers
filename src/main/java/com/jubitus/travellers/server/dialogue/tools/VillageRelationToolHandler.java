@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.dialogue.tools;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.server.dialogue.DialoguePhrasing;
 import com.jubitus.travellers.world.mill.MillRelations;
 import com.jubitus.travellers.world.mill.MillSettlements;

@@ -10,9 +10,9 @@ import com.jubitus.travellers.mount.MountedLeadController;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerBoat;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.pathing.route.TravelPlan;
 import com.jubitus.travellers.pathing.itinerary.Itinerary;
 import com.jubitus.travellers.pathing.itinerary.ItineraryPlanner;
@@ -866,7 +866,7 @@ public class EntityAITravel extends EntityAIBase {
         WorldServer ws = (WorldServer) mob.world;
         ItineraryPlanner.build(ws, mob.getUniqueID(), mob.getItineraryState(), mob.posX, mob.posY, mob.posZ,
                 targetVillage,
-                ItineraryPlanner.mayUseRoads(mob instanceof com.jubitus.travellers.entity.travellers.EntityTravellerRaider),
+                ItineraryPlanner.mayUseRoads(mob instanceof com.jubitus.travellers.unit.EntityTravellerRaider),
                 com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
                 ws.getTotalWorldTime(), mob);
     }

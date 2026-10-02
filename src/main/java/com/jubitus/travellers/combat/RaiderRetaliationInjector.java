@@ -2,7 +2,7 @@ package com.jubitus.travellers.combat;
 
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
 import net.minecraft.entity.EntityLiving;

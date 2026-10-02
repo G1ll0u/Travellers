@@ -1,6 +1,6 @@
 package com.jubitus.travellers.command;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
 import net.minecraft.command.*;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;

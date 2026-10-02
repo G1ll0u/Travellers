@@ -1,6 +1,6 @@
 package com.jubitus.travellers.server.net.message.group;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.server.group.WorkerGroupService;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;

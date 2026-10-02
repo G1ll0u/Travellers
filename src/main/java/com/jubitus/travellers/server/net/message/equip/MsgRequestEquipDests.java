@@ -34,7 +34,7 @@ public class MsgRequestEquipDests implements IMessage {
                     for (BlockPos pos : MillSettlements.controlledBy(player.world, player)) {
                         String name = MillSettlements.nameOf(player.world, pos);
                         dests.add(new MsgEquipDestsResponse.EquipDestInfo(pos,
-                                com.jubitus.travellers.world.equip.EquipTargetKind.CONTROLLED_VILLAGE, name));
+                                com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE, name));
                     }
                 }
 
@@ -43,13 +43,13 @@ public class MsgRequestEquipDests implements IMessage {
                         com.jubitus.travellers.world.zone.ZoneType.BARRACK)) {
                     String name = (r.name != null && !r.name.isEmpty()) ? r.name : "Barrack";
                     dests.add(new MsgEquipDestsResponse.EquipDestInfo(r.center,
-                            com.jubitus.travellers.world.equip.EquipTargetKind.LONE_BARRACK, name));
+                            com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK, name));
                 }
                 for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
                         com.jubitus.travellers.world.zone.ZoneType.STABLE)) {
                     String name = (r.name != null && !r.name.isEmpty()) ? r.name : "Stable";
                     dests.add(new MsgEquipDestsResponse.EquipDestInfo(r.center,
-                            com.jubitus.travellers.world.equip.EquipTargetKind.STABLE, name));
+                            com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE, name));
                 }
 
                 TravellerFollowNet.CHANNEL.sendTo(new MsgEquipDestsResponse(dests), player);

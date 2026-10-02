@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityai.combat;
 
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraftforge.event.entity.living.LivingEvent;

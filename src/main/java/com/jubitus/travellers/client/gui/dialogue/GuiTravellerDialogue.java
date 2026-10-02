@@ -12,7 +12,7 @@ import com.jubitus.travellers.client.gui.GuiTravellersButton;
 import com.jubitus.travellers.client.gui.ITravellersGui;
 import com.jubitus.travellers.client.gui.TravellersGuiTheme;
 import com.jubitus.travellers.client.gui.hub.WorkerPortraitRenderer;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.server.dialogue.DialogueContext;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;

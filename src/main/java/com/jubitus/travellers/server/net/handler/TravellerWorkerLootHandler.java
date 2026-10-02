@@ -2,7 +2,7 @@ package com.jubitus.travellers.server.net.handler;
 
 import com.jubitus.travellers.config.TravellersConfig;
 
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;

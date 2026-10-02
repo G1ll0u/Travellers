@@ -5,7 +5,7 @@ import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.entityai.gaze.TravellerGaze;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;

@@ -1,8 +1,8 @@
 package com.jubitus.travellers.mixins;
 
-import com.jubitus.travellers.client.render.RenderLodHelper;
+import com.jubitus.travellers.unit.render.RenderLodHelper;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.client.renderer.entity.layers.LayerHeldItem;
 import net.minecraft.entity.EntityLivingBase;
 import org.spongepowered.asm.mixin.Mixin;

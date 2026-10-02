@@ -1,8 +1,8 @@
 package com.jubitus.travellers.client.gui.home;
 
-import com.jubitus.travellers.entity.culture.CultureDef;
-import com.jubitus.travellers.entity.culture.CultureRegistry;
-import com.jubitus.travellers.entity.culture.TravellerAppearance;
+import com.jubitus.travellers.unit.culture.CultureDef;
+import com.jubitus.travellers.unit.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;

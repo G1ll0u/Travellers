@@ -1,6 +1,6 @@
 package com.jubitus.travellers.client.sound;
 
-import com.jubitus.travellers.entity.culture.VoiceSet;
+import com.jubitus.travellers.unit.culture.VoiceSet;
 import net.minecraft.util.SoundEvent;
 
 public final class VoicePersonality {

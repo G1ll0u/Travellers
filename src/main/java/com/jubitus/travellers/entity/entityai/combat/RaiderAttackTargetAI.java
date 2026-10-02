@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.combat;
 
 import com.google.common.base.Predicate;
-import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 

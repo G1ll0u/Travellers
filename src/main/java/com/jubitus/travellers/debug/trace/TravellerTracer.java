@@ -2,7 +2,7 @@ package com.jubitus.travellers.debug.trace;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.util.math.BlockPos;
-import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLLog;

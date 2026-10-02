@@ -4,7 +4,7 @@ import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationS
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
 import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
-import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
