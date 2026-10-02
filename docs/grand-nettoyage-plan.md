@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-02)**: plan validated. Phases 0–2 done (root Code map awaiting the user's OK); next: phase 3.
+**Status (2026-10-02)**: plan validated. Phases 0–2 done; phase 3 mostly done (see its status); next: phase 4.
 
 ## Goal
 
@@ -129,7 +129,16 @@ combat AI tasks sit in `combat/ai/`; `VillageConversation` (package-private, onl
 client shell. Step 2.7 also moved the debug chunk packets from the second `travellers` channel onto the main one
 and replaced the 54 per-message `NoopHandler` classes with one shared no-op.
 
-### Phase 3 — Shared small helpers — status: todo
+### Phase 3 — Shared small helpers — status: done except the items marked skipped
+
+Done: `TravelCommon.clearRoute/routeTo`, `unit/WorkerLookup` (instead of `WorkerOrderGuard.requireOwnedWorker`;
+dismissal clears both hired flag and owner, so the strict check changes nothing in game), `unit/equipment/EquipOrders`
+(both Get Equipment handlers), `LoadedChunks.isLoaded/isAreaLoaded` + resweep through `loadTemporarily`,
+`combat/lists/EntityRuleList`, `PlayerZoneRecord.contains/box`, `village/MillMoney`.
+Skipped on purpose: `WorldTime.isNight` (two lines, not worth a class), `NbtCodecs/BufCodecs` (touching save keys
+for little gain), `distSqXZ` (trivial math, no divergence), Barrack/Zone data builders (they really differ:
+pending respawns, grouped flag).
+
 
 - `WorkerLookup`: worker by UUID (loaded in any world, else virtual record) — replaces `WorkerGroupService.findLoaded`,
   `ZoneAssignments.findLoaded`, `WorkerFormationScopeResolver.findWorker` and 4 inline copies.
