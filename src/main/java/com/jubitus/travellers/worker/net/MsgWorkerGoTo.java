@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
@@ -43,15 +44,8 @@ public class MsgWorkerGoTo implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().player;
 
             player.getServerWorld().addScheduledTask(() -> {
-                Entity e = player.world.getEntityByID(msg.workerId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-                EntityTravellerWorker w = (EntityTravellerWorker) e;
-
-                // Security: only owner can order
-                if (!w.isHiredFollower() || w.getFollowOwnerId() == null ||
-                        !w.getFollowOwnerId().equals(player.getUniqueID())) {
-                    return;
-                }
+                EntityTravellerWorker w = WorkerLookup.ownedById(player, msg.workerId);
+                if (w == null) return;
 
                 // A worker busy on a mission can't take a Go order (loaded + virtual share this rule).
                 if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(w)) {

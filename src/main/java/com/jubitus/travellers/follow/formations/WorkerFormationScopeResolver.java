@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.formations;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
@@ -71,7 +72,7 @@ public final class WorkerFormationScopeResolver {
 
         UUID escortLeaderId = openedWorker.getEscortLeaderUUID();
         if (escortLeaderId != null) {
-            EntityTravellerWorker escortLeader = findWorker(server, escortLeaderId);
+            EntityTravellerWorker escortLeader = WorkerLookup.findLoaded(server, escortLeaderId);
             String label = escortLeader != null ? escortLeader.getName() : escortLeaderId.toString();
 
             return new OpenScope(
@@ -157,17 +158,6 @@ public final class WorkerFormationScopeResolver {
         }
 
         return count;
-    }
-
-    @Nullable
-    private static EntityTravellerWorker findWorker(MinecraftServer server, UUID workerId) {
-        for (WorldServer ws : server.worlds) {
-            Entity e = ws.getEntityFromUuid(workerId);
-            if (e instanceof EntityTravellerWorker && !e.isDead) {
-                return (EntityTravellerWorker) e;
-            }
-        }
-        return null;
     }
 
     public static final class OpenScope {

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.group;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
@@ -58,14 +59,12 @@ public final class WorkerOrderGuard {
     public static void notifyRefused(EntityPlayerMP player, UUID workerId) {
         MinecraftServer server = player.getServer();
         if (server != null) {
-            for (WorldServer ws : server.worlds) {
-                Entity e = ws.getEntityFromUuid(workerId);
-                if (e instanceof EntityTravellerWorker && !e.isDead) {
-                    notifyRefused(player, (EntityTravellerWorker) e);
-                    return;
-                }
+            EntityTravellerWorker live = WorkerLookup.findLoaded(server, workerId);
+            if (live != null) {
+                notifyRefused(player, live);
+                return;
             }
-            VirtualTravellerRecord r = VirtualTravellerManager.get(server.getWorld(0)).getRecord(workerId);
+            VirtualTravellerRecord r = WorkerLookup.findRecord(server, workerId);
             if (r != null) {
                 notifyRefused(player, r);
                 return;

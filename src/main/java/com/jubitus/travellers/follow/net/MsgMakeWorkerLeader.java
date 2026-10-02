@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import io.netty.buffer.ByteBuf;
@@ -36,13 +37,8 @@ public class MsgMakeWorkerLeader implements IMessage {
         public IMessage onMessage(MsgMakeWorkerLeader msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                World world = player.world;
-                Entity e = world.getEntityByID(msg.entityId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-
-                EntityTravellerWorker leader = (EntityTravellerWorker) e;
-                if (!leader.isHiredFollower()) return;
-                if (!player.getUniqueID().equals(leader.getFollowOwnerId())) return;
+                EntityTravellerWorker leader = WorkerLookup.ownedById(player, msg.entityId);
+                if (leader == null) return;
 
                 WorkerGroupService.makeLeader(player, leader.getUniqueID());
             });

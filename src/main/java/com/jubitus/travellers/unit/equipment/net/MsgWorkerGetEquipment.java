@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit.equipment.net;
 
+import com.jubitus.travellers.unit.equipment.EquipOrders;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -54,88 +55,12 @@ public class MsgWorkerGetEquipment implements IMessage {
         buf.writeLong(homePos.toLong());
     }
 
-    private static boolean isValidEquipTarget(EntityPlayerMP player, BlockPos pos,
-                                               com.jubitus.travellers.unit.equipment.EquipTargetKind kind) {
-        if (pos == null) return false;
-        java.util.UUID ownerId = player.getUniqueID();
-        switch (kind) {
-            case CONTROLLED_VILLAGE:
-                if (!com.jubitus.travellers.config.TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
-                return com.jubitus.travellers.village.MillSettlements
-                        .controlledBy(player.world, player).contains(pos);
-            case STABLE:
-                for (com.jubitus.travellers.zone.PlayerZoneRecord r :
-                        com.jubitus.travellers.zone.PlayerZoneManager.get(player.world)
-                                .getByOwnerAndType(ownerId, com.jubitus.travellers.zone.ZoneType.STABLE)) {
-                    if (pos.equals(r.center)) return true;
-                }
-                return false;
-            case LONE_BARRACK:
-            default:
-                for (com.jubitus.travellers.zone.PlayerZoneRecord r :
-                        com.jubitus.travellers.zone.PlayerZoneManager.get(player.world)
-                                .getByOwnerAndType(ownerId, com.jubitus.travellers.zone.ZoneType.BARRACK)) {
-                    if (pos.equals(r.center)) return true;
-                }
-                return false;
-        }
-    }
-
     public static class Handler implements IMessageHandler<MsgWorkerGetEquipment, IMessage> {
         @Override
         public IMessage onMessage(MsgWorkerGetEquipment msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                net.minecraft.server.MinecraftServer srv = player.getServer();
-                if (srv == null) return;
-
-                UUID ownerId = player.getUniqueID();
-
-                // Validate the target: must be one of the player's controlled villages (whole-village)
-                // or one of the player's lone barracks. Blocks ordinary villages and others' barracks.
-                if (!isValidEquipTarget(player, msg.homePos, msg.kind)) return;
-
-                // Try real entity first
-                for (WorldServer ws : srv.worlds) {
-                    net.minecraft.entity.Entity e = ws.getEntityFromUuid(msg.workerUUID);
-                    if (e instanceof EntityTravellerWorker) {
-                        EntityTravellerWorker worker = (EntityTravellerWorker) e;
-                        if (!worker.isHiredFollower() || !ownerId.equals(worker.getFollowOwnerId())) return;
-                        if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(worker)) {
-                            com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, worker);
-                            return;
-                        }
-                        com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
-                        worker.startGetEquipMission(msg.homePos, msg.stayThere, msg.kind);
-                        return;
-                    }
-                }
-
-                // Try virtual record
-                WorldServer overworld = srv.worlds[0];
-                VirtualTravellerManager vwm = VirtualTravellerManager.get(overworld);
-                VirtualTravellerRecord r = vwm.getRecord(msg.workerUUID);
-                if (r == null || !ownerId.equals(r.followOwnerUUID)) return;
-                if (com.jubitus.travellers.follow.group.WorkerOrderGuard.isBusy(r)) {
-                    com.jubitus.travellers.follow.group.WorkerOrderGuard.notifyRefused(player, r);
-                    return;
-                }
-
-                EntityTravellerWorker temp = new EntityTravellerWorker(overworld);
-                temp.readFromNBT(r.entityNbt);
-                temp.setUniqueId(r.uuid);
-                temp.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-                com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, r.uuid);
-                temp.clearEscortLeader();
-                temp.startGetEquipMission(msg.homePos, msg.stayThere, msg.kind);
-
-                NBTTagCompound updatedNbt = new NBTTagCompound();
-                temp.writeToNBT(updatedNbt);
-                r.entityNbt = updatedNbt;
-                r.workerMode = "GET_EQUIPMENT";
-                r.goOrderActive = true;
-                r.goal = msg.homePos;
-                vwm.markDirty();
+                EquipOrders.start(player, msg.workerUUID, msg.homePos, msg.stayThere, msg.kind, true);
             });
             return null;
         }

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
@@ -52,9 +53,7 @@ public class MsgRecruitWorkers implements IMessage {
             EntityTravellerWorker worker = (EntityTravellerWorker) e;
 
             // Must be hired by this player
-            if (!worker.isHiredFollower()
-                    || worker.getFollowOwnerId() == null
-                    || !worker.getFollowOwnerId().equals(player.getUniqueID())) {
+            if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_NOT_YOUR_WORKER);
                 return;
             }

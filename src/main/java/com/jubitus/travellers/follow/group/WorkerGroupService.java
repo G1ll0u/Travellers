@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.group;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeResolver;
@@ -277,7 +278,7 @@ public final class WorkerGroupService {
         UUID owner = player.getUniqueID();
 
         UUID oldLeader;
-        EntityTravellerWorker loaded = findLoaded(server, owner, workerId);
+        EntityTravellerWorker loaded = WorkerLookup.findLoadedOwned(server, owner, workerId);
         if (loaded != null) {
             oldLeader = loaded.getEscortLeaderUUID();
             if (oldLeader == null) return;
@@ -297,7 +298,7 @@ public final class WorkerGroupService {
         if (server == null || leaderId == null || target == null) return;
         UUID owner = player.getUniqueID();
 
-        EntityTravellerWorker loadedLeader = findLoaded(server, owner, leaderId);
+        EntityTravellerWorker loadedLeader = WorkerLookup.findLoadedOwned(server, owner, leaderId);
         if (loadedLeader != null) {
             if (WorkerOrderGuard.isBusy(loadedLeader)) {
                 WorkerOrderGuard.notifyRefused(player, loadedLeader);
@@ -352,7 +353,7 @@ public final class WorkerGroupService {
             }
         }
 
-        EntityTravellerWorker loaded = findLoaded(server, owner, sourceLeaderId);
+        EntityTravellerWorker loaded = WorkerLookup.findLoadedOwned(server, owner, sourceLeaderId);
         if (loaded != null) {
             if (targetId == null) backToOwnerLoaded(loaded);
             else assignToLeaderLoaded(loaded, targetId);
@@ -383,7 +384,7 @@ public final class WorkerGroupService {
             return;
         }
 
-        EntityTravellerWorker loaded = findLoaded(server, owner, leaderId);
+        EntityTravellerWorker loaded = WorkerLookup.findLoadedOwned(server, owner, leaderId);
         if (loaded != null) {
             loaded.setFollowOrderActive(follow); // also ends a Go order and its travel
             loaded.getNavigator().clearPath();
@@ -406,7 +407,7 @@ public final class WorkerGroupService {
         while (cur != null && seen.add(cur)) {
             if (cur.equals(targetId)) return true;
             UUID next;
-            EntityTravellerWorker w = findLoaded(server, owner, cur);
+            EntityTravellerWorker w = WorkerLookup.findLoadedOwned(server, owner, cur);
             if (w != null) next = w.getEscortLeaderUUID();
             else {
                 VirtualTravellerRecord r = vwm(server).getRecord(cur);
@@ -514,7 +515,7 @@ public final class WorkerGroupService {
         // Keep the loaded leader-count DataParameter honest for affected leaders (drives their own
         // idle AI; the Hub/map leader identity is computed independently below).
         for (UUID leaderId : affectedLeaders) {
-            EntityTravellerWorker e = findLoaded(server, owner, leaderId);
+            EntityTravellerWorker e = WorkerLookup.findLoadedOwned(server, owner, leaderId);
             if (e != null) e.forceRefreshLeaderCount();
         }
 
@@ -686,7 +687,7 @@ public final class WorkerGroupService {
     public static void syncLeaderFollowerCount(EntityPlayerMP player, UUID leaderId) {
         MinecraftServer server = player.getServer();
         if (server == null) return;
-        EntityTravellerWorker leader = findLoaded(server, player.getUniqueID(), leaderId);
+        EntityTravellerWorker leader = WorkerLookup.findLoadedOwned(server, player.getUniqueID(), leaderId);
         if (leader == null) return;
         int count = countFollowers(server, player.getUniqueID(), leaderId);
         TravellersNetwork.CHANNEL.sendTo(
@@ -767,22 +768,10 @@ public final class WorkerGroupService {
 
     /** True if the given worker (loaded or virtual) is busy on a mission and can't lead/receive a group. */
     private static boolean leaderBusy(MinecraftServer server, UUID owner, UUID leaderId) {
-        EntityTravellerWorker w = findLoaded(server, owner, leaderId);
+        EntityTravellerWorker w = WorkerLookup.findLoadedOwned(server, owner, leaderId);
         if (w != null) return WorkerOrderGuard.isBusy(w);
         VirtualTravellerRecord r = vwm(server).getRecord(leaderId);
         return r != null && owner.equals(r.followOwnerUUID) && WorkerOrderGuard.isBusy(r);
-    }
-
-    @Nullable
-    private static EntityTravellerWorker findLoaded(MinecraftServer server, UUID owner, UUID uuid) {
-        for (WorldServer ws : server.worlds) {
-            Entity e = ws.getEntityFromUuid(uuid);
-            if (e instanceof EntityTravellerWorker && !e.isDead) {
-                EntityTravellerWorker w = (EntityTravellerWorker) e;
-                if (w.isHiredFollower() && owner.equals(w.getFollowOwnerId())) return w;
-            }
-        }
-        return null;
     }
 
     private static UUID pickBestEquipped(Map<UUID, EntityTravellerWorker> loaded,

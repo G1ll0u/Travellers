@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.follow.group.WorkerOrderGuard;
@@ -44,7 +45,7 @@ public final class ZoneAssignments {
         int dim = player.getServerWorld().provider.getDimension();
         boolean duty = ZoneTypeDefs.get(zone.type).dutyKind != null;
 
-        EntityTravellerWorker live = findLoaded(server, workerUUID);
+        EntityTravellerWorker live = WorkerLookup.findLoaded(server, workerUUID);
         VirtualTravellerManager vwm = VirtualTravellerManager.get(server.getWorld(0));
         VirtualTravellerRecord rec = live == null ? vwm.getRecord(workerUUID) : null;
         if (live == null && (rec == null || rec.entityNbt == null)) return AssignResult.NOT_FOUND;
@@ -96,7 +97,7 @@ public final class ZoneAssignments {
     public static boolean release(MinecraftServer server, UUID workerUUID, @Nullable PlayerZoneRecord zone) {
         boolean changed = freeBeds(server, workerUUID);
 
-        EntityTravellerWorker live = findLoaded(server, workerUUID);
+        EntityTravellerWorker live = WorkerLookup.findLoaded(server, workerUUID);
         if (live != null) {
             ZoneRef ref = live.getZoneRef();
             if (ref == null || (zone != null && !ref.matches(zone))) return changed;
@@ -217,7 +218,7 @@ public final class ZoneAssignments {
      * respawn - or null when none of those knows it (possibly just not loaded yet). */
     @Nullable
     static ZoneRef findRef(MinecraftServer server, UUID workerUUID) {
-        EntityTravellerWorker live = findLoaded(server, workerUUID);
+        EntityTravellerWorker live = WorkerLookup.findLoaded(server, workerUUID);
         if (live != null) return live.getZoneRef();
         VirtualTravellerRecord r = VirtualTravellerManager.get(server.getWorld(0)).getRecord(workerUUID);
         if (r != null && r.entityNbt != null) return ZoneRef.read(r.entityNbt);
@@ -266,12 +267,4 @@ public final class ZoneAssignments {
         for (WorldServer ws : server.worlds) PlayerZoneManager.get(ws).markDirty();
     }
 
-    @Nullable
-    private static EntityTravellerWorker findLoaded(MinecraftServer server, UUID uuid) {
-        for (WorldServer ws : server.worlds) {
-            Entity e = ws.getEntityFromUuid(uuid);
-            if (e instanceof EntityTravellerWorker && !e.isDead) return (EntityTravellerWorker) e;
-        }
-        return null;
-    }
 }

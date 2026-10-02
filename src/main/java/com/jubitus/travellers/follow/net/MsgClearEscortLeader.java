@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import io.netty.buffer.ByteBuf;
@@ -42,14 +43,8 @@ public class MsgClearEscortLeader implements IMessage {
                 EntityPlayerMP sender = ctx.getServerHandler().player;
                 World world = sender.world;
 
-                Entity e = world.getEntityByID(msg.entityId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-
-                EntityTravellerWorker w = (EntityTravellerWorker) e;
-
-                // Security: only the owner can change this
-                UUID owner = w.getFollowOwnerId();
-                if (owner == null || !owner.equals(sender.getUniqueID())) return;
+                EntityTravellerWorker w = WorkerLookup.ownedById(sender, msg.entityId);
+                if (w == null) return;
 
                 // Only do something if actually following a leader
                 if (!w.hasEscortLeader()) return;

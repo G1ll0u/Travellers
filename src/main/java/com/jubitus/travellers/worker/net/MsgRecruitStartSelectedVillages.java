@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -64,15 +65,8 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
 
         private void handle(EntityPlayerMP player, MsgRecruitStartSelectedVillages msg) {
             World world = player.world;
-            Entity e = world.getEntityByID(msg.workerId);
-            if (!(e instanceof EntityTravellerWorker)) return;
-
-            EntityTravellerWorker worker = (EntityTravellerWorker) e;
-
-            // ownership / state checks
-            if (!worker.isHiredFollower()
-                    || worker.getFollowOwnerId() == null
-                    || !worker.getFollowOwnerId().equals(player.getUniqueID())) return;
+            EntityTravellerWorker worker = WorkerLookup.ownedById(player, msg.workerId);
+            if (worker == null) return;
 
             if (!worker.canStartRecruitMission()) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_BUSY);

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.choir.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.choir.ChoirCoordinator;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
@@ -35,10 +36,8 @@ public class MsgWorkerChoirToggle implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
                 World world = player.world;
-                Entity e = world.getEntityByID(msg.workerEntityId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-                EntityTravellerWorker worker = (EntityTravellerWorker) e;
-                if (!player.getUniqueID().equals(worker.getFollowOwnerId())) return;
+                EntityTravellerWorker worker = WorkerLookup.ownedById(player, msg.workerEntityId);
+                if (worker == null) return;
                 ChoirCoordinator.get(world).handleWorkerChoirToggle(world, worker, player);
             });
             return null;

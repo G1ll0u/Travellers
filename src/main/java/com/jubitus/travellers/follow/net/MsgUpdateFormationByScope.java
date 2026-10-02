@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationSettings;
@@ -64,16 +65,7 @@ public class MsgUpdateFormationByScope implements IMessage {
             }
             MinecraftServer server = player.getServer();
             if (server == null) return false;
-            UUID workerId = scope.getId();
-            for (WorldServer ws : server.worlds) {
-                Entity e = ws.getEntityFromUuid(workerId);
-                if (e instanceof EntityTravellerWorker && !e.isDead) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    return w.isHiredFollower() && Objects.equals(w.getFollowOwnerId(), playerId);
-                }
-            }
-            WorldServer overworld = server.worlds[0];
-            return VirtualTravellerManager.get(overworld).isWorkerOwnedByPlayer(workerId, playerId);
+            return WorkerLookup.findOwned(server, playerId, scope.getId()) != null;
         }
     }
 }

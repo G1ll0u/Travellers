@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
@@ -39,7 +40,7 @@ public class MsgWorkerGoHome implements IMessage {
                 if (!(e instanceof EntityTravellerWorker)) return;
                 EntityTravellerWorker w = (EntityTravellerWorker) e;
 
-                if (!w.isHiredFollower() || w.getFollowOwnerId() == null || !w.getFollowOwnerId().equals(player.getUniqueID())) {
+                if (!WorkerLookup.isOwnedBy(w, player.getUniqueID())) {
                     NotificationService.notify(player, NotificationDefs.HOME_NOT_YOUR_WORKER);
                     return;
                 }

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -38,13 +39,8 @@ public class MsgWorkerRequestGoList implements IMessage {
                 if (msg.workerId == -1) {
                     responseId = -1;
                 } else {
-                    Entity e = player.world.getEntityByID(msg.workerId);
-                    if (!(e instanceof EntityTravellerWorker)) return;
-                    EntityTravellerWorker w = (EntityTravellerWorker) e;
-                    if (!w.isHiredFollower() || w.getFollowOwnerId() == null ||
-                            !w.getFollowOwnerId().equals(player.getUniqueID())) {
-                        return;
-                    }
+                    EntityTravellerWorker w = WorkerLookup.ownedById(player, msg.workerId);
+                    if (w == null) return;
                     responseId = w.getEntityId();
                 }
 

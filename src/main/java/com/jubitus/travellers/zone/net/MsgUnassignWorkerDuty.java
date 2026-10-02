@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
@@ -46,14 +47,7 @@ public class MsgUnassignWorkerDuty implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 UUID ownerId = player.getUniqueID();
                 WorldServer world = player.getServerWorld();
-                Entity e = world.getEntityFromUuid(msg.workerUUID);
-                if (e instanceof EntityTravellerWorker) {
-                    if (!ownerId.equals(((EntityTravellerWorker) e).getFollowOwnerId())) return;
-                } else {
-                    VirtualTravellerRecord rec = VirtualTravellerManager.get(world.getMinecraftServer().getWorld(0))
-                            .getRecord(msg.workerUUID);
-                    if (rec == null || !ownerId.equals(rec.followOwnerUUID)) return;
-                }
+                if (WorkerLookup.findOwned(world.getMinecraftServer(), ownerId, msg.workerUUID) == null) return;
                 ZoneAssignments.release(world.getMinecraftServer(), msg.workerUUID, null);
 
                 TravellersNetwork.CHANNEL.sendTo(MsgWorkerZoneData.buildFor(player), player);

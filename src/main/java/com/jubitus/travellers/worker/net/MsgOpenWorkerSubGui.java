@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.gui.TravellersGuiIds;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
@@ -61,12 +62,6 @@ public class MsgOpenWorkerSubGui implements IMessage {
         return new MsgSyncWorkerHostileList(out);
     }
 
-    private static boolean isHiredByPlayer(EntityTravellerWorker worker, EntityPlayerMP player) {
-        return worker.isHiredFollower()
-                && worker.getFollowOwnerId() != null
-                && player.getUniqueID().equals(worker.getFollowOwnerId());
-    }
-
     @Override
     public void fromBytes(ByteBuf buf) {
         this.entityId = buf.readInt();
@@ -108,7 +103,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                 switch (msg.type) {
 
                     case TRANSPORT:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_TRANSPORT);
                             return;
                         }
@@ -123,7 +118,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case INVENTORY:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_INVENTORY);
                             return;
                         }
@@ -137,7 +132,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case BEHAVIOR:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_BEHAVIOR);
                             return;
                         }
@@ -149,7 +144,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case RECRUIT:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_RECRUIT);
                             return;
                         }
@@ -161,7 +156,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case HOME:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_HOME);
                             return;
                         }
@@ -185,7 +180,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case GO:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_GO);
                             return;
                         }
@@ -197,7 +192,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case FORMATION:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_FORMATION);
                             return;
                         }
@@ -213,7 +208,7 @@ public class MsgOpenWorkerSubGui implements IMessage {
                         return;
 
                     case VILLAGE_RELATIONS:
-                        if (!isHiredByPlayer(worker, player)) {
+                        if (!WorkerLookup.isOwnedBy(worker, player.getUniqueID())) {
                             NotificationService.notify(player, NotificationDefs.WORKER_NOT_HIRED_VILLAGE_RELATIONS);
                             return;
                         }

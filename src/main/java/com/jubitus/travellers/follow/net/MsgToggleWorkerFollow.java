@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.net;
 
+import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgSyncWorkerHireState;
@@ -37,15 +38,8 @@ public class MsgToggleWorkerFollow implements IMessage {
         public IMessage onMessage(MsgToggleWorkerFollow msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                World world = player.world;
-                Entity e = world.getEntityByID(msg.entityId);
-                if (!(e instanceof EntityTravellerWorker)) return;
-
-                EntityTravellerWorker w = (EntityTravellerWorker) e;
-
-                // only hiring player may toggle
-                if (!w.isHiredFollower()) return;
-                if (!player.getUniqueID().equals(w.getFollowOwnerId())) return;
+                EntityTravellerWorker w = WorkerLookup.ownedById(player, msg.entityId);
+                if (w == null) return;
 
                 // Toggle on server
                 w.setFollowOrderActive(!w.isFollowOrderActive());
