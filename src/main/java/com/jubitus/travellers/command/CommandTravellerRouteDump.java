@@ -2,7 +2,7 @@ package com.jubitus.travellers.command;
 
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.world.pathing.MPBIntegration;
+import com.jubitus.travellers.pathing.MPBIntegration;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -155,8 +155,8 @@ public class CommandTravellerRouteDump extends CommandBase {
 
         // ── Itinerary (current leg) ──────────────────────────────────────────
         out.println("== ITINERARY (current leg) ==");
-        com.jubitus.travellers.world.pathing.itinerary.ItineraryState st = mob.getItineraryState();
-        com.jubitus.travellers.world.pathing.itinerary.Itinerary it = st.get();
+        com.jubitus.travellers.pathing.itinerary.ItineraryState st = mob.getItineraryState();
+        com.jubitus.travellers.pathing.itinerary.Itinerary it = st.get();
         out.println("Itinerary-driven: " + mob.isItineraryDriven());
         if (it == null) {
             out.println("  (no itinerary)");
@@ -172,9 +172,9 @@ public class CommandTravellerRouteDump extends CommandBase {
             out.println();
             out.println("# idx |     X |  Y |     Z | next segment");
             for (int i = 0; i < it.size(); i++) {
-                String kind = i < it.size() - 1 ? (it.kind(i) == com.jubitus.travellers.world.pathing.itinerary.Itinerary.ROAD ? "ROAD"
-                        : it.kind(i) == com.jubitus.travellers.world.pathing.itinerary.Itinerary.BOAT ? "BOAT"
-                        : it.kind(i) == com.jubitus.travellers.world.pathing.itinerary.Itinerary.GATE ? "GATE" : "WALK") : "";
+                String kind = i < it.size() - 1 ? (it.kind(i) == com.jubitus.travellers.pathing.itinerary.Itinerary.ROAD ? "ROAD"
+                        : it.kind(i) == com.jubitus.travellers.pathing.itinerary.Itinerary.BOAT ? "BOAT"
+                        : it.kind(i) == com.jubitus.travellers.pathing.itinerary.Itinerary.GATE ? "GATE" : "WALK") : "";
                 String note = i == st.cursor.segment() ? " ◄ CURSOR" : "";
                 out.println(String.format("%5d | %6d | %3d | %6d | %s%s", i, it.x(i), it.y(i), it.z(i), kind, note));
             }

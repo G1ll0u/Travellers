@@ -1,8 +1,8 @@
 package com.jubitus.travellers.client.map;
 
 import com.jubitus.travellers.server.net.message.map.MsgItineraryDebugMap;
-import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.world.pathing.route.TravelPlan;
+import com.jubitus.travellers.pathing.itinerary.Itinerary;
+import com.jubitus.travellers.pathing.route.TravelPlan;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;

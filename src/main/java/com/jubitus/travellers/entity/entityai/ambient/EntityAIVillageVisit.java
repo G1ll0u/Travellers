@@ -783,7 +783,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
                     for (int dy = 0; dy <= 2; dy++) {
                         BlockPos feet = target.add(dx, dy == 2 ? -1 : dy, dz);
-                        if (!mob.world.isBlockLoaded(feet) || !com.jubitus.travellers.world.ground.Footing.canStandAt(mob.world, feet)) continue;
+                        if (!mob.world.isBlockLoaded(feet) || !com.jubitus.travellers.ground.Footing.canStandAt(mob.world, feet)) continue;
                         if (!indoor && MillFootprints.at(mob.world, feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0) != null) continue;
                         if (VisitOccupancy.countNear(mob.world, feet, SPOT_SPACING, me) == 0) return feet;
                     }
@@ -961,7 +961,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             BlockPos base = new BlockPos(px, mob.posY, pz);
             for (int dy = 0; dy >= -1; dy--) {
                 BlockPos feet = base.up(dy);
-                if (mob.world.isBlockLoaded(feet) && com.jubitus.travellers.world.ground.Footing.canStandAt(mob.world, feet)) {
+                if (mob.world.isBlockLoaded(feet) && com.jubitus.travellers.ground.Footing.canStandAt(mob.world, feet)) {
                     return new Vec3d(px, feet.getY(), pz);
                 }
             }
@@ -1143,7 +1143,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             BlockPos front = panel.offset(facing, dist);
             for (int dy = 0; dy >= -2; dy--) {
                 BlockPos feet = front.up(dy);
-                if (com.jubitus.travellers.world.ground.Footing.canStandAt(mob.world, feet)) return feet;
+                if (com.jubitus.travellers.ground.Footing.canStandAt(mob.world, feet)) return feet;
             }
         }
         return null;

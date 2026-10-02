@@ -2,9 +2,9 @@ package com.jubitus.travellers.server.dialogue;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
-import com.jubitus.travellers.world.pathing.terrain.TerrainProfile;
-import com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid;
-import com.jubitus.travellers.world.pathing.terrain.TerrainWorldState;
+import com.jubitus.travellers.pathing.terrain.TerrainProfile;
+import com.jubitus.travellers.pathing.terrain.TerrainProfileGrid;
+import com.jubitus.travellers.pathing.terrain.TerrainWorldState;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;

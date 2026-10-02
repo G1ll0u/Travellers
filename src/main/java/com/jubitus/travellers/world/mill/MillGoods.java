@@ -1,7 +1,7 @@
 package com.jubitus.travellers.world.mill;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.chunkmanager.LoadedChunks;
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;

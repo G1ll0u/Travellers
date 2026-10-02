@@ -1,7 +1,7 @@
 package com.jubitus.travellers.mixins;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.pathing.TravellerNodeProcessor;
+import com.jubitus.travellers.pathing.TravellerNodeProcessor;
 import net.minecraft.pathfinding.NodeProcessor;
 import net.minecraft.pathfinding.PathFinder;
 import org.spongepowered.asm.mixin.Mixin;

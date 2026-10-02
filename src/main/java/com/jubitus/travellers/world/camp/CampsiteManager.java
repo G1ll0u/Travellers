@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.camp;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.world.camp.shelter.ShelterPlacer;
 import com.jubitus.travellers.world.camp.shelter.ShelterTemplate;

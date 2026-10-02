@@ -37,7 +37,7 @@ import org.millenaire.common.world.MillWorldData;
 
 import javax.annotation.Nullable;
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.world.pathing.MPBIntegration;
+import com.jubitus.travellers.pathing.MPBIntegration;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 
 import java.util.ArrayList;

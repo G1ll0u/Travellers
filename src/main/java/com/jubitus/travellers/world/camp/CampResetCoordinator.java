@@ -128,7 +128,7 @@ public class CampResetCoordinator {
             java.util.List<net.minecraft.world.chunk.Chunk> loaded = new java.util.ArrayList<>();
             try {
                 for (ChunkPos cp : CampsiteManager.footprintChunks(rec)) {
-                    com.jubitus.travellers.world.chunkmanager.LoadedChunks.loadTemporarily(world, cp.x, cp.z, loaded);
+                    com.jubitus.travellers.ground.chunk.LoadedChunks.loadTemporarily(world, cp.x, cp.z, loaded);
                 }
                 for (TerrainSnapshot s : rec.pendingTeardowns) s.restore(world);
                 for (TerrainSnapshot s : rec.orphans.values()) s.restore(world);
@@ -137,7 +137,7 @@ public class CampResetCoordinator {
                 }
                 if (rec.firepitBuilt && rec.firepitSnapshot != null) rec.firepitSnapshot.restore(world);
             } finally {
-                com.jubitus.travellers.world.chunkmanager.LoadedChunks.release(world, loaded);
+                com.jubitus.travellers.ground.chunk.LoadedChunks.release(world, loaded);
             }
         }
 

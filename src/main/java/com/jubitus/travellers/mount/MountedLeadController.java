@@ -1,6 +1,6 @@
 package com.jubitus.travellers.mount;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;

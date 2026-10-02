@@ -1,6 +1,5 @@
 package com.jubitus.travellers.config;
 
-import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
@@ -63,7 +62,7 @@ public class TravellersDerivedConfig {
                 TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistIds,
                 TravellersConfig.AGGRO_BLACKLIST.raiderAggroBlacklistClasses);
 
-        com.jubitus.travellers.world.ground.BlockRules.clearCache();
+        com.jubitus.travellers.ground.BlockRules.clearCache();
     }
 
     public static void syncServerCostCachesFromConfig() {

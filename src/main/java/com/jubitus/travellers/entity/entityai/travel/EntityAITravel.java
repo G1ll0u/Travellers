@@ -8,15 +8,15 @@ import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.MountedLeadController;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.pathing.route.TravelPlan;
-import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryPlanner;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryState;
+import com.jubitus.travellers.pathing.route.TravelPlan;
+import com.jubitus.travellers.pathing.itinerary.Itinerary;
+import com.jubitus.travellers.pathing.itinerary.ItineraryPlanner;
+import com.jubitus.travellers.pathing.itinerary.ItineraryState;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -324,8 +324,8 @@ public class EntityAITravel extends EntityAIBase {
     public void updateTask() {
 
         // Don't interfere with an active gap jump — let physics carry the entity.
-        if (mob.getNavigator() instanceof com.jubitus.travellers.world.pathing.TravellerNavigateGround) {
-            if (((com.jubitus.travellers.world.pathing.TravellerNavigateGround) mob.getNavigator()).isGapJumping()) {
+        if (mob.getNavigator() instanceof com.jubitus.travellers.pathing.TravellerNavigateGround) {
+            if (((com.jubitus.travellers.pathing.TravellerNavigateGround) mob.getNavigator()).isGapJumping()) {
                 return;
             }
         }
@@ -867,7 +867,7 @@ public class EntityAITravel extends EntityAIBase {
         ItineraryPlanner.build(ws, mob.getUniqueID(), mob.getItineraryState(), mob.posX, mob.posY, mob.posZ,
                 targetVillage,
                 ItineraryPlanner.mayUseRoads(mob instanceof com.jubitus.travellers.entity.travellers.EntityTravellerRaider),
-                com.jubitus.travellers.world.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
+                com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
                 ws.getTotalWorldTime(), mob);
     }
 
@@ -876,7 +876,7 @@ public class EntityAITravel extends EntityAIBase {
         ItineraryState st = mob.getItineraryState();
         if (!st.hasBacklog() || !st.isFor(targetVillage)) return;
         ItineraryPlanner.tryPlanBacklog((WorldServer) mob.world, mob.getUniqueID(), st,
-                com.jubitus.travellers.world.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
+                com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
                 mob.world.getTotalWorldTime());
     }
 
@@ -966,7 +966,7 @@ public class EntityAITravel extends EntityAIBase {
         BlockPos gate = gateAhead();
         if (gate == null || mob.getItineraryState().isForced()) return false;
         if (!mob.getItineraryState().excludedGates.add(
-                com.jubitus.travellers.world.pathing.itinerary.ItineraryGates.gateKey(gate))) return false;
+                com.jubitus.travellers.pathing.itinerary.ItineraryGates.gateKey(gate))) return false;
         com.jubitus.travellers.debug.trace.TravellerTracer.incident(mob, "stuck",
                 "gate unreachable " + gate.getX() + "," + gate.getZ() + ", rebuilding the itinerary");
         nextItineraryReplanTick = 0;
@@ -2010,7 +2010,7 @@ public class EntityAITravel extends EntityAIBase {
                         if (!terrain.isStandable(feet)) continue;
 
                         IBlockState below = mob.world.getBlockState(feet.down());
-                        if (!terrain.isNaturalGroundSupport(feet.down()) && !com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, feet.down(), below)) {
+                        if (!terrain.isNaturalGroundSupport(feet.down()) && !com.jubitus.travellers.ground.Footing.isFloor(mob.world, feet.down(), below)) {
                             continue;
                         }
                     }

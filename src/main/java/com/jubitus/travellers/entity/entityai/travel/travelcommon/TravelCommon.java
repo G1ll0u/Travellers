@@ -92,7 +92,7 @@ public class TravelCommon {
     /** Standable (Footing), never on a Millénaire fire pit, and no dangerous liquid anywhere in the body's box. */
     public boolean isDryStandable(BlockPos feet) {
         World w = owner.getEntityWorld();
-        if (!com.jubitus.travellers.world.ground.Footing.canStandAt(w, feet)) return false;
+        if (!com.jubitus.travellers.ground.Footing.canStandAt(w, feet)) return false;
 
         Block campBlock = CampfireBlock.get();
         if (campBlock != null && w.getBlockState(feet).getBlock() == campBlock) return false;
@@ -355,7 +355,7 @@ public class TravelCommon {
         ctx.exploreChance = this.exploreChance;
         ctx.recentDestinations = this.recentDestinations;
         ctx.rng = owner.getRNG();
-        ctx.applyRoadRestriction = com.jubitus.travellers.world.pathing.MPBIntegration.PRESENT;
+        ctx.applyRoadRestriction = com.jubitus.travellers.pathing.MPBIntegration.PRESENT;
         ctx.badVillages = this::isVillageBad;
         ctx.debugId = owner.getUniqueID();
         ctx.loaded = true;

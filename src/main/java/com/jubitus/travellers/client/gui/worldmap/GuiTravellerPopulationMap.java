@@ -16,7 +16,7 @@ import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.map.MsgRequestMapDiscovery;
 import com.jubitus.travellers.server.net.message.map.MsgItineraryDebugRequest;
 import com.jubitus.travellers.server.net.message.map.MsgTerrainDebugRequest;
-import com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport;
+import com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;

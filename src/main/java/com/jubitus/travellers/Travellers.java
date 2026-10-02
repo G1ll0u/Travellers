@@ -10,19 +10,33 @@ import com.jubitus.travellers.client.sound.ModSounds;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.ZoneInteractionHandler;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravellerOffscreenHandler;
-import com.jubitus.travellers.entity.travellers.*;
+import com.jubitus.travellers.entity.travellers.EntityTraveller;
+import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
+import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
+import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncServerCosts;
-import com.jubitus.travellers.command.*;
+import com.jubitus.travellers.command.CommandDumpCultureItems;
+import com.jubitus.travellers.command.CommandFollowTraveller;
+import com.jubitus.travellers.command.CommandGlowTravellers;
+import com.jubitus.travellers.command.CommandMountTraveller;
+import com.jubitus.travellers.command.CommandSummonRaiders;
+import com.jubitus.travellers.command.CommandSummonWorkers;
+import com.jubitus.travellers.command.CommandTravellerCount;
+import com.jubitus.travellers.command.CommandTravellerDebug;
+import com.jubitus.travellers.command.CommandTravellerReload;
+import com.jubitus.travellers.command.CommandTravellerRouteDump;
+import com.jubitus.travellers.command.CommandTravellersShelter;
+import com.jubitus.travellers.command.TravellerCommandChunks;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.handler.TravellerWorkerLootHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksClientHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunks;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksRequest;
-import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
 import com.jubitus.travellers.world.spawn.TravellerSoftSpawner;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.server.MinecraftServer;
@@ -275,11 +289,11 @@ public class Travellers {
 
         // Terrain profile grid: flush every dimension (WorldEvent.Unload already did, this is
         // belt-and-braces) and wait for the off-thread region writer to drain.
-        com.jubitus.travellers.world.pathing.terrain.TerrainWorldState.disposeAll();
-        com.jubitus.travellers.world.pathing.terrain.TerrainProfileIO.shutdownAndAwait();
+        com.jubitus.travellers.pathing.terrain.TerrainWorldState.disposeAll();
+        com.jubitus.travellers.pathing.terrain.TerrainProfileIO.shutdownAndAwait();
 
         // Route planner thread pool + cache.
-        com.jubitus.travellers.world.pathing.route.TravelRoutePlanner.shutdown();
+        com.jubitus.travellers.pathing.route.TravelRoutePlanner.shutdown();
     }
 
     @Mod.EventHandler

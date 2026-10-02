@@ -1,7 +1,7 @@
 package com.jubitus.travellers.command;
 
 import com.jubitus.travellers.server.map.pyramid.MapFillStats;
-import com.jubitus.travellers.world.chunkmanager.ChunkReader;
+import com.jubitus.travellers.ground.chunk.ChunkReader;
 import com.jubitus.travellers.entity.culture.CultureDef;
 import com.jubitus.travellers.entity.culture.CultureRegistry;
 import com.jubitus.travellers.entity.culture.TravellerAppearance;
@@ -454,7 +454,7 @@ public class CommandTravellerDebug extends CommandBase {
             for (int z = f.minZ - pad; z <= f.maxZ + pad; z++) {
                 if (!player.world.isBlockLoaded(mp.setPos(x, f.minY, z))) continue;
                 for (int y = f.minY + 1; y <= f.maxY + 2; y++) {
-                    if (!com.jubitus.travellers.world.ground.BlockRules.isBuilt(player.world.getBlockState(mp.setPos(x, y, z)))) continue;
+                    if (!com.jubitus.travellers.ground.BlockRules.isBuilt(player.world.getBlockState(mp.setPos(x, y, z)))) continue;
                     bx0 = Math.min(bx0, x);
                     bx1 = Math.max(bx1, x);
                     bz0 = Math.min(bz0, z);
@@ -1747,14 +1747,14 @@ public class CommandTravellerDebug extends CommandBase {
         if (!(w instanceof WorldServer)) throw new CommandException("Must run on the server.");
         WorldServer ws = (WorldServer) w;
 
-        com.jubitus.travellers.world.pathing.terrain.TerrainWorldState state =
-                com.jubitus.travellers.world.pathing.terrain.TerrainWorldState.get(ws);
+        com.jubitus.travellers.pathing.terrain.TerrainWorldState state =
+                com.jubitus.travellers.pathing.terrain.TerrainWorldState.get(ws);
         if (state == null) {
             sender.sendMessage(new TextComponentString(TextFormatting.YELLOW
                     + "Planned routes are disabled (ROUTING.enablePlannedRoutes = false)."));
             return;
         }
-        com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid grid = state.getGrid();
+        com.jubitus.travellers.pathing.terrain.TerrainProfileGrid grid = state.getGrid();
 
         if (args.length >= 2 && args[1].equalsIgnoreCase("export")) {
             executeTerrainExport(sender, ws, state, grid, args);
@@ -1775,17 +1775,17 @@ public class CommandTravellerDebug extends CommandBase {
             throw new CommandException("Usage: /travellersdebug terrain [region] <x> <z>");
         }
 
-        int cellX = com.jubitus.travellers.world.pathing.terrain.TerrainProfile.cellCoord(x);
-        int cellZ = com.jubitus.travellers.world.pathing.terrain.TerrainProfile.cellCoord(z);
+        int cellX = com.jubitus.travellers.pathing.terrain.TerrainProfile.cellCoord(x);
+        int cellZ = com.jubitus.travellers.pathing.terrain.TerrainProfile.cellCoord(z);
 
         // Debug command: block-load the region and fill this cell's estimate so there is something to show.
         grid.loadRegionBlocking(cellX, cellZ);
         grid.ensureEstimated(ws, x, z, x, z);
 
         if (regionMode) {
-            com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid.RegionStats st =
+            com.jubitus.travellers.pathing.terrain.TerrainProfileGrid.RegionStats st =
                     grid.statsForCell(cellX, cellZ);
-            int total = com.jubitus.travellers.world.pathing.terrain.TerrainProfile.CELLS_PER_REGION;
+            int total = com.jubitus.travellers.pathing.terrain.TerrainProfile.CELLS_PER_REGION;
             sender.sendMessage(new TextComponentString(TextFormatting.AQUA + "Terrain region for cell "
                     + cellX + "," + cellZ + TextFormatting.WHITE
                     + " resident=" + st.resident + " dirty=" + st.dirty));
@@ -1805,8 +1805,8 @@ public class CommandTravellerDebug extends CommandBase {
         }
 
         byte src = grid.getSource(x, z);
-        String srcName = src == com.jubitus.travellers.world.pathing.terrain.TerrainProfile.SOURCE_REAL_SCAN
-                ? "REAL_SCAN" : (src == com.jubitus.travellers.world.pathing.terrain.TerrainProfile.SOURCE_BIOME_EST
+        String srcName = src == com.jubitus.travellers.pathing.terrain.TerrainProfile.SOURCE_REAL_SCAN
+                ? "REAL_SCAN" : (src == com.jubitus.travellers.pathing.terrain.TerrainProfile.SOURCE_BIOME_EST
                 ? "BIOME_EST" : "EMPTY");
         short biomeIx = grid.getBiomeIx(x, z);
         String biomeName = grid.getBiomeIndex().nameFor(biomeIx);
@@ -1824,8 +1824,8 @@ public class CommandTravellerDebug extends CommandBase {
 
     /** {@code /travellersdebug terrain export [radius] [mode] [fill]} — PNG dump of the scanned grid. */
     private void executeTerrainExport(ICommandSender sender, WorldServer ws,
-                                     com.jubitus.travellers.world.pathing.terrain.TerrainWorldState state,
-                                     com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid grid,
+                                     com.jubitus.travellers.pathing.terrain.TerrainWorldState state,
+                                     com.jubitus.travellers.pathing.terrain.TerrainProfileGrid grid,
                                      String[] args) throws CommandException {
         int cx = sender instanceof Entity ? (int) Math.floor(((Entity) sender).posX) : 0;
         int cz = sender instanceof Entity ? (int) Math.floor(((Entity) sender).posZ) : 0;
@@ -1833,8 +1833,8 @@ public class CommandTravellerDebug extends CommandBase {
         String modeTok = args.length >= 4 ? args[3] : "all";
         boolean fill = args.length >= 5 && args[4].equalsIgnoreCase("fill");
 
-        java.util.List<com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport.Mode> modes =
-                com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport.parseModes(modeTok);
+        java.util.List<com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport.Mode> modes =
+                com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport.parseModes(modeTok);
         if (modes.isEmpty()) {
             throw new CommandException("Unknown mode '" + modeTok + "'. Use: height, water, amp, source, biome, all");
         }
@@ -1843,8 +1843,8 @@ public class CommandTravellerDebug extends CommandBase {
         state.tick(ws, ws.getTotalWorldTime());
 
         try {
-            com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport.Result r =
-                    com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport.export(
+            com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport.Result r =
+                    com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport.export(
                             ws.getMinecraftServer(), ws, grid, cx, cz, radius, modes, fill);
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Terrain export: "
                     + r.cellsWide + "x" + r.cellsHigh + " cells, " + r.cellPx + " px/cell"));

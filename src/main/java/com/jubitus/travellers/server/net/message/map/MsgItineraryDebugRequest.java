@@ -2,8 +2,8 @@ package com.jubitus.travellers.server.net.message.map;
 
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryState;
+import com.jubitus.travellers.pathing.itinerary.Itinerary;
+import com.jubitus.travellers.pathing.itinerary.ItineraryState;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerRecord;
 import io.netty.buffer.ByteBuf;
@@ -157,8 +157,8 @@ public class MsgItineraryDebugRequest implements IMessage {
             if (i < n - 1) m.kinds[i] = it.kind(i);
         }
         // A copy so the diagnostic never moves the unit's own cursor.
-        com.jubitus.travellers.world.pathing.itinerary.ItineraryCursor c =
-                new com.jubitus.travellers.world.pathing.itinerary.ItineraryCursor();
+        com.jubitus.travellers.pathing.itinerary.ItineraryCursor c =
+                new com.jubitus.travellers.pathing.itinerary.ItineraryCursor();
         net.minecraft.nbt.NBTTagCompound tmp = new net.minecraft.nbt.NBTTagCompound();
         st.cursor.writeNbt(tmp);
         c.readNbt(tmp, it);

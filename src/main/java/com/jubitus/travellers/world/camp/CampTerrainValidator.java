@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.camp;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;

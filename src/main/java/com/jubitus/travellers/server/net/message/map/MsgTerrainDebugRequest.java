@@ -1,8 +1,8 @@
 package com.jubitus.travellers.server.net.message.map;
 
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
-import com.jubitus.travellers.world.pathing.terrain.TerrainProfileImageExport;
-import com.jubitus.travellers.world.pathing.terrain.TerrainWorldState;
+import com.jubitus.travellers.pathing.terrain.TerrainProfileImageExport;
+import com.jubitus.travellers.pathing.terrain.TerrainWorldState;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.WorldServer;

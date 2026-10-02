@@ -1,7 +1,7 @@
 package com.jubitus.travellers.server.dialogue;
 
-import com.jubitus.travellers.world.pathing.terrain.BiomeTerrainEstimator;
-import com.jubitus.travellers.world.pathing.terrain.BiomeWaterClass;
+import com.jubitus.travellers.pathing.terrain.BiomeTerrainEstimator;
+import com.jubitus.travellers.pathing.terrain.BiomeWaterClass;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;

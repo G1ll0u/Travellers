@@ -44,7 +44,7 @@ import java.util.UUID;
  * <p>What that leaves is one real problem, and it is not a steering problem: vanilla sizes every part
  * of <em>navigation</em> from whichever entity asked for the path, which here is the 0.6-wide rider
  * rather than the 1.4-wide horse that actually collides. That is fixed once, in
- * {@code com.jubitus.travellers.world.pathing.PathBody}, and nothing in this class needs to know
+ * {@code com.jubitus.travellers.pathing.PathBody}, and nothing in this class needs to know
  * about it. Handing the horse its own navigator instead was tried and is worse: it needs a mixin to
  * refuse {@code canBeSteered()}, it costs the yaw control that makes a horse face where it is going,
  * and the horse's fields cannot be replaced without reflection anyway.
@@ -585,7 +585,7 @@ public final class TravellerMountSupport {
         if (!horse.collidedHorizontally || rider.moveForward <= 0.02F) return;
 
         double feet = horse.getEntityBoundingBox().minY;
-        com.jubitus.travellers.world.pathing.MountTerrainProfile.ClimbTarget target = obstacleTopAhead(rider, horse, feet);
+        com.jubitus.travellers.pathing.MountTerrainProfile.ClimbTarget target = obstacleTopAhead(rider, horse, feet);
         if (target == null) {
             traceJumpRejection(rider, "no climbable column within lookahead (open ground ahead, or the "
                     + "nearest solid thing is out of reach)");
@@ -655,7 +655,7 @@ public final class TravellerMountSupport {
      * blocks up, one twentieth of a block over its capability. What decides whether a jump helps is
      * the thing in the way, and nothing else.
      *
-     * <p>Delegates to {@link com.jubitus.travellers.world.pathing.MountTerrainProfile}, walking up to
+     * <p>Delegates to {@link com.jubitus.travellers.pathing.MountTerrainProfile}, walking up to
      * {@code MOUNTS.mountedJumpLookaheadColumns} steps ahead rather than only the one column directly
      * in front - a single column reads an overhang or a multi-cell-deep stepped face as "nothing
      * here", even while the horse is visibly jammed against it. Sampled across the horse's width at
@@ -670,7 +670,7 @@ public final class TravellerMountSupport {
      * direction that changes tick to tick can miss the same obstacle it just found. Falls back to the
      * live yaw when there is no active episode (the ordinary case: a first-contact jump attempt).
      */
-    private static com.jubitus.travellers.world.pathing.MountTerrainProfile.ClimbTarget obstacleTopAhead(
+    private static com.jubitus.travellers.pathing.MountTerrainProfile.ClimbTarget obstacleTopAhead(
             EntityTraveller rider, EntityHorse horse, double feet) {
         float yawDeg = Float.isNaN(rider.getMountWedgeAnchorYaw()) ? horse.rotationYaw : rider.getMountWedgeAnchorYaw();
         double yaw = yawDeg * 0.017453292F;
@@ -679,7 +679,7 @@ public final class TravellerMountSupport {
         double half = horse.width / 2.0D;
         double reach = half + 0.35D;
 
-        return com.jubitus.travellers.world.pathing.MountTerrainProfile.scanClimbColumns(
+        return com.jubitus.travellers.pathing.MountTerrainProfile.scanClimbColumns(
                 horse.world, horse.posX, horse.posZ, dirX, dirZ, half, reach, feet, jumpHeightOf(horse),
                 JUMP_CLEARANCE_MARGIN, TravellersConfig.MOUNTS.mountedJumpLookaheadColumns, 2);
     }

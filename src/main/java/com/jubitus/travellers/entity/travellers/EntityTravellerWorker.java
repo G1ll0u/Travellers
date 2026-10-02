@@ -19,7 +19,11 @@ import com.jubitus.travellers.entity.entityai.combat.EntityAIWorkerHurtByTargetT
 import com.jubitus.travellers.entity.entityai.combat.ThrottledAttackTargetAI;
 import com.jubitus.travellers.combat.TravellerHurtByTarget;
 import net.minecraft.entity.ai.EntityAITasks;
-import com.jubitus.travellers.entity.entityai.follow.*;
+import com.jubitus.travellers.entity.entityai.follow.EntityAIFollowLeader;
+import com.jubitus.travellers.entity.entityai.follow.FollowFormationCoordinator;
+import com.jubitus.travellers.entity.entityai.follow.FollowMode;
+import com.jubitus.travellers.entity.entityai.follow.FollowRecoveryHelper;
+import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.world.zone.PlayerZoneRecord;
@@ -34,7 +38,7 @@ import com.jubitus.travellers.combat.lists.TravellerBlacklist;
 import com.jubitus.travellers.world.data.TravellerVillageRelations;
 import com.jubitus.travellers.world.mill.MillSettlements;
 import com.jubitus.travellers.world.mill.MillGoods;
-import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
 import com.jubitus.travellers.world.spawn.TravellerVillageRegistry;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.*;
@@ -3404,7 +3408,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (leaderPos == null) return;
         com.jubitus.travellers.world.virtualization.VirtualTravellerRecord leaderRecord = vwm.getRecord(leaderId);
 
-        boolean mounted = com.jubitus.travellers.world.pathing.PathBody.isMounted(this)
+        boolean mounted = com.jubitus.travellers.pathing.PathBody.isMounted(this)
                 || (leaderRecord != null && leaderRecord.mountNbt != null);
         net.minecraft.util.math.BlockPos slotPos =
                 com.jubitus.travellers.world.virtualization.VirtualFormationSimulator.resolvePhysicalFollowerGoal(

@@ -267,7 +267,7 @@ public final class TravellerTracer {
      * irrelevant. Shared with {@code /travellersdebug path export} via {@link TerrainSnapshot}.
      */
     private static void writeTerrainSnapshot(TraceSession session, EntityTraveller entity) {
-        net.minecraft.entity.Entity body = com.jubitus.travellers.world.pathing.PathBody.of(entity);
+        net.minecraft.entity.Entity body = com.jubitus.travellers.pathing.PathBody.of(entity);
         for (String line : TerrainSnapshot.lines(entity.world, body, entity.rotationYaw)) {
             session.raw("~" + line);
         }

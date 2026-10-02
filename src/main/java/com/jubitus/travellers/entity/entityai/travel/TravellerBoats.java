@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityai.travel;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;

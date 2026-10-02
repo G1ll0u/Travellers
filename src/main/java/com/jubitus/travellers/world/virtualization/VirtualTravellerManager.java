@@ -8,23 +8,23 @@ import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerRaider;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
-import com.jubitus.travellers.world.pathing.MPBIntegration;
-import com.jubitus.travellers.world.pathing.PathBody;
-import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryCursor;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryPlanner;
-import com.jubitus.travellers.world.pathing.route.RouteCostParams;
-import com.jubitus.travellers.world.pathing.route.TravelPlan;
-import com.jubitus.travellers.world.pathing.route.TravelRouteJob;
-import com.jubitus.travellers.world.pathing.route.TravelRoutePlanner;
-import com.jubitus.travellers.world.pathing.terrain.TerrainGridView;
-import com.jubitus.travellers.world.pathing.terrain.TerrainProfileGrid;
-import com.jubitus.travellers.world.pathing.terrain.TerrainWorldState;
+import com.jubitus.travellers.pathing.MPBIntegration;
+import com.jubitus.travellers.pathing.PathBody;
+import com.jubitus.travellers.pathing.itinerary.Itinerary;
+import com.jubitus.travellers.pathing.itinerary.ItineraryCursor;
+import com.jubitus.travellers.pathing.itinerary.ItineraryPlanner;
+import com.jubitus.travellers.pathing.route.RouteCostParams;
+import com.jubitus.travellers.pathing.route.TravelPlan;
+import com.jubitus.travellers.pathing.route.TravelRouteJob;
+import com.jubitus.travellers.pathing.route.TravelRoutePlanner;
+import com.jubitus.travellers.pathing.terrain.TerrainGridView;
+import com.jubitus.travellers.pathing.terrain.TerrainProfileGrid;
+import com.jubitus.travellers.pathing.terrain.TerrainWorldState;
 import com.jubitus.travellers.world.camp.CampOccupant;
 import com.jubitus.travellers.world.camp.CampsiteManager;
 import com.jubitus.travellers.world.camp.CampsiteRecord;
 import com.jubitus.travellers.world.mill.MillSettlements;
-import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -961,7 +961,7 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private void tryHiredVirtualDelivery(WorldServer world, VirtualTravellerRecord r) {
         if (r.jobGoal == null) return;
-        if (!com.jubitus.travellers.world.chunkmanager.LoadedChunks.tryAcquireJob(world)) return;
+        if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
 
         // Build a temporary entity (not spawned) to run the delivery logic
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
@@ -1070,7 +1070,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
 
         boolean useWholeVillage = kind == com.jubitus.travellers.world.equip.EquipTargetKind.CONTROLLED_VILLAGE;
-        if (!com.jubitus.travellers.world.chunkmanager.LoadedChunks.tryAcquireJob(world)) return;
+        if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
 
         // Load only the chest chunks, just for the swap, and release them right after.
         java.util.List<net.minecraft.world.chunk.Chunk> loadedChunks =
@@ -1087,7 +1087,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             equip = com.jubitus.travellers.world.equip.WorkerEquipExchanger
                     .exchangeWithFollowers(worker, world, target, useWholeVillage);
         } finally {
-            com.jubitus.travellers.world.chunkmanager.LoadedChunks.release(world, loadedChunks);
+            com.jubitus.travellers.ground.chunk.LoadedChunks.release(world, loadedChunks);
         }
         com.jubitus.travellers.notify.MissionNotifications.equipped(
                 world.getMinecraftServer(), r.followOwnerUUID, equip[0], equip[1]);
@@ -1174,7 +1174,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         BlockPos center = r.currentTripStop() != null ? r.currentTripStop() : r.goal;
         if (center == null) return;
         // A gift is skipped rather than delayed when the chest budget is spent this tick.
-        if (!com.jubitus.travellers.world.chunkmanager.LoadedChunks.tryAcquireJob(world)) return;
+        if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
         com.jubitus.travellers.world.mill.MillGoods.donateToConstruction(world, center);
     }
 

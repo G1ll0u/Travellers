@@ -1,6 +1,6 @@
 package com.jubitus.travellers.world.camp.shelter;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -167,7 +167,7 @@ public class TerrainSnapshot {
         if (com.jubitus.travellers.world.mill.MillFootprints.anyReservedContains(zones, p.getX(), p.getZ())) {
             return true;
         }
-        return com.jubitus.travellers.world.ground.BlockRules.isMillenaireBlock(world.getBlockState(p));
+        return com.jubitus.travellers.ground.BlockRules.isMillenaireBlock(world.getBlockState(p));
     }
 
     /**

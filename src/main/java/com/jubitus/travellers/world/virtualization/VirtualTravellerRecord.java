@@ -121,8 +121,8 @@ public class VirtualTravellerRecord {
     public int tripIndex = -1;
 
     // Current leg's itinerary + cursor, handed over as-is to/from the loaded entity.
-    public com.jubitus.travellers.world.pathing.itinerary.ItineraryState itinerary =
-            new com.jubitus.travellers.world.pathing.itinerary.ItineraryState();
+    public com.jubitus.travellers.pathing.itinerary.ItineraryState itinerary =
+            new com.jubitus.travellers.pathing.itinerary.ItineraryState();
 
     @Nullable
     public BlockPos currentTripStop() {

@@ -17,7 +17,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
-import com.jubitus.travellers.world.chunkmanager.LoadedChunks;
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import org.millenaire.common.entity.TileEntityLockedChest;
 import org.millenaire.common.utilities.Point;
 import org.millenaire.common.village.Building;

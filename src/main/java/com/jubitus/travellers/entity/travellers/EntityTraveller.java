@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.travellers;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.world.visit.VillageVisitState;
 
 import com.jubitus.travellers.config.TravellersConfig;
@@ -37,7 +37,6 @@ import com.jubitus.travellers.entity.entityai.travel.EntityAITravel;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelCommon;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import net.minecraft.entity.passive.EntityHorse;
 import com.jubitus.travellers.combat.TravellerHurtByTarget;
 import com.jubitus.travellers.combat.compat.AncientWarfare2Compat;
@@ -47,10 +46,10 @@ import com.jubitus.travellers.server.net.message.sounds.MsgChoirSingerMute;
 import com.jubitus.travellers.server.net.message.sounds.MsgPlayTravellerVoice;
 import com.jubitus.travellers.server.net.message.sounds.MsgStopTravellerVoice;
 import com.jubitus.travellers.world.mill.MillSettlements;
-import com.jubitus.travellers.world.pathing.GapJumpEvaluator;
-import com.jubitus.travellers.world.pathing.GapJumpResult;
-import com.jubitus.travellers.world.pathing.PathBody;
-import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
+import com.jubitus.travellers.pathing.GapJumpEvaluator;
+import com.jubitus.travellers.pathing.GapJumpResult;
+import com.jubitus.travellers.pathing.PathBody;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockHorizontal;
@@ -179,8 +178,8 @@ public class EntityTraveller extends EntityCreature {
     final TravelCommon travelCommon = new TravelCommon(this);
     public static final String ITINERARY_NBT_KEY = "Itin";
     // Current leg's itinerary + cursor, shared with the virtual record at virtualize/materialize.
-    private com.jubitus.travellers.world.pathing.itinerary.ItineraryState itineraryState =
-            new com.jubitus.travellers.world.pathing.itinerary.ItineraryState();
+    private com.jubitus.travellers.pathing.itinerary.ItineraryState itineraryState =
+            new com.jubitus.travellers.pathing.itinerary.ItineraryState();
     public final com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore dialogueMemory =
             new com.jubitus.travellers.server.dialogue.memory.TravellerMemoryStore();
     private final int retargetPhase = this.rand.nextInt(10); // 0..9
@@ -821,7 +820,7 @@ public class EntityTraveller extends EntityCreature {
         this.stepHeight = 1.0F;
         // Vanilla's move helper turns up to 90 degrees per tick, which AbstractHorse.travel() copies
         // straight onto a horse's body. See TravellerMoveHelper - identical to vanilla on foot.
-        this.moveHelper = new com.jubitus.travellers.world.pathing.TravellerMoveHelper(this);
+        this.moveHelper = new com.jubitus.travellers.pathing.TravellerMoveHelper(this);
         this.gaze = new TravellerGaze(this);
         this.greeter = new TravellerGreeter(this);
         ObfuscationReflectionHelper.setPrivateValue(EntityLiving.class, this, new TravellerLookHelper(this, gaze), "field_70749_g");
@@ -4108,11 +4107,11 @@ public void fall(float distance, float damageMultiplier) {
     /** A slot next to an offscreen leader: its ground where loaded (the virtual Y is not tracked), else our own height. */
     protected BlockPos resolveVirtualSlot(double x, double z) {
         BlockPos column = new BlockPos(x, posY, z);
-        if (!(world instanceof WorldServer) || com.jubitus.travellers.world.chunkmanager.LoadedChunks.peek(
+        if (!(world instanceof WorldServer) || com.jubitus.travellers.ground.chunk.LoadedChunks.peek(
                 (WorldServer) world, column.getX() >> 4, column.getZ() >> 4) == null) return column;
-        int y = com.jubitus.travellers.world.ground.ColumnGround.nearestLayer(world, column.getX(), column.getZ(),
+        int y = com.jubitus.travellers.ground.ColumnGround.nearestLayer(world, column.getX(), column.getZ(),
                 column.getY(), true);
-        return y == com.jubitus.travellers.world.ground.ColumnGround.NONE ? column : new BlockPos(column.getX(), y, column.getZ());
+        return y == com.jubitus.travellers.ground.ColumnGround.NONE ? column : new BlockPos(column.getX(), y, column.getZ());
     }
 
     private static double sq(double v) {
@@ -4826,13 +4825,13 @@ public void fall(float distance, float damageMultiplier) {
         return stuckRecord;
     }
 
-    public com.jubitus.travellers.world.pathing.itinerary.ItineraryState getItineraryState() {
+    public com.jubitus.travellers.pathing.itinerary.ItineraryState getItineraryState() {
         return itineraryState;
     }
 
     /** Handed over from/to the virtual record; never null. */
-    public void setItineraryState(@Nullable com.jubitus.travellers.world.pathing.itinerary.ItineraryState state) {
-        this.itineraryState = state != null ? state : new com.jubitus.travellers.world.pathing.itinerary.ItineraryState();
+    public void setItineraryState(@Nullable com.jubitus.travellers.pathing.itinerary.ItineraryState state) {
+        this.itineraryState = state != null ? state : new com.jubitus.travellers.pathing.itinerary.ItineraryState();
     }
 
     /** True when this unit's travel follows an itinerary (mirrors VirtualTravellerManager.routeDrivenMovement). */

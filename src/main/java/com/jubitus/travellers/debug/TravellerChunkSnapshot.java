@@ -1,7 +1,7 @@
 package com.jubitus.travellers.debug;
 
 import com.jubitus.travellers.world.mill.MillSettlements;
-import com.jubitus.travellers.world.chunkmanager.TravellerChunkManager;
+import com.jubitus.travellers.ground.chunk.TravellerChunkManager;
 import com.jubitus.travellers.world.virtualization.VirtualTravellerManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;

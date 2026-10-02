@@ -10,7 +10,6 @@ import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.server.group.WorkerGroupService;
-import com.jubitus.travellers.server.net.message.MsgOpenClientWorkerGui;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.message.formations.FormationLeaderInfo;
 import com.jubitus.travellers.server.net.message.formations.MsgOpenFormationHubGui;

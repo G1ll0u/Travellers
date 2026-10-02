@@ -1,9 +1,9 @@
 package com.jubitus.travellers.world.virtualization;
 
 import net.minecraft.block.Block;
-import com.jubitus.travellers.world.ground.BlockRules;
-import com.jubitus.travellers.world.ground.ColumnGround;
-import com.jubitus.travellers.world.ground.Footing;
+import com.jubitus.travellers.ground.BlockRules;
+import com.jubitus.travellers.ground.ColumnGround;
+import com.jubitus.travellers.ground.Footing;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;

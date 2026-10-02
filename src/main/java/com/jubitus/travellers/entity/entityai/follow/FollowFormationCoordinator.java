@@ -1,6 +1,11 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
-import com.jubitus.travellers.entity.entityai.follow.formations.*;
+import com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSavedData;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeKey;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationScopeResolver;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationSettings;
+import com.jubitus.travellers.entity.entityai.follow.formations.WorkerFormationStyle;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityBoat;
@@ -1141,7 +1146,7 @@ public final class FollowFormationCoordinator {
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
                     BlockPos p = new BlockPos(top.getX() + dx, top.getY(), top.getZ() + dz);
-                    if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p)) {
+                    if (com.jubitus.travellers.ground.Footing.canStandAt(world, p)) {
                         return new GroundAnchor(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D, true);
                     }
                 }
@@ -1246,12 +1251,12 @@ public final class FollowFormationCoordinator {
      *  or any listed member is riding a bonded horse. */
     private static double formationBodyScale(EntityLivingBase leader,
                                              java.util.List<EntityTravellerWorker> members) {
-        if (leader != null && com.jubitus.travellers.world.pathing.PathBody.isMounted(leader)) {
+        if (leader != null && com.jubitus.travellers.pathing.PathBody.isMounted(leader)) {
             return FormationGeometry.MOUNTED_SPACING_SCALE;
         }
         if (members != null) {
             for (EntityTravellerWorker m : members) {
-                if (m != null && com.jubitus.travellers.world.pathing.PathBody.isMounted(m)) {
+                if (m != null && com.jubitus.travellers.pathing.PathBody.isMounted(m)) {
                     return FormationGeometry.MOUNTED_SPACING_SCALE;
                 }
             }

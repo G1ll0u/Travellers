@@ -1,6 +1,6 @@
 package com.jubitus.travellers.entity.entityai.travel;
 
-import com.jubitus.travellers.world.ground.BlockRules;
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.flight.ElytraCapability;
 import com.jubitus.travellers.entity.entityai.flight.ElytraOpportunityScanner;
@@ -8,15 +8,15 @@ import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.MountedLeadController;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.pathing.route.TravelPlan;
-import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryPlanner;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryState;
+import com.jubitus.travellers.pathing.route.TravelPlan;
+import com.jubitus.travellers.pathing.itinerary.Itinerary;
+import com.jubitus.travellers.pathing.itinerary.ItineraryPlanner;
+import com.jubitus.travellers.pathing.itinerary.ItineraryState;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;

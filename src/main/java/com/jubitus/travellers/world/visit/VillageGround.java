@@ -18,9 +18,9 @@ public final class VillageGround {
      * itself or one above it. Null when nothing around it is standable (or not loaded). */
     @Nullable
     public static BlockPos standAt(World world, BlockPos p) {
-        if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p)) return p;
-        if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p.up())) return p.up();
-        if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p.down())) return p.down();
+        if (com.jubitus.travellers.ground.Footing.canStandAt(world, p)) return p;
+        if (com.jubitus.travellers.ground.Footing.canStandAt(world, p.up())) return p.up();
+        if (com.jubitus.travellers.ground.Footing.canStandAt(world, p.down())) return p.down();
         return null;
     }
 
@@ -57,7 +57,7 @@ public final class VillageGround {
     }
 
     private static boolean isOutdoorStand(World world, BlockPos feet) {
-        return com.jubitus.travellers.world.ground.Footing.canStandAt(world, feet)
+        return com.jubitus.travellers.ground.Footing.canStandAt(world, feet)
                 && MillFootprints.at(world, feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0) == null;
     }
 }

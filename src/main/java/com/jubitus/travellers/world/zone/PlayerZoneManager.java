@@ -276,11 +276,11 @@ public class PlayerZoneManager extends WorldSavedData {
         // Try horizontal neighbors at bed level and one below — never above to avoid rooftop
         for (EnumFacing d : EnumFacing.HORIZONTALS) {
             BlockPos p = bed.offset(d);
-            if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p)) return p;
-            if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, p.down())) return p.down();
+            if (com.jubitus.travellers.ground.Footing.canStandAt(world, p)) return p;
+            if (com.jubitus.travellers.ground.Footing.canStandAt(world, p.down())) return p.down();
         }
         // Neighbors are walls: stand on top of the bed itself (stays indoors)
-        if (com.jubitus.travellers.world.ground.Footing.canStandAt(world, bed.up())) return bed.up();
+        if (com.jubitus.travellers.ground.Footing.canStandAt(world, bed.up())) return bed.up();
         // Last resort: the bed block (server physics will push entity to nearest air)
         return bed;
     }

@@ -95,7 +95,7 @@ public class MapLoadedChunkResampler {
 
     // True if the chunk is still loaded and its pixels changed.
     private boolean processChunk(WorldServer world, int chunkX, int chunkZ) {
-        Chunk chunk = com.jubitus.travellers.world.chunkmanager.LoadedChunks.peek(world, chunkX, chunkZ);
+        Chunk chunk = com.jubitus.travellers.ground.chunk.LoadedChunks.peek(world, chunkX, chunkZ);
         return chunk != null && MapChunkPainter.paint(world, chunk);
     }
 

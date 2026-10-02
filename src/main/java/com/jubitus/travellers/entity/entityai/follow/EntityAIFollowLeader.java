@@ -1,7 +1,7 @@
 package com.jubitus.travellers.entity.entityai.follow;
 
-import com.jubitus.travellers.world.ground.BlockRules;
-import com.jubitus.travellers.world.ground.Footing;
+import com.jubitus.travellers.ground.BlockRules;
+import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.entity.entityai.follow.formations.FormationGeometry;
 import com.jubitus.travellers.mount.MountedLeadController;
@@ -9,10 +9,10 @@ import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.pathing.GapJumpEvaluator;
-import com.jubitus.travellers.world.pathing.GapJumpResult;
-import com.jubitus.travellers.world.pathing.PathBody;
-import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
+import com.jubitus.travellers.pathing.GapJumpEvaluator;
+import com.jubitus.travellers.pathing.GapJumpResult;
+import com.jubitus.travellers.pathing.PathBody;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
@@ -1612,7 +1612,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
     /** Single mount-awareness gate for this task - see {@code PathBody}. */
     private boolean isMounted() {
-        return com.jubitus.travellers.world.pathing.PathBody.isMounted(follower);
+        return com.jubitus.travellers.pathing.PathBody.isMounted(follower);
     }
 
     /** Normalised XZ bearing from the follower toward (x, z), or {@code null} if it is underfoot. */

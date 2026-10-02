@@ -7,16 +7,16 @@ import com.jubitus.travellers.entity.entityai.follow.FollowRuntimeConfig;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.MountedLeadController;
 import com.jubitus.travellers.mount.TravellerMountSupport;
-import com.jubitus.travellers.world.pathing.TravellerNavigateGround;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.world.mill.MillFootprints;
 import com.jubitus.travellers.entity.entityai.travel.travelcommon.TravelPathScheduler;
 import com.jubitus.travellers.entity.travellers.EntityTraveller;
 import com.jubitus.travellers.entity.travellers.EntityTravellerBoat;
 import com.jubitus.travellers.entity.travellers.EntityTravellerWorker;
-import com.jubitus.travellers.world.pathing.route.TravelPlan;
-import com.jubitus.travellers.world.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryPlanner;
-import com.jubitus.travellers.world.pathing.itinerary.ItineraryState;
+import com.jubitus.travellers.pathing.route.TravelPlan;
+import com.jubitus.travellers.pathing.itinerary.Itinerary;
+import com.jubitus.travellers.pathing.itinerary.ItineraryPlanner;
+import com.jubitus.travellers.pathing.itinerary.ItineraryState;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.BlockFaceShape;
@@ -237,7 +237,7 @@ final class TravelRescue {
             boolean okSupport = terrain.isNaturalGroundSupport(surf.down());
             if (!okSupport) {
                 IBlockState sup = mob.world.getBlockState(surf.down());
-                okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, surf.down(), sup);
+                okSupport = com.jubitus.travellers.ground.Footing.isFloor(mob.world, surf.down(), sup);
             }
             if (!okSupport) { reject(why, tag, "noSupport"); return null; }
             surf = terrain.adjustTreeTopToGround(surf);
@@ -309,7 +309,7 @@ final class TravelRescue {
                 if (!okSupport) {
                     // stage 3: allow man-made solids too (still reject leaves/liquids via terrain.isStandable())
                     IBlockState sup = mob.world.getBlockState(feet.down());
-                    okSupport = com.jubitus.travellers.world.ground.Footing.isFloor(mob.world, feet.down(), sup);
+                    okSupport = com.jubitus.travellers.ground.Footing.isFloor(mob.world, feet.down(), sup);
                 }
                 if (!okSupport) { noSupport++; continue; }
 
