@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.flight.ElytraCapability;
@@ -459,7 +460,7 @@ public class EntityAITravel extends EntityAIBase {
         // recovering several seconds later via the slow stall-based escalation. Drop it immediately so
         // the block below recomputes through the fast computeNextWaypointOrHandleBlocked() path instead
         // of waiting for that.
-        if (currentWaypoint != null && !terrain.isAreaLoaded(currentWaypoint, 1)) {
+        if (currentWaypoint != null && !LoadedChunks.isAreaLoaded(mob.world, currentWaypoint, 1)) {
             currentWaypoint = null;
             mob.setCurrentWaypoint(null);
             clearNav();
@@ -1624,7 +1625,7 @@ public class EntityAITravel extends EntityAIBase {
             int nz = from.getZ() + rand.nextInt(9) - 4;
             BlockPos guess = new BlockPos(nx, from.getY(), nz);
             BlockPos surface = terrain.findSurfaceOrWaterY(guess);
-            if (surface != null && terrain.isAreaLoaded(surface, 1) && terrain.isNavigable(surface)) {
+            if (surface != null && LoadedChunks.isAreaLoaded(mob.world, surface, 1) && terrain.isNavigable(surface)) {
                 return picked("randomReseed", surface, dest);
             }
         }
@@ -1667,7 +1668,7 @@ public class EntityAITravel extends EntityAIBase {
             int nx = from.getX() + (int) Math.round(Math.sin(rad) * 6);
             int nz = from.getZ() + (int) Math.round(Math.cos(rad) * 6);
             BlockPos candidate = terrain.findSurfaceOrWaterY(new BlockPos(nx, from.getY(), nz));
-            if (candidate != null && terrain.isAreaLoaded(candidate, 1) && terrain.isNavigable(candidate)
+            if (candidate != null && LoadedChunks.isAreaLoaded(mob.world, candidate, 1) && terrain.isNavigable(candidate)
                     && navGround.isReachable(candidate)) {
                 return candidate;
             }
@@ -1997,7 +1998,7 @@ public class EntityAITravel extends EntityAIBase {
             for (int oz = -1; oz <= 1; oz++) {
                 for (int dy = -6; dy <= 6; dy++) {
                     BlockPos feet = new BlockPos(xBase + ox, yCenter + dy, zBase + oz);
-                    if (!terrain.isAreaLoaded(feet, 1)) continue;
+                    if (!LoadedChunks.isAreaLoaded(mob.world, feet, 1)) continue;
 
                     if (terrain.isSwimmable(feet)) {
                         BlockPos snapped = terrain.snapToWaterSurface(feet);

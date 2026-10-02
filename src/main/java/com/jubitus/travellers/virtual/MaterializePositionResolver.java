@@ -1,5 +1,6 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import net.minecraft.block.Block;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.ColumnGround;
@@ -143,7 +144,7 @@ public final class MaterializePositionResolver {
                 int[] off = followerSpreadOffset(r.uuid);
                 double cx = Math.floor(leaderPos[0] + off[0]) + 0.5;
                 double cz = Math.floor(leaderPos[2] + off[1]) + 0.5;
-                if (chunkLoaded(world, cx, cz)) {
+                if (LoadedChunks.isLoaded(world, cx, cz)) {
                     // If the ring column is still close to where the follower itself was last standing
                     // (stationary leader: the ring hasn't moved since virtualize), that raw frozen Y is an
                     // accurate reference for that exact spot - including inside a building - so keep it
@@ -177,7 +178,7 @@ public final class MaterializePositionResolver {
                     double gz = r.goal.getZ() + 0.5;
                     double ddx = gx - baseX;
                     double ddz = gz - baseZ;
-                    if (ddx * ddx + ddz * ddz > 4.0 * 4.0 && chunkLoaded(world, gx, gz)) {
+                    if (ddx * ddx + ddz * ddz > 4.0 * 4.0 && LoadedChunks.isLoaded(world, gx, gz)) {
                         baseX = gx;
                         baseZ = gz;
                         // The follower's own frozen Y was recorded at its OLD (raw) column, which we
@@ -201,7 +202,7 @@ public final class MaterializePositionResolver {
                 int[] off = followerSpreadOffset(r.uuid);
                 double cx = baseX + off[0];
                 double cz = baseZ + off[1];
-                if (chunkLoaded(world, cx, cz)) {
+                if (LoadedChunks.isLoaded(world, cx, cz)) {
                     baseX = cx;
                     baseZ = cz;
                 }
@@ -213,7 +214,7 @@ public final class MaterializePositionResolver {
             int oz = (int) Math.round((world.rand.nextDouble() - 0.5) * SOLO_SPREAD * 2);
             double cx = Math.floor(r.posX) + ox + 0.5;
             double cz = Math.floor(r.posZ) + oz + 0.5;
-            if (chunkLoaded(world, cx, cz)) {
+            if (LoadedChunks.isLoaded(world, cx, cz)) {
                 baseX = cx;
                 baseZ = cz;
             }
@@ -286,7 +287,7 @@ public final class MaterializePositionResolver {
             if (MillFootprints.isForbiddenLanding(world, baseX, spawnY, baseZ)) {
                 BlockPos out = MillFootprints.pushOutside(world,
                         new BlockPos(MathHelper.floor(baseX), MathHelper.floor(spawnY), MathHelper.floor(baseZ)));
-                if (chunkLoaded(world, out.getX(), out.getZ())) {
+                if (LoadedChunks.isLoaded(world, out.getX(), out.getZ())) {
                     baseX = out.getX() + 0.5;
                     baseZ = out.getZ() + 0.5;
                     spawnY = surfaceY(world, out.getX(), out.getZ(), spawnY);
@@ -337,7 +338,7 @@ public final class MaterializePositionResolver {
                 && hasDrifted(r);
         double y = r.posY;
         double px = bx + 0.5, pz = bz + 0.5;
-        if (chunkLoaded(world, bx, bz)) {
+        if (LoadedChunks.isLoaded(world, bx, bz)) {
             y = findSafeFloorY(world, bx, bz, r.posY, preferSurface);
             y = ensureNotInSolid(world, bx, y, bz);
             y = sinkToRealGround(world, bx, y, bz, TravellersConfig.MATERIALIZATION.canopySinkMaxDrop);
@@ -382,11 +383,6 @@ public final class MaterializePositionResolver {
         Entity e = world.getEntityFromUuid(leaderUUID);
         if (e != null && !e.isDead) return new double[]{ e.posX, e.posY, e.posZ };
         return null;
-    }
-
-    private static boolean chunkLoaded(WorldServer world, double x, double z) {
-        return world.getChunkProvider().chunkExists(
-                (int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4);
     }
 
     // -------------------------------------------------------------------------
@@ -437,7 +433,7 @@ public final class MaterializePositionResolver {
                     if (r > 0 && Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
                     int x = bx + dx;
                     int z = bz + dz;
-                    if (!chunkLoaded(world, x, z)) continue;
+                    if (!LoadedChunks.isLoaded(world, x, z)) continue;
                     for (int dy = 0; dy <= SAME_LEVEL_Y_SLACK; dy++) {
                         int down = refBlockY - 1 - dy;
                         if (down >= 1 && isSafeFloor(world, x, down, z)) return new BlockPos(x, down + 1, z);
@@ -506,7 +502,7 @@ public final class MaterializePositionResolver {
     /** Resolves one column into a {@link Ground}, or null when it has no usable standing surface. */
     @Nullable
     private static Ground resolveColumn(WorldServer world, int x, int z) {
-        if (!chunkLoaded(world, x, z)) return null;
+        if (!LoadedChunks.isLoaded(world, x, z)) return null;
         double y = columnGroundY(world, x, z);
         if (Double.isNaN(y)) return null;
         boolean natural = BlockRules.isNaturalGround(world.getBlockState(new BlockPos(x, (int) y - 1, z)));
@@ -654,7 +650,7 @@ public final class MaterializePositionResolver {
                             && z + 1 > forbidden.minZ && z < forbidden.maxZ) {
                         continue;
                     }
-                    if (!chunkLoaded(world, x, z)) continue;
+                    if (!LoadedChunks.isLoaded(world, x, z)) continue;
                     for (int dy = 0; dy <= SAME_LEVEL_Y_SLACK; dy++) {
                         int down = refY - 1 - dy;
                         if (down >= 1 && isSafeFloor(world, x, down, z)) return new BlockPos(x, down + 1, z);
@@ -742,7 +738,7 @@ public final class MaterializePositionResolver {
                             && z + 1 > forbidden.minZ && z < forbidden.maxZ) {
                         continue;
                     }
-                    if (!chunkLoaded(world, x, z)) continue;
+                    if (!LoadedChunks.isLoaded(world, x, z)) continue;
 
                     // Mounts are outdoors: resolve against the real surface (skips foliage) rather
                     // than a possibly-canopy-level frozen seed, then drop through any foliage left.

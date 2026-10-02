@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.ground.Footing;
 import net.minecraft.util.math.BlockPos;
@@ -49,7 +50,7 @@ public final class ZonePlacement {
                 if (horiz >= bestHoriz) continue;
                 for (int dy = 1; dy >= -2; dy--) {
                     BlockPos p = target.add(dx, dy, dz);
-                    if (!Footing.isColumnLoaded(world, p)) break;
+                    if (!LoadedChunks.isLoaded(world, p)) break;
                     if (!Footing.isFloor(world, p.down(), world.getBlockState(p.down()))) continue;
                     if (!ref.fitsStandingAt(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D)) continue;
                     best = p;

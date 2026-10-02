@@ -1,5 +1,6 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.mount.MountMode;
@@ -1786,7 +1787,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // The materialize side derives its chunk the same way, so both agree by construction.
         int cx = net.minecraft.util.math.MathHelper.floor(entity.posX) >> 4;
         int cz = net.minecraft.util.math.MathHelper.floor(entity.posZ) >> 4;
-        if (!frozen && isChunkLoaded(world, cx, cz)) {
+        if (!frozen && LoadedChunks.isLoaded(world, cx, cz)) {
             virtualizeWatch.remove(id);
             return false;
         }
@@ -1798,20 +1799,6 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (now - since < unneededTicks) return false;
         virtualizeWatch.remove(id);
         return true;
-    }
-
-    /**
-     * The single source of truth for whether a unit should exist as a real entity: is this chunk
-     * loaded, for any reason whatsoever. Deliberately NOT "is a player near" and deliberately not a
-     * list of the specific reasons a chunk might be loaded (player view distance, a Millenaire
-     * town-hall ticket, another mod's chunk loader, one of this mod's own transient loads) - asking
-     * the chunk provider directly covers all of them, present and future, and cannot disagree with
-     * itself. Both materialize and virtualize route through here, as does every "is anyone able to
-     * observe me" check in the AI, so a unit's eligibility to act can never contradict its
-     * eligibility to exist.
-     */
-    public static boolean isChunkLoaded(WorldServer world, int chunkX, int chunkZ) {
-        return world.getChunkProvider().chunkExists(chunkX, chunkZ);
     }
 
     /**

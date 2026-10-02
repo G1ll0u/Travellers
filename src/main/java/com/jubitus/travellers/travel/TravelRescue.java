@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.flight.ElytraCapability;
 import com.jubitus.travellers.flight.ElytraOpportunityScanner;
@@ -222,7 +223,7 @@ final class TravelRescue {
     @Nullable
     private BlockPos landingAt(int x, int refY, int z, StringBuilder why, String tag) {
         BlockPos guess = new BlockPos(x, refY, z);
-        if (!terrain.isAreaLoaded(guess, 2)) { reject(why, tag, "unloaded"); return null; }
+        if (!LoadedChunks.isAreaLoaded(mob.world, guess, 2)) { reject(why, tag, "unloaded"); return null; }
 
         BlockPos surf = terrain.findSurfaceOrWaterY(guess);
         if (surf == null) { reject(why, tag, "noSurface"); return null; }
@@ -292,7 +293,7 @@ final class TravelRescue {
                 int z = origin.getZ() + dz;
 
                 BlockPos probe = new BlockPos(x, origin.getY(), z);
-                if (!terrain.isAreaLoaded(probe, 1)) continue;
+                if (!LoadedChunks.isAreaLoaded(mob.world, probe, 1)) continue;
 
                 BlockPos top = w.getTopSolidOrLiquidBlock(probe);
 
@@ -390,7 +391,7 @@ final class TravelRescue {
             for (int dx = -radius; dx <= radius; dx++) {
 
                 BlockPos probe = origin.add(dx, 0, dz);
-                if (!terrain.isAreaLoaded(probe, 1)) continue;
+                if (!LoadedChunks.isAreaLoaded(mob.world, probe, 1)) continue;
 
                 BlockPos top = mob.world.getTopSolidOrLiquidBlock(probe);
                 BlockPos feet = terrain.adjustTreeTopToGround(top);

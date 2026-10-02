@@ -1,5 +1,6 @@
 package com.jubitus.travellers.ground;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import net.minecraft.block.state.BlockFaceShape;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -21,14 +22,14 @@ public final class Footing {
 
     /** Feet, head and floor cells are loaded, the floor holds a unit, and feet and head have room. */
     public static boolean canStandAt(World world, BlockPos feet) {
-        if (!isColumnLoaded(world, feet)) return false;
+        if (!LoadedChunks.isLoaded(world, feet)) return false;
         BlockPos down = feet.down();
         return isFloor(world, down, world.getBlockState(down)) && hasRoom(world, feet) && hasRoom(world, feet.up());
     }
 
     /** Vanilla water at the feet, water or room at the head, no hazard at feet, head or below. */
     public static boolean canSwimAt(World world, BlockPos feet) {
-        if (!isColumnLoaded(world, feet)) return false;
+        if (!LoadedChunks.isLoaded(world, feet)) return false;
         IBlockState atFeet = world.getBlockState(feet);
         if (!BlockRules.isVanillaWater(atFeet)) return false;
         BlockPos up = feet.up();
@@ -57,11 +58,4 @@ public final class Footing {
         return s.getMaterial().isReplaceable() || s.getCollisionBoundingBox(world, pos) == null;
     }
 
-    /** The column's chunk is loaded (feet, head and floor share it). No load, no unload side effect. */
-    public static boolean isColumnLoaded(World world, BlockPos pos) {
-        if (world instanceof WorldServer) {
-            return ((WorldServer) world).getChunkProvider().chunkExists(pos.getX() >> 4, pos.getZ() >> 4);
-        }
-        return world.isBlockLoaded(pos, false);
-    }
 }

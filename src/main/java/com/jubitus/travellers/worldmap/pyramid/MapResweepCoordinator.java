@@ -1,5 +1,8 @@
 package com.jubitus.travellers.worldmap.pyramid;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
+import java.util.ArrayList;
+import java.util.List;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.text.TextComponentString;
@@ -132,23 +135,18 @@ public class MapResweepCoordinator {
         int chunkX = TileKey.unpackX(chunkKey);
         int chunkZ = TileKey.unpackZ(chunkKey);
 
-        ChunkProviderServer cps = world.getChunkProvider();
-        // A resweep can touch orders of magnitude more chunks than CampResetCoordinator ever does
-        // (potentially every captured tile in the whole world) - relying purely on natural unload
-        // let loaded chunks accumulate faster than vanilla's gradual unload could keep up, which is
-        // the likely cause of an OOM previously seen running this command on a large pregenerated
-        // world. Only queue-unload chunks WE loaded here - a chunk already loaded for a real reason
-        // (player standing in it, forced elsewhere) is left alone; queueUnload on it would be a
-        // no-op risk anyway since any real use immediately unqueues it.
-        boolean wasAlreadyLoaded = cps.chunkExists(chunkX, chunkZ);
-        Chunk chunk = cps.provideChunk(chunkX, chunkZ); // temporary load
+        // A resweep can touch every captured chunk of the world: each one we load is released right
+        // after painting, or loaded chunks pile up faster than vanilla unloads them (OOM on big worlds).
+        List<Chunk> loadedByUs = new ArrayList<>(1);
+        Chunk chunk = LoadedChunks.loadTemporarily(world, chunkX, chunkZ, loadedByUs);
+        boolean wasAlreadyLoaded = loadedByUs.isEmpty();
 
         // A chunk loaded here was just queued by ChunkReader (read at the latest on its unload);
         // only one that was already loaded is painted directly, so no chunk is read twice.
         boolean paintHere = wasAlreadyLoaded || !TravellersConfig.WORLDMAP.mapPregenOnChunkLoadEnabled;
         boolean changed = paintHere && chunk != null && MapChunkPainter.paint(world, chunk);
 
-        if (!wasAlreadyLoaded && chunk != null) cps.queueUnload(chunk);
+        LoadedChunks.release(world, loadedByUs);
 
         if (TravellersConfig.WORLDMAP.debugMap && changed) {
             FMLLog.log(Level.INFO, "[Travellers/MapResweep] dim=%d chunk %d,%d changed", dim, chunkX, chunkZ);

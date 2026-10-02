@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -97,16 +98,6 @@ public final class TravelTerrain {
         return false;
     }
 
-    static boolean isChunkSafeLoaded(World world, int cx, int cz) {
-        return world instanceof WorldServer && ((WorldServer) world).getChunkProvider().chunkExists(cx, cz);
-    }
-
-    static boolean isBlockSafeLoaded(World world, BlockPos pos) {
-        int cx = pos.getX() >> 4;
-        int cz = pos.getZ() >> 4;
-        return isChunkSafeLoaded(world, cx, cz);
-    }
-
     static double horizDistSq(BlockPos a, BlockPos b) {
         double dx = (a.getX() + 0.5) - (b.getX() + 0.5);
         double dz = (a.getZ() + 0.5) - (b.getZ() + 0.5);
@@ -117,7 +108,7 @@ public final class TravelTerrain {
         int nx = from.getX() + (int) Math.round(dir.x * s + lateral.x);
         int nz = from.getZ() + (int) Math.round(dir.z * s + lateral.z);
         BlockPos surface = findGroundNear(new BlockPos(nx, from.getY(), nz));
-        return (surface != null && isAreaLoaded(surface, 1) && isNavigable(surface)) ? surface : null;
+        return (surface != null && LoadedChunks.isAreaLoaded(mob.world, surface, 1) && isNavigable(surface)) ? surface : null;
     }
 
     /**
@@ -133,7 +124,7 @@ public final class TravelTerrain {
 
     /** {@link #findGroundNear(BlockPos)} with the layer chosen closest to {@code refY} instead of our own height. */
     BlockPos findGroundNear(BlockPos xz, int refY) {
-        if (!isAreaLoaded(xz, 1)) return null;
+        if (!LoadedChunks.isAreaLoaded(mob.world, xz, 1)) return null;
         int maxRing = TravellersConfig.TRAVEL.waypointGroundSearchRadius;
         BlockPos best = null;
         double bestScore = Double.MAX_VALUE;
@@ -160,7 +151,7 @@ public final class TravelTerrain {
     @Nullable
     BlockPos groundInColumn(int x, int z, int refY) {
         BlockPos col = new BlockPos(x, 0, z);
-        if (!isBlockSafeLoaded(mob.world, col)) return null;
+        if (!LoadedChunks.isLoaded(mob.world, col)) return null;
         int top = Math.min(mob.world.getHeight(col).getY() + 1, mob.world.getActualHeight() - 2);
         int bottom = Math.max(2, Math.max(top - 64, refY - 24));
         BlockPos best = null;
@@ -201,7 +192,7 @@ public final class TravelTerrain {
      */
     BlockPos findSurfaceOrWaterY(BlockPos guess) {
         final World world = mob.world;
-        if (!isAreaLoaded(guess, 1)) return null;
+        if (!LoadedChunks.isAreaLoaded(mob.world, guess, 1)) return null;
 
         // 1. Base sample (1.12: returns the top *solid or liquid* at XZ)
         final BlockPos top = world.getTopSolidOrLiquidBlock(guess);
@@ -230,7 +221,7 @@ public final class TravelTerrain {
                 // If p itself is a snow layer, treat feet as the AIR block above it.
                 if (world.getBlockState(p).getBlock() == Blocks.SNOW_LAYER) {
                     BlockPos airAbove = p.up();
-                    if (isAreaLoaded(airAbove, 1) && isStandable(airAbove)) return airAbove;
+                    if (LoadedChunks.isAreaLoaded(mob.world, airAbove, 1) && isStandable(airAbove)) return airAbove;
                 }
                 if (!mob.isInWater()) return adjustTreeTopToGround(p);
                 return p;
@@ -253,17 +244,6 @@ public final class TravelTerrain {
         }
 
         return null;
-    }
-
-    /**
-     * Chunk-safe "isAreaLoaded" that never loads chunks.
-     */
-    boolean isAreaLoaded(BlockPos pos, int radius) {
-        BlockPos from = pos.add(-radius, -radius, -radius);
-        BlockPos to = pos.add(radius, radius, radius);
-
-        // allowLoading = true → will load missing chunks
-        return mob.world.isAreaLoaded(from, to, false);
     }
 
     boolean isNavigable(BlockPos feet) {
@@ -298,7 +278,7 @@ public final class TravelTerrain {
             int nx = wx + (int) Math.round(dir.x * s);
             int nz = wz + (int) Math.round(dir.z * s);
             BlockPos col = new BlockPos(nx, wy, nz);
-            if (!isAreaLoaded(col, 1)) break; // don't load chunks
+            if (!LoadedChunks.isAreaLoaded(mob.world, col, 1)) break; // don't load chunks
 
             BlockPos surf = findSurfaceOrWaterY(col);
             if (surf == null) continue;
@@ -325,7 +305,7 @@ public final class TravelTerrain {
         BlockPos guess = new BlockPos(nx, from.getY(), nz);
 
         BlockPos surf = findSurfaceOrWaterY(guess);
-        if (surf == null || !isAreaLoaded(surf, 1)) return null;
+        if (surf == null || !LoadedChunks.isAreaLoaded(mob.world, surf, 1)) return null;
 
         if (BlockRules.isVanillaWater(mob.world.getBlockState(surf))) {
             BlockPos snapped = snapToWaterSurface(surf);
@@ -350,7 +330,7 @@ public final class TravelTerrain {
         final int[][] off = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int[] d : off) {
             BlockPos n = new BlockPos(surf.getX() + d[0], surf.getY(), surf.getZ() + d[1]);
-            if (!isAreaLoaded(n, 1)) continue;
+            if (!LoadedChunks.isAreaLoaded(mob.world, n, 1)) continue;
             if (isStandable(n)) return n;
         }
         return null;
@@ -438,7 +418,7 @@ public final class TravelTerrain {
             BlockPos col = new BlockPos(sx, from.getY(), sz);
 
             // never load chunks
-            if (!isAreaLoaded(col, 1)) return false;
+            if (!LoadedChunks.isAreaLoaded(mob.world, col, 1)) return false;
 
             // Use your existing "findSurfaceOrWaterY" to find the top navigable cell
             BlockPos surf = findSurfaceOrWaterY(col);
@@ -572,7 +552,7 @@ public final class TravelTerrain {
     @Nullable
     BlockPos snapToWaterSurface(BlockPos p) {
         World w = mob.world;
-        if (!isAreaLoaded(p, 1)) return null;
+        if (!LoadedChunks.isAreaLoaded(mob.world, p, 1)) return null;
 
         BlockPos q = p;
 
@@ -584,7 +564,7 @@ public final class TravelTerrain {
         // Climb up through water until the next block is NOT water
         while (q.getY() < maxY && BlockRules.isVanillaWater(w.getBlockState(q.up()))) {
             q = q.up();
-            if (!isAreaLoaded(q, 1)) return null;
+            if (!LoadedChunks.isAreaLoaded(mob.world, q, 1)) return null;
         }
 
         // Make sure there is space above (so the mob isn't trying to swim into a ceiling)

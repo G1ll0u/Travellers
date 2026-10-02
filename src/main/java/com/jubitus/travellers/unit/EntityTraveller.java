@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.village.visit.VillageVisitState;
 
@@ -4280,7 +4281,7 @@ public void fall(float distance, float damageMultiplier) {
         int probeDist = (int) Math.max(EDGE_PROBE_MIN_BLOCKS, Math.min(EDGE_PROBE_MAX_BLOCKS, dist));
         int px = from.getX() + (int) Math.round(dx / dist * probeDist);
         int pz = from.getZ() + (int) Math.round(dz / dist * probeDist);
-        return !com.jubitus.travellers.virtual.VirtualTravellerManager.isChunkLoaded(
+        return !LoadedChunks.isLoaded(
                 (WorldServer) world, px >> 4, pz >> 4);
     }
 
@@ -4709,7 +4710,7 @@ public void fall(float distance, float damageMultiplier) {
 
     /**
      * "Is this entity's own ground chunk loaded" - deliberately the exact same
-     * {@link com.jubitus.travellers.virtual.VirtualTravellerManager#isChunkLoaded}
+     * {@link LoadedChunks#isLoaded}
      * predicate that decides materialize/virtualize eligibility, not an independent distance
      * approximation. Used to be its own "is a player roughly within view distance" circle check, which
      * could disagree with the chunk-loaded predicate (near the corners of the loaded square, or once a
@@ -4726,7 +4727,7 @@ public void fall(float distance, float damageMultiplier) {
         net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) world;
         int cx = net.minecraft.util.math.MathHelper.floor(posX) >> 4;
         int cz = net.minecraft.util.math.MathHelper.floor(posZ) >> 4;
-        return com.jubitus.travellers.virtual.VirtualTravellerManager.isChunkLoaded(ws, cx, cz);
+        return LoadedChunks.isLoaded(ws, cx, cz);
     }
 
     protected void clearAggroIfOffscreen() {

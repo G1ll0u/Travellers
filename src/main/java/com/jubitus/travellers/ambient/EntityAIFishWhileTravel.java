@@ -1,5 +1,6 @@
 package com.jubitus.travellers.ambient;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -330,7 +331,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         }
 
         // safety: if the water went away, or we slipped too far, end early
-        if (shoreSpot == null || !isAreaLoaded(shoreSpot, 1) || mob.getDistanceSqToCenter(shoreSpot) > 9.0 || !isWaterAheadOf(shoreSpot)) {
+        if (shoreSpot == null || !LoadedChunks.isAreaLoaded(mob.world, shoreSpot, 1) || mob.getDistanceSqToCenter(shoreSpot) > 9.0 || !isWaterAheadOf(shoreSpot)) {
             phase = Phase.REEL_OUT;
             return;
         }
@@ -386,7 +387,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 BlockPos col = new BlockPos(around.getX() + dx, around.getY(), around.getZ() + dz);
-                if (!isAreaLoaded(col, 1)) continue;
+                if (!LoadedChunks.isAreaLoaded(mob.world, col, 1)) continue;
 
                 // check down up to 3 for a water surface
                 for (int dy = 0; dy <= 3; dy++) {
@@ -407,19 +408,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         return best;
     }
 
-
-    private boolean isAreaLoaded(BlockPos pos, int r) {
-        if (!(mob.world instanceof WorldServer)) return mob.world.isAreaLoaded(pos, r);
-        WorldServer ws = (WorldServer) mob.world;
-        int minCX = (pos.getX() - r) >> 4, maxCX = (pos.getX() + r) >> 4;
-        int minCZ = (pos.getZ() - r) >> 4, maxCZ = (pos.getZ() + r) >> 4;
-        for (int cx = minCX; cx <= maxCX; cx++) {
-            for (int cz = minCZ; cz <= maxCZ; cz++) {
-                if (!ws.getChunkProvider().chunkExists(cx, cz)) return false;
-            }
-        }
-        return true;
-    }
 
     // --- environment checks (vanilla water only; no chunk loads) ---
 
@@ -468,7 +456,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 BlockPos guessXZ = new BlockPos(around.getX() + dx, around.getY(), around.getZ() + dz);
-                if (!isAreaLoaded(guessXZ, 1)) continue;
+                if (!LoadedChunks.isAreaLoaded(mob.world, guessXZ, 1)) continue;
 
                 // Resolve Y to a *dry standable* spot only (don’t accept swimmable here)
                 BlockPos y = findSurfaceY(guessXZ);
@@ -516,7 +504,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     @Nullable
     private BlockPos findSurfaceY(BlockPos xzGuess) {
         World w = mob.world;
-        if (!isAreaLoaded(xzGuess, 1)) return null;
+        if (!LoadedChunks.isAreaLoaded(mob.world, xzGuess, 1)) return null;
         BlockPos top = w.getTopSolidOrLiquidBlock(xzGuess);
 
         // walk up a couple, then down a bit to settle on a navigable cell
@@ -524,12 +512,12 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         for (int i = 0; i < 3; i++) {
             if (isStandable(p) || isSwimmable(p)) break;
             p = p.up();
-            if (!isAreaLoaded(p, 1)) return null;
+            if (!LoadedChunks.isAreaLoaded(mob.world, p, 1)) return null;
         }
         for (int i = 0; i < 8 && p.getY() > 1; i++) {
             if (isStandable(p) || isSwimmable(p)) break;
             p = p.down();
-            if (!isAreaLoaded(p, 1)) return null;
+            if (!LoadedChunks.isAreaLoaded(mob.world, p, 1)) return null;
         }
         return (isStandable(p) || isSwimmable(p)) ? p : null;
     }

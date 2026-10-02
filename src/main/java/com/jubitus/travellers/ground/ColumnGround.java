@@ -47,7 +47,7 @@ public final class ColumnGround {
      * distance. Unlike the layer scan it goes anywhere: inside buildings, caves, under overhangs.
      */
     public static int nearestStandable(World world, int x, int z, int refY, int range) {
-        if (!Footing.isColumnLoaded(world, new BlockPos(x, 0, z))) return NONE;
+        if (!LoadedChunks.isLoaded(world, new BlockPos(x, 0, z))) return NONE;
         int maxFeet = world.getActualHeight() - 2;
         for (int d = 0; d <= range; d++) {
             int down = refY - d;

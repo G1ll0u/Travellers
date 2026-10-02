@@ -1,5 +1,6 @@
 package com.jubitus.travellers.spawn;
 
+import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.travel.TravelCommon;
@@ -607,16 +608,11 @@ public final class TravellerSoftSpawner {
         // Never land a virtual spawn point on/inside a Millénaire building (e.g. a worker's home
         // village center is the Town Hall itself). Pure metadata check, works without chunk loading.
         BlockPos safeXZ = com.jubitus.travellers.village.MillFootprints.pushOutside(ws, xzPos);
-        if (chunkExists(ws, safeXZ)) {
+        if (LoadedChunks.isLoaded(ws, safeXZ)) {
             BlockPos top = ws.getTopSolidOrLiquidBlock(safeXZ);
             if (top != null && top.getY() > 0) return top;
         }
         return safeXZ.getY() > 0 ? safeXZ : new BlockPos(safeXZ.getX(), 64, safeXZ.getZ());
-    }
-
-    private static boolean chunkExists(WorldServer ws, BlockPos pos) {
-        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        return ws.getChunkProvider().chunkExists(cx, cz);
     }
 
     private static boolean withinXZOfAny(BlockPos center,
