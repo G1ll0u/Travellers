@@ -63,9 +63,8 @@ final class StableMaterializer {
 
     /** Inside the zone's box plus the containment margin (XZ). */
     static boolean isInsideZone(PlayerZoneRecord zone, double x, double z) {
-        int m = TravellersConfig.STABLES.containmentMarginBlocks;
-        return x >= zone.center.getX() - zone.halfWidth - m && x <= zone.center.getX() + zone.halfWidth + 1 + m
-                && z >= zone.center.getZ() - zone.halfDepth - m && z <= zone.center.getZ() + zone.halfDepth + 1 + m;
+        AxisAlignedBB b = zone.box(TravellersConfig.STABLES.containmentMarginBlocks);
+        return x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ;
     }
 
     /** Places {@code horse} at the point and reports whether its body is clear there (loaded ground,

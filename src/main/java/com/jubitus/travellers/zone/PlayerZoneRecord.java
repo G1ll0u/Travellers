@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone;
 
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.math.BlockPos;
@@ -52,6 +53,20 @@ public class PlayerZoneRecord {
         this.halfHeight = halfHeight;
         this.type = type;
         this.data = ZoneTypeDefs.get(type).dataFactory.get();
+    }
+
+    /** Is this block inside the zone's box. */
+    public boolean contains(BlockPos pos) {
+        return Math.abs(pos.getX() - center.getX()) <= halfWidth
+                && Math.abs(pos.getZ() - center.getZ()) <= halfDepth
+                && Math.abs(pos.getY() - center.getY()) <= halfHeight;
+    }
+
+    /** The zone's box in world coordinates, grown by {@code margin} blocks on every side. */
+    public AxisAlignedBB box(double margin) {
+        return new AxisAlignedBB(
+                center.getX() - halfWidth - margin, center.getY() - halfHeight - margin, center.getZ() - halfDepth - margin,
+                center.getX() + halfWidth + 1 + margin, center.getY() + halfHeight + 1 + margin, center.getZ() + halfDepth + 1 + margin);
     }
 
     public List<BlockPos> getRolePositions(String role) {

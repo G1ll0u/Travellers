@@ -1020,7 +1020,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
 
     private EntityHorse findNearest(WorldServer world, PlayerZoneRecord zone, EntityTravellerWorker worker,
                                     Predicate<EntityHorse> filter) {
-        List<EntityHorse> found = world.getEntitiesWithinAABB(EntityHorse.class, zoneBox(zone), filter);
+        List<EntityHorse> found = world.getEntitiesWithinAABB(EntityHorse.class, zone.box(0), filter);
         EntityHorse nearest = null;
         double bestDist = Double.MAX_VALUE;
         for (EntityHorse h : found) {
@@ -1031,13 +1031,6 @@ public final class StableHandTask implements WorkerDutyBehavior {
             }
         }
         return nearest;
-    }
-
-    private AxisAlignedBB zoneBox(PlayerZoneRecord zone) {
-        BlockPos c = zone.center;
-        return new AxisAlignedBB(
-                c.getX() - zone.halfWidth, c.getY() - zone.halfHeight, c.getZ() - zone.halfDepth,
-                c.getX() + zone.halfWidth + 1, c.getY() + zone.halfHeight + 1, c.getZ() + zone.halfDepth + 1);
     }
 
     private boolean breedingFeedAvailable(WorldServer world, PlayerZoneRecord zone) {

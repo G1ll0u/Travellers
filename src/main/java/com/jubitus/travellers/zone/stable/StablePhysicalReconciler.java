@@ -38,13 +38,7 @@ final class StablePhysicalReconciler {
         syncChestMirror(world, zone, data);
 
         int margin = TravellersConfig.STABLES.containmentMarginBlocks;
-        AxisAlignedBB scanBox = new AxisAlignedBB(
-                zone.center.getX() - zone.halfWidth - margin,
-                zone.center.getY() - zone.halfHeight - margin,
-                zone.center.getZ() - zone.halfDepth - margin,
-                zone.center.getX() + zone.halfWidth + 1 + margin,
-                zone.center.getY() + zone.halfHeight + 1 + margin,
-                zone.center.getZ() + zone.halfDepth + 1 + margin);
+        AxisAlignedBB scanBox = zone.box(margin);
 
         long now = world.getTotalWorldTime();
         boolean dirty = false;
@@ -84,7 +78,7 @@ final class StablePhysicalReconciler {
             if (StableHorseAI.needsInvariants(horse)) {
                 StableHorseAI.applyContainmentInvariants(horse, zone.center, zone.halfWidth, zone.halfDepth);
             }
-            StableContainmentGuard.enforce(horse, zone.center, zone.halfWidth, zone.halfDepth);
+            StableContainmentGuard.enforce(horse, zone);
         }
 
         dirty |= coord.dropVanishedHorses(world, zone, data);

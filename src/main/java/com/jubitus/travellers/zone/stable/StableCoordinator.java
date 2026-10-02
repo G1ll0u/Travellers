@@ -437,9 +437,7 @@ public final class StableCoordinator {
         for (PlayerZoneRecord zone : PlayerZoneManager.get(world).getAll()) {
             if (zone.type != ZoneType.STABLE || !(zone.data instanceof StableZoneData)) continue;
             if (!ownerUUID.equals(zone.ownerUUID)) continue;
-            if (Math.abs(pos.getX() - zone.center.getX()) <= zone.halfWidth
-                    && Math.abs(pos.getZ() - zone.center.getZ()) <= zone.halfDepth
-                    && Math.abs(pos.getY() - zone.center.getY()) <= zone.halfHeight) {
+            if (zone.contains(pos)) {
                 return zone;
             }
         }
@@ -491,7 +489,7 @@ public final class StableCoordinator {
 
         setPoolTag(horse, entry.poolId);
         StableHorseAI.applyContainmentInvariants(horse, zone.center, zone.halfWidth, zone.halfDepth);
-        StableContainmentGuard.enforce(horse, zone.center, zone.halfWidth, zone.halfDepth);
+        StableContainmentGuard.enforce(horse, zone);
         PlayerZoneManager.get(world).markDirty();
         StableWatchLog.record(world, zone, StableWatchLog.Kind.INTAKE,
                 StableWatchLog.shortId(entry.poolId) + " returned by owner", true);

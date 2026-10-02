@@ -43,7 +43,7 @@ public final class ZoneRoleRescan {
     /** A block changed at {@code pos}: the zone containing it is rescanned next tick. */
     public static void noteBlockChange(WorldServer world, BlockPos pos) {
         for (PlayerZoneRecord zone : PlayerZoneManager.get(world).getAll()) {
-            if (contains(zone, pos)) {
+            if (zone.contains(pos)) {
                 PENDING.computeIfAbsent(world.provider.getDimension(), k -> ConcurrentHashMap.newKeySet()).add(zone.id);
             }
         }
@@ -115,12 +115,6 @@ public final class ZoneRoleRescan {
             ZoneAssignments.release(server, workerUUID, zone);
         }
         return true;
-    }
-
-    private static boolean contains(PlayerZoneRecord zone, BlockPos pos) {
-        return Math.abs(pos.getX() - zone.center.getX()) <= zone.halfWidth
-                && Math.abs(pos.getZ() - zone.center.getZ()) <= zone.halfDepth
-                && Math.abs(pos.getY() - zone.center.getY()) <= zone.halfHeight;
     }
 
     private static boolean isBoxLoaded(WorldServer world, PlayerZoneRecord zone) {

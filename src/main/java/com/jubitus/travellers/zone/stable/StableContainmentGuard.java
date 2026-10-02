@@ -1,5 +1,7 @@
 package com.jubitus.travellers.zone.stable;
 
+import net.minecraft.util.math.AxisAlignedBB;
+import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.zone.ZonePlacement;
 import net.minecraft.entity.passive.EntityHorse;
@@ -21,14 +23,12 @@ public final class StableContainmentGuard {
      * outright teleport, rather than just being pushed back toward center. */
     private static final double TELEPORT_ESCALATION_BLOCKS = 4.0D;
 
-    public static void enforce(EntityHorse horse, BlockPos center, int halfWidth, int halfDepth) {
+    public static void enforce(EntityHorse horse, PlayerZoneRecord zone) {
         // Never move a horse someone is riding or leading: the rider or holder would be dragged along.
         if (horse.isBeingRidden() || horse.getLeashed()) return;
-        int margin = TravellersConfig.STABLES.containmentMarginBlocks;
-        double minX = center.getX() - halfWidth - margin;
-        double maxX = center.getX() + halfWidth + 1 + margin;
-        double minZ = center.getZ() - halfDepth - margin;
-        double maxZ = center.getZ() + halfDepth + 1 + margin;
+        BlockPos center = zone.center;
+        AxisAlignedBB box = zone.box(TravellersConfig.STABLES.containmentMarginBlocks);
+        double minX = box.minX, maxX = box.maxX, minZ = box.minZ, maxZ = box.maxZ;
 
         double x = horse.posX, z = horse.posZ;
         double outX = x < minX ? minX - x : (x > maxX ? x - maxX : 0);

@@ -22,7 +22,7 @@ final class StableContainmentSweep {
             if (StableHorseAI.needsInvariants(horse)) {
                 StableHorseAI.applyContainmentInvariants(horse, zone.center, zone.halfWidth, zone.halfDepth);
             }
-            StableContainmentGuard.enforce(horse, zone.center, zone.halfWidth, zone.halfDepth);
+            StableContainmentGuard.enforce(horse, zone);
         }
     }
 }
