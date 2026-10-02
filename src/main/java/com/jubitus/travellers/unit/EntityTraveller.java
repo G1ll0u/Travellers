@@ -3916,13 +3916,7 @@ public void fall(float distance, float damageMultiplier) {
         this.catchupTravel = true;
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(true);
     }
 
     /** Ends catchup - called once close enough to the leader/slot (see {@link #tickCatchupExit()}),

@@ -112,6 +112,26 @@ public class TravelCommon {
 
     public void setTargetVillage(@Nullable BlockPos pos) {
         this.targetVillage = pos;
+    }
+
+    /** Drops the route and target; the travel AI picks a fresh one once ready to depart. */
+    public void clearRoute(boolean readyToDepart) {
+        route.clear();
+        routeIndex = -1;
+        targetVillage = null;
+        setCurrentWaypoint(null);
+        setReadyToDepart(readyToDepart);
+        setDepartCooldownTicks(0);
+    }
+
+    /** Replaces the route with a single stop and lets the travel AI leave right away. */
+    public void routeTo(BlockPos target) {
+        route.clear();
+        route.add(target);
+        routeIndex = 0;
+        targetVillage = target;
+        setCurrentWaypoint(null);
+        setReadyToDepart(true);
     }// --- Arrival policy (ONE source of truth) ---
 
     public int getTravelRecoverTicks() {

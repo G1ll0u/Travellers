@@ -638,15 +638,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.setCurrentWaypoint(null);
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = 0;
-        tc.route.add(dutyCenter);
-
-        tc.setTargetVillage(dutyCenter);
-        this.setTargetVillage(dutyCenter);
-
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
+        tc.routeTo(dutyCenter);
         tc.setDepartCooldownTicks(0);
     }
 
@@ -793,13 +785,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(true);
 
 //        this.getNavigator().clearPath();
         this.setUsingTravelAI(true);
@@ -1335,13 +1321,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                             // Kill Travel AI state so it can't teleport when path drops
                             TravelCommon tc2 = this.getTravelCommon();
-                            tc2.route.clear();
-                            tc2.routeIndex = -1;
-                            tc2.setTargetVillage(null);
-                            this.setTargetVillage(null); // IMPORTANT
-                            tc2.setCurrentWaypoint(null);
-                            tc2.setReadyToDepart(false);
-                            tc2.setDepartCooldownTicks(0);
+                            tc2.clearRoute(false);
 
                             this.getNavigator().clearPath();
 
@@ -1394,13 +1374,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 // Arrival + message
                 if (!awaitingPickup && distHsq <= nearSq) {
 
-                    tc.route.clear();
-                    tc.routeIndex = -1;
-                    tc.setTargetVillage(null);
-                    this.setTargetVillage(null); // IMPORTANT
-                    tc.setCurrentWaypoint(null);
-                    tc.setReadyToDepart(false);
-                    tc.setDepartCooldownTicks(0);
+                    tc.clearRoute(false);
                     this.getNavigator().clearPath();
 
                     awaitingPickup = true;
@@ -1423,12 +1397,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 // Fallback: if we lost the player entity, just go to last known target and wait there
                 int r = tc.arrivalRadiusBlocks(employerReturnPos);
                 if (this.getDistanceSqToCenter(employerReturnPos) <= (double) (r * r)) {
-                    tc.route.clear();
-                    tc.routeIndex = -1;
-                    tc.setTargetVillage(null);
-                    tc.setCurrentWaypoint(null);
-                    tc.setReadyToDepart(false);
-                    tc.setDepartCooldownTicks(0);
+                    tc.clearRoute(false);
                     this.getNavigator().clearPath();
                     awaitingPickup = true;
                 }
@@ -1845,13 +1814,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.routeLocked = this.isHiredFollower();   // <-- change
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(false);
 
         this.getNavigator().clearPath();
     }
@@ -2027,16 +1990,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.employerReturnPos = newReturnPos;
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.route.add(newReturnPos);
-        tc.routeIndex = 0;
-        tc.setTargetVillage(newReturnPos); // just a generic target
-        this.setTargetVillage(newReturnPos);
-        tc.setCurrentWaypoint(null);
-
-        // *** IMPORTANT: allow travel AI to start immediately ***
-        tc.setReadyToDepart(true);      // <-- was false
+        tc.routeTo(newReturnPos);
         tc.setDepartCooldownTicks(0);
 
         this.getNavigator().clearPath();
@@ -2181,19 +2135,8 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         TravelCommon tc = this.getTravelCommon();
 
-        tc.route.clear();
-        tc.routeIndex = -1;
-
-        tc.route.add(newPos);
-        tc.routeIndex = 0;
-
-        tc.setTargetVillage(newPos);
-        this.setTargetVillage(newPos);
-
-        tc.setCurrentWaypoint(null);
-
-        // IMPORTANT: do NOT "wait at stop" in catchup mode.
-        tc.setReadyToDepart(true);
+        // Never "wait at stop" in catchup mode.
+        tc.routeTo(newPos);
         tc.setDepartCooldownTicks(0);
 
         this.getNavigator().clearPath();
@@ -2227,15 +2170,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     private void stopAllTravelNow() {
         TravelCommon tc = this.getTravelCommon();
 
-        tc.route.clear();
-        tc.routeIndex = -1;
-
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(false);
 
         this.getNavigator().clearPath();
     }
@@ -2679,13 +2614,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Clear travel route
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(false);
         this.getNavigator().clearPath();
 
         // Back to companion idle
@@ -2723,13 +2652,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             // Clear TravelAI entirely: getVirtualGoal() tracks the player's current position,
             // and once materialized the real-entity path uses follow AI (isReturnUsingFollow=true)
             TravelCommon tc = getTravelCommon();
-            tc.route.clear();
-            tc.routeIndex = -1;
-            tc.setTargetVillage(null);
-            setTargetVillage(null);
-            tc.setCurrentWaypoint(null);
-            tc.setReadyToDepart(false);
-            tc.setDepartCooldownTicks(0);
+            tc.clearRoute(false);
         }
         return count;
     }
@@ -2745,13 +2668,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Stop Travel AI route completely
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(false);
 
         this.getNavigator().clearPath();
 
@@ -3040,13 +2957,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.nextCatchupRefreshTick = 0;
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-        tc.setTargetVillage(null);
-        this.setTargetVillage(null);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
+        tc.clearRoute(false);
 
         this.getNavigator().clearPath();
         this.setUsingTravelAI(false);
@@ -3131,15 +3042,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.setCurrentWaypoint(null);
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = 0;
-        tc.route.add(home);
-
-        tc.setTargetVillage(home);
-        this.setTargetVillage(home);
-
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
+        tc.routeTo(home);
         tc.setDepartCooldownTicks(0);
     }
 
@@ -3464,15 +3367,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.routeLocked = true;
 
         TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = 0;
-        tc.route.add(pos);
-
-        tc.setTargetVillage(pos);
-        this.setTargetVillage(pos);
-
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
+        tc.routeTo(pos);
         tc.setDepartCooldownTicks(0);
 
         this.getNavigator().clearPath();
@@ -3501,13 +3396,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.routeLocked = true;
 
         TravelCommon tc = getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = 0;
-        tc.route.add(target);
-        tc.setTargetVillage(target);
-        setTargetVillage(target);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
+        tc.routeTo(target);
         tc.setDepartCooldownTicks(0);
 
         getNavigator().clearPath();
@@ -3763,15 +3652,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                     TravelCommon dutyTc = getTravelCommon();
                     boolean dutyRouteMissing = dutyTc.route == null || dutyTc.route.isEmpty() || dutyTc.routeIndex < 0;
                     if (dutyRouteMissing) {
-                        dutyTc.route.clear();
-                        dutyTc.routeIndex = 0;
-                        dutyTc.route.add(dutyCenter);
-
-                        dutyTc.setTargetVillage(dutyCenter);
-                        setTargetVillage(dutyCenter);
-
-                        dutyTc.setCurrentWaypoint(null);
-                        dutyTc.setReadyToDepart(true);
+                        dutyTc.routeTo(dutyCenter);
                         dutyTc.setDepartCooldownTicks(0);
 
                         getNavigator().clearPath();
@@ -3786,15 +3667,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                 boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
                 if (routeMissing) {
-                    tc.route.clear();
-                    tc.routeIndex = 0;
-                    tc.route.add(assignedHomePos);
-
-                    tc.setTargetVillage(assignedHomePos);
-                    setTargetVillage(assignedHomePos);
-
-                    tc.setCurrentWaypoint(null);
-                    tc.setReadyToDepart(true);
+                    tc.routeTo(assignedHomePos);
                     tc.setDepartCooldownTicks(0);
 
                     getNavigator().clearPath();
@@ -3838,15 +3711,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                 boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
                 if (routeMissing) {
-                    tc.route.clear();
-                    tc.routeIndex = 0;
-                    tc.route.add(goOrderTargetPos);
-
-                    tc.setTargetVillage(goOrderTargetPos);
-                    setTargetVillage(goOrderTargetPos);
-
-                    tc.setCurrentWaypoint(null);
-                    tc.setReadyToDepart(true);
+                    tc.routeTo(goOrderTargetPos);
                     tc.setDepartCooldownTicks(0);
 
                     getNavigator().clearPath();
