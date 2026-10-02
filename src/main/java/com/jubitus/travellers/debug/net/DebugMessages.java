@@ -9,16 +9,16 @@ public final class DebugMessages {
     }
 
     public static void register() {
-        toClient(MsgToggleFollow.class, MsgToggleFollow.Handler::new);
-        toClient(MsgTraceHud.class, MsgTraceHud.Handler::new);
+        toClient(MsgToggleFollow.class, () -> new MsgToggleFollow.Handler());
+        toClient(MsgTraceHud.class, () -> new MsgTraceHud.Handler());
         toServer(MsgTerrainDebugRequest.class, MsgTerrainDebugRequest.Handler.class);
-        toClient(MsgTerrainDebugMap.class, MsgTerrainDebugMap.ClientHandler::new);
+        toClient(MsgTerrainDebugMap.class, () -> new MsgTerrainDebugMap.ClientHandler());
         toServer(MsgItineraryDebugRequest.class, MsgItineraryDebugRequest.Handler.class);
-        toClient(MsgItineraryDebugMap.class, MsgItineraryDebugMap.ClientHandler::new);
+        toClient(MsgItineraryDebugMap.class, () -> new MsgItineraryDebugMap.ClientHandler());
         toServer(MsgTeleportToPos.class, MsgTeleportToPos.Handler.class);
         toServer(MsgSpawnEntityAtPos.class, MsgSpawnEntityAtPos.Handler.class);
-        toClient(MsgVillageDebugView.class, MsgVillageDebugView.Handler::new);
-        toClient(PacketTravellerChunks.class, PacketTravellerChunksClientHandler::new);
+        toClient(MsgVillageDebugView.class, () -> new MsgVillageDebugView.Handler());
+        toClient(PacketTravellerChunks.class, () -> new PacketTravellerChunksClientHandler());
         toServer(PacketTravellerChunksRequest.class, PacketTravellerChunksRequest.Handler.class);
     }
 }

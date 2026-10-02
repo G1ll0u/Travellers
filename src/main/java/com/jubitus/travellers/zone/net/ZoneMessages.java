@@ -10,18 +10,18 @@ public final class ZoneMessages {
 
     public static void register() {
         toServer(MsgWorkerGoHome.class, MsgWorkerGoHome.Handler.class);
-        toClient(MsgSyncWorkerHome.class, MsgSyncWorkerHome.ClientHandler::new);
-        toClient(MsgOpenZonePrompt.class, MsgOpenZonePrompt.ClientHandler::new);
+        toClient(MsgSyncWorkerHome.class, () -> new MsgSyncWorkerHome.ClientHandler());
+        toClient(MsgOpenZonePrompt.class, () -> new MsgOpenZonePrompt.ClientHandler());
         toServer(MsgCreatePlayerZone.class, MsgCreatePlayerZone.Handler.class);
-        toClient(MsgZoneActionResult.class, MsgZoneActionResult.ClientHandler::new);
+        toClient(MsgZoneActionResult.class, () -> new MsgZoneActionResult.ClientHandler());
         toServer(MsgDeletePlayerZone.class, MsgDeletePlayerZone.Handler.class);
         toServer(MsgRequestWorkerBarracksData.class, MsgRequestWorkerBarracksData.Handler.class);
         toServer(MsgAssignWorkerBarrack.class, MsgAssignWorkerBarrack.Handler.class);
         toServer(MsgUnassignWorkerBarrack.class, MsgUnassignWorkerBarrack.Handler.class);
-        toClient(MsgWorkerBarracksData.class, MsgWorkerBarracksData.ClientHandler::new);
+        toClient(MsgWorkerBarracksData.class, () -> new MsgWorkerBarracksData.ClientHandler());
         toServer(MsgRequestWorkerZoneData.class, MsgRequestWorkerZoneData.Handler.class);
         toServer(MsgAssignWorkerDuty.class, MsgAssignWorkerDuty.Handler.class);
         toServer(MsgUnassignWorkerDuty.class, MsgUnassignWorkerDuty.Handler.class);
-        toClient(MsgWorkerZoneData.class, MsgWorkerZoneData.ClientHandler::new);
+        toClient(MsgWorkerZoneData.class, () -> new MsgWorkerZoneData.ClientHandler());
     }
 }

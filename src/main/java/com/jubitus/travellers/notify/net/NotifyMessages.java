@@ -9,9 +9,9 @@ public final class NotifyMessages {
     }
 
     public static void register() {
-        toClient(MsgShowNotification.class, MsgShowNotification.Handler::new);
+        toClient(MsgShowNotification.class, () -> new MsgShowNotification.Handler());
         toServer(MsgRequestJournalHistory.class, MsgRequestJournalHistory.Handler.class);
-        toClient(MsgJournalHistoryData.class, MsgJournalHistoryData.ClientHandler::new);
-        toClient(MsgJournalEntryAdded.class, MsgJournalEntryAdded.ClientHandler::new);
+        toClient(MsgJournalHistoryData.class, () -> new MsgJournalHistoryData.ClientHandler());
+        toClient(MsgJournalEntryAdded.class, () -> new MsgJournalEntryAdded.ClientHandler());
     }
 }

@@ -9,7 +9,7 @@ public final class CombatMessages {
     }
 
     public static void register() {
-        toClient(MsgSyncWorkerHostileList.class, MsgSyncWorkerHostileList.Handler::new);
+        toClient(MsgSyncWorkerHostileList.class, () -> new MsgSyncWorkerHostileList.Handler());
         toServer(MsgSetWorkerHostile.class, MsgSetWorkerHostile.Handler.class);
         toServer(MsgRequestPlayerHostileList.class, MsgRequestPlayerHostileList.Handler.class);
     }

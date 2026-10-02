@@ -10,7 +10,7 @@ public final class VillageMessages {
 
     public static void register() {
         toServer(MsgWorkerRequestVillageRelations.class, MsgWorkerRequestVillageRelations.Handler.class);
-        toClient(MsgWorkerVillageRelationsList.class, MsgWorkerVillageRelationsList.Handler::new);
+        toClient(MsgWorkerVillageRelationsList.class, () -> new MsgWorkerVillageRelationsList.Handler());
         toServer(MsgSetVillageEnemy.class, MsgSetVillageEnemy.Handler.class);
     }
 }

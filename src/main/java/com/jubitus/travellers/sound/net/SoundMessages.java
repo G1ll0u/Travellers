@@ -9,7 +9,7 @@ public final class SoundMessages {
     }
 
     public static void register() {
-        toClient(MsgPlayTravellerVoice.class, MsgPlayTravellerVoice.Handler::new);
-        toClient(MsgStopTravellerVoice.class, MsgStopTravellerVoice.Handler::new);
+        toClient(MsgPlayTravellerVoice.class, () -> new MsgPlayTravellerVoice.Handler());
+        toClient(MsgStopTravellerVoice.class, () -> new MsgStopTravellerVoice.Handler());
     }
 }

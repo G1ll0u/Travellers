@@ -11,7 +11,7 @@ public final class FollowMessages {
     public static void register() {
         toServer(MsgToggleWorkerFollow.class, MsgToggleWorkerFollow.Handler.class);
         toServer(MsgMakeWorkerLeader.class, MsgMakeWorkerLeader.Handler.class);
-        toClient(MsgSyncLeaderFollowerCount.class, MsgSyncLeaderFollowerCount.Handler::new);
+        toClient(MsgSyncLeaderFollowerCount.class, () -> new MsgSyncLeaderFollowerCount.Handler());
         toServer(MsgClearEscortLeader.class, MsgClearEscortLeader.Handler.class);
         toServer(MsgUpdateWorkerFormationSettings.class, MsgUpdateWorkerFormationSettings.Handler.class);
         toServer(MsgGroupCreate.class, MsgGroupCreate.Handler.class);
@@ -20,7 +20,7 @@ public final class FollowMessages {
         toServer(MsgSetLeaderFollow.class, MsgSetLeaderFollow.Handler.class);
         toServer(MsgLeaderGoTo.class, MsgLeaderGoTo.Handler.class);
         toServer(MsgUpdateFormationByScope.class, MsgUpdateFormationByScope.Handler.class);
-        toClient(MsgOpenFormationHubGui.class, MsgOpenFormationHubGui.Handler::new);
+        toClient(MsgOpenFormationHubGui.class, () -> new MsgOpenFormationHubGui.Handler());
         toServer(MsgRequestFormationHub.class, MsgRequestFormationHub.Handler.class);
     }
 }

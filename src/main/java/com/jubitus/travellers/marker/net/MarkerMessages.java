@@ -10,6 +10,6 @@ public final class MarkerMessages {
 
     public static void register() {
         toServer(MsgSaveWorkerOwnerVisuals.class, MsgSaveWorkerOwnerVisuals.Handler.class);
-        toClient(MsgOwnerVisualsSync.class, MsgOwnerVisualsSync.Handler::new);
+        toClient(MsgOwnerVisualsSync.class, () -> new MsgOwnerVisualsSync.Handler());
     }
 }

@@ -11,7 +11,7 @@ public final class EquipmentMessages {
     public static void register() {
         toServer(MsgWorkerGetEquipment.class, MsgWorkerGetEquipment.Handler.class);
         toServer(MsgRequestEquipDests.class, MsgRequestEquipDests.Handler.class);
-        toClient(MsgEquipDestsResponse.class, MsgEquipDestsResponse.ClientHandler::new);
+        toClient(MsgEquipDestsResponse.class, () -> new MsgEquipDestsResponse.ClientHandler());
         toServer(MsgLeaderGetEquip.class, MsgLeaderGetEquip.Handler.class);
     }
 }

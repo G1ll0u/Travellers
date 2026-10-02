@@ -10,19 +10,19 @@ public final class WorldMapMessages {
 
     public static void register() {
         toServer(MsgSubscribeWorkerMap.class, MsgSubscribeWorkerMap.Handler.class);
-        toClient(MsgMapWorkersUpdate.class, MsgMapWorkersUpdate.ClientHandler::new);
-        toClient(MsgMapDiscoverTile.class, MsgMapDiscoverTile.ClientHandler::new);
-        toClient(MsgMapDiscoverySync.class, MsgMapDiscoverySync.ClientHandler::new);
+        toClient(MsgMapWorkersUpdate.class, () -> new MsgMapWorkersUpdate.ClientHandler());
+        toClient(MsgMapDiscoverTile.class, () -> new MsgMapDiscoverTile.ClientHandler());
+        toClient(MsgMapDiscoverySync.class, () -> new MsgMapDiscoverySync.ClientHandler());
         toServer(MsgRequestMapDiscovery.class, MsgRequestMapDiscovery.Handler.class);
         toServer(MsgWorkerMapView.class, MsgWorkerMapView.Handler.class);
         toServer(MsgRequestMapTiles.class, MsgRequestMapTiles.Handler.class);
-        toClient(MsgMapTileData.class, MsgMapTileData.ClientHandler::new);
-        toClient(MsgOpenPopulationMap.class, MsgOpenPopulationMap.Handler::new);
+        toClient(MsgMapTileData.class, () -> new MsgMapTileData.ClientHandler());
+        toClient(MsgOpenPopulationMap.class, () -> new MsgOpenPopulationMap.Handler());
         toServer(MsgSubscribePopulationMap.class, MsgSubscribePopulationMap.Handler.class);
-        toClient(MsgMapPopulationUpdate.class, MsgMapPopulationUpdate.ClientHandler::new);
+        toClient(MsgMapPopulationUpdate.class, () -> new MsgMapPopulationUpdate.ClientHandler());
         toServer(MsgSubscribeCampMap.class, MsgSubscribeCampMap.Handler.class);
-        toClient(MsgMapCampUpdate.class, MsgMapCampUpdate.ClientHandler::new);
-        toClient(MsgMapBattleUpdate.class, MsgMapBattleUpdate.ClientHandler::new);
-        toClient(MsgMapForeignUnitsUpdate.class, MsgMapForeignUnitsUpdate.ClientHandler::new);
+        toClient(MsgMapCampUpdate.class, () -> new MsgMapCampUpdate.ClientHandler());
+        toClient(MsgMapBattleUpdate.class, () -> new MsgMapBattleUpdate.ClientHandler());
+        toClient(MsgMapForeignUnitsUpdate.class, () -> new MsgMapForeignUnitsUpdate.ClientHandler());
     }
 }

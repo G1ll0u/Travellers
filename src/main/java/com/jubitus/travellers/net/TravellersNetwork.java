@@ -40,7 +40,7 @@ public final class TravellersNetwork {
         com.jubitus.travellers.sound.net.SoundMessages.register();
         com.jubitus.travellers.choir.net.ChoirMessages.register();
         com.jubitus.travellers.debug.net.DebugMessages.register();
-        toClient(MsgOpenConfigGui.class, MsgOpenConfigGui.Handler::new);
+        toClient(MsgOpenConfigGui.class, () -> new MsgOpenConfigGui.Handler());
         toServer(MsgSaveConfigGui.class, MsgSaveConfigGui.Handler.class);
     }
 
@@ -51,6 +51,7 @@ public final class TravellersNetwork {
     }
 
     /** Server to client; the handler is only built on a client, since it may touch client-only classes. */
+    // INVARIANT: pass a lambda (() -> new X.Handler()), never X.Handler::new — a method reference loads the client class on a dedicated server.
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static void toClient(Class<? extends IMessage> type, Supplier<? extends IMessageHandler> clientHandler) {
         IMessageHandler handler = FMLCommonHandler.instance().getSide().isClient() ? clientHandler.get() : NOOP;

@@ -11,6 +11,6 @@ public final class ChoirMessages {
     public static void register() {
         toServer(MsgWorkerChoirToggle.class, MsgWorkerChoirToggle.Handler.class);
         toServer(MsgChoirSoundDone.class, MsgChoirSoundDone.Handler.class);
-        toClient(MsgChoirSingerMute.class, MsgChoirSingerMute.Handler::new);
+        toClient(MsgChoirSingerMute.class, () -> new MsgChoirSingerMute.Handler());
     }
 }

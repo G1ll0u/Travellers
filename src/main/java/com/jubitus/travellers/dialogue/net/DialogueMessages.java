@@ -9,10 +9,10 @@ public final class DialogueMessages {
     }
 
     public static void register() {
-        toClient(MsgOpenDialogueSetupGui.class, MsgOpenDialogueSetupGui.Handler::new);
-        toClient(MsgOpenTravellerDialogue.class, MsgOpenTravellerDialogue.Handler::new);
+        toClient(MsgOpenDialogueSetupGui.class, () -> new MsgOpenDialogueSetupGui.Handler());
+        toClient(MsgOpenTravellerDialogue.class, () -> new MsgOpenTravellerDialogue.Handler());
         toServer(MsgDialogueToolQuery.class, MsgDialogueToolQuery.Handler.class);
-        toClient(MsgDialogueToolResult.class, MsgDialogueToolResult.Handler::new);
+        toClient(MsgDialogueToolResult.class, () -> new MsgDialogueToolResult.Handler());
         toServer(MsgSubmitDialogueMemory.class, MsgSubmitDialogueMemory.Handler.class);
     }
 }
