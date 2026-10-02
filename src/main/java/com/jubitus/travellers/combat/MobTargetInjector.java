@@ -17,7 +17,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 public class MobTargetInjector {
 
     @SubscribeEvent
-    public void onEntityJoinWorld(EntityJoinWorldEvent e) {
+    public static void onEntityJoinWorld(EntityJoinWorldEvent e) {
         if (e.getWorld().isRemote) return;
 
         Entity ent = e.getEntity();
@@ -50,7 +50,7 @@ public class MobTargetInjector {
 
     }
 
-    private boolean hasTravellerTargetTask(EntityCreature mob) {
+    private static boolean hasTravellerTargetTask(EntityCreature mob) {
         for (Object o : mob.targetTasks.taskEntries) {
             // Task list entries are TaskEntry with 'action' field, but we can just check class names:
             try {

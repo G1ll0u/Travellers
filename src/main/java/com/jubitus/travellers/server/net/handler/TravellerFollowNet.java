@@ -72,7 +72,7 @@ public final class TravellerFollowNet {
         if (registered) return;
         boolean isClient = FMLCommonHandler.instance().getSide().isClient();
 
-        registerBoth(MsgToggleFollow.class, new MsgToggleFollow.Handler(), new MsgToggleFollow.NoopHandler());
+        registerClientOnly(MsgToggleFollow.class, isClient ? new MsgToggleFollow.Handler() : new MsgToggleFollow.NoopHandler());
         registerBoth(MsgWorkerSetDestination.class, new MsgWorkerSetDestination.NoopHandler(), new MsgWorkerSetDestination.Handler());
         registerBoth(MsgWorkerRequestVillages.class, new MsgWorkerRequestVillages.NoopHandler(), new MsgWorkerRequestVillages.Handler());
 

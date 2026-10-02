@@ -898,25 +898,28 @@ public class EntityTravellerWorker extends EntityTraveller {
         return routeLocked;
     }
 
-    // Use worker stats if you want them different
     @Override
     protected void applyEntityAttributes() {
         super.applyEntityAttributes();
+        refreshFollowRanges();
+    }
 
-        baseFollowRange = TravellersConfig.ATTRIBUTES.workerFollowRange;
+    @Override
+    protected double configuredMaxHealth() {
+        return TravellersConfig.ATTRIBUTES.workerMaxHealth;
+    }
+
+    @Override
+    protected double configuredFollowRange() {
+        return TravellersConfig.ATTRIBUTES.workerFollowRange;
+    }
+
+    // Boosted range bounds vanilla's A* chunk cache; keep it at 2x so a path search stays near loaded ground.
+    private void refreshFollowRanges() {
+        baseFollowRange = configuredFollowRange();
         boostedFollowRange = baseFollowRange * 2.0D;
-
-        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.workerMaxHealth);
-
-        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(baseFollowRange);
-        IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
-        if (moveAttr != null) {
-            // Make workers a bit quicker than generic travellers
-            // TravellersConfig.SPEED.movementSpeed is the base used in EntityTraveller.onInitialSpawn
-            moveAttr.setBaseValue(TravellersConfig.SPEED.movementSpeed);
-        }
+        IAttributeInstance followAttr = getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
+        if (followAttr != null) followAttr.setBaseValue(usingBoostedNav ? boostedFollowRange : baseFollowRange);
     }
 
     @Override
@@ -1706,32 +1709,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onConfigReload() {
         super.onConfigReload();
-
-        // Sync worker-specific ranges from config
-        this.baseFollowRange = TravellersConfig.ATTRIBUTES.workerFollowRange;
-        this.boostedFollowRange = baseFollowRange * 4.0D;
-
-        IAttributeInstance followAttr = this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
-        if (followAttr != null) {
-            followAttr.setBaseValue(baseFollowRange);
-        }
-
+        refreshFollowRanges();
         FollowRuntimeConfig.get().reloadFromTravellersConfig();
-
-        // Optional: also restore worker-specific move speed if you want
-        IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
-        if (moveAttr != null) {
-            moveAttr.setBaseValue(TravellersConfig.SPEED.movementSpeed);
-        }
-
-        // Same idea if you have worker-specific HP etc:
-        IAttributeInstance hpAttr = this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH);
-        if (hpAttr != null) {
-            hpAttr.setBaseValue(TravellersConfig.ATTRIBUTES.workerMaxHealth);
-            if (this.getHealth() > this.getMaxHealth()) {
-                this.setHealth(this.getMaxHealth());
-            }
-        }
     }
 
     public void setEscortLeaderUUID(@Nullable UUID id) {
@@ -3025,18 +3004,9 @@ public class EntityTravellerWorker extends EntityTraveller {
                 .get(ws).getVirtualPosition(escortLeader);
     }
 
-    public boolean canVirtualize() {
-        return !isInCombat() && canVirtualizeIgnoringCombat();
-    }
-
     @Override
     public boolean canVirtualizeIgnoringCombat() {
-        if (isDebugPathTest()) return false;
-        if (isDead) return false;
-        if (isHandActive()) return false;
-        // A bonded mount comes along into virtualization (see VirtualTravellerManager); any other
-        // ride (boat, someone else's horse) still blocks, same as before.
-        if (isRiding() && !isMountedOnBondedMount()) return false;
+        if (!super.canVirtualizeIgnoringCombat()) return false;
         if (awaitingPickup) return false;
         if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null) {
             if (getDistanceSqToCenter(jobVillageCenter) < 48.0 * 48.0) return false;

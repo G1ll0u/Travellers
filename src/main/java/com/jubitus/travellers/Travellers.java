@@ -17,7 +17,6 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.server.net.message.workerplayer.MsgSyncServerCosts;
 import com.jubitus.travellers.command.*;
-import com.jubitus.travellers.combat.MobTargetInjector;
 import com.jubitus.travellers.server.net.handler.TravellerFollowNet;
 import com.jubitus.travellers.server.net.handler.TravellerWorkerLootHandler;
 import com.jubitus.travellers.server.net.message.chunks.PacketTravellerChunksClientHandler;
@@ -141,7 +140,6 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(TravellerWorkerLootHandler.class);
         MinecraftForge.EVENT_BUS.register(TravellerOffscreenHandler.class);
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
-        MinecraftForge.EVENT_BUS.register(MobTargetInjector.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
         // Virtualizes travellers/raiders/workers the instant their chunk unloads (the mirror of
         // VirtualTravellerManager materializing them when a chunk loads).
@@ -242,7 +240,6 @@ public class Travellers {
             System.out.println("[Travellers] Traveller entity disabled in config.");
         }
 
-        MinecraftForge.EVENT_BUS.register(new MobTargetInjector());
     }
 
     @Mod.EventHandler

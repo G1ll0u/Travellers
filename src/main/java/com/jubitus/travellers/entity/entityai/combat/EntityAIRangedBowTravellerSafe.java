@@ -126,7 +126,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
                                           double meleeHandOff,
                                           boolean ghostEquipBow) {
         this.mob = owner;
-        this.blacklist = TravellersDerivedConfig.TRAVELLER_BLACKLIST;
+        this.blacklist = owner.getAggroBlacklist();
         this.minDist = minDist;
         this.maxDist = maxDist;
         this.minDistSq = minDist * minDist;

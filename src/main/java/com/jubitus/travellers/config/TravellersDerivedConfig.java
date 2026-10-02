@@ -27,9 +27,6 @@ public class TravellersDerivedConfig {
     public static final AttackList RAIDER_ATTACK_LIST = new AttackList();
     public static final AttackList TRAVELLER_ATTACK_LIST = new AttackList();
     public static final AttackList WORKER_ATTACK_LIST = new AttackList();
-    // Never populated (no rule source ever calls reload() on it) — kept for behavioral parity
-    // with the legacy TravellersDerivedConfig.TRAVELLER_BLACKLIST, which had the same gap.
-    public static final TravellerBlacklist TRAVELLER_BLACKLIST = new TravellerBlacklist();
     public static final TravellerBlacklist TRAVELLER_AGGRO_BLACKLIST = new TravellerBlacklist();
     public static final TravellerBlacklist RAIDER_AGGRO_BLACKLIST = new TravellerBlacklist();
 
@@ -89,37 +86,7 @@ public class TravellersDerivedConfig {
             if (world == null) continue;
 
             for (EntityTraveller t : world.getEntities(EntityTraveller.class, e -> true)) {
-                final double cfgMaxHealth;
-                final double cfgFollowRange;
-
-                // Per-type max health/follow range must match what each subclass's own
-                // onConfigReload() will apply right below - otherwise a worker (workerMaxHealth,
-                // e.g. 40) briefly gets clamped down to the generic travellerMaxHealth (e.g. 25)
-                // here, then healed back up to 40 over time by natural regen once onConfigReload()
-                // restores the correct max a few lines later.
-                if (t instanceof EntityTravellerWorker) {
-                    cfgMaxHealth = TravellersConfig.ATTRIBUTES.workerMaxHealth;
-                    cfgFollowRange = TravellersConfig.ATTRIBUTES.workerFollowRange;
-                } else if (t instanceof EntityTravellerRaider) {
-                    cfgMaxHealth = TravellersConfig.ATTRIBUTES.raiderMaxHealth;
-                    cfgFollowRange = TravellersConfig.ATTRIBUTES.travellerFollowRange;
-                } else {
-                    cfgMaxHealth = TravellersConfig.ATTRIBUTES.travellerMaxHealth;
-                    cfgFollowRange = TravellersConfig.ATTRIBUTES.travellerFollowRange;
-                }
-
-                t.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(cfgMaxHealth);
-                if (t.getHealth() > t.getMaxHealth()) {
-                    t.setHealth(t.getMaxHealth());
-                }
-
-                t.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                        .setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
-                t.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                        .setBaseValue(TravellersConfig.SPEED.movementSpeed);
-                t.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(cfgFollowRange);
                 t.updateSizeForRenderScale();
-
                 t.onConfigReload();
             }
         }

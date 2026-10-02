@@ -33,27 +33,7 @@ public final class PlayerDefenseHandler {
 
         EntityLivingBase attacker = (EntityLivingBase) src;
 
-        AxisAlignedBB box = new AxisAlignedBB(
-                player.posX - ASSIST_RADIUS_H, player.posY - ASSIST_RADIUS_V, player.posZ - ASSIST_RADIUS_H,
-                player.posX + ASSIST_RADIUS_H, player.posY + ASSIST_RADIUS_V, player.posZ + ASSIST_RADIUS_H
-        );
-
-        for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class, box, Entity::isEntityAlive)) {
-            // Optional: require line of sight before committing
-            if (!t.getEntitySenses().canSee(attacker)) continue;
-
-            // Don’t override an existing valid target that’s closer/more urgent (optional)
-            EntityLivingBase cur = t.getAttackTarget();
-            if (cur != null && cur.isEntityAlive()) {
-                // keep current target if it’s already the same attacker
-                if (cur == attacker) continue;
-            }
-
-            // Engage!
-            t.setAttackTarget(attacker);
-            t.setInCombat(true);  // your helper ensures ghost sword shows & eating cancels
-            t.rememberThreat(attacker, TravellersConfig.COMBAT.threatForSeeAttack);
-        }
+        rallyAgainst(player, attacker);
     }
 
     @SubscribeEvent
@@ -65,17 +45,27 @@ public final class PlayerDefenseHandler {
 
         EntityPlayer player = (EntityPlayer) src;
         if (player.world.isRemote) return;
+        if (TravellersDerivedConfig.isPeacefulBlocked(player.world)) return;
 
+        rallyAgainst(player, victim);
+    }
+
+    // Friendly travellers in sight join the player's fight, through the same limiter and filters as their own scans.
+    private static void rallyAgainst(EntityPlayer player, EntityLivingBase mob) {
         AxisAlignedBB box = new AxisAlignedBB(
                 player.posX - ASSIST_RADIUS_H, player.posY - ASSIST_RADIUS_V, player.posZ - ASSIST_RADIUS_H,
                 player.posX + ASSIST_RADIUS_H, player.posY + ASSIST_RADIUS_V, player.posZ + ASSIST_RADIUS_H
         );
 
         for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class, box, Entity::isEntityAlive)) {
-            if (!t.getEntitySenses().canSee(victim)) continue;
-            t.setAttackTarget(victim);
-            t.setInCombat(true);
-            t.rememberThreat(victim, TravellersConfig.COMBAT.threatForSeeAttack);
+            if (t.isAggressiveToTravellers()) continue;
+            if (t.isCampingPassive() || t.isSleepingInBed()) continue;
+            if (t.getAttackTarget() == mob) continue;
+            if (t.getAggroBlacklist().isBlacklisted(mob)) continue;
+            if (!t.getEntitySenses().canSee(mob)) continue;
+            if (t.trySetAttackTargetLimited(mob)) {
+                t.rememberThreat(mob, TravellersConfig.COMBAT.threatForSeeAttack);
+            }
         }
     }
 

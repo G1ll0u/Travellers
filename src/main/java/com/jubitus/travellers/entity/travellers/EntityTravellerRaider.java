@@ -44,11 +44,6 @@ public class EntityTravellerRaider extends EntityTraveller {
         super(worldIn);
         // Raiders shouldn't talk/sing, but can reuse swimming/route/group-follow logic etc.
         this.enablePersistence(); // optional: set false if you want normal hostile despawn behavior
-        // Slightly higher base speed/HP if you want them scarier
-        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(
-                Math.max(20.0, TravellersConfig.ATTRIBUTES.travellerMaxHealth));
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(
-                Math.max(0.28, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed));
     }
 
     private boolean isValidMonsterLight() {
@@ -184,12 +179,6 @@ public class EntityTravellerRaider extends EntityTraveller {
 
         // Raiders don't auto-eat by default; add this back if you want survival-focused foes.
         autoEatTask = null;
-    }
-
-    protected boolean shouldAttackExtraEntity(EntityLivingBase other) {
-        // Never include same-faction travellers (already handled by XOR rule elsewhere)
-        if (other instanceof EntityTraveller) return false;
-        return TravellersDerivedConfig.RAIDER_ATTACK_LIST.isListed(other);
     }
 
     @Override
@@ -384,9 +373,8 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (src instanceof EntityLivingBase) {
             EntityLivingBase livingSrc = (EntityLivingBase) src;
 
-            // If not a travellers-vs-travellers case, allow raiders to retaliate
-            // to any listed extra-hostile entity too:
-            if (this.shouldAttackExtraEntity(livingSrc) || !(src instanceof EntityTraveller)) {
+            // Travellers-vs-travellers retaliation is handled by the faction rule above.
+            if (!(src instanceof EntityTraveller)) {
                 combat.rememberThreat(livingSrc, TravellerCombatLogic.THREAT_FOR_HIT);
                 this.setAttackTarget(livingSrc);
                 setInCombat(true);
@@ -446,25 +434,8 @@ public class EntityTravellerRaider extends EntityTraveller {
         return !my.equalsIgnoreCase(theirs);
     }
     @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-
-        // Generic travellers stats
-        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.raiderMaxHealth);
-
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
-
-        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.travellerFollowRange);
-
-        // ATTACK_DAMAGE is not present by default for many entities
-        if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
-            this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-        }
-        this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
+    protected double configuredMaxHealth() {
+        return TravellersConfig.ATTRIBUTES.raiderMaxHealth;
     }
 
 }

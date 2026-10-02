@@ -1359,23 +1359,27 @@ public class EntityTraveller extends EntityCreature {
     @Override
     protected void applyEntityAttributes() {
         super.applyEntityAttributes();
+        applyConfiguredAttributes();
+    }
 
-        // Generic travellers stats
-        this.getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.travellerMaxHealth);
-
-        this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
-                .setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
-
-        this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.travellerFollowRange);
-
-        // ATTACK_DAMAGE is not present by default for many entities
-        if (this.getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
-            this.getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
+    // INVARIANT: the only place unit attributes come from config; subclasses override the configured* values, never this.
+    private void applyConfiguredAttributes() {
+        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(configuredMaxHealth());
+        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(TravellersConfig.SPEED.movementSpeed);
+        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(configuredFollowRange());
+        if (getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
+            getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
         }
-        this.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE)
-                .setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
+        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
+    }
+
+    // Called from the super constructor: overrides must only read config, never instance fields.
+    protected double configuredMaxHealth() {
+        return TravellersConfig.ATTRIBUTES.travellerMaxHealth;
+    }
+
+    protected double configuredFollowRange() {
+        return TravellersConfig.ATTRIBUTES.travellerFollowRange;
     }
 
     @Override
@@ -3807,14 +3811,8 @@ public void fall(float distance, float damageMultiplier) {
      */
     public void onConfigReload() {
         // 1) Attributes
-        getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(TravellersConfig.ATTRIBUTES.travellerMaxHealth);
+        applyConfiguredAttributes();
         if (getHealth() > getMaxHealth()) setHealth(getMaxHealth());
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
-        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(TravellersConfig.ATTRIBUTES.travellerFollowRange);
-        if (getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
-            getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-        }
-        getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE).setBaseValue(TravellersConfig.ATTRIBUTES.attackDamage);
 
         // 2) AI tunables
         if (aiDefendIfClose != null) aiDefendIfClose.setAssistRadius(TravellersConfig.COMBAT.helpRange);

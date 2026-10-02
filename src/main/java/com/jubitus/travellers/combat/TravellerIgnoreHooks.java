@@ -65,12 +65,6 @@ public class TravellerIgnoreHooks {
         return list.isBlacklisted(mob);
     }
 
-    // Helper: is this mob type blacklisted to ignore Travellers?
-    private static boolean isBlacklistMob(EntityLivingBase mob) {
-        return mob instanceof net.minecraft.entity.monster.IMob
-                && TravellersDerivedConfig.TRAVELLER_BLACKLIST.isBlacklisted(mob);
-    }
-
     /**
      * 2) When the mob is hurt by a Traveller, prevent “revenge” aggro.
      */
