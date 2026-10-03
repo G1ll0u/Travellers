@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); next: phase 5.
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 in progress (5.1–5.2 done, in-game check pending).
 
 ## Goal
 
@@ -153,7 +153,20 @@ dialogue; `GuiWorker` map frame like the other screens; `travellers.worker.no_vi
 Not done: `VillageRowList` (the four list loops now share `ScrollList` + `drawScaledText`; a row widget would add
 nothing).
 
-### Phase 5 — Terrain authorities completed — status: todo
+### Phase 5 — Terrain authorities completed — status: in progress
+
+Steps (user): 5.1 teleports → 5.2 column ground → 5.3 block kinds → 5.4 landing spots; in-game check after 5.2 and 5.4.
+Decisions (user): every unit teleport clears the path and zeroes momentum; the mod's ground rule everywhere (forest
+floor under trees, water surface not seabed).
+- 5.1 done: `unit/Relocate.teleport` (horse carry stays in `EntityTraveller.setPositionAndUpdate`); dead `topStandable` removed.
+- 5.2 done: go-to targets, formation slot heights, airborne-leader test, fishing, campsite/shelter sampling, virtual
+  spawn Y, battle loot, catch-up goals, travel `findSurfaceOrWaterY` (`nearestLayer`, keeps bridges for walkers) →
+  `ColumnGround`; cover measures → `ColumnGround.coverAbove`. Kept on purpose: elytra corridor clearance (obstacle top,
+  leaves count), chunk-level heightmap scans (map painter, terrain scanner, ChunkReader), dialogue rain check, client
+  map click, debug player teleport. Left for 5.4 (they are landing searches): `TravelRescue` surface rescues,
+  recruit spawn search, boat dry-shore finder, `TravelTerrain.groundInColumn` (cave-capable).
+- 5.3 todo, 5.4 todo.
+
 
 - Ground: the 20 `getTopSolidOrLiquidBlock` sites and the custom ground loops (`findGroundBelow`, `findSurfaceY`,
   `columnSurface`, `surfaceYIgnoringFoliage`, `MaterializePositionResolver` family…) → `ColumnGround`.
