@@ -6,7 +6,7 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 - **Every `targetTasks` entry uses `setMutexBits(1)`** — that bit arbitrates between target selectors.
 - **One scan per entity**: `RaiderAttackTargetAI` / the worker's `ThrottledAttackTargetAI` each use one `EntityAINearestAttackableTarget` with one predicate. New target categories go into the predicate, never a parallel task.
 - `shouldAttackExtraEntity()` is the single place deciding "extra" hostile categories.
-- Every AABB-scanning `shouldExecute()` acquires `CombatTargetScanScheduler.tryAcquire()` first (world-wide budget).
+- Every AABB-scanning `shouldExecute()` acquires `PathBudget` (`COMBAT_SCAN` row) first. Who is an enemy: `Hostility` (`isCrossFaction`, `isWorkerEnemy`), never a local copy.
 - `ForeignTargetTaskScrubber` strips target tasks other mods inject directly.
 - Peaceful: always `TravellersDerivedConfig.isPeacefulBlocked(world)`, never `getDifficulty()` directly.
 - Attack lists per type: `ATTACK_RULES` → `RAIDER_/TRAVELLER_/WORKER_ATTACK_LIST` (worker falls back to traveller).
