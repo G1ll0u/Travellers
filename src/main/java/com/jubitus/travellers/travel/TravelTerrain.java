@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
@@ -188,62 +189,14 @@ public final class TravelTerrain {
     }
 
     /**
-     * Find a reasonable Y at/near the given XZ by scanning down/up without loading chunks.
+     * The ground (or water surface) in the guess's column, the layer closest to the guess's height:
+     * a forest floor rather than a canopy, the water surface rather than the seabed, a bridge deck for
+     * someone walking on it. Null when unloaded or nothing to stand or swim on. See {@link ColumnGround}.
      */
+    @Nullable
     BlockPos findSurfaceOrWaterY(BlockPos guess) {
-        final World world = mob.world;
-        if (!LoadedChunks.isAreaLoaded(mob.world, guess, 1)) return null;
-
-        // 1. Base sample (1.12: returns the top *solid or liquid* at XZ)
-        final BlockPos top = world.getTopSolidOrLiquidBlock(guess);
-
-        // Quick hit: often top is already good.
-        if (isSwimmable(top)) {
-            return snapToWaterSurface(top);
-        }
-        if (isStandable(top)) {
-            // If we're on ground (not swimming), avoid tree canopies
-            if (!mob.isInWater()) {
-                return adjustTreeTopToGround(top);
-            }
-            return top;
-        }
-
-        // 2. Small upward probe (bridges, slabs under ceilings, leaf canopies)
-        final int actualMaxY = world.getActualHeight() - 1;
-        BlockPos p = top;
-        for (int i = 0; i < 3 && p.getY() < actualMaxY; i++) {
-            p = p.up();
-            if (isSwimmable(p)) {
-                return snapToWaterSurface(p);
-            }
-            if (isStandable(p)) {
-                // If p itself is a snow layer, treat feet as the AIR block above it.
-                if (world.getBlockState(p).getBlock() == Blocks.SNOW_LAYER) {
-                    BlockPos airAbove = p.up();
-                    if (LoadedChunks.isAreaLoaded(mob.world, airAbove, 1) && isStandable(airAbove)) return airAbove;
-                }
-                if (!mob.isInWater()) return adjustTreeTopToGround(p);
-                return p;
-            }
-        }
-
-        // 3. Deeper downward probe (valleys, shallow water tops, snow layers)
-        p = top;
-        for (int dy = 0; dy < 12 && p.getY() > 1; dy++) {
-            p = p.down();
-            if (isSwimmable(p)) {
-                return snapToWaterSurface(p);
-            }
-            if (isStandable(p)) {
-                if (!mob.isInWater()) {
-                    return adjustTreeTopToGround(p);
-                }
-                return p;
-            }
-        }
-
-        return null;
+        int y = ColumnGround.nearestLayer(mob.world, guess.getX(), guess.getZ(), guess.getY(), true);
+        return y == ColumnGround.NONE ? null : new BlockPos(guess.getX(), y, guess.getZ());
     }
 
     boolean isNavigable(BlockPos feet) {
@@ -446,9 +399,7 @@ public final class TravelTerrain {
         if (sky >= 10) return false;
 
         // If the "roof" is close above us, it's probably a building/interior, not a cave
-        BlockPos top = w.getTopSolidOrLiquidBlock(p);
-        int roofDelta = top.getY() - p.getY();
-        return roofDelta >= 8;
+        return ColumnGround.coverAbove(w, p) >= 8;
 
         // Otherwise: deep under something with low skylight -> cave-like
     }
@@ -584,8 +535,7 @@ public final class TravelTerrain {
         if (pos == null || !mob.world.isBlockLoaded(pos)) return false;
         if (mob.world.canSeeSky(pos)) return false;
 
-        BlockPos top = mob.world.getTopSolidOrLiquidBlock(new BlockPos(pos.getX(), 0, pos.getZ()));
-        return top != null && (top.getY() - pos.getY()) >= minCover;
+        return ColumnGround.coverAbove(mob.world, pos) >= minCover;
     }
 
     double lerp(double a, double b, double t) {

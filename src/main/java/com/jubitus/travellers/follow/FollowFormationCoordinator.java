@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.follow.formations.FormationGeometry;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
@@ -1138,8 +1139,9 @@ public final class FollowFormationCoordinator {
         BlockPos feet = new BlockPos(leader.posX, leader.getEntityBoundingBox().minY, leader.posZ);
         boolean airborne = !leader.onGround && !leader.isInWater() && leader.motionY > -0.08D;
 
-        BlockPos columnBase = new BlockPos(feet.getX(), 0, feet.getZ());
-        BlockPos top = FollowRecoveryHelper.topSolidOrWaterSurface(world, columnBase);
+        int groundY = ColumnGround.topLayer(world, feet.getX(), feet.getZ(), true);
+        if (groundY == ColumnGround.NONE) return new GroundAnchor(leader.posX, leader.getEntityBoundingBox().minY, leader.posZ, false);
+        BlockPos top = new BlockPos(feet.getX(), groundY, feet.getZ());
         int verticalGap = feet.getY() - top.getY();
 
         if (airborne && verticalGap >= 5 && world.canSeeSky(top)) {

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
@@ -57,9 +58,10 @@ public class MsgWorkerGoToPos implements IMessage {
 
                 BlockPos target = new BlockPos(msg.x, msg.y, msg.z);
 
-                // Option: clamp Y au sol côté serveur
-                BlockPos top = player.world.getHeight(new BlockPos(target.getX(), 0, target.getZ()));
-                target = new BlockPos(target.getX(), top.getY(), target.getZ());
+                // Target on the ground: under trees, on the water surface
+                int groundY = ColumnGround.topLayer(player.world, target.getX(), target.getZ(), true);
+                if (groundY == ColumnGround.NONE) groundY = player.world.getHeight(target.getX(), target.getZ());
+                target = new BlockPos(target.getX(), groundY, target.getZ());
 
                 com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, w.getUniqueID());
                 BlockPos from = w.getPosition();

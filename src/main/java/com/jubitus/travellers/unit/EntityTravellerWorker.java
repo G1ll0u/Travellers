@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
@@ -2160,12 +2161,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             return actual;
         }
 
-        try {
-            BlockPos top = this.world.getTopSolidOrLiquidBlock(new BlockPos(actual.getX(), 0, actual.getZ()));
-            return top != null ? top : actual;
-        } catch (Exception ignored) {
-            return actual;
-        }
+        int groundY = ColumnGround.topLayer(this.world, actual.getX(), actual.getZ(), true);
+        return groundY != ColumnGround.NONE ? new BlockPos(actual.getX(), groundY, actual.getZ()) : actual;
     }
 
     private void stopAllTravelNow() {
@@ -2574,12 +2571,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             BlockPos spawnPos = EntityTravellerWorker.findRecruitSpawnPos(world, villageCenter, this.rand);
             EntityTravellerWorker w = new EntityTravellerWorker(ws);
 
-            // Spawn near village center, on surface
-            BlockPos top = ws.getTopSolidOrLiquidBlock(new BlockPos(villageCenter.getX(), 0, villageCenter.getZ()));
-
-
             w.setPosition(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
-            w.onInitialSpawn(ws.getDifficultyForLocation(top), null);
+            w.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), null);
 
             // IMPORTANT: no home village, so no respawn-on-death
             w.setHomeVillage(null);

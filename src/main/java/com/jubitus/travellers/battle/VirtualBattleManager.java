@@ -1,5 +1,6 @@
 package com.jubitus.travellers.battle;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.unit.equipment.TravellerEquipmentManager;
@@ -1006,26 +1007,10 @@ public class VirtualBattleManager extends WorldSavedData {
         }
     }
 
-    /**
-     * Ground level at (x,z), scanning down through air, foliage, leaves and logs so loot
-     * never lands on a tree canopy.
-     */
+    /** Ground level at (x,z) for loot: the real ground under trees, or the water surface. */
     private static int surfaceYIgnoringFoliage(WorldServer world, int x, int z) {
-        int y = Math.min(world.getActualHeight() - 1, world.getHeight(x, z) + 8);
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        while (y > 1) {
-            pos.setPos(x, y, z);
-            net.minecraft.block.state.IBlockState state = world.getBlockState(pos);
-            net.minecraft.block.material.Material mat = state.getMaterial();
-            boolean passThrough = mat == net.minecraft.block.material.Material.AIR
-                    || mat == net.minecraft.block.material.Material.LEAVES
-                    || mat == net.minecraft.block.material.Material.PLANTS
-                    || mat == net.minecraft.block.material.Material.VINE
-                    || mat == net.minecraft.block.material.Material.WOOD;
-            if (!passThrough && (mat.blocksMovement() || mat.isLiquid())) return y + 1;
-            y--;
-        }
-        return world.getHeight(x, z);
+        int y = ColumnGround.terrain(world, x, z, true);
+        return y != ColumnGround.NONE ? y : world.getHeight(x, z);
     }
 
     private static boolean isPlayerNear(WorldServer world, double x, double z, double range) {

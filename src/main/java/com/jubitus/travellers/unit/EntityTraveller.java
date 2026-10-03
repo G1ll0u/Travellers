@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.village.visit.VillageVisitState;
@@ -3950,12 +3951,8 @@ public void fall(float distance, float damageMultiplier) {
                 || FollowRecoveryHelper.isEnclosedFollowSpace(this.world, target, cfg)) {
             return actual;
         }
-        try {
-            BlockPos top = this.world.getTopSolidOrLiquidBlock(new BlockPos(actual.getX(), 0, actual.getZ()));
-            return top != null ? top : actual;
-        } catch (Exception ignored) {
-            return actual;
-        }
+        int groundY = ColumnGround.topLayer(this.world, actual.getX(), actual.getZ(), true);
+        return groundY != ColumnGround.NONE ? new BlockPos(actual.getX(), groundY, actual.getZ()) : actual;
     }
 
     /**

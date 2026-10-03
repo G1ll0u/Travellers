@@ -1,6 +1,7 @@
 package com.jubitus.travellers.follow;
 
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
@@ -99,9 +100,8 @@ public final class FollowRecoveryHelper {
     }
 
     public static int getCoverBlocks(World world, BlockPos pos) {
-        if (world == null || pos == null || !world.isBlockLoaded(pos)) return 0;
-        BlockPos top = world.getTopSolidOrLiquidBlock(new BlockPos(pos.getX(), 0, pos.getZ()));
-        return Math.max(0, top.getY() - pos.getY());
+        if (world == null || pos == null) return 0;
+        return ColumnGround.coverAbove(world, pos);
     }
 
     /**
@@ -250,31 +250,6 @@ public final class FollowRecoveryHelper {
                 riderSpot.getX() + 0.5D, riderSpot.getY(), riderSpot.getZ() + 0.5D,
                 null, 6, true);
         return spot != null ? spot : riderSpot;
-    }
-
-    /**
-     * Water-aware replacement for {@code World.getTopSolidOrLiquidBlock}. Despite its name, the
-     * vanilla method passes straight through liquid columns (Material.WATER.blocksMovement() is
-     * false) and returns a position near the seabed, not the water surface — see
-     * CampsiteManager.groundColumn for another place that hit this and worked around it by
-     * rejecting water columns outright. Followers can't do that (they need a swim-to goal over
-     * open water), so this instead rescans from above to find the column's true top when vanilla's
-     * result turns out to be a liquid block. Dry-land columns are returned unchanged.
-     */
-    public static BlockPos topSolidOrWaterSurface(World world, BlockPos columnBase) {
-        BlockPos top = world.getTopSolidOrLiquidBlock(columnBase);
-        if (!world.getBlockState(top).getMaterial().isLiquid()) {
-            return top;
-        }
-
-        int scanFrom = Math.min(world.getActualHeight() - 1, world.getSeaLevel() + 32);
-        for (int y = scanFrom; y > top.getY(); y--) {
-            BlockPos p = new BlockPos(columnBase.getX(), y, columnBase.getZ());
-            if (!world.isAirBlock(p)) {
-                return p;
-            }
-        }
-        return top;
     }
 
     public static void teleportWorker(EntityTraveller worker, TeleportCandidate candidate) {

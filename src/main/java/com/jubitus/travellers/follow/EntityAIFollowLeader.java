@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -916,10 +917,8 @@ public class EntityAIFollowLeader extends EntityAIBase {
             // not floating at the leader's altitude (critical for mountain terrain).
             int sxi = MathHelper.floor(idealX);
             int szi = MathHelper.floor(idealZ);
-            BlockPos slotCol = new BlockPos(sxi, 0, szi);
-            if (follower.world.isBlockLoaded(slotCol)) {
-                idealY = FollowRecoveryHelper.topSolidOrWaterSurface(follower.world, slotCol).getY();
-            }
+            int groundY = ColumnGround.topLayer(follower.world, sxi, szi, true);
+            if (groundY != ColumnGround.NONE) idealY = groundY;
         }
 
         int horizontal = mode == FollowMode.CAVE ? cfg.cave.goalSearchHorizontal : cfg.surface.goalSearchHorizontal;
@@ -1014,12 +1013,8 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // leader is on a mountain and the slot XZ is at the base.
         int y0;
         if (mode != FollowMode.CAVE && !airborneLeader) {
-            BlockPos slotColumn = new BlockPos(xi, 0, zi);
-            if (world.isBlockLoaded(slotColumn)) {
-                y0 = MathHelper.clamp(FollowRecoveryHelper.topSolidOrWaterSurface(world, slotColumn).getY(), 2, world.getActualHeight() - 3);
-            } else {
-                y0 = MathHelper.clamp(MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
-            }
+            int groundY = ColumnGround.topLayer(world, xi, zi, true);
+            y0 = MathHelper.clamp(groundY != ColumnGround.NONE ? groundY : MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
         } else {
             y0 = MathHelper.clamp(MathHelper.floor(yHint), 2, world.getActualHeight() - 3);
         }
@@ -1895,7 +1890,9 @@ public class EntityAIFollowLeader extends EntityAIBase {
         BlockPos feet = new BlockPos(leader.posX, leader.getEntityBoundingBox().minY, leader.posZ);
         if (!follower.world.isBlockLoaded(feet)) return false;
 
-        BlockPos top = follower.world.getTopSolidOrLiquidBlock(new BlockPos(feet.getX(), 0, feet.getZ()));
+        int groundY = ColumnGround.topLayer(follower.world, feet.getX(), feet.getZ(), true);
+        if (groundY == ColumnGround.NONE) return false;
+        BlockPos top = new BlockPos(feet.getX(), groundY, feet.getZ());
         int gap = feet.getY() - top.getY();
 
         return !leader.onGround && gap >= 5 && follower.world.canSeeSky(top);

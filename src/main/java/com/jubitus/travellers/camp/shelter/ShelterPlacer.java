@@ -1,5 +1,6 @@
 package com.jubitus.travellers.camp.shelter;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.camp.build.BuildStep;
 import com.jubitus.travellers.camp.build.StructureBuildPlan;
 import com.jubitus.travellers.camp.ShelterSlot;
@@ -189,8 +190,9 @@ public final class ShelterPlacer {
         java.util.Map<net.minecraft.block.state.IBlockState, Integer> sub = new java.util.HashMap<>();
         for (int dx = 0; dx < sizeX; dx++) {
             for (int dz = 0; dz < sizeZ; dz++) {
-                BlockPos top = world.getTopSolidOrLiquidBlock(new BlockPos(ox + dx, 0, oz + dz));
-                if (top.getY() <= 1) continue;
+                int feetY = ColumnGround.topLayer(world, ox + dx, oz + dz, false);
+                if (feetY == ColumnGround.NONE || feetY <= 1) continue;
+                BlockPos top = new BlockPos(ox + dx, feetY, oz + dz);
                 tallyFillCandidate(world, top.down(), surf);
                 tallyFillCandidate(world, top.down(2), sub);
             }

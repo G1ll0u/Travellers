@@ -1,5 +1,6 @@
 package com.jubitus.travellers.camp;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.camp.shelter.ShelterPlacer;
@@ -949,10 +950,9 @@ public class CampsiteManager extends WorldSavedData {
      */
     @Nullable
     private BlockPos groundColumn(WorldServer world, int x, int z) {
-        BlockPos top = world.getTopSolidOrLiquidBlock(new BlockPos(x, 0, z));
-        if (top.getY() <= 0) return null;
-        // Reject water/lava columns: top is the liquid surface block, not the seabed.
-        if (world.getBlockState(top).getMaterial().isLiquid()) return null;
+        int feetY = ColumnGround.topLayer(world, x, z, false);
+        if (feetY == ColumnGround.NONE) return null;
+        BlockPos top = new BlockPos(x, feetY, z);
         BlockPos ground = top.down();
         net.minecraft.block.state.IBlockState groundState = world.getBlockState(ground);
         if (!isValidGround(groundState)) return null;

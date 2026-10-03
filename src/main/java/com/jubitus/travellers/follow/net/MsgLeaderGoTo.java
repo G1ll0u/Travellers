@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.net;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -51,8 +52,9 @@ public class MsgLeaderGoTo implements IMessage {
                 UUID leaderUUID = new UUID(msg.uuidMost, msg.uuidLeast);
 
                 BlockPos target = new BlockPos(msg.x, msg.y, msg.z);
-                BlockPos top = player.world.getHeight(new BlockPos(target.getX(), 0, target.getZ()));
-                target = new BlockPos(target.getX(), top.getY(), target.getZ());
+                int groundY = ColumnGround.topLayer(player.world, target.getX(), target.getZ(), true);
+                if (groundY == ColumnGround.NONE) groundY = player.world.getHeight(target.getX(), target.getZ());
+                target = new BlockPos(target.getX(), groundY, target.getZ());
 
                 WorkerGroupService.leaderGoTo(player, leaderUUID, target);
             });

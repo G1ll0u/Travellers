@@ -1,5 +1,6 @@
 package com.jubitus.travellers.ambient;
 
+import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
@@ -503,23 +504,8 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
 
     @Nullable
     private BlockPos findSurfaceY(BlockPos xzGuess) {
-        World w = mob.world;
-        if (!LoadedChunks.isAreaLoaded(mob.world, xzGuess, 1)) return null;
-        BlockPos top = w.getTopSolidOrLiquidBlock(xzGuess);
-
-        // walk up a couple, then down a bit to settle on a navigable cell
-        BlockPos p = top;
-        for (int i = 0; i < 3; i++) {
-            if (isStandable(p) || isSwimmable(p)) break;
-            p = p.up();
-            if (!LoadedChunks.isAreaLoaded(mob.world, p, 1)) return null;
-        }
-        for (int i = 0; i < 8 && p.getY() > 1; i++) {
-            if (isStandable(p) || isSwimmable(p)) break;
-            p = p.down();
-            if (!LoadedChunks.isAreaLoaded(mob.world, p, 1)) return null;
-        }
-        return (isStandable(p) || isSwimmable(p)) ? p : null;
+        int y = ColumnGround.topLayer(mob.world, xzGuess.getX(), xzGuess.getZ(), true);
+        return y == ColumnGround.NONE ? null : new BlockPos(xzGuess.getX(), y, xzGuess.getZ());
     }
 
     private enum Phase {IDLE, APPROACH, CAST_WINDUP, FISHING, REEL_OUT, DONE}

@@ -58,6 +58,15 @@ public final class ColumnGround {
         return NONE;
     }
 
+    /**
+     * Blocks between {@code pos} and the highest solid block of its column, leaves and foliage
+     * ignored: 0 under open sky or a tree, large in a cave or deep inside a building. 0 when unloaded.
+     */
+    public static int coverAbove(World world, BlockPos pos) {
+        if (!LoadedChunks.isLoaded(world, pos)) return 0;
+        return Math.max(0, world.getTopSolidOrLiquidBlock(new BlockPos(pos.getX(), 0, pos.getZ())).getY() - pos.getY());
+    }
+
     private static int scan(World world, int x, int z, int pick, int refY, boolean allowWater) {
         int top = columnTop(world, x, z);
         if (top == NONE) return NONE;
