@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-02)**: plan validated. Phases 0–2 done; phase 3 mostly done (see its status); next: phase 4.
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); next: phase 5.
 
 ## Goal
 
@@ -139,30 +139,19 @@ Skipped on purpose: `WorldTime.isNight` (two lines, not worth a class), `NbtCode
 for little gain), `distSqXZ` (trivial math, no divergence), Barrack/Zone data builders (they really differ:
 pending respawns, grouped flag).
 
+### Phase 4 — GUI shared pieces — status: done
 
-- `WorkerLookup`: worker by UUID (loaded in any world, else virtual record) — replaces `WorkerGroupService.findLoaded`,
-  `ZoneAssignments.findLoaded`, `WorkerFormationScopeResolver.findWorker` and 4 inline copies.
-- `WorkerOrderGuard.requireOwnedWorker(player, id|uuid)` used by every worker message (≈20 hand-written checks;
-  some skip `isHiredFollower` today → strictest wins, **confirm**). Merges `isValidEquipTarget` (×2) and the
-  duplicated Barrack/Zone data builders.
-- `LoadedChunks.isLoaded(world, pos)` replaces 8 private is-loaded helpers; `MapResweepCoordinator` loads through
-  `LoadedChunks` (keeps its own job budget).
-- `NbtCodecs` / `BufCodecs` for BlockPos and UUID (≈30 hand-written copies).
-- One `distSqXZ`/`distXZ` (6 identical named copies; inline expressions left alone).
-- `AttackList` + `TravellerBlacklist` → one list class.
-- `PlayerZoneRecord.box()` / `contains()` (6 rebuilds); `WorldTime.isNight` out of `CampsiteManager`.
-- `MillMoney` replaces `TravellerMoney` and the 15 direct Millénaire money calls.
-- `TravelCommon.resetRoute()` replaces the 7-line route reset pasted 23 times.
-Visible: none.
-
-### Phase 4 — GUI shared pieces — status: todo
-
-`WorkerMapScreenSupport` (map subscription, entry lists, dimension filter, marker rebuild — 7 screens),
-`WorldMapController.drawTooltip`, `WorldMapNavButtons`, one `ScrollList` + `TravellersGuiTheme.drawScrollbar`
-(3 scrollbars, 4+ list copies), `VillageRowList` (row loop, `shortenNameWithSuffix` ×3, `VillageRow` ×2),
-`GuiClip` (3 scissor copies), `GuiWorldMapPanel` transforms made public (controller copy deleted).
-Split `GuiWorkerFormationHub` into journal panel, orders menu builder, selection model, leader list, settings.
-Visible: none (`GuiWorker` switches its hand-drawn borders to the theme — pixel-identical expected).
+4.1 map: `WorkerMapScreenSupport` (feed subscription, places/workers/battles/foreign lists, dimension filter,
+standard markers) in the 7 worker-map screens; `WorldMapNavButtons`; `WorldMapController.drawTooltip/zoomStep/panStep/
+screenDistSq`; one world→screen transform (`GuiWorldMapPanel`, also used by the zone prompt footprint).
+4.2 lists: `gui/ScrollList`, `TravellersGuiTheme.drawScrollbar/scrollbarThumb/drawScaledText/shortenMiddle`,
+`gui/GuiClip` (exact scissor formula), `worker/gui/VillageRow`; `GuiWorker` drawn with the theme.
+4.3 `GuiWorkerFormationHub` split into `FormationSelection`, `FormationLeaderList`, `FormationSettingsCard`,
+`FormationOrdersMenu`, `FormationHubJournal` (1 426 → 705 lines).
+Visible (user-approved): one scrollbar look (theme colours, hidden when everything fits) in Barracks, journal and
+dialogue; `GuiWorker` map frame like the other screens; `travellers.worker.no_village_in_range` lang key.
+Not done: `VillageRowList` (the four list loops now share `ScrollList` + `drawScaledText`; a row widget would add
+nothing).
 
 ### Phase 5 — Terrain authorities completed — status: todo
 

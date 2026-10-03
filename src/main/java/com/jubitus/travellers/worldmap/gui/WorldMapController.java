@@ -140,6 +140,13 @@ public class WorldMapController {
         return panel.worldToScreenY(worldZ, mapY);
     }
 
+    /** Squared screen distance from the mouse to a world column's spot on the map. */
+    public float screenDistSq(BlockPos pos, int mouseX, int mouseY) {
+        float dx = mouseX - worldToScreenX(pos.getX());
+        float dy = mouseY - worldToScreenY(pos.getZ());
+        return dx * dx + dy * dy;
+    }
+
     /** One wheel click toward (+1) or away from (-1) the map centre, for the zoom buttons. */
     public void zoomStep(int direction) {
         handleWheel(mapX + mapW / 2, mapY + mapH / 2, direction);
