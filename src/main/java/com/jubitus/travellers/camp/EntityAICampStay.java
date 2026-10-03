@@ -1,5 +1,6 @@
 package com.jubitus.travellers.camp;
 
+import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
@@ -575,7 +576,7 @@ public class EntityAICampStay extends EntityAIBase {
         int bz = MathHelper.floor(mob.posZ);
         double safeY = MaterializePositionResolver.ensureNotInSolid((WorldServer) mob.world, bx, mob.posY, bz);
         if (safeY != mob.posY) {
-            mob.setPositionAndUpdate(mob.posX, safeY, mob.posZ);
+            Relocate.teleport(mob, mob.posX, safeY, mob.posZ);
         }
     }
 
@@ -648,8 +649,7 @@ public class EntityAICampStay extends EntityAIBase {
         if (!(mob.world instanceof WorldServer)) return;
         double safeY = MaterializePositionResolver.ensureNotInSolid(
                 (WorldServer) mob.world, spot.getX(), spot.getY(), spot.getZ());
-        mob.getNavigator().clearPath();
-        mob.setPositionAndUpdate(spot.getX() + 0.5, safeY, spot.getZ() + 0.5);
+        Relocate.teleport(mob, spot.getX() + 0.5, safeY, spot.getZ() + 0.5);
     }
 
     // --- built: night/day behaviour ---
@@ -819,12 +819,12 @@ public class EntityAICampStay extends EntityAIBase {
         if (ws.getBlockState(bed).getBlock() instanceof BlockBed) {
             BlockPos exit = BlockBed.getSafeExitLocation(ws, bed, 0);
             if (exit != null) {
-                mob.setPositionAndUpdate(exit.getX() + 0.5, exit.getY(), exit.getZ() + 0.5);
+                Relocate.teleport(mob, exit.getX() + 0.5, exit.getY(), exit.getZ() + 0.5);
                 return;
             }
         }
         // Boxed in: stand on the bed itself, exactly like a waking player.
-        mob.setPositionAndUpdate(bed.getX() + 0.5, bed.getY() + 0.5625, bed.getZ() + 0.5);
+        Relocate.teleport(mob, bed.getX() + 0.5, bed.getY() + 0.5625, bed.getZ() + 0.5);
     }
 
     /** Wander within camp radius; 1-in-N chance the target is near the firepit. */

@@ -1065,13 +1065,6 @@ public class EntityTraveller extends EntityCreature {
         return current + delta;
     }
 
-    // Find a dry standable Y near XZ (no chunk loads)
-    @Nullable
-    public BlockPos topStandable(BlockPos guess) {
-
-        return travelCommon.topStandable(guess);
-    }
-
     public boolean isAtTargetStopHys(boolean lastWasInside) {
         return travelCommon.isAtTargetStopHys(lastWasInside);
     }
@@ -2711,8 +2704,7 @@ public class EntityTraveller extends EntityCreature {
         if (!world.getBlockState(p.down()).isSideSolid(world, p.down(), EnumFacing.UP)) return false;
         double cx = p.getX() + 0.5D, cy = p.getY(), cz = p.getZ() + 0.5D;
         if (!isPositionClear(cx, cy, cz)) return false;
-        this.setPositionAndUpdate(cx, cy, cz);
-        this.motionX = this.motionY = this.motionZ = 0.0D;
+        Relocate.teleport(this, cx, cy, cz);
         return true;
     }
 

@@ -68,44 +68,6 @@ public class TravelCommon {
         this.lastDesiredTravelYaw = Float.NaN;
     }
 
-    // Find a dry standable Y near XZ (no chunk loads)
-    @Nullable
-    public BlockPos topStandable(BlockPos guess) {
-        World w = owner.getEntityWorld();
-        if (!(w instanceof WorldServer)) return w.getTopSolidOrLiquidBlock(guess); // fallback if needed
-        WorldServer ws = (WorldServer) w;
-        if (!ws.getChunkProvider().chunkExists(guess.getX() >> 4, guess.getZ() >> 4)) return null;
-
-        BlockPos p = w.getTopSolidOrLiquidBlock(guess);
-        for (int i = 0; i < 3; i++) {               // probe up
-            if (isDryStandable(p)) break;
-            p = p.up();
-            if (!ws.getChunkProvider().chunkExists(p.getX() >> 4, p.getZ() >> 4)) return null;
-        }
-        for (int i = 0; i < 6 && p.getY() > 1; i++) { // then probe down
-            if (isDryStandable(p)) break;
-            p = p.down();
-            if (!ws.getChunkProvider().chunkExists(p.getX() >> 4, p.getZ() >> 4)) return null;
-        }
-        return isDryStandable(p) ? p : null;
-    }
-
-    /** Standable (Footing), never on a Millénaire fire pit, and no dangerous liquid anywhere in the body's box. */
-    public boolean isDryStandable(BlockPos feet) {
-        World w = owner.getEntityWorld();
-        if (!com.jubitus.travellers.ground.Footing.canStandAt(w, feet)) return false;
-
-        Block campBlock = CampfireBlock.get();
-        if (campBlock != null && w.getBlockState(feet).getBlock() == campBlock) return false;
-
-        AxisAlignedBB aabb = owner.getEntityBoundingBox().offset(
-                (feet.getX() + 0.5) - owner.posX,
-                (feet.getY()) - owner.posY,
-                (feet.getZ() + 0.5) - owner.posZ
-        );
-        return !com.jubitus.travellers.travel.TravelTerrain.intersectsForbiddenLiquid(w, aabb);
-    }
-
     public BlockPos getTargetVillage() {
         return this.targetVillage;
     }

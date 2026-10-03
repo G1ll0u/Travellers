@@ -1,6 +1,7 @@
 package com.jubitus.travellers.follow;
 
 
+import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -277,12 +278,7 @@ public final class FollowRecoveryHelper {
     }
 
     public static void teleportWorker(EntityTraveller worker, TeleportCandidate candidate) {
-        worker.getNavigator().clearPath();
-        worker.setPositionAndUpdate(candidate.x, candidate.y, candidate.z);
-        worker.motionX = 0.0D;
-        worker.motionY = 0.0D;
-        worker.motionZ = 0.0D;
-        worker.velocityChanged = true;
+        Relocate.teleport(worker, candidate.x, candidate.y, candidate.z);
     }
 
     public static final class TeleportCandidate {

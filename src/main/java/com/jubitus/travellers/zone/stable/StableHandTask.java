@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.unit.Relocate;
 import com.google.common.base.Predicate;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
@@ -963,8 +964,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
                 && worker.world instanceof WorldServer) {
             BlockPos spot = ZonePlacement.findHitboxStandableNear((WorldServer) worker.world, tx, ty, tz, worker);
             if (spot != null) {
-                worker.getNavigator().clearPath();
-                worker.setPositionAndUpdate(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
+                Relocate.teleport(worker, spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
                 logHand(worker, "snap-hopped to a walled-in work spot");
             }
             st.approachStartTick = -1L; // re-approach fresh next tick if the hop didn't land in range

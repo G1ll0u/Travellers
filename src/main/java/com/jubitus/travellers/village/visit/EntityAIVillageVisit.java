@@ -1,5 +1,6 @@
 package com.jubitus.travellers.village.visit;
 
+import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.gaze.TravellerGaze;
@@ -860,8 +861,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             return;
         }
         trace("hop", "to " + fmt(spot));
-        mob.setPositionAndUpdate(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
-        mob.getNavigator().clearPath();
+        Relocate.teleport(mob, spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
     }
 
     private boolean arrived(@Nullable BlockPos target) {

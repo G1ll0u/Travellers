@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.flight.ElytraCapability;
@@ -257,9 +258,7 @@ final class TravelRescue {
     private void landOn(BlockPos spot) {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
         double y = terrain.isSwimmable(spot) ? (spot.getY() + 0.02D) : terrain.teleportLandingY(spot);
-        mob.setPositionAndUpdate(spot.getX() + 0.5, y, spot.getZ() + 0.5);
-        mob.motionX = mob.motionY = mob.motionZ = 0.0D;
-        mob.velocityChanged = true;
+        Relocate.teleport(mob, spot.getX() + 0.5, y, spot.getZ() + 0.5);
         ai.clearNav();
     }
 
@@ -363,10 +362,7 @@ final class TravelRescue {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 
         double y = terrain.teleportLandingY(best);
-        mob.setPositionAndUpdate(best.getX() + 0.5, y, best.getZ() + 0.5);
-
-        mob.motionX = mob.motionY = mob.motionZ = 0.0D;
-        mob.velocityChanged = true;
+        Relocate.teleport(mob, best.getX() + 0.5, y, best.getZ() + 0.5);
         ai.clearNav();
         return true;
     }
@@ -435,9 +431,7 @@ final class TravelRescue {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 
         double y = terrain.teleportLandingY(best);
-        mob.setPositionAndUpdate(best.getX() + 0.5, y, best.getZ() + 0.5);
-        mob.motionX = mob.motionY = mob.motionZ = 0.0D;
-        mob.velocityChanged = true;
+        Relocate.teleport(mob, best.getX() + 0.5, y, best.getZ() + 0.5);
         ai.clearNav();
         return true;
     }

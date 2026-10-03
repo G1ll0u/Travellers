@@ -1,5 +1,7 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import net.minecraft.block.Block;
 import com.jubitus.travellers.ground.BlockRules;
@@ -812,9 +814,9 @@ public final class MaterializePositionResolver {
             int bx = MathHelper.floor(e.posX);
             int bz = MathHelper.floor(e.posZ);
             double safeY = ensureNotInSolid(world, bx, e.posY, bz);
-            if (safeY != e.posY) {
-                e.setPositionAndUpdate(e.posX, safeY, e.posZ);
-            }
+            if (safeY == e.posY) continue;
+            if (e instanceof EntityTraveller) Relocate.teleport((EntityTraveller) e, e.posX, safeY, e.posZ);
+            else e.setPositionAndUpdate(e.posX, safeY, e.posZ);
         }
     }
 }
