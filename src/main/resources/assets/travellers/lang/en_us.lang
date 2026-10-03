@@ -7,6 +7,7 @@ travellers.worker.send=Sell
 travellers.worker.not_enough_money=You need %s for this trip.
 travellers.worker.cost=Travel cost: %s
 travellers.worker.cost_unknown=Travel cost: (validate)
+travellers.worker.no_village_in_range=No village in range...
 travellers.worker.validate=Validate
 travellers.worker.donate=Donate
 travellers.worker.send.tooltip=Sell the cargo to this village for money and reputation.

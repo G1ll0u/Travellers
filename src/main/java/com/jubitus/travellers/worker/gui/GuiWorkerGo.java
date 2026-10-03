@@ -4,6 +4,7 @@ import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
@@ -69,8 +70,8 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private int mapX, mapY, mapW, mapH;
 
     private int listX, listY, listW, listH;
-    private final int rowH = 12;
-    private int scrollOffset = 0;
+    private final ScrollList list = new ScrollList(12);
+    private static final float ROW_TEXT_SCALE = 0.85F;
 
     private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
     // The list rows are the received places, nearest first.
@@ -129,6 +130,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             this.mapX    += shift;
         }
 
+        list.setBounds(listX, listY, listW, listH);
         mapController = new WorldMapController(
                 Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
                 "travellers_worker_map", homePosition());
@@ -170,7 +172,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         tooltips.set(equipReturnButton, "travellers.worker.barracks.equip_return.tooltip");
 
         rows.clear();
-        scrollOffset = 0;
+        list.resetScroll();
         selectedIndex = -1;
 
         int listRequestId = repEntityId >= 0 ? repEntityId : -1;
@@ -198,8 +200,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         selectedIndex = -1;
         goButton.enabled = false;
         if (getEquipButton != null) getEquipButton.enabled = false;
-        scrollOffset = 0;
-        clampScroll();
+        list.resetScroll();
         rebuildMarkers();
     }
 
@@ -231,8 +232,8 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         if (wheel != 0) {
             if (mapController != null && mapController.isMouseOver(mouseX, mouseY))
                 mapController.handleWheel(mouseX, mouseY, wheel);
-            else
-                handleListWheelScroll(mouseX, mouseY, wheel);
+            else if (list.isOver(mouseX, mouseY))
+                list.scrollBy(wheel, rows.size());
         }
 
         GlStateManager.disableLighting();
@@ -264,58 +265,25 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     private void drawList(int mouseX, int mouseY) {
         TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
-        clampScroll();
+        list.clamp(rows.size());
 
-        int rowsVisible = Math.min(getVisibleRows(), rows.size() - scrollOffset);
-        for (int i = 0; i < rowsVisible; i++) {
-            int rowTop = listY + i * rowH;
-            int rowBottom = rowTop + rowH;
-            boolean hovered = mouseX >= listX && mouseX < listX + listW
-                    && mouseY >= rowTop && mouseY < rowBottom;
-            int globalIdx = scrollOffset + i;
-            boolean sel = (globalIdx == selectedIndex);
-            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, sel);
+        int maxLabelW = (int) ((listW - 6) / ROW_TEXT_SCALE);
+        for (int i = 0; i < list.rowsToDraw(rows.size()); i++) {
+            int idx = list.scroll() + i;
+            int rowTop = list.rowTop(idx);
+            boolean hovered = list.isRowHovered(idx, mouseX, mouseY);
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, list.rowH, hovered, idx == selectedIndex);
 
-            MsgWorkerGoList.Entry r = rows.get(globalIdx);
-            final float scale = 0.85F;
+            MsgWorkerGoList.Entry r = rows.get(idx);
             String prefix = r.kind == MsgWorkerGoList.Kind.VILLAGE ? "[V] "
                     : r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE ? "[CV] "
                     : r.kind == MsgWorkerGoList.Kind.STABLE ? "[S] "
-                    : ""; //<-- yes it's stupid
-            String distSuffix = " (" + r.distance + "m)";
-            String label = shortenNameWithSuffix(prefix + r.label, distSuffix, (int)((listW - 6) / scale));
-
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
-            GlStateManager.scale(scale, scale, 1.0F);
-            int textColor = hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
-            this.fontRenderer.drawString(label, 0, 0, textColor);
-            GlStateManager.popMatrix();
+                    : "";
+            String label = TravellersGuiTheme.shortenMiddle(fontRenderer, prefix + r.label,
+                    " (" + r.distance + "m)", maxLabelW);
+            TravellersGuiTheme.drawScaledText(fontRenderer, label, listX + 3, rowTop + 2, ROW_TEXT_SCALE,
+                    hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
         }
-    }
-
-    private String shortenNameWithSuffix(String name, String suffix, int maxWidth) {
-        int fullWidth = this.fontRenderer.getStringWidth(name + suffix);
-        if (fullWidth <= maxWidth) return name + suffix;
-        int suffixWidth = this.fontRenderer.getStringWidth(suffix);
-        if (suffixWidth >= maxWidth) return this.fontRenderer.trimStringToWidth(suffix, maxWidth);
-        int remaining = maxWidth - suffixWidth;
-        String ellipsis = "...";
-        int ellWidth = this.fontRenderer.getStringWidth(ellipsis);
-        if (ellWidth >= remaining) return suffix;
-        int half = (remaining - ellWidth) / 2;
-        StringBuilder pre = new StringBuilder();
-        for (int i = 0; i < name.length(); i++) {
-            if (this.fontRenderer.getStringWidth(pre + String.valueOf(name.charAt(i))) > half) break;
-            pre.append(name.charAt(i));
-        }
-        StringBuilder tail = new StringBuilder();
-        for (int i = name.length() - 1; i >= 0; i--) {
-            String candidate = name.charAt(i) + tail.toString();
-            if (this.fontRenderer.getStringWidth(pre + ellipsis + candidate) > remaining) break;
-            tail.insert(0, name.charAt(i));
-        }
-        return pre + ellipsis + tail + suffix;
     }
 
     @Override
@@ -348,9 +316,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         }
 
         // Left-click on list
-        if (mouseButton == 0 && !rows.isEmpty() && isMouseOverList(mouseX, mouseY)) {
-            int idx = scrollOffset + (mouseY - listY) / rowH;
-            if (idx >= 0 && idx < rows.size()) {
+        if (mouseButton == 0) {
+            int idx = list.rowAt(mouseX, mouseY, rows.size());
+            if (idx >= 0) {
                 selectedIndex = idx;
                 MsgWorkerGoList.Entry r = rows.get(idx);
                 selectedMapPos = null;
@@ -478,24 +446,6 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         TravellersNetwork.CHANNEL.sendToServer(
                 new com.jubitus.travellers.unit.equipment.net.MsgWorkerGetEquipment(
                         targetUUID, stay, kind, r.pos));
-    }
-
-    private boolean isMouseOverList(int mouseX, int mouseY) {
-        return mouseX >= listX && mouseX < listX + listW && mouseY >= listY && mouseY < listY + listH;
-    }
-
-    private int getVisibleRows() { return Math.max(1, listH / rowH); }
-    private int getMaxScroll()   { return Math.max(0, rows.size() - getVisibleRows()); }
-
-    private void clampScroll() {
-        if (scrollOffset < 0) scrollOffset = 0;
-        if (scrollOffset > getMaxScroll()) scrollOffset = getMaxScroll();
-    }
-
-    private void handleListWheelScroll(int mouseX, int mouseY, int wheel) {
-        if (wheel == 0 || !isMouseOverList(mouseX, mouseY)) return;
-        scrollOffset += (wheel > 0) ? -1 : 1;
-        clampScroll();
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
@@ -44,13 +45,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     private static final int MAP_W = 150;
 
-    private static final int COL_BG       = TravellersGuiTheme.COL_BG;
-    private static final int COL_BORDER   = TravellersGuiTheme.COL_BORDER;
-    private static final int COL_TEXT     = TravellersGuiTheme.COL_TEXT;
-    private static final int COL_TEXT_DIM = TravellersGuiTheme.COL_TEXT_DIM;
-    private static final int COL_SEL      = TravellersGuiTheme.COL_ROW_SEL;
-    private static final int COL_HOVER    = TravellersGuiTheme.COL_ROW_HOVER;
-    private static final int COL_PANEL    = TravellersGuiTheme.COL_PANEL;
+    private static final float ROW_TEXT_SCALE = 0.85F;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -68,9 +63,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     private int validatedVillageIdx = -1;
 
     private int listX, listY, listW, listH;
-    private final int rowH = 12;
+    private final ScrollList list = new ScrollList(12);
     private int selectedIndex = -1;
-    private int scrollOffset = 0;
 
     // ── Map data ──────────────────────────────────────────────────────────────
     private WorldMapController mapController;
@@ -102,6 +96,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
         this.listX = this.guiLeft + this.xSize + 8;
         this.listY = this.guiTop + 4;
+        list.setBounds(listX, listY, listW, listH);
 
         this.buttonList.clear();
 
@@ -128,7 +123,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         tooltips.set(donateButton, "travellers.worker.donate.tooltip");
 
         villages.clear();
-        scrollOffset = 0;
+        list.resetScroll();
         selectedIndex = -1;
         costValid = false;
         validatedVillageIdx = -1;
@@ -213,7 +208,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        this.fontRenderer.drawString(I18n.format("travellers.worker.title", "Worker"), 8, 6, COL_TEXT);
+        this.fontRenderer.drawString(I18n.format("travellers.worker.title", "Worker"), 8, 6, TravellersGuiTheme.COL_TEXT);
     }
 
     @Override
@@ -221,73 +216,40 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         int x = this.guiLeft;
         int y = this.guiTop;
 
-        // Rendu vectoriel du fond beige/marron de la boîte de dialogue centrale
-        drawRect(x, y, x + xSize, y + ySize, COL_BG);
-        drawRect(x, y, x + xSize, y + 1, COL_BORDER);
-        drawRect(x, y + ySize - 1, x + xSize, y + ySize, COL_BORDER);
-        drawRect(x, y, x + 1, y + ySize, COL_BORDER);
-        drawRect(x + xSize - 1, y, x + xSize, y + ySize, COL_BORDER);
+        TravellersGuiTheme.drawPanel(x, y, xSize, ySize);
 
-        // Rendu dynamique de l'arriere-plan des slots du Container
+        // Slot backgrounds
         for (int i = 0; i < this.inventorySlots.inventorySlots.size(); i++) {
             Slot s = this.inventorySlots.inventorySlots.get(i);
             if (s != null) {
                 int slotX = x + s.xPos;
                 int slotY = y + s.yPos;
-                drawRect(slotX - 1, slotY - 1, slotX + 17, slotY + 17, COL_BORDER);
-                drawRect(slotX, slotY, slotX + 16, slotY + 16, COL_PANEL);
+                TravellersGuiTheme.drawInnerPanel(slotX - 1, slotY - 1, 18, 18);
             }
         }
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
         if (villages.isEmpty()) {
-            this.fontRenderer.drawString("No village in range...", listX, listY, COL_TEXT_DIM);
-            String costLabel;
-            int color;
-            if (!costValid || selectedIndex < 0 || selectedIndex >= villages.size()
-                    || validatedVillageIdx != selectedIndex) {
-                costLabel = I18n.format("travellers.worker.cost_unknown");
-                color = COL_TEXT_DIM;
-            } else {
-                String costStr = MillMoney.format(lastCost);
-                costLabel = I18n.format("travellers.worker.cost", costStr);
-                int playerMoney = MillMoney.countPlayerMoney(this.player);
-                color = playerMoney >= lastCost ? 0x00FF00 : 0xFF5555; // Garde le indicateurs de prix vert/rouge
-            }
-            this.fontRenderer.drawString(costLabel, listX, listY - 10, color);
+            this.fontRenderer.drawString(I18n.format("travellers.worker.no_village_in_range"),
+                    listX, listY, TravellersGuiTheme.COL_TEXT_DIM);
+            this.fontRenderer.drawString(I18n.format("travellers.worker.cost_unknown"),
+                    listX, listY - 10, TravellersGuiTheme.COL_TEXT_DIM);
             return;
         }
 
-        // Panneau et bordure de la liste de villages de droite
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY + listH + 2, COL_PANEL);
-        drawRect(listX - 2, listY - 2, listX + listW + 2, listY - 1, COL_BORDER);
-        drawRect(listX - 2, listY + listH + 1, listX + listW + 2, listY + listH + 2, COL_BORDER);
-        drawRect(listX - 2, listY - 2, listX - 1, listY + listH + 2, COL_BORDER);
-        drawRect(listX + listW + 1, listY - 2, listX + listW + 2, listY + listH + 2, COL_BORDER);
+        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
 
-        clampScroll();
-        int maxRows = getVisibleRows();
-        int rowsToDraw = Math.min(maxRows, villages.size() - scrollOffset);
-        final float scale = 0.85F;
-
-        for (int i = 0; i < rowsToDraw; i++) {
-            int rowTop    = listY + i * rowH;
-            int rowBottom = rowTop + rowH;
-            boolean hovered = mouseX >= listX && mouseX < listX + listW
-                    && mouseY >= rowTop && mouseY < rowBottom;
-            int globalIdx = scrollOffset + i;
-
-            int bg = (globalIdx == selectedIndex) ? COL_SEL : (hovered ? COL_HOVER : 0);
-            if (bg != 0) drawRect(listX, rowTop, listX + listW, rowBottom, bg);
-
-            VillageRow row = villages.get(globalIdx);
-            String label = makeRowLabel(row, scale);
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
-            GlStateManager.scale(scale, scale, 1.0F);
-            this.fontRenderer.drawString(label, 0, 0, hovered ? 0xFFFFCC88 : COL_TEXT);
-            GlStateManager.popMatrix();
+        list.clamp(villages.size());
+        int maxLabelW = (int) ((listW - 6) / ROW_TEXT_SCALE);
+        for (int i = 0; i < list.rowsToDraw(villages.size()); i++) {
+            int idx = list.scroll() + i;
+            int rowTop = list.rowTop(idx);
+            boolean hovered = list.isRowHovered(idx, mouseX, mouseY);
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, list.rowH, hovered, idx == selectedIndex);
+            TravellersGuiTheme.drawScaledText(fontRenderer, villages.get(idx).label(fontRenderer, maxLabelW),
+                    listX + 3, rowTop + 2, ROW_TEXT_SCALE,
+                    hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
         }
 
         String costStr = MillMoney.format(0);
@@ -296,7 +258,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             int cost = EntityTravellerWorker.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
             costStr = MillMoney.format(cost);
         }
-        this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10, COL_TEXT);
+        this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10,
+                TravellersGuiTheme.COL_TEXT);
     }
 
     @Override
@@ -309,9 +272,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
         if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
-        } else if (isMouseOverList(mouseX, mouseY)) {
-            int dir = (wheel > 0) ? -1 : 1;
-            scrollOffset = Math.max(0, Math.min(scrollOffset + dir, getMaxScroll()));
+        } else if (list.isOver(mouseX, mouseY)) {
+            list.scrollBy(wheel, villages.size());
         }
     }
 
@@ -320,11 +282,9 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         super.mouseClicked(mouseX, mouseY, mouseButton);
         if (mapController != null) mapController.onMouseClick(mouseX, mouseY, mouseButton);
 
-        if (mouseButton == 0 && !villages.isEmpty()
-                && mouseX >= listX && mouseX < listX + listW
-                && mouseY >= listY && mouseY < listY + listH) {
-            int idx = scrollOffset + (mouseY - listY) / rowH;
-            if (idx >= 0 && idx < villages.size()) {
+        if (mouseButton == 0) {
+            int idx = list.rowAt(mouseX, mouseY, villages.size());
+            if (idx >= 0) {
                 selectedIndex = idx;
                 costValid = false;
                 validatedVillageIdx = -1;
@@ -404,11 +364,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     public void receiveVillageList(List<BlockPos> centers, List<String> labels, List<Integer> distances) {
         this.villages.clear();
-        int n = Math.min(centers.size(), Math.min(labels.size(), distances.size()));
-        for (int i = 0; i < n; i++) {
-            this.villages.add(new VillageRow(centers.get(i), labels.get(i), distances.get(i)));
-        }
-        this.villages.sort(Comparator.comparingInt(v -> v.distance));
+        this.villages.addAll(VillageRow.fromServer(centers, labels, distances));
 
         if (villages.isEmpty()) {
             this.selectedIndex = -1;
@@ -422,8 +378,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         costValid = false;
         validatedVillageIdx = -1;
         lastCost = 0;
-        scrollOffset = 0;
-        clampScroll();
+        list.resetScroll();
         rebuildMapMarkers();
     }
 
@@ -436,63 +391,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         return used;
     }
 
-    private String makeRowLabel(VillageRow row, float scale) {
-        String full = row.display;
-        String distSuffix = " (" + row.distance + "m)";
-        String baseName = full;
-        int idx = full.lastIndexOf(" (");
-        if (idx > 0 && full.endsWith("m)")) baseName = full.substring(0, idx);
-        int maxW = (int) ((this.listW - 6) / scale);
-        return shortenNameWithSuffix(baseName, distSuffix, maxW);
-    }
-
-    private String shortenNameWithSuffix(String name, String suffix, int maxWidth) {
-        if (this.fontRenderer.getStringWidth(name + suffix) <= maxWidth) return name + suffix;
-        int sw = this.fontRenderer.getStringWidth(suffix);
-        if (sw >= maxWidth) return this.fontRenderer.trimStringToWidth(suffix, maxWidth);
-        int remaining = maxWidth - sw;
-        String ellipsis = "...";
-        int ew = this.fontRenderer.getStringWidth(ellipsis);
-        if (ew >= remaining) return suffix;
-        int half = (remaining - ew) / 2;
-        StringBuilder prefix = new StringBuilder();
-        for (int i = 0; i < name.length(); i++) {
-            if (this.fontRenderer.getStringWidth(prefix + String.valueOf(name.charAt(i))) > half) break;
-            prefix.append(name.charAt(i));
-        }
-        StringBuilder tail = new StringBuilder();
-        for (int i = name.length() - 1; i >= 0; i--) {
-            String c = name.charAt(i) + tail.toString();
-            if (this.fontRenderer.getStringWidth(prefix + ellipsis + c) > remaining) break;
-            tail.insert(0, name.charAt(i));
-        }
-        return prefix + ellipsis + tail + suffix;
-    }
-
-    private boolean isMouseOverList(int mouseX, int mouseY) {
-        return mouseX >= listX && mouseX < listX + listW
-                && mouseY >= listY && mouseY < listY + listH;
-    }
-
-    private int getVisibleRows() { return Math.max(1, listH / rowH); }
-    private int getMaxScroll()   { return Math.max(0, villages.size() - getVisibleRows()); }
-
-    private void clampScroll() {
-        if (scrollOffset < 0) scrollOffset = 0;
-        int max = getMaxScroll();
-        if (scrollOffset > max) scrollOffset = max;
-    }
-
     public Rectangle getJeiListArea() {
         return new Rectangle(listX - 2, listY - 12, listW + 4, listH + 38);
-    }
-
-    private static class VillageRow {
-        final BlockPos center;
-        final String display;
-        final int distance;
-        VillageRow(BlockPos center, String display, int distance) {
-            this.center = center; this.display = display; this.distance = distance;
-        }
     }
 }

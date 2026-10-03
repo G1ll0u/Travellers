@@ -2,6 +2,7 @@ package com.jubitus.travellers.zone.gui;
 
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
@@ -138,17 +139,14 @@ public class GuiWorkerBarracks extends GuiScreen
     private GuiButton backBtn;
     private GuiButton zoomInBtn, zoomOutBtn, recenterBtn;
     private static final int DELETE_ICON_W = 12;
-    private static final int SCROLLBAR_W = 3;
 
     private int mapX, mapY, mapW, mapH;
     private int listX, listW;
-    private int zoneListY, zoneListH;
-    private int unassignedY, unassignedH;
-    private int selectedY, selectedH;
     private final int rowH = 14;
     private final int titleH = 10;
-
-    private int zoneScroll = 0, unassignedScroll = 0, selectedScroll = 0;
+    private final ScrollList zoneList = new ScrollList(rowH);
+    private final ScrollList unassignedList = new ScrollList(rowH);
+    private final ScrollList selectedList = new ScrollList(rowH);
 
     @Nullable private String notificationKey = null;
     private long notificationExpireMs = 0L;
@@ -188,13 +186,13 @@ public class GuiWorkerBarracks extends GuiScreen
         int colTop = top;
         int panelGap = 6;
         int avail = (mapY + mapH) - colTop - titleH * 3 - panelGap * 2;
-        zoneListH = Math.max(rowH * 3, avail * 2 / 7);
-        unassignedH = Math.max(rowH * 3, (avail - zoneListH) / 2);
-        selectedH = Math.max(rowH * 2, avail - zoneListH - unassignedH);
+        int zoneListH = Math.max(rowH * 3, avail * 2 / 7);
+        int unassignedH = Math.max(rowH * 3, (avail - zoneListH) / 2);
+        int selectedH = Math.max(rowH * 2, avail - zoneListH - unassignedH);
 
-        zoneListY = colTop + titleH;
-        unassignedY = zoneListY + zoneListH + panelGap + titleH;
-        selectedY = unassignedY + unassignedH + panelGap + titleH;
+        zoneList.setBounds(listX, colTop + titleH, listW, zoneListH);
+        unassignedList.setBounds(listX, zoneList.y + zoneListH + panelGap + titleH, listW, unassignedH);
+        selectedList.setBounds(listX, unassignedList.y + unassignedH + panelGap + titleH, listW, selectedH);
 
         int bh = 20;
         int buttonsY = mapY + mapH + 6;
@@ -357,13 +355,13 @@ public class GuiWorkerBarracks extends GuiScreen
 
         drawZoneList(mouseX, mouseY);
         drawWorkerPanel(I18n.format("travellers.worker.zones.unassigned_any", "Unassigned Henchmen"),
-                unassigned, unassignedY, unassignedH, unassignedScroll, mouseX, mouseY);
+                unassigned, unassignedList, mouseX, mouseY);
         drawWorkerPanel(I18n.format("travellers.worker.zones.assigned_here", "Assigned Here"),
-                selectedHench, selectedY, selectedH, selectedScroll, mouseX, mouseY);
+                selectedHench, selectedList, mouseX, mouseY);
 
         this.fontRenderer.drawString(
                 I18n.format("travellers.worker.barracks.dragdrop", "Drag & drop to assign/unassign"),
-                listX, selectedY + selectedH + 3, TravellersGuiTheme.COL_TEXT_DIM);
+                listX, selectedList.y + selectedList.h + 3, TravellersGuiTheme.COL_TEXT_DIM);
 
         drawNotification();
 
@@ -410,14 +408,14 @@ public class GuiWorkerBarracks extends GuiScreen
 
     private void drawZoneList(int mouseX, int mouseY) {
         String title = I18n.format("travellers.worker.zones.list_zones", "Barracks & Stables");
-        TravellersGuiTheme.drawTitle(this.fontRenderer, title, listX, zoneListY - titleH);
-        TravellersGuiTheme.drawInnerPanel(listX - 2, zoneListY - 2, listW + 4, zoneListH + 4);
+        TravellersGuiTheme.drawTitle(this.fontRenderer, title, listX, zoneList.y - titleH);
+        TravellersGuiTheme.drawInnerPanel(listX - 2, zoneList.y - 2, listW + 4, zoneList.h + 4);
 
-        int visible = Math.min(zoneListH / rowH, zoneRows.size() - zoneScroll);
+        int visible = zoneList.rowsToDraw(zoneRows.size());
         for (int i = 0; i < visible; i++) {
-            int idx = zoneScroll + i;
-            int rowTop = zoneListY + i * rowH;
-            boolean hovered = inRect(mouseX, mouseY, listX, rowTop, listW, rowH);
+            int idx = zoneList.scroll() + i;
+            int rowTop = zoneList.rowTop(idx);
+            boolean hovered = zoneList.isRowHovered(idx, mouseX, mouseY);
             boolean sel = idx == selectedZoneIndex;
             TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, sel);
             ZoneRow z = zoneRows.get(idx);
@@ -429,7 +427,7 @@ public class GuiWorkerBarracks extends GuiScreen
             this.fontRenderer.drawString("X", listX + listW - DELETE_ICON_W + 3, rowTop + 3,
                     overIcon ? 0xFFFF5555 : 0xFFAA4444);
         }
-        drawScrollbar(zoneListY, zoneListH, zoneRows.size(), zoneScroll);
+        zoneList.drawScrollbar(zoneRows.size());
     }
 
     private void drawZoneIcon(ZoneType type, int x, int y, int size) {
@@ -442,17 +440,16 @@ public class GuiWorkerBarracks extends GuiScreen
         GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
-    private void drawWorkerPanel(String title, List<WorkerRow> list,
-                                 int panelY, int panelH, int scroll, int mouseX, int mouseY) {
-        TravellersGuiTheme.drawTitle(this.fontRenderer, title, listX, panelY - titleH);
-        TravellersGuiTheme.drawInnerPanel(listX - 2, panelY - 2, listW + 4, panelH + 4);
+    private void drawWorkerPanel(String title, List<WorkerRow> list, ScrollList panel, int mouseX, int mouseY) {
+        TravellersGuiTheme.drawTitle(this.fontRenderer, title, listX, panel.y - titleH);
+        TravellersGuiTheme.drawInnerPanel(listX - 2, panel.y - 2, listW + 4, panel.h + 4);
 
-        int visible = Math.min(panelH / rowH, list.size() - scroll);
+        int visible = panel.rowsToDraw(list.size());
         for (int i = 0; i < visible; i++) {
-            int idx = scroll + i;
+            int idx = panel.scroll() + i;
             WorkerRow w = list.get(idx);
-            int rowTop = panelY + i * rowH;
-            boolean hovered = inRect(mouseX, mouseY, listX, rowTop, listW, rowH);
+            int rowTop = panel.rowTop(idx);
+            boolean hovered = panel.isRowHovered(idx, mouseX, mouseY);
             boolean drag = dragging && dragWorker == w;
             TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, drag);
             WorkerHeadRenderer.draw(w.cultureId, w.textureIndex, w.ownerColor, listX + 1, rowTop - 1, 16);
@@ -462,19 +459,7 @@ public class GuiWorkerBarracks extends GuiScreen
             else if (w.assignedType == ZoneType.BARRACK) label = "[H] " + label;
             this.fontRenderer.drawString(trim(label, listW - 22), listX + 20, rowTop + 3, color);
         }
-        drawScrollbar(panelY, panelH, list.size(), scroll);
-    }
-
-    /** Thin track + thumb on the right edge, so a panel visibly reads as a scrollable list. */
-    private void drawScrollbar(int panelY, int panelH, int count, int scroll) {
-        int rows = panelH / rowH;
-        int barX = listX + listW - SCROLLBAR_W;
-        drawRect(barX, panelY, barX + SCROLLBAR_W, panelY + panelH, 0x33FFFFFF);
-        if (count <= rows) return;
-        int thumbH = Math.max(6, panelH * rows / count);
-        int maxScroll = count - rows;
-        int thumbY = panelY + (panelH - thumbH) * scroll / Math.max(1, maxScroll);
-        drawRect(barX, thumbY, barX + SCROLLBAR_W, thumbY + thumbH, 0xAAFFFFFF);
+        panel.drawScrollbar(list.size());
     }
 
     private void drawNotification() {
@@ -510,7 +495,7 @@ public class GuiWorkerBarracks extends GuiScreen
         super.mouseClicked(mouseX, mouseY, mouseButton);
         if (mouseButton != 0) return;
 
-        int bIdx = rowAt(mouseX, mouseY, zoneListY, zoneListH, zoneScroll, zoneRows.size());
+        int bIdx = zoneList.rowAt(mouseX, mouseY, zoneRows.size());
         if (bIdx >= 0 && mouseX >= listX + listW - DELETE_ICON_W) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgDeletePlayerZone(zoneRows.get(bIdx).center));
             if (selectedZoneIndex == bIdx) selectedZoneIndex = -1;
@@ -528,14 +513,14 @@ public class GuiWorkerBarracks extends GuiScreen
             return;
         }
 
-        int uIdx = rowAt(mouseX, mouseY, unassignedY, unassignedH, unassignedScroll, unassigned.size());
+        int uIdx = unassignedList.rowAt(mouseX, mouseY, unassigned.size());
         if (uIdx >= 0) {
             dragWorker = unassigned.get(uIdx);
             dragFromAssigned = false;
             dragging = true;
             return;
         }
-        int sIdx = rowAt(mouseX, mouseY, selectedY, selectedH, selectedScroll, selectedHench.size());
+        int sIdx = selectedList.rowAt(mouseX, mouseY, selectedHench.size());
         if (sIdx >= 0) {
             dragWorker = selectedHench.get(sIdx);
             dragFromAssigned = true;
@@ -555,8 +540,8 @@ public class GuiWorkerBarracks extends GuiScreen
         if (mapController != null) mapController.onMouseRelease(state);
 
         if (dragging && dragWorker != null) {
-            boolean overUnassigned = inRect(mouseX, mouseY, listX, unassignedY, listW, unassignedH);
-            boolean overSelected = inRect(mouseX, mouseY, listX, selectedY, listW, selectedH);
+            boolean overUnassigned = unassignedList.isOver(mouseX, mouseY);
+            boolean overSelected = selectedList.isOver(mouseX, mouseY);
 
             if (dragFromAssigned && overUnassigned) {
                 // Unassign: route by what the worker is currently assigned to.
@@ -584,34 +569,19 @@ public class GuiWorkerBarracks extends GuiScreen
     private void handleWheel(int mouseX, int mouseY, int wheel) {
         if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
-        } else if (inRect(mouseX, mouseY, listX, zoneListY, listW, zoneListH)) {
-            zoneScroll += wheel > 0 ? -1 : 1;
-            clampScrolls();
-        } else if (inRect(mouseX, mouseY, listX, unassignedY, listW, unassignedH)) {
-            unassignedScroll += wheel > 0 ? -1 : 1;
-            clampScrolls();
-        } else if (inRect(mouseX, mouseY, listX, selectedY, listW, selectedH)) {
-            selectedScroll += wheel > 0 ? -1 : 1;
-            clampScrolls();
+        } else if (zoneList.isOver(mouseX, mouseY)) {
+            zoneList.scrollBy(wheel, zoneRows.size());
+        } else if (unassignedList.isOver(mouseX, mouseY)) {
+            unassignedList.scrollBy(wheel, unassigned.size());
+        } else if (selectedList.isOver(mouseX, mouseY)) {
+            selectedList.scrollBy(wheel, selectedHench.size());
         }
     }
 
     private void clampScrolls() {
-        zoneScroll = clamp(zoneScroll, zoneRows.size(), zoneListH);
-        unassignedScroll = clamp(unassignedScroll, unassigned.size(), unassignedH);
-        selectedScroll = clamp(selectedScroll, selectedHench.size(), selectedH);
-    }
-
-    private int clamp(int scroll, int count, int panelH) {
-        int max = Math.max(0, count - panelH / rowH);
-        if (scroll < 0) return 0;
-        return Math.min(scroll, max);
-    }
-
-    private int rowAt(int mouseX, int mouseY, int panelY, int panelH, int scroll, int count) {
-        if (!inRect(mouseX, mouseY, listX, panelY, listW, panelH)) return -1;
-        int idx = scroll + (mouseY - panelY) / rowH;
-        return (idx >= 0 && idx < count) ? idx : -1;
+        zoneList.clamp(zoneRows.size());
+        unassignedList.clamp(unassigned.size());
+        selectedList.clamp(selectedHench.size());
     }
 
     private static boolean inRect(int mx, int my, int x, int y, int w, int h) {

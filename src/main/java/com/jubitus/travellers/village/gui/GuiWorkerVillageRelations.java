@@ -2,6 +2,7 @@ package com.jubitus.travellers.village.gui;
 
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
@@ -56,10 +57,10 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
     private List<Integer> distances = new ArrayList<>();
     private List<Boolean> enemies = new ArrayList<>();
     private int selected = -1;
-    private int scrollOffset = 0;
 
     private int listX, listY, listW, listH;
-    private final int rowH = 12;
+    private final ScrollList list = new ScrollList(12);
+    private static final float ROW_TEXT_SCALE = 0.85F;
 
     private final int xSize = 176;
     private final int ySize = 156;
@@ -106,6 +107,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         this.listY = this.guiTop + 24;
         this.listW = 160;
         this.listH = 78;
+        list.setBounds(listX, listY, listW, listH);
 
         this.toggleEnemy.enabled = false;
 
@@ -155,7 +157,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         this.enemies   = enemies  != null ? enemies  : new ArrayList<>();
 
         if (this.selected >= this.centers.size()) this.selected = -1;
-        clampScroll();
+        list.clamp(this.centers.size());
         if (this.toggleEnemy != null)
             this.toggleEnemy.enabled = this.selected >= 0 && this.selected < this.centers.size();
 
@@ -210,20 +212,6 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
 
     // ── List helpers ──────────────────────────────────────────────────────────
 
-    private boolean isMouseOverList(int mouseX, int mouseY) {
-        return mouseX >= listX && mouseX < listX + listW
-                && mouseY >= listY && mouseY < listY + listH;
-    }
-
-    private int getVisibleRows() { return Math.max(1, listH / rowH); }
-    private int getMaxScroll()   { return Math.max(0, centers.size() - getVisibleRows()); }
-
-    private void clampScroll() {
-        if (scrollOffset < 0) scrollOffset = 0;
-        int max = getMaxScroll();
-        if (scrollOffset > max) scrollOffset = max;
-    }
-
     private void toggleAt(int index) {
         if (index < 0 || index >= centers.size()) return;
         boolean newEnemy = !enemies.get(index);
@@ -268,9 +256,8 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
 
         if (wheel != 0 && mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
-        } else if (wheel != 0 && isMouseOverList(mouseX, mouseY)) {
-            scrollOffset += wheel > 0 ? -1 : 1;
-            clampScroll();
+        } else if (list.isOver(mouseX, mouseY)) {
+            list.scrollBy(wheel, centers.size());
         }
     }
 
@@ -282,11 +269,9 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         }
         super.mouseClicked(mouseX, mouseY, mouseButton);
 
-        if (mouseButton != 0 || centers.isEmpty()) return;
-        if (!isMouseOverList(mouseX, mouseY)) return;
-
-        int idx = scrollOffset + (mouseY - listY) / rowH;
-        if (idx < 0 || idx >= centers.size()) return;
+        if (mouseButton != 0) return;
+        int idx = list.rowAt(mouseX, mouseY, centers.size());
+        if (idx < 0) return;
 
         selected = idx;
         toggleEnemy.enabled = true;
@@ -337,33 +322,19 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
     private void drawVillageList(int mouseX, int mouseY) {
         TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
 
-        clampScroll();
-        int rowsToDraw = Math.min(getVisibleRows(), centers.size() - scrollOffset);
-        for (int i = 0; i < rowsToDraw; i++) {
-            int rowTop    = listY + i * rowH;
-            int rowBottom = rowTop + rowH;
-            boolean hovered = mouseX >= listX && mouseX < listX + listW
-                    && mouseY >= rowTop && mouseY < rowBottom;
-            int globalIdx = scrollOffset + i;
-            boolean isSel = globalIdx == selected;
-            boolean isEnemy = enemies != null && globalIdx < enemies.size() && enemies.get(globalIdx);
-
-            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, isSel);
-
-            String label = labels.get(globalIdx);
-            float scale = 0.85F;
-
-            GlStateManager.pushMatrix();
-            GlStateManager.translate(listX + 3, rowTop + 2, 0.0F);
-            GlStateManager.scale(scale, scale, 1.0F);
-
-            int maxUnscaledWidth = (int) ((this.listW - 6) / scale);
-            String trimmed = this.fontRenderer.trimStringToWidth(label, maxUnscaledWidth);
+        list.clamp(centers.size());
+        int maxLabelW = (int) ((listW - 6) / ROW_TEXT_SCALE);
+        for (int i = 0; i < list.rowsToDraw(centers.size()); i++) {
+            int idx = list.scroll() + i;
+            int rowTop = list.rowTop(idx);
+            boolean hovered = list.isRowHovered(idx, mouseX, mouseY);
+            boolean isEnemy = enemies != null && idx < enemies.size() && enemies.get(idx);
+            TravellersGuiTheme.drawListRow(listX, rowTop, listW, list.rowH, hovered, idx == selected);
 
             int textColor = isEnemy ? TravellersGuiTheme.COL_CANNOT
                     : (hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
-            this.fontRenderer.drawString(trimmed, 0, 0, textColor);
-            GlStateManager.popMatrix();
+            TravellersGuiTheme.drawScaledText(fontRenderer, fontRenderer.trimStringToWidth(labels.get(idx), maxLabelW),
+                    listX + 3, rowTop + 2, ROW_TEXT_SCALE, textColor);
         }
 
         if (centers.isEmpty()) {

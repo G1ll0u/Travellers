@@ -2,6 +2,7 @@ package com.jubitus.travellers.gui;
 
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.renderer.GlStateManager;
 
 /**
  * Central style constants and rendering helpers shared across all mod GUIs.
@@ -136,6 +137,65 @@ public final class TravellersGuiTheme {
     public static void drawButtonBox(int x, int y, int w, int h, int fill, int border) {
         Gui.drawRect(x, y, x + w, y + h, fill);
         drawBorder(x, y, w, h, border);
+    }
+
+    // ── Scrollbar ─────────────────────────────────────────────────────────────
+    public static final int SCROLLBAR_W = 3;
+
+    /**
+     * Thumb of a scrollbar of height h at y, for a view showing {@code visible} of {@code total} units
+     * (rows or pixels) starting at {@code first}: {thumbY, thumbH}, or null when everything fits.
+     */
+    public static int[] scrollbarThumb(int y, int h, int first, int visible, int total) {
+        int maxFirst = total - visible;
+        if (maxFirst <= 0 || h <= 0) return null;
+        int thumbH = Math.min(h, Math.max(6, h * visible / total));
+        int clamped = Math.max(0, Math.min(first, maxFirst));
+        int thumbY = y + Math.round((h - thumbH) * clamped / (float) maxFirst);
+        return new int[]{thumbY, thumbH};
+    }
+
+    /** The one scrollbar look: dark track, dim thumb (bright while dragged); nothing when everything fits. */
+    public static void drawScrollbar(int x, int y, int h, int first, int visible, int total, boolean active) {
+        int[] thumb = scrollbarThumb(y, h, first, visible, total);
+        if (thumb == null) return;
+        Gui.drawRect(x, y, x + SCROLLBAR_W, y + h, COL_PANEL);
+        Gui.drawRect(x, thumb[0], x + SCROLLBAR_W, thumb[0] + thumb[1], active ? COL_TEXT_HOV : COL_TEXT_DIM);
+    }
+
+    // ── Text ──────────────────────────────────────────────────────────────────
+
+    /** Draws text scaled down (e.g. 0.85 for list rows) with its top-left corner at x, y. */
+    public static void drawScaledText(FontRenderer fr, String text, int x, int y, float scale, int color) {
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0f);
+        GlStateManager.scale(scale, scale, 1f);
+        fr.drawString(text, 0, 0, color);
+        GlStateManager.popMatrix();
+    }
+
+    /** Fits "name + suffix" in maxWidth by cutting the middle of the name ("Long...name (120m)"); the suffix is always kept. */
+    public static String shortenMiddle(FontRenderer fr, String name, String suffix, int maxWidth) {
+        if (fr.getStringWidth(name + suffix) <= maxWidth) return name + suffix;
+        int suffixWidth = fr.getStringWidth(suffix);
+        if (suffixWidth >= maxWidth) return fr.trimStringToWidth(suffix, maxWidth);
+        int remaining = maxWidth - suffixWidth;
+        String ellipsis = "...";
+        int ellWidth = fr.getStringWidth(ellipsis);
+        if (ellWidth >= remaining) return suffix;
+        int half = (remaining - ellWidth) / 2;
+        StringBuilder prefix = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            if (fr.getStringWidth(prefix + String.valueOf(name.charAt(i))) > half) break;
+            prefix.append(name.charAt(i));
+        }
+        StringBuilder tail = new StringBuilder();
+        for (int i = name.length() - 1; i >= 0; i--) {
+            String candidate = name.charAt(i) + tail.toString();
+            if (fr.getStringWidth(prefix + ellipsis + candidate) > remaining) break;
+            tail.insert(0, name.charAt(i));
+        }
+        return prefix + ellipsis + tail + suffix;
     }
 
     /** Trims a label to fit maxWidth, appending a dot when it had to be cut. */

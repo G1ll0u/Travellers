@@ -595,17 +595,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             }
             rowTop += rowH;
         }
-        drawHistoryScrollbar(innerX + innerW + 2, innerY, innerH, entries.size(), shown);
-    }
-
-    // Lives in a strip reserved on the right of the journal, so it never covers row content.
-    private void drawHistoryScrollbar(int x, int y, int h, int total, int shown) {
-        if (total <= shown || total <= 0) return;
-        drawRect(x, y, x + 2, y + h, 0x30FFFFFF);
-        int thumbH = Math.max(6, h * shown / total);
-        int maxStart = Math.max(1, total - shown);
-        int thumbY = y + (h - thumbH) * Math.min(historyScroll, maxStart) / maxStart;
-        drawRect(x, thumbY, x + 2, thumbY + thumbH, 0xC0FFFFFF);
+        // In the strip reserved on the right of the journal, so it never covers row content.
+        TravellersGuiTheme.drawScrollbar(innerX + innerW + 2, innerY, innerH, historyScroll, shown, entries.size(), false);
     }
 
     /** Entry text split on '\n' (only the first line carries the time-ago prefix). */

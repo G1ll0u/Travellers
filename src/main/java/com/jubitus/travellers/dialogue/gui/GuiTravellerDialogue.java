@@ -10,6 +10,7 @@ import com.jubitus.travellers.dialogue.client.OllamaClient;
 import com.jubitus.travellers.dialogue.client.ToolCallOrchestrator;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.GuiClip;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.gui.hub.WorkerPortraitRenderer;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -69,7 +70,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
 
     private static final int BAR_WIDTH = 2;
     private static final int TEXT_PAD = 5;
-    private static final int SCROLLBAR_W = 3;
+    private static final int SCROLLBAR_W = TravellersGuiTheme.SCROLLBAR_W;
     private static final int SCROLLBAR_GAP = 4;
     /** Extra buffer beyond the scrollbar gutter — French accented glyphs (é, è, à...) commonly render
      * a hair wider than the font's own reported advance width, which otherwise reads as text crowding
@@ -681,7 +682,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
 
     private void drawTranscript() {
         tickScrollEasing();
-        beginClip(transcriptX, transcriptY, transcriptW, transcriptH);
+        GuiClip.begin(transcriptX, transcriptY, transcriptW, transcriptH);
 
         int viewTop = clamp(Math.round(scrollCurrentTop), 0, Math.max(0, contentHeight - transcriptH));
         int viewBottom = viewTop + transcriptH;
@@ -701,7 +702,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
 
         drawScrollbar();
 
-        endClip();
+        GuiClip.end();
     }
 
     /** The scrollbar track+thumb rectangle, shared by drawing and click/drag hit-testing so the two
@@ -710,23 +711,17 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
      * position), so a click always grabs the thumb exactly where the player sees it. */
     @Nullable
     private ScrollbarGeometry computeScrollbarGeometry() {
-        int maxScroll = Math.max(0, contentHeight - transcriptH);
-        if (maxScroll <= 0) return null;
-        int thumbH = Math.min(transcriptH, Math.max(8, transcriptH * transcriptH / contentHeight));
-        int trackSpan = transcriptH - thumbH;
-        int thumbY = transcriptY + (trackSpan <= 0 ? 0 : Math.round(scrollCurrentTop * trackSpan / (float) maxScroll));
+        int[] thumb = TravellersGuiTheme.scrollbarThumb(transcriptY, transcriptH,
+                Math.round(scrollCurrentTop), transcriptH, contentHeight);
+        if (thumb == null) return null;
         return new ScrollbarGeometry(transcriptX + transcriptW - SCROLLBAR_W, transcriptY, transcriptH,
-                thumbY, thumbH, maxScroll);
+                thumb[0], thumb[1], contentHeight - transcriptH);
     }
 
     /** A slim scrollbar track+thumb along the transcript's right edge, only when content overflows it. */
     private void drawScrollbar() {
-        ScrollbarGeometry g = computeScrollbarGeometry();
-        if (g == null) return;
-
-        Gui.drawRect(g.trackX, g.trackY, g.trackX + SCROLLBAR_W, g.trackY + g.trackH, TravellersGuiTheme.COL_PANEL);
-        int thumbColor = draggingScrollbar ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT_DIM;
-        Gui.drawRect(g.trackX, g.thumbY, g.trackX + SCROLLBAR_W, g.thumbY + g.thumbH, thumbColor);
+        TravellersGuiTheme.drawScrollbar(transcriptX + transcriptW - SCROLLBAR_W, transcriptY, transcriptH,
+                Math.round(scrollCurrentTop), transcriptH, contentHeight, draggingScrollbar);
     }
 
     /** Snapshot of the scrollbar's on-screen geometry for one frame. */
@@ -741,18 +736,6 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
             this.thumbH = thumbH;
             this.maxScroll = maxScroll;
         }
-    }
-
-    /** Clips to a GUI-space rectangle. Mirrors {@code WorkerPortraitRenderer.beginClip}. */
-    private void beginClip(int x, int y, int w, int h) {
-        ScaledResolution res = new ScaledResolution(this.mc);
-        int f = res.getScaleFactor();
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(x * f, (res.getScaledHeight() - (y + h)) * f, w * f, h * f);
-    }
-
-    private void endClip() {
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
     @Override

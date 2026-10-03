@@ -1,5 +1,6 @@
 package com.jubitus.travellers.gui.hub;
 
+import com.jubitus.travellers.gui.GuiClip;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -104,9 +105,9 @@ public final class WorkerPortraitRenderer {
         smoothedPitch += (targetPitch - smoothedPitch) * smoothing;
 
         // The portrait frame has a 1px border; clip inside it.
-        beginClip(x + 1, y + 1, size - 2, size - 2);
+        GuiClip.begin(x + 1, y + 1, size - 2, size - 2);
         renderEntity(entity, centerX, centerY, glScale, pixelsPerBlock, smoothedYaw, smoothedPitch);
-        endClip();
+        GuiClip.end();
     }
 
     /** Saturating angle: precise near the portrait, clamped to a plausible neck rotation far from it. */
@@ -197,16 +198,4 @@ public final class WorkerPortraitRenderer {
         entity.prevRotationYawHead = oldPrevRotationYawHead;
     }
 
-    /** Clips to a GUI-space rectangle. Scissor is in window pixels, bottom-left origin. */
-    private static void beginClip(int x, int y, int w, int h) {
-        Minecraft mc = Minecraft.getMinecraft();
-        ScaledResolution res = new ScaledResolution(mc);
-        int f = res.getScaleFactor();
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(x * f, (res.getScaledHeight() - (y + h)) * f, w * f, h * f);
-    }
-
-    private static void endClip() {
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
-    }
 }

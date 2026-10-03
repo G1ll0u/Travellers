@@ -2,6 +2,7 @@ package com.jubitus.travellers.worldmap.gui;
 
 import com.jubitus.travellers.worldmap.client.ClientTileTextures;
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.gui.GuiClip;
 import com.jubitus.travellers.worldmap.pyramid.MapPyramidStore;
 import com.jubitus.travellers.worldmap.pyramid.MapTileGenerator;
 import com.jubitus.travellers.worldmap.pyramid.PyramidDirtyPropagator;
@@ -212,10 +213,8 @@ public class GuiWorldMapPanel {
     // ── Draw ─────────────────────────────────────────────────────────────────
 
     public void draw(int mapX, int mapY) {
-        ScaledResolution sr = new ScaledResolution(mc);
-        int sf = sr.getScaleFactor();
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(mapX * sf, mc.displayHeight - (mapY + h) * sf, w * sf, h * sf);
+        int sf = new ScaledResolution(mc).getScaleFactor();
+        GuiClip.begin(mapX, mapY, w, h);
 
         Gui.drawRect(mapX, mapY, mapX + w, mapY + h, 0xFF000000 | ClientTileTextures.FOG_RGB);
 
@@ -223,7 +222,7 @@ public class GuiWorldMapPanel {
             String msg = I18n.format("travellers.map.unavailable_dimension");
             mc.fontRenderer.drawStringWithShadow(msg, mapX + (w - mc.fontRenderer.getStringWidth(msg)) / 2f,
                     mapY + h / 2f - 4, 0xEEDDBB);
-            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+            GuiClip.end();
             return;
         }
 
@@ -242,7 +241,7 @@ public class GuiWorldMapPanel {
 
         drawLegend(mapX, mapY);
 
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        GuiClip.end();
     }
 
     // ── Terrain ──────────────────────────────────────────────────────────────
