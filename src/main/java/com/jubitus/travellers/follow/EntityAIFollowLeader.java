@@ -2190,6 +2190,11 @@ public class EntityAIFollowLeader extends EntityAIBase {
         hasActivePathGoal = true;
     }
 
+    /** A hazard ({@link BlockRules#isHazard}), or vanilla water when the follower must stay dry. */
+    private static boolean isUnsafeBlock(IBlockState s, boolean waterIsSafe) {
+        return BlockRules.isHazard(s) || (!waterIsSafe && BlockRules.isVanillaWater(s));
+    }
+
     private boolean isHazardousStandPos(BlockPos feet, boolean waterIsSafe) {
         World world = follower.world;
         if (!world.isBlockLoaded(feet) || !world.isBlockLoaded(feet.down()) || !world.isBlockLoaded(feet.up())) {
@@ -2203,9 +2208,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         Block atBlock = at.getBlock();
         Block belowBlock = below.getBlock();
 
-        if (at.getMaterial() == Material.LAVA || below.getMaterial() == Material.LAVA) return true;
-        if (!waterIsSafe && (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER)) return true;
-        if (atBlock == Blocks.FIRE || belowBlock == Blocks.FIRE) return true;
+        if (isUnsafeBlock(at, waterIsSafe) || isUnsafeBlock(below, waterIsSafe)) return true;
 
         if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) return true;
         if (!(up.getMaterial().isReplaceable() || up.getCollisionBoundingBox(world, feet.up()) == null)) return true;
@@ -2282,12 +2285,9 @@ public class EntityAIFollowLeader extends EntityAIBase {
         Block atBlock = at.getBlock();
         Block belowBlock = below.getBlock();
 
-        if (at.getMaterial() == Material.LAVA || below.getMaterial() == Material.LAVA) return true;
-        if (atBlock == Blocks.FIRE || belowBlock == Blocks.FIRE) return true;
-
         // Water is hazardous to a dry-land follower (avoid wandering into a lake for no reason),
         // but not to one already trailing a swimming leader — it needs to enter water to keep up.
-        if (!waterIsSafe && (at.getMaterial() == Material.WATER || below.getMaterial() == Material.WATER)) return true;
+        if (isUnsafeBlock(at, waterIsSafe) || isUnsafeBlock(below, waterIsSafe)) return true;
 
         if (!(at.getMaterial().isReplaceable() || at.getCollisionBoundingBox(world, feet) == null)) {
             // Allow 1-block step-ups (climbable slope). If the position one block up is walkable
@@ -2324,15 +2324,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
             IBlockState state = world.getBlockState(check);
             Block block = state.getBlock();
 
-            if (state.getMaterial() == Material.LAVA) {
-                return true;
-            }
-
-            if (block == Blocks.FIRE) {
-                return true;
-            }
-
-            if (!waterIsSafe && state.getMaterial() == Material.WATER) {
+            if (isUnsafeBlock(state, waterIsSafe)) {
                 return true;
             }
 

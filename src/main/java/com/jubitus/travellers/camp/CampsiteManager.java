@@ -964,8 +964,7 @@ public class CampsiteManager extends WorldSavedData {
 
     // Natural ground, but never ice: a shelter should not sit on a frozen pond.
     private static boolean isValidGround(net.minecraft.block.state.IBlockState s) {
-        Material m = s.getMaterial();
-        return BlockRules.isNaturalGround(s) && m != Material.ICE && m != Material.PACKED_ICE;
+        return BlockRules.isNaturalGround(s) && !BlockRules.isIce(s);
     }
 
     private static EnumFacing facingToward(int fromX, int fromZ, BlockPos to) {

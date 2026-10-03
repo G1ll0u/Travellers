@@ -1,5 +1,6 @@
 package com.jubitus.travellers.pathing;
 
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLilyPad;
@@ -671,18 +672,14 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         Material m1 = s1.getMaterial();
 
         // liquids count as hazards
-        if (m1 == Material.LAVA) return true;
-        if (m1 == Material.WATER) return true;
+        if (m1.isLiquid() || BlockRules.isHazard(s1)) return true;
 
         // 2-deep hole: below1 is air-like AND below2 is air-like
         if (s1.getCollisionBoundingBox(this.blockaccess, below1) != null) return false;
 
         BlockPos below2 = below1.down();
         IBlockState s2 = this.blockaccess.getBlockState(below2);
-        Material m2 = s2.getMaterial();
-
-        if (m2 == Material.LAVA) return true;
-        if (m2 == Material.WATER) return true;
+        if (s2.getMaterial().isLiquid() || BlockRules.isHazard(s2)) return true;
 
         return s2.getCollisionBoundingBox(this.blockaccess, below2) == null;
     }
@@ -754,15 +751,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         this.followerMode = followerMode;
     }
     private boolean isImmediateHazard(BlockPos pos) {
-        IBlockState s = this.blockaccess.getBlockState(pos);
-        Block b = s.getBlock();
-        Material m = s.getMaterial();
-
-        if (m == Material.LAVA) return true;
-        if (b == Blocks.FIRE) return true;
-        if (b == Blocks.MAGMA) return true; // if this version has it
-
-        return false;
+        return BlockRules.isHazard(this.blockaccess.getBlockState(pos));
     }
 
     /**

@@ -120,11 +120,21 @@ public final class BlockRules {
         return !isTreePart(world, pos, s) && !isVegetation(s);
     }
 
-    /** Lava, any non-vanilla-water liquid or fluid block, and every block in the shared hazard list. */
+    /**
+     * Dangerous to touch or stand on: lava, any non-vanilla-water liquid or fluid block, fire, magma,
+     * cactus, and every block in the shared hazard list. Vanilla water is never a hazard.
+     */
     public static boolean isHazard(IBlockState s) {
         Block b = s.getBlock();
         if ((s.getMaterial().isLiquid() || b instanceof IFluidBlock) && !isVanillaWater(s)) return true;
+        if (b == Blocks.FIRE || b == Blocks.MAGMA || b == Blocks.CACTUS) return true;
         return isListedHazard(b);
+    }
+
+    /** Ice of any kind: never ground to build or camp on. */
+    public static boolean isIce(IBlockState s) {
+        Material m = s.getMaterial();
+        return m == Material.ICE || m == Material.PACKED_ICE;
     }
 
     private static boolean isListedHazard(Block b) {

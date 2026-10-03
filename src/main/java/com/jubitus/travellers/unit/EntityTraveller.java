@@ -2915,17 +2915,12 @@ public class EntityTraveller extends EntityCreature {
         }
     }
 
-    /** Column hazard check: any non-water liquid (lava, modded), fire, cactus, or configured hazard blacklist entry, at the column's own level or one below. */
+    /** Column hazard check ({@link BlockRules#isHazard}) at the column's own level or one below. */
     private boolean isHazardMaterialColumn(BlockPos col) {
         for (int dy = 0; dy >= -1; dy--) {
             BlockPos p = col.up(dy);
             if (!world.isBlockLoaded(p)) continue;
-            IBlockState state = world.getBlockState(p);
-            Block b = state.getBlock();
-            Material mat = state.getMaterial();
-
-            if (BlockRules.isHazard(state)) return true;
-            if (b == Blocks.FIRE || b == Blocks.CACTUS) return true;
+            if (BlockRules.isHazard(world.getBlockState(p))) return true;
         }
         return false;
     }
@@ -2935,7 +2930,7 @@ public class EntityTraveller extends EntityCreature {
         for (int dy = 0; dy >= -1; dy--) {
             BlockPos p = col.up(dy);
             if (!world.isBlockLoaded(p)) continue;
-            if (world.getBlockState(p).getMaterial() == Material.WATER) return true;
+            if (BlockRules.isVanillaWater(world.getBlockState(p))) return true;
         }
         return false;
     }

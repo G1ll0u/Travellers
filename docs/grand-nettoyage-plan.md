@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 in progress (5.1–5.2 done, in-game check pending).
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 in progress (5.1–5.3 done; follow and travel checked in game after 5.2).
 
 ## Goal
 
@@ -165,7 +165,10 @@ floor under trees, water surface not seabed).
   leaves count), chunk-level heightmap scans (map painter, terrain scanner, ChunkReader), dialogue rain check, client
   map click, debug player teleport. Left for 5.4 (they are landing searches): `TravelRescue` surface rescues,
   recruit spawn search, boat dry-shore finder, `TravelTerrain.groundInColumn` (cave-capable).
-- 5.3 todo, 5.4 todo.
+- 5.3 done: one hazard definition (user: strictest) — `BlockRules.isHazard` now also covers fire, magma and cactus;
+  pathing, follow (one `isUnsafeBlock`), gap jumps, hazard repulsion and boats use `BlockRules`; `BlockRules.isIce`
+  for camps/shelters. Kept: snow-layer identity checks (one block, no divergence), map colours, dialogue weather.
+- 5.4 todo.
 
 
 - Ground: the 20 `getTopSolidOrLiquidBlock` sites and the custom ground loops (`findGroundBelow`, `findSurfaceY`,

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.pathing;
 
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -104,8 +105,9 @@ public final class GapJumpEvaluator {
         BlockPos.MutableBlockPos scanPos = new BlockPos.MutableBlockPos();
         for (int scanY = cy - 1; scanY >= cy - 6; scanY--) {
             scanPos.setPos(cx + dx, scanY, cz + dz);
-            Material m = world.getBlockState(scanPos).getMaterial();
-            if (m == Material.LAVA || m == Material.WATER || m == Material.FIRE) {
+            IBlockState scanned = world.getBlockState(scanPos);
+            Material m = scanned.getMaterial();
+            if (BlockRules.isHazard(scanned) || BlockRules.isVanillaWater(scanned)) {
                 firstColHazardMaterial = true;
                 break;
             }
@@ -211,9 +213,9 @@ public final class GapJumpEvaluator {
     }
 
     private static boolean isHazard(IBlockAccess world, int x, int y, int z) {
-        Material m = world.getBlockState(new BlockPos(x, y, z)).getMaterial();
+        IBlockState s = world.getBlockState(new BlockPos(x, y, z));
         // Water is a hazard for landings: prevents jumping into rivers/ponds
-        return m == Material.LAVA || m == Material.FIRE || m == Material.CACTUS || m == Material.WATER;
+        return BlockRules.isHazard(s) || BlockRules.isVanillaWater(s);
     }
 
     // ----- cache internals -----

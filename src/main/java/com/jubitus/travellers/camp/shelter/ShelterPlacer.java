@@ -1,5 +1,6 @@
 package com.jubitus.travellers.camp.shelter;
 
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.camp.build.BuildStep;
 import com.jubitus.travellers.camp.build.StructureBuildPlan;
@@ -219,9 +220,8 @@ public final class ShelterPlacer {
         return m.isSolid() && !m.isLiquid() && st.isFullCube()
                 && m != net.minecraft.block.material.Material.LEAVES
                 && m != net.minecraft.block.material.Material.WOOD
-                && m != net.minecraft.block.material.Material.ICE
-                && m != net.minecraft.block.material.Material.PACKED_ICE
-                && m != net.minecraft.block.material.Material.CRAFTED_SNOW;
+                && m != net.minecraft.block.material.Material.CRAFTED_SNOW
+                && !BlockRules.isIce(st);
     }
 
     private static net.minecraft.block.state.IBlockState majorityOr(

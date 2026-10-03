@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.ground.BlockRules;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
@@ -269,11 +270,7 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         IBlockState feet = world.getBlockState(pos);
         IBlockState below = world.getBlockState(pos.down());
 
-        Block b1 = feet.getBlock();
-        Block b2 = below.getBlock();
-
-        return b1 == Blocks.WATER || b1 == Blocks.FLOWING_WATER
-                || b2 == Blocks.WATER || b2 == Blocks.FLOWING_WATER;
+        return BlockRules.isVanillaWater(feet) || BlockRules.isVanillaWater(below);
     }
 
     private boolean hasDriver() {

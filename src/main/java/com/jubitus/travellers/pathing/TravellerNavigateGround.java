@@ -1,5 +1,6 @@
 package com.jubitus.travellers.pathing;
 
+import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
@@ -783,10 +784,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
 
     private boolean isGapOrHazardBelowWorld(BlockPos below) {
         IBlockState s = this.world.getBlockState(below);
-        Material m = s.getMaterial();
-
-        if (m == Material.LAVA) return true;
-        if (m == Material.WATER) return true;
+        if (s.getMaterial().isLiquid() || BlockRules.isHazard(s)) return true;
 
         // hole if no collision
         return s.getCollisionBoundingBox(this.world, below) == null;
@@ -831,8 +829,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
 
     private boolean isHazardBelow(BlockPos below) {
         IBlockState s = this.world.getBlockState(below);
-        Material m = s.getMaterial();
-        if (m == Material.LAVA || m == Material.WATER) return true;
+        if (s.getMaterial().isLiquid() || BlockRules.isHazard(s)) return true;
         return s.getCollisionBoundingBox(this.world, below) == null;
     }
 
@@ -871,21 +868,9 @@ public class TravellerNavigateGround extends PathNavigateGround {
 
     private boolean isHazardousFeet(BlockPos feet) {
         IBlockState s = this.world.getBlockState(feet);
-        Material m = s.getMaterial();
-
-        if (m == Material.LAVA) return true;
-        if (m == Material.FIRE) return true;
-        if (m == Material.CACTUS) return true;
-
-        AxisAlignedBB bb = s.getCollisionBoundingBox(this.world, feet);
-        if (bb == null) {
-            BlockPos below = feet.down();
-            IBlockState sb = this.world.getBlockState(below);
-            Material mb = sb.getMaterial();
-            if (mb == Material.LAVA || mb == Material.FIRE) return true;
-        }
-
-        return false;
+        if (BlockRules.isHazard(s)) return true;
+        return s.getCollisionBoundingBox(this.world, feet) == null
+                && BlockRules.isHazard(this.world.getBlockState(feet.down()));
     }
 
     private boolean isSafeDirectMoveTarget(double x, double y, double z) {
@@ -895,8 +880,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
         IBlockState fs = this.world.getBlockState(feet);
         IBlockState hs = this.world.getBlockState(head);
 
-        if (fs.getMaterial().isLiquid() && fs.getMaterial() != Material.WATER) return false;
-        if (hs.getMaterial().isLiquid() && hs.getMaterial() != Material.WATER) return false;
+        if (BlockRules.isHazard(fs) || BlockRules.isHazard(hs)) return false;
 
         if (isHazardousFeet(feet) || isHazardousFeet(feet.down())) return false;
 
