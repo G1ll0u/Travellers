@@ -1,5 +1,7 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.ground.ColumnGround;
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -64,19 +66,6 @@ final class TravelRescue {
         this.ai = ai;
         this.mob = mob;
         this.terrain = terrain;
-    }
-
-    /**
-     * The volume a teleport candidate must leave clear. On foot that is this traveller's own box
-     * moved to the landing spot; mounted it is the whole horse-plus-rider stack, which is both wider
-     * and rooted a body lower - see {@link TravellerMountSupport#mountedLandingBox}. Every rescue hop
-     * here goes through this one method so a mount can never be dropped into a gap only its rider
-     * would have fitted in.
-     */
-    AxisAlignedBB landingBox(double cx, double groundY, double cz) {
-        AxisAlignedBB mounted = TravellerMountSupport.mountedLandingBox(mob, cx, groundY, cz);
-        if (mounted != null) return mounted;
-        return mob.getEntityBoundingBox().offset(cx - mob.posX, groundY - mob.posY, cz - mob.posZ);
     }
 
     boolean teleportToward(BlockPos target, int stepBlocks) {
@@ -183,7 +172,7 @@ final class TravelRescue {
                 }
                 checks++;
                 BlockPos onGround = terrain.findSurfaceOrWaterY(onward);
-                double feet = terrain.isSwimmable(spot) ? spot.getY() + 0.02D : terrain.teleportLandingY(spot);
+                double feet = LandingSpots.feetY(mob.world, spot);
                 if (nav.isReachableFrom(spot.getX() + 0.5D, feet, spot.getZ() + 0.5D, onGround != null ? onGround : onward)) {
                     com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop resume verified at " + spot.getX() + "," + spot.getY() + "," + spot.getZ() + " (" + i + "/" + lat + ")");
                     landOn(spot);
@@ -229,36 +218,14 @@ final class TravelRescue {
         BlockPos surf = terrain.findSurfaceOrWaterY(guess);
         if (surf == null) { reject(why, tag, "noSurface"); return null; }
 
-        if (terrain.isSwimmable(surf)) {
-            BlockPos top = terrain.snapToWaterSurface(surf);
-            if (top == null) { reject(why, tag, "waterNoHeadroom"); return null; }
-            surf = top;
-        }
-        if (!terrain.isSwimmable(surf)) {
-            boolean okSupport = terrain.isNaturalGroundSupport(surf.down());
-            if (!okSupport) {
-                IBlockState sup = mob.world.getBlockState(surf.down());
-                okSupport = com.jubitus.travellers.ground.Footing.isFloor(mob.world, surf.down(), sup);
-            }
-            if (!okSupport) { reject(why, tag, "noSupport"); return null; }
-            surf = terrain.adjustTreeTopToGround(surf);
-        }
-        if (!terrain.isNavigable(surf)) { reject(why, tag, "notNavigable"); return null; }
-
-        double landY = terrain.candidateLandingY(surf);
-        if (MillFootprints.isForbiddenLanding(mob.world, surf.getX() + 0.5D, landY, surf.getZ() + 0.5D)) { reject(why, tag, "building"); return null; }
-
-        AxisAlignedBB aabb = landingBox(surf.getX() + 0.5D, landY, surf.getZ() + 0.5D);
-        if (!terrain.isAabbAreaLoaded(aabb)) { reject(why, tag, "boxUnloaded"); return null; }
-        if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) { reject(why, tag, "blocked@" + surf.getY()); return null; }
-        if (TravelTerrain.intersectsForbiddenLiquid(mob.world, aabb)) { reject(why, tag, "hazard"); return null; }
+        String unsafe = LandingSpots.whyUnsafe(mob.world, surf, mob, true, false);
+        if (unsafe != null) { reject(why, tag, unsafe); return null; }
         return surf;
     }
 
     private void landOn(BlockPos spot) {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
-        double y = terrain.isSwimmable(spot) ? (spot.getY() + 0.02D) : terrain.teleportLandingY(spot);
-        Relocate.teleport(mob, spot.getX() + 0.5, y, spot.getZ() + 0.5);
+        Relocate.teleport(mob, spot.getX() + 0.5, LandingSpots.feetY(mob.world, spot), spot.getZ() + 0.5);
         ai.clearNav();
     }
 
@@ -283,7 +250,8 @@ final class TravelRescue {
 
         BlockPos bestAny = null;
         double bestAnyScore = Double.MAX_VALUE; // fallback uses “closest” like before
-        int tooLow = 0, notStandable = 0, noSupport = 0, building = 0, blocked = 0, hazard = 0;
+        int tooLow = 0;
+        java.util.Map<String, Integer> refused = new java.util.TreeMap<>();
 
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -294,32 +262,13 @@ final class TravelRescue {
                 BlockPos probe = new BlockPos(x, origin.getY(), z);
                 if (!LoadedChunks.isAreaLoaded(mob.world, probe, 1)) continue;
 
-                BlockPos top = w.getTopSolidOrLiquidBlock(probe);
-
-                // The rise must be measured on the spot actually landed on, not on the raw column
-                // top: getTopSolidOrLiquidBlock returns the crown of a tree, and adjustTreeTopToGround
-                // then walks back down to the forest floor. Tested before that adjustment, every
-                // wooded tile passes a "6 blocks higher" filter it does not remotely satisfy, which
-                // turned this from "dig me out, I'm buried" into an arbitrary hop under any canopy.
-                BlockPos feet = terrain.adjustTreeTopToGround(top);
+                // The column's surface (forest floor under a canopy); the rise is measured on it.
+                int groundY = ColumnGround.topLayer(w, x, z, false);
+                if (groundY == ColumnGround.NONE) { refused.merge("noGround", 1, Integer::sum); continue; }
+                BlockPos feet = new BlockPos(x, groundY, z);
                 if (feet.getY() < minY) { tooLow++; continue; }
-                if (!terrain.isStandable(feet)) { notStandable++; continue; }
-                boolean okSupport = terrain.isNaturalGroundSupport(feet.down());
-                if (!okSupport) {
-                    // stage 3: allow man-made solids too (still reject leaves/liquids via terrain.isStandable())
-                    IBlockState sup = mob.world.getBlockState(feet.down());
-                    okSupport = com.jubitus.travellers.ground.Footing.isFloor(mob.world, feet.down(), sup);
-                }
-                if (!okSupport) { noSupport++; continue; }
-
-                double landY = terrain.candidateLandingY(feet);
-                if (MillFootprints.isForbiddenLanding(w, feet.getX() + 0.5D, landY, feet.getZ() + 0.5D)) { building++; continue; }
-
-                AxisAlignedBB aabb = landingBox(feet.getX() + 0.5D, landY, feet.getZ() + 0.5D);
-                if (!terrain.isAabbAreaLoaded(aabb)) continue;
-
-                if (!w.getCollisionBoxes(mob, aabb).isEmpty()) { blocked++; continue; }
-                if (TravelTerrain.intersectsForbiddenLiquid(w, aabb)) { hazard++; continue; }
+                String why = LandingSpots.whyUnsafe(w, feet, mob, false, false);
+                if (why != null) { refused.merge(why.startsWith("blocked") ? "blocked" : why, 1, Integer::sum); continue; }
 
 
                 // ---- Fallback (old behaviour): closest to origin ----
@@ -354,15 +303,13 @@ final class TravelRescue {
         BlockPos best = (bestForward != null) ? bestForward : bestAny;
         if (best == null) {
             com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "hop surface radius=" + radius
-                    + " minRise=" + minRise + " refused: tooLow=" + tooLow + " notStandable=" + notStandable
-                    + " noSupport=" + noSupport + " building=" + building + " blocked=" + blocked + " hazard=" + hazard);
+                    + " minRise=" + minRise + " refused: tooLow=" + tooLow + " " + refused);
             return false;
         }
 
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 
-        double y = terrain.teleportLandingY(best);
-        Relocate.teleport(mob, best.getX() + 0.5, y, best.getZ() + 0.5);
+        Relocate.teleport(mob, best.getX() + 0.5, LandingSpots.feetY(w, best), best.getZ() + 0.5);
         ai.clearNav();
         return true;
     }
@@ -389,13 +336,11 @@ final class TravelRescue {
                 BlockPos probe = origin.add(dx, 0, dz);
                 if (!LoadedChunks.isAreaLoaded(mob.world, probe, 1)) continue;
 
-                BlockPos top = mob.world.getTopSolidOrLiquidBlock(probe);
-                BlockPos feet = terrain.adjustTreeTopToGround(top);
-
                 // We want DRY land only
-                if (!terrain.isStandable(feet)) continue;
-                if (MillFootprints.isForbiddenLanding(mob.world, feet.getX() + 0.5D,
-                        terrain.teleportLandingY(feet), feet.getZ() + 0.5D)) continue;
+                int groundY = ColumnGround.topLayer(mob.world, probe.getX(), probe.getZ(), false);
+                if (groundY == ColumnGround.NONE) continue;
+                BlockPos feet = new BlockPos(probe.getX(), groundY, probe.getZ());
+                if (!LandingSpots.isSafe(mob.world, feet, mob, false, false)) continue;
 
                 double sx = (feet.getX() + 0.5) - (origin.getX() + 0.5);
                 double sz = (feet.getZ() + 0.5) - (origin.getZ() + 0.5);
@@ -413,12 +358,6 @@ final class TravelRescue {
                 // Score: prefer closer to target + forward + not too far
                 double score = -(d2ToTarget * 0.01) + (forwardBonus * 5.0) - (dist2FromMe * 0.001);
 
-                // Collision check at REAL landing Y (snow-safe)
-                double landY = terrain.teleportLandingY(feet);
-                AxisAlignedBB aabb = landingBox(feet.getX() + 0.5D, landY, feet.getZ() + 0.5D);
-                if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
-                if (TravelTerrain.intersectsForbiddenLiquid(mob.world, aabb)) continue;
-
                 if (score > bestScore) {
                     bestScore = score;
                     best = feet;
@@ -430,8 +369,7 @@ final class TravelRescue {
 
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 
-        double y = terrain.teleportLandingY(best);
-        Relocate.teleport(mob, best.getX() + 0.5, y, best.getZ() + 0.5);
+        Relocate.teleport(mob, best.getX() + 0.5, LandingSpots.feetY(mob.world, best), best.getZ() + 0.5);
         ai.clearNav();
         return true;
     }

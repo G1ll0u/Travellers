@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
-import static com.jubitus.travellers.travel.TravelTerrain.intersectsForbiddenLiquid;
 
 @Mod.EventBusSubscriber(modid = Tags.MOD_ID)
 public final class TravellerSoftSpawner {

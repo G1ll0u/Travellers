@@ -416,106 +416,38 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     /**
-     * Find a safe spawn pos near a village center: prefers ground, can fall back to inside-safe.
+     * A safe outdoor spot near a village center (the surface, never inside or on a Millénaire
+     * building): a few random columns first, then the nearest ring by ring. The center itself as a last resort.
      */
     public static BlockPos findRecruitSpawnPos(World world, BlockPos villageCenter, Random rand) {
         if (world == null || villageCenter == null) return villageCenter;
 
-        // 1) Try some random offsets around the center, pick best safe spot
         final int tries = 24;
-        final int radius = 10; // tweak: how far from center we allow
-
+        final int radius = 10;
         for (int i = 0; i < tries; i++) {
-            int dx = rand.nextInt(radius * 2 + 1) - radius;
-            int dz = rand.nextInt(radius * 2 + 1) - radius;
-
-            BlockPos col = new BlockPos(villageCenter.getX() + dx, 0, villageCenter.getZ() + dz);
-
-            // top block at that XZ
-            BlockPos top = world.getTopSolidOrLiquidBlock(col);
-
-            // Spawn on top block (usually top is the air block above ground)
-            BlockPos spawn = top;
-
-            // If top is still too high (roof), we want the *ground*.
-            // Simple heuristic: if top is higher than villageCenter by a lot, search downward for first solid with air above.
-            if (spawn.getY() > villageCenter.getY() + 3) {
-                BlockPos downFixed = findGroundBelow(world, new BlockPos(spawn.getX(), spawn.getY(), spawn.getZ()), 20);
-                if (downFixed != null) spawn = downFixed;
-            }
-
-            if (isSafeSpawn(world, spawn)) return spawn;
+            BlockPos spot = recruitSpotInColumn(world, villageCenter.getX() + rand.nextInt(radius * 2 + 1) - radius,
+                    villageCenter.getZ() + rand.nextInt(radius * 2 + 1) - radius);
+            if (spot != null) return spot;
         }
-
-        // 2) Spiral search around center (deterministic fallback)
-        BlockPos best = null;
-        int bestDist = Integer.MAX_VALUE;
 
         for (int r = 1; r <= 16; r++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.abs(dx) != r && Math.abs(dz) != r) continue;
-
-                    BlockPos col = new BlockPos(villageCenter.getX() + dx, 0, villageCenter.getZ() + dz);
-                    BlockPos top = world.getTopSolidOrLiquidBlock(col);
-                    BlockPos spawn = top;
-
-                    if (spawn.getY() > villageCenter.getY() + 3) {
-                        BlockPos downFixed = findGroundBelow(world, new BlockPos(spawn.getX(), spawn.getY(), spawn.getZ()), 24);
-                        if (downFixed != null) spawn = downFixed;
-                    }
-
-                    if (isSafeSpawn(world, spawn)) {
-                        int d = dx * dx + dz * dz;
-                        if (d < bestDist) {
-                            bestDist = d;
-                            best = spawn;
-                        }
-                    }
+                    BlockPos spot = recruitSpotInColumn(world, villageCenter.getX() + dx, villageCenter.getZ() + dz);
+                    if (spot != null) return spot;
                 }
             }
-            if (best != null) return best;
         }
-
-        // 3) Last resort: whatever we had
         return villageCenter;
     }
 
-    private static BlockPos findGroundBelow(World world, BlockPos start, int maxDown) {
-        BlockPos p = start;
-        for (int i = 0; i < maxDown && p.getY() > 2; i++) {
-            BlockPos below = p.down();
-            if (world.getBlockState(below).getMaterial().isSolid()
-                    && world.isAirBlock(p)
-                    && world.isAirBlock(p.up())) {
-                return p;
-            }
-            p = below;
-        }
-        return null;
-    }
-
-    /**
-     * Checks 2-block-high collision free + not inside liquids.
-     */
-    private static boolean isSafeSpawn(World world, BlockPos pos) {
-        if (pos == null) return false;
-
-        // Need air for feet + head
-        if (!world.isAirBlock(pos)) return false;
-        if (!world.isAirBlock(pos.up())) return false;
-
-        // Block below must be solid
-        IBlockState below = world.getBlockState(pos.down());
-        if (!below.getMaterial().isSolid()) return false;
-
-        // Avoid water/lava
-        IBlockState feet = world.getBlockState(pos);
-        if (feet.getMaterial().isLiquid()) return false;
-
-        // Collision check (optional but nice)
-        AxisAlignedBB bb = new AxisAlignedBB(pos).expand(0, 1, 0); // 2 blocks tall
-        return world.getCollisionBoxes(null, bb).isEmpty();
+    @Nullable
+    private static BlockPos recruitSpotInColumn(World world, int x, int z) {
+        int y = ColumnGround.topLayer(world, x, z, false);
+        if (y == ColumnGround.NONE) return null;
+        BlockPos feet = new BlockPos(x, y, z);
+        return LandingSpots.isSafe(world, feet, null, false, false) ? feet : null;
     }
 
     public boolean isGoingHome() {

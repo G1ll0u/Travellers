@@ -2709,12 +2709,6 @@ public class EntityTraveller extends EntityCreature {
         return true;
     }
 
-    /** True if this entity's full (render-scaled) hitbox fits, collision- and liquid-free, with its
-     * feet at (x,y,z). Used by duty AI snap-hops to pick a landing cell that won't wedge the body. */
-    public boolean fitsStandingAt(double x, double y, double z) {
-        return isPositionClear(x, y, z);
-    }
-
     private boolean isPositionClear(double x, double y, double z) {
         AxisAlignedBB box = new AxisAlignedBB(
                 x - this.width / 2.0D, y, z - this.width / 2.0D,

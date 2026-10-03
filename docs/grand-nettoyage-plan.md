@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 in progress (5.1–5.3 done; follow and travel checked in game after 5.2).
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 pending); next: phase 6.
 
 ## Goal
 
@@ -153,7 +153,7 @@ dialogue; `GuiWorker` map frame like the other screens; `travellers.worker.no_vi
 Not done: `VillageRowList` (the four list loops now share `ScrollList` + `drawScaledText`; a row widget would add
 nothing).
 
-### Phase 5 — Terrain authorities completed — status: in progress
+### Phase 5 — Terrain authorities completed — status: done (in-game check of 5.4 pending)
 
 Steps (user): 5.1 teleports → 5.2 column ground → 5.3 block kinds → 5.4 landing spots; in-game check after 5.2 and 5.4.
 Decisions (user): every unit teleport clears the path and zeroes momentum; the mod's ground rule everywhere (forest
@@ -168,7 +168,17 @@ floor under trees, water surface not seabed).
 - 5.3 done: one hazard definition (user: strictest) — `BlockRules.isHazard` now also covers fire, magma and cactus;
   pathing, follow (one `isUnsafeBlock`), gap jumps, hazard repulsion and boats use `BlockRules`; `BlockRules.isIce`
   for camps/shelters. Kept: snow-layer identity checks (one block, no divergence), map colours, dialogue weather.
-- 5.4 todo.
+- 5.4 done (user: one shared test, each caller keeps its preference; strict everywhere; one horse box):
+  `unit/LandingSpots` (`whyUnsafe`/`isSafe`: real floor or allowed water, no Millénaire building unless allowed,
+  whole body box — horse + rider when riding — hits no block and touches no hazard; `nearest` ring search; `feetY`).
+  Used by travel resume hops and surface/shore rescues, the cave follow rescue, the resolver's same-level search,
+  zone snap-hops, village visit spots, recruit spawn (fixed: could land inside the town hall or on leaves) and the
+  boat dry-shore landing (fixed: no building check). `TravellerMountSupport.landingBox` is the one horse(+rider) box
+  (resolver's copy removed, identical math). Dead code removed: `findBestSpotNear`, `findClearMountSpot`,
+  `fitsStandingAt`. Allowed inside buildings on purpose: the resolver (it enforces footprints itself at the end),
+  a follow rescue joining a leader who is inside, the visit's own indoor / by-the-wall spots, travel waypoints.
+  Kept: `TravelTerrain.findGroundNear` (a walking waypoint, cave-capable, not a placement), horse-only placement
+  (`findClearHorseFootprint`, Stable pen — phase 8), boat spawn on water.
 
 
 - Ground: the 20 `getTopSolidOrLiquidBlock` sites and the custom ground loops (`findGroundBelow`, `findSurfaceY`,

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.village.visit;
 
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
@@ -781,7 +782,8 @@ public class EntityAIVillageVisit extends EntityAIBase {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
                     for (int dy = 0; dy <= 2; dy++) {
                         BlockPos feet = target.add(dx, dy == 2 ? -1 : dy, dz);
-                        if (!mob.world.isBlockLoaded(feet) || !com.jubitus.travellers.ground.Footing.canStandAt(mob.world, feet)) continue;
+                        // Indoor spots are the visit's own planned places inside a building.
+                        if (!LandingSpots.isSafe(mob.world, feet, mob, false, indoor)) continue;
                         if (!indoor && MillFootprints.at(mob.world, feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0) != null) continue;
                         if (VisitOccupancy.countNear(mob.world, feet, SPOT_SPACING, me) == 0) return feet;
                     }

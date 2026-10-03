@@ -1809,11 +1809,21 @@ public final class TravellerMountSupport {
         if (!rider.isMountedOnBondedMount()) return null;
         Entity horse = rider.getRidingEntity();
         if (horse == null) return null;
+        return landingBox(horse, rider, cx, groundY, cz);
+    }
 
-        double half = Math.max(rider.width, horse.width) / 2.0D;
-        // Where AbstractHorse.updatePassenger would actually put the rider once it lands there.
-        double riderFeet = groundY + horse.getMountedYOffset() + rider.getYOffset();
-        double top = Math.max(groundY + horse.height, riderFeet + rider.height);
+    /**
+     * The horse body standing at {@code (cx, groundY, cz)}, plus the rider on the saddle when
+     * {@code rider} is not null (whichever is wider / taller). Works before either is mounted.
+     */
+    public static AxisAlignedBB landingBox(Entity horse, @Nullable Entity rider, double cx, double groundY, double cz) {
+        double half = Math.max(horse.width, rider != null ? rider.width : 0.0D) / 2.0D;
+        double top = groundY + horse.height;
+        if (rider != null) {
+            // Where AbstractHorse.updatePassenger would actually put the rider once it lands there.
+            double riderFeet = groundY + horse.getMountedYOffset() + rider.getYOffset();
+            top = Math.max(top, riderFeet + rider.height);
+        }
         return new AxisAlignedBB(cx - half, groundY, cz - half, cx + half, top, cz + half);
     }
 

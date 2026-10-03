@@ -75,30 +75,6 @@ public final class TravelTerrain {
         return v.normalize();
     }
 
-    // AxisAlignedBB check that ignores vanilla water but flags any forbidden liquid
-    public static boolean intersectsForbiddenLiquid(World w, AxisAlignedBB aabb) {
-        int minX = MathHelper.floor(aabb.minX);
-        int maxX = MathHelper.floor(aabb.maxX + 1.0);
-        int minY = MathHelper.floor(aabb.minY);
-        int maxY = MathHelper.floor(aabb.maxY + 1.0);
-        int minZ = MathHelper.floor(aabb.minZ);
-        int maxZ = MathHelper.floor(aabb.maxZ + 1.0);
-
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int x = minX; x < maxX; x++) {
-            for (int y = minY; y < maxY; y++) {
-                for (int z = minZ; z < maxZ; z++) {
-                    pos.setPos(x, y, z);
-// ✅ DO NOT LOAD CHUNKS just to check fluids
-                    if (!w.isBlockLoaded(pos)) return true; // treat unknown as unsafe
-                    IBlockState s = w.getBlockState(pos);
-                    if (BlockRules.isHazard(s)) return true;
-                }
-            }
-        }
-        return false;
-    }
-
     static double horizDistSq(BlockPos a, BlockPos b) {
         double dx = (a.getX() + 0.5) - (b.getX() + 0.5);
         double dz = (a.getZ() + 0.5) - (b.getZ() + 0.5);
@@ -458,44 +434,6 @@ public final class TravelTerrain {
     /** Natural terrain under a loaded position (BlockRules.isNaturalGround); false when not loaded. */
     boolean isNaturalGroundSupport(BlockPos supportPos) {
         return mob.world.isBlockLoaded(supportPos) && BlockRules.isNaturalGround(mob.world.getBlockState(supportPos));
-    }
-
-    double feetYOnTopOf(BlockPos ground) {
-        IBlockState st = mob.world.getBlockState(ground);
-        AxisAlignedBB bb = st.getCollisionBoundingBox(mob.world, ground);
-        if (bb == null) return ground.getY();          // no collision box => not standable
-        return ground.getY() + bb.maxY;                // top surface height (handles snow layers!)
-    }
-
-    double teleportLandingY(BlockPos feetPos) {
-        World w = mob.world;
-        IBlockState atFeet = w.getBlockState(feetPos);
-
-        // If we're standing "in" a thin block (snow layer), stand on top of it.
-        if (atFeet.getBlock() == Blocks.SNOW_LAYER) {
-            return feetYOnTopOf(feetPos); // uses that layer's collision height
-        }
-
-        // Normal case: feetPos is air/replaceable; stand on the block below.
-        return feetYOnTopOf(feetPos.down());
-    }
-
-    double candidateLandingY(BlockPos feetPos) {
-        return isSwimmable(feetPos) ? (feetPos.getY() + 0.02D) : teleportLandingY(feetPos);
-    }
-
-    boolean isAabbAreaLoaded(AxisAlignedBB aabb) {
-        BlockPos min = new BlockPos(
-                MathHelper.floor(aabb.minX),
-                MathHelper.floor(aabb.minY),
-                MathHelper.floor(aabb.minZ)
-        );
-        BlockPos max = new BlockPos(
-                MathHelper.floor(aabb.maxX),
-                MathHelper.floor(aabb.maxY),
-                MathHelper.floor(aabb.maxZ)
-        );
-        return mob.world.isAreaLoaded(min, max, false); // false = never load
     }
 
     // If p is in vanilla water, move it up to the TOP of that water column (surface water block).

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone;
 
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.ground.Footing;
@@ -51,8 +52,7 @@ public final class ZonePlacement {
                 for (int dy = 1; dy >= -2; dy--) {
                     BlockPos p = target.add(dx, dy, dz);
                     if (!LoadedChunks.isLoaded(world, p)) break;
-                    if (!Footing.isFloor(world, p.down(), world.getBlockState(p.down()))) continue;
-                    if (!ref.fitsStandingAt(p.getX() + 0.5D, p.getY(), p.getZ() + 0.5D)) continue;
+                    if (!LandingSpots.isSafe(world, p, ref, false, false)) continue;
                     best = p;
                     bestHoriz = horiz;
                     break;

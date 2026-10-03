@@ -1,6 +1,7 @@
 package com.jubitus.travellers.follow;
 
 
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.BlockRules;
@@ -153,103 +154,6 @@ public final class FollowRecoveryHelper {
         double horizSq = dx * dx + dz * dz;
         double dy = follower.posY - leader.posY;
         return horizSq <= maxHorizontal * maxHorizontal && dy >= minVertical;
-    }
-
-    /**
-     * Leader position is passed as raw coordinates (not an {@link EntityLivingBase}) purely for
-     * scoring/distance-filtering purposes - it's only ever read as X/Y/Z, so a virtual (offscreen)
-     * leader's last known position works exactly as well as a loaded entity's.
-     */
-    @Nullable
-    private static TeleportCandidate findBestSpotNear(EntityTraveller worker,
-                                                      double leaderX,
-                                                      double leaderY,
-                                                      double leaderZ,
-                                                      double centerX,
-                                                      double centerY,
-                                                      double centerZ,
-                                                      int radius,
-                                                      boolean requireUnderground,
-                                                      double minLeaderDistance,
-                                                      double maxLeaderDistance,
-                                                      double maxWorkerDistance) {
-        World world = worker.world;
-
-        int xi = MathHelper.floor(centerX);
-        int yi = MathHelper.clamp(MathHelper.floor(centerY), 2, world.getActualHeight() - 3);
-        int zi = MathHelper.floor(centerZ);
-
-        BlockPos best = null;
-        double bestScore = Double.MAX_VALUE;
-        // A leader that went inside a Millénaire building itself may be joined there; otherwise a
-        // rescue never lands inside a building or on its roof.
-        boolean leaderInBuilding = MillFootprints.at(world, leaderX, leaderY, leaderZ, 0) != null;
-
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                for (int dy = -6; dy <= 6; dy++) {
-                    BlockPos pos = new BlockPos(xi + dx, yi + dy, zi + dz);
-                    if (!Footing.canStandAt(world, pos)) continue;
-                    if (requireUnderground && world.canSeeSky(pos)) continue;
-                    if (!leaderInBuilding && MillFootprints.isForbiddenLanding(world,
-                            pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D)) continue;
-
-                    double px = pos.getX() + 0.5D;
-                    double py = pos.getY();
-                    double pz = pos.getZ() + 0.5D;
-
-                    double dlx = px - leaderX;
-                    double dly = py - leaderY;
-                    double dlz = pz - leaderZ;
-                    double distToLeader = Math.sqrt(dlx * dlx + dly * dly + dlz * dlz);
-                    if (distToLeader < minLeaderDistance || distToLeader > maxLeaderDistance) continue;
-
-                    double dwx = px - worker.posX;
-                    double dwy = py - worker.posY;
-                    double dwz = pz - worker.posZ;
-                    double distFromWorker = Math.sqrt(dwx * dwx + dwy * dwy + dwz * dwz);
-                    if (distFromWorker > maxWorkerDistance) continue;
-
-                    double score = 0.0D;
-                    score += distFromWorker * 1.20D;
-                    score += Math.abs(py - leaderY) * 1.55D;
-                    score += distToLeader * 0.45D;
-                    if (world.canSeeSky(pos)) score += 18.0D;
-
-                    if (score < bestScore) {
-                        bestScore = score;
-                        best = pos;
-                    }
-                }
-            }
-        }
-
-        if (best == null) return null;
-        BlockPos refined = refineForBondedMount(worker, best);
-        return new TeleportCandidate(refined.getX() + 0.5D, refined.getY(), refined.getZ() + 0.5D);
-    }
-
-    /**
-     * {@code isStandable} above only ever tests a rider-sized 1x2 column - fine for a worker on foot,
-     * but {@code EntityTraveller.setPositionAndUpdate} carries a mounted <em>or</em> led horse to the
-     * exact same point the worker lands on, and a column that fits the rider's own narrow body is
-     * routinely too narrow for the wider horse standing on it (a slope, a one-block niche in a cliff
-     * face) - reported as a horse reappearing embedded in solid rock and suffocating, on steep
-     * mountainside terrain specifically. Reuses the same mount-aware footprint search materialize/
-     * virtualize placement already relies on (see {@code EntityAIFollowLeader.resolveHopSafeSpot},
-     * fixed the same way for group followers) instead of adding a second, disagreeing clearance model.
-     * Best-effort, so it only ever refines the already-found rider spot, never rejects it outright.
-     */
-    private static BlockPos refineForBondedMount(EntityTraveller worker, BlockPos riderSpot) {
-        UUID mountUUID = worker.getMountUUID();
-        if (mountUUID == null || !(worker.world instanceof WorldServer)) return riderSpot;
-        Entity mount = ((WorldServer) worker.world).getEntityFromUuid(mountUUID);
-        if (!(mount instanceof EntityHorse) || mount.isDead) return riderSpot;
-        BlockPos spot = MaterializePositionResolver.findClearMountFootprint(
-                (WorldServer) worker.world, mount, worker,
-                riderSpot.getX() + 0.5D, riderSpot.getY(), riderSpot.getZ() + 0.5D,
-                null, 6, true);
-        return spot != null ? spot : riderSpot;
     }
 
     public static void teleportWorker(EntityTraveller worker, TeleportCandidate candidate) {
@@ -459,18 +363,9 @@ public final class FollowRecoveryHelper {
         return null;
     }
 
+    // Footprints are checked by the caller (a leader inside a building may be joined there).
     private static boolean isWorkerRescueFeetSpot(EntityTraveller worker, BlockPos feet) {
-        World world = worker.world;
-        if (feet == null || !Footing.canStandAt(world, feet)) return false;
-
-        // The worker's real (render-scaled) body must fit too, not just a 1x2 column.
-        AxisAlignedBB bb = worker.getEntityBoundingBox().offset(
-                (feet.getX() + 0.5D) - worker.posX,
-                feet.getY() - worker.posY,
-                (feet.getZ() + 0.5D) - worker.posZ
-        );
-
-        return world.getCollisionBoxes(worker, bb).isEmpty();
+        return feet != null && LandingSpots.isSafe(worker.world, feet, worker, false, true);
     }
 
     private static boolean isValidCaveFollowRescueSpot(EntityTraveller worker,

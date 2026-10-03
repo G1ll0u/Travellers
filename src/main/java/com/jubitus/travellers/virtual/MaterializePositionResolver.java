@@ -1,6 +1,8 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import net.minecraft.block.Block;
@@ -428,26 +430,9 @@ public final class MaterializePositionResolver {
      */
     @Nullable
     private static BlockPos findSpotAtLevel(WorldServer world, int bx, int bz, double refY, int maxRadius) {
-        int refBlockY = (int) Math.floor(refY);
-        for (int r = 0; r <= Math.max(0, maxRadius); r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (r > 0 && Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    int x = bx + dx;
-                    int z = bz + dz;
-                    if (!LoadedChunks.isLoaded(world, x, z)) continue;
-                    for (int dy = 0; dy <= SAME_LEVEL_Y_SLACK; dy++) {
-                        int down = refBlockY - 1 - dy;
-                        if (down >= 1 && isSafeFloor(world, x, down, z)) return new BlockPos(x, down + 1, z);
-                        if (dy > 0) {
-                            int up = refBlockY - 1 + dy;
-                            if (isSafeFloor(world, x, up, z)) return new BlockPos(x, up + 1, z);
-                        }
-                    }
-                }
-            }
-        }
-        return null;
+        // Footprints are enforced by resolve() itself afterwards, so buildings are allowed here.
+        return LandingSpots.nearest(world, new BlockPos(bx, (int) Math.floor(refY), bz), maxRadius, SAME_LEVEL_Y_SLACK,
+                p -> LandingSpots.isSafe(world, p, null, false, true));
     }
 
     /** A resolved standing spot: the ground column that was picked, and whether it is natural terrain. */
@@ -628,47 +613,7 @@ public final class MaterializePositionResolver {
     }
 
     /**
-     * Finds a safe-floor column with standing clearance near {@code (nearX, nearY, nearZ)}, rejecting
-     * any column inside {@code forbidden} (typically a camp shelter's footprint - a horse shouldn't
-     * materialize standing inside a tent). Mirrors {@link #findSpotAtLevel}'s own ring search exactly,
-     * with the added forbidden-box filter. Returns {@code null} if nothing was found within {@code
-     * maxRadius} - callers should fall back to the naive "same spot as whatever it's near" placement
-     * rather than block materialization entirely.
-     */
-    @Nullable
-    public static BlockPos findClearMountSpot(WorldServer world, double nearX, double nearY, double nearZ,
-                                               @Nullable AxisAlignedBB forbidden, int maxRadius) {
-        int cx = MathHelper.floor(nearX);
-        int cz = MathHelper.floor(nearZ);
-        int refY = MathHelper.floor(nearY);
-
-        for (int r = 0; r <= maxRadius; r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (r > 0 && Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
-                    int x = cx + dx;
-                    int z = cz + dz;
-                    if (forbidden != null && x + 1 > forbidden.minX && x < forbidden.maxX
-                            && z + 1 > forbidden.minZ && z < forbidden.maxZ) {
-                        continue;
-                    }
-                    if (!LoadedChunks.isLoaded(world, x, z)) continue;
-                    for (int dy = 0; dy <= SAME_LEVEL_Y_SLACK; dy++) {
-                        int down = refY - 1 - dy;
-                        if (down >= 1 && isSafeFloor(world, x, down, z)) return new BlockPos(x, down + 1, z);
-                        if (dy > 0) {
-                            int up = refY - 1 + dy;
-                            if (isSafeFloor(world, x, up, z)) return new BlockPos(x, up + 1, z);
-                        }
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Like {@link #findClearMountSpot}, but tests the actual mounted landing box - horse body and
+     * Tests the actual mounted landing box - horse body and
      * rider silhouette, whichever is wider, both at their real dimensions - rather than just a
      * rider-sized floor column. A column that reads as a valid stand spot for the rider's own narrow
      * hitbox is routinely NOT wide enough for the horse standing on it (a slope, a one-block niche in
@@ -724,7 +669,6 @@ public final class MaterializePositionResolver {
                                           boolean bestEffort) {
         int cx = MathHelper.floor(nearX);
         int cz = MathHelper.floor(nearZ);
-        double half = Math.max(horse.width, rider != null ? rider.width : 0.0D) / 2.0D;
 
         int bestX = 0, bestZ = 0;
         double bestGroundY = 0.0D;
@@ -756,7 +700,7 @@ public final class MaterializePositionResolver {
                     int fY = MathHelper.floor(groundY) - 1;
                     if (fY < 1 || !isSafeFloor(world, x, fY, z)) continue;
 
-                    AxisAlignedBB box = mountBox(x, z, groundY, half, horse, rider);
+                    AxisAlignedBB box = TravellerMountSupport.landingBox(horse, rider, x + 0.5D, groundY, z + 0.5D);
                     int hits = world.getCollisionBoxes(null, box).size();
                     if (hits == 0) {
                         return new BlockPos(x, MathHelper.floor(groundY), z);
@@ -778,25 +722,10 @@ public final class MaterializePositionResolver {
         // A one- or two-block overlap the physics resolves on the next tick is the better outcome.
         double y = bestGroundY;
         for (int i = 0; i < 2; i++) {
-            if (world.getCollisionBoxes(null, mountBox(bestX, bestZ, y, half, horse, rider)).isEmpty()) break;
+            if (world.getCollisionBoxes(null, TravellerMountSupport.landingBox(horse, rider, bestX + 0.5D, y, bestZ + 0.5D)).isEmpty()) break;
             y += 1.0D;
         }
         return new BlockPos(bestX, MathHelper.floor(y), bestZ);
-    }
-
-    /** The landing silhouette resting on the surface at {@code (x + .5, groundY, z + .5)}: the horse
-     * body alone when {@code rider} is null, else horse body plus the rider column stacked on the
-     * saddle (whichever is taller/wider). */
-    private static AxisAlignedBB mountBox(int x, int z, double groundY, double half,
-                                          Entity horse, @Nullable Entity rider) {
-        double centerX = x + 0.5D, centerZ = z + 0.5D;
-        double top = groundY + horse.height;
-        if (rider != null) {
-            double riderFeet = groundY + horse.getMountedYOffset() + rider.getYOffset();
-            top = Math.max(top, riderFeet + rider.height);
-        }
-        return new AxisAlignedBB(centerX - half, groundY, centerZ - half,
-                centerX + half, top, centerZ + half);
     }
 
     /**

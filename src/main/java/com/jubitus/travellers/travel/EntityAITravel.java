@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
 
@@ -2017,12 +2018,8 @@ public class EntityAITravel extends EntityAIBase {
 
                     if (!terrain.isNavigable(feet)) continue;
 
-                    double landY = terrain.candidateLandingY(feet);
-                    AxisAlignedBB aabb = rescue.landingBox(feet.getX() + 0.5D, landY, feet.getZ() + 0.5D);
-
-                    if (!terrain.isAabbAreaLoaded(aabb)) continue;
-                    if (!mob.world.getCollisionBoxes(mob, aabb).isEmpty()) continue;
-                    if (TravelTerrain.intersectsForbiddenLiquid(mob.world, aabb)) continue;
+                    // A walking target, not a placement: buildings allowed.
+                    if (!LandingSpots.isSafe(mob.world, feet, mob, true, true)) continue;
 
                     double score = 0.0D;
                     score += TravelTerrain.horizDistSq(feet, dest) * 0.06D;

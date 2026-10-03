@@ -1,5 +1,6 @@
 package com.jubitus.travellers.village.visit;
 
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.village.MillFootprints;
 import com.jubitus.travellers.follow.FollowRecoveryHelper;
 import net.minecraft.util.math.BlockPos;
@@ -56,8 +57,9 @@ public final class VillageGround {
         return null;
     }
 
+    // Outdoor = outside every footprint (no clearance: visit spots may sit right by a wall).
     private static boolean isOutdoorStand(World world, BlockPos feet) {
-        return com.jubitus.travellers.ground.Footing.canStandAt(world, feet)
+        return LandingSpots.isSafe(world, feet, null, false, true)
                 && MillFootprints.at(world, feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0) == null;
     }
 }

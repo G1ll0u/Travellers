@@ -1,5 +1,7 @@
 package com.jubitus.travellers.follow;
 
+import com.jubitus.travellers.ground.ColumnGround;
+import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.travel.TravellerBoats;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -531,11 +533,11 @@ final class FollowBoatController {
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                BlockPos column = new BlockPos(center.getX() + dx, 0, center.getZ() + dz);
-                if (!follower.world.isBlockLoaded(column)) continue;
-
-                BlockPos top = follower.world.getTopSolidOrLiquidBlock(column);
-                if (!isStandableFast(top)) continue;
+                int x = center.getX() + dx, z = center.getZ() + dz;
+                int groundY = ColumnGround.topLayer(follower.world, x, z, false);
+                if (groundY == ColumnGround.NONE) continue;
+                BlockPos top = new BlockPos(x, groundY, z);
+                if (!LandingSpots.isSafe(follower.world, top, follower, false, false)) continue;
 
                 double distSq = top.distanceSq(center);
                 if (distSq < bestDistSq) {
@@ -559,8 +561,5 @@ final class FollowBoatController {
         return new Vec3d(-Math.sin(yawRad), 0.0D, Math.cos(yawRad));
     }
 
-    private boolean isStandableFast(BlockPos feet) {
-        return TerrainStandableCache.isStandable(follower.world, feet);
-    }
 
 }
