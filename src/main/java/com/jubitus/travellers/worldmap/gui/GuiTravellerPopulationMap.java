@@ -43,8 +43,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         implements IPopulationMapReceiver, ICampMapReceiver, IBattleMapReceiver, ITravellersGui {
 
     private GuiButton closeButton;
-    private GuiButton zoomInButton, zoomOutButton, recenterButton;
-    private GuiButton panN, panS, panWBtn, panE;
+    private WorldMapNavButtons navButtons;
     private GuiButton teleportButton;
     private GuiButton spawnTravellerButton, spawnWorkerButton, spawnRaiderButton;
     private GuiButton terrainButton;
@@ -87,20 +86,8 @@ public class GuiTravellerPopulationMap extends GuiScreen
                 "travellers_population_map", player.getPosition());
         mapController.panel.setSelectedPos(null);
 
-        int aw = 16, ah = 16;
-        int midY = mapY + (mapH / 2) - (ah / 2);
-        int midX = mapX + (mapW / 2) - (aw / 2);
-
-        panWBtn = this.addButton(new GuiTravellersButton(2, mapX + 2, midY, aw, ah, "<"));
-        panE    = this.addButton(new GuiTravellersButton(3, mapX + mapW - aw - 2, midY, aw, ah, ">"));
-        panN    = this.addButton(new GuiTravellersButton(4, midX, mapY + 2, aw, ah, "^"));
-        panS    = this.addButton(new GuiTravellersButton(5, midX, mapY + mapH - ah - 2, aw, ah, "v"));
-
+        navButtons = new WorldMapNavButtons(mapController, buttonList, 2, player::getPosition);
         int zTop = mapY + mapH + 6;
-        zoomOutButton  = this.addButton(new GuiTravellersButton(6, mapX, zTop, 20, 20, "-"));
-        zoomInButton   = this.addButton(new GuiTravellersButton(7, mapX + 24, zTop, 20, 20, "+"));
-        recenterButton = this.addButton(new GuiTravellersButton(8, mapX + mapW - 58, zTop, 58, 20,
-                I18n.format("travellers.map.center", "Center")));
         closeButton    = this.addButton(new GuiTravellersButton(9, mapX + mapW - 122, zTop, 58, 20,
                 I18n.format("travellers.gui.close")));
         teleportButton = this.addButton(new GuiTravellersButton(10, mapX + mapW - 186, zTop, 58, 20,
@@ -236,16 +223,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         super.drawScreen(mouseX, mouseY, partialTicks);
         ClientItineraryDebugOverlay.drawInfo(mapX, mapY, mapW, mapH);
         drawCountsPanel();
-        drawHoverTooltip(mouseX, mouseY);
-    }
-
-    private void drawHoverTooltip(int mouseX, int mouseY) {
-        String label = mapController.getTooltip(mouseX, mouseY);
-        if (label != null && !label.isEmpty()) {
-            // Camp marker labels are "\n"-joined multi-line text (state/progress details); every
-            // other marker's label is a single line, so splitting is a no-op for them.
-            this.drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
-        }
+        mapController.drawTooltip(this, mouseX, mouseY);
     }
 
     /** Small HUD box above the map showing live population counts, split loaded/virtual. */
@@ -377,22 +355,8 @@ public class GuiTravellerPopulationMap extends GuiScreen
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-        int step = Math.round(mapController.panel.getZoomBlocksPerPixel() * 48);
-
         if (button == closeButton) { mc.displayGuiScreen(null); return; }
-        if (button == panN)   { mapController.panel.pan(0, -step); return; }
-        if (button == panS)   { mapController.panel.pan(0,  step); return; }
-        if (button == panWBtn){ mapController.panel.pan(-step, 0); return; }
-        if (button == panE)   { mapController.panel.pan( step, 0); return; }
-        if (button == zoomOutButton) {
-            mapController.handleWheel(mapX + mapW / 2, mapY + mapH / 2, -1);
-            return;
-        }
-        if (button == zoomInButton) {
-            mapController.handleWheel(mapX + mapW / 2, mapY + mapH / 2, 1);
-            return;
-        }
-        if (button == recenterButton) { mapController.setCenter(player.getPosition()); return; }
+        if (navButtons.handle(button)) return;
         if (button == teleportButton) { setClickMode(ClickMode.TELEPORT); return; }
         if (button == spawnTravellerButton) { setClickMode(ClickMode.SPAWN_TRAVELLER); return; }
         if (button == spawnWorkerButton) { setClickMode(ClickMode.SPAWN_WORKER); return; }

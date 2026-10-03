@@ -8,7 +8,7 @@ import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
+import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
@@ -74,8 +74,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
     // ── Map data ──────────────────────────────────────────────────────────────
     private WorldMapController mapController;
-    private final List<MsgWorkerGoList.Entry> poiEntries = new ArrayList<>();
-    private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
+    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
 
     public GuiWorker(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorker(player.inventory, worker));
@@ -151,8 +150,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
                 Minecraft.getMinecraft(), mapX, guiTop, MAP_W, ySize,
                 "travellers_worker_transport_map", worker.getPosition());
 
-        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        mapData.subscribe();
         TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
         if (hiredByMe)
             TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
@@ -161,24 +159,18 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        mapData.unsubscribe();
     }
 
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        poiEntries.clear();
-        if (entries != null) poiEntries.addAll(entries);
+        mapData.setPlaces(entries);
         rebuildMapMarkers();
     }
 
     @Override
     public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        workerEntries.clear();
-        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
-        for (MsgMapWorkersUpdate.Entry e : list) {
-            if (e.dim != myDim) continue;
-            workerEntries.add(e);
-        }
+        mapData.setWorkers(list);
         rebuildMapMarkers();
     }
 
@@ -191,10 +183,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             highlighted = java.util.Collections.singleton(villages.get(selectedIndex).center);
         }
 
-        mapController.panel.clearMarkers();
-        WorldMapContentPopulator.populate(
-                mapController.panel, poiEntries, workerEntries, player,
-                ClientOwnerVisualsCache.getColor(), highlighted);
+        mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor(), highlighted);
     }
 
     @Override
@@ -204,11 +193,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
         if (mapController != null) {
-            // Cadre thématisé autour de la carte
-            drawRect(mapController.mapX - 2, mapController.mapY - 2,
-                    mapController.mapX + MAP_W + 2, mapController.mapY + ySize + 2, COL_PANEL);
-            drawRect(mapController.mapX - 1, mapController.mapY - 1,
-                    mapController.mapX + MAP_W + 1, mapController.mapY + ySize + 1, COL_BORDER);
+            TravellersGuiTheme.drawMapFrame(mapController.mapX, mapController.mapY, MAP_W, ySize);
             rebuildMapMarkers();
             mapController.draw();
         }
@@ -222,12 +207,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         drawVillageList(mouseX, mouseY);
         this.renderHoveredToolTip(mouseX, mouseY);
 
-        if (mapController != null) {
-            String label = mapController.getTooltip(mouseX, mouseY);
-            if (label != null && !label.isEmpty()) {
-                drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
-            }
-        }
+        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
         tooltips.render(mouseX, mouseY, this.width, this.height);
     }
 

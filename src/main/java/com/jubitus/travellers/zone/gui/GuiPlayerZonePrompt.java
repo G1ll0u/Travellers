@@ -406,22 +406,19 @@ public class GuiPlayerZonePrompt extends GuiScreen implements ITravellersGui {
     private void drawFootprintOverlays() {
         if (mapController == null) return;
         float bpp = mapController.panel.getZoomBlocksPerPixel();
-        float cx  = mapController.panel.getCenterXf();
-        float cz  = mapController.panel.getCenterZf();
 
         for (MsgOpenZonePrompt.ExistingBarrack eb : existingZones) {
-            drawRect(eb.cx, eb.cz, eb.halfWidth, eb.halfDepth, bpp, cx, cz, 0xAAFF3333);
+            drawRect(eb.cx, eb.cz, eb.halfWidth, eb.halfDepth, bpp, 0xAAFF3333);
         }
 
         int hw = (int) halfWidthSlider.getValue();
         int hd = (int) halfDepthSlider.getValue();
-        drawRect(center.getX(), center.getZ(), hw, hd, bpp, cx, cz, 0xCCFFAA00);
+        drawRect(center.getX(), center.getZ(), hw, hd, bpp, 0xCCFFAA00);
     }
 
-    private void drawRect(int worldCX, int worldCZ, int hw, int hd,
-                          float bpp, float viewCX, float viewCZ, int color) {
-        int screenCX = mapX + mapW / 2 + Math.round((worldCX - viewCX) / bpp);
-        int screenCZ = mapY + mapH / 2 + Math.round((worldCZ - viewCZ) / bpp);
+    private void drawRect(int worldCX, int worldCZ, int hw, int hd, float bpp, int color) {
+        int screenCX = Math.round(mapController.worldToScreenX(worldCX));
+        int screenCZ = Math.round(mapController.worldToScreenY(worldCZ));
         int screenHW = Math.max(1, Math.round(hw / bpp));
         int screenHD = Math.max(1, Math.round(hd / bpp));
 

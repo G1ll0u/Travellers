@@ -9,6 +9,7 @@ import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.zone.gui.GuiWorkerBarracks;
 import com.jubitus.travellers.gui.WorkerHeadRenderer;
 import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
+import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.worldmap.gui.receiver.IBattleMapReceiver;
@@ -107,10 +108,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     // After a group is formed, the new leader is selected when the refreshed list arrives
     private Set<UUID> pendingSelectFromFollowers = Collections.emptySet();
 
-    private final List<MsgWorkerGoList.Entry> poiEntries = new ArrayList<>();
-    private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
-    private final List<MsgMapBattleUpdate.Entry> battleEntries = new ArrayList<>();
-    private final List<MsgMapForeignUnitsUpdate.Entry> foreignEntries = new ArrayList<>();
+    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
     private List<MsgEquipDestsResponse.EquipDestInfo> equipDests = Collections.emptyList();
 
     // ── Geometry ──────────────────────────────────────────────────────────────
@@ -231,8 +229,7 @@ public class GuiWorkerFormationHub extends GuiScreen
                 "travellers_formation_hub_map", center);
         mapController.panel.setZoomBlocksPerPixel(bpp);
 
-        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        mapData.subscribe();
         TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(
                 representativeEntityId >= 0 ? representativeEntityId : -1));
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestEquipDests());
@@ -293,7 +290,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     public void onGuiClosed() {
         super.onGuiClosed();
         flushPendingSync(true);
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        mapData.unsubscribe();
     }
 
     // ── Live refresh (MsgOpenFormationHubGui while open) ─────────────────────
@@ -395,10 +392,7 @@ public class GuiWorkerFormationHub extends GuiScreen
             menu.draw(mouseX, mouseY);
             return;
         }
-        if (!mapDragSelecting) {
-            String label = mapController.getTooltip(mouseX, mouseY);
-            if (label != null && !label.isEmpty()) drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
-        }
+        if (!mapDragSelecting) mapController.drawTooltip(this, mouseX, mouseY);
         if (TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled) {
             JournalEntry hovered = getHistoryEntryAt(mouseX, mouseY);
             if (hovered != null && hovered.battleSummary != null) {
@@ -687,7 +681,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         JournalEntry entry = getHistoryEntryAt(mouseX, mouseY);
         if (entry == null || entry.place == null) return;
         BlockPos target = entry.place.pos;
-        MsgMapWorkersUpdate.Entry live = workerByUuid(entry.place.subject);
+        MsgMapWorkersUpdate.Entry live = mapData.workerByUuid(entry.place.subject);
         if (live != null) target = live.pos;
         mapController.setCenter(target);
     }
@@ -711,25 +705,18 @@ public class GuiWorkerFormationHub extends GuiScreen
     // ── Map markers ───────────────────────────────────────────────────────────
 
     private void rebuildMapMarkers() {
-        mapController.panel.clearMarkers();
-        int ownerColor = ClientOwnerVisualsCache.getColor();
-        WorldMapContentPopulator.populate(mapController.panel, poiEntries, workerEntries, player, ownerColor, null);
-        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
-        WorldMapContentPopulator.populateForeignUnits(mapController.panel, foreignEntries, myDim);
-        for (MsgMapBattleUpdate.Entry e : battleEntries) {
-            if (e.dim == myDim) mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
-        }
+        mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor(), null);
 
         // Selected markers again on top (same type = drawn later within the pass)
         FormationLeaderInfo group = selectedGroup();
         if (group != null) {
-            MsgMapWorkersUpdate.Entry e = workerByUuid(group.uuid);
+            MsgMapWorkersUpdate.Entry e = mapData.workerByUuid(group.uuid);
             if (e != null && e.isLeader) {
                 mapController.panel.addMarker(WorldMapMarkerFactory.leaderHighlighted(e.pos, WorldMapContentPopulator.workerLabel(e)));
             }
         } else if (selectionMode == SelectionMode.FOLLOWERS) {
             Set<UUID> selSet = new HashSet<>(mapSelectedFollowers);
-            for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+            for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
                 if (!e.isLeader && e.uuid != null && selSet.contains(e.uuid) && e.pos != null) {
                     mapController.panel.addMarker(WorldMapMarkerFactory.followerHighlighted(
                             e.pos, WorldMapContentPopulator.workerLabel(e), e.ownerColor));
@@ -742,29 +729,22 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        poiEntries.clear();
-        if (entries != null) poiEntries.addAll(entries);
+        mapData.setPlaces(entries);
     }
 
     @Override
     public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        workerEntries.clear();
-        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
-        for (MsgMapWorkersUpdate.Entry e : list) {
-            if (e.dim == myDim) workerEntries.add(e);
-        }
+        mapData.setWorkers(list);
     }
 
     @Override
     public void receiveBattles(List<MsgMapBattleUpdate.Entry> entries) {
-        battleEntries.clear();
-        if (entries != null) battleEntries.addAll(entries);
+        mapData.setBattles(entries);
     }
 
     @Override
     public void receiveForeignUnits(List<MsgMapForeignUnitsUpdate.Entry> entries) {
-        foreignEntries.clear();
-        if (entries != null) foreignEntries.addAll(entries);
+        mapData.setForeignUnits(entries);
     }
 
     /** Called by MsgEquipDestsResponse: where a group can be sent for equipment. */
@@ -965,7 +945,7 @@ public class GuiWorkerFormationHub extends GuiScreen
             units.add(new Target(TargetKind.PLAYER, player.getPosition(),
                     I18n.format("travellers.worker.formation.you"), null, null, d));
         }
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+        for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
             if (e.pos == null || e.uuid == null) continue;
             d = screenDistSq(e.pos, mouseX, mouseY);
             if (d > r2) continue;
@@ -974,7 +954,7 @@ public class GuiWorkerFormationHub extends GuiScreen
             units.add(new Target(kind, e.pos, e.name, e.uuid, null, d));
         }
         Set<BlockPos> placed = new HashSet<>();
-        for (MsgWorkerGoList.Entry e : poiEntries) {
+        for (MsgWorkerGoList.Entry e : mapData.places) {
             if (e.pos == null) continue;
             d = screenDistSq(e.pos, mouseX, mouseY);
             if (d > r2) continue;
@@ -1190,7 +1170,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         boolean shift = isShiftKeyDown();
         MsgMapWorkersUpdate.Entry closest = null;
         float best = TARGET_RADIUS_PX * TARGET_RADIUS_PX;
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+        for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
             if (e.pos == null || e.uuid == null || WorldMapContentPopulator.isOnDuty(e)) continue;
             float d = screenDistSq(e.pos, mouseX, mouseY);
             if (d <= best) {
@@ -1224,7 +1204,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         int pad = TARGET_RADIUS_PX / 2;
         List<UUID> leaderUuids = new ArrayList<>();
         List<UUID> followerUuids = new ArrayList<>();
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+        for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
             if (e.pos == null || e.uuid == null || WorldMapContentPopulator.isOnDuty(e)) continue;
             float sx = mapController.worldToScreenX(e.pos.getX());
             float sy = mapController.worldToScreenY(e.pos.getZ());
@@ -1318,7 +1298,7 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     private BlockPos findCurrentLeaderPos(FormationLeaderInfo info) {
         if (info.isPlayer) return player.getPosition();
-        MsgMapWorkersUpdate.Entry e = workerByUuid(info.uuid);
+        MsgMapWorkersUpdate.Entry e = mapData.workerByUuid(info.uuid);
         return e != null ? e.pos : new BlockPos((int) info.posX, 64, (int) info.posZ);
     }
 
@@ -1326,15 +1306,6 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (leaders.isEmpty()) return player.getPosition();
         FormationLeaderInfo info = leaders.get(Math.min(selectedIndex, leaders.size() - 1));
         return info.isPlayer ? player.getPosition() : new BlockPos((int) info.posX, 64, (int) info.posZ);
-    }
-
-    @Nullable
-    private MsgMapWorkersUpdate.Entry workerByUuid(@Nullable UUID uuid) {
-        if (uuid == null) return null;
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
-            if (uuid.equals(e.uuid) && e.pos != null) return e;
-        }
-        return null;
     }
 
     @Nullable

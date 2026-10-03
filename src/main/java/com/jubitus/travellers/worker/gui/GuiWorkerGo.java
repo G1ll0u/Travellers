@@ -8,7 +8,8 @@ import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
+import com.jubitus.travellers.worldmap.gui.WorldMapNavButtons;
+import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -46,10 +47,9 @@ import java.util.UUID;
 public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
 
     private GuiButton backButton;
-    private GuiButton zoomInButton, zoomOutButton, recenterButton;
+    private WorldMapNavButtons navButtons;
     private GuiButton goButton;
     private GuiButton getEquipButton;
-    private GuiButton panN, panS, panW, panE;
 
     private boolean showEquipDialog = false;
     private GuiButton equipStayButton, equipReturnButton, equipCancelButton;
@@ -72,12 +72,12 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private final int rowH = 12;
     private int scrollOffset = 0;
 
-    private final List<Row> rows = new ArrayList<>();
+    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
+    // The list rows are the received places, nearest first.
+    private final List<MsgWorkerGoList.Entry> rows = mapData.places;
     private int selectedIndex = -1;
     private BlockPos selectedRowPos = null;
     private BlockPos selectedMapPos = null;
-
-    private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
 
     private int guiLeft, guiTop;
 
@@ -129,12 +129,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             this.mapX    += shift;
         }
 
-        BlockPos initCenter = leaderMode && leaderPos != null ? leaderPos
-                : (worker != null ? worker.getPosition() : player.getPosition());
-
         mapController = new WorldMapController(
                 Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
-                "travellers_worker_map", initCenter);
+                "travellers_worker_map", homePosition());
         mapController.panel.setSelectedPos(null);
         selectedMapPos = null;
 
@@ -147,20 +144,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 I18n.format("travellers.gui.go", "Go")));
         this.goButton.enabled = false;
 
-        int aw = 16, ah = 16;
-        int ay = mapY + (mapH / 2) - (ah / 2);
-        this.panW = this.addButton(new GuiTravellersButton(2, mapX + 2, ay, aw, ah, "<"));
-        this.panE = this.addButton(new GuiTravellersButton(3, mapX + mapW - aw - 2, ay, aw, ah, ">"));
-
-        int axMid = mapX + (mapW / 2) - (aw / 2);
-        this.panN = this.addButton(new GuiTravellersButton(4, axMid, mapY + 2, aw, ah, "^"));
-        this.panS = this.addButton(new GuiTravellersButton(5, axMid, mapY + mapH - ah - 2, aw, ah, "v"));
-
-        int zTop = mapY + mapH + 6;
-        this.zoomOutButton  = this.addButton(new GuiTravellersButton(6, mapX, zTop, 20, 20, "-"));
-        this.zoomInButton   = this.addButton(new GuiTravellersButton(7, mapX + 24, zTop, 20, 20, "+"));
-        this.recenterButton = this.addButton(new GuiTravellersButton(8, mapX + mapW - 58, zTop, 58, 20,
-                I18n.format("travellers.map.center", "Center")));
+        navButtons = new WorldMapNavButtons(mapController, buttonList, 2, this::homePosition);
         this.backButton = this.addButton(new GuiTravellersButton(9, listX, buttonsTop, 50, bh,
                 I18n.format("travellers.gui.back", "Back")));
 
@@ -192,22 +176,24 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         int listRequestId = repEntityId >= 0 ? repEntityId : -1;
         if (listRequestId >= 0)
             TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(listRequestId));
-        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        mapData.subscribe();
+    }
+
+    /** Where the map opens and where Center goes back to. */
+    private BlockPos homePosition() {
+        return leaderMode && leaderPos != null ? leaderPos
+                : (worker != null ? worker.getPosition() : player.getPosition());
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        mapData.unsubscribe();
     }
 
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        rows.clear();
-        for (MsgWorkerGoList.Entry e : entries) {
-            rows.add(new Row(e.kind, e.pos, e.label, e.distance));
-        }
+        mapData.setPlaces(entries);
         rows.sort(Comparator.comparingInt(r -> r.distance));
         selectedIndex = -1;
         goButton.enabled = false;
@@ -219,12 +205,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     @Override
     public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        workerEntries.clear();
-        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
-        for (MsgMapWorkersUpdate.Entry e : list) {
-            if (e.dim != myDim) continue;
-            workerEntries.add(e);
-        }
+        mapData.setWorkers(list);
         rebuildMarkers();
     }
 
@@ -232,31 +213,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         if (mapController == null) return;
         int workerColor = worker != null ? worker.getOwnerMarkColor() : ClientOwnerVisualsCache.getColor();
 
-        // Convert rows to GoList entries for the populator
-        java.util.List<MsgWorkerGoList.Entry> pois = new java.util.ArrayList<>();
-        for (Row r : rows) {
-            if (r.pos == null) continue;
-            MsgWorkerGoList.Entry e;
-            if (r.kind == MsgWorkerGoList.Kind.VILLAGE)
-                e = MsgWorkerGoList.Entry.village(r.pos, r.label, r.distance);
-            else if (r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE)
-                e = MsgWorkerGoList.Entry.controlledVillage(r.pos, r.label, r.distance);
-            else if (r.kind == MsgWorkerGoList.Kind.STABLE)
-                e = MsgWorkerGoList.Entry.stable(r.pos, r.label, r.distance);
-            else
-                e = MsgWorkerGoList.Entry.home(r.pos, r.label, r.distance);
-            pois.add(e);
-        }
-
         // Highlighted: the currently selected row (shown in gold)
-        java.util.Set<net.minecraft.util.math.BlockPos> highlighted = null;
-        if (selectedRowPos != null) {
-            highlighted = java.util.Collections.singleton(selectedRowPos);
-        }
-
-        mapController.panel.clearMarkers();
-        WorldMapContentPopulator.populate(
-                mapController.panel, pois, workerEntries, player, workerColor, highlighted);
+        java.util.Set<BlockPos> highlighted = selectedRowPos != null ? Collections.singleton(selectedRowPos) : null;
+        mapData.populate(mapController, player, workerColor, highlighted);
 
         // Custom map-click destination drawn above all other markers
         if (selectedMapPos != null) {
@@ -299,12 +258,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
         if (!showEquipDialog) drawList(mouseX, mouseY);
 
-        if (mapController != null) {
-            String label = mapController.getTooltip(mouseX, mouseY);
-            if (label != null && !label.isEmpty()) {
-                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
-            }
-        }
+        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
         tooltips.render(mouseX, mouseY, this.width, this.height);
     }
 
@@ -322,7 +276,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             boolean sel = (globalIdx == selectedIndex);
             TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, sel);
 
-            Row r = rows.get(globalIdx);
+            MsgWorkerGoList.Entry r = rows.get(globalIdx);
             final float scale = 0.85F;
             String prefix = r.kind == MsgWorkerGoList.Kind.VILLAGE ? "[V] "
                     : r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE ? "[CV] "
@@ -398,7 +352,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             int idx = scrollOffset + (mouseY - listY) / rowH;
             if (idx >= 0 && idx < rows.size()) {
                 selectedIndex = idx;
-                Row r = rows.get(idx);
+                MsgWorkerGoList.Entry r = rows.get(idx);
                 selectedMapPos = null;
                 selectedRowPos = r.pos;
                 mapController.setCenter(r.pos);
@@ -430,8 +384,6 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-        int stepBlocks = Math.round(mapController.panel.getZoomBlocksPerPixel() * 48);
-
         if (button == backButton) {
             if (leaderMode && returnTo != null) {
                 mc.displayGuiScreen(returnTo);
@@ -465,28 +417,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             return;
         }
 
-        if (button == panN) { mapController.panel.pan(0, -stepBlocks); return; }
-        if (button == panS) { mapController.panel.pan(0,  stepBlocks); return; }
-        if (button == panW) { mapController.panel.pan(-stepBlocks, 0); return; }
-        if (button == panE) { mapController.panel.pan( stepBlocks, 0); return; }
-
-        if (button == zoomOutButton) {
-            mapController.handleWheel(mapController.mapX + mapController.mapW / 2,
-                    mapController.mapY + mapController.mapH / 2, -1);
-            return;
-        }
-        if (button == zoomInButton) {
-            mapController.handleWheel(mapController.mapX + mapController.mapW / 2,
-                    mapController.mapY + mapController.mapH / 2, 1);
-            return;
-        }
-
-        if (button == recenterButton) {
-            BlockPos center = leaderMode && leaderPos != null ? leaderPos
-                    : (worker != null ? worker.getPosition() : player.getPosition());
-            mapController.setCenter(center);
-            return;
-        }
+        if (navButtons.handle(button)) return;
 
         if (button == goButton) {
             if (leaderMode && leaderUUID != null) {
@@ -521,8 +452,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         goButton.visible = !d;
         getEquipButton.visible = !d;
         backButton.visible = !d;
-        panN.visible = !d; panS.visible = !d; panW.visible = !d; panE.visible = !d;
-        zoomInButton.visible = !d; zoomOutButton.visible = !d; recenterButton.visible = !d;
+        navButtons.setVisible(!d);
     }
 
     /** Get Equipment is allowed for a controlled village, a lone barrack, or a stable row. */
@@ -536,7 +466,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
     private void sendGetEquipment(boolean stay) {
         if (selectedIndex < 0 || selectedIndex >= rows.size()) return;
-        Row r = rows.get(selectedIndex);
+        MsgWorkerGoList.Entry r = rows.get(selectedIndex);
         com.jubitus.travellers.unit.equipment.EquipTargetKind kind =
                 r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
                         ? com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE
@@ -548,16 +478,6 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         TravellersNetwork.CHANNEL.sendToServer(
                 new com.jubitus.travellers.unit.equipment.net.MsgWorkerGetEquipment(
                         targetUUID, stay, kind, r.pos));
-    }
-
-    private static class Row {
-        final MsgWorkerGoList.Kind kind;
-        final BlockPos pos;
-        final String label;
-        final int distance;
-        Row(MsgWorkerGoList.Kind kind, BlockPos pos, String label, int distance) {
-            this.kind = kind; this.pos = pos; this.label = label; this.distance = distance;
-        }
     }
 
     private boolean isMouseOverList(int mouseX, int mouseY) {

@@ -3,7 +3,7 @@ package com.jubitus.travellers.zone.gui;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
-import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
+import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerBarracksReceiver;
@@ -133,7 +133,7 @@ public class GuiWorkerBarracks extends GuiScreen
     private boolean dragging = false;
 
     private WorldMapController mapController;
-    private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
+    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
 
     private GuiButton backBtn;
     private GuiButton zoomInBtn, zoomOutBtn, recenterBtn;
@@ -210,8 +210,7 @@ public class GuiWorkerBarracks extends GuiScreen
         mapController = new WorldMapController(Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
                 "travellers_barracks_map", center);
 
-        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        mapData.subscribe();
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerBarracksData());
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerZoneData());
 
@@ -221,7 +220,7 @@ public class GuiWorkerBarracks extends GuiScreen
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        mapData.unsubscribe();
     }
 
     @Override
@@ -258,12 +257,7 @@ public class GuiWorkerBarracks extends GuiScreen
 
     @Override
     public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        workerEntries.clear();
-        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
-        for (MsgMapWorkersUpdate.Entry e : list) {
-            if (e.dim != myDim) continue;
-            workerEntries.add(e);
-        }
+        mapData.setWorkers(list);
         if (mapController != null) rebuildMarkers();
     }
 
@@ -331,8 +325,8 @@ public class GuiWorkerBarracks extends GuiScreen
 
     private void rebuildMarkers() {
         if (mapController == null) return;
-        mapController.panel.clearMarkers();
         int ownerColor = ClientOwnerVisualsCache.getColor();
+        mapData.populate(mapController, player, ownerColor, null);
         for (int i = 0; i < zoneRows.size(); i++) {
             ZoneRow z = zoneRows.get(i);
             if (i == selectedZoneIndex) {
@@ -343,8 +337,6 @@ public class GuiWorkerBarracks extends GuiScreen
                 mapController.panel.addMarker(WorldMapMarkerFactory.home(z.center, z.name, ownerColor));
             }
         }
-        WorldMapContentPopulator.populate(mapController.panel,
-                Collections.emptyList(), workerEntries, player, ownerColor);
     }
 
     @Override
@@ -377,11 +369,7 @@ public class GuiWorkerBarracks extends GuiScreen
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        if (mapController != null) {
-            String label = mapController.getTooltip(mouseX, mouseY);
-            if (label != null && !label.isEmpty())
-                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
-        }
+        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
 
         if (dragging && dragWorker != null) {
             WorkerHeadRenderer.draw(dragWorker.cultureId, dragWorker.textureIndex, dragWorker.ownerColor,
@@ -405,11 +393,11 @@ public class GuiWorkerBarracks extends GuiScreen
             return;
         }
         if (button == zoomInBtn) {
-            mapController.handleWheel(mapX + mapW / 2, mapY + mapH / 2, 1);
+            mapController.zoomStep(1);
             return;
         }
         if (button == zoomOutBtn) {
-            mapController.handleWheel(mapX + mapW / 2, mapY + mapH / 2, -1);
+            mapController.zoomStep(-1);
             return;
         }
         if (button == recenterBtn) {

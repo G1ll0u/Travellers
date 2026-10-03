@@ -185,11 +185,12 @@ public class GuiWorldMapPanel {
         return new BlockPos(wx, top.getY(), wz);
     }
 
-    private float worldToScreenX(double worldX, int mapX) {
+    /** Screen X of a world column, for a map drawn at mapX. */
+    public float worldToScreenX(double worldX, int mapX) {
         return (float) (mapX + w / 2f + (worldX - centerX) / blocksPerPixel);
     }
 
-    private float worldToScreenY(double worldZ, int mapY) {
+    public float worldToScreenY(double worldZ, int mapY) {
         return (float) (mapY + h / 2f + (worldZ - centerZ) / blocksPerPixel);
     }
 

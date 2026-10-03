@@ -7,11 +7,13 @@ import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapTiles;
 import com.jubitus.travellers.worldmap.net.MsgWorkerMapView;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.math.BlockPos;
 import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class WorldMapController {
@@ -131,11 +133,22 @@ public class WorldMapController {
 
     /** Screen position of a world column on the map. */
     public float worldToScreenX(double worldX) {
-        return mapX + mapW / 2f + (float) (worldX - panel.getCenterXf()) / panel.getZoomBlocksPerPixel();
+        return panel.worldToScreenX(worldX, mapX);
     }
 
     public float worldToScreenY(double worldZ) {
-        return mapY + mapH / 2f + (float) (worldZ - panel.getCenterZf()) / panel.getZoomBlocksPerPixel();
+        return panel.worldToScreenY(worldZ, mapY);
+    }
+
+    /** One wheel click toward (+1) or away from (-1) the map centre, for the zoom buttons. */
+    public void zoomStep(int direction) {
+        handleWheel(mapX + mapW / 2, mapY + mapH / 2, direction);
+    }
+
+    /** Pans by a fixed screen distance (48 px) in the given direction, for the arrow buttons. */
+    public void panStep(int dirX, int dirZ) {
+        int step = Math.round(panel.getZoomBlocksPerPixel() * 48);
+        panel.pan(dirX * step, dirZ * step);
     }
 
     public void draw() {
@@ -150,6 +163,14 @@ public class WorldMapController {
     public String getTooltip(int mouseX, int mouseY) {
         if (!isMouseOver(mouseX, mouseY)) return null;
         return panel.getTooltipAt(mouseX, mouseY, mapX, mapY);
+    }
+
+    /** Draws the hovered marker's label (one line per '\n') as a tooltip. */
+    public void drawTooltip(GuiScreen screen, int mouseX, int mouseY) {
+        String label = getTooltip(mouseX, mouseY);
+        if (label != null && !label.isEmpty()) {
+            screen.drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
+        }
     }
 
     public void setCenter(BlockPos pos) {

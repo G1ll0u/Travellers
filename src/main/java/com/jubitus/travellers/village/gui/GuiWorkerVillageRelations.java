@@ -12,6 +12,7 @@ import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
+import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
@@ -67,8 +68,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
 
     // ── Map data ──────────────────────────────────────────────────────────────
     private WorldMapController mapController;
-    private final List<MsgWorkerGoList.Entry> homeEntries = new ArrayList<>();
-    private final List<MsgMapWorkersUpdate.Entry> workerEntries = new ArrayList<>();
+    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
 
     public GuiWorkerVillageRelations(EntityPlayer player, EntityTravellerWorker worker) {
         this(player, worker, null);
@@ -116,8 +116,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
                 Minecraft.getMinecraft(), mapX, mapY, MAP_W, ySize,
                 "travellers_village_relations_map", referencePos());
 
-        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(true));
+        mapData.subscribe();
         if (worker != null) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
         }
@@ -127,19 +126,14 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeWorkerMap(false));
+        mapData.unsubscribe();
     }
 
     // ── IWorkerGoListReceiver ─────────────────────────────────────────────────
 
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        homeEntries.clear();
-        if (entries != null) {
-            for (MsgWorkerGoList.Entry e : entries) {
-                if (e.kind == MsgWorkerGoList.Kind.HOME) homeEntries.add(e);
-            }
-        }
+        mapData.setPlaces(entries);
         rebuildMapMarkers();
     }
 
@@ -147,12 +141,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
 
     @Override
     public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        workerEntries.clear();
-        int myDim = Minecraft.getMinecraft().world.provider.getDimension();
-        for (MsgMapWorkersUpdate.Entry e : list) {
-            if (e.dim != myDim) continue;
-            workerEntries.add(e);
-        }
+        mapData.setWorkers(list);
         rebuildMapMarkers();
     }
 
@@ -179,9 +168,10 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         if (mapController == null) return;
         mapController.panel.clearMarkers();
 
-        // Homes from GoList
-        for (MsgWorkerGoList.Entry e : homeEntries) {
-            if (e.pos != null) mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label));
+        // Homes from GoList (villages come from the relations data below)
+        for (MsgWorkerGoList.Entry e : mapData.places) {
+            if (e.pos != null && e.kind == MsgWorkerGoList.Kind.HOME)
+                mapController.panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label));
         }
 
         // Villages from relations data, colored by enemy status and selection
@@ -198,7 +188,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
         }
 
         // Workers
-        for (MsgMapWorkersUpdate.Entry e : workerEntries) {
+        for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
             if (e.pos == null) continue;
             String name = (e.name != null && !e.name.isEmpty()) ? e.name : "Worker";
             if (e.isLeader)
@@ -341,12 +331,7 @@ public class GuiWorkerVillageRelations extends GuiScreen implements IWorkerGoLis
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        if (mapController != null) {
-            String label = mapController.getTooltip(mouseX, mouseY);
-            if (label != null && !label.isEmpty()) {
-                drawHoveringText(java.util.Arrays.asList(label.split("\n")), mouseX, mouseY);
-            }
-        }
+        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
