@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat.ai;
 
+import com.jubitus.travellers.combat.Hostility;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -62,21 +63,11 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
             return false;
         }
 
-        EntityRuleList blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-        if (blacklist != null && blacklist.matches(target)) return false;
+        if (worker.getAggroBlacklist().matches(target)) return false;
 
-        // Assist owner if:
-        // - target is a hostile mob, OR
-        // - target is an enemy by declared/engaged rules
-        if (target instanceof net.minecraft.entity.monster.IMob) return true;
-
-        if (target instanceof EntityPlayer) {
-            return worker.isEnemyPlayer((EntityPlayer) target);
-        }
-        if (target instanceof EntityTravellerWorker) {
-            return worker.isEnemyHiredWorker((EntityTravellerWorker) target);
-        }
-
+        if (Hostility.isWorkerEnemy(worker, target)) return true;
+        // Players and workers only when they are enemies; anything else the owner hits is a target too.
+        if (target instanceof EntityPlayer || target instanceof EntityTravellerWorker) return false;
         return super.isSuitableTarget(target, includeInvincibles);
     }
 

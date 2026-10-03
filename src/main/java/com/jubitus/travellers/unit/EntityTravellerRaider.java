@@ -108,9 +108,9 @@ public class EntityTravellerRaider extends EntityTraveller {
                                                 && !((EntityPlayer) e).isSpectator())
                                         || (e instanceof EntityTraveller
                                                 && e != this
-                                                && this.isAggressiveToTravellers() != ((EntityTraveller) e).isAggressiveToTravellers())
+                                                && com.jubitus.travellers.combat.Hostility.isCrossFaction(this, (EntityTraveller) e))
                                         || (!(e instanceof EntityTraveller)
-                                                && !TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST.matches(e)
+                                                && !this.getAggroBlacklist().matches(e)
                                                 && this.shouldAttackExtraEntity(e))
                                 )
                 )
@@ -362,7 +362,7 @@ public class EntityTravellerRaider extends EntityTraveller {
             EntityTraveller t = (EntityTraveller) src;
 
             // Only ignore same-faction (raiders-raiders, travellers-travellers)
-            if (this.isAggressiveToTravellers() == t.isAggressiveToTravellers()) {
+            if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, t)) {
                 this.setRevengeTarget(null);
                 return true;
             }

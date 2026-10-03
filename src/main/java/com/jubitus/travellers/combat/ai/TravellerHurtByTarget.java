@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat.ai;
 
+import com.jubitus.travellers.combat.Hostility;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityCreature;
@@ -52,8 +53,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
         }
 
         if (attacker instanceof EntityTraveller && owner instanceof EntityTraveller) {
-            boolean crossFaction = ((EntityTraveller) owner).isAggressiveToTravellers()
-                    ^ ((EntityTraveller) attacker).isAggressiveToTravellers();
+            boolean crossFaction = Hostility.isCrossFaction((EntityTraveller) owner, (EntityTraveller) attacker);
             if (!crossFaction) {
                 this.revengeTimerOld = revengeTimer;
                 owner.setRevengeTarget(null);
@@ -94,7 +94,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
             EntityTraveller me = (EntityTraveller) owner;
             EntityTraveller other = (EntityTraveller) attacker;
 
-            boolean crossFaction = me.isAggressiveToTravellers() ^ other.isAggressiveToTravellers();
+            boolean crossFaction = Hostility.isCrossFaction(me, other);
             if (!crossFaction) {
                 this.revengeTimerOld = this.owner.getRevengeTimer();
                 owner.setRevengeTarget(null);
@@ -151,7 +151,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 // Raiders recruit only raiders; friendly travellers recruit only friendly travellers/workers.
                 if (owner instanceof EntityTraveller) {
                     EntityTraveller ownerT = (EntityTraveller) owner;
-                    if (ownerT.isAggressiveToTravellers() != ally.isAggressiveToTravellers()) continue;
+                    if (Hostility.isCrossFaction(ownerT, ally)) continue;
                 }
 
                 // Only assist if attacker is within help range of THIS ally

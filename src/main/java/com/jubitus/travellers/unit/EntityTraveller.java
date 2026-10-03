@@ -1478,14 +1478,14 @@ public class EntityTraveller extends EntityCreature {
                     // allow, do NOT reject
                 } else {
                     // fall through to normal faction rules
-                    if (!combat.isCrossFaction(other)) {
+                    if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other)) {
                         rejectTarget();
                         return;
                     }
                 }
             } else {
                 // Normal travellers: block same-faction fights
-                if (!combat.isCrossFaction(other)) {
+                if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other)) {
                     rejectTarget();
                     return;
                 }
@@ -3300,7 +3300,7 @@ public class EntityTraveller extends EntityCreature {
 
         if (src instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) src;
-            if (!combat.isCrossFaction(other)) {
+            if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other)) {
                 // same faction -> no revenge target, no aggro
                 this.setRevengeTarget(null);
                 return true;
@@ -3538,6 +3538,7 @@ public void fall(float distance, float damageMultiplier) {
         combat.rememberThreat(e, addScore);
     }
 
+    /** The one blacklist ("never fight these") for this unit's kind: raiders have their own. */
     public EntityRuleList getAggroBlacklist() {
         return (this instanceof EntityTravellerRaider)
                 ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
@@ -4127,7 +4128,7 @@ public void fall(float distance, float damageMultiplier) {
         if (this instanceof EntityTravellerWorker && rider instanceof EntityTravellerWorker) {
             return ((EntityTravellerWorker) this).isEnemyHiredWorker((EntityTravellerWorker) rider);
         }
-        return combat.isCrossFaction(rider);
+        return com.jubitus.travellers.combat.Hostility.isCrossFaction(this, rider);
     }
 
     public java.util.List<BlockPos> getTravelRoute() {

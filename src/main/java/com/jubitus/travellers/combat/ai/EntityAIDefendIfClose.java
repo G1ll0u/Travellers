@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat.ai;
 
+import com.jubitus.travellers.combat.Hostility;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
@@ -47,7 +48,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 requireLOS,
                 8,
                 mob.getRNG().nextInt(8),
-                defaultAggroList(mob));
+                mob.getAggroBlacklist());
     }
 
     // Full control ctor
@@ -78,12 +79,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         this.closeHoldSq = hold * hold;
     }
 
-    private static EntityRuleList defaultAggroList(EntityTraveller mob) {
-        return (mob instanceof EntityTravellerRaider)
-                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-    }
-
     // Optional convenience: (mob, range, requireLOS, tickRate)
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS, int tickRate) {
         this(mob,
@@ -91,7 +86,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 requireLOS,
                 tickRate,
                 mob.getRNG().nextInt(Math.max(3, tickRate)),
-                defaultAggroList(mob));
+                mob.getAggroBlacklist());
     }
 
     public EntityAIDefendIfClose setAssistRadius(double r) {
@@ -207,7 +202,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         if (!(mob instanceof EntityTravellerWorker)) {
             for (EntityTraveller a : mob.world.getEntitiesWithinAABB(EntityTraveller.class, aabb,
                     a -> a != null && a.isEntityAlive() && a != mob && !(a instanceof EntityTravellerWorker)
-                            && a.isAggressiveToTravellers() == mob.isAggressiveToTravellers())) {
+                            && !Hostility.isCrossFaction(a, mob))) {
                 EntityLivingBase t = a.getAttackTarget();
                 if (t instanceof EntityPlayer) {
                     if (hostilePlayers == null) hostilePlayers = new java.util.HashSet<>();
@@ -226,7 +221,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                             || TravellerHostilityHelper.isLavaCowAggressive(e)
                             // cross-faction travellers
                             || (e instanceof EntityTraveller
-                            && (((EntityTraveller) e).isAggressiveToTravellers() ^ mob.isAggressiveToTravellers()))
+                            && Hostility.isCrossFaction((EntityTraveller) e, mob))
                             // a player a faction-ally is already fighting
                             || (e instanceof EntityPlayer && alliesFighting != null && alliesFighting.contains(e.getUniqueID()))
                             // your custom extra config
@@ -255,7 +250,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         EntityLivingBase pick = null;
         double bestScore = Double.POSITIVE_INFINITY;
         boolean bestWasEmergency = false;
-        EntityRuleList bl = currentBlacklist();
+        EntityRuleList bl = mob.getAggroBlacklist();
 
         for (EntityLivingBase e : list) {
             // AW2 diagnostic trace - only for AW2 faction NPC candidates, logs why each one was
@@ -405,11 +400,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         return rangeLin * rangeLin;
     }
 
-    private EntityRuleList currentBlacklist() {
-        return (mob instanceof EntityTravellerRaider)
-                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-    }
 
     // --- helpers ---
 // “Not behind walls” substitute when no LOS: require a real path.

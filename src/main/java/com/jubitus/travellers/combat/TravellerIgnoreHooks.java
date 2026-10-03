@@ -58,11 +58,7 @@ public class TravellerIgnoreHooks {
         if (!(mob instanceof net.minecraft.entity.monster.IMob)) return false;
         if (!(target instanceof EntityTraveller)) return false;
 
-        boolean raider = target instanceof EntityTravellerRaider;
-        EntityRuleList list = raider
-                ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
-                : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-        return list.matches(mob);
+        return ((EntityTraveller) target).getAggroBlacklist().matches(mob);
     }
 
     /**

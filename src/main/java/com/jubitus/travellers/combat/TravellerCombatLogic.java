@@ -99,11 +99,6 @@ public class TravellerCombatLogic {
     // Target validation
     // -------------------------------------------------------------------------
 
-    /** True only when the two entities belong to opposing factions. */
-    public boolean isCrossFaction(EntityTraveller other) {
-        return entity.isAggressiveToTravellers() ^ other.isAggressiveToTravellers();
-    }
-
     /**
      * True when the attack-target limiter should be bypassed for this target.
      * Archers always bypass — they don't occupy melee slots.
@@ -149,7 +144,7 @@ public class TravellerCombatLogic {
         List<EntityTraveller> travs = entity.world.getEntitiesWithinAABB(EntityTraveller.class, box,
                 t -> t != null && t.isEntityAlive() && t != entity);
         for (EntityTraveller t : travs) {
-            if (entity.isAggressiveToTravellers() == t.isAggressiveToTravellers()) score++;
+            if (!Hostility.isCrossFaction(entity, t)) score++;
         }
 
         List<EntityPlayer> players = entity.world.getEntitiesWithinAABB(EntityPlayer.class, box,
@@ -262,10 +257,9 @@ public class TravellerCombatLogic {
             EntityTraveller t = (EntityTraveller) e;
             if (entity instanceof EntityTravellerWorker && t instanceof EntityTravellerWorker) {
                 EntityTravellerWorker me = (EntityTravellerWorker) entity;
-                if (!me.shouldAttackExtraEntity(e)
-                        && entity.isAggressiveToTravellers() == t.isAggressiveToTravellers()) return;
+                if (!me.shouldAttackExtraEntity(e) && !Hostility.isCrossFaction(entity, t)) return;
             } else {
-                if (entity.isAggressiveToTravellers() == t.isAggressiveToTravellers()) return;
+                if (!Hostility.isCrossFaction(entity, t)) return;
             }
         }
 

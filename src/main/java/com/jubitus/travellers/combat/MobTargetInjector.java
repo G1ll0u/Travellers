@@ -37,9 +37,7 @@ public class MobTargetInjector {
                             public boolean apply(@javax.annotation.Nullable EntityTraveller t) {
                                 if (t == null || !t.isEntityAlive() || t.isInvisible()) return false;
 
-                                EntityRuleList list = (t instanceof EntityTravellerRaider)
-                                        ? TravellersDerivedConfig.RAIDER_AGGRO_BLACKLIST
-                                        : TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
+                                EntityRuleList list = t.getAggroBlacklist();
 
                                 // Only allow targeting if THIS mob type is NOT blacklisted for that Traveller kind.
                                 return !list.matches(mob);

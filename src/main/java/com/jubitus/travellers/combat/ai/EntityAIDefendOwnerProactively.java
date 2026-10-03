@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
 import com.jubitus.travellers.pathing.PathBudget;
+import com.jubitus.travellers.combat.Hostility;
 
 /**
  * Proactive defense: scans around the player owner AND the escort worker-leader.
@@ -69,17 +70,7 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
         List<EntityLivingBase> list = worker.world.getEntitiesWithinAABB(
                 EntityLivingBase.class, box,
-                e -> {
-                    if (e == null || !e.isEntityAlive() || e == worker) return false;
-                    if (e instanceof net.minecraft.entity.monster.IMob) return true;
-                    if (e instanceof EntityPlayer) return worker.isEnemyPlayer((EntityPlayer) e);
-                    if (e instanceof EntityTravellerWorker) return worker.isEnemyHiredWorker((EntityTravellerWorker) e);
-                    // Attack-list entries and enemy-village Millénaire villagers (declared via
-                    // the Behavior GUI) — without this, the closest escorts (this task's whole
-                    // point) could never react to those two categories, only IMobs/players,
-                    // leaving them standing in formation while other workers fought.
-                    return worker.shouldAttackExtraEntity(e);
-                }
+                e -> Hostility.isWorkerEnemy(worker, e)
         );
 
         if (list.isEmpty()) return false;
@@ -94,11 +85,6 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
         double bestScore = Double.POSITIVE_INFINITY;
 
         for (EntityLivingBase e : list) {
-            if (!(e instanceof net.minecraft.entity.monster.IMob)) {
-                if (e instanceof EntityPlayer && !worker.isEnemyPlayer((EntityPlayer) e)) continue;
-                if (e instanceof EntityTravellerWorker && !worker.isEnemyHiredWorker((EntityTravellerWorker) e)) continue;
-            }
-
             // Is this entity actively threatening the owner or leader? Computed before the
             // cave filter below on purpose - an entity that's already attacking must never be
             // filtered out by it (see that filter's own comment).

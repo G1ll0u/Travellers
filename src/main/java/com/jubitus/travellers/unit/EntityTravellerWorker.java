@@ -295,28 +295,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 10,
                 true,
                 false,
-                e -> {
-                    if (e == null || !e.isEntityAlive() || e.isDead) return false;
-                    if (e == this || isOwner(e)) return false;
-
-                    if (e instanceof EntityTravellerWorker) {
-                        return this.isEnemyHiredWorker((EntityTravellerWorker) e);
-                    }
-                    if (e instanceof EntityPlayer) {
-                        return this.isEnemyPlayer((EntityPlayer) e);
-                    }
-                    if (e instanceof EntityTraveller) {
-                        EntityTraveller t = (EntityTraveller) e;
-                        return t.isAggressiveToTravellers() && !this.isAggressiveToTravellers();
-                    }
-                    // MillVillager falls through to shouldAttackExtraEntity() below, same as
-                    // the attack-list case — kept in one place instead of duplicated here.
-
-                    EntityRuleList blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-                    if (blacklist != null && blacklist.matches(e)) return false;
-
-                    return (e instanceof net.minecraft.entity.monster.IMob) || this.shouldAttackExtraEntity(e);
-                }
+                e -> com.jubitus.travellers.combat.Hostility.isWorkerEnemy(this, e)
         ));
 
         // Worker travel AI (for jobs)
@@ -845,8 +824,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Blacklist
         if (target != null) {
-            EntityRuleList blacklist = TravellersDerivedConfig.TRAVELLER_AGGRO_BLACKLIST;
-            if (blacklist != null && blacklist.matches(target)) {
+            if (getAggroBlacklist().matches(target)) {
                 super.setAttackTarget(null);
                 return;
             }

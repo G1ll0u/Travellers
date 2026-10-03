@@ -790,7 +790,7 @@ public class EntityAICampStay extends EntityAIBase {
                         && (e instanceof IMob
                                 || TravellerHostilityHelper.isLavaCowAggressive(e)
                                 || (e instanceof EntityTraveller && e != mob
-                                        && ((EntityTraveller) e).isAggressiveToTravellers() != mob.isAggressiveToTravellers())
+                                        && com.jubitus.travellers.combat.Hostility.isCrossFaction((EntityTraveller) e, mob))
                                 || mob.shouldAttackExtraEntity(e)));
         return !list.isEmpty();
     }

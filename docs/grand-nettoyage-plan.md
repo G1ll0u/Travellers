@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phase 6 done; next: phase 7.
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–7 done; next: phase 8.
 
 ## Goal
 
@@ -196,12 +196,18 @@ STUCK_HOP) replaces the six schedulers; follow keeps its owner tokens in `PathSc
 hard cap (512) was unreachable (128 + 256) and is gone. Led horse: MOUNT row, same number as the mounted follow
 ceiling, counted apart (user), no stagger. Combat paths now share the 24/tick combat row with melee.
 
-### Phase 7 — One hostility answer — status: todo
+### Phase 7 — One hostility answer — status: done
 
 `Hostility.isEnemy(self, other)` (faction rule, blacklist, extra entities, worker enemies) replaces the faction XOR
 (≈10 copies), the blacklist ternary (×4) and the 4 differing worker enemy predicates; one call-for-help helper
 (×3). The `combat/` split between handlers and AI disappears in the single `combat/` package (phase 2).
 Visible: the worker predicates disagree today — **the merged rule is confirmed with the user**.
+Done: `combat/Hostility` — `isCrossFaction` (every faction comparison) and `isWorkerEnemy` (worker scan, escort
+protection, owner-assist base); `EntityTraveller.getAggroBlacklist` is the one blacklist pick. Decisions (user): escorts
+now attack raiders near the owner; owner-assist keeps "whatever the owner hits" as a named exception; LavaCow stays on
+the config lists (its `IAggressive` detection stays only in the defend-if-close scan, not extended). Retaliation
+(`canRetaliateAgainst`) keeps its own rule. Not done: one call-for-help helper — the three sites (traveller
+call-for-help, allies-fighting-a-player scan, worker rally) do different things; merging would change behaviour.
 
 ### Phase 8 — Horse core — status: todo
 
