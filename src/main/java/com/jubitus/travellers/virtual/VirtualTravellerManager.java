@@ -1425,8 +1425,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (timedOut && isFrozenByVanillaAt(world, horse.posX, horse.posZ)
                 && horse instanceof net.minecraft.entity.passive.EntityHorse
                 && ((net.minecraft.entity.passive.EntityHorse) horse).getHealth() > 0.0F) {
-            NBTTagCompound nbt = new NBTTagCompound();
-            horse.writeToNBT(nbt);
+            NBTTagCompound nbt = com.jubitus.travellers.horse.HorseSnapshots.capture((net.minecraft.entity.passive.EntityHorse) horse);
             horse.setDead();
             r.mountNbt = nbt;
             st.horseAtPost = false;
@@ -2199,7 +2198,7 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     /**
      * Ends a virtual rider's bond after its horse died in the loaded world (see
-     * {@code MountDeathHandler}). Without this the record would keep its captured mount data and
+     * {@code HorseEvents}). Without this the record would keep its captured mount data and
      * materialize the rider onto a horse the player just watched die.
      */
     public void clearRecordMount(UUID riderUUID) {

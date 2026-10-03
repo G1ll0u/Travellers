@@ -1,5 +1,8 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseAI;
+import com.jubitus.travellers.horse.HorseSnapshots;
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
@@ -54,29 +57,17 @@ public final class TravellerMountSupport {
     private TravellerMountSupport() {
     }
 
-    private static final String NBT_BONDED_OWNER = "TravellersMountOwner";
-    private static final String NBT_MOUNT_GEN = "TravellersMountGen";
-
-    public static boolean isBondedMount(Entity e) {
-        return e instanceof EntityHorse && e.getEntityData().hasUniqueId(NBT_BONDED_OWNER);
-    }
-
-    /** The bond generation this physical horse was created with (see {@link #stampNewGeneration}). */
-    public static int getHorseGeneration(Entity horse) {
-        return horse.getEntityData().getInteger(NBT_MOUNT_GEN);
-    }
-
     /** A new physical copy of the rider's horse is being made: from now on it is the only valid one. */
     private static void stampNewGeneration(EntityTraveller rider, EntityHorse horse) {
         int gen = rider.getMountGeneration() + 1;
         rider.setMountGeneration(gen);
-        horse.getEntityData().setInteger(NBT_MOUNT_GEN, gen);
+        HorseMarkers.setGeneration(horse, gen);
     }
 
     /** A horse that must stop being a mount (a Stable pool horse): its loaded rider lets go of it and
      * every mount marker is removed. */
     public static void dropBondFromHorse(EntityHorse horse) {
-        UUID owner = getBondedOwner(horse);
+        UUID owner = HorseMarkers.getBondedOwner(horse);
         if (owner != null && horse.world instanceof WorldServer) {
             Entity o = ((WorldServer) horse.world).getEntityFromUuid(owner);
             if (o instanceof EntityTraveller && horse.getUniqueID().equals(((EntityTraveller) o).getMountUUID())) {
@@ -87,22 +78,7 @@ public final class TravellerMountSupport {
                 rider.setMountSnapshotNbt(null);
             }
         }
-        clearMountMarkers(horse.getEntityData());
-    }
-
-    /** Removes every mount-system marker (bond, generation, orphan timer) from a horse's ForgeData. */
-    public static void clearMountMarkers(NBTTagCompound forgeData) {
-        forgeData.removeTag(NBT_BONDED_OWNER + "Most");
-        forgeData.removeTag(NBT_BONDED_OWNER + "Least");
-        forgeData.removeTag(NBT_MOUNT_GEN);
-        OrphanMountCleanup.clearOrphanTag(forgeData);
-    }
-
-    @Nullable
-    public static UUID getBondedOwner(Entity e) {
-        if (!(e instanceof EntityHorse)) return null;
-        NBTTagCompound data = e.getEntityData();
-        return data.hasUniqueId(NBT_BONDED_OWNER) ? data.getUniqueId(NBT_BONDED_OWNER) : null;
+        HorseMarkers.clearMountMarkers(horse.getEntityData());
     }
 
     /**
@@ -150,15 +126,15 @@ public final class TravellerMountSupport {
     public static boolean bondToLiveHorse(EntityTraveller rider, EntityHorse horse) {
         if (!TravellersConfig.MOUNTS.enabled) return false;
         if (rider.getMountUUID() != null) return false;
-        if (horse.isDead || isBondedMount(horse)) return false;
-        if (com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) return false;
+        if (horse.isDead || HorseMarkers.isBondedMount(horse)) return false;
+        if (HorseMarkers.isPoolHorse(horse)) return false;
 
         horse.setHorseTamed(true);
-        horse.getEntityData().setUniqueId(NBT_BONDED_OWNER, rider.getUniqueID());
+        HorseMarkers.setBondedOwner(horse, rider.getUniqueID());
         stampNewGeneration(rider, horse);
         applyMountedGroundSpeed(horse);
         applyBondInvariants(horse);
-        OrphanMountCleanup.clearOrphanTag(horse);
+        HorseMarkers.clearOrphanTag(horse);
 
         rider.setMountUUID(horse.getUniqueID());
         rider.setMountModeRaw(MountMode.MOUNTED);
@@ -172,7 +148,7 @@ public final class TravellerMountSupport {
         MountSpawnPos pos = resolveMountSpawnPos(rider, horse);
         horse.setLocationAndAngles(pos.x, pos.y, pos.z, rider.rotationYaw, 0.0F);
         horse.setHorseTamed(true);
-        horse.getEntityData().setUniqueId(NBT_BONDED_OWNER, rider.getUniqueID());
+        HorseMarkers.setBondedOwner(horse, rider.getUniqueID());
         stampNewGeneration(rider, horse);
         applyMountedGroundSpeed(horse);
         applyBondInvariants(horse);
@@ -839,19 +815,6 @@ public final class TravellerMountSupport {
         return world.getChunkProvider().chunkExists(MathHelper.floor(x) >> 4, MathHelper.floor(z) >> 4);
     }
 
-    /**
-     * Whether a captured horse NBT is, by health alone, already a corpse - the tell for a snapshot
-     * taken during vanilla's ~20-tick death animation (health {@code <= 0}, entity not yet actually
-     * removed). {@link #spawnMountFromNbt} refuses to rebuild from one instead of resurrecting a horse
-     * that only re-enters its own death animation and repeats the same cycle. Such a snapshot should
-     * not normally exist any more ({@link #refreshMountSnapshot}, {@link #captureMount} and
-     * {@link #handleBondedHorseChunkUnload} all now refuse to create one) - this stays as the last
-     * line of defense against an older save, or any future capture path that forgets the same check.
-     */
-    private static boolean isCorpseSnapshot(NBTTagCompound nbt) {
-        return nbt.hasKey("Health", 99) && nbt.getFloat("Health") <= 0.0F;
-    }
-
     /** Keeps the rebuild-if-lost snapshot current (health, gear, growth) without paying for a full
      * NBT write every tick.
      *
@@ -860,25 +823,13 @@ public final class TravellerMountSupport {
      * once that finishes), so a periodic refresh landing in that window would otherwise persist an
      * already-dying horse as "the last known good state" - the exact snapshot {@link #resolveMount}
      * would later resurrect a corpse from, on a loop, if the death event itself somehow never clears
-     * the bond (see {@code MountDeathHandler}'s doc). Skipping the write here just means the
+     * the bond (see {@code HorseEvents}'s doc). Skipping the write here just means the
      * previous, still-healthy snapshot survives instead.
      */
     private static void refreshMountSnapshot(EntityTraveller rider, EntityHorse horse) {
         if (horse.getHealth() <= 0.0F) return;
         if (rider.ticksExisted % 200 != 0 && rider.getMountSnapshotNbt() != null) return;
-        NBTTagCompound snapshot = new NBTTagCompound();
-        // Dismounted first for the same reason captureMount does it: writeToNBT serializes the
-        // passenger list recursively, and a snapshot taken while ridden would carry a full duplicate
-        // copy of the rider inside it, which a later rebuild would spawn as a second traveller.
-        if (horse.isBeingRidden()) {
-            NBTTagCompound riderless = new NBTTagCompound();
-            horse.writeToNBT(riderless);
-            riderless.removeTag("Passengers");
-            snapshot = riderless;
-        } else {
-            horse.writeToNBT(snapshot);
-        }
-        rider.setMountSnapshotNbt(snapshot);
+        rider.setMountSnapshotNbt(HorseSnapshots.capture(horse));
     }
 
     /**
@@ -935,7 +886,7 @@ public final class TravellerMountSupport {
 
             case MOUNTED:
             default:
-                // Someone else is already in the saddle (a player briefly slipping past MountTheftGuard,
+                // Someone else is already in the saddle (a player briefly slipping past HorseTheftGuard,
                 // or one tick of race before it cancels the interaction) - never force-mount over an
                 // existing rider. Entity.startRiding(force=true) below bypasses the single-passenger
                 // check entirely and would just stack the bonded rider on as a second passenger instead
@@ -1459,8 +1410,7 @@ public final class TravellerMountSupport {
     /** MOUNTS.mountDiesWithRider: an ordinary death (animation, saddle/armor/loot drops), bond cleared first. */
     private static void killWithRider(EntityHorse horse) {
         setLeashed(horse, null);
-        horse.getEntityData().removeTag(NBT_BONDED_OWNER + "Most");
-        horse.getEntityData().removeTag(NBT_BONDED_OWNER + "Least");
+        HorseMarkers.clearBondedOwner(horse);
         horse.attackEntityFrom(net.minecraft.util.DamageSource.GENERIC, Float.MAX_VALUE);
         if (horse.getHealth() > 0.0F && !horse.isDead) horse.onKillCommand();
     }
@@ -1473,11 +1423,11 @@ public final class TravellerMountSupport {
      * {@link #releaseMountOnRiderDeath} (rider died, no groupmate/Stable to give it to). */
     static void detachBondFromHorse(EntityHorse horse) {
         setLeashed(horse, null);
-        horse.getEntityData().removeTag(NBT_BONDED_OWNER + "Most");
-        horse.getEntityData().removeTag(NBT_BONDED_OWNER + "Least");
+        HorseMarkers.clearBondedOwner(horse);
         horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED)
                 .setBaseValue(DEFAULT_HORSE_SPEED);
-        OrphanMountCleanup.markOrphaned(horse, horse.world.getTotalWorldTime());
+        HorseMarkers.markOrphaned(horse, horse.world.getTotalWorldTime());
+        HorseAI.restoreVanilla(horse);
     }
 
     /**
@@ -1530,12 +1480,12 @@ public final class TravellerMountSupport {
      * </ul>
      */
     public static void handleBondedHorseChunkUnload(WorldServer world, EntityHorse horse) {
-        UUID riderUUID = getBondedOwner(horse);
+        UUID riderUUID = HorseMarkers.getBondedOwner(horse);
         if (riderUUID == null) return;
 
         // A horse mid-death-animation (health already <= 0, vanilla's own removal still ~20 ticks
         // away) is not an unload-orphan, it is a death that should already have cleared the bond -
-        // see MountDeathHandler's doc. Capturing its NBT here would freeze a corpse into the record
+        // see HorseEvents.onLivingDeath's doc. Capturing its NBT here would freeze a corpse into the record
         // exactly like captureMount's own guard prevents; just clear the bond and let the chunk save
         // the dying horse as-is (deathTime is persisted, so it resumes and finishes dying on its own
         // once the chunk reloads).
@@ -1552,9 +1502,7 @@ public final class TravellerMountSupport {
             // rider, and reappears there when that ground is loaded again (tickParkedMount).
             EntityTraveller r = (EntityTraveller) rider;
             setLeashed(horse, null);
-            NBTTagCompound snapshot = new NBTTagCompound();
-            horse.writeToNBT(snapshot);
-            snapshot.removeTag("Passengers");
+            NBTTagCompound snapshot = HorseSnapshots.capture(horse);
             BlockPos post = horse.getPosition();
             horse.setDead();
             r.setParkedMount(snapshot, post);
@@ -1566,15 +1514,12 @@ public final class TravellerMountSupport {
             boolean wasRidden = horse.isBeingRidden();
             if (wasRidden) r.dismountRidingEntity();
             setLeashed(horse, null);
-            NBTTagCompound snapshot = new NBTTagCompound();
-            horse.writeToNBT(snapshot);
-            if (wasRidden) snapshot.removeTag("Passengers");
+            NBTTagCompound snapshot = HorseSnapshots.capture(horse);
             // Same-tick capture-then-respawn (unlike an ordinary materialize, which restores from a
             // snapshot taken ticks or minutes earlier): the dying horse would still linger in
             // entitiesByUuid for a moment, so the new one must not reuse its UUID (see CLAUDE.md's
             // "respawned live snapshot" trap) - strip it and let spawnMountFromNbt mint + re-link one.
-            snapshot.removeTag("UUIDMost");
-            snapshot.removeTag("UUIDLeast");
+            HorseSnapshots.stripIdentity(snapshot);
             horse.setDead();
             r.setMountUUID(null);
             restoreMount(r, snapshot);
@@ -1585,9 +1530,7 @@ public final class TravellerMountSupport {
                 com.jubitus.travellers.virtual.VirtualTravellerManager.get(world);
         if (vtm.isVirtual(riderUUID)) {
             setLeashed(horse, null);
-            NBTTagCompound mountNbt = new NBTTagCompound();
-            horse.writeToNBT(mountNbt);
-            vtm.captureOrphanedMount(riderUUID, mountNbt);
+            vtm.captureOrphanedMount(riderUUID, HorseSnapshots.capture(horse));
             horse.setDead();
             return;
         }
@@ -1601,7 +1544,7 @@ public final class TravellerMountSupport {
      * companion it could have got back (see {@link #resolveMount}).
      */
     public static void onBondedMountDied(EntityHorse horse) {
-        UUID ownerUUID = getBondedOwner(horse);
+        UUID ownerUUID = HorseMarkers.getBondedOwner(horse);
         if (ownerUUID == null || !(horse.world instanceof WorldServer)) return;
         WorldServer world = (WorldServer) horse.world;
 
@@ -1742,8 +1685,8 @@ public final class TravellerMountSupport {
      * that AI sets), but combined with an unsaddled horse it becomes the <em>only</em> thing steering:
      * the horse wanders on its own navigator at this mod's boosted MOVEMENT_SPEED while the rider's AI
      * keeps computing paths that no longer reach the physics. Matches the same defensive choice
-     * AncientWarfare 2's {@code NpcAIRideHorse} makes for its own mounted NPCs. A bonded mount is a
-     * permanent companion here (see the class doc), so there is no unbond path needing them restored.
+     * AncientWarfare 2's {@code NpcAIRideHorse} makes for its own mounted NPCs. A horse that stops being
+     * a mount gets them back through {@code HorseAI.restoreVanilla}.
      *
      * <p><b>{@code EntityAISwimming} is the one exception that must survive the strip.</b> It is the
      * only thing keeping <em>any</em> land mob afloat (it does nothing but call
@@ -1918,7 +1861,7 @@ public final class TravellerMountSupport {
         if (ride == null) return null;
 
         // `!isDead` alone reads a horse mid-death-animation (health already <= 0, vanilla's ~20-tick
-        // delay before it is actually removed - see MountDeathHandler's doc) as "present and capturable".
+        // delay before it is actually removed - see HorseEvents.onLivingDeath's doc) as "present and capturable".
         // Writing its NBT and hard-`setDead()`-ing it here would silently finish the removal WITHOUT
         // ever going through onDeath()/LivingDeathEvent, so onBondedMountDied never runs: the bond
         // stays set and the captured NBT is a corpse snapshot that a later restore would resurrect,
@@ -1931,8 +1874,7 @@ public final class TravellerMountSupport {
 
         if (rider.isMountedOnBondedMount()) rider.dismountRidingEntity();
         if (ride instanceof EntityHorse) setLeashed((EntityHorse) ride, null);
-        NBTTagCompound mountNbt = new NBTTagCompound();
-        ride.writeToNBT(mountNbt);
+        NBTTagCompound mountNbt = HorseSnapshots.capture((EntityHorse) ride);
         ride.setDead();
         return mountNbt;
     }
@@ -1960,15 +1902,14 @@ public final class TravellerMountSupport {
      * <p>The single choke point for every caller that rebuilds a horse from stored NBT
      * ({@link #resolveMount}'s "went missing without dying" rebuild, {@link #restoreMount}'s
      * chunk-unload/materialize restore) - refusing a corpse snapshot here covers both instead of
-     * needing the same check at each call site. See {@link #isCorpseSnapshot}'s doc for why such a
-     * snapshot can exist at all.
+     * needing the same check at each call site. A corpse snapshot comes from a capture during vanilla's death animation.
      */
     @Nullable
     private static EntityHorse spawnMountFromNbt(EntityTraveller rider, NBTTagCompound mountNbt, @Nullable BlockPos parkAt) {
         World world = rider.world;
         if (!(world instanceof WorldServer)) return null;
 
-        if (isCorpseSnapshot(mountNbt)) {
+        if (HorseSnapshots.isCorpse(mountNbt)) {
             rider.setMountUUID(null);
             rider.setMountSnapshotNbt(null);
             return null;

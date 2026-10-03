@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
@@ -28,27 +29,13 @@ import java.util.UUID;
  * <p><b>Bond invariants.</b> {@link TravellerMountSupport#applyBondInvariants} is re-asserted on join:
  * the saddle flag and the stripped AI don't survive a reload on their own.
  */
-@Mod.EventBusSubscriber(modid = "travellers")
 public final class MountBondLoadHandler {
 
     private MountBondLoadHandler() {
     }
 
-    @SubscribeEvent
-    public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
-        if (event.getWorld().isRemote) return;
-        if (!(event.getEntity() instanceof EntityHorse)) return;
-        if (!(event.getWorld() instanceof WorldServer)) return;
-
-        EntityHorse horse = (EntityHorse) event.getEntity();
-        if (!TravellerMountSupport.isBondedMount(horse)) return;
-        if (com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) {
-            // A pool horse is never a mount: drop the stale bond instead of releasing it loose.
-            TravellerMountSupport.dropBondFromHorse(horse);
-            return;
-        }
-        WorldServer world = (WorldServer) event.getWorld();
-
+    /** A bonded (non-pool) horse joining the world; dispatched by {@code HorseEvents}. */
+    public static void onJoin(WorldServer world, EntityHorse horse, EntityJoinWorldEvent event) {
         switch (verdict(world, horse)) {
             case DROP:
                 event.setCanceled(true);
@@ -60,9 +47,8 @@ public final class MountBondLoadHandler {
                 log("released a bonded horse nobody claims any more", horse);
                 return;
             case TO_RECORD:
-                NBTTagCompound nbt = new NBTTagCompound();
-                horse.writeToNBT(nbt);
-                VirtualTravellerManager.get(world).captureOrphanedMount(TravellerMountSupport.getBondedOwner(horse), nbt);
+                VirtualTravellerManager.get(world).captureOrphanedMount(HorseMarkers.getBondedOwner(horse),
+                        com.jubitus.travellers.horse.HorseSnapshots.capture(horse));
                 event.setCanceled(true);
                 horse.setDead();
                 log("handed a bonded horse back to its offscreen rider", horse);
@@ -82,8 +68,8 @@ public final class MountBondLoadHandler {
         Boolean ledger = MountReleaseLedger.get(world).consume(horseId);
         if (ledger != null) return ledger ? Verdict.DROP : Verdict.RELEASE;
 
-        UUID owner = TravellerMountSupport.getBondedOwner(horse);
-        int gen = TravellerMountSupport.getHorseGeneration(horse);
+        UUID owner = HorseMarkers.getBondedOwner(horse);
+        int gen = HorseMarkers.getGeneration(horse);
 
         Entity o = world.getEntityFromUuid(owner);
         if (o instanceof EntityTraveller && !o.isDead) {

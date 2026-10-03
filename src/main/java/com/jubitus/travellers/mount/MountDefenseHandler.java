@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.Entity;
@@ -25,12 +26,12 @@ public final class MountDefenseHandler {
     public static void onLivingHurt(LivingHurtEvent event) {
         if (!(event.getEntityLiving() instanceof EntityHorse)) return;
         EntityHorse horse = (EntityHorse) event.getEntityLiving();
-        if (!(horse.world instanceof WorldServer) || !TravellerMountSupport.isBondedMount(horse)) return;
+        if (!(horse.world instanceof WorldServer) || !HorseMarkers.isBondedMount(horse)) return;
 
         Entity src = event.getSource().getTrueSource();
         if (!(src instanceof EntityLivingBase) || src == horse || !src.isEntityAlive()) return;
 
-        UUID ownerUUID = TravellerMountSupport.getBondedOwner(horse);
+        UUID ownerUUID = HorseMarkers.getBondedOwner(horse);
         Entity ownerEntity = ownerUUID != null ? ((WorldServer) horse.world).getEntityFromUuid(ownerUUID) : null;
         if (!(ownerEntity instanceof EntityTraveller) || !ownerEntity.isEntityAlive()) return;
         EntityTraveller rider = (EntityTraveller) ownerEntity;

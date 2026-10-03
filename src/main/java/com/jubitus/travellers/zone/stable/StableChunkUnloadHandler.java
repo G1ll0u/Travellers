@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ClassInheritanceMultiMap;
@@ -37,7 +38,7 @@ public final class StableChunkUnloadHandler {
         List<EntityHorse> found = null;
         for (ClassInheritanceMultiMap<Entity> bucket : chunk.getEntityLists()) {
             for (EntityHorse h : bucket.getByClass(EntityHorse.class)) {
-                if (h.isDead || !StableCoordinator.isPoolHorse(h)) continue;
+                if (h.isDead || !HorseMarkers.isPoolHorse(h)) continue;
                 if (found == null) found = new ArrayList<>();
                 found.add(h);
             }

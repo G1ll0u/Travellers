@@ -1,4 +1,4 @@
-package com.jubitus.travellers.mount;
+package com.jubitus.travellers.horse;
 
 import com.google.common.base.Optional;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -12,7 +12,7 @@ import java.util.UUID;
 
 /**
  * Client-visible "hands off" marker on a horse, synced through a DataParameter added by
- * {@code MixinEntityHorse}. Server truth stays in {@link TravellerMountSupport#isBondedMount} and the
+ * {@code MixinEntityHorse}. Server truth stays in {@link HorseMarkers#isBondedMount} and the
  * Stable pool; this only mirrors it so the client refuses the interaction too. Without it the client
  * predicts the mount, the server refuses it, and the player is snapped off beside the horse.
  */
@@ -40,7 +40,7 @@ public final class HorseInteractLock {
         UUID current = h.travellers$getInteractLock().orNull();
 
         UUID wanted;
-        if (TravellersConfig.MOUNTS.preventPlayerTheft && TravellerMountSupport.isBondedMount(horse)) {
+        if (TravellersConfig.MOUNTS.preventPlayerTheft && HorseMarkers.isBondedMount(horse)) {
             wanted = NOBODY;
         } else {
             boolean poolLockFresh = current != null && !NOBODY.equals(current)
@@ -66,7 +66,7 @@ public final class HorseInteractLock {
         if (!TravellersConfig.STABLES.enabled) return null;
         com.jubitus.travellers.zone.stable.StableCoordinator sc =
                 com.jubitus.travellers.zone.stable.StableCoordinator.get(world);
-        if (!com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) return null;
+        if (!HorseMarkers.isPoolHorse(horse)) return null;
         UUID owner = sc.getPoolOwner(world, horse);
         return owner != null ? owner : NOBODY;
     }

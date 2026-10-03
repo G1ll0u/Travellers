@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import net.minecraft.entity.passive.EntityHorse;
@@ -12,7 +13,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 /**
  * Lets a player use their own Stable's pool as a personal horse rack:
  * <ul>
- *   <li><b>Mount</b> one of your pool horses (only the zone owner can - {@code MountTheftGuard}
+ *   <li><b>Mount</b> one of your pool horses (only the zone owner can - {@code HorseTheftGuard}
  *       blocks everyone else) and it leaves the pool, becoming an ordinary owned tame horse with
  *       its normal AI back.</li>
  *   <li><b>Dismount</b> a tame horse you own while standing inside one of your Stable zones and it
@@ -45,7 +46,7 @@ public final class StablePlayerHorseAccess {
         }
 
         // Dismount: only fold a horse in if it isn't already a pool horse.
-        if (StableCoordinator.isPoolHorse(horse)) return;
+        if (HorseMarkers.isPoolHorse(horse)) return;
         if (!horse.isTame() || horse.isChild()) return;
         if (!player.getUniqueID().equals(horse.getOwnerUniqueId())) return;
         PlayerZoneRecord zone = coord.findOwnStableAt(world, player.getUniqueID(), horse.getPosition());

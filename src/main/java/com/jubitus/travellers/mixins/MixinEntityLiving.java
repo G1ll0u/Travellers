@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mixins;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
@@ -52,7 +53,7 @@ public abstract class MixinEntityLiving {
     @Inject(method = "clearLeashed", at = @At("HEAD"), cancellable = true)
     private void travellers$keepBondedMountLeashed(boolean sendPacket, boolean dropLead, CallbackInfo ci) {
         Entity self = (Entity) (Object) this;
-        if (TravellerMountSupport.isBondedMount(self) && !TravellerMountSupport.mayUnleash(self)) {
+        if (HorseMarkers.isBondedMount(self) && !TravellerMountSupport.mayUnleash(self)) {
             ci.cancel();
         }
     }
@@ -75,6 +76,6 @@ public abstract class MixinEntityLiving {
 
     private boolean travellers$isRidingBondedMount() {
         Entity self = (Entity) (Object) this;
-        return TravellerMountSupport.isBondedMount(self.getRidingEntity());
+        return HorseMarkers.isBondedMount(self.getRidingEntity());
     }
 }

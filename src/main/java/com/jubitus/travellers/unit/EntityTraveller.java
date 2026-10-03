@@ -1,5 +1,6 @@
 package com.jubitus.travellers.unit;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
@@ -4116,8 +4117,8 @@ public void fall(float distance, float damageMultiplier) {
     public boolean isFriendlyBondedMount(@Nullable EntityLivingBase target) {
         if (!(target instanceof EntityHorse)) return false;
         EntityHorse horse = (EntityHorse) target;
-        if (!TravellerMountSupport.isBondedMount(horse)) return false;
-        UUID riderId = TravellerMountSupport.getBondedOwner(horse);
+        if (!HorseMarkers.isBondedMount(horse)) return false;
+        UUID riderId = HorseMarkers.getBondedOwner(horse);
         if (riderId == null || riderId.equals(this.getUniqueID())) return true;
         Entity rider = (world instanceof WorldServer) ? ((WorldServer) world).getEntityFromUuid(riderId) : null;
         if (!(rider instanceof EntityTraveller)) return true; // rider not loaded / not classifiable - stay off it

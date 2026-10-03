@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -32,12 +33,12 @@ public final class MountFriendlyFireGuard {
         if (!TravellersConfig.MOUNTS.mountImmuneToFriendlyDamage) return;
         if (!(event.getEntityLiving() instanceof EntityHorse)) return;
         EntityHorse horse = (EntityHorse) event.getEntityLiving();
-        if (!TravellerMountSupport.isBondedMount(horse)) return;
+        if (!HorseMarkers.isBondedMount(horse)) return;
 
         Entity src = event.getSource().getTrueSource();
         if (src == null) return; // environmental damage (fall, fire...) is not friendly fire, leave it
 
-        UUID ownerUUID = TravellerMountSupport.getBondedOwner(horse);
+        UUID ownerUUID = HorseMarkers.getBondedOwner(horse);
         if (ownerUUID == null) return;
         if (!(horse.world instanceof WorldServer)) return;
         Entity ownerEntity = ((WorldServer) horse.world).getEntityFromUuid(ownerUUID);

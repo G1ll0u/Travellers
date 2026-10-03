@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–7 done; next: phase 8.
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; next: phase 9.
 
 ## Goal
 
@@ -209,12 +209,20 @@ the config lists (its `IAggressive` detection stays only in the defend-if-close 
 (`canRetaliateAgainst`) keeps its own rule. Not done: one call-for-help helper — the three sites (traveller
 call-for-help, allies-fighting-a-player scan, worker rally) do different things; merging would change behaviour.
 
-### Phase 8 — Horse core — status: todo
+### Phase 8 — Horse core — status: done
 
 `horse/HorseMarkers` (pool tag + bond tag), `horse/HorseSnapshots` (capture / spawn from NBT, ≈10 sites),
 `horse/HorseAIProfiles` (bond invariants, stable containment, vanilla restore); one death / join / chunk-unload
 entry per horse dispatching to mount or stable. Removes the mount ↔ stable dependency cycle. Stable is unpublished,
 so its save format may change. Visible: none intended.
+Done: `horse/HorseMarkers` (bond owner, generation, orphan timer, pool id — same ForgeData keys, saves unchanged),
+`horse/HorseSnapshots` (riderless capture, one corpse test, identity strip), `horse/HorseAI.restoreVanilla`,
+`horse/HorseEvents` (one join and one death entry, pool first), `HorseInteractLock` and `HorseTheftGuard` (was
+`MountTheftGuard`) moved to `horse/`. `mount/` no longer depends on `zone/stable/`. Visible (user): a released mount
+gets its vanilla AI back at once instead of standing frozen until reload; a pool horse whose death another mod
+cancels is removed from the pool anyway, and a released pen horse is never respawned from a corpse snapshot.
+Kept: bond invariants in `mount/`, containment AI in `zone/stable/` (each used by one system only); chunk unload
+stays two handlers (bonded horses depend on which riders unload in the same chunk, `ChunkUnloadVirtualizeHandler`).
 
 ### Phase 9 — Unit classes split — status: todo
 

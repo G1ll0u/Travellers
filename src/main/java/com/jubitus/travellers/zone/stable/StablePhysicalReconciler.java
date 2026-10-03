@@ -1,5 +1,7 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseSnapshots;
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.zone.PlayerZoneManager;
@@ -49,7 +51,7 @@ final class StablePhysicalReconciler {
             UUID id = horse.getUniqueID();
 
             StableHorseEntry entry;
-            UUID tag = StableCoordinator.getPoolTag(horse);
+            UUID tag = HorseMarkers.getPoolId(horse);
             if (tag != null) {
                 // Tagged: only ever the entity its entry links (the join guard refuses any other).
                 entry = data.findByPoolId(tag);
@@ -61,7 +63,7 @@ final class StablePhysicalReconciler {
                     if (entry == null) continue;
                     dirty = true;
                 }
-                StableCoordinator.setPoolTag(horse, entry.poolId);
+                HorseMarkers.setPoolId(horse, entry.poolId);
             }
 
             // Pool state is owned by StableWork: push it onto the entity, then mirror the entity back.
@@ -70,9 +72,7 @@ final class StablePhysicalReconciler {
             entry.saddled = horse.isHorseSaddled();
             entry.temper = horse.getTemper();
             entry.growingAge = horse.getGrowingAge();
-            NBTTagCompound freshNbt = new NBTTagCompound();
-            horse.writeToNBT(freshNbt);
-            entry.horseNbt = freshNbt;
+            entry.horseNbt = HorseSnapshots.capture(horse);
             entry.lastAgeSyncTick = now;
 
             if (StableHorseAI.needsInvariants(horse)) {
@@ -87,7 +87,7 @@ final class StablePhysicalReconciler {
         while (it.hasNext()) {
             StableHorseEntry entry = it.next();
             if (entry.liveEntityUUID != null || entry.horseNbt == null) continue;
-            if (StableMaterializer.isDeadSnapshot(entry.horseNbt)) {
+            if (HorseSnapshots.isCorpse(entry.horseNbt)) {
                 it.remove(); // a dead horse, not a dormant one
                 dirty = true;
                 continue;
@@ -104,7 +104,7 @@ final class StablePhysicalReconciler {
                                              EntityHorse horse, UUID id) {
         // Never a ridden horse or someone's mount (the owner keeps its vanilla owner tag after taking
         // one out, so riding it through the pen would otherwise re-pool it mid-ride).
-        if (horse.isBeingRidden() || TravellerMountSupport.isBondedMount(horse)) return null;
+        if (horse.isBeingRidden() || HorseMarkers.isBondedMount(horse)) return null;
         boolean wild = !horse.isTame();
         boolean bredFoal = horse.isChild();
         boolean reclaimedByOwner = !wild && !bredFoal && zone.ownerUUID.equals(horse.getOwnerUniqueId());

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mixins;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.Travellers;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import net.minecraft.entity.Entity;
@@ -60,7 +61,7 @@ public abstract class MixinEntityTracker {
     @Inject(method = "track(Lnet/minecraft/entity/Entity;)V", at = @At("HEAD"),
             cancellable = true, require = 0)
     private void travellers$trackBondedMountLikeItsRider(Entity entityIn, CallbackInfo ci) {
-        if (!TravellerMountSupport.isBondedMount(entityIn)) return;
+        if (!HorseMarkers.isBondedMount(entityIn)) return;
         track(entityIn, Travellers.ENTITY_TRACKING_RANGE, Travellers.ENTITY_UPDATE_FREQUENCY, true);
         ci.cancel();
     }

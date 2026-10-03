@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.ai.EntityAIBase;
@@ -50,7 +51,7 @@ public class EntityAIClaimLooseMount extends EntityAIBase {
     @Override
     public boolean shouldContinueExecuting() {
         return target != null && !target.isDead && worker.getMountUUID() == null
-                && !worker.isInCombat() && OrphanMountCleanup.isOrphaned(target);
+                && !worker.isInCombat() && HorseMarkers.isOrphaned(target);
     }
 
     @Override
@@ -84,7 +85,7 @@ public class EntityAIClaimLooseMount extends EntityAIBase {
         EntityHorse best = null;
         double bestDistSq = Double.MAX_VALUE;
         for (EntityHorse h : world.getEntitiesWithinAABB(EntityHorse.class, box)) {
-            if (h.isDead || TravellerMountSupport.isBondedMount(h) || !OrphanMountCleanup.isOrphaned(h)) continue;
+            if (h.isDead || HorseMarkers.isBondedMount(h) || !HorseMarkers.isOrphaned(h)) continue;
             double distSq = worker.getDistanceSq(h);
             if (distSq < bestDistSq) {
                 bestDistSq = distSq;

@@ -1,5 +1,7 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseSnapshots;
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
@@ -27,7 +29,7 @@ final class StableRelease {
     static NBTTagCompound releaseSnapshot(NBTTagCompound horseNbt, PlayerZoneRecord zone) {
         NBTTagCompound nbt = horseNbt.copy();
         StableCoordinator.sanitizeSnapshot(nbt);
-        StableCoordinator.stripPoolTag(nbt);
+        HorseMarkers.clearPoolId(nbt);
         double[] pos = StableMaterializer.readPos(nbt);
         if (pos == null || !StableMaterializer.isInsideZone(zone, pos[0], pos[2])) {
             NBTTagList l = new NBTTagList();
@@ -54,6 +56,11 @@ final class StableRelease {
             BlockPos p = new BlockPos(pos[0], pos[1], pos[2]);
             if (!world.getChunkProvider().chunkExists(p.getX() >> 4, p.getZ() >> 4)) continue;
             if (VirtualTravellerManager.isFrozenByVanillaAt(world, pos[0], pos[2])) continue;
+            if (HorseSnapshots.isCorpse(nbt)) {
+                it.remove();
+                changed = true;
+                continue;
+            }
 
             EntityHorse horse = new EntityHorse(world);
             horse.readFromNBT(nbt);

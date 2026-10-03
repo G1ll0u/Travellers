@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.EntityHorse;
@@ -26,46 +27,22 @@ import net.minecraft.world.WorldServer;
  * </ul>
  *
  * <p>The tag is cleared the moment a player actually interacts with the horse (see
- * {@link MountTheftGuard}) - claimed, no longer a cleanup candidate, ever.
+ * {@link HorseTheftGuard}) - claimed, no longer a cleanup candidate, ever.
  */
 public final class OrphanMountCleanup {
 
     private OrphanMountCleanup() {
     }
 
-    private static final String NBT_ORPHANED_TICK = "TravellersMountOrphanedTick";
-
     /** How often (in ticks) the loaded-horse sweep runs. Cheap per call (a few dozen horses at most),
      * so this only needs to be "not every tick", not aggressively throttled. */
     private static final int SWEEP_INTERVAL_TICKS = 100;
 
-    /** Marks a horse as an unclaimed leftover from a dead rider, starting its cleanup grace period. */
-    public static void markOrphaned(EntityHorse horse, long now) {
-        // A Stable pool horse belongs to its pool, never to the loose-horse cleanup.
-        if (com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(horse)) return;
-        horse.getEntityData().setLong(NBT_ORPHANED_TICK, now);
-    }
-
-    /** Clears the orphan marker - a player has claimed this horse, it is never cleaned up. */
-    public static void clearOrphanTag(Entity e) {
-        clearOrphanTag(e.getEntityData());
-    }
-
-    public static void clearOrphanTag(NBTTagCompound forgeData) {
-        forgeData.removeTag(NBT_ORPHANED_TICK);
-    }
-
-    public static boolean isOrphaned(Entity e) {
-        return e.getEntityData().hasKey(NBT_ORPHANED_TICK)
-                && !com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(e);
-    }
-
     /** Whether this orphaned horse has sat unclaimed long enough to be removed - distance to any
      * player is the caller's separate responsibility (see the two call sites in the class doc). */
     private static boolean graceElapsed(EntityHorse horse, long now) {
-        if (!isOrphaned(horse)) return false;
-        NBTTagCompound data = horse.getEntityData();
-        return now - data.getLong(NBT_ORPHANED_TICK) >= TravellersConfig.MOUNTS.looseMountCleanupGraceTicks;
+        if (!HorseMarkers.isOrphaned(horse)) return false;
+        return now - HorseMarkers.getOrphanedTick(horse) >= TravellersConfig.MOUNTS.looseMountCleanupGraceTicks;
     }
 
     /**

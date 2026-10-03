@@ -1,5 +1,8 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseAI;
+import com.jubitus.travellers.horse.HorseSnapshots;
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -35,10 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class StableCoordinator {
 
-    /** Custom entity-data key (persisted via {@code Entity}'s "ForgeData" tag) marking a live horse
-     * as belonging to a {@link StableHorseEntry#poolId}. */
-    private static final String POOL_ID_TAG = "TravellersStablePoolId";
-
     /** Extra blocks around the containment box whose chunks must be loaded before a Stable goes live
      * (a horse may drift a few blocks past the margin before containment brings it back). */
     private static final int LIVE_CHUNK_SLACK = 8;
@@ -71,32 +70,6 @@ public final class StableCoordinator {
     // Tag helpers
     // -------------------------------------------------------------------------
 
-    /** Strips the pool marker from a horse NBT snapshot about to be respawned as something else
-     * (a worker's bonded mount via Get Equipment, or a released pen horse). */
-    public static void stripPoolTag(NBTTagCompound horseNbt) {
-        if (horseNbt == null || !horseNbt.hasKey("ForgeData")) return;
-        NBTTagCompound fd = horseNbt.getCompoundTag("ForgeData");
-        fd.removeTag(POOL_ID_TAG + "Most");
-        fd.removeTag(POOL_ID_TAG + "Least");
-    }
-
-    public static UUID getPoolTag(EntityHorse horse) {
-        return horse.getEntityData().hasUniqueId(POOL_ID_TAG) ? horse.getEntityData().getUniqueId(POOL_ID_TAG) : null;
-    }
-
-    public static void setPoolTag(EntityHorse horse, UUID poolId) {
-        horse.getEntityData().setUniqueId(POOL_ID_TAG, poolId);
-    }
-
-    public static void stripPoolTagFromEntity(EntityHorse horse) {
-        horse.getEntityData().removeTag(POOL_ID_TAG + "Most");
-        horse.getEntityData().removeTag(POOL_ID_TAG + "Least");
-    }
-
-    public static boolean isPoolHorse(Entity e) {
-        return e instanceof EntityHorse && e.getEntityData().hasUniqueId(POOL_ID_TAG);
-    }
-
     // A pool horse is never a mount: a leftover bond or orphan marker lets the mount system release,
     // claim or clean it up while the pool still owns it.
     public static void sanitizeLive(EntityHorse horse) {
@@ -105,19 +78,18 @@ public final class StableCoordinator {
 
     /** Snapshot counterpart of {@link #sanitizeLive}, plus identity and leash. */
     public static void sanitizeSnapshot(NBTTagCompound horseNbt) {
-        horseNbt.removeTag("UUIDMost");
-        horseNbt.removeTag("UUIDLeast");
+        HorseSnapshots.stripIdentity(horseNbt);
         horseNbt.removeTag("Leash");
         if (horseNbt.hasKey("ForgeData", 10)) {
-            TravellerMountSupport.clearMountMarkers(horseNbt.getCompoundTag("ForgeData"));
+            HorseMarkers.clearMountMarkers(horseNbt.getCompoundTag("ForgeData"));
         }
     }
 
     /** A pool horse leaves the pool for good and stays in the world as an ordinary horse. */
     static void makeOrdinary(EntityHorse horse) {
-        stripPoolTagFromEntity(horse);
+        HorseMarkers.clearPoolId(horse);
         sanitizeLive(horse);
-        StableHorseAI.restoreVanillaAI(horse);
+        HorseAI.restoreVanilla(horse);
     }
 
     /** The Stable whose pool holds {@code poolId}, or null. */
@@ -236,8 +208,7 @@ public final class StableCoordinator {
     /** One live pool horse becomes data on its entry (position kept) and is removed from the world. */
     void capture(WorldServer world, StableHorseEntry entry, EntityHorse horse) {
         horse.removePassengers();
-        NBTTagCompound nbt = new NBTTagCompound();
-        horse.writeToNBT(nbt);
+        NBTTagCompound nbt = HorseSnapshots.capture(horse);
         sanitizeSnapshot(nbt);
         entry.horseNbt = nbt;
         entry.tamed = horse.isTame();
@@ -251,7 +222,7 @@ public final class StableCoordinator {
 
     /** A chunk holding a pool horse is unloading (before it is saved). */
     void onPoolHorseChunkUnload(WorldServer world, EntityHorse horse) {
-        UUID poolId = getPoolTag(horse);
+        UUID poolId = HorseMarkers.getPoolId(horse);
         PlayerZoneRecord zone = poolId != null ? findZoneForPoolHorse(world, poolId) : null;
         if (zone == null) {
             makeOrdinary(horse);
@@ -308,7 +279,7 @@ public final class StableCoordinator {
                 // Not loaded: its chunk copy loses the pool tag when it joins (no zone any more).
                 continue;
             }
-            if (entry.horseNbt == null || StableMaterializer.isDeadSnapshot(entry.horseNbt)) continue;
+            if (entry.horseNbt == null || HorseSnapshots.isCorpse(entry.horseNbt)) continue;
             mgr.addPendingHorseRelease(StableRelease.releaseSnapshot(entry.horseNbt, zone));
         }
         data.pool.clear();
@@ -383,7 +354,7 @@ public final class StableCoordinator {
         int tagged = 0;
         for (Entity ent : new ArrayList<>(world.loadedEntityList)) {
             if (!(ent instanceof EntityHorse) || ent.isDead) continue;
-            UUID tag = getPoolTag((EntityHorse) ent);
+            UUID tag = HorseMarkers.getPoolId((EntityHorse) ent);
             if (tag == null) continue;
             StableHorseEntry e = data.findByPoolId(tag);
             if (e == null) continue;
@@ -405,7 +376,7 @@ public final class StableCoordinator {
     // -------------------------------------------------------------------------
 
     /** True if {@code horse} is a pool horse belonging to a Stable owned by {@code playerUUID} -
-     * used by {@code MountTheftGuard} to let the owner (and only the owner) take one out. */
+     * used by {@code HorseTheftGuard} to let the owner (and only the owner) take one out. */
     public boolean isPoolHorseOwnedBy(WorldServer world, EntityHorse horse, UUID playerUUID) {
         return findPoolZone(world, horse, playerUUID) != null;
     }
@@ -418,7 +389,7 @@ public final class StableCoordinator {
 
     /** The Stable whose pool contains {@code horse}, optionally restricted to one owner. */
     private PlayerZoneRecord findPoolZone(WorldServer world, EntityHorse horse, UUID ownerFilter) {
-        UUID poolId = getPoolTag(horse);
+        UUID poolId = HorseMarkers.getPoolId(horse);
         for (PlayerZoneRecord zone : PlayerZoneManager.get(world).getAll()) {
             if (zone.type != ZoneType.STABLE || !(zone.data instanceof StableZoneData)) continue;
             if (ownerFilter != null && !ownerFilter.equals(zone.ownerUUID)) continue;
@@ -450,7 +421,7 @@ public final class StableCoordinator {
         PlayerZoneRecord zone = findPoolZone(world, horse, null);
         if (zone != null) {
             StableZoneData data = (StableZoneData) zone.data;
-            UUID poolId = getPoolTag(horse);
+            UUID poolId = HorseMarkers.getPoolId(horse);
             StableHorseEntry entry = poolId != null ? data.findByPoolId(poolId) : null;
             if (entry == null) entry = data.findByLiveEntity(horse.getUniqueID());
             if (entry != null) {
@@ -482,12 +453,10 @@ public final class StableCoordinator {
         entry.lastAgeSyncTick = now;
         entry.lastTameProgressTick = now;
         sanitizeLive(horse);
-        NBTTagCompound nbt = new NBTTagCompound();
-        horse.writeToNBT(nbt);
-        entry.horseNbt = nbt;
+        entry.horseNbt = HorseSnapshots.capture(horse);
         data.pool.add(entry);
 
-        setPoolTag(horse, entry.poolId);
+        HorseMarkers.setPoolId(horse, entry.poolId);
         StableHorseAI.applyContainmentInvariants(horse, zone.center, zone.halfWidth, zone.halfDepth);
         StableContainmentGuard.enforce(horse, zone);
         PlayerZoneManager.get(world).markDirty();

@@ -1,4 +1,4 @@
-package com.jubitus.travellers.mount;
+package com.jubitus.travellers.horse;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.entity.Entity;
@@ -25,9 +25,9 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  * </ul>
  */
 @Mod.EventBusSubscriber(modid = "travellers")
-public final class MountTheftGuard {
+public final class HorseTheftGuard {
 
-    private MountTheftGuard() {
+    private HorseTheftGuard() {
     }
 
     @SubscribeEvent
@@ -52,7 +52,7 @@ public final class MountTheftGuard {
             }
             return;
         }
-        if (TravellerMountSupport.isBondedMount(mount)) {
+        if (HorseMarkers.isBondedMount(mount)) {
             event.setCanceled(true);
         }
     }
@@ -67,8 +67,8 @@ public final class MountTheftGuard {
         // A player interacting with a loose ex-mount (its rider died with nowhere to send it) claims
         // it for good - it is never a cleanup candidate again. Unrelated to the theft guard below;
         // this horse isn't bonded to anyone any more, so nothing here gets cancelled by it.
-        if (OrphanMountCleanup.isOrphaned(target)) OrphanMountCleanup.clearOrphanTag(target);
-        if (TravellersConfig.MOUNTS.preventPlayerTheft && TravellerMountSupport.isBondedMount(target)) {
+        if (HorseMarkers.isOrphaned(target)) HorseMarkers.clearOrphanTag(target);
+        if (TravellersConfig.MOUNTS.preventPlayerTheft && HorseMarkers.isBondedMount(target)) {
             event.setCanceled(true);
             return;
         }
@@ -98,6 +98,6 @@ public final class MountTheftGuard {
         if (!TravellersConfig.STABLES.enabled) return false;
         if (!(target instanceof net.minecraft.entity.passive.EntityHorse)) return false;
         if (!(target.world instanceof net.minecraft.world.WorldServer)) return false;
-        return com.jubitus.travellers.zone.stable.StableCoordinator.isPoolHorse(target);
+        return HorseMarkers.isPoolHorse(target);
     }
 }

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.zone.ZoneRoles;
@@ -24,17 +25,12 @@ final class StableMaterializer {
     private StableMaterializer() {
     }
 
-    /** A snapshot with no positive health left describes a dead horse, not a dormant one. */
-    static boolean isDeadSnapshot(NBTTagCompound horseNbt) {
-        return !horseNbt.hasKey("Health") || horseNbt.getFloat("Health") <= 0.0F;
-    }
-
     static EntityHorse materializeEntry(WorldServer world, PlayerZoneRecord zone, StableHorseEntry entry) {
         EntityHorse horse = new EntityHorse(world);
         NBTTagCompound spawnNbt = entry.horseNbt.copy();
         StableCoordinator.sanitizeSnapshot(spawnNbt); // always a fresh UUID: never collide with a lingering copy
         horse.readFromNBT(spawnNbt);
-        StableCoordinator.setPoolTag(horse, entry.poolId);
+        HorseMarkers.setPoolId(horse, entry.poolId);
 
         double[] saved = readPos(spawnNbt);
         if (saved == null || !isInsideZone(zone, saved[0], saved[2])

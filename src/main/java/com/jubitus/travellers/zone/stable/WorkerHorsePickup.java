@@ -1,5 +1,7 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseSnapshots;
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -93,11 +95,10 @@ public final class WorkerHorsePickup {
         // quietly never gets mounted. Every other site in this codebase that captures NBT for
         // imminent reuse already strips this; this was the one that didn't.
         if (chosen.horseNbt != null) {
-            chosen.horseNbt.removeTag("UUIDMost");
-            chosen.horseNbt.removeTag("UUIDLeast");
+            HorseSnapshots.stripIdentity(chosen.horseNbt);
             // Also drop the pool-identity marker: the horse is leaving the pool for good, it must not
             // reappear associated with an entry that no longer exists.
-            com.jubitus.travellers.zone.stable.StableCoordinator.stripPoolTag(chosen.horseNbt);
+            HorseMarkers.clearPoolId(chosen.horseNbt);
         }
 
         PlayerZoneManager.get(world).markDirty();

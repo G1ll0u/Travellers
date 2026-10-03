@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import net.minecraft.entity.Entity;
@@ -17,23 +18,14 @@ import java.util.UUID;
  * other copy - an old chunk file while the entry holds the horse as data or elsewhere - is refused.
  * A pool horse whose Stable is gone becomes an ordinary horse.
  */
-@Mod.EventBusSubscriber(modid = "travellers")
 public final class StableHorseLoadHandler {
 
     private StableHorseLoadHandler() {
     }
 
-    @SubscribeEvent
-    public static void onEntityJoinWorld(EntityJoinWorldEvent event) {
-        if (event.getWorld().isRemote) return;
-        if (!(event.getEntity() instanceof EntityHorse)) return;
-        if (!(event.getWorld() instanceof WorldServer)) return;
-
-        EntityHorse horse = (EntityHorse) event.getEntity();
-        UUID poolId = StableCoordinator.getPoolTag(horse);
-        if (poolId == null) return;
-
-        WorldServer world = (WorldServer) event.getWorld();
+    /** A pool horse joining the world; dispatched by {@code HorseEvents}. */
+    public static void onJoin(WorldServer world, EntityHorse horse, EntityJoinWorldEvent event) {
+        UUID poolId = HorseMarkers.getPoolId(horse);
         StableCoordinator coord = StableCoordinator.get(world);
         PlayerZoneRecord zone = coord.findZoneForPoolHorse(world, poolId);
         if (zone == null) {

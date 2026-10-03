@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityLivingBase;
@@ -38,7 +39,7 @@ public final class MountHazardGuard {
         if (source != DamageSource.CACTUS && !"cactus".equals(source.getDamageType())) return false;
 
         EntityHorse horse = (EntityHorse) event.getEntityLiving();
-        if (!TravellerMountSupport.isBondedMount(horse)) return false;
+        if (!HorseMarkers.isBondedMount(horse)) return false;
 
         event.setCanceled(true);
         return true;
@@ -75,7 +76,7 @@ public final class MountHazardGuard {
         if (victim instanceof EntityTraveller) {
             if (!((EntityTraveller) victim).isMountedOnBondedMount()) return;
         } else if (victim instanceof EntityHorse) {
-            if (!TravellerMountSupport.isBondedMount((EntityHorse) victim)) return;
+            if (!HorseMarkers.isBondedMount((EntityHorse) victim)) return;
         } else {
             return;
         }

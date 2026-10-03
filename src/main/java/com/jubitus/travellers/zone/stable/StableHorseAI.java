@@ -47,22 +47,4 @@ public final class StableHorseAI {
         return horse.tasks.taskEntries.size() != EXPECTED_TASK_COUNT;
     }
 
-    /**
-     * Gives a horse its normal vanilla AI back - used when it leaves the pool for good (the owner
-     * mounts it to take it out). Mirrors {@code AbstractHorse.initEntityAI} exactly so a taken horse
-     * behaves like any other tame horse.
-     */
-    public static void restoreVanillaAI(EntityHorse horse) {
-        for (EntityAITasks.EntityAITaskEntry entry : new ArrayList<>(horse.tasks.taskEntries)) {
-            horse.tasks.taskEntries.remove(entry);
-        }
-        horse.tasks.addTask(0, new EntityAISwimming(horse));
-        horse.tasks.addTask(1, new EntityAIPanic(horse, 1.2D));
-        horse.tasks.addTask(1, new EntityAIRunAroundLikeCrazy(horse, 1.2D));
-        horse.tasks.addTask(2, new EntityAIMate(horse, 1.0D, AbstractHorse.class));
-        horse.tasks.addTask(4, new EntityAIFollowParent(horse, 1.0D));
-        horse.tasks.addTask(6, new EntityAIWanderAvoidWater(horse, 0.7D));
-        horse.tasks.addTask(7, new EntityAIWatchClosest(horse, EntityPlayer.class, 6.0F));
-        horse.tasks.addTask(8, new EntityAILookIdle(horse));
-    }
 }

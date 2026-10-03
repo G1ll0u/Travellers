@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.zone.ZoneBedData;
 import com.jubitus.travellers.zone.ZoneTypeData;
 import net.minecraft.entity.passive.EntityHorse;
@@ -50,7 +51,7 @@ public final class StableZoneData implements ZoneTypeData, ZoneBedData {
                                              StableHorseEntry.Origin origin, long now) {
         NBTTagCompound stored = nbt.copy();
         StableCoordinator.sanitizeSnapshot(stored);
-        StableCoordinator.stripPoolTag(stored);
+        HorseMarkers.clearPoolId(stored);
 
         EntityHorse scratch = new EntityHorse(world);
         scratch.readFromNBT(stored);

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.unit.Relocate;
 import com.google.common.base.Predicate;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -939,7 +940,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
 
     private void dismountIfRidingLoose(EntityTravellerWorker worker) {
         Entity mount = worker.getRidingEntity();
-        if (mount instanceof EntityHorse && !TravellerMountSupport.isBondedMount(mount)) {
+        if (mount instanceof EntityHorse && !HorseMarkers.isBondedMount(mount)) {
             worker.dismountRidingEntity();
         }
     }

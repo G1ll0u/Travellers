@@ -1,5 +1,6 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.mount.OrphanMountCleanup;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -72,7 +73,7 @@ public final class ChunkUnloadVirtualizeHandler {
             // moment OrphanMountCleanup relies on. Both are handled below, after the travellers.
             for (EntityHorse h : bucket.getByClass(EntityHorse.class)) {
                 if (h.isDead) continue;
-                if (!TravellerMountSupport.isBondedMount(h) && !OrphanMountCleanup.isOrphaned(h)) continue;
+                if (!HorseMarkers.isBondedMount(h) && !HorseMarkers.isOrphaned(h)) continue;
                 if (foundHorses == null) foundHorses = new ArrayList<>();
                 foundHorses.add(h);
             }
@@ -100,7 +101,7 @@ public final class ChunkUnloadVirtualizeHandler {
                 // A horse ridden by (or bonded to) a rider virtualized just above is already dead -
                 // captureMountIfBonded already reconciled it, nothing left to do here.
                 if (h.isDead) continue;
-                if (TravellerMountSupport.isBondedMount(h)) {
+                if (HorseMarkers.isBondedMount(h)) {
                     TravellerMountSupport.handleBondedHorseChunkUnload(world, h);
                 } else if (OrphanMountCleanup.isEligibleAtChunkUnload(h, now)) {
                     h.setDead();
