@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); next: phase 6.
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phase 6 done; next: phase 7.
 
 ## Goal
 
@@ -181,14 +181,20 @@ floor under trees, water surface not seabed).
   (`findClearHorseFootprint`, Stable pen — phase 8), boat spawn on water.
 
 
-### Phase 6 — One path budget — status: todo
+### Phase 6 — One path budget — status: done
 
 `PathBudget.tryAcquire(world, client, key, priority)`: one row per client (travel, follow, combat, combat scan,
 route, itinerary, elytra scan, stuck hop, mount) with today's numbers; follow keeps its per-owner bucket as a policy
 and its detailed result. Fixes: combat paths off the follow scheduler; horse paths on a mount row (no 9-in-10
-stagger denial); bridge jobs counted once; travel acquires after its cooldown check. **To decide at the phase**:
-whether the ungated A* callers (travel reachability probes, camp, village visit, stable, bow, fishing) join the budget.
+stagger denial); bridge jobs counted once (the route-job gate only ever saw jobs the itinerary budget had already
+admitted). Travel already checks its cooldown before acquiring: nothing to fix.
+Decided (user): the ungated A* callers (camp, village visit, stable, bow, fishing, follow boat, go-order, claim
+mount) stay out of the budget; noted in memory as deferred.
 Visible: possibly steadier recompute pacing.
+Done: `pathing/PathBudget` (rows TRAVEL, FOLLOW, FOLLOW_MOUNTED, MOUNT, COMBAT, COMBAT_SCAN, ITINERARY, ELYTRA_SCAN,
+STUCK_HOP) replaces the six schedulers; follow keeps its owner tokens in `PathScheduler` on top of its rows. Travel's
+hard cap (512) was unreachable (128 + 256) and is gone. Led horse: MOUNT row, same number as the mounted follow
+ceiling, counted apart (user), no stagger. Combat paths now share the 24/tick combat row with melee.
 
 ### Phase 7 — One hostility answer — status: todo
 

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.follow;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.pathing.PathBudget;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.world.World;
 
@@ -14,13 +15,6 @@ public final class PathScheduler {
 
     private static final Map<UUID, OwnerBucket> buckets = new HashMap<>();
 
-    private static long globalTick = Long.MIN_VALUE;
-    private static int globalUsed = 0;
-    /** Separate per-tick counter for mounted requests only - see {@link #tryAcquireDetailed}. A
-     * mounted acquisition also counts against {@link #globalUsed} as normal; this is an additional,
-     * much smaller ceiling on top, since a mounted A* (2-cell footprint, per-node AABB check, climb
-     * scan, hop candidates) costs many times a pedestrian one. */
-    private static int globalUsedMounted = 0;
     private static long lastCleanupTick = Long.MIN_VALUE;
 
     private PathScheduler() {
@@ -64,13 +58,13 @@ public final class PathScheduler {
         }
 
         long now = world.getTotalWorldTime();
-        beginTick(now);
         cleanup(now);
 
-        if (globalUsed >= TravellersConfig.WORKER_FORMATION.pathSchedulerGlobalMaxPathsPerTick) {
+        // World-wide rows first; a mounted A* (2-cell footprint, per-node box checks) also counts on its own smaller row.
+        if (PathBudget.isFull(world, PathBudget.Client.FOLLOW, priority)) {
             return AcquireResult.DENIED_GLOBAL_LIMIT;
         }
-        if (mounted && globalUsedMounted >= TravellersConfig.WORKER_FORMATION.pathSchedulerMountedGlobalMaxPathsPerTick) {
+        if (mounted && PathBudget.isFull(world, PathBudget.Client.FOLLOW_MOUNTED, priority)) {
             return AcquireResult.DENIED_GLOBAL_MOUNTED_LIMIT;
         }
 
@@ -128,8 +122,8 @@ public final class PathScheduler {
         }
 
         bucket.tokens -= effectiveCost;
-        globalUsed++;
-        if (mounted) globalUsedMounted++;
+        PathBudget.take(world, PathBudget.Client.FOLLOW, priority);
+        if (mounted) PathBudget.take(world, PathBudget.Client.FOLLOW_MOUNTED, priority);
 
         onGranted(follower, now);
         return AcquireResult.GRANTED;
@@ -140,14 +134,6 @@ public final class PathScheduler {
                 || result == AcquireResult.DENIED_GLOBAL_MOUNTED_LIMIT
                 || result == AcquireResult.DENIED_OWNER_TOKENS
                 || result == AcquireResult.DENIED_SPREAD;
-    }
-
-    private static void beginTick(long now) {
-        if (now != globalTick) {
-            globalTick = now;
-            globalUsed = 0;
-            globalUsedMounted = 0;
-        }
     }
 
     private static void refill(OwnerBucket bucket, long now, int groupSize) {

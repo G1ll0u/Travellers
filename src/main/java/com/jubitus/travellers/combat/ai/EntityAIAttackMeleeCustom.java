@@ -16,7 +16,7 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
 import com.jubitus.travellers.combat.TravellerItemDamage;
-import com.jubitus.travellers.combat.CombatPathScheduler;
+import com.jubitus.travellers.pathing.PathBudget;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
@@ -271,7 +271,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             // configured desired speed, not a flat 1.0 (full base speed).
             if (--repathCooldown <= 0) {
                 repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
-                if (CombatPathScheduler.tryAcquire(attacker.world, attacker.getEntityId(), 1)) {
+                if (PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
                     double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
                     Vec3d curvedAim = mountedApproachAim(tgt, inReach);
                     if (curvedAim != null) {

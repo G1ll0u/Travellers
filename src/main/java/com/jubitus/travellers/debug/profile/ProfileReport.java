@@ -179,20 +179,19 @@ final class ProfileReport {
         String[] prio = {"normal", "stuck-ish", "urgent"};
         long granted = 0;
         for (long[] row : s.travelSchedule) granted += row[MovementProfiler.TRAVEL_GRANTED];
-        sb.append("  Travel (TravelPathScheduler): ").append(granted).append(" granted, ")
+        sb.append("  Travel (PathBudget travel row): ").append(granted).append(" granted, ")
                 .append(f2((double) granted / ticks)).append(" per tick. Budget full on ")
                 .append(s.travelFullTicks).append(" ticks (").append(pct(s.travelFullTicks, ticks)).append(" of ticks)\n");
         sb.append("    'not its turn' is the normal 1-in-N stagger, not a shortage.\n");
         for (int p = 0; p < 3; p++) {
             long[] r = s.travelSchedule[p];
-            long total = r[0] + r[1] + r[2] + r[3] + r[4];
+            long total = r[0] + r[1] + r[2] + r[3];
             if (total == 0) continue;
             sb.append("    ").append(pad(prio[p], 11)).append(pad(total + " asks", 13))
                     .append("granted ").append(pad(pct(r[0], total), 8))
                     .append("not its turn ").append(pad(pct(r[1], total), 8))
                     .append("normal full ").append(pad(pct(r[2], total), 8))
-                    .append("urgent full ").append(pad(pct(r[3], total), 8))
-                    .append("hard cap ").append(pct(r[4], total)).append('\n');
+                    .append("urgent full ").append(pct(r[3], total)).append('\n');
         }
         long followTotal = 0;
         for (long v : s.followSchedule.values()) followTotal += v;

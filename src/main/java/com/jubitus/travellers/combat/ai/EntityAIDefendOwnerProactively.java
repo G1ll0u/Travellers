@@ -11,7 +11,7 @@ import net.minecraft.util.math.AxisAlignedBB;
 import javax.annotation.Nullable;
 import java.util.List;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
-import com.jubitus.travellers.combat.CombatTargetScanScheduler;
+import com.jubitus.travellers.pathing.PathBudget;
 
 /**
  * Proactive defense: scans around the player owner AND the escort worker-leader.
@@ -52,7 +52,7 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
 
         // Budget the AABB scan below world-wide so mass battles can't spike CPU.
         int scanPriority = worker.isRetargetBoosted() ? 2 : 0;
-        if (!CombatTargetScanScheduler.tryAcquire(worker.world, worker.getEntityId(), scanPriority)) return false;
+        if (!PathBudget.tryAcquire(worker.world, PathBudget.Client.COMBAT_SCAN, worker.getEntityId(), scanPriority)) return false;
 
         EntityTravellerWorker leader = worker.getEscortLeaderEntity();
 

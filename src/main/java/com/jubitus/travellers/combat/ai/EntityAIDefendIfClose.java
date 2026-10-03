@@ -18,7 +18,7 @@ import net.minecraft.util.math.AxisAlignedBB;
 import java.util.List;
 import java.util.UUID;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
-import com.jubitus.travellers.combat.CombatTargetScanScheduler;
+import com.jubitus.travellers.pathing.PathBudget;
 
 /**
  * Traveller will defensively aggro the nearest non-blacklisted IMob that gets close.
@@ -134,7 +134,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         // Boosted (just lost a target) scans get slight priority so post-kill retargeting
         // doesn't starve behind idle scans.
         int scanPriority = mob.isRetargetBoosted() ? 2 : 0;
-        if (!CombatTargetScanScheduler.tryAcquire(mob.world, mob.getEntityId(), scanPriority)) return false;
+        if (!PathBudget.tryAcquire(mob.world, PathBudget.Client.COMBAT_SCAN, mob.getEntityId(), scanPriority)) return false;
 
         double effRangeSq = currentTriggerRangeSq();
         double effRange = Math.sqrt(effRangeSq);

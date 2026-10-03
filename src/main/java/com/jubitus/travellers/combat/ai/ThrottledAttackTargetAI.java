@@ -8,7 +8,7 @@ import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
 import net.minecraft.util.math.AxisAlignedBB;
 
 import java.util.List;
-import com.jubitus.travellers.combat.CombatTargetScanScheduler;
+import com.jubitus.travellers.pathing.PathBudget;
 
 /**
  * Throttled version of EntityAINearestAttackableTarget for workers.
@@ -66,7 +66,7 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
 
         // Budget the scan world-wide so a mass battle with many hired workers can't spike CPU.
         int scanPriority = boosted ? 2 : 0;
-        if (!CombatTargetScanScheduler.tryAcquire(worker.world, worker.getEntityId(), scanPriority)) return false;
+        if (!PathBudget.tryAcquire(worker.world, PathBudget.Client.COMBAT_SCAN, worker.getEntityId(), scanPriority)) return false;
 
         boolean found;
         if (boosted) {

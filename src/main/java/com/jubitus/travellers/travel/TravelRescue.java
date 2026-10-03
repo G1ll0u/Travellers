@@ -134,8 +134,6 @@ final class TravelRescue {
     // A* checks per hop; the world-wide per-tick budget is TRAVEL.stuckHopChecksPerTick.
     private static final int MAX_CHECKS_PER_HOP = 2;
     private static final int[] LATERAL = {0, 2, -2};
-    private static long checkBudgetTick = Long.MIN_VALUE;
-    private static int checkBudgetUsed;
 
     /**
      * Hops to a point along the route the unit can resume from. {@code route} holds pairs
@@ -192,14 +190,7 @@ final class TravelRescue {
     }
 
     private boolean acquireCheck() {
-        long t = mob.world.getTotalWorldTime();
-        if (t != checkBudgetTick) {
-            checkBudgetTick = t;
-            checkBudgetUsed = 0;
-        }
-        if (checkBudgetUsed >= TravellersConfig.TRAVEL.stuckHopChecksPerTick) return false;
-        checkBudgetUsed++;
-        return true;
+        return com.jubitus.travellers.pathing.PathBudget.tryAcquire(mob.world, com.jubitus.travellers.pathing.PathBudget.Client.STUCK_HOP, 0, 0);
     }
 
     private static void reject(StringBuilder why, String tag, String reason) {

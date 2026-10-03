@@ -33,29 +33,6 @@ public final class ElytraOpportunityScanner {
     /** Returned by {@link #surfaceHeight} when the column is unloaded or has no ground in range. */
     private static final int NO_SURFACE = Integer.MIN_VALUE;
 
-    private static long budgetTick = Long.MIN_VALUE;
-    private static int scansUsed = 0;
-
-    /**
-     * World-wide per-tick budget, mirroring {@code TravelPathScheduler} / {@code CombatPathScheduler}.
-     * Also staggers entities across the scan interval so they never all probe on the same tick.
-     */
-    public static boolean tryAcquire(World world, int entityId) {
-        int interval = Math.max(1, TravellersConfig.ELYTRA.scanIntervalTicks);
-        long now = world.getTotalWorldTime();
-
-        if (Math.floorMod(entityId, interval) != Math.floorMod(now, interval)) return false;
-
-        if (now != budgetTick) {
-            budgetTick = now;
-            scansUsed = 0;
-        }
-        if (scansUsed >= TravellersConfig.ELYTRA.maxScansPerTick) return false;
-
-        scansUsed++;
-        return true;
-    }
-
     /**
      * @return where to glide to, or {@code null} when walking is the better option from here.
      */

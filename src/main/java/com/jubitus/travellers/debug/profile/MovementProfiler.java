@@ -24,7 +24,6 @@ public final class MovementProfiler {
     public static final int TRAVEL_NOT_ITS_TURN = 1;
     public static final int TRAVEL_FULL_NORMAL = 2;
     public static final int TRAVEL_FULL_URGENT = 3;
-    public static final int TRAVEL_FULL_HARD = 4;
 
     @Nullable
     private static ProfileSession session;
@@ -107,9 +106,12 @@ public final class MovementProfiler {
         session.ledEnded(e, now());
     }
 
-    public static void travelSchedule(int priority, int result) {
+    public static void travelSchedule(int priority, com.jubitus.travellers.pathing.PathBudget.Result result) {
         if (session == null) return;
-        session.travelSchedule(priority, result, now());
+        int code = result == com.jubitus.travellers.pathing.PathBudget.Result.GRANTED ? TRAVEL_GRANTED
+                : result == com.jubitus.travellers.pathing.PathBudget.Result.NOT_ITS_TURN ? TRAVEL_NOT_ITS_TURN
+                : priority >= 2 ? TRAVEL_FULL_URGENT : TRAVEL_FULL_NORMAL;
+        session.travelSchedule(priority, code, now());
     }
 
     public static void followSchedule(PathScheduler.AcquireResult result, boolean mounted,

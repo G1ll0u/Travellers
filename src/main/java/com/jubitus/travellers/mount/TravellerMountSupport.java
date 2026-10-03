@@ -1060,8 +1060,7 @@ public final class TravellerMountSupport {
         // Obstacle fallback window: let the horse's own pathfinder route around whatever the
         // straight step is jammed against.
         //
-        // Budgeted through the same world-wide TravelPathScheduler EntityAITravel's own real
-        // pathfinding uses. Without this, a horse whose search keeps failing (routine on rough
+        // Budgeted on the world-wide mount row of PathBudget. Without this, a horse whose search keeps failing (routine on rough
         // terrain, exactly where LED triggers most) re-ran a full A* EVERY tick for the whole
         // ledFollowPathfindTicks window - with many mounted followers jamming at once on hard
         // terrain, that is the single biggest cost in a large mounted group (profiled: tens of
@@ -1069,8 +1068,7 @@ public final class TravellerMountSupport {
         // the horse stands still that one tick rather than spending it on a doomed search.
         if (rider.ticksExisted < rider.getLedPacerNavUntilTick()) {
             if (horse.getNavigator().noPath()
-                    && com.jubitus.travellers.travel.TravelPathScheduler
-                            .tryAcquire(horse.world, rider.getEntityId(), 1)) {
+                    && com.jubitus.travellers.pathing.PathBudget.tryAcquire(horse.world, com.jubitus.travellers.pathing.PathBudget.Client.MOUNT, rider.getEntityId(), 1)) {
                 horse.getNavigator().tryMoveToEntityLiving(rider, pace);
             }
             return;
@@ -1095,8 +1093,7 @@ public final class TravellerMountSupport {
                 // a denied search here is picked up by the budgeted retry above on a later tick, the
                 // jam signal itself must not be lost.
                 rider.setLedPacerNavUntilTick(rider.ticksExisted + TravellersConfig.MOUNTS.ledFollowPathfindTicks);
-                if (com.jubitus.travellers.travel.TravelPathScheduler
-                        .tryAcquire(horse.world, rider.getEntityId(), 1)) {
+                if (com.jubitus.travellers.pathing.PathBudget.tryAcquire(horse.world, com.jubitus.travellers.pathing.PathBudget.Client.MOUNT, rider.getEntityId(), 1)) {
                     horse.getNavigator().tryMoveToEntityLiving(rider, pace);
                 }
                 com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.LED_HORSE_JAMMED);

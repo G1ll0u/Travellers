@@ -1,5 +1,6 @@
 package com.jubitus.travellers.pathing.itinerary;
 
+import com.jubitus.travellers.pathing.PathBudget;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -62,18 +63,9 @@ public final class ItineraryPlanner {
     // Bridge jobs in flight, keyed by a fresh per-bridge UUID (one unit can have several).
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
 
-    private static long budgetTick = Long.MIN_VALUE;
-    private static int budgetUsed;
-
     /** Per-tick admission budget shared by itinerary builds, bridge jobs and virtual destination picks. */
     public static boolean tryAcquire(long now) {
-        if (now != budgetTick) {
-            budgetTick = now;
-            budgetUsed = 0;
-        }
-        if (budgetUsed >= Math.max(1, TravellersConfig.ROUTING.routeJobsPerTick)) return false;
-        budgetUsed++;
-        return true;
+        return PathBudget.tryAcquire(now, PathBudget.Client.ITINERARY);
     }
 
     public static boolean mayUseRoads(boolean raider) {
@@ -86,7 +78,7 @@ public final class ItineraryPlanner {
      */
     public static void build(WorldServer world, UUID owner, ItineraryState st, double x, double y, double z,
                              BlockPos dest, boolean useRoads, boolean mounted, @Nullable String cultureId,
-                             boolean loaded, long now, @Nullable EntityTraveller traced) {
+                             long now, @Nullable EntityTraveller traced) {
         dropPending(owner);
         BlockPos origin = new BlockPos(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
         // With the terrain planner and Ultreia's road-box query, roads are part of the route search
@@ -125,7 +117,7 @@ public final class ItineraryPlanner {
         if (traced != null) TravellerTracer.event(traced, "path", msg);
         rlog(owner, msg);
 
-        tryPlanBacklog(world, owner, st, mounted, cultureId, loaded, now);
+        tryPlanBacklog(world, owner, st, mounted, cultureId, now);
     }
 
     /**
@@ -203,7 +195,7 @@ public final class ItineraryPlanner {
 
     /** Requests a terrain plan for every straight bridge not already in flight. Budgeted and throttled. */
     public static void tryPlanBacklog(WorldServer world, UUID owner, ItineraryState st, boolean mounted,
-                                      @Nullable String cultureId, boolean loaded, long now) {
+                                      @Nullable String cultureId, long now) {
         if (!st.hasBacklog() || now < st.nextBacklogTry) return;
         st.nextBacklogTry = now + BACKLOG_RETRY_TICKS;
 
@@ -226,14 +218,14 @@ public final class ItineraryPlanner {
             }
             if (isPending(owner, b, now)) continue;
             if (!tryAcquire(now)) break;
-            requestBridge(world, owner, b, grid, params, mounted, cultureId, loaded, st.useRoads, now);
+            requestBridge(world, owner, b, grid, params, mounted, cultureId, st.useRoads, now);
         }
         if (st.backlog != null && st.backlog.isEmpty()) st.backlog = null;
     }
 
     private static void requestBridge(WorldServer world, UUID owner, ItineraryAssembly.Bridge b,
                                       TerrainProfileGrid grid, RouteCostParams params, boolean mounted,
-                                      @Nullable String cultureId, boolean loaded, boolean useRoads, long now) {
+                                      @Nullable String cultureId, boolean useRoads, long now) {
         int spacing = Math.max(16, TravellersConfig.ROUTING.coarseNodeSpacing);
         int budget = Math.max(16, TravellersConfig.ROUTING.coarseNodeBudget);
         int[] box = TravelRouteJob.computeBox(b.start.getX(), b.start.getZ(), b.end.getX(), b.end.getZ(),
@@ -256,11 +248,8 @@ public final class ItineraryPlanner {
                 mounted, cultureId, params, now, view, spacing, budget, roads, wallsIn(world, box));
         String cacheKey = RouteCacheKeys.bucketed(world.provider.getDimension(), b.start, b.end, mounted)
                 + (useRoads ? "|r" : "");
-        // Priority 2 for a loaded unit: skips the stagger meant to spread virtual requests over ticks.
-        boolean ok = loaded
-                ? TravelRoutePlanner.request(world, job, cacheKey, 2)
-                : TravelRoutePlanner.request(world, job, cacheKey);
-        if (ok) PENDING.put(key, new Pending(owner, b.start, b.end, now));
+        TravelRoutePlanner.request(world, job, cacheKey);
+        PENDING.put(key, new Pending(owner, b.start, b.end, now));
     }
 
     private static boolean isPending(UUID owner, ItineraryAssembly.Bridge b, long now) {

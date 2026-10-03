@@ -4844,20 +4844,8 @@ public void fall(float distance, float damageMultiplier) {
         return this.travelCommon;
     }
 
-    @Nullable
-    public EntityLivingBase getSchedulerOwnerForPathing() {
-        // For hired workers: bucket by the player owner (so 50 workers share one budget)
-        if (this instanceof EntityTravellerWorker) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this;
-            EntityPlayer owner = w.getFollowOwner();
-            if (owner != null) return owner;
-        }
-        // Fallback: bucket by this entity
-        return this;
-    }
-
     /**
-     * Throttled path build. Returns a Path (or null) but only if scheduler allows it.
+     * Combat path build on the world-wide combat budget: null when denied this tick.
      */
     @Nullable
     public Path getPathToEntityThrottled(EntityLivingBase target, int priority) {
@@ -4868,8 +4856,7 @@ public void fall(float distance, float damageMultiplier) {
             return this.getNavigator().getPathToEntityLiving(target);
         }
 
-        EntityLivingBase schedOwner = getSchedulerOwnerForPathing();
-        if (!PathScheduler.tryAcquire(world, schedOwner, this.getEntityId(), priority, PathBody.isMounted(this))) {
+        if (!com.jubitus.travellers.pathing.PathBudget.tryAcquire(world, com.jubitus.travellers.pathing.PathBudget.Client.COMBAT, this.getEntityId(), priority)) {
             return null;
         }
         return this.getNavigator().getPathToEntityLiving(target);

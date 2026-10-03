@@ -62,23 +62,11 @@ public final class TravelRoutePlanner {
     }
 
     /**
-     * Server thread. Requests a plan for {@code job}, keyed for de-dup and caching by
-     * {@code cacheKey}. Returns {@code true} if a plan is on the way (cache hit enqueued now, or a
-     * worker job submitted), {@code false} if the scheduler denied a slot (caller uses its fallback).
-     *
-     * <p>Priority defaults to 0/1 (normal/mounted, every virtual caller) - see the 3-arg overload.
+     * Server thread. Requests a plan for {@code job}, keyed for de-dup and caching by {@code cacheKey}:
+     * a cache hit is enqueued now, otherwise a worker job is submitted. The caller has already taken
+     * its slot in {@code PathBudget} (itinerary row).
      */
-    public static boolean request(WorldServer world, TravelRouteJob job, String cacheKey) {
-        return request(world, job, cacheKey, job.mountFlag ? 1 : 0);
-    }
-
-    /**
-     * Same as the 3-arg overload, with an explicit scheduler priority. {@code priority} 2 is
-     * reserved for a loaded caller ({@code ItineraryPlanner} for a loaded owner): it skips
-     * {@link RoutePlanScheduler}'s stagger but still respects its per-tick ceiling, so a loaded
-     * traveller can't starve the virtual population's budget, it just doesn't wait its turn behind it.
-     */
-    public static boolean request(WorldServer world, TravelRouteJob job, String cacheKey, int priority) {
+    public static void request(WorldServer world, TravelRouteJob job, String cacheKey) {
         long now = world.getTotalWorldTime();
 
         int ttl = Math.max(1, TravellersConfig.ROUTING.routeCacheTtlTicks);
@@ -87,15 +75,10 @@ public final class TravelRoutePlanner {
             int[] o = CACHE.origin(cacheKey, now, ttl);
             RESULTS.add(new RouteResult(job.dimension, job.callbackKey, cached, true,
                     o != null ? o[0] : 0, o != null ? o[1] : 0, o != null ? o[2] : -1));
-            return true;
+            return;
         }
 
-        if (!IN_FLIGHT.add(job.callbackKey)) return true; // already planning for this unit
-
-        if (!RoutePlanScheduler.tryAcquire(world, job.callbackKey.hashCode(), priority)) {
-            IN_FLIGHT.remove(job.callbackKey);
-            return false;
-        }
+        if (!IN_FLIGHT.add(job.callbackKey)) return; // already planning for this unit
 
         exec().submit(() -> {
             try {
@@ -110,7 +93,6 @@ public final class TravelRoutePlanner {
                 IN_FLIGHT.remove(job.callbackKey);
             }
         });
-        return true;
     }
 
     /** Server thread: drains finished results for one dimension, leaving others queued. */

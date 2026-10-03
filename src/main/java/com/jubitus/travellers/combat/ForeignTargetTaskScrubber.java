@@ -15,7 +15,7 @@ import java.util.List;
  * their own vanilla target-selector tasks (e.g. a player-only EntityAINearestAttackableTarget) on
  * top of ours, without going through initEntityAI(). Those foreign tasks share the vanilla
  * targeting mutex bit and are unthrottled, so they can win the race to claim attackTarget before
- * our own budgeted scan (CombatTargetScanScheduler) gets a turn — once that happens our own tasks
+ * our own budgeted scan (PathBudget COMBAT_SCAN) gets a turn — once that happens our own tasks
  * correctly defer to the existing target and never reconsider other candidates, which looked like
  * "raiders spawned by a horde event only ever attack the player".
  * <p>

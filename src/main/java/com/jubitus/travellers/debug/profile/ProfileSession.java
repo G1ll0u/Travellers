@@ -177,7 +177,7 @@ final class ProfileSession {
     final EnumMap<MovementAnomaly.LedReason, Tally> ledDurations = new EnumMap<>(MovementAnomaly.LedReason.class);
 
     /** [priority 0..2][result 0..4], see MovementProfiler.TRAVEL_* */
-    final long[][] travelSchedule = new long[3][5];
+    final long[][] travelSchedule = new long[3][4];
     long travelFullTicks;
     private long lastTravelFullTick = -1;
 

@@ -4,7 +4,7 @@ import com.google.common.base.Predicate;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.ai.EntityAINearestAttackableTarget;
-import com.jubitus.travellers.combat.CombatTargetScanScheduler;
+import com.jubitus.travellers.pathing.PathBudget;
 
 /**
  * Target-scanning AI for raiders. Wraps EntityAINearestAttackableTarget with two additions:
@@ -54,7 +54,7 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         // Budget the scan world-wide so mass battles can't spike CPU (this task's scan runs at
         // an accelerated rate for every entity currently without a target).
         int scanPriority = raider.isRetargetBoosted() ? 2 : 0;
-        if (!CombatTargetScanScheduler.tryAcquire(raider.world, raider.getEntityId(), scanPriority)) return false;
+        if (!PathBudget.tryAcquire(raider.world, PathBudget.Client.COMBAT_SCAN, raider.getEntityId(), scanPriority)) return false;
 
         if (raider.isRetargetBoosted()) {
             for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {

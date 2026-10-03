@@ -791,7 +791,7 @@ public class EntityAITravel extends EntityAIBase {
         if (!TravellersConfig.ELYTRA.enabled || !TravellersConfig.ELYTRA.autoTakeoff) return false;
         if (isInBoat() || mob.elytraFlight.isOnCooldown()) return false;
         if (!ElytraCapability.canTakeOff(mob)) return false;
-        if (!ElytraOpportunityScanner.tryAcquire(mob.world, mob.getEntityId())) return false;
+        if (!com.jubitus.travellers.pathing.PathBudget.tryAcquire(mob.world, com.jubitus.travellers.pathing.PathBudget.Client.ELYTRA_SCAN, mob.getEntityId(), 0)) return false;
 
         Vec3d glide = ElytraOpportunityScanner.findGlideTarget(mob, targetVillage);
         if (glide == null) return false;
@@ -868,7 +868,7 @@ public class EntityAITravel extends EntityAIBase {
         ItineraryPlanner.build(ws, mob.getUniqueID(), mob.getItineraryState(), mob.posX, mob.posY, mob.posZ,
                 targetVillage,
                 ItineraryPlanner.mayUseRoads(mob instanceof com.jubitus.travellers.unit.EntityTravellerRaider),
-                com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
+                com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(),
                 ws.getTotalWorldTime(), mob);
     }
 
@@ -877,7 +877,7 @@ public class EntityAITravel extends EntityAIBase {
         ItineraryState st = mob.getItineraryState();
         if (!st.hasBacklog() || !st.isFor(targetVillage)) return;
         ItineraryPlanner.tryPlanBacklog((WorldServer) mob.world, mob.getUniqueID(), st,
-                com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(), true,
+                com.jubitus.travellers.pathing.PathBody.isMounted(mob), mob.getCultureId(),
                 mob.world.getTotalWorldTime());
     }
 
@@ -1042,7 +1042,10 @@ public class EntityAITravel extends EntityAIBase {
         else if (stuckish) priority = 1;
 
         // Ask the global scheduler if we can path this tick
-        if (!TravelPathScheduler.tryAcquire(mob.world, mob.getEntityId(), priority)) {
+        com.jubitus.travellers.pathing.PathBudget.Result slot = com.jubitus.travellers.pathing.PathBudget.acquire(
+                mob.world, com.jubitus.travellers.pathing.PathBudget.Client.TRAVEL, mob.getEntityId(), priority);
+        com.jubitus.travellers.debug.profile.MovementProfiler.travelSchedule(priority, slot);
+        if (slot != com.jubitus.travellers.pathing.PathBudget.Result.GRANTED) {
 
             // If we have no path, this denial means we will stand still.
             // Record it so updateTask() won't escalate stuck/teleport just because we're throttled.

@@ -1277,7 +1277,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (ItineraryPlanner.tryAcquire(now)) buildItinerary(world, r, stop, now);
             return;
         }
-        ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, false, now);
+        ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, now);
         if (tryStartVirtualVisit(world, r, stop, now)) return;
         if (legReached(r, stop)) {
             // No stay here (visits off, or no Millénaire data): a worker still leaves its gift.
@@ -1565,7 +1565,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (ItineraryPlanner.tryAcquire(now)) buildItinerary(world, r, goal, now);
             return;
         }
-        ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, false, now);
+        ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, now);
         updateGoalFromItinerary(r);
     }
 
@@ -1575,7 +1575,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (ItineraryPlanner.tryAcquire(now)) buildItinerary(world, r, dest, now, false);
             return;
         }
-        ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, false, now);
+        ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, now);
     }
 
     private void buildItinerary(WorldServer world, VirtualTravellerRecord r, BlockPos dest, long now) {
@@ -1586,7 +1586,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                                 boolean goalFollowsCarrot) {
         ItineraryPlanner.build(world, r.uuid, r.itinerary, r.posX, r.posY, r.posZ, dest,
                 ItineraryPlanner.mayUseRoads("RAIDER".equals(r.entityClass)), isMountedRecord(r),
-                r.cultureId, false, now, null);
+                r.cultureId, now, null);
         if (goalFollowsCarrot) updateGoalFromItinerary(r);
         markDirty();
     }
