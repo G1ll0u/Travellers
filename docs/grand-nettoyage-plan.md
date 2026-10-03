@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 pending); next: phase 6.
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); next: phase 6.
 
 ## Goal
 
@@ -113,7 +113,7 @@ Zero visible change. Every item re-checked by usage search before deletion.
   dialogue leftovers (`travelling_with_someone` line, `ActivityKind.FOLLOWING_SOMEONE`). `frontness` and
   `followTimeoutTicks` were wrongly reported dead by the inventory.
 
-### Phase 2 — Feature packages — status: done (root CLAUDE.md Code map to write once approved)
+### Phase 2 — Feature packages — status: done
 
 Pure moves (git mv + package/import rewrite, tests in `src/test` follow). No logic change. One step per feature,
 each building: 2.1 `ground` + `pathing` → 2.2 `unit`, `virtual`, `spawn` → 2.3 `travel`, `follow`, `flight`, `gaze`,
@@ -180,16 +180,6 @@ floor under trees, water surface not seabed).
   Kept: `TravelTerrain.findGroundNear` (a walking waypoint, cave-capable, not a placement), horse-only placement
   (`findClearHorseFootprint`, Stable pen — phase 8), boat spawn on water.
 
-
-- Ground: the 20 `getTopSolidOrLiquidBlock` sites and the custom ground loops (`findGroundBelow`, `findSurfaceY`,
-  `columnSurface`, `surfaceYIgnoringFoliage`, `MaterializePositionResolver` family…) → `ColumnGround`.
-- Block kinds: hard-coded hazard/snow/ice/canopy/water checks (68 sites; follow's LAVA/FIRE/WATER ×3) → `BlockRules`.
-- New authority **`LandingSpots`**: "safe spot for this body near X" (mount-aware, `MillFootprints`, hazards) replaces
-  the 8 implementations (`TravelTerrain.findGroundNear`, `TravelRescue.landingAt`, `FollowRecoveryHelper.findBestSpotNear`,
-  `MaterializePositionResolver.findSpotAtLevel`/`findClearMountSpot`, `ZonePlacement.findHitboxStandableNear`,
-  `VillageGround.nearestOutdoor`, `EntityAIVillageVisit.spreadSpot`), plus one water-surface and one dry-shore finder.
-- New authority **`Relocate.teleport(unit, pos)`**: zero motion, clear navigator, carry the led horse (≥12 copies).
-Visible: possible small differences in where a unit lands (strictest wins); **each merge confirmed**.
 
 ### Phase 6 — One path budget — status: todo
 
