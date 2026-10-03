@@ -150,5 +150,6 @@ The initializer is the default; `.properties` overrides and the GUI are automati
 
 ## References
 
-- `libs/millenaire-8.1.2.jar`; `./millDecomp/` — decompiled Millénaire source, culture files, sample world data, `millenaire-custom` packs.
-- `./minecraft-src/` — decompiled MC 1.12.2; read it instead of recalling vanilla tick/chunk/save semantics.
+- `libs/millenaire-8.1.2.jar`; `./sources/Mods/millenaire-decompiled` — decompiled Millénaire source, 
+- `./sources/Millenaire data`culture files, sample world data, `millenaire-custom` packs.
+- `./sources/minecraft, forge/minecraft-src/` — decompiled MC 1.12.2; read it instead of recalling vanilla tick/chunk/save semantics.

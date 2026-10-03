@@ -1,6 +1,7 @@
 # GUIs
 
 - Every Travellers screen implements the empty marker `ITravellersGui` (toasts are drawn over those only). `GuiTravellersButton` + `TravellersGuiTheme` are the standard button and theme, meant to replace remaining vanilla `GuiButton`s. `GuiContextMenu` is the reusable right-click menu.
+- A screen showing the player's workers on a map uses `worldmap/gui/WorkerMapScreenSupport` (+ `WorldMapNavButtons`); a row list uses `ScrollList` + `TravellersGuiTheme.drawScrollbar`; clipping goes through `GuiClip`.
 - **Never load sounds synchronously in `initGui()`** (freezes the client). A `GuiTextField` must be drawn every frame. `Gui.drawRect` leaves the GL colour set — reset to white before drawing an entity.
 
 ## Worker Hub (`GuiWorkerHub`, `hub/`)
@@ -11,8 +12,8 @@ The single entry point for a hired worker: live portrait with the menu fanned ou
 - Both hub-opening paths send `MsgSyncWorkerHireState` and `WorkerGroupService.syncLeaderFollowerCount`.
 - Portrait (`WorkerPortraitRenderer`) renders the real entity: only the head moves (pin body yaw and every `prev*`), yaw mirrored, scale divided by the entity's render scale.
 
-## Formation Hub (`formation/GuiWorkerFormationHub`)
-Leader list | worldmap | group card | journal. Left click selects, right drag pans, a still right click opens the orders menu built from selection × what is under the cursor. **The menu adds no server logic** — every order goes through the existing group/mission messages. On-duty workers are never selectable. Never use `drawMapFrame` there.
+## Formation Hub (`follow/gui/GuiWorkerFormationHub`)
+Leader list | worldmap | group card | journal — parts: `FormationSelection`, `FormationLeaderList`, `FormationSettingsCard`, `FormationOrdersMenu`, `FormationHubJournal`. Left click selects, right drag pans, a still right click opens the orders menu built from selection × what is under the cursor. **The menu adds no server logic** — every order goes through the existing group/mission messages. On-duty workers are never selectable. Never use `drawMapFrame` there.
 
 ## Player mark
 `WorkerOwnerVisualsSavedData` stores colour + armband style per owner; the owner's own colour is synced to `ClientOwnerVisualsCache`, which every worldmap GUI reads.
