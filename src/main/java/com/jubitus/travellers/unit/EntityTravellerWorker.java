@@ -155,13 +155,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     // Public so EntityAIChoirFreeze (different package) can read them directly
     public double choirFreezeLookX, choirFreezeLookZ;
 
-    private static final double RETURN_FOLLOW_SWITCH_DIST = TravellersConfig.WORKER_FORMATION.returnFollowSwitchDist; // tweak (24–40 works well)
-    // How long to wait after loot pickup before saying goodbye & roaming again
-    private static final int POST_JOB_FAREWELL_TICKS = 0; // 5 seconds (tweak)
-    // How often (in ticks) to refresh target when returning
-    private static final int RETURN_REPATH_INTERVAL_TICKS = 200; // ~10 seconds
     public final PlayerHostility playerHostility = new PlayerHostility(this);
     public final RecruitMission recruit = new RecruitMission(this);
+    public final DeliveryJob delivery = new DeliveryJob(this);
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
     // --- follower / hire state (existing) ---
@@ -181,15 +177,13 @@ public class EntityTravellerWorker extends EntityTraveller {
     private long nextCatchupRefreshTick = 0;
     private int leaderCountCooldown = 0;
     private int stuckAtVillageTicks = 0;
-    private boolean returnUsingFollow = false;
+    boolean returnUsingFollow = false;
     // NEW: whether follow AI is currently active (player’s "Follow" order)
     private boolean followOrderActive = false;
     // NEW: where the worker was told to stay when follow was toggled OFF
     @Nullable
     BlockPos idleAnchorPos = null;
     // NEW: leader logic – if non-null, this worker follows another worker instead of the player
-    int postJobFarewellTicks = 0;
-    boolean postJobFarewellActive = false;
     private double baseFollowRange;
     private double boostedFollowRange;
     private boolean usingBoostedNav = false;
@@ -199,28 +193,13 @@ public class EntityTravellerWorker extends EntityTraveller {
     private boolean catchupTravel;
     @Nullable
     private UUID catchupTargetUUID = null;
-    boolean awaitingPickup = false;
-    private boolean pickupNotified = false;
-    // Cooldown counter for re-pathing
-    private int returnRepathCooldown = 0;
-    // If true, cargo is treated as a donation (extra rep, no money)
-    boolean donationJob = false;
-    @Nullable
-    BlockPos jobVillageCenter = null;
     WorkerMode mode = WorkerMode.IDLE;
-    boolean jobDelivered = false;
     // GET_EQUIPMENT mission flags
     private boolean getEquipStay = false;
     private com.jubitus.travellers.unit.equipment.EquipTargetKind getEquipTargetKind =
             com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK;
-    // "Employer" = player who hired this worker for the current/last job
-    @Nullable
-    UUID employerId;
-    @Nullable
-    BlockPos employerReturnPos;   // where to go back (captured when job starts)
     // When true, base EntityTraveller will NOT auto-plan routes
     boolean routeLocked = false;
-    boolean hasUnsoldGoods = false;
 
     private FollowMode activeFollowMode = FollowMode.SURFACE;
 
@@ -317,41 +296,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
 
-
-    /**
-     * Compute travel cost in deniers based on village distance and how many cargo
-     * slots are used.
-     * <p>
-     * distance: 2D distance in blocks (same as Millénaire uses for mill)
-     * usedSlots: number of non-empty cargo slots (0..18)
-     * <p>
-     * Formula (tweak as you like):
-     * cost = ceil( basePerSlot * usedSlots * (distance / 800.0) )
-     * <p>
-     * So:
-     * - distance ~800 and 1 full slot -> ~basePerSlot deniers
-     * - distance ~800 and 18 full slots -> ~18 * basePerSlot deniers
-     */
-    public static int computeTravelCost(int distance, int usedSlots) {
-        if (distance <= 0 || usedSlots <= 0) {
-            return 0;
-        }
-
-        double basePerSlot = TravellersConfig.WORKER.workerTravelBaseCostPerSlot;
-        double baseDistance = TravellersConfig.WORKER.workerTravelDistanceBase;
-        if (baseDistance <= 0.0D) {
-            baseDistance = 800.0D;
-        }
-
-        double factor = (double) distance / baseDistance;
-        double cost = basePerSlot * usedSlots * factor;
-
-        // Flat base + global multiplier
-        cost = (cost + TravellersConfig.WORKER.workerTravelFlatBaseCost)
-                * TravellersConfig.WORKER.workerTravelCostMultiplier;
-
-        return (int) Math.ceil(cost);
-    }
 
     public boolean isGoingHome() {
         return goingHome;
@@ -493,7 +437,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (boundHere) {
             stopAllTravelNow();
             this.returnUsingFollow = false;
-            this.awaitingPickup = false;
+            delivery.awaitingPickup = false;
             this.idleAnchorPos = null;
             if (isHiredFollower()) {
                 this.followOrderActive = false;
@@ -549,7 +493,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     private boolean computeMissionCarry() {
         if (!isHiredFollower()) return false;
-        return recruit.isOnMission() || isOnDeliveryMission()
+        return recruit.isOnMission() || delivery.isOnMission()
                 || mode == WorkerMode.GET_EQUIPMENT
                 || goOrderActive || goingHome || goingToDuty;
     }
@@ -1111,140 +1055,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (!world.isRemote) {
             recruit.tickTour();
         }
-        // 1) Going TO the village (unchanged)
-        if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null && !jobDelivered) {
-            int r = tc.arrivalRadiusBlocks(jobVillageCenter);
-            if (this.getDistanceSqToCenter(jobVillageCenter) <= (double) (r * r)) {
-                donateInventoryToVillage(jobVillageCenter);
-                // donateInventoryToVillage calls onJobDelivered() already
-            }
-        }
-
-        // 2) RETURNING: re-path, walk to player, then wait for pickup
-// RETURNING: re-path with travel AI (long range), vanilla path only at close range
-        if (mode == WorkerMode.RETURNING && jobDelivered) {
-            EntityPlayer employer = getEmployer();
-
-            if (employer != null) {
-
-                // Use horizontal distance (better for caves / Y differences)
-                double dx = this.posX - employer.posX;
-                double dz = this.posZ - employer.posZ;
-                double distHsq = dx * dx + dz * dz;
-
-// --- Switch from Travel AI -> Follow AI when we can SEE the employer ---
-                if (!awaitingPickup) {
-                    // horizontal distance is better than 3D (caves / Y offsets)
-
-                    double switchSq = RETURN_FOLLOW_SWITCH_DIST * RETURN_FOLLOW_SWITCH_DIST;
-
-                    boolean sees = this.canEntityBeSeen(employer);
-
-                    // Use a little hysteresis so it doesn't flicker on/off
-                    double switchOffSq = (RETURN_FOLLOW_SWITCH_DIST + 10.0D);
-                    switchOffSq *= switchOffSq;
-
-                    if (!returnUsingFollow) {
-                        if (sees && distHsq <= switchSq) {
-                            returnUsingFollow = true;
-
-                            // Kill Travel AI state so it can't teleport when path drops
-                            TravelCommon tc2 = this.getTravelCommon();
-                            tc2.clearRoute(false);
-
-                            this.getNavigator().clearPath();
-
-                            // Ensure follow isn't off (clears idleAnchor)
-                            if (this.isHiredFollower()) {
-                                this.setFollowOrderActive(true);
-                            }
-                        }
-                    } else {
-                        // If we lost sight / got far again, let Travel AI take over again
-                        if (!sees || distHsq > switchOffSq) {
-                            returnUsingFollow = false;
-                        }
-                    }
-                }
-
-                int near = 8;
-                double nearSq = (double) near * (double) near;
-
-                // If we were waiting but the player walked away, resume chasing/following
-                if (awaitingPickup) {
-                    double resumeSq = 12.0D * 12.0D;
-                    if (distHsq > resumeSq) {
-                        awaitingPickup = false;
-
-                        // If hired follower, follow AI can take over now
-                        if (this.isHiredFollower()) {
-                            this.setFollowOrderActive(true);
-                        } else {
-                            updateReturnRoute(getApproximateSurfacePosNear(employer));
-                        }
-                    }
-                }
-
-                // Keep long-range travel AI updated
-                if (!awaitingPickup && !returnUsingFollow) {
-                    // ONLY travel AI logic when we are NOT using follow
-                    if (returnRepathCooldown-- <= 0) {
-                        returnRepathCooldown = RETURN_REPATH_INTERVAL_TICKS;
-                        BlockPos newApprox = getApproximateSurfacePosNear(employer);
-
-                        if (this.employerReturnPos == null
-                                || this.employerReturnPos.distanceSq(newApprox) > (32 * 32)) {
-                            updateReturnRoute(newApprox);
-                        }
-                    }
-                }
-
-
-                // Arrival + message
-                if (!awaitingPickup && distHsq <= nearSq) {
-
-                    tc.clearRoute(false);
-                    this.getNavigator().clearPath();
-
-                    awaitingPickup = true;
-                    // Stay on the tight follow escort until the player takes the goods (no timeout)
-                    returnUsingFollow = true;
-                    if (this.isHiredFollower()) {
-                        this.setFollowOrderActive(true);
-                    }
-
-                    if (!pickupNotified) {
-                        pickupNotified = true;
-                        this.voice.playHello();
-                        NotificationService.notify(employer, this.hasUnsoldGoods
-                                ? NotificationDefs.WORKER_CARGO_ARRIVED_PARTIAL
-                                : NotificationDefs.WORKER_CARGO_ARRIVED_FULL);
-                    }
-                }
-
-            } else if (employerReturnPos != null && !awaitingPickup) {
-                // Fallback: if we lost the player entity, just go to last known target and wait there
-                int r = tc.arrivalRadiusBlocks(employerReturnPos);
-                if (this.getDistanceSqToCenter(employerReturnPos) <= (double) (r * r)) {
-                    tc.clearRoute(false);
-                    this.getNavigator().clearPath();
-                    awaitingPickup = true;
-                }
-            }
-        }
-        if (!world.isRemote && postJobFarewellActive) {
-            if (--postJobFarewellTicks <= 0) {
-                postJobFarewellActive = false;
-
-                EntityPlayer employer = getEmployer();
-
-                // Now fully clear job state and unlock auto-roaming
-                finishJob();
-            } else {
-                // During farewell, keep him from wandering off:
-                this.getNavigator().clearPath();
-            }
-        }
+        delivery.tick(tc);
 
         if (!world.isRemote) {
             if (this.mode == WorkerMode.IDLE
@@ -1380,7 +1191,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
         // 1) If we are back from a job and waiting for pickup, ALWAYS open the cargo GUI
-        if (this.mode == WorkerMode.RETURNING && this.jobDelivered && this.awaitingPickup && !this.isInCombat()) {
+        if (this.mode == WorkerMode.RETURNING && delivery.jobDelivered && delivery.awaitingPickup && !this.isInCombat()) {
             com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "pickup-gui");
             player.openGui(
                     Travellers.INSTANCE,
@@ -1455,12 +1266,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
         super.onDeath(cause);
-    }
-
-    @Nullable
-    private EntityPlayer getEmployer() {
-        if (employerId == null) return null;
-        return this.world.getPlayerEntityByUUID(employerId);
     }
 
     @Override
@@ -1541,69 +1346,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return true;
     }
 
-    // called by server when player confirms job in GUI
-    // Old signature, default to non-donation job
-    public void startVillageDeliveryJob(EntityPlayer employer, BlockPos villageCenter) {
-        startVillageDeliveryJob(employer, villageCenter, false);
-    }
-
-    // New signature with donation flag
-    public void startVillageDeliveryJob(EntityPlayer employer, BlockPos villageCenter, boolean donate) {
-        this.employerId = employer.getUniqueID();
-        this.employerReturnPos = getApproximateSurfacePosNear(employer);
-        this.jobVillageCenter = villageCenter;
-        this.mode = WorkerMode.TO_VILLAGE;
-        this.jobDelivered = false;
-        this.donationJob = donate;
-        this.awaitingPickup = false;
-        this.pickupNotified = false;
-        this.returnRepathCooldown = 0;
-
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-
-        // Route: go to village, then back to employer
-        tc.route.add(villageCenter);
-        if (employerReturnPos != null) {
-            tc.route.add(employerReturnPos);
-        }
-
-        tc.routeIndex = 0;
-        tc.setTargetVillage(villageCenter);
-        this.getTravelCommon().setTargetVillage(villageCenter);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(false);
-        tc.setDepartCooldownTicks(0);
-
-        this.routeLocked = true;
-        this.getNavigator().clearPath();
-        com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "delivery-start");
-    }
-
-    /**
-     * Called when we have finished donating to the target village.
-     * After this, worker will travel back to employerReturnPos.
-     */
-    public void onJobDelivered() {
-        if (this.jobDelivered) return;
-        this.jobDelivered = true;
-        this.mode = WorkerMode.RETURNING;
-
-        if (this.isHiredFollower()) {
-            this.setFollowOrderActive(true); // clears idleAnchorPos
-        }
-
-        EntityPlayer employer = getEmployer();
-        if (employer != null) {
-            updateReturnRoute(getApproximateSurfacePosNear(employer));
-        } else if (employerReturnPos != null) {
-            updateReturnRoute(employerReturnPos);
-        }
-
-    }
-
     /**
      * Final clean up when worker has come back to the employer.
      * NOTE: we keep routeLocked = true so the worker will NOT auto-roam anymore.
@@ -1628,15 +1370,9 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.idleAnchorPos = spot;
     }
 
-    private void finishJob() {
+    void finishJob() {
         this.mode = WorkerMode.IDLE;
-        this.jobVillageCenter = null;
-        this.jobDelivered = false;
-        this.donationJob = false;
-        this.hasUnsoldGoods = false;
-        this.awaitingPickup = false;
-        this.pickupNotified = false;
-        this.returnRepathCooldown = 0;
+        delivery.clear();
 
         // KEEP companion mode locked if hired follower
         this.routeLocked = this.isHiredFollower();   // <-- change
@@ -1665,131 +1401,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return true;
     }
 
-    @Nullable
-    private EntityPlayer getEmployerPlayer() {
-        if (employerId == null) return null;
-        return this.world.getPlayerEntityByUUID(employerId);
-    }
-
-    /**
-     * Process cargo inventory as a Millénaire trade or donation with the village.
-     * If donationJob is true -> donation (no money, extra reputation).
-     * Else -> normal selling (money + base reputation).
-     */
-    public void donateInventoryToVillage(BlockPos villageCenter) {
-        if (!(world instanceof net.minecraft.world.WorldServer)) return;
-        EntityPlayer employer = getEmployer();
-
-        com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "trade-before");
-        MillGoods.Delivery d = MillGoods.deliverCargo((net.minecraft.world.WorldServer) world, villageCenter,
-                getTravelInventory(), employer, this.donationJob);
-        if (!d.reached) return;
-        com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "trade-after");
-
-        if (d.unsold) this.hasUnsoldGoods = true;
-        if (d.refused) NotificationService.notify(employer, NotificationDefs.TRADE_REFUSED);
-        if (d.reputation != 0 && employer != null && TravellersConfig.WORKER.workerNotifyOnVillageTrade) {
-            notifyTradeSummary(d.villageName, employer, this.donationJob, d.items, d.money, d.reputation, d.traded);
-        }
-        if (!this.donationJob && d.money > 0) addMoneyToWorkerInventory(d.money);
-        onJobDelivered();
-    }
-
-    /** One toast per transaction: totals plus the three most valuable items (2nd line), "(+N)" for the rest. */
-    private static void notifyTradeSummary(String villageName, EntityPlayer employer, boolean donateMode,
-                                           int totalItems, int totalMoney, int totalRep,
-                                           Map<String, int[]> tradedByName) {
-        List<Map.Entry<String, int[]>> sorted = new ArrayList<>(tradedByName.entrySet());
-        sorted.sort((a, b) -> Integer.compare(b.getValue()[1], a.getValue()[1]));
-        StringBuilder items = new StringBuilder("\n");
-        int shown = Math.min(3, sorted.size());
-        for (int i = 0; i < shown; i++) {
-            if (i > 0) items.append(", ");
-            items.append(sorted.get(i).getKey()).append(" x").append(sorted.get(i).getValue()[0]);
-        }
-        if (sorted.size() > shown) items.append(" (+").append(sorted.size() - shown).append(")");
-
-        if (donateMode) {
-            NotificationService.notify(employer, NotificationDefs.TRADE_DONATED_SUMMARY, villageName,
-                    String.valueOf(totalItems), String.valueOf(totalRep), items.toString());
-        } else {
-            NotificationService.notify(employer, NotificationDefs.TRADE_SOLD_SUMMARY, villageName,
-                    String.valueOf(totalItems), MillMoney.format(totalMoney),
-                    String.valueOf(totalRep), items.toString());
-        }
-    }
-
-    /**
-     * Convert a total amount of deniers into DENIER / DENIER_ARGENT / DENIER_OR
-     * and put them into the worker's cargo inventory. If inventory is full, drop
-     * the leftover in the world at the worker's feet.
-     */
-    private void addMoneyToWorkerInventory(int deniersTotal) {
-        if (deniersTotal <= 0) return;
-
-        int denierOr = deniersTotal / (64 * 64);
-        deniersTotal %= (64 * 64);
-        int denierArgent = deniersTotal / 64;
-        int denier = deniersTotal % 64;
-
-        MillLog.major(this, "[TravellersWorker] Coin breakdown: "
-                + denierOr + "o, " + denierArgent + "a, " + denier + "d");
-
-        addCoinsToCargo(MillItems.DENIER_OR, denierOr);
-        addCoinsToCargo(MillItems.DENIER_ARGENT, denierArgent);
-        addCoinsToCargo(MillItems.DENIER, denier);
-    }
-
-    /**
-     * Insert a given number of coin items into the cargo inventory, splitting into
-     * valid stack sizes. Any leftovers that don't fit get dropped in the world.
-     */
-    private void addCoinsToCargo(Item coinItem, int amount) {
-        if (amount <= 0) return;
-
-        ItemStackHandler inv = this.getTravelInventory();
-        int maxStack = coinItem.getItemStackLimit(new ItemStack(coinItem));
-
-        while (amount > 0) {
-            int toPlace = Math.min(maxStack, amount);
-            ItemStack stack = new ItemStack(coinItem, toPlace);
-            amount -= toPlace;
-
-            ItemStack remaining = insertStackInHandler(inv, stack);
-            if (!remaining.isEmpty()) {
-                MillLog.major(this, "[TravellersWorker] Cargo full, dropping "
-                        + remaining.getCount() + "x " + remaining.getDisplayName());
-                this.entityDropItem(remaining, 0.0F);
-            }
-        }
-    }
-
-    /**
-     * Try to insert a stack into an ItemStackHandler, filling partial stacks first.
-     * Returns any leftover.
-     */
-    private ItemStack insertStackInHandler(ItemStackHandler handler, ItemStack stack) {
-        // First try to merge into existing stacks
-        for (int i = 0; i < handler.getSlots() && !stack.isEmpty(); i++) {
-            ItemStack inSlot = handler.getStackInSlot(i);
-            if (!inSlot.isEmpty()
-                    && ItemStack.areItemsEqual(inSlot, stack)
-                    && ItemStack.areItemStackTagsEqual(inSlot, stack)) {
-                stack = handler.insertItem(i, stack, false);
-            }
-        }
-
-        // Then look for empty slots
-        for (int i = 0; i < handler.getSlots() && !stack.isEmpty(); i++) {
-            ItemStack inSlot = handler.getStackInSlot(i);
-            if (inSlot.isEmpty()) {
-                stack = handler.insertItem(i, stack, false);
-            }
-        }
-
-        return stack;
-    }
-
     /**
      * Count non-empty cargo slots on this worker.
      */
@@ -1808,54 +1419,13 @@ public class EntityTravellerWorker extends EntityTraveller {
         return travelInventory;
     }
 
-    public boolean hasUnsoldGoods() {
-        return hasUnsoldGoods;
-    }
-
-    private void updateReturnRoute(BlockPos newReturnPos) {
-        if (newReturnPos == null) return;
-
-        this.employerReturnPos = newReturnPos;
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.routeTo(newReturnPos);
-        tc.setDepartCooldownTicks(0);
-
-        this.getNavigator().clearPath();
-    }
-
-    public void onLootCollected(EntityPlayer player) {
-        // Only finish if we were on a return job
-        if (this.mode == WorkerMode.RETURNING && this.jobDelivered) {
-            com.jubitus.travellers.debug.MissionDebugLog.loaded(this, "pickup-done");
-
-            // We’re done with the job logically, but we keep routeLocked
-            // so he doesn’t start travelling yet.
-            this.awaitingPickup = false;
-
-            // Start farewell phase
-            this.postJobFarewellActive = true;
-            this.postJobFarewellTicks = POST_JOB_FAREWELL_TICKS;
-
-            // Switch to IDLE but keep routeLocked=true until farewell is over
-            this.mode = WorkerMode.IDLE;
-
-            // (Optional) tiny acknowledgement right away, or remove if you only
-            // want the delayed goodbye.
-            ITextComponent farewell = new TextComponentTranslation("travellers.dialogue.worker_farewell");
-            farewell.getStyle().setColor(TextFormatting.WHITE);
-            player.sendMessage(farewell);
-        }
-    }
-
-    @Override
     public boolean usesVillageVisit() {
         return TravellersConfig.VILLAGE_VISIT.enabledWorkers && !isHiredFollower() && isIdleForRoaming();
     }
 
     public boolean isIdleForRoaming() {
         // free to behave like a normal traveller
-        return this.mode == WorkerMode.IDLE && !this.isWaitingForPickup();
+        return this.mode == WorkerMode.IDLE && !delivery.isWaitingForPickup();
     }
 
 
@@ -1910,7 +1480,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 this.goingHome = false;
                 stopAllTravelNow();            // clears TravelCommon target/route/waypoint + navigator
                 this.returnUsingFollow = false;
-                this.awaitingPickup = false;
+                delivery.awaitingPickup = false;
             }
 
             // Follow ON
@@ -1929,7 +1499,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 // kill all travel state so nothing keeps pulling toward home
                 stopAllTravelNow();
                 this.returnUsingFollow = false;
-                this.awaitingPickup = false;
+                delivery.awaitingPickup = false;
 
                 // anchor here (player told us to stay)
                 this.idleAnchorPos = this.getPosition();
@@ -1940,10 +1510,10 @@ public class EntityTravellerWorker extends EntityTraveller {
             // Normal anchor behavior
             this.idleAnchorPos = this.getPosition();
 
-            if (!this.isJobActive() && !this.catchupTravel && !this.isWaitingForPickup()) {
+            if (!this.isJobActive() && !this.catchupTravel && !delivery.isWaitingForPickup()) {
                 stopAllTravelNow();
                 this.returnUsingFollow = false;
-                this.awaitingPickup = false;
+                delivery.awaitingPickup = false;
             } else {
                 this.getNavigator().clearPath();
             }
@@ -1974,7 +1544,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 // Approximate surface position near any follow target (player OR leader worker)
     public BlockPos getApproximateSurfacePosNear(@Nullable EntityLivingBase target) {
         if (target == null) {
-            return this.employerReturnPos != null ? this.employerReturnPos : this.getPosition();
+            return delivery.getEmployerReturnPos() != null ? delivery.getEmployerReturnPos() : this.getPosition();
         }
 
         FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
@@ -2000,11 +1570,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean isJobActive() {
-        return this.mode != WorkerMode.IDLE && !this.isWaitingForPickup();
-    }
-
-    public boolean isWaitingForPickup() {
-        return this.mode == WorkerMode.RETURNING && this.jobDelivered && this.awaitingPickup;
+        return this.mode != WorkerMode.IDLE && !delivery.isWaitingForPickup();
     }
 
     @Nullable
@@ -2031,9 +1597,9 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         // Cancel any job
         this.mode = WorkerMode.IDLE;
-        this.jobVillageCenter = null;
-        this.jobDelivered = false;
-        this.awaitingPickup = false;
+        delivery.jobVillageCenter = null;
+        delivery.jobDelivered = false;
+        delivery.awaitingPickup = false;
         this.routeLocked = true;  // companion mode
 
         this.followOrderActive = true; // <--- key line
@@ -2191,7 +1757,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     private void tickStayAtIdleAnchor() {
         if (!isHiredFollower()) return;
-        if (this.mode == WorkerMode.RETURNING && this.jobDelivered) return;
+        if (this.mode == WorkerMode.RETURNING && delivery.jobDelivered) return;
         if (isJobActive()) return;
         if (this.goingHome) return;
         if (followOrderActive) return;
@@ -2234,19 +1800,13 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (recruit.isReturningToOwner()) return true;
         // Sale/transport return: allow follow AI even while awaitingPickup so worker stays close (3-4 blocks)
         return this.mode == WorkerMode.RETURNING
-                && this.jobDelivered
+                && delivery.jobDelivered
                 && this.returnUsingFollow;
     }
 
     /** Transport worker coming back to the player: tight escort instead of a formation slot. */
     public boolean isPickupEscortActive() {
-        return this.mode == WorkerMode.RETURNING && this.jobDelivered && this.returnUsingFollow;
-    }
-
-    // Sale/donation mission (GuiWorker): outbound trip to village + full return leg to owner
-    public boolean isOnDeliveryMission() {
-        return this.mode == WorkerMode.TO_VILLAGE
-                || (this.mode == WorkerMode.RETURNING && this.jobDelivered);
+        return this.mode == WorkerMode.RETURNING && delivery.jobDelivered && this.returnUsingFollow;
     }
 
     public static int dist2D(BlockPos a, BlockPos b) {
@@ -2362,7 +1922,7 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
     public boolean isOnFixedGoalMission() {
         if (!hiredFollower) return false;
-        if (mode == WorkerMode.TO_VILLAGE) return jobVillageCenter != null;
+        if (mode == WorkerMode.TO_VILLAGE) return delivery.jobVillageCenter != null;
         if (mode == WorkerMode.RECRUITING) return recruit.getCurrentStop() != null;
         return goOrderActive && goOrderTargetPos != null
                 && (mode == WorkerMode.IDLE || mode == WorkerMode.GET_EQUIPMENT);
@@ -2383,7 +1943,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Nullable
     public BlockPos getJobGoal() {
-        if (mode == WorkerMode.TO_VILLAGE) return jobVillageCenter;
+        if (mode == WorkerMode.TO_VILLAGE) return delivery.jobVillageCenter;
         if (mode == WorkerMode.RECRUITING) return recruit.getCurrentStop();
         return null;
     }
@@ -2400,14 +1960,14 @@ public class EntityTravellerWorker extends EntityTraveller {
         BlockPos personal = getActivePersonalTravelGoal();
         if (personal != null) return personal;
         // Active mission modes: go to mission destination, never override with owner pos
-        if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null) return jobVillageCenter;
+        if (mode == WorkerMode.TO_VILLAGE && delivery.jobVillageCenter != null) return delivery.jobVillageCenter;
         if (mode == WorkerMode.RETURNING) {
             // Recruit return: track player's CURRENT position (not the fixed original start point)
             if (recruit.isReturningToOwner() && isHiredFollower() && followOwnerId != null) {
                 EntityPlayer owner = world.getPlayerEntityByUUID(followOwnerId);
                 if (owner != null && !owner.isDead) return owner.getPosition();
             }
-            if (employerReturnPos != null) return employerReturnPos;
+            if (delivery.getEmployerReturnPos() != null) return delivery.getEmployerReturnPos();
         }
         if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) return recruit.getCurrentStop();
         // Go order (IDLE mode, specific target)
@@ -2462,9 +2022,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public boolean canVirtualizeIgnoringCombat() {
         if (!super.canVirtualizeIgnoringCombat()) return false;
-        if (awaitingPickup) return false;
-        if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null) {
-            if (getDistanceSqToCenter(jobVillageCenter) < 48.0 * 48.0) return false;
+        if (delivery.awaitingPickup) return false;
+        if (mode == WorkerMode.TO_VILLAGE && delivery.jobVillageCenter != null) {
+            if (getDistanceSqToCenter(delivery.jobVillageCenter) < 48.0 * 48.0) return false;
         }
         if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) {
             if (getDistanceSqToCenter(recruit.getCurrentStop()) < 24.0 * 24.0) return false;
@@ -2558,7 +2118,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 && !this.isFollowOrderActive()
                 && this.idleAnchorPos != null
                 && !this.isJobActive()
-                && !(this.mode == WorkerMode.RETURNING && this.jobDelivered);
+                && !(this.mode == WorkerMode.RETURNING && delivery.jobDelivered);
     }
 
     private double distSqFromAnchor(EntityLivingBase e) {
@@ -2892,14 +2452,14 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.goingHome = false;
         this.catchupTravel = false;
         this.returnUsingFollow = false;
-        this.awaitingPickup = false;
+        delivery.awaitingPickup = false;
 
         // Stop job if you want to force the order (optional)
         // If you prefer to block when job active, do that in the packet handler.
         if (this.isJobActive()) {
             // Keep it simple: cancel job travel state but keep inventory
             this.mode = WorkerMode.IDLE;
-            this.jobDelivered = false;
+            delivery.jobDelivered = false;
         }
 
         // Follow OFF, no anchor yet (anchor will be set once arrived)
@@ -2933,8 +2493,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.goingHome = false;
         this.catchupTravel = false;
         this.returnUsingFollow = false;
-        this.awaitingPickup = false;
-        this.jobDelivered = false;
+        delivery.awaitingPickup = false;
+        delivery.jobDelivered = false;
 
         this.followOrderActive = false;
         this.idleAnchorPos = null;
@@ -2956,30 +2516,14 @@ public class EntityTravellerWorker extends EntityTraveller {
     // NBT SAVE/LOAD
     private class WorkerNbtComponent {
         public void write(NBTTagCompound nbt) {
-            if (employerId != null) nbt.setUniqueId("EmployerId", employerId);
-            if (employerReturnPos != null) {
-                nbt.setInteger("EmpX", employerReturnPos.getX());
-                nbt.setInteger("EmpY", employerReturnPos.getY());
-                nbt.setInteger("EmpZ", employerReturnPos.getZ());
-            }
+            delivery.writeNbt(nbt);
             recruit.writeNbt(nbt);
-            if (jobVillageCenter != null) {
-                nbt.setInteger("JobVX", jobVillageCenter.getX());
-                nbt.setInteger("JobVY", jobVillageCenter.getY());
-                nbt.setInteger("JobVZ", jobVillageCenter.getZ());
-            }
             nbt.setInteger("WorkerMode", mode.ordinal());
             nbt.setBoolean("GetEquipStay", getEquipStay);
             nbt.setString("GetEquipTargetKind", getEquipTargetKind.name());
-            nbt.setBoolean("JobDelivered", jobDelivered);
             nbt.setBoolean("RouteLocked", routeLocked);
-            nbt.setBoolean("DonationJob", donationJob);
             nbt.setTag("TravelInventory", travelInventory.serializeNBT());
 
-            nbt.setBoolean("AwaitingPickup", awaitingPickup);
-            nbt.setBoolean("HasUnsoldGoods", hasUnsoldGoods);
-            nbt.setBoolean("PostJobFarewellActive", postJobFarewellActive);
-            nbt.setInteger("PostJobFarewellTicks", postJobFarewellTicks);
 
             // home village (PersonalInventory removed — inventory is saved by EntityTraveller as "TravellerInv")
             if (homeVillageCenter != null) {
@@ -3032,25 +2576,9 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         public void read(NBTTagCompound nbt) {
             forceSpawn = true;
-            employerId = nbt.hasUniqueId("EmployerId") ? nbt.getUniqueId("EmployerId") : null;
+            delivery.readNbt(nbt);
             recruit.readNbt(nbt);
 
-            if (nbt.hasKey("EmpX")) {
-                employerReturnPos = new BlockPos(
-                        nbt.getInteger("EmpX"),
-                        nbt.getInteger("EmpY"),
-                        nbt.getInteger("EmpZ"));
-            } else {
-                employerReturnPos = null;
-            }
-            if (nbt.hasKey("JobVX")) {
-                jobVillageCenter = new BlockPos(
-                        nbt.getInteger("JobVX"),
-                        nbt.getInteger("JobVY"),
-                        nbt.getInteger("JobVZ"));
-            } else {
-                jobVillageCenter = null;
-            }
             int m = nbt.getInteger("WorkerMode");
             mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
             getEquipStay = nbt.getBoolean("GetEquipStay");
@@ -3060,17 +2588,11 @@ public class EntityTravellerWorker extends EntityTraveller {
                     : (nbt.getBoolean("GetEquipWholeVillage")
                         ? com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE
                         : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK);
-            jobDelivered = nbt.getBoolean("JobDelivered");
             routeLocked = nbt.getBoolean("RouteLocked");
-            donationJob = nbt.getBoolean("DonationJob"); // NEW
             if (nbt.hasKey("TravelInventory")) {
                 travelInventory.deserializeNBT(nbt.getCompoundTag("TravelInventory"));
             }
 
-            awaitingPickup = nbt.getBoolean("AwaitingPickup");
-            hasUnsoldGoods = nbt.getBoolean("HasUnsoldGoods");
-            postJobFarewellActive = nbt.getBoolean("PostJobFarewellActive");
-            postJobFarewellTicks = nbt.getInteger("PostJobFarewellTicks");
 
 
             // Migrate old PersonalInventory into the unified inventory (backward compat)
@@ -3121,8 +2643,8 @@ public class EntityTravellerWorker extends EntityTraveller {
                 setEscortLeaderUUID(leaderId); // this updates ESCORT_LEADER_DM
             }
 
-            if (mode != WorkerMode.RETURNING || !jobDelivered) {
-                awaitingPickup = false;
+            if (mode != WorkerMode.RETURNING || !delivery.jobDelivered) {
+                delivery.awaitingPickup = false;
             }
             zone = ZoneRef.read(nbt);
             if (!world.isRemote) syncZoneDataParams();
@@ -3160,10 +2682,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 }
             }
 
-// If farewell isn't active, no need to keep a non-zero counter
-            if (!postJobFarewellActive) {
-                postJobFarewellTicks = 0;
-            }
             boolean hired = nbt.getBoolean("HiredFollower");
             Optional<UUID> owner = nbt.hasUniqueId("FollowOwnerId")
                     ? Optional.of(nbt.getUniqueId("FollowOwnerId"))

@@ -107,8 +107,8 @@ public final class RecruitMission {
 
     public boolean canStart() {
         return worker.mode == EntityTravellerWorker.WorkerMode.IDLE
-                && !worker.postJobFarewellActive
-                && !worker.isWaitingForPickup()
+                && !worker.delivery.isFarewellActive()
+                && !worker.delivery.isWaitingForPickup()
                 && !this.active;
     }
 

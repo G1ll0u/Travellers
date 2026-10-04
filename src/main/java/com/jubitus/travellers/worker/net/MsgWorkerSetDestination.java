@@ -1,6 +1,7 @@
 package com.jubitus.travellers.worker.net;
 
 import com.jubitus.travellers.worker.inventory.ContainerWorker;
+import com.jubitus.travellers.unit.DeliveryJob;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
@@ -90,7 +91,7 @@ public class MsgWorkerSetDestination implements IMessage {
             int distance = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
 
             int usedSlots = worker.getUsedTravelSlots();
-            int cost = EntityTravellerWorker.computeTravelCost(distance, usedSlots);
+            int cost = DeliveryJob.computeTravelCost(distance, usedSlots);
 
             if (cost > 0) {
                 int playerMoney = MillMoney.countPlayerMoney(player);
@@ -111,7 +112,7 @@ public class MsgWorkerSetDestination implements IMessage {
                 ((ContainerWorker) player.openContainer).markJobStarted();
             }
             com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
-            worker.startVillageDeliveryJob(player, villageCenter, msg.donate);
+            worker.delivery.start(player, villageCenter, msg.donate);
 
             String costStr = MillMoney.format(cost);
 

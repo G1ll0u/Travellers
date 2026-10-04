@@ -243,6 +243,8 @@ stay as entity hooks; dead `tryVirtualize` removed); 9.6 travel and mount save k
 and `TravellerMountState` (keys unchanged); 9.7 the 21 one-line `TravelCommon` forwards removed (callers use
 `getTravelCommon()`; `maybePlayTravelAmbient`/`scheduleNextTravelAmbient` kept: raider overrides);
 9.8a `unit/RecruitMission` (`worker.recruit`: tour, return leg, fee/route statics, its save keys).
+9.8b `unit/DeliveryJob` (`worker.delivery`: sale/donation trip, return and pickup wait, farewell, trade, its save keys;
+the cargo inventory and `returnUsingFollow` stay on the worker).
 Next: 9.8 worker split — `RecruitMission` (fields + methods + its NBT keys), `DeliveryJob`, worker hostility
 (`isEnemy*`, `canRetaliateAgainst`, `rallyGroupAgainst`), follower counting → `WorkerGroupService`; `WorkerNbtComponent`
 shrinks as state objects take their own keys. 9.9 `setAttackTarget`/`attackEntityFrom` upkeep → `TravellerCombatLogic`

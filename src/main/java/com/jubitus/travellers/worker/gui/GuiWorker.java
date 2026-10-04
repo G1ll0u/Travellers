@@ -11,6 +11,7 @@ import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
+import com.jubitus.travellers.unit.DeliveryJob;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
@@ -255,7 +256,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         String costStr = MillMoney.format(0);
         if (selectedIndex >= 0 && selectedIndex < villages.size()) {
             int usedSlots = getUsedCargoSlotsClient();
-            int cost = EntityTravellerWorker.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
+            int cost = DeliveryJob.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
             costStr = MillMoney.format(cost);
         }
         this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10,
@@ -341,7 +342,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             if (selectedIndex >= 0 && selectedIndex < villages.size()) {
                 VillageRow row = villages.get(selectedIndex);
                 int usedSlots = getUsedCargoSlotsClient();
-                int cost = EntityTravellerWorker.computeTravelCost(row.distance, usedSlots);
+                int cost = DeliveryJob.computeTravelCost(row.distance, usedSlots);
                 this.lastCost = cost;
                 this.validatedVillageIdx = selectedIndex;
                 this.costValid = true;

@@ -131,8 +131,8 @@ public class ContainerWorker extends Container {
             }
 
             // 2) If this was the pickup GUI after a job, start farewell phase
-            if (worker != null && worker.isWaitingForPickup()) {
-                worker.onLootCollected(playerIn);
+            if (worker != null && worker.delivery.isWaitingForPickup()) {
+                worker.delivery.onLootCollected(playerIn);
             }
 
             // Optionally also sync this container once more

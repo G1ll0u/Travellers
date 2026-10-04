@@ -971,7 +971,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
 
         // Loads the village's chest chunks only for the trade, then releases them
-        worker.donateInventoryToVillage(r.jobGoal);
+        worker.delivery.deliverCargo(r.jobGoal);
 
         // Persist updated state (empty cargo, money added, mode=RETURNING)
         NBTTagCompound updatedNbt = new NBTTagCompound();
