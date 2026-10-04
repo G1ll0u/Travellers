@@ -34,7 +34,7 @@ public final class WorkerOrderGuard {
     }
 
     public static boolean isBusy(EntityTravellerWorker w) {
-        return w.isJobActive() || w.isWaitingForPickup() || w.isOnRecruitMission();
+        return w.isJobActive() || w.isWaitingForPickup() || w.recruit.isOnMission();
     }
 
     public static boolean isBusy(VirtualTravellerRecord r) {

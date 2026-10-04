@@ -4,6 +4,7 @@ import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.RecruitMission;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.village.MillMoney;
@@ -68,7 +69,7 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
             EntityTravellerWorker worker = WorkerLookup.ownedById(player, msg.workerId);
             if (worker == null) return;
 
-            if (!worker.canStartRecruitMission()) {
+            if (!worker.recruit.canStart()) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_BUSY);
                 return;
             }
@@ -93,8 +94,8 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
             BlockPos start = player.getPosition();
             BlockPos end = player.getPosition();
 
-            int dist = EntityTravellerWorker.computeRouteDistance2D(start, msg.route, end);
-            int fee = EntityTravellerWorker.computeRecruitFee(dist, msg.route.size());
+            int dist = RecruitMission.computeRouteDistance2D(start, msg.route, end);
+            int fee = RecruitMission.computeFee(dist, msg.route.size());
 
             int money = MillMoney.countPlayerMoney(player);
             if (money < fee) {
@@ -111,7 +112,7 @@ public class MsgRecruitStartSelectedVillages implements IMessage {
 
             // Start mission with EXACT villages chosen
             com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
-            worker.startRecruitMission(player, msg.route, null);
+            worker.recruit.start(player, msg.route, null);
         }
     }
 }

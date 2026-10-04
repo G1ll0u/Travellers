@@ -161,12 +161,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     // How often (in ticks) to refresh target when returning
     private static final int RETURN_REPATH_INTERVAL_TICKS = 200; // ~10 seconds
     public final PlayerHostility playerHostility = new PlayerHostility(this);
+    public final RecruitMission recruit = new RecruitMission(this);
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
-    // --- recruit mission state ---
-    final List<BlockPos> recruitVillages = new ArrayList<>();
-    // track which villages already spawned recruits (avoid double spawn)
-    final Set<BlockPos> recruitSpawnedAt = new HashSet<>();
     // --- follower / hire state (existing) ---
     @Nullable
     public UUID followOwnerId = null;
@@ -185,8 +182,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private int leaderCountCooldown = 0;
     private int stuckAtVillageTicks = 0;
     private boolean returnUsingFollow = false;
-    // recruit mission return phase: follow owner home
-    boolean recruitReturningToOwner = false;
     // NEW: whether follow AI is currently active (player’s "Follow" order)
     private boolean followOrderActive = false;
     // NEW: where the worker was told to stay when follow was toggled OFF
@@ -210,10 +205,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private int returnRepathCooldown = 0;
     // If true, cargo is treated as a donation (extra rep, no money)
     boolean donationJob = false;
-    int recruitIndex = 0;
-    @Nullable
-    private BlockPos recruitReturnPos = null;
-    boolean recruitActive = false;
     @Nullable
     BlockPos jobVillageCenter = null;
     WorkerMode mode = WorkerMode.IDLE;
@@ -232,17 +223,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     boolean hasUnsoldGoods = false;
 
     private FollowMode activeFollowMode = FollowMode.SURFACE;
-
-    private static final int RECRUIT_STOP_RADIUS = 10;
-    private static final int RECRUIT_VILLAGE_RADIUS = 24;
-    private static final int RECRUIT_STALL_TICKS = 20 * 5;
-    private static final double RECRUIT_PROGRESS_EPS_SQ = 2.0D * 2.0D;
-
-    @Nullable
-    private BlockPos recruitCurrentStopPos = null;
-
-    private int recruitArrivalWatchdogTicks = 0;
-    private double recruitBestDistSq = Double.MAX_VALUE;
 
     public EntityTravellerWorker(World worldIn) {
         super(worldIn);
@@ -371,62 +351,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 * TravellersConfig.WORKER.workerTravelCostMultiplier;
 
         return (int) Math.ceil(cost);
-    }
-
-    public static int computeRouteDistance2D(BlockPos start, List<BlockPos> villages, BlockPos end) {
-        if (villages == null || villages.isEmpty()) {
-            return dist2D(start, end);
-        }
-        int total = 0;
-        BlockPos prev = start;
-        for (BlockPos v : villages) {
-            total += dist2D(prev, v);
-            prev = v;
-        }
-        total += dist2D(prev, end);
-        return total;
-    }
-
-    public static int computeRecruitFee(int routeDistance, int villagesCount) {
-        int flat = TravellersConfig.RECRUITMENT.recruitFeeFlat;
-        int perVillage = TravellersConfig.RECRUITMENT.recruitFeePerVillage * villagesCount;
-        int perDist = (int) Math.ceil(routeDistance * TravellersConfig.RECRUITMENT.recruitFeePerBlock);
-        return Math.max(0, flat + perVillage + perDist);
-    }
-
-    /**
-     * A safe outdoor spot near a village center (the surface, never inside or on a Millénaire
-     * building): a few random columns first, then the nearest ring by ring. The center itself as a last resort.
-     */
-    public static BlockPos findRecruitSpawnPos(World world, BlockPos villageCenter, Random rand) {
-        if (world == null || villageCenter == null) return villageCenter;
-
-        final int tries = 24;
-        final int radius = 10;
-        for (int i = 0; i < tries; i++) {
-            BlockPos spot = recruitSpotInColumn(world, villageCenter.getX() + rand.nextInt(radius * 2 + 1) - radius,
-                    villageCenter.getZ() + rand.nextInt(radius * 2 + 1) - radius);
-            if (spot != null) return spot;
-        }
-
-        for (int r = 1; r <= 16; r++) {
-            for (int dx = -r; dx <= r; dx++) {
-                for (int dz = -r; dz <= r; dz++) {
-                    if (Math.abs(dx) != r && Math.abs(dz) != r) continue;
-                    BlockPos spot = recruitSpotInColumn(world, villageCenter.getX() + dx, villageCenter.getZ() + dz);
-                    if (spot != null) return spot;
-                }
-            }
-        }
-        return villageCenter;
-    }
-
-    @Nullable
-    private static BlockPos recruitSpotInColumn(World world, int x, int z) {
-        int y = ColumnGround.topLayer(world, x, z, false);
-        if (y == ColumnGround.NONE) return null;
-        BlockPos feet = new BlockPos(x, y, z);
-        return LandingSpots.isSafe(world, feet, null, false, false) ? feet : null;
     }
 
     public boolean isGoingHome() {
@@ -625,7 +549,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     private boolean computeMissionCarry() {
         if (!isHiredFollower()) return false;
-        return isOnRecruitMission() || isOnDeliveryMission()
+        return recruit.isOnMission() || isOnDeliveryMission()
                 || mode == WorkerMode.GET_EQUIPMENT
                 || goOrderActive || goingHome || goingToDuty;
     }
@@ -770,13 +694,6 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public void setHomeVillage(@Nullable BlockPos pos) {
         this.homeVillageCenter = pos;
-    }
-
-    public boolean canStartRecruitMission() {
-        return this.mode == WorkerMode.IDLE
-                && !this.postJobFarewellActive
-                && !this.isWaitingForPickup()
-                && !this.recruitActive;
     }
 
     public boolean isUsingTravelAI() {
@@ -991,8 +908,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
 
-        if (!world.isRemote && recruitReturningToOwner) {
-            tickRecruitReturnToOwner();
+        if (!world.isRemote) {
+            recruit.tickReturnToOwner();
         }
 
         // Server-side: register/update this worker as a chunkloader
@@ -1191,8 +1108,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
 
-        if (!world.isRemote && this.mode == WorkerMode.RECRUITING && recruitActive) {
-            tickRecruitMission();
+        if (!world.isRemote) {
+            recruit.tickTour();
         }
         // 1) Going TO the village (unchanged)
         if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null && !jobDelivered) {
@@ -1703,8 +1620,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.goOrderTargetDim = 0;
         this.goingHome = false;
         this.goingToDuty = false;
-        this.recruitActive = false;
-        this.recruitReturningToOwner = false;
+        recruit.abandon();
         this.returnUsingFollow = false;
         if (this.mode != WorkerMode.ON_DUTY) finishJob();
         this.followOrderActive = false;
@@ -2315,7 +2231,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public boolean isReturnUsingFollow() {
         // Recruit return: use follow AI to get back to player (jobDelivered is never set for recruit missions)
-        if (this.recruitReturningToOwner) return true;
+        if (recruit.isReturningToOwner()) return true;
         // Sale/transport return: allow follow AI even while awaitingPickup so worker stays close (3-4 blocks)
         return this.mode == WorkerMode.RETURNING
                 && this.jobDelivered
@@ -2327,50 +2243,10 @@ public class EntityTravellerWorker extends EntityTraveller {
         return this.mode == WorkerMode.RETURNING && this.jobDelivered && this.returnUsingFollow;
     }
 
-    // Recruit mission (GuiWorkerRecruit): outbound village tour + follow-AI return leg to owner
-    public boolean isOnRecruitMission() {
-        return this.mode == WorkerMode.RECRUITING || this.recruitReturningToOwner;
-    }
-
     // Sale/donation mission (GuiWorker): outbound trip to village + full return leg to owner
     public boolean isOnDeliveryMission() {
         return this.mode == WorkerMode.TO_VILLAGE
                 || (this.mode == WorkerMode.RETURNING && this.jobDelivered);
-    }
-
-    public List<BlockPos> pickRecruitVillages(EntityPlayer player) {
-        World world = this.world;
-        BlockPos origin = player.getPosition();
-
-        int maxRadius = TravellersConfig.RECRUITMENT.recruitMaxVillageRadius;
-        int minN = TravellersConfig.RECRUITMENT.recruitVillagesMin;
-        int maxN = TravellersConfig.RECRUITMENT.recruitVillagesMax;
-
-        List<BlockPos> centers = MillSettlements.snapshot(world).villageCenters;
-        List<BlockPos> inRange = new ArrayList<>();
-
-        for (BlockPos c : centers) {
-            int d = dist2D(origin, c);
-
-            // NEW: enforce minimum distance for recruitment
-            if (d < TravellersConfig.RECRUITMENT.recruitMinVillageDistance) {
-                continue;
-            }
-
-            if (d <= maxRadius) {
-                inRange.add(c);
-            }
-        }
-
-
-        inRange.sort(Comparator.comparingInt(c -> dist2D(origin, c)));
-
-        if (inRange.isEmpty()) return Collections.emptyList();
-
-        int n = minN + this.rand.nextInt(Math.max(1, (maxN - minN + 1)));
-        n = Math.min(n, inRange.size());
-
-        return new ArrayList<>(inRange.subList(0, n));
     }
 
     public static int dist2D(BlockPos a, BlockPos b) {
@@ -2378,238 +2254,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         double dz = (a.getZ() + 0.5D) - (b.getZ() + 0.5D);
         return (int) Math.round(Math.sqrt(dx * dx + dz * dz));
     }
-
-    public void startRecruitMission(EntityPlayer player, List<BlockPos> villages, BlockPos returnPos) {
-        if (world.isRemote) return;
-        if (villages == null || villages.isEmpty()) return;
-
-        this.recruitVillages.clear();
-        this.recruitVillages.addAll(villages);
-
-        this.recruitIndex = 0;
-        this.recruitReturnPos = returnPos;
-        this.recruitActive = true;
-        this.recruitSpawnedAt.clear();
-        this.recruitCurrentStopPos = null;
-        resetRecruitArrivalWatchdog();
-
-        this.mode = WorkerMode.RECRUITING;
-        this.routeLocked = true;
-
-        if (this.isHiredFollower()) {
-            this.setFollowOrderActive(true);
-        }
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.route.clear();
-        tc.routeIndex = -1;
-
-        for (BlockPos v : recruitVillages) {
-            tc.route.add(resolveRecruitStopPos(v));
-        }
-        if (returnPos != null) {
-            tc.route.add(returnPos);
-        }
-
-        tc.routeIndex = 0;
-        setRecruitLegTarget(this.recruitVillages.get(0));
-    }
-
-    private void tickRecruitMission() {
-        TravelCommon tc = this.getTravelCommon();
-
-        if (recruitIndex < recruitVillages.size()) {
-            BlockPos targetVillage = recruitVillages.get(recruitIndex);
-
-            if (hasReachedRecruitVillage(targetVillage)) {
-                if (!recruitSpawnedAt.contains(targetVillage)) {
-                    recruitSpawnedAt.add(targetVillage);
-                    spawnRecruitsAtVillage(targetVillage);
-                }
-
-                recruitIndex++;
-
-                if (recruitIndex < recruitVillages.size()) {
-                    tc.routeIndex = recruitIndex;
-                    setRecruitLegTarget(recruitVillages.get(recruitIndex));
-                } else {
-                    this.recruitCurrentStopPos = null;
-                    resetRecruitArrivalWatchdog();
-
-                    beginRecruitReturnToOwner();
-
-                    if (recruitReturnPos != null) {
-                        tc.setTargetVillage(recruitReturnPos);
-                        this.getTravelCommon().setTargetVillage(recruitReturnPos);
-                        tc.setCurrentWaypoint(null);
-                        tc.setReadyToDepart(true);
-                        tc.setDepartCooldownTicks(0);
-                        this.getNavigator().clearPath();
-                    }
-                }
-            }
-
-            return;
-        }
-
-        EntityPlayer owner = getFollowOwner();
-        if (owner != null && !owner.isDead && owner.dimension == this.dimension) {
-            double dx = this.posX - owner.posX;
-            double dz = this.posZ - owner.posZ;
-            double distHsq = dx * dx + dz * dz;
-
-            if (distHsq <= 8.0D * 8.0D) {
-                finishRecruitMission(owner);
-            }
-        } else {
-            finishRecruitMission(null);
-        }
-    }
-
-    private void spawnRecruitsAtVillage(BlockPos villageCenter) {
-        if (!(this.world instanceof WorldServer)) return;
-        WorldServer ws = (WorldServer) this.world;
-
-        EntityPlayer owner = getFollowOwner();
-        if (owner == null) return;
-
-        int min = TravellersConfig.RECRUITMENT.recruitSpawnMin;
-        int max = TravellersConfig.RECRUITMENT.recruitSpawnMax;
-        int count = min + this.rand.nextInt(Math.max(1, (max - min + 1)));
-
-        for (int i = 0; i < count; i++) {
-            BlockPos spawnPos = EntityTravellerWorker.findRecruitSpawnPos(world, villageCenter, this.rand);
-            EntityTravellerWorker w = new EntityTravellerWorker(ws);
-
-            w.setPosition(spawnPos.getX() + 0.5D, spawnPos.getY(), spawnPos.getZ() + 0.5D);
-            w.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), null);
-
-            // IMPORTANT: no home village, so no respawn-on-death
-            w.setHomeVillage(null);
-
-            // Make them hired followers of the SAME owner, but escort THIS recruiter as leader
-            w.hireAsFollower(owner);
-            w.setEscortLeader(this);
-
-            ws.spawnEntity(w);
-        }
-
-        String villageName = resolveVillageName(villageCenter);
-        NotificationService.notify(owner, NotificationDefs.RECRUIT_WORKERS_RECRUITED,
-                String.valueOf(count), villageName);
-    }
-
-    /**
-     * Best-effort village name lookup for player-facing recruit notifications.
-     */
-    private String resolveVillageName(BlockPos villageCenter) {
-        Building th = MillSettlements.townHall(world, villageCenter);
-        return th != null ? th.getVillageQualifiedName() : "a village";
-    }
-
-    private void finishRecruitMission(@Nullable EntityPlayer owner) {
-        this.recruitActive = false;
-        this.recruitVillages.clear();
-        this.recruitSpawnedAt.clear();
-        this.recruitIndex = 0;
-        this.recruitReturnPos = null;
-        this.recruitCurrentStopPos = null;
-        resetRecruitArrivalWatchdog();
-
-        // Clear travel route
-        TravelCommon tc = this.getTravelCommon();
-        tc.clearRoute(false);
-        this.getNavigator().clearPath();
-
-        // Back to companion idle
-        this.mode = WorkerMode.IDLE;
-        this.routeLocked = true; // keep companion mode
-        this.setFollowOrderActive(true);
-
-        if (owner != null) {
-            NotificationService.notify(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED);
-        }
-    }
-
-    /**
-     * Called when this worker is a temporary (non-spawned) entity loaded from virtual record NBT.
-     * Marks the stop as done, advances recruit index, sets next leg or transitions to return.
-     * Returns the number of recruits to create (0 if already done at this stop).
-     */
-    public int advanceRecruitStopVirtually(BlockPos stop) {
-        if (stop == null || recruitSpawnedAt.contains(stop)) return 0;
-        recruitSpawnedAt.add(stop);
-
-        int count = TravellersConfig.RECRUITMENT.recruitSpawnMin
-                + rand.nextInt(Math.max(1, TravellersConfig.RECRUITMENT.recruitSpawnMax - TravellersConfig.RECRUITMENT.recruitSpawnMin + 1));
-
-        recruitIndex++;
-        if (recruitIndex < recruitVillages.size()) {
-            getTravelCommon().routeIndex = recruitIndex;
-            setRecruitLegTarget(recruitVillages.get(recruitIndex));
-        } else {
-            // Last stop done — transition to returning via follow AI (mirrors beginRecruitReturnToOwner)
-            recruitCurrentStopPos = null;
-            recruitReturningToOwner = true;
-            mode = WorkerMode.RETURNING;
-            routeLocked = true;
-            // Clear TravelAI entirely: getVirtualGoal() tracks the player's current position,
-            // and once materialized the real-entity path uses follow AI (isReturnUsingFollow=true)
-            TravelCommon tc = getTravelCommon();
-            tc.clearRoute(false);
-        }
-        return count;
-    }
-
-    private void beginRecruitReturnToOwner() {
-        // We want Follow AI + catchupTravel to do the long-range work
-        this.recruitReturningToOwner = true;
-
-        // Make sure Follow order is ON
-        if (this.isHiredFollower()) {
-            this.setFollowOrderActive(true); // clears idleAnchorPos
-        }
-
-        // Stop Travel AI route completely
-        TravelCommon tc = this.getTravelCommon();
-        tc.clearRoute(false);
-
-        this.getNavigator().clearPath();
-
-        // IMPORTANT:
-        // If your Follow AI is gated by "job active", we must NOT be "job active" anymore.
-        // So drop to IDLE companion mode (but keep routeLocked=true so he doesn't auto-roam).
-        this.mode = WorkerMode.IDLE;
-        this.routeLocked = true;
-
-        // Also ensure we are not in catchupTravel stale state
-        this.catchupTravel = false;
-    }
-
-    private void tickRecruitReturnToOwner() {
-        EntityPlayer owner = getFollowOwner();
-        if (owner == null || owner.isDead || owner.dimension != this.dimension) {
-            // Owner missing → abort safely
-            recruitReturningToOwner = false;
-            finishRecruitMission(null);
-            return;
-        }
-
-        double dx = this.posX - owner.posX;
-        double dz = this.posZ - owner.posZ;
-        double distHsq = dx * dx + dz * dz;
-
-        // When close enough, finish
-        if (distHsq <= 8.0D * 8.0D) {
-            recruitReturningToOwner = false;
-            finishRecruitMission(owner);
-        }
-
-        // No navigation commands here:
-        // Follow AI will pull him in, and your existing "dist > 200 → startOwnerCatchupTravel()"
-        // will kick in automatically because mode is IDLE and followOrderActive is true.
-    }
-
 
     private boolean shouldBeUsingTravelAI() {
         TravelCommon tc = this.getTravelCommon();
@@ -2719,7 +2363,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public boolean isOnFixedGoalMission() {
         if (!hiredFollower) return false;
         if (mode == WorkerMode.TO_VILLAGE) return jobVillageCenter != null;
-        if (mode == WorkerMode.RECRUITING) return recruitCurrentStopPos != null;
+        if (mode == WorkerMode.RECRUITING) return recruit.getCurrentStop() != null;
         return goOrderActive && goOrderTargetPos != null
                 && (mode == WorkerMode.IDLE || mode == WorkerMode.GET_EQUIPMENT);
     }
@@ -2740,7 +2384,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     public BlockPos getJobGoal() {
         if (mode == WorkerMode.TO_VILLAGE) return jobVillageCenter;
-        if (mode == WorkerMode.RECRUITING) return recruitCurrentStopPos;
+        if (mode == WorkerMode.RECRUITING) return recruit.getCurrentStop();
         return null;
     }
 
@@ -2759,13 +2403,13 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null) return jobVillageCenter;
         if (mode == WorkerMode.RETURNING) {
             // Recruit return: track player's CURRENT position (not the fixed original start point)
-            if (recruitReturningToOwner && isHiredFollower() && followOwnerId != null) {
+            if (recruit.isReturningToOwner() && isHiredFollower() && followOwnerId != null) {
                 EntityPlayer owner = world.getPlayerEntityByUUID(followOwnerId);
                 if (owner != null && !owner.isDead) return owner.getPosition();
             }
             if (employerReturnPos != null) return employerReturnPos;
         }
-        if (mode == WorkerMode.RECRUITING && recruitCurrentStopPos != null) return recruitCurrentStopPos;
+        if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) return recruit.getCurrentStop();
         // Go order (IDLE mode, specific target)
         if (goOrderActive && goOrderTargetPos != null) return goOrderTargetPos;
         // Escort follower: head toward the leader (loaded or virtual), never the owner. getVirtualGoal
@@ -2822,8 +2466,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (mode == WorkerMode.TO_VILLAGE && jobVillageCenter != null) {
             if (getDistanceSqToCenter(jobVillageCenter) < 48.0 * 48.0) return false;
         }
-        if (mode == WorkerMode.RECRUITING && recruitCurrentStopPos != null) {
-            if (getDistanceSqToCenter(recruitCurrentStopPos) < 24.0 * 24.0) return false;
+        if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) {
+            if (getDistanceSqToCenter(recruit.getCurrentStop()) < 24.0 * 24.0) return false;
         }
         if (mode == WorkerMode.GET_EQUIPMENT && goOrderTargetPos != null) {
             if (getDistanceSqToCenter(goOrderTargetPos) < 48.0 * 48.0) return false;
@@ -3318,13 +2962,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 nbt.setInteger("EmpY", employerReturnPos.getY());
                 nbt.setInteger("EmpZ", employerReturnPos.getZ());
             }
-            if (recruitCurrentStopPos != null) {
-                nbt.setInteger("RecruitStopX", recruitCurrentStopPos.getX());
-                nbt.setInteger("RecruitStopY", recruitCurrentStopPos.getY());
-                nbt.setInteger("RecruitStopZ", recruitCurrentStopPos.getZ());
-            }
-            nbt.setInteger("RecruitArrivalWatchdogTicks", recruitArrivalWatchdogTicks);
-            nbt.setDouble("RecruitBestDistSq", recruitBestDistSq);
+            recruit.writeNbt(nbt);
             if (jobVillageCenter != null) {
                 nbt.setInteger("JobVX", jobVillageCenter.getX());
                 nbt.setInteger("JobVY", jobVillageCenter.getY());
@@ -3366,34 +3004,11 @@ public class EntityTravellerWorker extends EntityTraveller {
             nbt.setBoolean("HiredFollower", dataManager.get(HIRED_FOLLOWER_DM));
             Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
             if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
-            nbt.setBoolean("RecruitActive", recruitActive);
-            nbt.setBoolean("RecruitReturning", recruitReturningToOwner);
-            nbt.setInteger("RecruitIndex", recruitIndex);
-
-            NBTTagList vlist = new NBTTagList();
-            for (BlockPos p : recruitVillages) {
-                NBTTagCompound c = new NBTTagCompound();
-                c.setInteger("x", p.getX());
-                c.setInteger("y", p.getY());
-                c.setInteger("z", p.getZ());
-                vlist.appendTag(c);
-            }
-            nbt.setTag("RecruitVillages", vlist);
-
             if (zone != null) zone.write(nbt);
             nbt.setBoolean("GoingHome", goingHome);
             nbt.setBoolean("GoingToDuty", goingToDuty);
 
 
-            NBTTagList spawned = new NBTTagList();
-            for (BlockPos p : recruitSpawnedAt) {
-                NBTTagCompound c = new NBTTagCompound();
-                c.setInteger("x", p.getX());
-                c.setInteger("y", p.getY());
-                c.setInteger("z", p.getZ());
-                spawned.appendTag(c);
-            }
-            nbt.setTag("RecruitSpawnedAt", spawned);
             // --- "Go..." order persistence ---
             nbt.setBoolean("GoOrderActive", goOrderActive);
             if (goOrderTargetPos != null) {
@@ -3418,18 +3033,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         public void read(NBTTagCompound nbt) {
             forceSpawn = true;
             employerId = nbt.hasUniqueId("EmployerId") ? nbt.getUniqueId("EmployerId") : null;
-            if (nbt.hasKey("RecruitStopX")) {
-                recruitCurrentStopPos = new BlockPos(
-                        nbt.getInteger("RecruitStopX"),
-                        nbt.getInteger("RecruitStopY"),
-                        nbt.getInteger("RecruitStopZ")
-                );
-            } else {
-                recruitCurrentStopPos = null;
-            }
-
-            recruitArrivalWatchdogTicks = nbt.getInteger("RecruitArrivalWatchdogTicks");
-            recruitBestDistSq = nbt.hasKey("RecruitBestDistSq") ? nbt.getDouble("RecruitBestDistSq") : Double.MAX_VALUE;
+            recruit.readNbt(nbt);
 
             if (nbt.hasKey("EmpX")) {
                 employerReturnPos = new BlockPos(
@@ -3520,28 +3124,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (mode != WorkerMode.RETURNING || !jobDelivered) {
                 awaitingPickup = false;
             }
-            recruitActive = nbt.getBoolean("RecruitActive");
-            recruitReturningToOwner = nbt.getBoolean("RecruitReturning");
-            recruitIndex = nbt.getInteger("RecruitIndex");
-
-            recruitVillages.clear();
-            if (nbt.hasKey("RecruitVillages", Constants.NBT.TAG_LIST)) {
-                NBTTagList vlist = nbt.getTagList("RecruitVillages", Constants.NBT.TAG_COMPOUND);
-                for (int i = 0; i < vlist.tagCount(); i++) {
-                    NBTTagCompound c = vlist.getCompoundTagAt(i);
-                    recruitVillages.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
-                }
-            }
-
-            recruitSpawnedAt.clear();
-            if (nbt.hasKey("RecruitSpawnedAt", Constants.NBT.TAG_LIST)) {
-                NBTTagList slist = nbt.getTagList("RecruitSpawnedAt", Constants.NBT.TAG_COMPOUND);
-                for (int i = 0; i < slist.tagCount(); i++) {
-                    NBTTagCompound c = slist.getCompoundTagAt(i);
-                    recruitSpawnedAt.add(new BlockPos(c.getInteger("x"), c.getInteger("y"), c.getInteger("z")));
-                }
-            }
-
             zone = ZoneRef.read(nbt);
             if (!world.isRemote) syncZoneDataParams();
 
@@ -3592,7 +3174,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
             dataManager.set(HIRED_FOLLOWER_DM, hired);
             dataManager.set(FOLLOW_OWNER_DM, owner);
-            if (recruitReturningToOwner && isHiredFollower()) {
+            if (recruit.isReturningToOwner() && isHiredFollower()) {
                 setFollowOrderActive(true);
             }
 // --- "Go..." order restore ---
@@ -3860,84 +3442,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         stopAllTravelNow();
     }
 
-    private double distSq2DTo(BlockPos pos) {
-        if (pos == null) return Double.MAX_VALUE;
-        double dx = (this.posX) - (pos.getX() + 0.5D);
-        double dz = (this.posZ) - (pos.getZ() + 0.5D);
-        return dx * dx + dz * dz;
-    }
-
-    private void resetRecruitArrivalWatchdog() {
-        this.recruitArrivalWatchdogTicks = 0;
-        this.recruitBestDistSq = Double.MAX_VALUE;
-    }
-
-    private BlockPos resolveRecruitTownHallAnchor(BlockPos villageCenter) {
-        if (world == null || world.isRemote || villageCenter == null) return villageCenter;
-
-        MillSettlements.Settlement s = MillSettlements.at(world, villageCenter);
-        return s != null ? s.center : villageCenter;
-    }
-
-    private BlockPos resolveRecruitStopPos(BlockPos villageCenter) {
-        BlockPos anchor = resolveRecruitTownHallAnchor(villageCenter);
-        BlockPos safe = findRecruitSpawnPos(this.world, anchor, this.rand);
-        return safe != null ? safe : anchor;
-    }
-
-    private void setRecruitLegTarget(BlockPos villageCenter) {
-        BlockPos stop = resolveRecruitStopPos(villageCenter);
-
-        this.recruitCurrentStopPos = stop;
-        resetRecruitArrivalWatchdog();
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.setTargetVillage(stop);
-        this.getTravelCommon().setTargetVillage(stop);
-        tc.setCurrentWaypoint(null);
-        tc.setReadyToDepart(true);
-        tc.setDepartCooldownTicks(0);
-
-        this.getNavigator().clearPath();
-    }
-
-    private boolean hasReachedRecruitVillage(BlockPos villageCenter) {
-        if (villageCenter == null) return false;
-
-        BlockPos stop = this.recruitCurrentStopPos != null
-                ? this.recruitCurrentStopPos
-                : resolveRecruitStopPos(villageCenter);
-
-        double stopDistSq = distSq2DTo(stop);
-        double villageDistSq = distSq2DTo(villageCenter);
-
-        if (stopDistSq <= (double) (RECRUIT_STOP_RADIUS * RECRUIT_STOP_RADIUS)) {
-            return true;
-        }
-
-        if (stopDistSq + RECRUIT_PROGRESS_EPS_SQ < this.recruitBestDistSq) {
-            this.recruitBestDistSq = stopDistSq;
-            this.recruitArrivalWatchdogTicks = 0;
-            return false;
-        }
-
-        boolean nearVillage = villageDistSq <= (double) (RECRUIT_VILLAGE_RADIUS * RECRUIT_VILLAGE_RADIUS);
-        if (!nearVillage) {
-            this.recruitArrivalWatchdogTicks = 0;
-            return false;
-        }
-
-        boolean stalled = this.getNavigator().noPath()
-                || (this.motionX * this.motionX + this.motionZ * this.motionZ) <= MOTION_EPSILON;
-
-        if (stalled) {
-            this.recruitArrivalWatchdogTicks++;
-        } else if (this.recruitArrivalWatchdogTicks > 0) {
-            this.recruitArrivalWatchdogTicks--;
-        }
-
-        return this.recruitArrivalWatchdogTicks >= RECRUIT_STALL_TICKS;
-    }
 
 
 }

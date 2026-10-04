@@ -14,6 +14,7 @@ import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.RecruitMission;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.net.TravellersNetwork;
@@ -180,11 +181,11 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         int perVillage = TravellersDerivedConfig.recruitFeePerVillageServerCache;
         boolean hasServer = flat >= 0 && perVillage >= 0 && !Double.isNaN(perBlock);
 
-        int dist = EntityTravellerWorker.computeRouteDistance2D(start, route, start);
+        int dist = RecruitMission.computeRouteDistance2D(start, route, start);
         if (hasServer) {
             lastFee = Math.max(0, flat + (perVillage * route.size()) + (int) Math.ceil(dist * perBlock));
         } else {
-            lastFee = EntityTravellerWorker.computeRecruitFee(dist, route.size());
+            lastFee = RecruitMission.computeFee(dist, route.size());
         }
 
         int money = MillMoney.countPlayerMoney(player);

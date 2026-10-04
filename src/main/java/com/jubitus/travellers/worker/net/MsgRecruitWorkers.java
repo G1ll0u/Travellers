@@ -2,6 +2,7 @@ package com.jubitus.travellers.worker.net;
 
 import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.RecruitMission;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.village.MillMoney;
@@ -59,13 +60,13 @@ public class MsgRecruitWorkers implements IMessage {
             }
 
             // Must be idle (not job, not returning, not recruiting)
-            if (!worker.canStartRecruitMission()) {
+            if (!worker.recruit.canStart()) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_BUSY);
                 return;
             }
 
             // Pick villages (simple: nearest within radius)
-            List<BlockPos> villages = worker.pickRecruitVillages(player);
+            List<BlockPos> villages = worker.recruit.pickVillages(player);
             if (villages.isEmpty()) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_NO_VILLAGES_IN_RANGE);
                 return;
@@ -73,8 +74,8 @@ public class MsgRecruitWorkers implements IMessage {
 
             BlockPos returnPos = worker.getApproximateSurfacePosNear(player);
 
-            int routeDist = EntityTravellerWorker.computeRouteDistance2D(player.getPosition(), villages, returnPos);
-            int fee = EntityTravellerWorker.computeRecruitFee(routeDist, villages.size());
+            int routeDist = RecruitMission.computeRouteDistance2D(player.getPosition(), villages, returnPos);
+            int fee = RecruitMission.computeFee(routeDist, villages.size());
 
             int money = MillMoney.countPlayerMoney(player);
             if (money < fee) {
@@ -93,7 +94,7 @@ public class MsgRecruitWorkers implements IMessage {
                     MillMoney.format(fee));
 
             com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, worker.getUniqueID());
-            worker.startRecruitMission(player, villages, returnPos);
+            worker.recruit.start(player, villages, returnPos);
         }
     }
 }

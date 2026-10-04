@@ -999,7 +999,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         recruiter.setUniqueId(r.uuid);
         recruiter.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
 
-        int recruitCount = recruiter.advanceRecruitStopVirtually(stop);
+        int recruitCount = recruiter.recruit.advanceStopVirtually(stop);
 
         // Create virtual recruits with proper culture/name via onInitialSpawn
         EntityPlayer owner = r.followOwnerUUID != null

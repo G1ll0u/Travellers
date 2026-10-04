@@ -241,7 +241,8 @@ Done (one commit each, `EntityTraveller` 5 055 → 3 689 lines): 9.1 `TravellerS
 entity); 9.5 `TravellerHandOff` (border probe, stuck-at-border and forced hand-off; `canVirtualize*`/`getEdgeProbeGoal`
 stay as entity hooks; dead `tryVirtualize` removed); 9.6 travel and mount save keys written by `TravelCommon.writeNbt/readNbt`
 and `TravellerMountState` (keys unchanged); 9.7 the 21 one-line `TravelCommon` forwards removed (callers use
-`getTravelCommon()`; `maybePlayTravelAmbient`/`scheduleNextTravelAmbient` kept: raider overrides).
+`getTravelCommon()`; `maybePlayTravelAmbient`/`scheduleNextTravelAmbient` kept: raider overrides);
+9.8a `unit/RecruitMission` (`worker.recruit`: tour, return leg, fee/route statics, its save keys).
 Next: 9.8 worker split — `RecruitMission` (fields + methods + its NBT keys), `DeliveryJob`, worker hostility
 (`isEnemy*`, `canRetaliateAgainst`, `rallyGroupAgainst`), follower counting → `WorkerGroupService`; `WorkerNbtComponent`
 shrinks as state objects take their own keys. 9.9 `setAttackTarget`/`attackEntityFrom` upkeep → `TravellerCombatLogic`
