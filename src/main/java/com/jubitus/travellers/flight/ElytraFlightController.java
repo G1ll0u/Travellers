@@ -148,7 +148,7 @@ public final class ElytraFlightController {
 
     /**
      * Re-arms a flight that was just cut off mid-air by something other than a real landing - so far,
-     * only {@code EntityTraveller.forceVirtualizeResolvingBlockers()}, which has to clear the flight
+     * only {@code EntityTraveller.handOff.forceResolvingBlockers()}, which has to clear the flight
      * before knowing whether virtualizing will actually succeed, and must not leave the entity mid-air
      * with the elytra flag cleared and nobody steering if it turns out not to. Resumes as FLYING with
      * an immediate forced landing rather than trying to recover the original destination - the point is

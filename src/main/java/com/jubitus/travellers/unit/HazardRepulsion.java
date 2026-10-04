@@ -29,7 +29,7 @@ final class HazardRepulsion {
      * fighting. A crowded group jostles its own members via ordinary entity collision every tick,
      * which alone is enough to shove one sideways over an edge before any reactive AI even gets a
      * chance to run; this is a background bias against exactly that, not a hard wall - it's a
-     * small u.motionX/Z nudge, easily overridden by real movement (a deliberate gap-jump, a
+     * small motionX/Z nudge, easily overridden by real movement (a deliberate gap-jump, a
      * deliberate lava/water crossing, a player pushing hard and sustained).
      */
     static void tick(EntityTraveller u) {
@@ -43,7 +43,7 @@ final class HazardRepulsion {
         if (nav instanceof TravellerNavigateGround && ((TravellerNavigateGround) nav).isGapJumping()) return;
 
         // Staggered like the follow AI's own heavy-update cadence - the scan itself is cheap per
-        // entity, but this now runs for every traveller/raider/worker in the u.world, not just
+        // entity, but this now runs for every traveller/raider/worker in the world, not just
         // hired formation followers, so spreading the cost across ticks matters at scale.
         if (Math.floorMod(u.ticksExisted, HAZARD_TICK_BUCKETS) != Math.floorMod(u.getEntityId(), HAZARD_TICK_BUCKETS)) {
             return;

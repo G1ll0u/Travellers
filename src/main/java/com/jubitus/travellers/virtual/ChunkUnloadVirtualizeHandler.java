@@ -86,7 +86,7 @@ public final class ChunkUnloadVirtualizeHandler {
             VirtualTravellerManager mgr = VirtualTravellerManager.get(world);
             for (EntityTraveller t : foundTravellers) {
                 VirtualizationLog.virtualize("chunk unload", t);
-                if (t.forceVirtualizeResolvingBlockers()) continue;
+                if (t.handOff.forceResolvingBlockers()) continue;
                 // Refused. When a virtual record already owns this identity, this body is the
                 // duplicate (see TravellerLoadDedupHandler) and letting the chunk serialize it brings
                 // it back on every single load. Kill it here instead - the record is authoritative and

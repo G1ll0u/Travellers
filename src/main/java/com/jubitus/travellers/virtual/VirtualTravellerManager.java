@@ -1745,7 +1745,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (!tickUnneededWatch(id, worker, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", worker);
             if (frozen) {
-                logFrozenVirtualize(worker, worker.forceVirtualizeResolvingBlockers());
+                logFrozenVirtualize(worker, worker.handOff.forceResolvingBlockers());
             } else {
                 virtualizeWorker(world, worker, now);
             }
@@ -1764,7 +1764,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (!tickUnneededWatch(id, entity, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", entity);
             if (frozen) {
-                logFrozenVirtualize(entity, entity.forceVirtualizeResolvingBlockers());
+                logFrozenVirtualize(entity, entity.handOff.forceResolvingBlockers());
             } else {
                 virtualizeTraveller(world, entity, now);
             }

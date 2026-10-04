@@ -347,7 +347,7 @@ final class TravelBoatMode {
         boatNoProgressTicks = 0;
         // Hands off to the offscreen simulation, which dismounts and removes the boat on the way out
         // (and refuses outright while a player is close enough to see it happen).
-        mob.tryVirtualizeStuckAtEdge(ai.targetVillage);
+        mob.handOff.tryAtLoadedBorder(ai.targetVillage);
     }
 
 

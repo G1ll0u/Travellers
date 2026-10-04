@@ -687,7 +687,7 @@ public class EntityAITravel extends EntityAIBase {
                 break;
             case EDGE_VIRTUALIZE:
                 // Refuses unless the ground ahead is unloaded: a unit stuck on loaded terrain keeps climbing the ladder.
-                mob.tryVirtualizeStuckAtEdge(targetVillage);
+                mob.handOff.tryAtLoadedBorder(targetVillage);
                 break;
             default:
                 break;
@@ -1489,7 +1489,7 @@ public class EntityAITravel extends EntityAIBase {
         }
         if (mob.world.isRemote) return null;
         if (++consecutiveNoWaypoint < NO_WAYPOINT_VIRTUALIZE_THRESHOLD) return null;
-        if (mob.tryVirtualizeStuckAtEdge(targetVillage)) return null;
+        if (mob.handOff.tryAtLoadedBorder(targetVillage)) return null;
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(mob, com.jubitus.travellers.debug.profile.MovementAnomaly.TRAVEL_NO_WAYPOINT);
         return picked("destinationFallback", targetVillage, targetVillage);
     }
