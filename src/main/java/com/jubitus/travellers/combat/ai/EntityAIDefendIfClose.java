@@ -197,7 +197,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         // Plain travellers/raiders only: isAggressiveToTravellers() alone isn't ownership, and a
         // hired worker must never be pulled into a fight against a player its own owner hasn't
         // declared war on just because some OTHER player's worker is fighting them nearby -
-        // workers have their own dedicated, owner-aware group escalation (rallyGroupAgainst).
+        // workers have their own dedicated, owner-aware group escalation (PlayerHostility.rallyGroupAgainst).
         java.util.Set<UUID> hostilePlayers = null;
         if (!(mob instanceof EntityTravellerWorker)) {
             for (EntityTraveller a : mob.world.getEntitiesWithinAABB(EntityTraveller.class, aabb,

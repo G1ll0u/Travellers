@@ -101,6 +101,6 @@ public class EntityAIOwnerHurtByTargetTraveller extends EntityAIBase {
     private boolean isSuitable(@Nullable EntityLivingBase target) {
         if (target == null || !target.isEntityAlive()) return false;
         if (target == worker.getFollowOwner()) return false;
-        return worker.canRetaliateAgainst(target);
+        return worker.playerHostility.canRetaliateAgainst(target);
     }
 }

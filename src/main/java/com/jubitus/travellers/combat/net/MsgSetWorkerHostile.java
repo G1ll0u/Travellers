@@ -89,7 +89,7 @@ public class MsgSetWorkerHostile implements IMessage {
                                         && ownerId.equals(ww.getFollowOwnerId())
                         );
                         for (EntityTravellerWorker ww : mine) {
-                            ww.getHostility().removeLocalHostile(targetId);
+                            ww.playerHostility.removeLocalHostile(targetId);
                         }
                     }
                 }

@@ -90,7 +90,6 @@ import org.millenaire.common.utilities.MillCommonUtilities;
 public class EntityTravellerWorker extends EntityTraveller {
 
 
-    public static final int PVP_ENGAGE_TICKS = 20 * 120; // 2 minutes
 
 
     private int cachedGroupSize = 1;
@@ -291,9 +290,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return owner != null && owner == target;
     }
 
-    public boolean isPlayerMarkedHostile(EntityPlayer p) {
-        return playerHostility.isPlayerMarkedHostile(p);
-    }
 
 
 
@@ -473,9 +469,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return resolveEscortLeader(id);
     }
 
-    public void removeHostilePlayer(UUID id) {
-        playerHostility.removeHostilePlayer(id);
-    }
 
     // =====================================================
 // Enemy hired-worker logic (shared helper)
@@ -524,9 +517,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         return o.isPresent() ? o.get() : null;
     }
 
-    public Set<UUID> getEffectiveHostilePlayers() {
-        return playerHostility.getEffectiveHostilePlayers();
-    }
 
     @Nullable
     public UUID getFollowOwnerUUID() {
@@ -627,9 +617,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
     }
 
-    public void setHostile(UUID target, boolean hostile) {
-        playerHostility.setHostile(target, hostile);
-    }
 
     @Nullable
     public BlockPos getHomeVillage() {
@@ -863,13 +850,13 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                 EntityLivingBase tgt = this.getAttackTarget();
                 if (tgt instanceof EntityPlayer) {
-                    if (!this.isEnemyPlayer((EntityPlayer) tgt)) {
+                    if (!playerHostility.isEnemyPlayer((EntityPlayer) tgt)) {
                         this.setAttackTarget(null);
                         this.setRevengeTarget(null);
                         this.setInCombat(false);
                     }
                 } else if (tgt instanceof EntityTravellerWorker) {
-                    if (!this.isEnemyHiredWorker((EntityTravellerWorker) tgt)) {
+                    if (!playerHostility.isEnemyHiredWorker((EntityTravellerWorker) tgt)) {
                         this.setAttackTarget(null);
                         this.setRevengeTarget(null);
                         this.setInCombat(false);
@@ -899,7 +886,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             // --- NEW: guard leash when Follow is OFF ---
             if (!world.isRemote && isGuardingAnchor()) {
                 EntityLivingBase tgt = this.getAttackTarget();
-                if (tgt instanceof EntityPlayer && this.isEnemyPlayer((EntityPlayer) tgt)) {
+                if (tgt instanceof EntityPlayer && playerHostility.isEnemyPlayer((EntityPlayer) tgt)) {
                     return; // keep aggro (declared OR engaged)
                 }
 
@@ -1271,10 +1258,10 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public boolean shouldAttackExtraEntity(Entity e) {
         if (e instanceof EntityTravellerWorker) {
-            return this.isEnemyHiredWorker((EntityTravellerWorker) e);
+            return playerHostility.isEnemyHiredWorker((EntityTravellerWorker) e);
         }
         if (e instanceof EntityPlayer) {
-            return this.isEnemyPlayer((EntityPlayer) e);
+            return playerHostility.isEnemyPlayer((EntityPlayer) e);
         }
         // Enemy-village Millénaire villagers (declared via the Behavior GUI's village relations)
         // must be reachable through this same hook, since every proactive target-scan task
@@ -1283,7 +1270,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // throttled fallback scan ever picked them up, making engagement look scattered/delayed
         // across a formation instead of the whole group reacting together.
         if (e instanceof org.millenaire.common.entity.MillVillager) {
-            return isEnemyMillVillager((org.millenaire.common.entity.MillVillager) e);
+            return playerHostility.isEnemyMillVillager((org.millenaire.common.entity.MillVillager) e);
         }
         // Workers get their own configurable attack list; falls back to the traveller list
         // when no worker-specific rule was ever configured.
@@ -2339,9 +2326,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private final WorkerNbtComponent nbtComponent = new WorkerNbtComponent();
 
 
-    public PlayerHostility getHostility() {
-        return playerHostility;
-    }
 
     private void tickEscortLeaderValidity() {
         if (world.isRemote) return;
@@ -2749,132 +2733,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             refreshOwnerVisualsFromSavedData();
         }
     }
-    @Nullable
-    public static UUID getOwnerIdOf(@Nullable EntityLivingBase e) {
-        if (e == null) return null;
-        if (e instanceof EntityPlayer) return e.getUniqueID();
-        if (e instanceof EntityTravellerWorker) return ((EntityTravellerWorker) e).getFollowOwnerId();
-        return null;
-    }
-
-    public boolean isEnemyOwner(@Nullable UUID otherOwner) {
-        UUID myOwner = this.getFollowOwnerId();
-        if (myOwner == null || otherOwner == null) return false;
-        if (myOwner.equals(otherOwner)) return false;
-
-        // declared hostility OR currently engaged (retaliation window)
-        return this.playerHostility.isOwnerEffectivelyHostile(otherOwner)
-                || this.playerHostility.isEngagedOwner(otherOwner);
-
-    }
-
-    public boolean isEnemyPlayer(@Nullable EntityPlayer p) {
-        if (p == null || p.isDead) return false;
-        if (p.isCreative() || p.isSpectator()) return false;
-        if (isOwner(p)) return false;
-        return isEnemyOwner(p.getUniqueID());
-    }
-
-    public boolean isEnemyHiredWorker(@Nullable EntityTravellerWorker other) {
-        if (other == null || other == this) return false;
-        if (!other.isEntityAlive()) return false;
-
-        if (!this.isHiredFollower() || !other.isHiredFollower()) return false;
-
-        UUID otherOwner = other.getFollowOwnerId();
-        if (otherOwner == null) return false;
-
-        return isEnemyOwner(otherOwner);
-    }
-
-    /**
-     * Retaliation permission (your critical constraint):
-     * We only retaliate if the ATTACKER has declared the victim owner hostile.
-     */
-    public boolean canRetaliateAgainst(@Nullable EntityLivingBase attacker) {
-        if (attacker == null || !attacker.isEntityAlive()) return false;
-
-        UUID myOwner = this.getFollowOwnerId();
-        if (myOwner == null) return false;
-
-        // Always retaliate vs mobs
-        if (attacker instanceof net.minecraft.entity.monster.IMob) return true;
-
-        // Never retaliate vs owner
-        if (attacker == this.getFollowOwner()) return false;
-
-        // If attacker is an enemy worker: easy check (their declared list includes my owner)
-        if (attacker instanceof EntityTravellerWorker) {
-            EntityTravellerWorker aw = (EntityTravellerWorker) attacker;
-            UUID ao = aw.getFollowOwnerId();
-            if (ao == null || ao.equals(myOwner)) return false;
-            return aw.getHostility().isOwnerDeclaredHostile(myOwner);
-        }
-
-        // If attacker is a player: only retaliate if that player has declared war on my owner
-        if (attacker instanceof EntityPlayer) {
-            EntityPlayer ap = (EntityPlayer) attacker;
-            if (ap.isCreative() || ap.isSpectator()) return false;
-
-            UUID attackerOwner = ap.getUniqueID();
-            if (attackerOwner.equals(myOwner)) return false;
-            if (!(world instanceof WorldServer)) return false;
-
-            return com.jubitus.travellers.combat.PlayerEnemyRelations.get(world)
-                    .isHostile(attackerOwner, myOwner);
-        }
-
-        // Ancient Warfare 2 faction NPC (Empire, Bandits, etc.) - reputation/engagement-aware,
-        // see AncientWarfare2Compat. Covers both "I hit this one, it's now hostile to my owner"
-        // and "this one joined the fight against my owner via AW2's own alert reaction".
-        if (com.jubitus.travellers.combat.compat.AncientWarfare2Compat.isHostile(attacker, this.getFollowOwner())) {
-            return true;
-        }
-
-        return false;
-    }
-
-    public void engageEnemyOwner(@Nullable UUID enemyOwner) {
-        if (enemyOwner == null) return;
-        this.playerHostility.engageOwner(enemyOwner, PVP_ENGAGE_TICKS);
-    }
-
-    private static final double GROUP_RALLY_RADIUS = 24.0D;
-
-    /**
-     * Nearby hired workers of {@code ownerId} around {@code center} - the group a single worker's
-     * retaliation should pull in, shared by WorkerTeamPvPHandler (declared-war PvP) and
-     * EntityAIWorkerHurtByTargetTraveller (everything else canRetaliateAgainst already allows:
-     * mobs, AW2 hostiles, enemy hired workers). Loaded-side only, same as the offscreen side's
-     * own group pull-in in BattleEncounterScanner.
-     */
-    public static List<EntityTravellerWorker> nearbyOwnedMates(World world, BlockPos center, UUID ownerId) {
-        if (!(world instanceof WorldServer) || ownerId == null) return Collections.emptyList();
-        net.minecraft.util.math.AxisAlignedBB box = new net.minecraft.util.math.AxisAlignedBB(center)
-                .grow(GROUP_RALLY_RADIUS, 8.0D, GROUP_RALLY_RADIUS);
-        return world.getEntitiesWithinAABB(EntityTravellerWorker.class, box,
-                w -> w != null && w.isEntityAlive() && w.isHiredFollower() && ownerId.equals(w.getFollowOwnerId()));
-    }
-
-    /**
-     * Pulls every nearby same-owner hired worker into a fight against {@code attacker}, without
-     * stealing a mate that's already busy with a live target. Callers are expected to have already
-     * decided the single worker in {@code self} is allowed to fight {@code attacker} (this doesn't
-     * re-check canRetaliateAgainst for the group - the whole point is that admission was already
-     * granted once, at the individual level).
-     */
-    public static void rallyGroupAgainst(EntityTravellerWorker self, EntityLivingBase attacker, @Nullable UUID enemyOwner) {
-        UUID ownerId = self.getFollowOwnerId();
-        if (ownerId == null || attacker == null || !attacker.isEntityAlive()) return;
-        for (EntityTravellerWorker mate : nearbyOwnedMates(self.world, self.getPosition(), ownerId)) {
-            if (mate == self) continue;
-            if (enemyOwner != null) mate.engageEnemyOwner(enemyOwner);
-            EntityLivingBase cur = mate.getAttackTarget();
-            if (cur == null || !cur.isEntityAlive()) {
-                mate.setAttackTarget(attacker);
-            }
-        }
-    }
     private void clearLeaderFromLoadedEscortsOnDeath() {
         if (world.isRemote) return;
         if (!(world instanceof WorldServer)) return;
@@ -2904,27 +2762,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 other.setFollowOrderActive(true);
             }
         }
-    }
-    private boolean isEnemyMillVillager(org.millenaire.common.entity.MillVillager v) {
-        if (v == null || !v.isEntityAlive()) return false;
-        if (!(this.world instanceof net.minecraft.world.WorldServer)) return false;
-
-        java.util.UUID ownerId = this.getFollowOwnerId();
-        if (ownerId == null) return false;
-
-        Building th = v.getTownHall();
-        if (th == null) return false;
-
-       Point p = th.getPos();
-        if (p == null) return false;
-
-        net.minecraft.util.math.BlockPos center = new net.minecraft.util.math.BlockPos(p.getiX(), p.getiY(), p.getiZ());
-
-        TravellerVillageRelations rel =
-                TravellerVillageRelations.get((net.minecraft.world.WorldServer) this.world);
-
-        int dim = this.world.provider.getDimension();
-        return rel.isEnemy(ownerId, dim, center);
     }
     /**
      * Called by EntityAIFollowLeader to tell this worker what its current formation/idle slot is.

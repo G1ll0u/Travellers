@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 
 /**
  * The one answer to "are these two on opposite sides". Retaliation keeps its own wider rule
- * ({@code EntityTravellerWorker.canRetaliateAgainst}); owner-assist adds "whatever the owner hits"
+ * ({@code PlayerHostility.canRetaliateAgainst}); owner-assist adds "whatever the owner hits"
  * on top of {@link #isWorkerEnemy}.
  */
 public final class Hostility {
@@ -33,8 +33,8 @@ public final class Hostility {
         if (!(e instanceof EntityLivingBase) || e == worker || !e.isEntityAlive()) return false;
         if (worker.isOwner((EntityLivingBase) e)) return false;
         if (worker.getAggroBlacklist().matches(e)) return false;
-        if (e instanceof EntityTravellerWorker) return worker.isEnemyHiredWorker((EntityTravellerWorker) e);
-        if (e instanceof EntityPlayer) return worker.isEnemyPlayer((EntityPlayer) e);
+        if (e instanceof EntityTravellerWorker) return worker.playerHostility.isEnemyHiredWorker((EntityTravellerWorker) e);
+        if (e instanceof EntityPlayer) return worker.playerHostility.isEnemyPlayer((EntityPlayer) e);
         if (e instanceof EntityTraveller) return isCrossFaction(worker, (EntityTraveller) e);
         if (e instanceof IMob) return true;
         return worker.shouldAttackExtraEntity(e);

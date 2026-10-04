@@ -3070,7 +3070,7 @@ public void fall(float distance, float damageMultiplier) {
 
     private boolean isHostileMountRider(EntityTraveller rider) {
         if (this instanceof EntityTravellerWorker && rider instanceof EntityTravellerWorker) {
-            return ((EntityTravellerWorker) this).isEnemyHiredWorker((EntityTravellerWorker) rider);
+            return ((EntityTravellerWorker) this).playerHostility.isEnemyHiredWorker((EntityTravellerWorker) rider);
         }
         return com.jubitus.travellers.combat.Hostility.isCrossFaction(this, rider);
     }

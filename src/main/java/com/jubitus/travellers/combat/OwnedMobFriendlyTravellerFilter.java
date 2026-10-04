@@ -32,7 +32,7 @@ public final class OwnedMobFriendlyTravellerFilter {
             EntityTravellerWorker worker = (EntityTravellerWorker) traveller;
             if (worker.isHiredFollower()) {
                 // Enemy worker → valid target
-                if (worker.isEnemyPlayer(player)) return false;
+                if (worker.playerHostility.isEnemyPlayer(player)) return false;
             }
         }
 

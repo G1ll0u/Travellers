@@ -32,8 +32,8 @@ public final class WorkerTeamPvPHandler {
         EntityLivingBase attacker = (EntityLivingBase) src;
 
         // We only care about player/worker PvP interactions
-        UUID victimOwner = EntityTravellerWorker.getOwnerIdOf(victim);
-        UUID attackerOwner = EntityTravellerWorker.getOwnerIdOf(attacker);
+        UUID victimOwner = PlayerHostility.ownerIdOf(victim);
+        UUID attackerOwner = PlayerHostility.ownerIdOf(attacker);
 
         if (victimOwner == null || attackerOwner == null) return;
         if (victimOwner.equals(attackerOwner)) return;
@@ -66,15 +66,15 @@ public final class WorkerTeamPvPHandler {
 
         // Engage all nearby workers of victimOwner and set target - same group-rally query
         // EntityAIWorkerHurtByTargetTraveller uses for non-PvP retaliation, see
-        // EntityTravellerWorker.nearbyOwnedMates.
+        // PlayerHostility.nearbyOwnedMates.
         List<EntityTravellerWorker> defenders =
-                EntityTravellerWorker.nearbyOwnedMates(victim.world, victim.getPosition(), victimOwner);
+                PlayerHostility.nearbyOwnedMates(victim.world, victim.getPosition(), victimOwner);
 
         boolean notified = false;
 
         for (EntityTravellerWorker w : defenders) {
             // Only those in the area permanently mark attacker owner as enemy (local list)
-            boolean added = w.getHostility().addLocalHostile(attackerOwner);
+            boolean added = w.playerHostility.addLocalHostile(attackerOwner);
 
             // Notify owner once per event if anyone added it
             if (added && !notified) {
@@ -87,7 +87,7 @@ public final class WorkerTeamPvPHandler {
             }
 
             // Immediate combat commitment
-            w.engageEnemyOwner(attackerOwner);
+            w.playerHostility.engageEnemyOwner(attackerOwner);
             if (w.getAttackTarget() == null || !w.getAttackTarget().isEntityAlive()) {
                 w.setAttackTarget(attacker);
             }
@@ -96,7 +96,7 @@ public final class WorkerTeamPvPHandler {
 
         // Also engage the victim worker itself (if it is a worker)
         if (victim instanceof EntityTravellerWorker) {
-            ((EntityTravellerWorker) victim).engageEnemyOwner(attackerOwner);
+            ((EntityTravellerWorker) victim).playerHostility.engageEnemyOwner(attackerOwner);
         }
     }
 
