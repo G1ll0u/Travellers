@@ -75,7 +75,7 @@ public final class MountBondLoadHandler {
         if (o instanceof EntityTraveller && !o.isDead) {
             EntityTraveller rider = (EntityTraveller) o;
             if (!horseId.equals(rider.getMountUUID())) return Verdict.RELEASE;
-            if (gen < rider.getMountGeneration() || rider.getPendingMountNbt() != null) return Verdict.DROP;
+            if (gen < rider.mountState.getMountGeneration() || rider.mountState.getPendingMountNbt() != null) return Verdict.DROP;
             return Verdict.KEEP;
         }
 

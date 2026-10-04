@@ -2145,16 +2145,16 @@ public class VirtualTravellerManager extends WorldSavedData {
         // A mount already captured off-body for a solo boat crossing (EntityAITravel) takes priority -
         // it must be carried into the record instead of silently lost, however long entity itself
         // now stays virtual before that crossing would have finished.
-        MountMode mode = entity.getMountMode();
+        MountMode mode = entity.mountState.getMountMode();
         boolean tiedAtVillage = mode == MountMode.HITCHED && entity.getVillageHitchStop() != null && r.visit != null;
-        NBTTagCompound pending = entity.getPendingMountNbt();
+        NBTTagCompound pending = entity.mountState.getPendingMountNbt();
         if (pending != null) {
             // Held as data already (tied at an unloaded post): it stays tied there, as the record's data.
             r.mountNbt = pending;
             r.mounted = true;
             r.mountMode = (mode == MountMode.LED ? MountMode.MOUNTED : mode).name();
-            if (tiedAtVillage && entity.getPendingMountPos() != null) r.visit.hitchPos = entity.getPendingMountPos();
-            entity.setParkedMount(null, null);
+            if (tiedAtVillage && entity.mountState.getPendingMountPos() != null) r.visit.hitchPos = entity.mountState.getPendingMountPos();
+            entity.mountState.setParkedMount(null, null);
             r.entityNbt.removeTag("PendingMountNbt");
             r.entityNbt.removeTag("PendingMountPos");
             return;
@@ -2247,16 +2247,16 @@ public class VirtualTravellerManager extends WorldSavedData {
      */
     private void restoreOrBondMount(WorldServer world, EntityTraveller entity, VirtualTravellerRecord r) {
         if (r.mountMode != null) {
-            entity.setMountModeRaw(com.jubitus.travellers.mount.MountMode.byName(r.mountMode));
+            entity.mountState.setMountModeRaw(com.jubitus.travellers.mount.MountMode.byName(r.mountMode));
         }
         com.jubitus.travellers.village.visit.VillageVisitState visit = r.visit;
         if (visit != null && visit.hitchPos != null && (r.mountNbt != null || visit.horseAtPost)) {
             // Tied at the village edge: the horse belongs at its post, not beside the rider. Held as
             // data until that ground is loaded (TravellerMountSupport.tickParkedMount), or already
             // standing there.
-            entity.setMountModeRaw(MountMode.HITCHED);
+            entity.mountState.setMountModeRaw(MountMode.HITCHED);
             entity.setVillageHitchStop(visit.stop);
-            if (r.mountNbt != null) entity.setParkedMount(r.mountNbt, visit.hitchPos);
+            if (r.mountNbt != null) entity.mountState.setParkedMount(r.mountNbt, visit.hitchPos);
             return;
         }
         if (r.mountNbt != null) {

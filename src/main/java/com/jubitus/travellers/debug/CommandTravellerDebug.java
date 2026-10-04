@@ -493,10 +493,10 @@ public class CommandTravellerDebug extends CommandBase {
             com.jubitus.travellers.unit.EntityTraveller t = (com.jubitus.travellers.unit.EntityTraveller) e;
             String horse;
             if (t.getMountUUID() == null) horse = "none";
-            else if (t.getPendingMountNbt() != null) horse = "held as data, post " + fmtPos(t.getPendingMountPos());
+            else if (t.mountState.getPendingMountNbt() != null) horse = "held as data, post " + fmtPos(t.mountState.getPendingMountPos());
             else {
                 net.minecraft.entity.Entity h = world.getEntityFromUuid(t.getMountUUID());
-                horse = h == null ? "not loaded" : "live at " + fmtPos(h.getPosition()) + " (" + t.getMountMode() + ")";
+                horse = h == null ? "not loaded" : "live at " + fmtPos(h.getPosition()) + " (" + t.mountState.getMountMode() + ")";
             }
             sendVisit(sender, "LOADED " + t.getName(), t.getVillageVisitState(), horse);
             return;

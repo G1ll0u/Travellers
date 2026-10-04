@@ -87,7 +87,7 @@ public final class TravellerBoats {
      * time, so boarding would silently drop the horse, and it is towed across on its leash instead.
      */
     public static boolean board(EntityTraveller rider, EntityBoat boat) {
-        MountMode before = rider.getMountMode();
+        MountMode before = rider.mountState.getMountMode();
         if (rider.getMountUUID() != null && before != MountMode.LED) {
             com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(rider,
                     com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.BOAT);

@@ -287,7 +287,7 @@ final class MountedFollowPacer {
             // carries its own (EntityTraveller.leadTrailPointBehind); a player leader has one via
             // PlayerLeaderTrail instead, recorded by EntityAIFollowLeader each tick.
             Vec3d trailPoint = leaderEntity instanceof EntityTraveller
-                    ? ((EntityTraveller) leaderEntity).leadTrailPointBehind(distToLeader)
+                    ? ((EntityTraveller) leaderEntity).mountState.leadTrailPointBehind(distToLeader)
                     : PlayerLeaderTrail.pointBehind(leaderEntity.getUniqueID(), distToLeader);
             if (trailPoint != null) {
                 steered = nav.steerDirectLegCapped(trailPoint.x, trailPoint.z, legBlocks, baseSpeed * factor);

@@ -257,7 +257,7 @@ public class EntityAITravel extends EntityAIBase {
         wasInWater = mob.isInWater();
         boats.resetLeg();
 
-        mob.setTravelSpeedContext(true);
+        mob.mountState.setTravelSpeedContext(true);
 
         if (mob instanceof EntityTravellerWorker) {
             ((EntityTravellerWorker) mob).setUsingTravelAI(true);
@@ -289,7 +289,7 @@ public class EntityAITravel extends EntityAIBase {
     @Override
     public void resetTask() {
 
-        mob.setTravelSpeedContext(false);
+        mob.mountState.setTravelSpeedContext(false);
         wasInWater = mob.isInWater();
         boats.resetLeg();
         // The reason to be in the air was to get somewhere this task no longer owns - come down.
@@ -312,7 +312,7 @@ public class EntityAITravel extends EntityAIBase {
         // Never leave a rider on foot because of terrain this task is no longer routing through -
         // getLedFallbackSinceTick() >= 0 means TravellerMountSupport is still tracking a fallback LED
         // this task caused (or the sidestep give-up did; both share the same tracking).
-        if (mob.getLedFallbackSinceTick() >= 0) {
+        if (mob.mountState.getLedFallbackSinceTick() >= 0) {
             TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
         }
         if (mob instanceof EntityTravellerWorker) {
@@ -617,7 +617,7 @@ public class EntityAITravel extends EntityAIBase {
 
         if (!mob.world.isRemote) {
             // Evidence gathered under the old mount state says nothing about the new one: no hop on the flip tick.
-            boolean mountJustChanged = mob.wasRidingBondedMountLastTick() != mob.isMountedOnBondedMount();
+            boolean mountJustChanged = mob.mountState.wasRidingBondedMountLastTick() != mob.isMountedOnBondedMount();
             TravelStuckLadder.Action action = stuck().ladder.tick(progressed, noMoveTicks, undergroundTicks,
                     !mountJustChanged, ladderTimings());
             if (action != TravelStuckLadder.Action.NONE) {

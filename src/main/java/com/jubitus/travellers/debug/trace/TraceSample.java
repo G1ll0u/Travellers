@@ -114,7 +114,7 @@ public final class TraceSample {
         this.moveForward = entity.moveForward;
 
         this.mounted = entity.isMountedOnBondedMount();
-        this.mountMode = entity.getMountUUID() == null ? "-" : entity.getMountMode().name();
+        this.mountMode = entity.getMountUUID() == null ? "-" : entity.mountState.getMountMode().name();
         if (this.mounted) {
             Entity ride = entity.getRidingEntity();
             double hdx = ride.posX - ride.prevPosX;

@@ -59,8 +59,8 @@ public final class TravellerMountSupport {
 
     /** A new physical copy of the rider's horse is being made: from now on it is the only valid one. */
     private static void stampNewGeneration(EntityTraveller rider, EntityHorse horse) {
-        int gen = rider.getMountGeneration() + 1;
-        rider.setMountGeneration(gen);
+        int gen = rider.mountState.getMountGeneration() + 1;
+        rider.mountState.setMountGeneration(gen);
         HorseMarkers.setGeneration(horse, gen);
     }
 
@@ -75,7 +75,7 @@ public final class TravellerMountSupport {
                 if (rider.getRidingEntity() == horse) rider.dismountRidingEntity();
                 setLeashed(horse, null);
                 rider.setMountUUID(null);
-                rider.setMountSnapshotNbt(null);
+                rider.mountState.setMountSnapshotNbt(null);
             }
         }
         HorseMarkers.clearMountMarkers(horse.getEntityData());
@@ -137,7 +137,7 @@ public final class TravellerMountSupport {
         HorseMarkers.clearOrphanTag(horse);
 
         rider.setMountUUID(horse.getUniqueID());
-        rider.setMountModeRaw(MountMode.MOUNTED);
+        rider.mountState.setMountModeRaw(MountMode.MOUNTED);
         return true;
     }
 
@@ -163,9 +163,9 @@ public final class TravellerMountSupport {
             // Only the camping sub-case means "leave it standing, no leash" - a plain terrain offset
             // stays MOUNTED (see MountSpawnPos#camping), which reconcileOnFoot's default branch already
             // resolves correctly: leash the horse, walk it over, remount once close.
-            rider.setMountModeRaw(pos.camping ? MountMode.HITCHED : MountMode.MOUNTED);
+            rider.mountState.setMountModeRaw(pos.camping ? MountMode.HITCHED : MountMode.MOUNTED);
         } else {
-            rider.setMountModeRaw(MountMode.MOUNTED);
+            rider.mountState.setMountModeRaw(MountMode.MOUNTED);
             rider.startRiding(horse, true);
         }
         return true;
@@ -235,8 +235,8 @@ public final class TravellerMountSupport {
         // the natural spot is a step back along the rider's own trail (in single file), not its exact
         // column. Only a MOUNTED intent (a fresh bond, a materialize) needs the stacked silhouette so
         // the rider can ride away immediately.
-        if (rider.getMountMode() != MountMode.MOUNTED && !camping) {
-            Vec3d back = rider.leadTrailPointBehind(TravellersConfig.MOUNTS.ledFollowLeadGapBlocks);
+        if (rider.mountState.getMountMode() != MountMode.MOUNTED && !camping) {
+            Vec3d back = rider.mountState.leadTrailPointBehind(TravellersConfig.MOUNTS.ledFollowLeadGapBlocks);
             double sx = back != null ? back.x : rider.posX;
             double sy = back != null ? back.y : rider.posY;
             double sz = back != null ? back.z : rider.posZ;
@@ -301,21 +301,21 @@ public final class TravellerMountSupport {
      */
     public static void tickMount(EntityTraveller traveller) {
         if (traveller.getMountUUID() == null || !(traveller.world instanceof WorldServer)) {
-            traveller.setWasRidingBondedMountLastTick(false);
+            traveller.mountState.setWasRidingBondedMountLastTick(false);
             return;
         }
 
         // The horse is held as data (tied at a post whose chunk unloaded, or restored offscreen):
         // nothing to resolve, only the moment to put it back into the world.
-        if (traveller.getPendingMountNbt() != null) {
-            traveller.setWasRidingBondedMountLastTick(false);
+        if (traveller.mountState.getPendingMountNbt() != null) {
+            traveller.mountState.setWasRidingBondedMountLastTick(false);
             tickParkedMount(traveller);
             return;
         }
 
         EntityHorse horse = resolveMount(traveller);
         if (horse == null) {
-            traveller.setWasRidingBondedMountLastTick(traveller.isMountedOnBondedMount());
+            traveller.mountState.setWasRidingBondedMountLastTick(traveller.isMountedOnBondedMount());
             return;
         }
 
@@ -328,7 +328,7 @@ public final class TravellerMountSupport {
         // could fire the moment the rider steps off to fix exactly that stuckness, moving it again on
         // top of the dismount's own small step-aside - reading as a quick flash to another spot and
         // straight back once the two settle.
-        traveller.setWasRidingBondedMountLastTick(traveller.isMountedOnBondedMount());
+        traveller.mountState.setWasRidingBondedMountLastTick(traveller.isMountedOnBondedMount());
 
         refreshMountSnapshot(traveller, horse);
 
@@ -344,7 +344,7 @@ public final class TravellerMountSupport {
         // next time reconcileOnFoot happens to run. Armed with markTerrainFallbackLed immediately so
         // the LED case's own "orphaned LED" self-heal (below) doesn't read this as untracked and
         // instantly flip it back to MOUNTED with the horse standing right there.
-        if (traveller.getMountMode() != MountMode.LED && traveller.getMountMode() != MountMode.HITCHED
+        if (traveller.mountState.getMountMode() != MountMode.LED && traveller.mountState.getMountMode() != MountMode.HITCHED
                 && isMountTooHurtToRide(horse)) {
             com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(traveller, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.LOW_HEALTH);
             setMountMode(traveller, MountMode.LED);
@@ -363,11 +363,11 @@ public final class TravellerMountSupport {
         // routine, expected dismount (like a boat crossing), not a "the horse gave up" failure.
         // Riding into the village it is about to visit: tie the horse up right here, at the edge,
         // and go on foot. Checked first so it wins over the lead-through-the-village dismount below.
-        if (traveller.getMountMode() != MountMode.HITCHED && traveller.ticksExisted % 10 == 0) {
+        if (traveller.mountState.getMountMode() != MountMode.HITCHED && traveller.ticksExisted % 10 == 0) {
             tryHitchAtVillageEdge(traveller, horse);
         }
 
-        if (traveller.getMountMode() != MountMode.LED && traveller.getMountMode() != MountMode.HITCHED
+        if (traveller.mountState.getMountMode() != MountMode.LED && traveller.mountState.getMountMode() != MountMode.HITCHED
                 && isNearVillageRequiringLed(traveller)) {
             com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(traveller, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.VILLAGE);
             setMountMode(traveller, MountMode.LED);
@@ -394,7 +394,7 @@ public final class TravellerMountSupport {
             return;
         }
 
-        traveller.setRemountTicks(0);
+        traveller.mountState.setRemountTicks(0);
         setLeashed(horse, null);
 
         // The rider steers (AbstractHorse.travel() copies its rotationYaw and reads its moveForward),
@@ -439,29 +439,29 @@ public final class TravellerMountSupport {
         if (!TravellersConfig.MOUNTS.mountedSidestepEnabled) return;
 
         if (!isMountWedged(rider)) {
-            rider.setMountWedgedTicks(0);
-            rider.setMountWedgeAnchorYaw(Float.NaN);
+            rider.mountState.setMountWedgedTicks(0);
+            rider.mountState.setMountWedgeAnchorYaw(Float.NaN);
             return;
         }
 
-        int wedgedTicks = rider.getMountWedgedTicks() + 1;
-        rider.setMountWedgedTicks(wedgedTicks);
+        int wedgedTicks = rider.mountState.getMountWedgedTicks() + 1;
+        rider.mountState.setMountWedgedTicks(wedgedTicks);
         // Latch the direction once, at the start of this wedge episode, and hold it - see the field
         // doc on EntityTraveller.mountWedgeAnchorYaw for why re-sampling every tick was the bug.
-        if (Float.isNaN(rider.getMountWedgeAnchorYaw())) {
-            rider.setMountWedgeAnchorYaw(horse.rotationYaw);
+        if (Float.isNaN(rider.mountState.getMountWedgeAnchorYaw())) {
+            rider.mountState.setMountWedgeAnchorYaw(horse.rotationYaw);
         }
         if (wedgedTicks < TravellersConfig.MOUNTS.mountedSidestepTriggerTicks) return;
 
-        int ticksSinceLast = rider.ticksExisted - rider.getLastSidestepTick();
-        int streak = (rider.getLastSidestepTick() > 0
+        int ticksSinceLast = rider.ticksExisted - rider.mountState.getLastSidestepTick();
+        int streak = (rider.mountState.getLastSidestepTick() > 0
                 && ticksSinceLast <= TravellersConfig.MOUNTS.mountedSidestepGiveUpWindowTicks)
-                ? rider.getSidestepStreak() + 1 : 1;
+                ? rider.mountState.getSidestepStreak() + 1 : 1;
 
         if (streak >= TravellersConfig.MOUNTS.mountedSidestepGiveUpAfter) {
-            rider.setSidestepStreak(0);
-            rider.setMountWedgedTicks(0);
-            rider.setMountWedgeAnchorYaw(Float.NaN);
+            rider.mountState.setSidestepStreak(0);
+            rider.mountState.setMountWedgedTicks(0);
+            rider.mountState.setMountWedgeAnchorYaw(Float.NaN);
             com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                     "giving up on sidestepping this spot (" + streak + " tries) - leading horse on foot instead");
             com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.SIDESTEP_GAVE_UP);
@@ -470,12 +470,12 @@ public final class TravellerMountSupport {
             notifyMountLedFallback(rider, com.jubitus.travellers.notify.NotificationDefs.MOUNT_LED_SIDESTEP_GAVE_UP);
             return;
         }
-        rider.setSidestepStreak(streak);
-        rider.setLastSidestepTick(rider.ticksExisted);
+        rider.mountState.setSidestepStreak(streak);
+        rider.mountState.setLastSidestepTick(rider.ticksExisted);
 
         // Same latched yaw the trigger above captured, not a fresh sample - see the field doc on
         // EntityTraveller.mountWedgeAnchorYaw.
-        double yaw = rider.getMountWedgeAnchorYaw() * 0.017453292F;
+        double yaw = rider.mountState.getMountWedgeAnchorYaw() * 0.017453292F;
         double fwdX = -MathHelper.sin((float) yaw);
         double fwdZ = MathHelper.cos((float) yaw);
         // Perpendicular to the current heading - the two candidate sidestep directions.
@@ -512,7 +512,7 @@ public final class TravellerMountSupport {
         // Give the nudge a few ticks to actually move the horse before judging it wedged again -
         // isMountWedged would otherwise very likely still read true the very next tick (motion takes
         // a tick to show up in position), retriggering immediately and stacking impulses.
-        rider.setMountWedgedTicks(TravellersConfig.MOUNTS.mountedSidestepTriggerTicks - 4);
+        rider.mountState.setMountWedgedTicks(TravellersConfig.MOUNTS.mountedSidestepTriggerTicks - 4);
     }
 
     /** Whether the horse's own body (not the rider's) would fit standing at its current height,
@@ -554,8 +554,8 @@ public final class TravellerMountSupport {
         // (the orbit slowForTurn's own doc describes) before it ever actually landed. Require the
         // vertical motion to have stopped rising too, so a stale/spurious onGround reading mid-jump
         // can't end the freeze early.
-        if (horse.onGround && horse.motionY <= 0.0D && !Float.isNaN(rider.getMountJumpYaw())) {
-            rider.setMountJumpYaw(Float.NaN);
+        if (horse.onGround && horse.motionY <= 0.0D && !Float.isNaN(rider.mountState.getMountJumpYaw())) {
+            rider.mountState.setMountJumpYaw(Float.NaN);
         }
         if (!horse.onGround || horse.isHorseJumping()) return;
         if (!horse.collidedHorizontally || rider.moveForward <= 0.02F) return;
@@ -601,7 +601,7 @@ public final class TravellerMountSupport {
         horse.motionZ += 0.4F * cos;
         horse.setHorseJumping(true);
         horse.isAirBorne = true;
-        rider.setMountJumpYaw(horse.rotationYaw);
+        rider.mountState.setMountJumpYaw(horse.rotationYaw);
 
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                 String.format(java.util.Locale.ROOT,
@@ -648,7 +648,7 @@ public final class TravellerMountSupport {
      */
     private static com.jubitus.travellers.pathing.MountTerrainProfile.ClimbTarget obstacleTopAhead(
             EntityTraveller rider, EntityHorse horse, double feet) {
-        float yawDeg = Float.isNaN(rider.getMountWedgeAnchorYaw()) ? horse.rotationYaw : rider.getMountWedgeAnchorYaw();
+        float yawDeg = Float.isNaN(rider.mountState.getMountWedgeAnchorYaw()) ? horse.rotationYaw : rider.mountState.getMountWedgeAnchorYaw();
         double yaw = yawDeg * 0.017453292F;
         double dirX = -MathHelper.sin((float) yaw);
         double dirZ = MathHelper.cos((float) yaw);
@@ -748,19 +748,19 @@ public final class TravellerMountSupport {
 
         Entity found = world.getEntityFromUuid(mountUUID);
         if (found instanceof EntityHorse && !found.isDead) {
-            rider.setMountMissingTicks(0);
+            rider.mountState.setMountMissingTicks(0);
             return (EntityHorse) found;
         }
 
-        int missing = rider.getMountMissingTicks() + 1;
-        rider.setMountMissingTicks(missing);
+        int missing = rider.mountState.getMountMissingTicks() + 1;
+        rider.mountState.setMountMissingTicks(missing);
         if (missing < MOUNT_MISSING_GRACE_TICKS) return null;
 
-        NBTTagCompound snapshot = rider.getMountSnapshotNbt();
+        NBTTagCompound snapshot = rider.mountState.getMountSnapshotNbt();
         if (snapshot == null || !TravellersConfig.MOUNTS.restoreLostMounts) {
-            rider.setMountMissingTicks(0);
+            rider.mountState.setMountMissingTicks(0);
             rider.setMountUUID(null);
-            rider.setMountSnapshotNbt(null);
+            rider.mountState.setMountSnapshotNbt(null);
             return null;
         }
 
@@ -776,7 +776,7 @@ public final class TravellerMountSupport {
         // chunk to check (see the class doc's "nothing force-loads chunks" rule) - if it stays
         // unloaded, this just keeps waiting.
         if (!isSnapshotChunkLoaded(world, snapshot)) return null;
-        rider.setMountMissingTicks(0);
+        rider.mountState.setMountMissingTicks(0);
 
         FMLLog.log(Level.INFO, "[Travellers/Mounts] %s's bonded horse went missing without dying - rebuilding it",
                 rider.getName());
@@ -793,15 +793,15 @@ public final class TravellerMountSupport {
         WorldServer world = (WorldServer) rider.world;
         // The copy that was just removed can linger for a tick under the same identity.
         if (rider.getMountUUID() != null && world.getEntityFromUuid(rider.getMountUUID()) != null) return;
-        NBTTagCompound nbt = rider.getPendingMountNbt();
-        BlockPos post = rider.getPendingMountPos();
-        boolean tied = post != null && rider.getMountMode() == MountMode.HITCHED && rider.getVillageHitchStop() != null;
+        NBTTagCompound nbt = rider.mountState.getPendingMountNbt();
+        BlockPos post = rider.mountState.getPendingMountPos();
+        boolean tied = post != null && rider.mountState.getMountMode() == MountMode.HITCHED && rider.getVillageHitchStop() != null;
         if (tied && (!world.isBlockLoaded(post) || com.jubitus.travellers.virtual.VirtualTravellerManager
                 .isFrozenByVanillaAt(world, post.getX() + 0.5D, post.getZ() + 0.5D))) {
             return;
         }
         // Cleared first: the join check drops any copy while the rider still holds the horse as data.
-        rider.setParkedMount(null, null);
+        rider.mountState.setParkedMount(null, null);
         spawnMountFromNbt(rider, nbt, tied ? post : null);
     }
 
@@ -828,8 +828,8 @@ public final class TravellerMountSupport {
      */
     private static void refreshMountSnapshot(EntityTraveller rider, EntityHorse horse) {
         if (horse.getHealth() <= 0.0F) return;
-        if (rider.ticksExisted % 200 != 0 && rider.getMountSnapshotNbt() != null) return;
-        rider.setMountSnapshotNbt(HorseSnapshots.capture(horse));
+        if (rider.ticksExisted % 200 != 0 && rider.mountState.getMountSnapshotNbt() != null) return;
+        rider.mountState.setMountSnapshotNbt(HorseSnapshots.capture(horse));
     }
 
     /**
@@ -841,7 +841,7 @@ public final class TravellerMountSupport {
         double distSq = horse.getDistanceSq(rider);
         double leadMax = TravellersConfig.MOUNTS.leadMaxDistance;
 
-        switch (rider.getMountMode()) {
+        switch (rider.mountState.getMountMode()) {
             case HITCHED:
                 setLeashed(horse, null);
                 BlockPos hitchStop = rider.getVillageHitchStop();
@@ -871,11 +871,11 @@ public final class TravellerMountSupport {
                 // persisted, its transient timer did not, and the rider led its horse around with the
                 // horse standing right next to it). Flip back to MOUNTED and let that branch's own
                 // sustained safe-to-remount gate decide when; arm tracking if the horse is far.
-                if (rider.getLedFallbackSinceTick() < 0 && !rider.isRiding()) {
+                if (rider.mountState.getLedFallbackSinceTick() < 0 && !rider.isRiding()) {
                     double remountDist = TravellersConfig.MOUNTS.remountDistance;
                     if (distSq <= remountDist * remountDist * 4.0D && !isMountTooHurtToRide(horse)
                             && !isNearVillageRequiringLed(rider)) {
-                        rider.setMountModeRaw(MountMode.MOUNTED);
+                        rider.mountState.setMountModeRaw(MountMode.MOUNTED);
                     } else {
                         markTerrainFallbackLed(rider);
                     }
@@ -905,11 +905,11 @@ public final class TravellerMountSupport {
 
                 double remountDist = TravellersConfig.MOUNTS.remountDistance;
                 boolean remountReady = distSq <= remountDist * remountDist && canRemountHere(rider, horse);
-                int readyTicks = remountReady ? rider.getRemountReadyTicks() + 1 : 0;
-                rider.setRemountReadyTicks(readyTicks);
+                int readyTicks = remountReady ? rider.mountState.getRemountReadyTicks() + 1 : 0;
+                rider.mountState.setRemountReadyTicks(readyTicks);
                 if (readyTicks >= TravellersConfig.MOUNTS.remountStableTicks) {
-                    rider.setRemountReadyTicks(0);
-                    rider.setRemountTicks(0);
+                    rider.mountState.setRemountReadyTicks(0);
+                    rider.mountState.setRemountTicks(0);
                     setLeashed(horse, null);
                     rider.startRiding(horse, true);
                     return;
@@ -918,12 +918,12 @@ public final class TravellerMountSupport {
                 // The timeout only means "the horse can't get here by itself" - a horse already
                 // standing (or swimming) right next to a rider that simply can't mount yet is not
                 // stuck, and teleporting it on the spot would be pure noise.
-                int waited = rider.getRemountTicks() + 1;
-                rider.setRemountTicks(waited);
+                int waited = rider.mountState.getRemountTicks() + 1;
+                rider.mountState.setRemountTicks(waited);
                 boolean horseIsFarAway = distSq > 8.0D * 8.0D;
                 if ((waited > TravellersConfig.MOUNTS.remountTimeoutTicks && horseIsFarAway)
                         || distSq > leadMax * leadMax) {
-                    rider.setRemountTicks(0);
+                    rider.mountState.setRemountTicks(0);
                     teleportMountNear(rider, horse);
                 }
         }
@@ -971,8 +971,8 @@ public final class TravellerMountSupport {
         // gives identical terminal speed whatever task is driving the rider. Using the rider's raw
         // per-tick displacement here instead would be off by the ground-friction factor.
         double riderMove = Math.max(rider.getAIMoveSpeed(), 0.0F);
-        double smoothed = rider.getLedPacerSmoothedRiderSpeed() * 0.8D + riderMove * 0.2D;
-        rider.setLedPacerSmoothedRiderSpeed(smoothed);
+        double smoothed = rider.mountState.getLedPacerSmoothedRiderSpeed() * 0.8D + riderMove * 0.2D;
+        rider.mountState.setLedPacerSmoothedRiderSpeed(smoothed);
 
         double stop = TravellersConfig.MOUNTS.ledFollowStopDistance;
         double leadGap = TravellersConfig.MOUNTS.ledFollowLeadGapBlocks;
@@ -1004,7 +1004,7 @@ public final class TravellerMountSupport {
         if (dist <= stop) {
             if (!horse.getNavigator().noPath()) horse.getNavigator().clearPath();
             haltLedHorseMoveHelper(horse);
-            rider.setLedPacerObstacleTicks(0);
+            rider.mountState.setLedPacerObstacleTicks(0);
             return;
         }
 
@@ -1017,7 +1017,7 @@ public final class TravellerMountSupport {
         // terrain, that is the single biggest cost in a large mounted group (profiled: tens of
         // percent of server tick time). A denied tick just skips the search and retries next tick;
         // the horse stands still that one tick rather than spending it on a doomed search.
-        if (rider.ticksExisted < rider.getLedPacerNavUntilTick()) {
+        if (rider.ticksExisted < rider.mountState.getLedPacerNavUntilTick()) {
             if (horse.getNavigator().noPath()
                     && com.jubitus.travellers.pathing.PathBudget.tryAcquire(horse.world, com.jubitus.travellers.pathing.PathBudget.Client.MOUNT, rider.getEntityId(), 1)) {
                 horse.getNavigator().tryMoveToEntityLiving(rider, pace);
@@ -1026,7 +1026,7 @@ public final class TravellerMountSupport {
         }
 
         // Normal case: step straight after the rider along its own footsteps.
-        Vec3d aim = rider.leadTrailPointBehind(leadGap);
+        Vec3d aim = rider.mountState.leadTrailPointBehind(leadGap);
         double ax = aim != null ? aim.x : rider.posX;
         double ay = aim != null ? aim.y : rider.posY;
         double az = aim != null ? aim.z : rider.posZ;
@@ -1036,14 +1036,14 @@ public final class TravellerMountSupport {
         double horseDispSq = (horse.posX - horse.prevPosX) * (horse.posX - horse.prevPosX)
                 + (horse.posZ - horse.prevPosZ) * (horse.posZ - horse.prevPosZ);
         if (horse.collidedHorizontally && horseDispSq < 0.0016D) {
-            int t = rider.getLedPacerObstacleTicks() + 1;
-            rider.setLedPacerObstacleTicks(t);
+            int t = rider.mountState.getLedPacerObstacleTicks() + 1;
+            rider.mountState.setLedPacerObstacleTicks(t);
             if (t >= TravellersConfig.MOUNTS.ledFollowObstacleTicks) {
-                rider.setLedPacerObstacleTicks(0);
+                rider.mountState.setLedPacerObstacleTicks(0);
                 // Arm the window regardless of whether a search is actually granted this exact tick -
                 // a denied search here is picked up by the budgeted retry above on a later tick, the
                 // jam signal itself must not be lost.
-                rider.setLedPacerNavUntilTick(rider.ticksExisted + TravellersConfig.MOUNTS.ledFollowPathfindTicks);
+                rider.mountState.setLedPacerNavUntilTick(rider.ticksExisted + TravellersConfig.MOUNTS.ledFollowPathfindTicks);
                 if (com.jubitus.travellers.pathing.PathBudget.tryAcquire(horse.world, com.jubitus.travellers.pathing.PathBudget.Client.MOUNT, rider.getEntityId(), 1)) {
                     horse.getNavigator().tryMoveToEntityLiving(rider, pace);
                 }
@@ -1051,8 +1051,8 @@ public final class TravellerMountSupport {
                 com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                         "led horse jammed - pathfinding around");
             }
-        } else if (rider.getLedPacerObstacleTicks() > 0) {
-            rider.setLedPacerObstacleTicks(rider.getLedPacerObstacleTicks() - 1);
+        } else if (rider.mountState.getLedPacerObstacleTicks() > 0) {
+            rider.mountState.setLedPacerObstacleTicks(rider.mountState.getLedPacerObstacleTicks() - 1);
         }
     }
 
@@ -1076,22 +1076,22 @@ public final class TravellerMountSupport {
     private static boolean considerLedStuckRecall(EntityTraveller rider, EntityHorse horse, double distSq) {
         double recallDist = TravellersConfig.MOUNTS.ledStuckRecallDistance;
         if (distSq <= recallDist * recallDist) {
-            rider.setLedHorseStuckTicks(0);
-            rider.setLedHorseBestGapSq(distSq);
+            rider.mountState.setLedHorseStuckTicks(0);
+            rider.mountState.setLedHorseBestGapSq(distSq);
             return false;
         }
-        double best = rider.getLedHorseBestGapSq();
+        double best = rider.mountState.getLedHorseBestGapSq();
         if (distSq < best - 1.0D) {            // gap genuinely closing
-            rider.setLedHorseBestGapSq(distSq);
-            rider.setLedHorseStuckTicks(0);
+            rider.mountState.setLedHorseBestGapSq(distSq);
+            rider.mountState.setLedHorseStuckTicks(0);
             return false;
         }
-        int stuck = rider.getLedHorseStuckTicks() + 1;
-        rider.setLedHorseStuckTicks(stuck);
+        int stuck = rider.mountState.getLedHorseStuckTicks() + 1;
+        rider.mountState.setLedHorseStuckTicks(stuck);
         if (stuck < TravellersConfig.MOUNTS.ledStuckRecallTicks) return false;
 
-        rider.setLedHorseStuckTicks(0);
-        rider.setLedHorseBestGapSq(Double.MAX_VALUE);
+        rider.mountState.setLedHorseStuckTicks(0);
+        rider.mountState.setLedHorseBestGapSq(Double.MAX_VALUE);
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.LED_HORSE_SNAG_RECALL);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                 "led horse snagged behind and not catching up - bringing it to the rider");
@@ -1155,13 +1155,13 @@ public final class TravellerMountSupport {
         if (rider instanceof EntityTravellerWorker && ((EntityTravellerWorker) rider).isHiredFollower()) {
             return false;
         }
-        if (rider.ticksExisted < rider.getNextVillageProximityCheckTick()) {
-            return rider.isCachedNearVillage();
+        if (rider.ticksExisted < rider.mountState.getNextVillageProximityCheckTick()) {
+            return rider.mountState.isCachedNearVillage();
         }
-        rider.setNextVillageProximityCheckTick(rider.ticksExisted + VILLAGE_PROXIMITY_CHECK_INTERVAL);
+        rider.mountState.setNextVillageProximityCheckTick(rider.ticksExisted + VILLAGE_PROXIMITY_CHECK_INTERVAL);
         boolean near = com.jubitus.travellers.village.MillSettlements.isInside(
                 rider.world, rider.getPosition());
-        rider.setCachedNearVillage(near);
+        rider.mountState.setCachedNearVillage(near);
         return near;
     }
 
@@ -1216,12 +1216,12 @@ public final class TravellerMountSupport {
         MountSpawnPos pos = resolveMountSpawnPos(rider, horse);
         if (TravellersConfig.MOUNTS.debugMounts) {
             FMLLog.log(Level.INFO, "[Travellers/Mounts] %s recalling its horse from %.1f blocks away (mode=%s)",
-                    rider.getName(), Math.sqrt(horse.getDistanceSq(rider)), rider.getMountMode());
+                    rider.getName(), Math.sqrt(horse.getDistanceSq(rider)), rider.mountState.getMountMode());
         }
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.HORSE_TELEPORT_RECALL);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                 String.format(java.util.Locale.ROOT, "recall horse from %.1f blocks (mode=%s)",
-                        Math.sqrt(horse.getDistanceSq(rider)), rider.getMountMode()));
+                        Math.sqrt(horse.getDistanceSq(rider)), rider.mountState.getMountMode()));
         horse.motionX = 0;
         horse.motionY = 0;
         horse.motionZ = 0;
@@ -1272,31 +1272,31 @@ public final class TravellerMountSupport {
      * have to either fail or drop the rider somewhere silly.
      */
     public static void setMountMode(EntityTraveller rider, MountMode mode) {
-        if (rider.getMountMode() == mode) return;
+        if (rider.mountState.getMountMode() == mode) return;
         if (TravellersConfig.MOUNTS.debugMounts) {
             FMLLog.log(Level.INFO, "[Travellers/Mounts] %s mount mode %s -> %s (riding=%b)",
-                    rider.getName(), rider.getMountMode(), mode, rider.isMountedOnBondedMount());
+                    rider.getName(), rider.mountState.getMountMode(), mode, rider.isMountedOnBondedMount());
         }
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
-                "mode " + rider.getMountMode() + " -> " + mode);
-        if (rider.getMountMode() == MountMode.LED) com.jubitus.travellers.debug.profile.MovementProfiler.ledEnded(rider);
-        rider.setMountModeRaw(mode);
-        rider.setRemountTicks(0);
-        rider.setRemountReadyTicks(0);
+                "mode " + rider.mountState.getMountMode() + " -> " + mode);
+        if (rider.mountState.getMountMode() == MountMode.LED) com.jubitus.travellers.debug.profile.MovementProfiler.ledEnded(rider);
+        rider.mountState.setMountModeRaw(mode);
+        rider.mountState.setRemountTicks(0);
+        rider.mountState.setRemountReadyTicks(0);
         // Leaving LED for any reason retires the terrain-fallback self-heal timer, whatever armed
         // it - a stale timer/position surviving into a later, unrelated LED spell (say, a boat
         // crossing towing the horse alongside) would otherwise fire instantly on old data. See
         // markTerrainFallbackLed/considerTerrainFallbackRemount.
         if (mode != MountMode.LED) {
-            rider.setLedFallbackSinceTick(-1);
+            rider.mountState.setLedFallbackSinceTick(-1);
         }
         // The led-stuck quick-recall tracker and the trail-pacer state only mean anything while
         // leading on foot.
-        rider.setLedHorseStuckTicks(0);
-        rider.setLedHorseBestGapSq(Double.MAX_VALUE);
-        rider.setLedPacerObstacleTicks(0);
-        rider.setLedPacerNavUntilTick(0);
-        rider.setLedPacerSmoothedRiderSpeed(0.0D);
+        rider.mountState.setLedHorseStuckTicks(0);
+        rider.mountState.setLedHorseBestGapSq(Double.MAX_VALUE);
+        rider.mountState.setLedPacerObstacleTicks(0);
+        rider.mountState.setLedPacerNavUntilTick(0);
+        rider.mountState.setLedPacerSmoothedRiderSpeed(0.0D);
         if (mode != MountMode.MOUNTED && rider.isMountedOnBondedMount()) {
             // Vanilla already places a dismounting rider beside a horse rather than inside it
             // (EntityLivingBase.dismountEntity has a dedicated AbstractHorse branch that steps off to
@@ -1319,8 +1319,8 @@ public final class TravellerMountSupport {
      * arm any recovery, so a rider that ended up in LED via the other one simply never got back on.
      */
     public static void markTerrainFallbackLed(EntityTraveller rider) {
-        rider.setLedFallbackSinceTick(rider.ticksExisted);
-        rider.setLedFallbackPos(rider.posX, rider.posZ);
+        rider.mountState.setLedFallbackSinceTick(rider.ticksExisted);
+        rider.mountState.setLedFallbackPos(rider.posX, rider.posZ);
     }
 
     /**
@@ -1332,7 +1332,7 @@ public final class TravellerMountSupport {
      * this again.
      */
     private static void considerTerrainFallbackRemount(EntityTraveller rider, EntityHorse horse) {
-        int since = rider.getLedFallbackSinceTick();
+        int since = rider.mountState.getLedFallbackSinceTick();
         if (since < 0) return;
         if (rider.ticksExisted - since < TravellersConfig.MOUNTS.terrainRemountAfterTicks) return;
         // Only ever remount onto dry, solid footing - not while the rider is still swimming a river
@@ -1347,8 +1347,8 @@ public final class TravellerMountSupport {
         // would otherwise remount the rider mid-street.
         if (isNearVillageRequiringLed(rider)) return;
 
-        double dx = rider.posX - rider.getLedFallbackX();
-        double dz = rider.posZ - rider.getLedFallbackZ();
+        double dx = rider.posX - rider.mountState.getLedFallbackX();
+        double dz = rider.posZ - rider.mountState.getLedFallbackZ();
         double need = TravellersConfig.MOUNTS.terrainRemountDistance;
         if (dx * dx + dz * dz < need * need) return;
 
@@ -1370,11 +1370,11 @@ public final class TravellerMountSupport {
         WorldServer world = (WorldServer) rider.world;
         Entity mount = world.getEntityFromUuid(mountUUID);
         rider.setMountUUID(null);
-        rider.setMountSnapshotNbt(null);
+        rider.mountState.setMountSnapshotNbt(null);
         if (!(mount instanceof EntityHorse) || mount.isDead) {
-            if (rider.getPendingMountNbt() != null) {
+            if (rider.mountState.getPendingMountNbt() != null) {
                 // Held as data (tied at an unloaded post): it goes with its rider, like offscreen.
-                rider.setParkedMount(null, null);
+                rider.mountState.setParkedMount(null, null);
                 return;
             }
             // The horse sits in an unloaded chunk: release (or remove) it the moment it loads again.
@@ -1441,9 +1441,9 @@ public final class TravellerMountSupport {
     public static void detachAndKillMountForDebugWipe(EntityTraveller rider) {
         UUID mountUUID = rider.getMountUUID();
         rider.setMountUUID(null);
-        rider.setMountSnapshotNbt(null);
-        boolean heldAsData = rider.getPendingMountNbt() != null;
-        rider.setParkedMount(null, null);
+        rider.mountState.setMountSnapshotNbt(null);
+        boolean heldAsData = rider.mountState.getPendingMountNbt() != null;
+        rider.mountState.setParkedMount(null, null);
         if (heldAsData) return;
         if (mountUUID == null || !(rider.world instanceof WorldServer)) return;
         Entity mount = ((WorldServer) rider.world).getEntityFromUuid(mountUUID);
@@ -1496,7 +1496,7 @@ public final class TravellerMountSupport {
 
         Entity rider = world.getEntityFromUuid(riderUUID);
         if (rider instanceof EntityTraveller && !rider.isDead
-                && ((EntityTraveller) rider).getMountMode() == MountMode.HITCHED
+                && ((EntityTraveller) rider).mountState.getMountMode() == MountMode.HITCHED
                 && ((EntityTraveller) rider).getVillageHitchStop() != null) {
             // Tied at a village post while its rider visits: it stays at its post, as data on the
             // rider, and reappears there when that ground is loaded again (tickParkedMount).
@@ -1505,7 +1505,7 @@ public final class TravellerMountSupport {
             NBTTagCompound snapshot = HorseSnapshots.capture(horse);
             BlockPos post = horse.getPosition();
             horse.setDead();
-            r.setParkedMount(snapshot, post);
+            r.mountState.setParkedMount(snapshot, post);
             com.jubitus.travellers.debug.trace.TravellerTracer.event(r, "mount", "horse at the post kept as data (its chunk unloaded)");
             return;
         }
@@ -1560,8 +1560,8 @@ public final class TravellerMountSupport {
             // "teleports far away, then snaps right back". Dismounting here first ends it immediately.
             if (rider.isRiding()) rider.dismountRidingEntity();
             rider.setMountUUID(null);
-            rider.setMountSnapshotNbt(null);
-            rider.setMountModeRaw(MountMode.MOUNTED);
+            rider.mountState.setMountSnapshotNbt(null);
+            rider.mountState.setMountModeRaw(MountMode.MOUNTED);
             return;
         }
         // Rider is offscreen: clear the same thing on its virtual record instead, or it would
@@ -1804,7 +1804,7 @@ public final class TravellerMountSupport {
      * <p>Mirroring the rider's own current AI move speed makes the two products identical, so a
      * mounted traveller moves at exactly its on-foot speed for every task, and the multiplier
      * becomes the single honest knob on top of that. Two knobs, by context: a rider crossing the
-     * world alone ({@code EntityTraveller.isTravelSpeedContext()}, maintained by EntityAITravel)
+     * world alone ({@code EntityTraveller.mountState.isTravelSpeedContext()}, maintained by EntityAITravel)
      * rides at the open-road pace, everything else (formation follow, combat, idle) at the follow
      * pace - one shared multiplier made followers speed up whenever the travel pace was raised.
      */
@@ -1814,7 +1814,7 @@ public final class TravellerMountSupport {
         // orders and jobs, including the documented worker trap where the travel TASK itself is
         // yanked on/off tick to tick while the mission continues - a lifecycle-only flag left
         // mission-riding workers at the follow pace.
-        boolean travelling = rider.isTravelSpeedContext()
+        boolean travelling = rider.mountState.isTravelSpeedContext()
                 || (rider instanceof EntityTravellerWorker && ((EntityTravellerWorker) rider).isUsingTravelAI());
         double mult = travelling
                 ? TravellersConfig.MOUNTS.mountedTravelSpeedMultiplier
@@ -1911,7 +1911,7 @@ public final class TravellerMountSupport {
 
         if (HorseSnapshots.isCorpse(mountNbt)) {
             rider.setMountUUID(null);
-            rider.setMountSnapshotNbt(null);
+            rider.mountState.setMountSnapshotNbt(null);
             return null;
         }
 
@@ -1937,9 +1937,9 @@ public final class TravellerMountSupport {
             return null;
         }
 
-        if (pos.parked && pos.camping && rider.getMountMode() == MountMode.MOUNTED) {
-            rider.setMountModeRaw(MountMode.HITCHED);
-        } else if (!pos.parked && rider.getMountMode() == MountMode.MOUNTED
+        if (pos.parked && pos.camping && rider.mountState.getMountMode() == MountMode.MOUNTED) {
+            rider.mountState.setMountModeRaw(MountMode.HITCHED);
+        } else if (!pos.parked && rider.mountState.getMountMode() == MountMode.MOUNTED
                 && horse.getDistanceSq(rider) <= 4.0D
                 && rider.onGround && !rider.isInWater()
                 && horse.onGround && !horse.isInWater()) {

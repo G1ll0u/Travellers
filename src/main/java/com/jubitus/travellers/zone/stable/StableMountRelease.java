@@ -42,9 +42,9 @@ public final class StableMountRelease {
     public static void surrenderLoadedMount(WorldServer world, EntityTravellerWorker worker,
                                             PlayerZoneRecord zone, StableZoneData data) {
         NBTTagCompound mountNbt = TravellerMountSupport.captureMount(worker);
-        if (mountNbt == null) mountNbt = worker.getMountSnapshotNbt();
+        if (mountNbt == null) mountNbt = worker.mountState.getMountSnapshotNbt();
         worker.setMountUUID(null);
-        worker.setMountSnapshotNbt(null);
+        worker.mountState.setMountSnapshotNbt(null);
         if (mountNbt == null) return;
 
         data.addCapturedHorse(world, mountNbt, StableHorseEntry.Origin.WORKER_OWN_MOUNT,

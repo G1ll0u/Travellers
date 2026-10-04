@@ -95,7 +95,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
         if (traveller.getGroupLeaderUUID() != null || traveller.isCatchupTravel()) return false;
         // Pausing resets the travel task, which would undo a crossing, a flight or a terrain dismount.
         if (traveller.isElytraFlying() || traveller.getRidingEntity() instanceof EntityBoat) return false;
-        if (traveller.getLedFallbackSinceTick() >= 0) return false;
+        if (traveller.mountState.getLedFallbackSinceTick() >= 0) return false;
         if (traveller instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) traveller;
             if (w.isChoirFreezeActive()) return false;

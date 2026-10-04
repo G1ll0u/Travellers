@@ -1819,7 +1819,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         double distToLeader = horizontalDistanceTo(followTarget);
         Vec3d trailPoint;
         if (followTarget instanceof EntityTraveller) {
-            trailPoint = ((EntityTraveller) followTarget).leadTrailPointBehind(distToLeader);
+            trailPoint = ((EntityTraveller) followTarget).mountState.leadTrailPointBehind(distToLeader);
         } else if (followTarget instanceof net.minecraft.entity.player.EntityPlayer) {
             trailPoint = PlayerLeaderTrail.pointBehind(followTarget.getUniqueID(), distToLeader);
         } else {

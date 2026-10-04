@@ -250,7 +250,7 @@ final class ProfileSession {
         st.ai = moveTask == null ? "none" : shortName(moveTask);
 
         boolean mounted = e.isMountedOnBondedMount();
-        boolean led = !mounted && e.getMountUUID() != null && e.getMountMode() == MountMode.LED;
+        boolean led = !mounted && e.getMountUUID() != null && e.mountState.getMountMode() == MountMode.LED;
         st.mount = mounted ? "mounted" : led ? "leading horse" : "on foot";
         String unit = unitOf(e);
         presence.merge(unit + " / " + st.mount, secs, Double::sum);
@@ -469,7 +469,7 @@ final class ProfileSession {
 
     /** Called just before the switch to LED; an entity already leading its horse is not a new LED. */
     void ledStarted(EntityTraveller e, MovementAnomaly.LedReason reason, long now) {
-        if (e.getMountUUID() == null || e.getMountMode() == MountMode.LED) return;
+        if (e.getMountUUID() == null || e.mountState.getMountMode() == MountMode.LED) return;
         EntityState st = state(e, now);
         ledStarts.merge(reason, 1L, Long::sum);
         st.ledReason = reason;

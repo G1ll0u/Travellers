@@ -117,7 +117,7 @@ public final class MountedLeadController {
      * a no-op once already in LED.
      */
     public static void enterLedForWater(EntityTraveller mob) {
-        if (mob.getMountMode() == MountMode.LED) return;
+        if (mob.mountState.getMountMode() == MountMode.LED) return;
         com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(mob, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.WATER);
         TravellerMountSupport.setMountMode(mob, MountMode.LED);
         TravellerMountSupport.markTerrainFallbackLed(mob);
@@ -140,6 +140,6 @@ public final class MountedLeadController {
         return !mob.isRiding()
                 && !mob.isInWater()
                 && mob.getMountUUID() != null
-                && mob.getMountMode() == MountMode.LED;
+                && mob.mountState.getMountMode() == MountMode.LED;
     }
 }

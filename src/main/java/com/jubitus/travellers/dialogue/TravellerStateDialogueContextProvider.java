@@ -19,7 +19,7 @@ public final class TravellerStateDialogueContextProvider implements DialogueCont
         builder.healthPhrase(DialoguePhrasing.healthTier(traveller.getHealth(), traveller.getMaxHealth()));
 
         if (traveller.getMountUUID() != null) {
-            MountMode mode = traveller.getMountMode();
+            MountMode mode = traveller.mountState.getMountMode();
             String phrase = mode == MountMode.LED ? "leading a horse on foot" : "riding a horse";
             builder.mountPhrase(phrase);
         }

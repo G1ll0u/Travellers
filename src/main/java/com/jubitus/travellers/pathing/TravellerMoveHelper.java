@@ -48,7 +48,7 @@ public class TravellerMoveHelper extends EntityMoveHelper {
         // whole arc round with it. Measured in a walled room: the horse launched at a 2-block wall
         // it could clear by a third of a block, turned through the flight, and came down on the
         // inside every time. The launch direction is the flight direction, full stop.
-        float jumpYaw = this.rider.getMountJumpYaw();
+        float jumpYaw = this.rider.mountState.getMountJumpYaw();
         if (!Float.isNaN(jumpYaw)) {
             this.entity.rotationYaw = jumpYaw;
             return;

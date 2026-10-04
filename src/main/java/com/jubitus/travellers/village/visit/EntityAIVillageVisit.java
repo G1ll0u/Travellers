@@ -499,16 +499,16 @@ public class EntityAIVillageVisit extends EntityAIBase {
      * ride again (from afar, the mount reconciler would teleport the horse to it instead). */
     private void beginFetchHorse() {
         clearActivity();
-        if (mob.getVillageHitchStop() == null || mob.getMountMode() != MountMode.HITCHED) {
+        if (mob.getVillageHitchStop() == null || mob.mountState.getMountMode() != MountMode.HITCHED) {
             beginWaitGroup();
             return;
         }
         net.minecraft.entity.Entity horse = mob.getMountUUID() == null ? null
                 : ((net.minecraft.world.WorldServer) mob.world).getEntityFromUuid(mob.getMountUUID());
-        if ((horse == null || !horse.isEntityAlive()) && mob.getPendingMountNbt() != null && mob.getPendingMountPos() != null) {
+        if ((horse == null || !horse.isEntityAlive()) && mob.mountState.getPendingMountNbt() != null && mob.mountState.getPendingMountPos() != null) {
             // The horse is held as data at a post nobody has loaded: it reappears there as soon as
             // that ground ticks. If it doesn't, move its post to the loaded edge closest to it.
-            BlockPos post = mob.getPendingMountPos();
+            BlockPos post = mob.mountState.getPendingMountPos();
             if (!isTicking(post)) {
                 BlockPos alt = nearestTickingEntrance(post);
                 if (alt == null) {
@@ -516,7 +516,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
                     beginWaitGroup();
                     return;
                 }
-                mob.setParkedMount(mob.getPendingMountNbt(), alt);
+                mob.mountState.setParkedMount(mob.mountState.getPendingMountNbt(), alt);
                 post = alt;
             }
             activity = Activity.FETCH_HORSE;
@@ -558,7 +558,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
 
     private void untieHorse() {
         mob.setVillageHitchStop(null);
-        if (mob.getMountMode() == MountMode.HITCHED) TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
+        if (mob.mountState.getMountMode() == MountMode.HITCHED) TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
     }
 
     /** A group leader waits by its horse for its members before setting off; everyone else just goes. */
