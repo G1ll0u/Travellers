@@ -148,8 +148,8 @@ public class CommandTravellerRouteDump extends CommandBase {
         } else {
             out.println("  (no village route)");
         }
-        out.println("Target village: " + fmtNullable(mob.getTargetVillage()));
-        out.println("Current wp    : " + fmtNullable(mob.getCurrentWaypoint()));
+        out.println("Target village: " + fmtNullable(mob.getTravelCommon().getTargetVillage()));
+        out.println("Current wp    : " + fmtNullable(mob.getTravelCommon().getCurrentWaypoint()));
         out.println("Idling        : " + mob.isVillageIdling());
         out.println();
 
@@ -163,7 +163,7 @@ public class CommandTravellerRouteDump extends CommandBase {
         } else {
             st.cursor.advance(it, mob.posX, mob.posZ);
             out.println("Source        : " + it.source + (st.isForced() ? " (forced)" : ""));
-            out.println("Destination   : " + fmt(it.dest()) + (st.isFor(mob.getTargetVillage()) ? "" : "  (NOT the current target)"));
+            out.println("Destination   : " + fmt(it.dest()) + (st.isFor(mob.getTravelCommon().getTargetVillage()) ? "" : "  (NOT the current target)"));
             out.println("Vertices      : " + it.size() + "  " + it.kindsSummary());
             out.println("Length        : " + (int) it.totalLength() + " blocks");
             out.println("Cursor        : seg " + st.cursor.segment() + ", " + (int) st.cursor.along()
@@ -187,7 +187,7 @@ public class CommandTravellerRouteDump extends CommandBase {
             out.println("  MPB not present.");
         } else {
             BlockPos from = mob.getPosition();
-            BlockPos to   = mob.getTargetVillage();
+            BlockPos to   = mob.getTravelCommon().getTargetVillage();
             if (to == null) {
                 out.println("  No target village — cannot plan route.");
             } else {

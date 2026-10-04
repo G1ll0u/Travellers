@@ -170,7 +170,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     public boolean isStaying() {
         VillageVisitState st = mob.getVillageVisitState();
         if (finished || st == null || st.isLeaving() || activity.departing()) return false;
-        if (!st.asFollower && !st.stop.equals(mob.getTargetVillage())) return false;
+        if (!st.asFollower && !st.stop.equals(mob.getTravelCommon().getTargetVillage())) return false;
         return running || mob.world.getTotalWorldTime() - lastActiveTick <= RESUME_WINDOW_TICKS;
     }
 
@@ -196,8 +196,8 @@ public class EntityAIVillageVisit extends EntityAIBase {
     public boolean shouldExecute() {
         if (mob.world.isRemote || !mob.usesVillageVisit() || !canVisitNow()) return false;
         if (mob.getGroupLeaderUUID() != null) return mob.canDisperseWithLeader();
-        if (mob.getDepartCooldownTicks() > 0) return false;
-        BlockPos stop = mob.getTargetVillage();
+        if (mob.getTravelCommon().getDepartCooldownTicks() > 0) return false;
+        BlockPos stop = mob.getTravelCommon().getTargetVillage();
         if (stop == null || stop.equals(mob.getTravelCommon().getVisitedStop())) return false;
         // An interrupted stay resumes wherever the unit stands in the village (it may be out at its horse).
         if (isResumable(stop, false)) return true;
@@ -217,7 +217,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         VillageVisitState st = mob.getVillageVisitState();
         if (st == null) return false;
         if (st.asFollower) return mob.getGroupLeaderUUID() != null;
-        return Objects.equals(mob.getTargetVillage(), st.stop);
+        return Objects.equals(mob.getTravelCommon().getTargetVillage(), st.stop);
     }
 
     private boolean canVisitNow() {
@@ -229,7 +229,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     @Override
     public void startExecuting() {
         boolean follower = mob.getGroupLeaderUUID() != null;
-        BlockPos stop = follower ? mob.getLeaderVisitStop() : mob.getTargetVillage();
+        BlockPos stop = follower ? mob.getLeaderVisitStop() : mob.getTravelCommon().getTargetVillage();
         // An interrupted stay picks up where it was - including one already on its way out
         // (remainingTicks 0), which goes straight back to leaving.
         boolean resume = stop != null && isResumable(stop, follower);
@@ -248,8 +248,8 @@ public class EntityAIVillageVisit extends EntityAIBase {
         running = true;
         finished = false;
         socialTicker = Math.floorMod(mob.getEntityId(), socialPeriod());
-        mob.setVillageIdling(true);
-        if (!follower) mob.setReadyToDepart(false);
+        mob.getTravelCommon().setVillageIdling(true);
+        if (!follower) mob.getTravelCommon().setReadyToDepart(false);
         clearActivity();
         mob.getGaze().reset();
         mob.getGaze().setPlaces(placesOfInterest(settlement));
@@ -279,7 +279,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         VisitOccupancy.release(mob.world, mob.getUniqueID());
         // Interrupted (a fight, a meal): the stay resumes on the next start, the trip stays put, and
         // a horse tied at the village edge stays tied.
-        if (!finished) mob.setVillageIdling(false);
+        if (!finished) mob.getTravelCommon().setVillageIdling(false);
     }
 
     @Override
@@ -637,14 +637,14 @@ public class EntityAIVillageVisit extends EntityAIBase {
         finished = true;
         VillageVisitState st = mob.getVillageVisitState();
         mob.setVillageVisitState(null);
-        mob.setVillageIdling(false);
+        mob.getTravelCommon().setVillageIdling(false);
         VisitOccupancy.release(mob.world, mob.getUniqueID());
         trace("finish", "");
         // A follower's own trip isn't what brought it here; it simply goes back to following.
         if (st == null || st.asFollower) return;
         if (mob instanceof EntityTravellerWorker) donate(st.stop);
         mob.getTravelCommon().setVisitedStop(st.stop);
-        mob.setReadyToDepart(true);
+        mob.getTravelCommon().setReadyToDepart(true);
     }
 
     private void donate(BlockPos stop) {

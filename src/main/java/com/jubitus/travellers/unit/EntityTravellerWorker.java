@@ -548,7 +548,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.idleAnchorPos = null;
 
         this.getNavigator().clearPath();
-        this.setCurrentWaypoint(null);
+        this.getTravelCommon().setCurrentWaypoint(null);
 
         TravelCommon tc = this.getTravelCommon();
         tc.routeTo(dutyCenter);
@@ -1655,7 +1655,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         tc.routeIndex = 0;
         tc.setTargetVillage(villageCenter);
-        this.setTargetVillage(villageCenter);
+        this.getTravelCommon().setTargetVillage(villageCenter);
         tc.setCurrentWaypoint(null);
         tc.setReadyToDepart(false);
         tc.setDepartCooldownTicks(0);
@@ -2440,7 +2440,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                     if (recruitReturnPos != null) {
                         tc.setTargetVillage(recruitReturnPos);
-                        this.setTargetVillage(recruitReturnPos);
+                        this.getTravelCommon().setTargetVillage(recruitReturnPos);
                         tc.setCurrentWaypoint(null);
                         tc.setReadyToDepart(true);
                         tc.setDepartCooldownTicks(0);
@@ -2637,7 +2637,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (cg != null) return cg;
 
         // Normal travel uses the village goal
-        return getTargetVillage();
+        return getTravelCommon().getTargetVillage();
     }
 
     @Nullable
@@ -2790,7 +2790,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // active order is anchored - it must stay put (return null), never chase a stale targetVillage
         // (its "ancien emplacement"), which would resurface on the next virtualize→materialize round-trip.
         if (!isHiredFollower()) {
-            BlockPos tv = getTargetVillage();
+            BlockPos tv = getTravelCommon().getTargetVillage();
             if (tv != null) return tv;
         }
         return null;
@@ -2943,7 +2943,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
 
         this.getNavigator().clearPath();
-        this.setCurrentWaypoint(null);
+        this.getTravelCommon().setCurrentWaypoint(null);
 
         TravelCommon tc = this.getTravelCommon();
         tc.routeTo(home);
@@ -3893,7 +3893,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         TravelCommon tc = this.getTravelCommon();
         tc.setTargetVillage(stop);
-        this.setTargetVillage(stop);
+        this.getTravelCommon().setTargetVillage(stop);
         tc.setCurrentWaypoint(null);
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);

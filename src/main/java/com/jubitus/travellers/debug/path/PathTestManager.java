@@ -161,7 +161,7 @@ public final class PathTestManager {
             throw new CommandException("Could not spawn the test worker at " + posString(st.pos1) + ".");
         }
 
-        worker.setTargetVillage(st.pos2);
+        worker.getTravelCommon().setTargetVillage(st.pos2);
         // A real worker only ever gets EntityAITravel.shouldBeUsingTravelAI() == true through a route
         // being planned or readyToDepart being set elsewhere first - setTargetVillage() alone leaves
         // both false. Without this, EntityTravellerWorker.onLivingUpdate() calls

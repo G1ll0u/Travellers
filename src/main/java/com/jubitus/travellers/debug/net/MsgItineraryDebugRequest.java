@@ -139,7 +139,7 @@ public class MsgItineraryDebugRequest implements IMessage {
         m.unitZ = e.posZ;
         m.tripStops = e.getTravelRoute();
         m.tripIndex = e.getVillageRouteIndex();
-        m.target = e.getTargetVillage();
+        m.target = e.getTravelCommon().getTargetVillage();
         fill(m, e.getItineraryState(), e.posX, e.posZ);
         return m;
     }

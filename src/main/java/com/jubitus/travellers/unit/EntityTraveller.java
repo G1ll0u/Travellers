@@ -675,9 +675,6 @@ public class EntityTraveller extends EntityCreature {
         return current + delta;
     }
 
-    public boolean isAtTargetStopHys(boolean lastWasInside) {
-        return travelCommon.isAtTargetStopHys(lastWasInside);
-    }
 
     /** Whether this unit stops to visit each village of its trip ({@link EntityAIVillageVisit}). */
     public boolean usesVillageVisit() {
@@ -785,7 +782,7 @@ public class EntityTraveller extends EntityCreature {
             ref = getLoadedGroupLeader();
             if (ref == null || !ref.usesVillageVisit()) return null;
         }
-        BlockPos stop = ref.getTargetVillage();
+        BlockPos stop = ref.getTravelCommon().getTargetVillage();
         if (stop == null || stop.equals(ref.getTravelCommon().getVisitedStop())) return null;
         return stop;
     }
@@ -804,14 +801,7 @@ public class EntityTraveller extends EntityCreature {
         this.villageHitchStop = stop;
     }
 
-    // --- Getters & Setters for AI Fields ---
-    public BlockPos getTargetVillage() {
-        return travelCommon.getTargetVillage();
-    }
 
-    public void setTargetVillage(@Nullable BlockPos pos) {
-        travelCommon.setTargetVillage(pos);
-    }
 
     // --- Arrival policy (ONE source of truth) ---
     public int arrivalRadiusBlocks(BlockPos target) {
@@ -841,21 +831,9 @@ public class EntityTraveller extends EntityCreature {
         this.travelRecoverTicks = t;
     }
 
-    public boolean isReadyToDepart() {
-        return travelCommon.isReadyToDepart();
-    }
 
-    public void setReadyToDepart(boolean v) {
-        travelCommon.setReadyToDepart(v);
-    }
 
-    public int getDepartCooldownTicks() {
-        return travelCommon.getDepartCooldownTicks();
-    }
 
-    public void setDepartCooldownTicks(int t) {
-        travelCommon.setDepartCooldownTicks(t);
-    }
 
     public int getSpawnAmbientCooldownTicks() {
         return spawnAmbientCooldownTicks;
@@ -2211,10 +2189,6 @@ public class EntityTraveller extends EntityCreature {
         player.sendMessage(msg);
     }
 
-    @Nullable
-    public BlockPos getNearestVillage() {
-        return travelCommon.getNearestVillage();
-    }
 
     private String cardinalDirectionTo(BlockPos target) {
         double dx = target.getX() + 0.5 - this.posX;
@@ -2676,46 +2650,15 @@ public void fall(float distance, float damageMultiplier) {
         return (forcedSwingTicks <= 0) ? 0f : (1f - (forcedSwingTicks / 6.0f));
     }
 
-    public BlockPos getRoamTarget() {
-        return travelCommon.getRoamTarget();
-    }
 
-    public void setRoamTarget(BlockPos roamTarget) {
-        travelCommon.setRoamTarget(roamTarget);
-    }
 
-    public int getPauseTicks() {
-        return travelCommon.getPauseTicks();
-    }
 
-    public void setPauseTicks(int pauseTicks) {
-        travelCommon.setPauseTicks(pauseTicks);
-    }
 
-    public int getVillageIdleTicks() {
-        return travelCommon.getVillageIdleTicks();
-    }
 
-    public void setVillageIdleTicks(int villageIdleTicks) {
-        travelCommon.setVillageIdleTicks(villageIdleTicks);
-    }
 
-    // Some path related getters
-    public float getPathAngleBiasDeg() {
-        return travelCommon.getPathAngleBiasDeg();
-    }
 
-    public double getPathLaneOffset() {
-        return travelCommon.getPathLaneOffset();
-    }
 
-    public int getPathStepJitter() {
-        return travelCommon.getPathStepJitter();
-    }
 
-    public int getRecalcPhase() {
-        return travelCommon.getRecalcPhase();
-    }
 
     public BlockPos weightedPickInRange(List<BlockPos> list, BlockPos origin,
                                         int from, int to, double bias) {
@@ -2802,13 +2745,7 @@ public void fall(float distance, float damageMultiplier) {
         travelCommon.maybePlayTravelAmbient();
     }
 
-    public BlockPos getCurrentWaypoint() {
-        return travelCommon.getCurrentWaypoint();
-    }
 
-    public void setCurrentWaypoint(BlockPos currentWaypoint) {
-        travelCommon.setCurrentWaypoint(currentWaypoint);
-    }
 
     /** Returns the immutable village-stop list for diagnostics. */
     public java.util.List<BlockPos> getVillageRoute() {
@@ -3364,9 +3301,6 @@ public void fall(float distance, float damageMultiplier) {
         return travelCommon.isVillageIdling();
     }
 
-    public void setVillageIdling(boolean villageIdling) {
-        travelCommon.setVillageIdling(villageIdling);
-    }
 
     public int getTicksExisted() {
         return this.ticksExisted;

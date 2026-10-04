@@ -126,7 +126,7 @@ final class TravelBoatMode {
 
             if (ai.currentWaypoint == null) {
                 ai.currentWaypoint = ai.computeNextWaypointToward(ai.targetVillage, ai.stepBlocks);
-                mob.setCurrentWaypoint(ai.currentWaypoint);
+                mob.getTravelCommon().setCurrentWaypoint(ai.currentWaypoint);
                 ai.debugMark(ai.currentWaypoint);
             }
             steerBoatToWaypoint();
@@ -143,7 +143,7 @@ final class TravelBoatMode {
                     BlockPos next = ai.computeNextWaypointToward(ai.targetVillage, ai.stepBlocks);
                     if (next != null) {
                         ai.currentWaypoint = next;
-                        mob.setCurrentWaypoint(next);
+                        mob.getTravelCommon().setCurrentWaypoint(next);
                         ai.debugMark(next);
                     }
                 }
@@ -197,7 +197,7 @@ final class TravelBoatMode {
                             if (tryEnterBoat(from, boatDir.normalize())) {
                                 triedBoatThisLeg = true;     // ONLY on success
                                 ai.currentWaypoint = boatWp;
-                                mob.setCurrentWaypoint(boatWp);
+                                mob.getTravelCommon().setCurrentWaypoint(boatWp);
                                 ai.debugMark(boatWp);
                                 ai.clearNav();
                             } else {
@@ -315,7 +315,7 @@ final class TravelBoatMode {
         }
         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "path", "boat embark (planned)");
         ai.currentWaypoint = wp;
-        mob.setCurrentWaypoint(wp);
+        mob.getTravelCommon().setCurrentWaypoint(wp);
         ai.debugMark(wp);
         ai.clearNav();
     }
@@ -514,7 +514,7 @@ final class TravelBoatMode {
         // 2) If we found a shore tile, snap next waypoint to it
         if (shore != null) {
             ai.currentWaypoint = shore;
-            mob.setCurrentWaypoint(shore);
+            mob.getTravelCommon().setCurrentWaypoint(shore);
             ai.debugMark(shore);
             ai.clearNav();
             ai.pushPathToWaypoint();

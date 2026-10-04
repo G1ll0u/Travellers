@@ -196,7 +196,7 @@ public class EntityAITravel extends EntityAIBase {
         if (!catchup && mob.isVisitingVillage()) return false;
 
         // only block "already inside" when NOT in catchup
-        if (!catchup && (mob.isAtTargetStop() || mob.isAtTargetStopHys(false))) return false;
+        if (!catchup && (mob.isAtTargetStop() || mob.getTravelCommon().isAtTargetStopHys(false))) return false;
 
         BlockPos tv = getLiveGoalPos();
         if (tv == null) return false;
@@ -237,7 +237,7 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         // In catchup, don't stop just because we're "at target stop"
-        if (!catchup && (mob.isAtTargetStop() || mob.isAtTargetStopHys(false))) {
+        if (!catchup && (mob.isAtTargetStop() || mob.getTravelCommon().isAtTargetStopHys(false))) {
             clearNav();
             return false;
         }
@@ -246,7 +246,7 @@ public class EntityAITravel extends EntityAIBase {
         if (tv == null) return false;
         if (!tv.equals(this.targetVillage)) retarget(tv);
 
-        arriveInside = mob.isAtTargetStopHys(arriveInside);
+        arriveInside = mob.getTravelCommon().isAtTargetStopHys(arriveInside);
         return catchup || !arriveInside;
     }
 
@@ -275,7 +275,7 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         this.currentWaypoint = computeNextWaypointToward(this.targetVillage, this.stepBlocks);
-        mob.setCurrentWaypoint(this.currentWaypoint);
+        mob.getTravelCommon().setCurrentWaypoint(this.currentWaypoint);
         debugMark(this.currentWaypoint);
         pushPathToWaypoint(true);
 
@@ -296,7 +296,7 @@ public class EntityAITravel extends EntityAIBase {
         mob.elytraFlight.abortToLanding();
 
         this.currentWaypoint = null;
-        mob.setCurrentWaypoint(null);
+        mob.getTravelCommon().setCurrentWaypoint(null);
         clearNav();
         resetLocalTracking();
         // Every normal boat-crossing exit goes through dismountAndDeleteBoat() (arrival, stuck
@@ -406,7 +406,7 @@ public class EntityAITravel extends EntityAIBase {
             retarget(liveTarget);
             currentWaypoint = computeNextWaypointOrHandleBlocked();
             if (mob.isDead) return;
-            mob.setCurrentWaypoint(currentWaypoint);
+            mob.getTravelCommon().setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
         }
@@ -463,7 +463,7 @@ public class EntityAITravel extends EntityAIBase {
         // of waiting for that.
         if (currentWaypoint != null && !LoadedChunks.isAreaLoaded(mob.world, currentWaypoint, 1)) {
             currentWaypoint = null;
-            mob.setCurrentWaypoint(null);
+            mob.getTravelCommon().setCurrentWaypoint(null);
             clearNav();
         }
 
@@ -473,7 +473,7 @@ public class EntityAITravel extends EntityAIBase {
         if (currentWaypoint == null) {
             currentWaypoint = computeNextWaypointOrHandleBlocked();
             if (mob.isDead) return;
-            mob.setCurrentWaypoint(currentWaypoint);
+            mob.getTravelCommon().setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
         }
@@ -494,7 +494,7 @@ public class EntityAITravel extends EntityAIBase {
         // dead stop of up to half a second at the end of every partial route while this gate waited
         // for the recalc phase - so it may ask immediately; pushPathToWaypoint's own scheduler slot
         // and per-mob cooldowns still bound the actual work.
-        boolean recalcDue = (mob.ticksExisted + mob.getRecalcPhase()) % this.recalcTicks == 0;
+        boolean recalcDue = (mob.ticksExisted + mob.getTravelCommon().getRecalcPhase()) % this.recalcTicks == 0;
         // Bounded by the per-mob path cooldown: "immediately" means "without waiting out the recalc
         // phase on top of the cooldown", never "a search every tick".
         boolean mountedUnattended = mob.isMountedOnBondedMount() && mob.getNavigator().noPath()
@@ -518,7 +518,7 @@ public class EntityAITravel extends EntityAIBase {
         if (currentWaypoint != null && isRoadWaypointReached(currentWaypoint)) {
             currentWaypoint = computeNextWaypointOrHandleBlocked();
             if (mob.isDead) return;
-            mob.setCurrentWaypoint(currentWaypoint);
+            mob.getTravelCommon().setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
         }
@@ -655,7 +655,7 @@ public class EntityAITravel extends EntityAIBase {
                 clearNav();
                 currentWaypoint = computeNextWaypointOrHandleBlocked();
                 if (mob.isDead) return;
-                mob.setCurrentWaypoint(currentWaypoint);
+                mob.getTravelCommon().setCurrentWaypoint(currentWaypoint);
                 debugMark(currentWaypoint);
                 pushPathToWaypoint(true);
                 break;
@@ -665,7 +665,7 @@ public class EntityAITravel extends EntityAIBase {
                     BlockPos escape = findLocalEscapeWaypoint();
                     if (escape != null) {
                         currentWaypoint = escape;
-                        mob.setCurrentWaypoint(escape);
+                        mob.getTravelCommon().setCurrentWaypoint(escape);
                     } else {
                         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "stuck", "dead end: no reachable detour or escape");
                         stuck().ladder.deadEnd(ladderTimings());
@@ -679,7 +679,7 @@ public class EntityAITravel extends EntityAIBase {
                 nextItineraryReplanTick = 0;
                 replanItineraryFromHere("no headway for " + stuck().ladder.stallTicks() + " ticks");
                 currentWaypoint = null;
-                mob.setCurrentWaypoint(null);
+                mob.getTravelCommon().setCurrentWaypoint(null);
                 clearNav();
                 break;
             case HOP:
@@ -719,7 +719,7 @@ public class EntityAITravel extends EntityAIBase {
         if (rescued) {
             resetStuckState();
             currentWaypoint = computeNextWaypointToward(targetVillage, stepBlocks);
-            mob.setCurrentWaypoint(currentWaypoint);
+            mob.getTravelCommon().setCurrentWaypoint(currentWaypoint);
             debugMark(currentWaypoint);
             pushPathToWaypoint();
             return;
@@ -799,7 +799,7 @@ public class EntityAITravel extends EntityAIBase {
         if (!mob.elytraFlight.requestTakeoff(glide)) return false;
 
         this.currentWaypoint = null;
-        mob.setCurrentWaypoint(null);
+        mob.getTravelCommon().setCurrentWaypoint(null);
         clearNav();
         return true;
     }
@@ -815,7 +815,7 @@ public class EntityAITravel extends EntityAIBase {
         }
 
         // Everyone else: normal village travel goal
-        return mob.getTargetVillage();
+        return mob.getTravelCommon().getTargetVillage();
     }
 
     private void retarget(BlockPos newTarget) {
@@ -974,7 +974,7 @@ public class EntityAITravel extends EntityAIBase {
         replanItineraryFromHere("gate unreachable");
         resetStuckState();
         currentWaypoint = null;
-        mob.setCurrentWaypoint(null);
+        mob.getTravelCommon().setCurrentWaypoint(null);
         clearNav();
         return true;
     }
@@ -1135,7 +1135,7 @@ public class EntityAITravel extends EntityAIBase {
 
             if (retry != null) {
                 this.currentWaypoint = retry;
-                mob.setCurrentWaypoint(retry);
+                mob.getTravelCommon().setCurrentWaypoint(retry);
                 debugMark(retry);
                 ok = navigateTo(retry, navSpeed);
             }
@@ -1146,7 +1146,7 @@ public class EntityAITravel extends EntityAIBase {
                 BlockPos escape = findLocalEscapeWaypoint();
                 if (escape != null) {
                     this.currentWaypoint = escape;
-                    mob.setCurrentWaypoint(escape);
+                    mob.getTravelCommon().setCurrentWaypoint(escape);
                     navigateTo(escape, navSpeed);
                 }
             }
@@ -1157,7 +1157,7 @@ public class EntityAITravel extends EntityAIBase {
     private void onArrivedAtVillage() {
         // do NOT clear targetVillage here; route manager uses it to align with Roam
         this.currentWaypoint = null;
-        mob.setCurrentWaypoint(null);
+        mob.getTravelCommon().setCurrentWaypoint(null);
         clearNav();
         if (isInBoat()) {
             dismountAndDeleteBoat();
@@ -1500,7 +1500,7 @@ public class EntityAITravel extends EntityAIBase {
      */
     public void setForcedWaypoints(@Nullable List<BlockPos> waypoints) {
         ItineraryState st = mob.getItineraryState();
-        BlockPos dest = mob.getTargetVillage();
+        BlockPos dest = mob.getTravelCommon().getTargetVillage();
         if (waypoints == null || waypoints.isEmpty() || dest == null) {
             if (st.isForced()) st.clear();
             return;
@@ -1530,7 +1530,7 @@ public class EntityAITravel extends EntityAIBase {
 
         int baseStep = dynamicStep(from, dest);
         int step = Math.min(
-                baseStep + mob.getPathStepJitter(),
+                baseStep + mob.getTravelCommon().getPathStepJitter(),
                 (int) Math.sqrt(mob.getDistanceSqToCenter(dest))
         );
         step = Math.max(8, step);
@@ -1707,7 +1707,7 @@ public class EntityAITravel extends EntityAIBase {
         for (int angleDeg : ANG) {
             Vec3d dir = terrain.rotateY(base, Math.toRadians(angleDeg));
             BlockPos candidate = terrain.surfaceAtOffset(from, dir, detStep,
-                    new Vec3d(-dir.z, 0, dir.x).normalize().scale(mob.getPathLaneOffset() * 0.5));
+                    new Vec3d(-dir.z, 0, dir.x).normalize().scale(mob.getTravelCommon().getPathLaneOffset() * 0.5));
 
             if (candidate == null) continue; // no standable/loaded terrain at all at this angle
 
@@ -1723,7 +1723,7 @@ public class EntityAITravel extends EntityAIBase {
             }
 
             this.currentWaypoint = candidate;
-            mob.setCurrentWaypoint(candidate);
+            mob.getTravelCommon().setCurrentWaypoint(candidate);
             debugMark(this.currentWaypoint);
             com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "path",
                     "detour ang=" + angleDeg + " accepted");

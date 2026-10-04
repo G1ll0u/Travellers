@@ -276,8 +276,8 @@ public class TravelCommon {
 
 // IMPORTANT: keep TravelCommon and the entity in sync:
         this.targetVillage = firstStop;           // <--- ADD THIS
-        owner.setTargetVillage(firstStop);
-        owner.setCurrentWaypoint(null);
+        owner.getTravelCommon().setTargetVillage(firstStop);
+        owner.getTravelCommon().setCurrentWaypoint(null);
         this.readyToDepart = true;
         this.departCooldownTicks = 0;
 
@@ -422,14 +422,14 @@ public class TravelCommon {
         if (owner.isInCombat() || owner.getAttackTarget() != null) return;
         // A village visit caps its own body turns (TravellerMoveHelper).
         if (owner.isVisitingVillage()) return;
-        if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
+        if (owner.getNavigator().noPath() && owner.getTravelCommon().getCurrentWaypoint() == null) return;
 
         double dx = owner.motionX, dz = owner.motionZ;
 
         // In water, trust the waypoint over noisy motion
         boolean water = owner.isInWater();
         if (water || (dx * dx + dz * dz) < 0.0016D) { // speed < 0.04
-            BlockPos wp = owner.getCurrentWaypoint();
+            BlockPos wp = owner.getTravelCommon().getCurrentWaypoint();
             if (wp == null) return;
             dx = (wp.getX() + 0.5D) - owner.posX;
             dz = (wp.getZ() + 0.5D) - owner.posZ;
@@ -451,12 +451,12 @@ public class TravelCommon {
     }
 
     public boolean isAtTargetStop() {
-        return isAtStop(owner.getTargetVillage(), 0);
+        return isAtStop(owner.getTravelCommon().getTargetVillage(), 0);
     }
 
     /** Arrival with hysteresis: once inside, the stop only counts as left a few blocks further out. */
     public boolean isAtTargetStopHys(boolean lastWasInside) {
-        return isAtStop(owner.getTargetVillage(), lastWasInside ? ARRIVAL_HYSTERESIS_BLOCKS : 0);
+        return isAtStop(owner.getTravelCommon().getTargetVillage(), lastWasInside ? ARRIVAL_HYSTERESIS_BLOCKS : 0);
     }
 
     private static final int ARRIVAL_HYSTERESIS_BLOCKS = 8;
@@ -534,9 +534,9 @@ public class TravelCommon {
         }
 
         if (owner.isInCombat() || owner.isInPostCombatSilence() || owner.isAutoEating() || owner.isHandActive()) return;
-        if (owner.getTargetVillage() == null) return;
+        if (owner.getTravelCommon().getTargetVillage() == null) return;
         if (owner.getTravelAI() == null) return;
-        if (owner.getNavigator().noPath() && owner.getCurrentWaypoint() == null) return;
+        if (owner.getNavigator().noPath() && owner.getTravelCommon().getCurrentWaypoint() == null) return;
         if (owner.motionX * owner.motionX + owner.motionZ * owner.motionZ < 0.005) return;
 
         if (!owner.world.isRemote) {

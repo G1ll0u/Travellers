@@ -115,7 +115,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
 
         // Only while travelling to somewhere (not idling in village)
         if (mob.isVillageIdling()) return false;
-        if (mob.getTargetVillage() == null) return false;
+        if (mob.getTravelCommon().getTargetVillage() == null) return false;
 
         // Random gate so it’s occasional
         if (mob.getRNG().nextFloat() > startChancePerTick) return false;
@@ -150,7 +150,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     public void startExecuting() {
         mob.scheduleNextTravelAmbient();
         mob.getNavigator().clearPath();
-        mob.setCurrentWaypoint(null);
+        mob.getTravelCommon().setCurrentWaypoint(null);
 
         castTimer = fishTimer = reelTimer = 0;
 
@@ -170,7 +170,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
             mob.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
         }
         mob.getNavigator().clearPath();
-        mob.setCurrentWaypoint(null);
+        mob.getTravelCommon().setCurrentWaypoint(null);
         phase = Phase.IDLE;
         mob.getGaze().clearFocus(TravellerGaze.Kind.POINT);
         // Cooldown before next fishing session

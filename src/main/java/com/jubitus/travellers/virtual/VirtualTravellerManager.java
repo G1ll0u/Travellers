@@ -2362,9 +2362,9 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (!liveRoute.isEmpty() && liveIndex >= 0 && liveIndex < liveRoute.size()) {
             r.setTrip(liveRoute, liveIndex);
             r.goal = liveRoute.get(liveIndex);
-        } else if (entity.getTargetVillage() != null) {
-            r.setTrip(java.util.Collections.singletonList(entity.getTargetVillage()), 0);
-            r.goal = entity.getTargetVillage();
+        } else if (entity.getTravelCommon().getTargetVillage() != null) {
+            r.setTrip(java.util.Collections.singletonList(entity.getTravelCommon().getTargetVillage()), 0);
+            r.goal = entity.getTravelCommon().getTargetVillage();
         }
     }
 
@@ -2545,9 +2545,9 @@ public class VirtualTravellerManager extends WorldSavedData {
         entity.getTravelCommon().setVisitedStop(null);
         if (campStand != null) {
             // Camping: stay put at the slot. Real camp behaviour (build/sleep/wander) is AI (P4).
-            entity.setReadyToDepart(false);
-            entity.setVillageIdling(true);
-            entity.setVillageIdleTicks(0);
+            entity.getTravelCommon().setReadyToDepart(false);
+            entity.getTravelCommon().setVillageIdling(true);
+            entity.getTravelCommon().setVillageIdleTicks(0);
             // Sleep is a purely-loaded cosmetic pose, never simulated virtually or persisted to
             // NBT — but force it off anyway so a fresh materialize can never render "lying down"
             // while EntityAICampStay (re-evaluating from scratch) thinks the entity is standing.
@@ -2558,9 +2558,9 @@ public class VirtualTravellerManager extends WorldSavedData {
             if (r.currentTripStop() != null) {
                 entity.restoreVirtualRoute(r.tripStops, r.tripIndex);
             } else {
-                entity.setReadyToDepart(true);
-                entity.setVillageIdleTicks(0);
-                entity.setVillageIdling(false);
+                entity.getTravelCommon().setReadyToDepart(true);
+                entity.getTravelCommon().setVillageIdleTicks(0);
+                entity.getTravelCommon().setVillageIdling(false);
             }
         } else if (r.currentTripStop() != null
                 && !r.isHiredFollower && "IDLE".equals(r.workerMode)
