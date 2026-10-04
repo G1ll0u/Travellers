@@ -11,6 +11,7 @@ import com.jubitus.travellers.marker.WorkerMarkStyle;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
@@ -285,6 +286,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.tasks.addTask(14, new com.jubitus.travellers.mount.EntityAIClaimLooseMount(this));
     }
 
+    @Override
     public boolean isOwner(@Nullable EntityLivingBase target) {
         if (target == null) return false;
         EntityPlayer owner = getFollowOwner();
@@ -634,6 +636,61 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public boolean isUsingTravelAI() {
         return this.dataManager.get(USING_TRAVEL_AI);
+    }
+
+    // Hired workers don't roam: they only get a route for a job, a catch-up or going home.
+    @Override
+    protected boolean shouldAutoPlanRoute() {
+        return !isHiredFollower()
+                || isJobActive()
+                || isCatchupTravel()
+                || isGoingHome();
+    }
+
+    @Override
+    protected boolean rerollsAppearanceAtSpawn() {
+        return true;
+    }
+
+    @Override
+    protected TravellerAppearance pickAppearance(CultureDef c, int textureIndex) {
+        return c.getWorkerAppearance(textureIndex);
+    }
+
+    @Override
+    protected int groupAttackerCapFloor(int divisor) {
+        return getCachedGroupSize() / divisor;
+    }
+
+    @Override
+    public boolean isOwnerStillFightingAssistTarget(EntityLivingBase target) {
+        EntityPlayer owner = getFollowOwner();
+        if (owner == null || !owner.isEntityAlive()) return false;
+        if (owner.getLastAttackedEntity() != target) return false;
+        return (owner.ticksExisted - owner.getLastAttackedEntityTime()) <= TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
+    }
+
+    @Override
+    @Nullable
+    public EntityPlayer getHiredOwner() {
+        return isHiredFollower() ? getFollowOwner() : null;
+    }
+
+    @Override
+    public boolean isHostileUnit(EntityTraveller other) {
+        if (other instanceof EntityTravellerWorker) {
+            return playerHostility.isEnemyHiredWorker((EntityTravellerWorker) other) || super.isHostileUnit(other);
+        }
+        return super.isHostileUnit(other);
+    }
+
+    // Hired workers only wear it on a mission (flag is synced; the mission fields are server-only)
+    @Override
+    public boolean shouldRenderBackpack() {
+        if (isHiredFollower()) {
+            return isMissionCarrying() && !isBackpackHiddenByCombat();
+        }
+        return super.shouldRenderBackpack();
     }
 
     // Base hook: auto-planner will skip this entity when true

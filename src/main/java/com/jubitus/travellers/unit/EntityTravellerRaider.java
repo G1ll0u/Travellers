@@ -5,6 +5,7 @@ import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
+import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.culture.VillagerFilterRules;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
@@ -335,6 +336,16 @@ public class EntityTravellerRaider extends EntityTraveller {
     // Disable friendly voice/ambient entirely
     @Override
     public void scheduleNextTravelAmbient() { /* no-op */ }
+
+    @Override
+    protected boolean rerollsAppearanceAtSpawn() {
+        return true;
+    }
+
+    @Override
+    protected TravellerAppearance pickAppearance(CultureDef c, int textureIndex) {
+        return c.getRaiderAppearance(textureIndex);
+    }
 
     // Don’t run friendly ignore-logic when hurt
     @Override

@@ -512,6 +512,21 @@ public class EntityTraveller extends EntityCreature {
         return groupLeaderUUID != null || catchupTravel;
     }
 
+    // Whether the auto-planner may give this unit a new roaming route right now.
+    protected boolean shouldAutoPlanRoute() {
+        return true;
+    }
+
+    // Raiders and workers re-roll their appearance after onInitialSpawn, then equip themselves.
+    protected boolean rerollsAppearanceAtSpawn() {
+        return false;
+    }
+
+    // Only a hired worker has an owner.
+    public boolean isOwner(@Nullable EntityLivingBase target) {
+        return false;
+    }
+
     public void ignoreTarget(EntityLivingBase e, int ticks) {
         if (e == null) return;
         ignoreTargetsUntil.put(e.getUniqueID(), this.ticksExisted + Math.max(1, ticks));
@@ -571,20 +586,17 @@ public class EntityTraveller extends EntityCreature {
      */
     public int computeEffectiveAttackerCap(EntityLivingBase target) {
         int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
-        if (this instanceof EntityTravellerWorker) {
-            int groupBonus = ((EntityTravellerWorker) this).getCachedGroupSize()
-                    / Math.max(1, TravellersConfig.COMBAT.groupSizeAttackerCapDivisor);
-            return Math.max(dynamicMax, groupBonus);
-        }
-        return dynamicMax;
+        return Math.max(dynamicMax, groupAttackerCapFloor(Math.max(1, TravellersConfig.COMBAT.groupSizeAttackerCapDivisor)));
     }
 
+    // Hired workers raise the attacker cap to their group size / divisor; 0 = no floor (the cap is always >= 1).
+    protected int groupAttackerCapFloor(int divisor) {
+        return 0;
+    }
+
+    // Only hired workers have an owner to assist.
     public boolean isOwnerStillFightingAssistTarget(EntityLivingBase target) {
-        if (!(this instanceof EntityTravellerWorker)) return false;
-        EntityPlayer owner = ((EntityTravellerWorker) this).getFollowOwner();
-        if (owner == null || !owner.isEntityAlive()) return false;
-        if (owner.getLastAttackedEntity() != target) return false;
-        return (owner.ticksExisted - owner.getLastAttackedEntityTime()) <= TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
+        return false;
     }
 
     @Override
@@ -654,13 +666,12 @@ public class EntityTraveller extends EntityCreature {
         if (c == null) {
             return new TravellerAppearance(new ResourceLocation("minecraft", "textures/entity/steve.png"));
         }
-        if (this instanceof EntityTravellerRaider) {
-            return c.getRaiderAppearance(getTextureIndex());
-        }
-        if (this instanceof EntityTravellerWorker) {
-            return c.getWorkerAppearance(getTextureIndex());
-        }
-        return c.getAppearance(getTextureIndex());
+        return pickAppearance(c, getTextureIndex());
+    }
+
+    // The appearance pool of this unit type (raiders and workers have their own).
+    protected TravellerAppearance pickAppearance(CultureDef c, int textureIndex) {
+        return c.getAppearance(textureIndex);
     }
 
     public String getCultureId() {
@@ -1507,20 +1518,7 @@ public class EntityTraveller extends EntityCreature {
             if (!isRouteLocked()
                     && (travelCommon.routeIndex < 0 || travelCommon.routeIndex >= travelCommon.route.size())) {
 
-                // ✅ stop random roaming routes ONLY for hired follower workers
-                if (this instanceof EntityTravellerWorker) {
-                    EntityTravellerWorker w = (EntityTravellerWorker) this;
-
-                    boolean shouldAutoPlan =
-                            !w.isHiredFollower()
-                                    || w.isJobActive()
-                                    || w.isCatchupTravel()
-                                    || w.isGoingHome();
-
-                    if (shouldAutoPlan) {
-                        travelCommon.ensureRoutePlanned();
-                    }
-                } else {
+                if (shouldAutoPlanRoute()) {
                     travelCommon.ensureRoutePlanned();
                 }
             }
@@ -1654,7 +1652,7 @@ public class EntityTraveller extends EntityCreature {
             // after this method returns (their pool differs from the plain traveller pool used
             // above), then call initSpawnEquipment themselves — calling it here too would read
             // equipment tied to the wrong (pre-reroll) appearance and be immediately redone anyway.
-            if (!(this instanceof EntityTravellerRaider) && !(this instanceof EntityTravellerWorker)) {
+            if (!rerollsAppearanceAtSpawn()) {
                 equipment.initSpawnEquipment(c, this.rand);
             }
 
@@ -2262,12 +2260,13 @@ public void fall(float distance, float damageMultiplier) {
      * worker-specific attack list used to silently skip this check entirely otherwise.
      */
     public boolean checkAncientWarfare2Hostility(Entity e) {
-        EntityPlayer effectiveOwner = null;
-        if (this instanceof EntityTravellerWorker) {
-            EntityTravellerWorker worker = (EntityTravellerWorker) this;
-            if (worker.isHiredFollower()) effectiveOwner = worker.getFollowOwner();
-        }
-        return AncientWarfare2Compat.isHostile(e, effectiveOwner);
+        return AncientWarfare2Compat.isHostile(e, getHiredOwner());
+    }
+
+    // The player this unit fights for (a hired worker's owner), or null.
+    @Nullable
+    public EntityPlayer getHiredOwner() {
+        return null;
     }
 
 
@@ -2765,10 +2764,12 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     private boolean isHostileMountRider(EntityTraveller rider) {
-        if (this instanceof EntityTravellerWorker && rider instanceof EntityTravellerWorker) {
-            return ((EntityTravellerWorker) this).playerHostility.isEnemyHiredWorker((EntityTravellerWorker) rider);
-        }
-        return com.jubitus.travellers.combat.Hostility.isCrossFaction(this, rider);
+        return isHostileUnit(rider);
+    }
+
+    // Opposite factions; hired workers also fight the workers of an enemy owner.
+    public boolean isHostileUnit(EntityTraveller other) {
+        return com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other);
     }
 
     public java.util.List<BlockPos> getTravelRoute() {
@@ -3129,11 +3130,6 @@ public void fall(float distance, float damageMultiplier) {
     }
 
     public boolean shouldRenderBackpack() {
-        // Hired workers only wear it on a mission (flag is synced; the mission fields are server-only)
-        if (this instanceof EntityTravellerWorker && ((EntityTravellerWorker) this).isHiredFollower()) {
-            return ((EntityTravellerWorker) this).isMissionCarrying() && !isBackpackHiddenByCombat();
-        }
-
         IBackpackStyle style = BackpackRegistry.resolve(this);
         if (style != null && !style.isHideable()) return true;
 
@@ -3303,9 +3299,7 @@ public void fall(float distance, float damageMultiplier) {
         }
         int prio = AttackTargetLimiter.priorityFor(this);
         int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
-        int effectiveMax = (this instanceof EntityTravellerWorker)
-                ? Math.max(dynamicMax, ((EntityTravellerWorker) this).getCachedGroupSize() / 5)
-                : dynamicMax;
+        int effectiveMax = Math.max(dynamicMax, groupAttackerCapFloor(5));
         if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
             ignoreTarget(target, 30); // brief backoff — prevents frantic retry every scan tick
             return false;

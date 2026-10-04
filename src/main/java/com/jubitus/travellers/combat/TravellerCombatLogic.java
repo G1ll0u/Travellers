@@ -259,12 +259,7 @@ public class TravellerCombatLogic {
 
         if (e instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) e;
-            if (entity instanceof EntityTravellerWorker && t instanceof EntityTravellerWorker) {
-                EntityTravellerWorker me = (EntityTravellerWorker) entity;
-                if (!me.shouldAttackExtraEntity(e) && !Hostility.isCrossFaction(entity, t)) return;
-            } else {
-                if (!Hostility.isCrossFaction(entity, t)) return;
-            }
+            if (!entity.isHostileUnit(t)) return;
         }
 
         if (e instanceof EntityPlayer) {
@@ -492,26 +487,10 @@ public class TravellerCombatLogic {
         if (target instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) target;
 
-            // ✅ Exception: hired worker vs hired worker can fight if owners are hostile
-            if (entity instanceof EntityTravellerWorker && other instanceof EntityTravellerWorker) {
-                EntityTravellerWorker me = (EntityTravellerWorker) entity;
-                EntityTravellerWorker them = (EntityTravellerWorker) other;
-
-                if (me.shouldAttackExtraEntity(them)) {
-                    // allow, do NOT reject
-                } else {
-                    // fall through to normal faction rules
-                    if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(entity, other)) {
-                        rejectTarget();
-                        return;
-                    }
-                }
-            } else {
-                // Normal travellers: block same-faction fights
-                if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(entity, other)) {
-                    rejectTarget();
-                    return;
-                }
+            // Same-faction fights are blocked, except hired workers of hostile owners
+            if (!entity.isHostileUnit(other)) {
+                rejectTarget();
+                return;
             }
         }
 
@@ -632,13 +611,9 @@ public class TravellerCombatLogic {
             return true;
         }
 
-        // NEW: if worker is hit by its owner, never aggro back
-        if (entity instanceof EntityTravellerWorker && src instanceof EntityPlayer) {
-            EntityTravellerWorker w = (EntityTravellerWorker) entity;
-            EntityPlayer owner = w.getFollowOwner();
-            if (owner != null && owner == src) {
-                return true;
-            }
+        // A worker hit by its owner never aggroes back
+        if (src instanceof EntityPlayer && entity.isOwner((EntityPlayer) src)) {
+            return true;
         }
 
         if (src instanceof EntityTraveller) {
