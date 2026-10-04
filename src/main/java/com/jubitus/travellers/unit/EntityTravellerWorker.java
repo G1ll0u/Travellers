@@ -26,6 +26,7 @@ import com.jubitus.travellers.follow.FollowFormationCoordinator;
 import com.jubitus.travellers.follow.FollowMode;
 import com.jubitus.travellers.follow.FollowRecoveryHelper;
 import com.jubitus.travellers.follow.FollowRuntimeConfig;
+import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
@@ -453,13 +454,17 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Nullable
     public UUID getEscortLeaderUUID() {
-        return playerHostility.getEscortLeaderUUID();
+        Optional<UUID> o = this.dataManager.get(ESCORT_LEADER_DM);
+        return o.isPresent() ? o.get() : null;
     }
 
+    // A loaded worker in this world, or null.
     @Nullable
-    private EntityTravellerWorker resolveEscortLeader(UUID id) {
-
-        return playerHostility.resolveEscortLeader(id);
+    public EntityTravellerWorker resolveEscortLeader(@Nullable UUID id) {
+        if (id == null) return null;
+        if (!(world instanceof WorldServer)) return null;
+        Entity e = ((WorldServer) world).getEntityFromUuid(id);
+        return (e instanceof EntityTravellerWorker) ? (EntityTravellerWorker) e : null;
     }
 
     @Nullable
@@ -1297,7 +1302,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public void setEscortLeaderUUID(@Nullable UUID id) {
         // Prevent cycles / self-follow
-        if (wouldCreateEscortCycle(id)) {
+        if (WorkerGroupService.wouldCreateLoadedEscortCycle(this, id)) {
             id = null;
         }
 
@@ -1306,32 +1311,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
     }
 
-    private boolean wouldCreateEscortCycle(@Nullable UUID newLeaderId) {
-        if (newLeaderId == null) return false;
-
-        // can't follow self
-        if (newLeaderId.equals(this.getUniqueID())) return true;
-
-        // Walk up the leader chain: newLeader -> its leader -> ...
-        // If we ever reach "this", it would create a cycle.
-        UUID cur = newLeaderId;
-
-        // safety cap (prevents infinite loops if data is corrupted)
-        for (int i = 0; i < 32 && cur != null; i++) {
-            EntityTravellerWorker curLeader = playerHostility.resolveEscortLeader(cur);
-            if (curLeader == null || curLeader.isDead) return false;
-
-            UUID next = curLeader.getEscortLeaderUUID();
-
-            if (next == null) return false;
-            if (next.equals(this.getUniqueID())) return true;
-
-            cur = next;
-        }
-
-        // If chain is absurdly long / weird, treat as unsafe
-        return true;
-    }
 
     /**
      * Final clean up when worker has come back to the employer.
@@ -1678,9 +1657,9 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
     @Nullable
     public EntityLivingBase getEffectiveFollowTarget() {
-        UUID leaderId = playerHostility.getEscortLeaderUUID();
+        UUID leaderId = getEscortLeaderUUID();
         if (leaderId != null) {
-            EntityTravellerWorker leader = playerHostility.resolveEscortLeader(leaderId);
+            EntityTravellerWorker leader = resolveEscortLeader(leaderId);
 
             if (leader != null
                     && !leader.isDead
@@ -1770,12 +1749,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public boolean isEscortingLeader(EntityTravellerWorker leader) {
-        UUID id = playerHostility.getEscortLeaderUUID();
+        UUID id = getEscortLeaderUUID();
         return id != null && leader != null && id.equals(leader.getUniqueID());
     }
 
     public boolean hasEscortLeader() {
-        return playerHostility.getEscortLeaderUUID() != null;
+        return getEscortLeaderUUID() != null;
     }
 
     public void clearEscortLeader() {
@@ -2199,20 +2178,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             return;
         }
 
-        UUID ownerId = this.getFollowOwnerId();
-        UUID myId = this.getUniqueID();
-
-        // Count loaded hired workers whose escort leader == me
-        List<EntityTravellerWorker> all = world.getEntities(EntityTravellerWorker.class, w ->
-                w != null
-                        && !w.isDead
-                        && w != this
-                        && w.isHiredFollower()
-                        && Objects.equals(w.getFollowOwnerId(), ownerId)
-                        && myId.equals(w.getEscortLeaderUUID())
-        );
-
-        setLeaderFollowerCount(all.size());
+        setLeaderFollowerCount(WorkerGroupService.countLoadedFollowers(this));
     }
 
     private void setLeaderFollowerCount(int v) {
@@ -2339,7 +2305,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         UUID leaderId = this.getEscortLeaderUUID(); // via PlayerHostility / datamanager
         if (leaderId == null) return;
 
-        EntityTravellerWorker leader = this.playerHostility.resolveEscortLeader(leaderId);
+        EntityTravellerWorker leader = resolveEscortLeader(leaderId);
 
         // Always check virtual registry first: setDead() leaves the entity in the loaded
         // list for 1+ ticks with isDead=true, which would incorrectly look like a dead leader.
@@ -2525,7 +2491,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 nbt.setInteger("IdleAy", idleAnchorPos.getY());
                 nbt.setInteger("IdleAz", idleAnchorPos.getZ());
             }
-            UUID leaderId = playerHostility.getEscortLeaderUUID(); // from DataManager
+            UUID leaderId = getEscortLeaderUUID(); // from DataManager
             if (leaderId != null) {
                 nbt.setUniqueId("EscortLeaderUUID", leaderId);
             }

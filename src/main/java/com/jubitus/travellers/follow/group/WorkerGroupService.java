@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -400,6 +401,37 @@ public final class WorkerGroupService {
         epilogue(player, server, setOf(leaderId));
     }
 
+    /**
+     * Would {@code follower} escorting {@code newLeaderId} close a loop? Walks loaded workers of the
+     * follower's world only (an unloaded link ends the walk as "no loop"), unlike {@link #chainReaches}.
+     */
+    public static boolean wouldCreateLoadedEscortCycle(EntityTravellerWorker follower, @Nullable UUID newLeaderId) {
+        if (newLeaderId == null) return false;
+
+        // can't follow self
+        if (newLeaderId.equals(follower.getUniqueID())) return true;
+
+        // Walk up the leader chain: newLeader -> its leader -> ...
+        // If we ever reach the follower, it would create a cycle.
+        UUID cur = newLeaderId;
+
+        // safety cap (prevents infinite loops if data is corrupted)
+        for (int i = 0; i < 32 && cur != null; i++) {
+            EntityTravellerWorker curLeader = follower.resolveEscortLeader(cur);
+            if (curLeader == null || curLeader.isDead) return false;
+
+            UUID next = curLeader.getEscortLeaderUUID();
+
+            if (next == null) return false;
+            if (next.equals(follower.getUniqueID())) return true;
+
+            cur = next;
+        }
+
+        // If chain is absurdly long / weird, treat as unsafe
+        return true;
+    }
+
     /** True if {@code startId}'s escort chain (following escortLeaderUUID upward) reaches {@code targetId}. */
     private static boolean chainReaches(MinecraftServer server, UUID owner, UUID startId, UUID targetId) {
         UUID cur = startId;
@@ -681,6 +713,23 @@ public final class WorkerGroupService {
             }
         }
         return count;
+    }
+
+    /** Loaded hired workers of the leader's world escorting it: the leader's own count DataParameter. */
+    public static int countLoadedFollowers(EntityTravellerWorker leader) {
+        UUID ownerId = leader.getFollowOwnerId();
+        UUID myId = leader.getUniqueID();
+
+        // Count loaded hired workers whose escort leader == me
+        List<EntityTravellerWorker> all = leader.world.getEntities(EntityTravellerWorker.class, w ->
+                w != null
+                        && !w.isDead
+                        && w != leader
+                        && w.isHiredFollower()
+                        && Objects.equals(w.getFollowOwnerId(), ownerId)
+                        && myId.equals(w.getEscortLeaderUUID())
+        );
+        return all.size();
     }
 
     /** Pushes the authoritative follower count for {@code leaderId} to {@code player}, if it's loaded. */

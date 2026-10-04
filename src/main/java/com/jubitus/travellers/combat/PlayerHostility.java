@@ -62,20 +62,6 @@ public class PlayerHostility {
 
     // ----------------------------------------------------------------
 
-    @Nullable
-    public UUID getEscortLeaderUUID() {
-        Optional<UUID> o = w.getDataManager().get(EntityTravellerWorker.ESCORT_LEADER_DM);
-        return o.isPresent() ? o.get() : null;
-    }
-
-    @Nullable
-    public EntityTravellerWorker resolveEscortLeader(UUID id) {
-        if (id == null) return null;
-        if (!(w.world instanceof WorldServer)) return null;
-        Entity e = ((WorldServer) w.world).getEntityFromUuid(id);
-        return (e instanceof EntityTravellerWorker) ? (EntityTravellerWorker) e : null;
-    }
-
     public void tickServer() {
         if (w.world.isRemote) return;
         cleanupEngagements();
