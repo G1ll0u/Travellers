@@ -607,4 +607,77 @@ public class TravelCommon {
         return center != null && badVillages.contains(center);
     }
 
+    // ---- persistence (the unit's own NBT) ----
+
+    public void writeNbt(net.minecraft.nbt.NBTTagCompound compound) {
+        if (getTargetVillage() != null) compound.setTag("TargetVillage", net.minecraft.nbt.NBTUtil.createPosTag(getTargetVillage()));
+        if (getCurrentWaypoint() != null)
+            compound.setIntArray("CurrentWaypoint", new int[]{getCurrentWaypoint().getX(), getCurrentWaypoint().getY(), getCurrentWaypoint().getZ()});
+        if (getRoamTarget() != null)
+            compound.setIntArray("RoamTarget", new int[]{getRoamTarget().getX(), getRoamTarget().getY(), getRoamTarget().getZ()});
+        compound.setInteger("PauseTicks", getPauseTicks());
+        compound.setInteger("VillageIdleTicks", getVillageIdleTicks());
+        compound.setBoolean("VillageIdling", isVillageIdling());
+        compound.setInteger("RouteIndex", routeIndex);
+        compound.setFloat("Wanderlust", wanderlust);
+        compound.setFloat("ExploreChance", exploreChance);
+        if (recentDestinations.length > 0) {
+            compound.setIntArray("RecentDests", RecentDestinationRing.toIntPairs(recentDestinations));
+        }
+        compound.setFloat("HopPreference", hopPreference);
+        compound.setFloat("PathAngleBiasDeg", getPathAngleBiasDeg());
+        compound.setDouble("PathLaneOffset", getPathLaneOffset());
+        compound.setInteger("PathStepJitter", getPathStepJitter());
+        compound.setInteger("RecalcPhase", getRecalcPhase());
+        compound.setBoolean("ReadyToDepart", isReadyToDepart());
+        compound.setInteger("DepartCooldown", getDepartCooldownTicks());
+        if (getVisitedStop() != null) compound.setLong("VisitedStop", getVisitedStop().toLong());
+        net.minecraft.nbt.NBTTagList lst = new net.minecraft.nbt.NBTTagList();
+        for (BlockPos p : route) {
+            lst.appendTag(new net.minecraft.nbt.NBTTagIntArray(new int[]{p.getX(), p.getY(), p.getZ()}));
+        }
+        compound.setTag("RouteVillages", lst);
+    }
+
+    public void readNbt(net.minecraft.nbt.NBTTagCompound compound) {
+        setTargetVillage(compound.hasKey("TargetVillage", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND)
+                ? net.minecraft.nbt.NBTUtil.getPosFromTag(compound.getCompoundTag("TargetVillage")) : null);
+        if (compound.hasKey("CurrentWaypoint")) {
+            int[] a = compound.getIntArray("CurrentWaypoint");
+            if (a.length == 3) setCurrentWaypoint(new BlockPos(a[0], a[1], a[2]));
+        } else {
+            setCurrentWaypoint(null);
+        }
+        if (compound.hasKey("RoamTarget")) {
+            int[] arr = compound.getIntArray("RoamTarget");
+            setRoamTarget(new BlockPos(arr[0], arr[1], arr[2]));
+        } else {
+            setRoamTarget(null);
+        }
+        if (compound.hasKey("Wanderlust")) wanderlust = compound.getFloat("Wanderlust");
+        if (compound.hasKey("ExploreChance")) exploreChance = compound.getFloat("ExploreChance");
+        if (compound.hasKey("RecentDests", 11)) {
+            recentDestinations = RecentDestinationRing.fromIntPairs(compound.getIntArray("RecentDests"));
+        }
+        if (compound.hasKey("HopPreference")) hopPreference = compound.getFloat("HopPreference");
+        if (compound.hasKey("PathAngleBiasDeg")) pathAngleBiasDeg = compound.getFloat("PathAngleBiasDeg");
+        if (compound.hasKey("PathLaneOffset")) pathLaneOffset = compound.getDouble("PathLaneOffset");
+        if (compound.hasKey("PathStepJitter")) pathStepJitter = compound.getInteger("PathStepJitter");
+        if (compound.hasKey("RecalcPhase")) recalcPhase = compound.getInteger("RecalcPhase");
+        setPauseTicks(compound.getInteger("PauseTicks"));
+        setVillageIdleTicks(compound.getInteger("VillageIdleTicks"));
+        setVillageIdling(compound.getBoolean("VillageIdling"));
+        route.clear();
+        if (compound.hasKey("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_LIST)) {
+            net.minecraft.nbt.NBTTagList lst = compound.getTagList("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_INT_ARRAY);
+            for (int i = 0; i < lst.tagCount(); i++) {
+                int[] a = lst.getIntArrayAt(i);
+                if (a.length == 3) route.add(new BlockPos(a[0], a[1], a[2]));
+            }
+        }
+        routeIndex = compound.getInteger("RouteIndex");
+        setReadyToDepart(compound.getBoolean("ReadyToDepart"));
+        setDepartCooldownTicks(compound.getInteger("DepartCooldown"));
+        setVisitedStop(compound.hasKey("VisitedStop") ? BlockPos.fromLong(compound.getLong("VisitedStop")) : null);
+    }
 }

@@ -399,4 +399,26 @@ public final class TravellerMountState {
     public void setRemountTicks(int ticks) {
         this.remountTicks = ticks;
     }
+
+    // ---- persistence (the unit's own NBT; the bond UUID is written by the unit) ----
+
+    void writeNbt(NBTTagCompound compound) {
+        compound.setInteger("MountGen", mountGeneration);
+        if (pendingMountPos != null) compound.setLong("PendingMountPos", pendingMountPos.toLong());
+        if (pendingMountNbt != null) compound.setTag("PendingMountNbt", pendingMountNbt);
+        // LED's own recovery tracking is transient, so a rider saved as LED would reload stuck on
+        // foot: MOUNTED is persisted instead (the next failed path re-arms LED). HITCHED is kept.
+        // INVARIANT: LED is never persisted.
+        MountMode savedMode = (mountMode == MountMode.LED) ? MountMode.MOUNTED : mountMode;
+        compound.setString("MountMode", savedMode.name());
+        if (mountSnapshotNbt != null) compound.setTag("MountSnapshot", mountSnapshotNbt);
+    }
+
+    void readNbt(NBTTagCompound compound) {
+        mountGeneration = compound.getInteger("MountGen");
+        setParkedMount(compound.hasKey("PendingMountNbt") ? compound.getCompoundTag("PendingMountNbt") : null,
+                compound.hasKey("PendingMountPos") ? BlockPos.fromLong(compound.getLong("PendingMountPos")) : null);
+        mountMode = MountMode.byName(compound.getString("MountMode"));
+        mountSnapshotNbt = compound.hasKey("MountSnapshot") ? compound.getCompoundTag("MountSnapshot") : null;
+    }
 }

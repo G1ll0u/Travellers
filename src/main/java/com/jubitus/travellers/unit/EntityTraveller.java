@@ -1521,38 +1521,12 @@ public class EntityTraveller extends EntityCreature {
 
             // ---- your existing writes below ----
             compound.setTag("TravellerInv", inventory.serializeNBT());
-            if (travelCommon.getTargetVillage() != null)
-                compound.setTag("TargetVillage", NBTUtil.createPosTag(travelCommon.getTargetVillage()));
-            if (travelCommon.getCurrentWaypoint() != null)
-                compound.setIntArray("CurrentWaypoint", new int[]{travelCommon.getCurrentWaypoint().getX(), travelCommon.getCurrentWaypoint().getY(), travelCommon.getCurrentWaypoint().getZ()});
-            if (travelCommon.getRoamTarget() != null)
-                compound.setIntArray("RoamTarget", new int[]{travelCommon.getRoamTarget().getX(), travelCommon.getRoamTarget().getY(), travelCommon.getRoamTarget().getZ()});
+            travelCommon.writeNbt(compound);
 
             compound.setInteger("LastCombatTick", this.dataManager.get(LAST_COMBAT_TICK));
-            compound.setInteger("PauseTicks", travelCommon.getPauseTicks());
-            compound.setInteger("VillageIdleTicks", travelCommon.getVillageIdleTicks());
-            compound.setBoolean("VillageIdling", travelCommon.isVillageIdling());
-            compound.setInteger("RouteIndex", travelCommon.routeIndex);
             itineraryState.writeNbt(compound, ITINERARY_NBT_KEY);
             compound.setInteger("TextureIdx", getTextureIndex());
             compound.setFloat("RenderScale", getRenderScale());
-            compound.setFloat("Wanderlust", travelCommon.wanderlust);
-            compound.setFloat("ExploreChance", travelCommon.exploreChance);
-            if (travelCommon.recentDestinations.length > 0) {
-                compound.setIntArray("RecentDests",
-                        com.jubitus.travellers.travel.destination.RecentDestinationRing
-                                .toIntPairs(travelCommon.recentDestinations));
-            }
-            compound.setFloat("HopPreference", travelCommon.hopPreference);
-            compound.setFloat("PathAngleBiasDeg", travelCommon.getPathAngleBiasDeg());
-            compound.setDouble("PathLaneOffset", travelCommon.getPathLaneOffset());
-            compound.setInteger("PathStepJitter", travelCommon.getPathStepJitter());
-            compound.setInteger("RecalcPhase", travelCommon.getRecalcPhase());
-            compound.setBoolean("ReadyToDepart", travelCommon.isReadyToDepart());
-            compound.setInteger("DepartCooldown", travelCommon.getDepartCooldownTicks());
-            if (travelCommon.getVisitedStop() != null) {
-                compound.setLong("VisitedStop", travelCommon.getVisitedStop().toLong());
-            }
             if (villageHitchStop != null) compound.setLong("VillageHitchStop", villageHitchStop.toLong());
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, voice.getPersonalityId());
@@ -1560,32 +1534,13 @@ public class EntityTraveller extends EntityCreature {
             compound.setString("GroupFormationStyle", groupFormationStyle.name());
             if (travelMotive != null) compound.setString("TravelMotive", travelMotive.name());
             if (getMountUUID() != null) compound.setUniqueId("MountUUID", getMountUUID());
-            compound.setInteger("MountGen", mountState.getMountGeneration());
-            if (mountState.getPendingMountPos() != null) compound.setLong("PendingMountPos", mountState.getPendingMountPos().toLong());
             if (villageVisitState != null) compound.setTag(VillageVisitState.NBT_KEY, villageVisitState.write());
-            if (mountState.getPendingMountNbt() != null) compound.setTag("PendingMountNbt", mountState.getPendingMountNbt());
-            // LED is a purely transient reconciler state (terrain fallback, water dismount) whose own
-            // recovery tracking (ledFallbackSinceTick) is NOT persisted - so a rider saved as LED
-            // would reload with the mode stuck and nothing left to heal it back (seen in the field: a
-            // traveller leading its horse forever with the horse standing right next to it). Persist
-            // MOUNTED instead; if the ground here really is still impassable, the next failed path
-            // re-arms LED properly on load. HITCHED is a stable intent with its own distance-based
-            // recall and is kept.
-            // INVARIANT: LED is never persisted.
-            MountMode savedMode = (mountState.getMountMode() == MountMode.LED) ? MountMode.MOUNTED : mountState.getMountMode();
-            compound.setString("MountMode", savedMode.name());
-            if (mountState.getMountSnapshotNbt() != null) compound.setTag("MountSnapshot", mountState.getMountSnapshotNbt());
+            mountState.writeNbt(compound);
             if (homeVillage != null) {
                 compound.setInteger("HomeVillageX", homeVillage.getX());
                 compound.setInteger("HomeVillageY", homeVillage.getY());
                 compound.setInteger("HomeVillageZ", homeVillage.getZ());
             }
-
-            NBTTagList lst = new NBTTagList();
-            for (BlockPos p : travelCommon.route) {
-                lst.appendTag(new NBTTagIntArray(new int[]{p.getX(), p.getY(), p.getZ()}));
-            }
-            compound.setTag("RouteVillages", lst);
 
             compound.setTag("DialogueMemory", dialogueMemory.toNbt());
 
@@ -1619,44 +1574,12 @@ public class EntityTraveller extends EntityCreature {
         if (!this.world.isRemote) {
             this.spawnAmbientCooldownTicks = Math.max(this.spawnAmbientCooldownTicks, 4 * 20); // at least ~4s
         }
-        if (compound.hasKey("TargetVillage", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND)) {
-            this.travelCommon.setTargetVillage(NBTUtil.getPosFromTag(
-                    compound.getCompoundTag("TargetVillage")));
-        } else {
-            this.travelCommon.setTargetVillage(null);
-        }
-
-        // CurrentWaypoint (only once)
-        if (compound.hasKey("CurrentWaypoint")) {
-            int[] a = compound.getIntArray("CurrentWaypoint");
-            if (a.length == 3) travelCommon.setCurrentWaypoint(new BlockPos(a[0], a[1], a[2]));
-        } else {
-            travelCommon.setCurrentWaypoint(null);
-        }
-
-        if (compound.hasKey("RoamTarget")) {
-            int[] arr = compound.getIntArray("RoamTarget");
-            travelCommon.setRoamTarget(new BlockPos(arr[0], arr[1], arr[2]));
-        } else {
-            travelCommon.setRoamTarget(null);
-        }
+        travelCommon.readNbt(compound);
         if (compound.hasKey("TravellerInv", net.minecraftforge.common.util.Constants.NBT.TAG_COMPOUND)) {
             inventory.deserializeNBT(compound.getCompoundTag("TravellerInv"));
         }
         if (compound.hasKey("TextureIdx")) setTextureIndex(compound.getInteger("TextureIdx"));
         if (compound.hasKey("RenderScale")) setRenderScale(compound.getFloat("RenderScale"));
-        if (compound.hasKey("Wanderlust")) travelCommon.wanderlust = compound.getFloat("Wanderlust");
-        if (compound.hasKey("ExploreChance")) travelCommon.exploreChance = compound.getFloat("ExploreChance");
-        if (compound.hasKey("RecentDests", 11)) {
-            travelCommon.recentDestinations =
-                    com.jubitus.travellers.travel.destination.RecentDestinationRing
-                            .fromIntPairs(compound.getIntArray("RecentDests"));
-        }
-        if (compound.hasKey("HopPreference")) travelCommon.hopPreference = compound.getFloat("HopPreference");
-        if (compound.hasKey("PathAngleBiasDeg")) travelCommon.pathAngleBiasDeg = compound.getFloat("PathAngleBiasDeg");
-        if (compound.hasKey("PathLaneOffset")) travelCommon.pathLaneOffset = compound.getDouble("PathLaneOffset");
-        if (compound.hasKey("PathStepJitter")) travelCommon.pathStepJitter = compound.getInteger("PathStepJitter");
-        if (compound.hasKey("RecalcPhase")) travelCommon.recalcPhase = compound.getInteger("RecalcPhase");
         if (compound.hasKey("CultureId")) setCultureId(compound.getString("CultureId"));
 
         if (!this.world.isRemote) {
@@ -1668,22 +1591,7 @@ public class EntityTraveller extends EntityCreature {
         }
 
 
-        travelCommon.setPauseTicks(compound.getInteger("PauseTicks"));
-        travelCommon.setVillageIdleTicks(compound.getInteger("VillageIdleTicks"));
-        travelCommon.setVillageIdling(compound.getBoolean("VillageIdling"));
-        travelCommon.route.clear();
-        if (compound.hasKey("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_LIST)) {
-            NBTTagList lst = compound.getTagList("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_INT_ARRAY);
-            for (int i = 0; i < lst.tagCount(); i++) {
-                int[] a = lst.getIntArrayAt(i);
-                if (a.length == 3) travelCommon.route.add(new BlockPos(a[0], a[1], a[2]));
-            }
-        }
-        travelCommon.routeIndex = compound.getInteger("RouteIndex");
         itineraryState.readNbt(compound, ITINERARY_NBT_KEY);
-        travelCommon.setReadyToDepart(compound.getBoolean("ReadyToDepart"));
-        travelCommon.setDepartCooldownTicks(compound.getInteger("DepartCooldown"));
-        travelCommon.setVisitedStop(compound.hasKey("VisitedStop") ? BlockPos.fromLong(compound.getLong("VisitedStop")) : null);
         villageHitchStop = compound.hasKey("VillageHitchStop") ? BlockPos.fromLong(compound.getLong("VillageHitchStop")) : null;
         groupLeaderUUID = compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null;
         if (compound.hasKey("GroupFormationStyle")) {
@@ -1708,14 +1616,10 @@ public class EntityTraveller extends EntityCreature {
             travelMotive = null;
         }
         setMountUUID(compound.hasUniqueId("MountUUID") ? compound.getUniqueId("MountUUID") : null);
-        mountState.setMountGeneration(compound.getInteger("MountGen"));
         // Always replaced, never merged: a stay that ended must not survive in a stale snapshot.
         villageVisitState = VillageVisitState.read(compound.hasKey(VillageVisitState.NBT_KEY)
                 ? compound.getCompoundTag(VillageVisitState.NBT_KEY) : null);
-        mountState.setParkedMount(compound.hasKey("PendingMountNbt") ? compound.getCompoundTag("PendingMountNbt") : null,
-                compound.hasKey("PendingMountPos") ? BlockPos.fromLong(compound.getLong("PendingMountPos")) : null);
-        mountState.setMountModeRaw(MountMode.byName(compound.getString("MountMode")));
-        mountState.setMountSnapshotNbt(compound.hasKey("MountSnapshot") ? compound.getCompoundTag("MountSnapshot") : null);
+        mountState.readNbt(compound);
         if (compound.hasKey("HomeVillageX")) {
             homeVillage = new BlockPos(
                     compound.getInteger("HomeVillageX"),
