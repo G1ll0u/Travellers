@@ -18,6 +18,6 @@ public final class TravellerKillSoundSystem {
         if (!(killer instanceof EntityTraveller)) return;
         EntityTraveller traveller = (EntityTraveller) killer;
         if (traveller.isDead) return;
-        traveller.tryPlayKillSound();
+        traveller.voice.tryPlayKill();
     }
 }

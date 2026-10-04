@@ -386,7 +386,7 @@ public class EntityTravellerRaider extends EntityTraveller {
     @Override
     @Nullable
     protected SoundEvent getHurtSound(DamageSource source) {
-        VoiceSet v = CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
+        VoiceSet v = CultureRegistry.resolveRaiderVoiceSet(getCultureId(), voice.getPersonalityId());
         return (v != null)
                 ? v.pickHurt(this.rand, SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT)
                 : SoundEvents.ENTITY_VINDICATION_ILLAGER_HURT;
@@ -399,12 +399,12 @@ public class EntityTravellerRaider extends EntityTraveller {
 
     @Override
     protected com.jubitus.travellers.unit.culture.VoiceSet resolveVoiceSetForAttack() {
-        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
+        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), voice.getPersonalityId());
     }
 
     @Override
     protected com.jubitus.travellers.unit.culture.VoiceSet resolveVoiceSetForKillDeath() {
-        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), getVoicePersonalityId());
+        return CultureRegistry.resolveRaiderVoiceSet(getCultureId(), voice.getPersonalityId());
     }
 
     @Override

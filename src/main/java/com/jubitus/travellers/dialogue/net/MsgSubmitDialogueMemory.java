@@ -78,7 +78,7 @@ public class MsgSubmitDialogueMemory implements IMessage {
             Entity e = world.getEntityByID(msg.entityId);
             if (!(e instanceof EntityTraveller)) return;
             EntityTraveller traveller = (EntityTraveller) e;
-            String personalityId = traveller.getVoicePersonalityId();
+            String personalityId = traveller.voice.getPersonalityId();
             long now = world.getTotalWorldTime();
             if (msg.facts != null) {
                 for (String fact : msg.facts) {

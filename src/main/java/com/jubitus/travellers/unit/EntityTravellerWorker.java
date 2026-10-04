@@ -1298,7 +1298,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
                     if (!pickupNotified) {
                         pickupNotified = true;
-                        this.playHelloSound();
+                        this.voice.playHello();
                         NotificationService.notify(employer, this.hasUnsoldGoods
                                 ? NotificationDefs.WORKER_CARGO_ARRIVED_PARTIAL
                                 : NotificationDefs.WORKER_CARGO_ARRIVED_FULL);
@@ -1454,11 +1454,11 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         if (!this.isInCombat()) {
             // Choose hello vs talk
-            if (shouldHelloFor(player)) {
-                playHelloSound();         // one hello variation
-                markHello(player);        // start the 5-minute window for THIS player
+            if (voice.shouldHelloFor(player)) {
+                voice.playHello();         // one hello variation
+                voice.markHello(player);        // start the 5-minute window for THIS player
             } else {
-                playTalkSound();          // normal chatter
+                voice.playTalk();          // normal chatter
             }
         }
 

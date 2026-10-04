@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.unit.TravellerVoice;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.sound.ModSounds;
@@ -544,7 +545,7 @@ public class TravelCommon {
             boolean someoneSinging = !owner.world.getEntitiesWithinAABB(
                     EntityTraveller.class,
                     owner.getEntityBoundingBox().grow(radius, 4.0, radius),
-                    e -> e != null && e != owner && e.isEntityAlive() && e.isAmbientPlayingNow()
+                    e -> e != null && e != owner && e.isEntityAlive() && e.voice.isAmbientPlaying()
             ).isEmpty();
 
             if (someoneSinging) {
@@ -555,9 +556,9 @@ public class TravelCommon {
             }
         }
 
-        if (owner.ticksExisted < owner.getVoiceLockUntilTick()) return;
+        if (owner.ticksExisted < owner.voice.getLockUntilTick()) return;
 
-        VoiceSet v = CultureRegistry.resolveTravellerVoiceSet(owner.getCultureId(), owner.getVoicePersonalityId());
+        VoiceSet v = CultureRegistry.resolveTravellerVoiceSet(owner.getCultureId(), owner.voice.getPersonalityId());
 
         SoundEvent evt = ModSounds.AMBIENT;
         if (v != null && v.ambient != null && v.ambient.length > 0) {
@@ -569,7 +570,7 @@ public class TravelCommon {
         float pitch = 0.95F + (owner.getRNG().nextFloat() - 0.5F) * 0.06F;
         int durTicks = 25 * 20 + owner.getRNG().nextInt(6 * 20);
 
-        if (owner.playVoiceMoving(evt, vol, pitch, durTicks, false, EntityTraveller.VoiceKind.AMBIENT)) {
+        if (owner.voice.play(evt, vol, pitch, durTicks, false, TravellerVoice.Kind.AMBIENT)) {
             owner.scheduleNextTravelAmbient();
         }
 

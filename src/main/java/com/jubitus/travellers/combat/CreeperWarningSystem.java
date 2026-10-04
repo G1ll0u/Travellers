@@ -51,7 +51,7 @@ public class CreeperWarningSystem {
         double travRadius = TravellersConfig.SOUND.creeperWarnTravellerRadius;
         AxisAlignedBB travBox = player.getEntityBoundingBox().grow(travRadius);
         List<EntityTraveller> candidates = world.getEntitiesWithinAABB(EntityTraveller.class, travBox,
-                t -> !(t instanceof EntityTravellerRaider) && !t.isDead && !t.isVoiceLockedNow());
+                t -> !(t instanceof EntityTravellerRaider) && !t.isDead && !t.voice.isLocked());
         if (candidates.isEmpty()) return;
 
         // Only the nearest traveller warns
@@ -70,7 +70,7 @@ public class CreeperWarningSystem {
         }
         if (!canSeeCreeper) return;
 
-        nearest.playCreeperWarningSound();
+        nearest.voice.playCreeperWarning();
         lastWarnByPlayer.put(player.getEntityId(), now);
     }
 

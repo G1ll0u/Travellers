@@ -1,5 +1,6 @@
 package com.jubitus.travellers.debug;
 
+import com.jubitus.travellers.unit.TravellerVoice;
 import com.jubitus.travellers.worldmap.pyramid.MapFillStats;
 import com.jubitus.travellers.ground.chunk.ChunkReader;
 import com.jubitus.travellers.unit.culture.CultureDef;
@@ -1970,7 +1971,7 @@ public class CommandTravellerDebug extends CommandBase {
             for (EntityTraveller t : nearby) {
                 SoundEvent snd = pickAmbientOrTalk(t);
                 if (snd == null) continue;
-                t.playVoiceMoving(snd, 1.0f, 1.0f, 400, true, EntityTraveller.VoiceKind.AMBIENT);
+                t.voice.play(snd, 1.0f, 1.0f, 400, true, TravellerVoice.Kind.AMBIENT);
                 triggered++;
             }
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN +
@@ -1984,9 +1985,9 @@ public class CommandTravellerDebug extends CommandBase {
                 SoundEvent talk = pickTalkOrAmbient(t);
                 if (ambient == null || talk == null) continue;
                 // First play starts the stream
-                t.playVoiceMoving(ambient, 1.0f, 1.0f, 200, true, EntityTraveller.VoiceKind.AMBIENT);
+                t.voice.play(ambient, 1.0f, 1.0f, 200, true, TravellerVoice.Kind.AMBIENT);
                 // Immediate replacement triggers the stop+restart race in the sound engine
-                t.playVoiceMoving(talk, 1.0f, 1.0f, 200, true, EntityTraveller.VoiceKind.TALK);
+                t.voice.play(talk, 1.0f, 1.0f, 200, true, TravellerVoice.Kind.TALK);
                 triggered++;
             }
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN +

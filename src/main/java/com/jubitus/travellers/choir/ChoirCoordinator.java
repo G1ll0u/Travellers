@@ -1,5 +1,6 @@
 package com.jubitus.travellers.choir;
 
+import com.jubitus.travellers.unit.TravellerVoice;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.culture.CultureRegistry;
@@ -89,7 +90,7 @@ public final class ChoirCoordinator {
                 continue;
             }
 
-            if (singer.isVoiceLockedNow()) {
+            if (singer.voice.isLocked()) {
                 // Still singing — clear any pending rejoin schedule
                 s.rejoinAt.remove(singer.getEntityId());
                 continue;
@@ -111,8 +112,8 @@ public final class ChoirCoordinator {
             }
 
             int stemIdx = s.stemByEntityId.getOrDefault(singer.getEntityId(), 0);
-            singer.playVoiceMoving(s.song.stem(stemIdx), s.vol, s.pitch, (int) remaining,
-                    true, EntityTraveller.VoiceKind.CHOIR);
+            singer.voice.play(s.song.stem(stemIdx), s.vol, s.pitch, (int) remaining,
+                    true, TravellerVoice.Kind.CHOIR);
             s.rejoinAt.remove(singer.getEntityId()); // clear — now active again
         }
     }
@@ -167,7 +168,7 @@ public final class ChoirCoordinator {
 
         for (EntityTraveller seed : candidates) {
             String lang = CultureRegistry.langForCulture(seed.getCultureId()).toLowerCase(Locale.ROOT);
-            String personality = seed.getVoicePersonalityId().toLowerCase(Locale.ROOT);
+            String personality = seed.voice.getPersonalityId().toLowerCase(Locale.ROOT);
 
             List<ChoirSongDef> songs = ChoirRegistry.getSongs(lang, personality);
             if (songs.isEmpty()) continue;
@@ -213,7 +214,7 @@ public final class ChoirCoordinator {
         if (!ChoirRegistry.hasAnySongs()) return;
 
         String lang = CultureRegistry.langForCulture(targetWorker.getCultureId()).toLowerCase(Locale.ROOT);
-        String personality = targetWorker.getVoicePersonalityId().toLowerCase(Locale.ROOT);
+        String personality = targetWorker.voice.getPersonalityId().toLowerCase(Locale.ROOT);
         List<ChoirSongDef> songs = ChoirRegistry.getSongs(lang, personality);
         if (songs.isEmpty()) return;
 
@@ -260,7 +261,7 @@ public final class ChoirCoordinator {
         for (int i = 0; i < singers.size(); i++) {
             EntityTraveller singer = singers.get(i);
             singer.setChoirSinging(true);
-            singer.playVoiceMoving(song.stem(i), vol, pitch, durTicks, true, EntityTraveller.VoiceKind.CHOIR);
+            singer.voice.play(song.stem(i), vol, pitch, durTicks, true, TravellerVoice.Kind.CHOIR);
             if (singer instanceof EntityTravellerWorker) {
                 ((EntityTravellerWorker) singer).setWorkerChoirActive(true);
             }

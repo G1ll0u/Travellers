@@ -157,7 +157,7 @@ public class EntityTraveller extends EntityCreature {
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
 
     // NEW: chosen voice personality (saved + synced)
-    private static final DataParameter<String> VOICE_PERSONALITY_ID =
+    static final DataParameter<String> VOICE_PERSONALITY_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
 
     // UUID of this entity's bonded horse companion - must be synced (not just server-side), since the
@@ -175,6 +175,7 @@ public class EntityTraveller extends EntityCreature {
     public final TravellerEquipmentManager equipment = new TravellerEquipmentManager(this);
     public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
     public final TravellerSleep sleep = new TravellerSleep(this);
+    public final TravellerVoice voice = new TravellerVoice(this);
     public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     final TravelCommon travelCommon = new TravelCommon(this);
     public static final String ITINERARY_NBT_KEY = "Itin";
@@ -779,15 +780,7 @@ public class EntityTraveller extends EntityCreature {
     private int hurtAnimCooldown = 0;
     private int travelRecoverTicks = 0;
     // --- Voice channel ---
-    private int voiceLockUntilTick = 0;     // no new sounds until this tick (entity-local, server authoritative)
-    private VoiceKind voiceKindNow = VoiceKind.NONE;
-    private int attackVoiceCooldownUntilTick = 0;
-    private int killVoiceCooldownUntilTick = 0;
     private int hurtSoundCooldownUntilTick = 0;
-    // One shout per 64-block zone per cooldown window: dim*large_prime ^ zx ^ zz -> world time of last shout
-    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> ATTACK_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> KILL_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.concurrent.ConcurrentHashMap<Long, Long> DEATH_ZONE_COOLDOWN = new java.util.concurrent.ConcurrentHashMap<>();
     private boolean choirSinging = false;   // managed by ChoirCoordinator, server-side only
     private int travelTorchCooldown = 0;
     private int stuckTargetTicks = 0;
@@ -1255,10 +1248,6 @@ public class EntityTraveller extends EntityCreature {
         this.nextTravelAmbientTick = tick;
     }
 
-    public int getVoiceLockUntilTick() {
-        return voiceLockUntilTick;
-    }
-
     // --- AI Init ---
     @Override
     protected void initEntityAI() {
@@ -1551,7 +1540,7 @@ public class EntityTraveller extends EntityCreature {
 
             // Play attack shout when freshly engaging a target
             if (target != null && prev == null) {
-                tryPlayAttackSound();
+                voice.tryPlayAttack();
             }
 
             // Loaded-vs-loaded fight tracking: the offscreen scanner never sees entities that were
@@ -1623,9 +1612,7 @@ public class EntityTraveller extends EntityCreature {
         // Edge probe for EntityAIFollowLeader followers only - see tickEdgeVirtualizeProbe's class
         // doc. getEdgeProbeGoal() returns null for everyone else, making this a no-op for them.
         if (!world.isRemote && tickEdgeVirtualizeProbe(getEdgeProbeGoal())) return;
-        if (!world.isRemote && voiceKindNow != VoiceKind.NONE && this.ticksExisted >= voiceLockUntilTick) {
-            voiceKindNow = VoiceKind.NONE;
-        }
+        if (!world.isRemote) voice.tick();
         if (!world.isRemote) {
             EntityLivingBase at = this.getAttackTarget();
             if (at != null && at.isEntityAlive()) {
@@ -1951,7 +1938,7 @@ public class EntityTraveller extends EntityCreature {
             }
             if (villageHitchStop != null) compound.setLong("VillageHitchStop", villageHitchStop.toLong());
             compound.setString("CultureId", getCultureId());
-            compound.setString(NBT_VOICE_PERSONALITY_ID, getVoicePersonalityId());
+            compound.setString(NBT_VOICE_PERSONALITY_ID, voice.getPersonalityId());
             if (groupLeaderUUID != null) compound.setUniqueId("GroupLeaderUUID", groupLeaderUUID);
             compound.setString("GroupFormationStyle", groupFormationStyle.name());
             if (travelMotive != null) compound.setString("TravelMotive", travelMotive.name());
@@ -2057,9 +2044,9 @@ public class EntityTraveller extends EntityCreature {
 
         if (!this.world.isRemote) {
             if (compound.hasKey(NBT_VOICE_PERSONALITY_ID)) {
-                setVoicePersonalityId(compound.getString(NBT_VOICE_PERSONALITY_ID));
+                voice.setPersonalityId(compound.getString(NBT_VOICE_PERSONALITY_ID));
             } else {
-                setVoicePersonalityId(""); // older worlds: keep empty -> old fallback behavior
+                voice.setPersonalityId(""); // older worlds: keep empty -> old fallback behavior
             }
         }
 
@@ -2140,7 +2127,7 @@ public class EntityTraveller extends EntityCreature {
     public void onLivingUpdate() {
 
         if (!world.isRemote) {
-            chooseVoicePersonalityIfNeeded();
+            voice.choosePersonalityIfNeeded();
             if (!this.world.isRemote) {
                 ensureDismountIfInCombat();
             }
@@ -2332,7 +2319,7 @@ public class EntityTraveller extends EntityCreature {
 
 
 // NEW: pick personality once per entity (server decides, clients will be synced)
-        chooseVoicePersonalityIfNeeded();
+        voice.choosePersonalityIfNeeded();
 
 
         CultureDef c = CultureRegistry.get(cid);
@@ -2404,11 +2391,11 @@ public class EntityTraveller extends EntityCreature {
         }
         if (!this.isInCombat()) {
             // Choose hello vs talk
-            if (shouldHelloFor(player)) {
-                playHelloSound();         // one hello variation
-                markHello(player);        // start the 5-minute window for THIS player
+            if (voice.shouldHelloFor(player)) {
+                voice.playHello();         // one hello variation
+                voice.markHello(player);        // start the 5-minute window for THIS player
             } else {
-                playTalkSound();          // normal chatter
+                voice.playTalk();          // normal chatter
             }
         }
         // Dialogue master switch (server-side, off by default - see TravellersConfig.DIALOGUE and
@@ -2641,128 +2628,15 @@ public class EntityTraveller extends EntityCreature {
         return super.getBrightnessForRender();
     }
 
-    void tryPlayAttackSound() {
-        if (!TravellersConfig.SOUND.attackSoundEnabled) return;
-        if (world.isRemote) return;
-        if (ticksExisted < attackVoiceCooldownUntilTick) return;
-        if (voiceKindNow == VoiceKind.HURT && ticksExisted < voiceLockUntilTick) return;
-
-        long worldTime = world.getTotalWorldTime();
-        long zoneKey = attackZoneKey();
-        Long lastZone = ATTACK_ZONE_COOLDOWN.get(zoneKey);
-        if (lastZone != null && worldTime - lastZone < TravellersConfig.SOUND.attackSoundZoneCooldownTicks) return;
-
-        VoiceSet v = resolveVoiceSetForAttack();
-        if (v == null) return;
-        SoundEvent snd = v.pickAttack(this.rand, null);
-        if (snd == null) return;
-
-        float vol = TravellersConfig.SOUND.attackSoundVolume;
-        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
-        int dur = 60 + rand.nextInt(40);
-
-        if (playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK)) {
-            attackVoiceCooldownUntilTick = ticksExisted + TravellersConfig.SOUND.attackSoundEntityCooldownTicks;
-            ATTACK_ZONE_COOLDOWN.put(zoneKey, worldTime);
-        }
-    }
-
-    public void playCreeperWarningSound() {
-        if (!TravellersConfig.SOUND.creeperWarnEnabled) return;
-        if (world.isRemote) return;
-
-        chooseVoicePersonalityIfNeeded();
-        VoiceSet v = getActiveTravellerVoiceSet();
-        if (v == null) return;
-        SoundEvent snd = v.pickCreeper(this.rand, null);
-        if (snd == null) return;
-
-        float vol = TravellersConfig.SOUND.creeperWarnVolume;
-        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
-        int dur = 60 + rand.nextInt(40);
-        playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK);
-    }
-
+    /** Hook: the voice set attack barks use (raiders have their own). */
     protected VoiceSet resolveVoiceSetForAttack() {
-        chooseVoicePersonalityIfNeeded();
-        return getActiveTravellerVoiceSet();
+        return voice.activeVoiceSet();
     }
 
+    /** Hook: the voice set kill and death barks use (raiders have their own). */
     protected VoiceSet resolveVoiceSetForKillDeath() {
-        chooseVoicePersonalityIfNeeded();
-        return getActiveTravellerVoiceSet();
+        return voice.activeVoiceSet();
     }
-
-    public void tryPlayKillSound() {
-        if (!TravellersConfig.SOUND.killSoundEnabled) return;
-        if (world.isRemote || isDead) return;
-        if (ticksExisted < killVoiceCooldownUntilTick) return;
-
-        long worldTime = world.getTotalWorldTime();
-        long zoneKey = attackZoneKey();
-        Long lastZone = KILL_ZONE_COOLDOWN.get(zoneKey);
-        if (lastZone != null && worldTime - lastZone < TravellersConfig.SOUND.killSoundZoneCooldownTicks) return;
-
-        VoiceSet v = resolveVoiceSetForKillDeath();
-        if (v == null) return;
-        SoundEvent snd = v.pickKill(this.rand, null);
-        if (snd == null) return;
-
-        float vol = TravellersConfig.SOUND.killSoundVolume;
-        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
-        int dur = 60 + rand.nextInt(40);
-
-        if (playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK)) {
-            killVoiceCooldownUntilTick = ticksExisted + TravellersConfig.SOUND.killSoundEntityCooldownTicks;
-            KILL_ZONE_COOLDOWN.put(zoneKey, worldTime);
-        }
-    }
-
-    void tryPlayDeathSound() {
-        if (!TravellersConfig.SOUND.deathSoundEnabled) return;
-        if (world.isRemote) return;
-
-        long worldTime = world.getTotalWorldTime();
-        long zoneKey = attackZoneKey();
-        Long lastZone = DEATH_ZONE_COOLDOWN.get(zoneKey);
-        if (lastZone != null && worldTime - lastZone < TravellersConfig.SOUND.deathSoundZoneCooldownTicks) return;
-
-        chooseVoicePersonalityIfNeeded();
-        VoiceSet v = resolveVoiceSetForKillDeath();
-        if (v == null) return;
-        SoundEvent snd = v.pickDeath(this.rand, null);
-        if (snd == null) return;
-
-        float vol = TravellersConfig.SOUND.deathSoundVolume;
-        float pitch = 1.0f + (rand.nextFloat() - 0.5f) * 0.04f;
-        int dur = 60;
-
-        playVoiceMoving(snd, vol, pitch, dur, true, VoiceKind.TALK);
-        DEATH_ZONE_COOLDOWN.put(zoneKey, worldTime);
-    }
-
-    private long attackZoneKey() {
-        int zx = (int) Math.floor(posX / 32.0);
-        int zz = (int) Math.floor(posZ / 32.0);
-        return ((long) dimension * 1_000_003L) ^ ((long) (zx & 0xFFFF) << 16) ^ (long) (zz & 0xFFFF);
-    }
-
-    void playTalkSound() {
-        chooseVoicePersonalityIfNeeded();
-        VoiceSet v = getActiveTravellerVoiceSet();
-
-        SoundEvent talk = (v != null)
-                ? v.pickTalk(this.rand, ModSounds.TRAVELLER_TALK)
-                : ModSounds.TRAVELLER_TALK;
-
-        float vol = TravellersConfig.SOUND.travellerTalkVolume;
-        float pitch = 1.0F + (this.rand.nextFloat() - 0.5F) * 0.02F;
-        int dur = 40 + this.rand.nextInt(20);
-
-        playVoiceMoving(talk, vol, pitch, dur, true, VoiceKind.TALK);
-        scheduleNextTravelAmbient();
-    }
-
 
     public void doInteractSwing(EnumHand hand) {
         // Tell all nearby clients to render a swing (4 = main hand, 5 = offhand)
@@ -2816,17 +2690,6 @@ public class EntityTraveller extends EntityCreature {
         player.sendMessage(msg);
     }
 
-    public boolean playVoiceMoving(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, VoiceKind kind) {
-        if (!preempt && this.ticksExisted < voiceLockUntilTick) return false;
-
-        // Don’t also call playSound here; we only want the moving instance on clients.
-        sendFollowSound(evt, vol, pitch, 48.0);
-
-        voiceLockUntilTick = Math.max(voiceLockUntilTick, this.ticksExisted + Math.max(1, durationTicks));
-        voiceKindNow = kind;
-        return true;
-    }
-
     @Nullable
     public BlockPos getNearestVillage() {
         return travelCommon.getNearestVillage();
@@ -2847,21 +2710,6 @@ public class EntityTraveller extends EntityCreature {
         if (adx < adz * 0.5) return ns;       // mostly N/S
         if (adz < adx * 0.5) return ew;       // mostly E/W
         return ns + "-" + ew;                 // e.g., "north-east"
-    }
-
-    private void sendFollowSound(SoundEvent evt, float vol, float pitch, double radius) {
-        if (world.isRemote || evt == null) return;
-
-        // If we’re currently “voice locked”, use the remaining lock as the clip’s duration hint.
-        // Otherwise just fall back to ~2s so short barks still work.
-        int remaining = Math.max(1, this.voiceLockUntilTick - this.ticksExisted);
-        int durationHint = (remaining > 0 ? remaining : 40); // 40 ticks = 2s
-
-        MsgPlayTravellerVoice msg = new MsgPlayTravellerVoice(this, evt, vol, pitch, durationHint);
-
-        NetworkRegistry.TargetPoint tp =
-                new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, radius);
-        TravellersNetwork.CHANNEL.sendToAllAround(msg, tp);
     }
 
     // was: updateTargetVillage()
@@ -3030,7 +2878,7 @@ public void fall(float distance, float damageMultiplier) {
             com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
                     .onParticipantDeath((net.minecraft.world.WorldServer) world, this, cause);
         }
-        tryPlayDeathSound();
+        voice.tryPlayDeath();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
             net.minecraft.entity.item.EntityBoat boat = (net.minecraft.entity.item.EntityBoat) this.getRidingEntity();
             this.dismountRidingEntity();
@@ -3048,7 +2896,7 @@ public void fall(float distance, float damageMultiplier) {
     protected SoundEvent getHurtSound(DamageSource source) {
         if (this.ticksExisted < hurtSoundCooldownUntilTick) return null;
         hurtSoundCooldownUntilTick = this.ticksExisted + TravellersConfig.SOUND.hurtSoundEntityCooldownTicks;
-        VoiceSet v = getActiveTravellerVoiceSet();
+        VoiceSet v = voice.activeVoiceSet();
         SoundEvent hurt = (v != null) ? v.pickHurt(this.rand, ModSounds.TRAVELLER_HURT) : ModSounds.TRAVELLER_HURT;
         return hurt;
     }
@@ -4019,37 +3867,20 @@ public void fall(float distance, float damageMultiplier) {
     }
 
 
-    public boolean isAmbientPlayingNow() {
-        return isVoiceLockedNow() && voiceKindNow == VoiceKind.AMBIENT;
-    }
-
     public boolean isChoirSinging() { return choirSinging; }
 
     public void setChoirSinging(boolean singing) { this.choirSinging = singing; }
 
     public void stopChoir() {
         choirSinging = false;
-        voiceLockUntilTick = ticksExisted;
-        voiceKindNow = VoiceKind.NONE;
-        if (!world.isRemote) {
-            com.jubitus.travellers.sound.net.MsgStopTravellerVoice stop =
-                    new com.jubitus.travellers.sound.net.MsgStopTravellerVoice(this);
-            NetworkRegistry.TargetPoint tp = new NetworkRegistry.TargetPoint(
-                    dimension, posX, posY, posZ, 96.0);
-            TravellersNetwork.CHANNEL.sendToAllAround(stop, tp);
-        }
-    }
-
-    public boolean isVoiceLockedNow() {
-        return this.ticksExisted < voiceLockUntilTick;
+        voice.stopNow();
     }
 
     // Called by server when client signals a choir sound finished (natural end or pause desync).
     // Resets the voice lock so the coordinator can detect the interruption and schedule a rejoin.
     public void interruptChoirVoiceLock() {
         if (!choirSinging) return;
-        voiceLockUntilTick = ticksExisted;
-        voiceKindNow = VoiceKind.NONE;
+        voice.release();
     }
 
     public void markPlayerRecentAggro(EntityPlayer p) {
@@ -4058,32 +3889,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public int lastPlayerAggroAgeTicks(EntityPlayer p) {
         return combat.lastPlayerAggroAgeTicks(p);
-    }
-
-    /** Whether a hello is still due to this player: not if this traveller's party greeted theirs lately. */
-    boolean shouldHelloFor(EntityPlayer p) {
-        UUID me = Greetings.partyOf(this);
-        return me == null || !Greetings.hasGreeted(world, me, p.getUniqueID());
-    }
-
-    void markHello(EntityPlayer p) {
-        UUID me = Greetings.partyOf(this);
-        if (me != null) Greetings.record(world, me, p.getUniqueID());
-    }
-
-    public void playHelloSound() {
-        chooseVoicePersonalityIfNeeded();
-        VoiceSet v = getActiveTravellerVoiceSet();
-
-        SoundEvent hello = (v != null)
-                ? v.pickHello(this.rand, ModSounds.TRAVELLER_HELLO)
-                : ModSounds.TRAVELLER_HELLO;
-
-        float vol = TravellersConfig.SOUND.travellerTalkVolume;
-        float pitch = 1.0F + (this.rand.nextFloat() - 0.5F) * 0.02F;
-        int dur = 30 + this.rand.nextInt(20);
-
-        playVoiceMoving(hello, vol, pitch, dur, true, VoiceKind.TALK);
     }
 
     /**
@@ -4529,7 +4334,7 @@ public void fall(float distance, float damageMultiplier) {
         if (hurt == null) return;
 
         int dur = 20 + rand.nextInt(10);
-        playVoiceMoving(hurt, getSoundVolume(), getSoundPitch(), dur, true, VoiceKind.HURT);
+        voice.play(hurt, getSoundVolume(), getSoundPitch(), dur, true, TravellerVoice.Kind.HURT);
     }
 
     /**
@@ -4635,8 +4440,6 @@ public void fall(float distance, float damageMultiplier) {
         }
     }
 
-    public enum VoiceKind {NONE, AMBIENT, TALK, HURT, CHOIR}
-
     public static final class SpawnData implements IEntityLivingData {
         public final String cultureId;
 
@@ -4645,49 +4448,8 @@ public void fall(float distance, float damageMultiplier) {
         }
     }
 
-    public String getVoicePersonalityId() {
-        if (this.dataManager == null) return "";
-        String v = this.dataManager.get(VOICE_PERSONALITY_ID);
-        return (v == null) ? "" : v;
-    }
-
-    private void setVoicePersonalityId(String id) {
-        if (world.isRemote) return;
-        String v = (id == null) ? "" : id;
-        this.dataManager.set(VOICE_PERSONALITY_ID, v);
-    }
-
+    /** Hook: the personality picked once at spawn (raiders pick from their own pool). */
     protected String pickVoicePersonalityId(String cultureId) {
         return CultureRegistry.pickRandomTravellerPersonalityId(cultureId, this.rand);
     }
-
-    /**
-     * Server-only. Choose ONE personality at spawn (and never change it again).
-     * If no variants exist, we keep “” and fall back to old culture-based voices.
-     */
-    private void chooseVoicePersonalityIfNeeded() {
-        if (world.isRemote) return;
-
-        // Already chosen? Keep it.
-        if (!getVoicePersonalityId().isEmpty()) return;
-
-        String cid = getCultureId();
-        String picked = pickVoicePersonalityId(cid);
-
-        // picked == “” means “no variants” -> keep empty to use fallback behavior
-        setVoicePersonalityId(picked);
-    }
-
-    /**
-     * Resolve the VoiceSet to use:
-     * - personality (if present and valid)
-     * - else your old CultureRegistry.TRAVELLER_VOICES fallback
-     */
-    @javax.annotation.Nullable
-    private VoiceSet getActiveTravellerVoiceSet() {
-        return CultureRegistry.resolveTravellerVoiceSet(getCultureId(), getVoicePersonalityId());
-
-    }
-
-
 }

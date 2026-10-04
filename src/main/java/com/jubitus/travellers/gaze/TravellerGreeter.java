@@ -123,7 +123,7 @@ public final class TravellerGreeter {
     }
 
     private void say(Entity to) {
-        mob.playHelloSound();
+        mob.voice.playHello();
         nodAt(mob, to);
     }
 

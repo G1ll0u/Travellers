@@ -35,7 +35,7 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
     public void contribute(EntityTraveller traveller, EntityPlayer player, DialogueContext.Builder builder) {
         builder.travellerDisplayName(traveller.getName())
                 .cultureId(traveller.getCultureId())
-                .personalityId(traveller.getVoicePersonalityId());
+                .personalityId(traveller.voice.getPersonalityId());
 
         World world = traveller.world;
         TravelCommon travelCommon = traveller.getTravelCommon();
