@@ -130,7 +130,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
         if (worker.isInCombat()) {
             // Combat AI owns the worker now - get out of bed and off any non-bonded horse so it can
             // actually fight, then stand aside for the movement mutex.
-            if (worker.isSleepingInBed()) worker.wakeUpTraveller();
+            if (worker.sleep.isSleeping()) worker.sleep.wakeUp();
             dismountIfRidingLoose(worker);
             if (st.phase != PalfrenierState.Phase.DECIDE) {
                 logHand(worker, "chore interrupted by combat");
@@ -154,9 +154,9 @@ public final class StableHandTask implements WorkerDutyBehavior {
             tickNight(worker, st, myBed, now);
             return;
         }
-        if (worker.isSleepingInBed()) {
+        if (worker.sleep.isSleeping()) {
             // Woke into daytime, or the bed was lost overnight - get up before anything else.
-            worker.wakeUpTraveller();
+            worker.sleep.wakeUp();
             reset(st);
         }
 
@@ -318,7 +318,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
     // -------------------------------------------------------------------------
 
     private void tickNight(EntityTravellerWorker worker, PalfrenierState st, BlockPos bed, long now) {
-        if (worker.isSleepingInBed()) {
+        if (worker.sleep.isSleeping()) {
             st.phase = PalfrenierState.Phase.SLEEP;
             return;
         }
@@ -332,7 +332,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
         worker.getLookHelper().setLookPosition(bed.getX() + 0.5D, bed.getY() + 0.5D, bed.getZ() + 0.5D, 30.0F, 30.0F);
         double dsq = worker.getDistanceSq(bed.getX() + 0.5D, bed.getY() + 0.5D, bed.getZ() + 0.5D);
         if (dsq <= SLEEP_ARRIVE_SQ) {
-            if (worker.trySleepInBed(bed)) {
+            if (worker.sleep.trySleepIn(bed)) {
                 st.phase = PalfrenierState.Phase.SLEEP;
                 worker.getNavigator().clearPath();
             }
@@ -342,7 +342,7 @@ public final class StableHandTask implements WorkerDutyBehavior {
         // or returns a best-effort route that ends outside the bedroom wall. After the timeout, lie
         // down anyway if within teleport range (trySleepInBed snaps to the bed's own spot).
         if (now - st.bedApproachStartTick > SLEEP_APPROACH_TIMEOUT && dsq <= SLEEP_TELEPORT_MAX_SQ) {
-            if (worker.trySleepInBed(bed)) {
+            if (worker.sleep.trySleepIn(bed)) {
                 st.phase = PalfrenierState.Phase.SLEEP;
                 worker.getNavigator().clearPath();
             }

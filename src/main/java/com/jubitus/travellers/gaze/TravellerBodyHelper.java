@@ -32,7 +32,7 @@ public class TravellerBodyHelper extends EntityBodyHelper {
             super.updateRenderAngles();
             return;
         }
-        if (mob.isRiding() || mob.isElytraFlying() || mob.isSleepingInBed()) {
+        if (mob.isRiding() || mob.isElytraFlying() || mob.sleep.isSleeping()) {
             turning = false;
             super.updateRenderAngles();
             return;

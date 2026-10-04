@@ -59,7 +59,7 @@ public final class ElytraCapability {
         if (mob.world.isRemote || mob.isDead) return false;
         if (!hasUsableElytra(mob)) return false;
         if (mob.isRiding() || mob.isInWater()) return false;
-        if (mob.isSleepingInBed() || mob.isCampingPassive() || mob.isChoirSinging()) return false;
+        if (mob.sleep.isSleeping() || mob.isCampingPassive() || mob.isChoirSinging()) return false;
         if (mob.isInCombat() || mob.getAttackTarget() != null) return false;
         return true;
     }

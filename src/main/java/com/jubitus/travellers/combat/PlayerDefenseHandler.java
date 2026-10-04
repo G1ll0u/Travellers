@@ -59,7 +59,7 @@ public final class PlayerDefenseHandler {
 
         for (EntityTraveller t : player.world.getEntitiesWithinAABB(EntityTraveller.class, box, Entity::isEntityAlive)) {
             if (t.isAggressiveToTravellers()) continue;
-            if (t.isCampingPassive() || t.isSleepingInBed()) continue;
+            if (t.isCampingPassive() || t.sleep.isSleeping()) continue;
             if (t.getAttackTarget() == mob) continue;
             if (t.getAggroBlacklist().matches(mob)) continue;
             if (!t.getEntitySenses().canSee(mob)) continue;

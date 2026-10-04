@@ -47,7 +47,7 @@ public final class StableBedService {
             if (w.getZoneRef() == null || !w.getZoneRef().matches(zone)) continue;
             if (!zone.ownerUUID.equals(w.getFollowOwnerId())) continue;
             if (!data.bedByWorker.containsKey(w.getUniqueID())) continue;
-            if (w.isInCombat() || w.isSleepingInBed()) continue;
+            if (w.isInCombat() || w.sleep.isSleeping()) continue;
             n++;
         }
         return n;

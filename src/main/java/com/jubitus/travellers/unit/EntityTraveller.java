@@ -144,13 +144,10 @@ public class EntityTraveller extends EntityCreature {
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     // --- Camp sleep pose (synced for render only, never persisted to NBT: virtualization must
     // never rematerialize an entity mid-sleep, see EntityAICampStay) ---
-    private static final DataParameter<Boolean> SLEEPING =
+    static final DataParameter<Boolean> SLEEPING =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
-    private static final DataParameter<BlockPos> SLEEPING_BED_POS =
+    static final DataParameter<BlockPos> SLEEPING_BED_POS =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BLOCK_POS);
-    // Server-only exact sleep spot, re-applied every tick via holdSleepPosition() so nearby-entity
-    // collisions/pushes can never slide a sleeping traveller off its bed.
-    private double sleepAnchorX, sleepAnchorY, sleepAnchorZ;
     // Set only by /travellersdebug path test: a throwaway entity for comparing a mounted route
     // against a hand-marked one. Never persisted - it exists for one test run and is deleted by its
     // own watchdog, never handed off to the offscreen simulation.
@@ -177,6 +174,7 @@ public class EntityTraveller extends EntityCreature {
     public final TravellerCombatLogic combat = new TravellerCombatLogic(this);
     public final TravellerEquipmentManager equipment = new TravellerEquipmentManager(this);
     public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
+    public final TravellerSleep sleep = new TravellerSleep(this);
     public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     final TravelCommon travelCommon = new TravelCommon(this);
     public static final String ITINERARY_NBT_KEY = "Itin";
@@ -2169,8 +2167,8 @@ public class EntityTraveller extends EntityCreature {
 
         // Undo any drift super.onLivingUpdate() may have caused (nearby-entity collision, stray AI
         // movement) after it's already run, so a sleeping traveller never visibly slides.
-        if (!world.isRemote && isSleepingInBed()) {
-            holdSleepPosition();
+        if (!world.isRemote && sleep.isSleeping()) {
+            sleep.holdPosition();
         }
 
         // Clear revenge target immediately if the attacker is blacklisted
@@ -2488,7 +2486,7 @@ public class EntityTraveller extends EntityCreature {
      * Sleeping keeps its own tiny box until wake-up.
      */
     public void updateSizeForRenderScale() {
-        if (isSleepingInBed()) return;
+        if (sleep.isSleeping()) return;
         float s = getRenderScale();
         setSize(TravellersConfig.ATTRIBUTES.hitboxWidth * s, TravellersConfig.ATTRIBUTES.hitboxHeight * s);
     }
@@ -2600,140 +2598,14 @@ public class EntityTraveller extends EntityCreature {
         this.campingPassive = v;
     }
 
-    public boolean isSleepingInBed() {
-        return this.dataManager.get(SLEEPING);
-    }
-
-    public BlockPos getSleepingBedPos() {
-        return this.dataManager.get(SLEEPING_BED_POS);
-    }
-
-    /**
-     * Lies down in the given bed block. No distance/safety checks (the calling AI already
-     * guarantees proximity and camp-only context) — this is a cosmetic pose, not vanilla
-     * player-sleeping (no time skip, no spawn point).
-     *
-     * <p>Mirrors {@link net.minecraft.entity.player.EntityPlayer#trySleep} exactly: the entity is
-     * anchored near the HEAD half (nudged 0.4 blocks further along {@code FACING}, away from the
-     * foot), and the render is separately shifted back toward the foot by
-     * {@link #getSleepRenderOffset()} (mirroring {@code EntityPlayer#setRenderOffsetForSleep}) so
-     * the body visually spans the full two-block bed regardless of {@code FACING}/bed type. An
-     * earlier FOOT-anchored attempt without that render shift is why this needs the comment: the
-     * two pieces (anchor position and render offset) only look right together.
-     */
-    public boolean trySleepInBed(BlockPos bedPos) {
-        if (world.isRemote || !isEntityAlive() || isSleepingInBed()) return false;
-        IBlockState state = world.getBlockState(bedPos);
-        if (!(state.getBlock() instanceof BlockBed)) return false;
-
-        BlockBed.EnumPartType part = state.getValue(BlockBed.PART);
-        BlockPos headPos = bedPos;
-        if (part != BlockBed.EnumPartType.HEAD) {
-            BlockPos candidate = bedPos.offset(state.getValue(BlockHorizontal.FACING));
-            IBlockState candidateState = world.getBlockState(candidate);
-            if (candidateState.getBlock() instanceof BlockBed
-                    && candidateState.getValue(BlockBed.PART) == BlockBed.EnumPartType.HEAD) {
-                headPos = candidate;
-                state = candidateState;
-            } // else: single/broken bed fallback, sleep on the one block found
-        }
-
-        EnumFacing facing = state.getValue(BlockHorizontal.FACING);
-        double x = headPos.getX() + 0.5D + facing.getXOffset() * 0.4D;
-        double z = headPos.getZ() + 0.5D + facing.getZOffset() * 0.4D;
-        // Rest on the bed's OWN collision box, not vanilla's 0.6875 constant — Millénaire beds
-        // (BlockMillBed) have custom, often lower collision heights and the constant floats above them.
-        double y = headPos.getY() + state.getBoundingBox(world, headPos).maxY;
-
+    /** Shrinks the hitbox to the sleeping pose (restored by {@link #updateSizeForRenderScale}). */
+    void setSleepingSize() {
         this.setSize(0.2F, 0.2F);
-        this.motionX = 0.0D;
-        this.motionY = 0.0D;
-        this.motionZ = 0.0D;
-        this.setPosition(x, y, z);
-        this.sleepAnchorX = x;
-        this.sleepAnchorY = y;
-        this.sleepAnchorZ = z;
-        this.dataManager.set(SLEEPING_BED_POS, headPos);
-        this.dataManager.set(SLEEPING, true);
-        return true;
-    }
-
-    public void wakeUpTraveller() {
-        if (world.isRemote || !isSleepingInBed()) return;
-        BlockPos bedPos = this.dataManager.get(SLEEPING_BED_POS);
-        this.dataManager.set(SLEEPING, false);
-        updateSizeForRenderScale();
-        // trySleepInBed parks the entity on the bed's own collision box; restoring the full-size
-        // hitbox there leaves it standing on the bed block or clipped into an adjacent wall/ceiling
-        // (suffocating, unable to path out). Step it onto a real standable floor cell beside the bed,
-        // exactly like a bed death-respawn does.
-        if (bedPos != null && !BlockPos.ORIGIN.equals(bedPos)) relocateOffBed(bedPos);
-    }
-
-    /**
-     * Steps the just-woken entity off the bed onto a real floor cell in front of it. Always moves
-     * (the sleep anchor sits on the bed's own partial collision box, which is never a valid standing
-     * spot - restoring the full hitbox there clips it into the bed block, an adjacent wall or a low
-     * ceiling and it can't path out). Foot-side of the bed first (where you'd step out), then head,
-     * then diagonals, then one Y lower; only as an absolute last resort does it stand on the bed
-     * itself - never higher, so an indoor bed never sends it to the roof.
-     */
-    private void relocateOffBed(BlockPos bedHead) {
-        BlockPos foot = bedHead;
-        IBlockState st = world.getBlockState(bedHead);
-        if (st.getBlock() instanceof BlockBed && st.getValue(BlockBed.PART) == BlockBed.EnumPartType.HEAD) {
-            foot = bedHead.offset(st.getValue(BlockHorizontal.FACING).getOpposite());
-        }
-        BlockPos[] centers = { foot, bedHead };
-        for (int dy = 0; dy >= -1; dy--) {
-            for (BlockPos c : centers) {
-                for (EnumFacing d : EnumFacing.HORIZONTALS) {
-                    BlockPos p = c.offset(d);
-                    if (p.equals(bedHead) || p.equals(foot)) continue;
-                    if (standAt(p.up(dy))) return;
-                }
-            }
-            for (BlockPos c : centers) {
-                for (EnumFacing d : EnumFacing.HORIZONTALS) {
-                    if (standAt(c.offset(d).offset(d.rotateY()).up(dy))) return;
-                }
-            }
-        }
-        standAt(bedHead.up());
-    }
-
-    private boolean standAt(BlockPos p) {
-        if (!world.getBlockState(p.down()).isSideSolid(world, p.down(), EnumFacing.UP)) return false;
-        double cx = p.getX() + 0.5D, cy = p.getY(), cz = p.getZ() + 0.5D;
-        if (!isPositionClear(cx, cy, cz)) return false;
-        Relocate.teleport(this, cx, cy, cz);
-        return true;
-    }
-
-    private boolean isPositionClear(double x, double y, double z) {
-        AxisAlignedBB box = new AxisAlignedBB(
-                x - this.width / 2.0D, y, z - this.width / 2.0D,
-                x + this.width / 2.0D, y + this.height, z + this.width / 2.0D).contract(0.02D, 0.0D, 0.02D);
-        return world.getCollisionBoxes(this, box).isEmpty() && !world.containsAnyLiquid(box);
-    }
-
-    /**
-     * Re-pins the entity to its exact sleep anchor every tick, undoing any drift from nearby
-     * entity collisions (also blocked outright via {@link #canBePushed()}) or stray AI movement —
-     * a sleeping entity must never visibly slide out of its bed.
-     */
-    private void holdSleepPosition() {
-        this.motionX = 0.0D;
-        this.motionY = 0.0D;
-        this.motionZ = 0.0D;
-        if (this.posX != sleepAnchorX || this.posY != sleepAnchorY || this.posZ != sleepAnchorZ) {
-            this.setPosition(sleepAnchorX, sleepAnchorY, sleepAnchorZ);
-        }
     }
 
     @Override
     public boolean canBePushed() {
-        if (isSleepingInBed()) return false;
+        if (sleep.isSleeping()) return false;
         return super.canBePushed();
     }
 
@@ -2746,7 +2618,7 @@ public class EntityTraveller extends EntityCreature {
     public boolean isEntityInsideOpaqueBlock() {
         // campingPassive also covers block-by-block shelter build/teardown: a block placed
         // against the mob's own bounding box must never suffocate the builder.
-        if (isSleepingInBed() || campingPassive) return false;
+        if (sleep.isSleeping() || campingPassive) return false;
         return super.isEntityInsideOpaqueBlock();
     }
 
@@ -2766,7 +2638,7 @@ public class EntityTraveller extends EntityCreature {
     private void tickHazardRepulsion() {
         if (world.isRemote || isDead) return;
         if (!TravellersConfig.HAZARD_SAFETY.enabled) return;
-        if (isRiding() || isSleepingInBed() || campingPassive) return;
+        if (isRiding() || sleep.isSleeping() || campingPassive) return;
         // A glide is a deliberate flight over exactly the drops this nudge exists to avoid.
         if (elytraFlight.isActive()) return;
 
@@ -2949,53 +2821,16 @@ public class EntityTraveller extends EntityCreature {
     }
 
     /**
-     * Client-only: bed facing in degrees, mirroring {@link EntityPlayer#getBedOrientationInDegrees()}
-     * exactly — vanilla uses its own hardcoded mapping, NOT {@link EnumFacing#getHorizontalAngle()}
-     * (which is 90° off and shifts the sleeping body sideways depending on bed orientation).
-     */
-    @SideOnly(Side.CLIENT)
-    public float getBedOrientationInDegrees() {
-        BlockPos bedPos = getSleepingBedPos();
-        IBlockState state = world.getBlockState(bedPos);
-        if (!(state.getBlock() instanceof BlockBed)) return 0.0F;
-        switch (state.getValue(BlockHorizontal.FACING)) {
-            case SOUTH: return 90.0F;
-            case WEST: return 0.0F;
-            case NORTH: return 270.0F;
-            case EAST: return 180.0F;
-            default: return 0.0F;
-        }
-    }
-
-    /**
-     * Client-only: how far to shift the rendered model away from the anchor (which sits near the
-     * HEAD half, see {@link #trySleepInBed}), mirroring {@code EntityPlayer#renderOffsetX/Z}. Without
-     * this the body renders bunched up near the headboard instead of spanning the full bed.
-     */
-    @SideOnly(Side.CLIENT)
-    public Vec3d getSleepRenderOffset() {
-        BlockPos bedPos = getSleepingBedPos();
-        IBlockState state = world.getBlockState(bedPos);
-        if (!(state.getBlock() instanceof BlockBed)) return Vec3d.ZERO;
-        EnumFacing facing = state.getValue(BlockHorizontal.FACING);
-        // Vanilla uses -1.8 for a full-size player; the model renders at getRenderScale()
-        // (RenderTraveller.preRenderCallback), so shrink the shift to keep the shorter
-        // body centered in the 2-block bed: -0.9 * (1 + scale).
-        double d = -0.9D * (1.0D + getRenderScale());
-        return new Vec3d(d * facing.getXOffset(), 0.0D, d * facing.getZOffset());
-    }
-
-    /**
      * Client-only: while asleep, sample render light at the midpoint of the VISIBLE body (shifted
-     * toward the bed's foot by {@link #getSleepRenderOffset}) instead of the anchor cell near the
+     * toward the bed's foot by {@link TravellerSleep#getRenderOffset}) instead of the anchor cell near the
      * headboard — a shelter block directly above the bed head otherwise darkens the whole body even
      * though most of it lies in a lit cell.
      */
     @Override
     @SideOnly(Side.CLIENT)
     public int getBrightnessForRender() {
-        if (isSleepingInBed()) {
-            Vec3d off = getSleepRenderOffset();
+        if (sleep.isSleeping()) {
+            Vec3d off = sleep.getRenderOffset();
             BlockPos p = new BlockPos(posX + off.x * 0.5D, posY + 0.5D, posZ + off.z * 0.5D);
             if (world.isBlockLoaded(p)) {
                 return world.getCombinedLight(p, 0);

@@ -45,7 +45,7 @@ public class EntityAIWorkerDuty extends EntityAIBase {
     @Override
     public void resetTask() {
         worker.setCampingPassive(false);
-        if (worker.isSleepingInBed()) worker.wakeUpTraveller();
+        if (worker.sleep.isSleeping()) worker.sleep.wakeUp();
         if (running != null) running.stop(worker);
         running = null;
     }

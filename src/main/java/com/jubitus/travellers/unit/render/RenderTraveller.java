@@ -71,8 +71,8 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
 
     @Override
     protected void applyRotations(EntityTraveller entity, float ageInTicks, float rotationYaw, float partialTicks) {
-        if (entity.isEntityAlive() && entity.isSleepingInBed()) {
-            GlStateManager.rotate(entity.getBedOrientationInDegrees(), 0.0F, 1.0F, 0.0F);
+        if (entity.isEntityAlive() && entity.sleep.isSleeping()) {
+            GlStateManager.rotate(entity.sleep.getBedOrientationInDegrees(), 0.0F, 1.0F, 0.0F);
             GlStateManager.rotate(this.getDeathMaxRotation(entity), 0.0F, 0.0F, 1.0F);
             GlStateManager.rotate(270.0F, 0.0F, 1.0F, 0.0F);
         } else if (entity.isElytraFlying()) {
@@ -96,8 +96,8 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
     /** Shifts the render back toward the bed's foot half, mirroring RenderPlayer's sleep handling. */
     @Override
     protected void renderLivingAt(EntityTraveller entity, double x, double y, double z) {
-        if (entity.isEntityAlive() && entity.isSleepingInBed()) {
-            Vec3d offset = entity.getSleepRenderOffset();
+        if (entity.isEntityAlive() && entity.sleep.isSleeping()) {
+            Vec3d offset = entity.sleep.getRenderOffset();
             super.renderLivingAt(entity, x + offset.x, y + offset.y, z + offset.z);
         } else {
             super.renderLivingAt(entity, x, y, z);

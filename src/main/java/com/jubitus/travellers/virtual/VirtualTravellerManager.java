@@ -1990,7 +1990,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // into the bed (trySleepInBed positions itself from the bed geometry). If it can't lie down
         // (bed broken/obstructed) it just stays standing there and EntityAIWorkerDuty's night routine
         // walks it in - we never leave it on the bed block itself, which pushes it back out.
-        worker.trySleepInBed(bed);
+        worker.sleep.trySleepIn(bed);
     }
 
     /**
@@ -2045,7 +2045,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // The sleep pose (palfrenier in its Stable bed at night) is a purely-loaded cosmetic state,
         // never simulated or persisted - clear it before snapshotting so entityNbt can't freeze a
         // 0.2-wide hitbox / pinned position. Re-derived on materialize (see materializeEntity).
-        if (worker.isSleepingInBed()) worker.wakeUpTraveller();
+        if (worker.sleep.isSleeping()) worker.sleep.wakeUp();
 
         NBTTagCompound entityNbt = new NBTTagCompound();
         worker.writeToNBT(entityNbt); // full NBT: name, culture, voice, equipment, etc.
@@ -2551,7 +2551,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             // Sleep is a purely-loaded cosmetic pose, never simulated virtually or persisted to
             // NBT — but force it off anyway so a fresh materialize can never render "lying down"
             // while EntityAICampStay (re-evaluating from scratch) thinks the entity is standing.
-            entity.wakeUpTraveller();
+            entity.sleep.wakeUp();
         } else if (!isWorker) {
             // The trip as it advanced offscreen; the itinerary (already handed over above) keeps the
             // current leg's line, so the entity continues exactly where the record was heading.

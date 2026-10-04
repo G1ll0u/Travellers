@@ -57,7 +57,7 @@ public class TravellerLookHelper extends EntityLookHelper {
     public void onUpdateLook() {
         boolean task = requested;
         requested = false;
-        if (mob.world.isRemote || mob.isSleepingInBed()) return;
+        if (mob.world.isRemote || mob.sleep.isSleeping()) return;
 
         boolean combat = mob.getAttackTarget() != null || mob.isInCombat();
         // Something already turned the head directly this tick (bow, fishing...): leave it be.

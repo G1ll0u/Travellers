@@ -741,7 +741,7 @@ public class EntityAICampStay extends EntityAIBase {
 
         double dsq = mob.getDistanceSq(bed.getX() + 0.5, bed.getY() + 0.5, bed.getZ() + 0.5);
         if (dsq <= SLEEP_ARRIVE_SQ) {
-            if (mob.trySleepInBed(bed)) {
+            if (mob.sleep.trySleepIn(bed)) {
                 sleeping = true;
                 mob.getNavigator().clearPath();
             }
@@ -759,7 +759,7 @@ public class EntityAICampStay extends EntityAIBase {
         if (sleepApproachStartTick < 0) sleepApproachStartTick = now;
         if (mob.getNavigator().noPath() && now - sleepApproachStartTick > SLEEP_APPROACH_TIMEOUT_TICKS) {
             if (dsq <= SLEEP_TELEPORT_MAX_SQ) {
-                if (mob.trySleepInBed(bed)) {
+                if (mob.sleep.trySleepIn(bed)) {
                     sleeping = true;
                 }
                 sleepApproachStartTick = -1L;
@@ -798,8 +798,8 @@ public class EntityAICampStay extends EntityAIBase {
     /** Wakes the entity if currently sleeping, starting the re-sleep cooldown. No-op otherwise. */
     private void wakeUp(long now) {
         if (!sleeping) return;
-        BlockPos bed = mob.getSleepingBedPos();
-        mob.wakeUpTraveller();
+        BlockPos bed = mob.sleep.getBedPos();
+        mob.sleep.wakeUp();
         sleeping = false;
         napEndTick = -1L;
         wakeCooldownUntil = now + TravellersConfig.CAMP_EVENTS.wakeCooldownTicks;
