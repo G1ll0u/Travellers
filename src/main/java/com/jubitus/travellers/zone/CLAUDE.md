@@ -12,7 +12,7 @@ A player zone is a **Barrack** (worker housing) or a **Stable** (horse pool). Sh
 ## Stable horse pool (`stable/`)
 Rationale: memory `project_stable_zone_feature`.
 - **A pool horse is a live entity XOR data.** A Stable is live when vanilla ticks its whole box (`StableCoordinator.isZoneTicking`), else dormant. Three doors keep it exact: going dormant captures every live horse; `StableChunkUnloadHandler` captures a horse whose chunk unloads; `StableHorseLoadHandler` accepts a joining pool horse only if its entry links that exact entity (link before `spawnEntity`).
-- `StableCoordinator.isPoolHorse` is the one identity test. **A pool horse is never a mount**: every way in strips mount markers.
+- `HorseMarkers.isPoolHorse` is the one identity test. **A pool horse is never a mount**: every way in strips mount markers.
 - `StableWork` holds the rules (pure state changes through a `ChestSource`); live `StableHandTask` and dormant `timerPass` both use it. `tamed`/`saddled`/`temper` are owned by those two only. Progressions are elapsed-time anchored.
 - Breeding builds a `BRED` entry directly; `EntityAIMate` is stripped (double counting).
 - Bonding happens only at Get Equipment pickup (`WorkerHorsePickup`); a horse respawned from a live snapshot gets its UUID stripped.

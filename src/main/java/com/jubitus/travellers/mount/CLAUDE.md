@@ -7,7 +7,7 @@ Permanent 1:1 bond between an `EntityTraveller` subclass and a vanilla `EntityHo
 - `applyBondInvariants()` (saddle in slot 0, AI stripped to swimming) runs on every world-entry path. `mountUUID` is a synced DataParameter.
 - **LED is never persisted** — NBT and captures write MOUNTED instead; an LED found at load self-heals.
 - **One live copy of a horse**: a live entity, data on its loaded rider (`pendingMountNbt`), or data on its record (`mountNbt`) — never two. Every rebuild from data bumps the bond generation; `MountBondLoadHandler` judges every bonded horse joining the world (stale → removed, released bond → loose, etc.). Link the rider to the horse **before** `spawnEntity`.
-- Only `LivingDeathEvent` ends a bond. `MountDeathHandler` stays `HIGHEST` + `receiveCanceled = true` (another mod cancelling the event must not keep a corpse bonded). Any path that snapshots a horse then removes it checks health first and routes a dead horse to `onBondedMountDied`; `spawnMountFromNbt` refuses corpse snapshots.
+- Only `LivingDeathEvent` ends a bond. Horses join and die through `horse/HorseEvents` (death: `HIGHEST` + `receiveCanceled`, pool first); every marker on a horse goes through `horse/HorseMarkers`. Any path that snapshots a horse then removes it checks health first and routes a dead horse to `onBondedMountDied`; `spawnMountFromNbt` refuses corpse snapshots.
 - `onBondedMountDied` dismounts the rider immediately (vanilla keeps it riding through the death animation).
 
 ## Movement
@@ -26,7 +26,7 @@ Permanent 1:1 bond between an `EntityTraveller` subclass and a vanilla `EntityHo
 - Entering the grounds of the village it's visiting, the rider goes HITCHED with `villageHitchStop` (never on a building, in water or mid-jump). A hitched horse with that marker is never recalled; the rider walks back to it. A horse never vanishes in view: an unloading post turns it into data on the rider and it is put back only at the post.
 
 ## Players and sync
-- `MountTheftGuard` blocks players from bonded horses at both interact and `EntityMountEvent`, both sides; the client learns the lock from `HorseInteractLock` (synced via `MixinEntityHorse`).
+- `horse/HorseTheftGuard` blocks players from bonded horses at both interact and `EntityMountEvent`, both sides; the client learns the lock from `HorseInteractLock` (synced via `MixinEntityHorse`).
 - A rider that looks frozen while its horse walks off is a tracking desync, never an AI bug: `MountSyncReconciler` (world tick) repairs it; `MixinEntityTracker` gives the mount its rider's tracking range.
 - A rider defends its horse by feeding the attacker to its own hurt-by-target AI (`MountDefenseHandler`) — no separate targeting rule.
 
