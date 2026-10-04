@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (next: 9.9).
+**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (next: 9.10).
 
 ## Goal
 
@@ -224,7 +224,7 @@ cancels is removed from the pool anyway, and a released pen horse is never respa
 Kept: bond invariants in `mount/`, containment AI in `zone/stable/` (each used by one system only); chunk unload
 stays two handlers (bonded horses depend on which riders unload in the same chunk, `ChunkUnloadVirtualizeHandler`).
 
-### Phase 9 — Unit classes split — status: in progress (9.1–9.8 done)
+### Phase 9 — Unit classes split — status: in progress (9.1–9.9 done)
 
 - `EntityTraveller` (5 177 lines): mount runtime state → `TravellerMountState`; voice → `TravellerVoice`; NBT →
   codec; sleep; hazard/cliff repulsion; virtualization eligibility → `VirtualizationGate` (one rule, subclass hooks);
@@ -251,8 +251,10 @@ the cargo inventory and `returnUsingFollow` stay on the worker).
 (`countLoadedFollowers`) and the entity's loaded-only cycle guard (`wouldCreateLoadedEscortCycle`) moved to
 `WorkerGroupService` unchanged — not merged with `countFollowers`/`chainReaches`, which also see virtual workers
 (merging would change behaviour; the count must stay loaded-only, see its doc).
-Next: 9.9 `setAttackTarget`/`attackEntityFrom` upkeep → `TravellerCombatLogic`
-(needs a bridge for `super.setAttackTarget`). 9.10 the `instanceof EntityTravellerWorker` checks → hooks.
+9.9 `setAttackTarget`/`attackEntityFrom` bodies → `TravellerCombatLogic.setAttackTarget`/`onAttacked` (+ `rejectTarget`);
+the entity keeps one-line overrides and the `vanillaSetAttackTarget`/`vanillaAttackEntityFrom` bridges; an unreachable
+duplicate "hit by owner" block dropped.
+Next: 9.10 the `instanceof EntityTravellerWorker` checks → hooks.
 9.11 `FollowCatchup`: the traveller and worker catch-up copies differ — list the differences and get the user's
 decision before merging (visible behaviour). In-game check still owed for 9.1–9.7 (load a world, voices, camp sleep,
 mounts).

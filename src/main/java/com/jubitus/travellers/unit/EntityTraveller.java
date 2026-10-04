@@ -948,203 +948,15 @@ public class EntityTraveller extends EntityCreature {
         return new TravellerNavigateGround(this, worldIn);
     }
 
+    // Every rule deciding whether a target is taken lives in TravellerCombatLogic.setAttackTarget.
     @Override
     public void setAttackTarget(@Nullable EntityLivingBase target) {
-        EntityLivingBase prev = this.getAttackTarget();
-        if (!world.isRemote && prev != null && prev != target) {
-            AttackTargetLimiter.leave(this, prev);
-        }
-        if (!world.isRemote && target != null) {
-            double r = TravellersConfig.COMBAT.attackTriggerRange;
-            double d2 = this.getDistanceSq(target);
+        combat.setAttackTarget(target);
+    }
 
-            if (d2 > r * r) {
-                // hard reject
-                super.setAttackTarget(null);
-                setInCombat(false);
-                setRevengeTarget(null);
-                getNavigator().clearPath();
-                setSprinting(false);
-                if (isAimingBow()) {
-                    setAimingBow(false);
-                    resetActiveHand();
-                }
-                return;
-            }
-        }
-        if (world != null && TravellersDerivedConfig.isPeacefulBlocked(world)) {
-            super.setAttackTarget(null);
-            setInCombat(false);
-            return;
-        }
-        // A creative/spectator player is never a valid target, regardless of what triggered this
-        // call (revenge, call-for-help, proactive scan...) - this is the single choke point every
-        // setAttackTarget caller goes through via virtual dispatch, so checking it here once covers
-        // all of them instead of every individual target-selector task re-deriving it.
-        if (target instanceof EntityPlayer) {
-            EntityPlayer tp = (EntityPlayer) target;
-            if (tp.isCreative() || tp.isSpectator()) {
-                super.setAttackTarget(null);
-                setInCombat(false);
-                return;
-            }
-        }
-        if (target != null) {
-            double r = TravellersConfig.COMBAT.attackTriggerRange;
-            if (this.getDistanceSq(target) > r * r) {
-                // hard reject: never keep far targets
-                super.setAttackTarget(null);
-                if (!world.isRemote) {
-                    setInCombat(false);
-                    setRevengeTarget(null);
-                    getNavigator().clearPath();
-                    setSprinting(false);
-
-                    // also cancel ranged pose if it was left on
-                    if (isAimingBow()) {
-                        setAimingBow(false);
-                        resetActiveHand();
-                    }
-                }
-                return;
-            }
-        }
-
-        if (target != null) {
-            EntityRuleList blacklist = getAggroBlacklist();
-            if (blacklist.matches(target)) {
-                ignoreTarget(target, 20 * 60);
-                rejectTarget();
-                return;
-            }
-        }
-
-        // Never target a friendly unit's bonded horse (see isFriendlyBondedMount): stops owner-assist
-        // / defend AIs from mobbing a mount they can't damage.
-        if (target != null && !world.isRemote && isFriendlyBondedMount(target)) {
-            ignoreTarget(target, 20 * 30);
-            rejectTarget();
-            return;
-        }
-
-        if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
-                && !this.isInPlayerViewDistance()
-                && !(target instanceof EntityPlayer)) {
-            rejectTarget();
-
-            return;
-        }
-
-        if (!this.world.isRemote
-                && TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
-                && !this.isInPlayerViewDistance()) {
-            // Completely ignore combat targets while off-screen
-            rejectTarget();
-            return;
-        }
-        if (!this.isAggressiveToTravellers() && target instanceof net.minecraft.entity.IEntityOwnable) {
-            net.minecraft.entity.IEntityOwnable ownable = (net.minecraft.entity.IEntityOwnable) target;
-            if (ownable.getOwner() instanceof EntityPlayer) {
-                rejectTarget();
-                return;
-            }
-        }
-        if (target instanceof EntityTraveller) {
-            EntityTraveller other = (EntityTraveller) target;
-
-            // ✅ Exception: hired worker vs hired worker can fight if owners are hostile
-            if (this instanceof EntityTravellerWorker && other instanceof EntityTravellerWorker) {
-                EntityTravellerWorker me = (EntityTravellerWorker) this;
-                EntityTravellerWorker them = (EntityTravellerWorker) other;
-
-                if (me.shouldAttackExtraEntity(them)) {
-                    // allow, do NOT reject
-                } else {
-                    // fall through to normal faction rules
-                    if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other)) {
-                        rejectTarget();
-                        return;
-                    }
-                }
-            } else {
-                // Normal travellers: block same-faction fights
-                if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other)) {
-                    rejectTarget();
-                    return;
-                }
-            }
-        }
-
-// --- NEW: hard cap attackers per target ---
-// --- hard cap attackers per target (with your 8-block bypass rule) ---
-        if (!world.isRemote && target != null) {
-            // target is never a creative/spectator player here - rejected earlier above.
-            {
-                // If target is close (<=8 blocks) AND we have no current target,
-                // ignore the limiter and allow engagement.
-                boolean bypass = shouldBypassAttackTargetLimiter(target);
-
-                int prio = AttackTargetLimiter.priorityFor(this);
-                if (!bypass) {
-                    int effectiveMax = computeEffectiveAttackerCap(target);
-
-                    if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
-                        if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
-                                && AncientWarfare2Compat.isFactionNpc(target)) {
-                            net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
-                                    "[Travellers/AW2] %s FAILED to join attacker slot on %s#%s (cap=%d, current=%d)",
-                                    this.getName(), target.getName(), target.getUniqueID(),
-                                    effectiveMax, AttackTargetLimiter.getAttackerCount(target));
-                        }
-                        ignoreTarget(target, 30);
-                        startWatchingFight(target, 60);
-                        if (this.getRevengeTarget() == target) this.setRevengeTarget(null);
-                        setInCombat(false);
-                        getNavigator().clearPath();
-                        return;
-                    } else if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
-                            && AncientWarfare2Compat.isFactionNpc(target)) {
-                        net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
-                                "[Travellers/AW2] %s joined attacker slot on %s#%s (cap=%d, now=%d)",
-                                this.getName(), target.getName(), target.getUniqueID(),
-                                effectiveMax, AttackTargetLimiter.getAttackerCount(target));
-                    }
-                } else {
-                    // Bypass (revenge / emergency): register an unlimited slot so keepAlive
-                    // won't evict this entity on the next tick.
-                    // Archers skip keepAlive entirely, so no slot needed for them.
-                    boolean isArcher = this.hasBowAnywherePublic() || this.isAimingBow();
-                    if (!isArcher) {
-                        AttackTargetLimiter.tryJoin(this, target, prio, Integer.MAX_VALUE);
-                    }
-                }
-            }
-        }
-
-
+    // The vanilla setter, for TravellerCombatLogic only (it applies the rules first).
+    public void vanillaSetAttackTarget(@Nullable EntityLivingBase target) {
         super.setAttackTarget(target);
-
-        if (!world.isRemote) {
-            if (target != null) setInCombat(true);
-            if (target instanceof EntityPlayer) {
-                combat.chasingPlayerId = target.getUniqueID();
-                combat.lastLOSorCloseTick = this.ticksExisted; // we just “saw” them
-            } else if (target == null) {
-                combat.resetChaseMemory();
-            }
-
-            // Play attack shout when freshly engaging a target
-            if (target != null && prev == null) {
-                voice.tryPlayAttack();
-            }
-
-            // Loaded-vs-loaded fight tracking: the offscreen scanner never sees entities that were
-            // already loaded when the fight started, so notification/journal coverage needs this hook too.
-            if (target instanceof EntityTraveller && prev != target) {
-                com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
-                        .onLoadedEngagement((net.minecraft.world.WorldServer) world, this, (EntityTraveller) target);
-            }
-        }
     }
 
     // Traveller textures
@@ -2213,131 +2025,15 @@ public class EntityTraveller extends EntityCreature {
         travelCommon.updateNearestVillage();
     }
 
+    // The reaction to a hit (armor wear, revenge, retaliation) lives in TravellerCombatLogic.onAttacked.
     @Override
     public boolean attackEntityFrom(DamageSource source, float amount) {
+        return combat.onAttacked(source, amount);
+    }
 
-        if (source == DamageSource.CACTUS || "cactus".equals(source.getDamageType())) {
-            return false;
-        }
-
-        boolean tookDamage = super.attackEntityFrom(source, amount);
-        if (!tookDamage || world.isRemote) return tookDamage;
-
-        // A lethal hit already ran onDeath() synchronously inside super.attackEntityFrom above,
-        // which may have dropped this entity's armor as world EntityItems — vanilla's dropEquipment
-        // hands the drop the exact same ItemStack reference still sitting in the equipment slot,
-        // it never copies it. Damaging armor after that point would silently over-wear the item
-        // that's already on the ground instead of anything still worn by this entity.
-        // INVARIANT: no wear after a possibly lethal hit - the drop shares this ItemStack.
-        if (getHealth() > 0.0F) {
-            TravellerItemDamage.damageArmorOnHit(this, amount);
-        }
-
-        if (choirSinging) {
-            // Keep the OGG stream alive; just mute the sound on clients for 8 seconds so
-            // when unmuted the singer is back at the correct position in the song.
-            TravellersNetwork.CHANNEL.sendToAllAround(
-                    new MsgChoirSingerMute(getEntityId(), 8000),
-                    new NetworkRegistry.TargetPoint(this.dimension, this.posX, this.posY, this.posZ, 64.0));
-            // Don't touch voiceLockUntilTick so the coordinator keeps the session alive.
-        }
-        // Non-choir case: no explicit stop here anymore. playHurtSound() (called by
-        // super.attackEntityFrom above) already crossfades out whatever voice line was
-        // playing when it plays the hurt bark. If the hurt bark itself was throttled by
-        // TravellerCrowdSoundLimiter (dense battle) there's nothing to interrupt with,
-        // so the prior sound is deliberately left alone rather than cut to silence.
-
-        Entity src = source.getTrueSource();
-
-        if (src instanceof EntityPlayer && ((EntityPlayer) src).isCreative()) {
-            // Vanilla's super.attackEntityFrom above already set the revenge target to this
-            // creative player unconditionally - clear it so nothing downstream (TravellerHurtByTarget,
-            // isInCombatRaw, threat memory...) treats a harmless creative hit as an ongoing threat.
-            setInCombat(false);
-            setRevengeTarget(null);
-            return true;
-        }
-
-        // NEW: if worker is hit by its owner, never aggro back
-        if (this instanceof EntityTravellerWorker && src instanceof EntityPlayer) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this;
-            EntityPlayer owner = w.getFollowOwner();
-            if (owner != null && owner == src) {
-                return true;
-            }
-        }
-
-
-
-        // NEW: if worker is hit by its owner, never aggro back
-        if (this instanceof EntityTravellerWorker && src instanceof EntityPlayer) {
-            EntityTravellerWorker w = (EntityTravellerWorker) this;
-            EntityPlayer owner = w.getFollowOwner();
-            if (owner != null && owner == src) {
-                // Take damage, but do not treat as a threat
-                return true;
-            }
-        }
-
-        if (src instanceof EntityTraveller) {
-            EntityTraveller other = (EntityTraveller) src;
-            if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other)) {
-                // same faction -> no revenge target, no aggro
-                this.setRevengeTarget(null);
-                return true;
-            }
-        }
-
-        if (src instanceof org.millenaire.common.entity.MillVillager) {
-            org.millenaire.common.entity.MillVillager mv = (org.millenaire.common.entity.MillVillager) src;
-            if (!com.jubitus.travellers.village.MillVillagerTravellerGuard.shouldFightMillVillager(this, mv)) {
-                // Absorb hit from a non-enemy millager without retaliating
-                return true;
-            }
-        }
-
-        if (src instanceof EntityLivingBase) {
-            this.setRevengeTarget((EntityLivingBase) src);
-        }
-
-        if (!TravellersDerivedConfig.isPeacefulBlocked(world) && src instanceof EntityLivingBase) {
-            EntityLivingBase le = (EntityLivingBase) src;
-
-            // Always remember threats – we saw them / they hit us
-            combat.rememberThreat(le, TravellerCombatLogic.THREAT_FOR_HIT);
-
-            boolean canSee = this.getEntitySenses().canSee(le);
-            double d2 = this.getDistanceSq(le);
-            boolean near = d2 <= 9.0D; // 3 blocks radius; tweak as you like
-
-            // **Key: require a path before we actually mark them as attack target**
-            boolean hasPath = (le != null) && this.hasPathToThrottled(le, 2); // urgent
-
-
-            // Special rules for players:
-            if (le instanceof EntityPlayer) {
-                EntityPlayer p = (EntityPlayer) le;
-
-                // Only aggro on player if seen OR nearby AND pathable
-                if ((canSee || near) && hasPath) {
-                    setInCombat(true);
-                    this.setAttackTarget(le);
-                } else {
-                    // Take the hit and remember threat, but don't start active combat
-                    setInCombat(false);
-                }
-            } else {
-                // Non-player: must be pathable to become an active target
-                if (hasPath) {
-                    setInCombat(true);
-                    this.setAttackTarget(le);
-                } else {
-                    setInCombat(false);
-                }
-            }
-        }
-
-        return true;
+    // The vanilla damage path, for TravellerCombatLogic only.
+    public boolean vanillaAttackEntityFrom(DamageSource source, float amount) {
+        return super.attackEntityFrom(source, amount);
     }
 
 @Override
@@ -3427,21 +3123,6 @@ public void fall(float distance, float damageMultiplier) {
         return travelTicket;
     }
 
-    private void rejectTarget() {
-        EntityLivingBase cur = this.getAttackTarget();
-        if (cur != null) {
-            AttackTargetLimiter.leave(this, cur);
-            ignoreTarget(cur, 20 * 60);
-        }
-
-        super.setAttackTarget(null);
-        if (!world.isRemote) {
-            setInCombat(false);
-            combat.resetChaseMemory();
-            setRevengeTarget(null);
-            getNavigator().clearPath();
-        }
-    }
 
     protected void markCombatNow() {
         combat.markCombatNow();
@@ -3650,9 +3331,6 @@ public void fall(float distance, float damageMultiplier) {
         return combat.rangedCrowdScoreAround(target, radius);
     }
 
-    protected void startWatchingFight(EntityLivingBase target, int ticks) {
-        combat.startWatchingFight(target, ticks);
-    }
 
 
 // =======================

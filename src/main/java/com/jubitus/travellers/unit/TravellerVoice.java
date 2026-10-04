@@ -93,7 +93,7 @@ public final class TravellerVoice {
 
     // ---- barks ----
 
-    void tryPlayAttack() {
+    public void tryPlayAttack() {
         if (!TravellersConfig.SOUND.attackSoundEnabled) return;
         if (unit.world.isRemote) return;
         if (unit.ticksExisted < attackCooldownUntilTick) return;
