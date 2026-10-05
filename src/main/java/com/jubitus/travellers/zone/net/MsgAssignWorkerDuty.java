@@ -30,7 +30,7 @@ import java.util.UUID;
 /**
  * Client -> server: assign a worker (live or virtual) to duty at one of the player's Stables. The
  * assignment message itself sends the worker there (no separate order needed) - see
- * {@code EntityTravellerWorker.startDutyTravel()}'s doc for why Duty can't just copy Home's
+ * {@code WorkerTrips.startDutyTravel()}'s doc for why Duty can't just copy Home's
  * assign-then-click-Go-Home shape.
  */
 public class MsgAssignWorkerDuty implements IMessage {

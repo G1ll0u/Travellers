@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-05)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.11 done; next: 9.12).
+**Status (2026-10-05)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.12 done).
 
 ## Goal
 
@@ -224,7 +224,7 @@ cancels is removed from the pool anyway, and a released pen horse is never respa
 Kept: bond invariants in `mount/`, containment AI in `zone/stable/` (each used by one system only); chunk unload
 stays two handlers (bonded horses depend on which riders unload in the same chunk, `ChunkUnloadVirtualizeHandler`).
 
-### Phase 9 — Unit classes split — status: in progress (9.1–9.11 done)
+### Phase 9 — Unit classes split — status: in progress (9.1–9.12 done)
 
 - `EntityTraveller` (5 177 lines): mount runtime state → `TravellerMountState`; voice → `TravellerVoice`; NBT →
   codec; sleep; hazard/cliff repulsion; virtualization eligibility → `VirtualizationGate` (one rule, subclass hooks);
@@ -264,7 +264,11 @@ divisor is the config value in `computeEffectiveAttackerCap` but a hard-coded 5 
 "in view" goal branches were dead (that test is "own chunk loaded", always true for a loaded unit): both always chase the
 target's ground. Decided (user): a traveller's catchup end also clears its route; every worker catchup cancel goes through
 `stop()`; performance ideas deferred (memory). The worker exit check now runs inside the base tick (also during choir freeze).
-Next: 9.12 — pick the next split of `EntityTravellerWorker` (missions) with the user. Catchup checked in game by the user (workers and travellers catch up, Go order / recruit during catchup). In-game check still owed for 9.1–9.10 (load a world, voices, camp sleep, mounts; recruit and delivery
+9.12 `unit/WorkerTrips` (`worker.trips`): go home, go to duty, Go order, Get Equipment — state, starts, arrival,
+virtual finishes, save keys (unchanged) and the three reload route rebuilds (one helper). The loaded Get Equipment
+hand-over (chest gear or Stable horses) → `EquipOrders.onArrived`. Behaviour unchanged; the go-order part of the save
+is still read after the follow state (restoring follow would otherwise cancel it). Noticed, not changed: the Stable
+horse pick-up is written twice (loaded `EquipOrders.onArrived`, virtual `tryVirtualHorsePickup`) — phase 10. Catchup checked in game by the user (workers and travellers catch up, Go order / recruit during catchup). In-game check still owed for 9.1–9.10 (load a world, voices, camp sleep, mounts; recruit and delivery
 missions across a save/reload; workers fighting, hit by their owner; backpack on a mission).
 
 ### Phase 10 — Virtualization split and record cleanup — status: todo

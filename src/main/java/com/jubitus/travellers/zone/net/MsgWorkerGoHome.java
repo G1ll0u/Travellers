@@ -63,7 +63,7 @@ public class MsgWorkerGoHome implements IMessage {
 
 
 // Now start go-home logic
-                w.startGoHome();
+                w.trips.startGoHome();
 
             });
             return null;

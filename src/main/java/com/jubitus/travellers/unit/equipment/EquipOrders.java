@@ -3,6 +3,8 @@ package com.jubitus.travellers.unit.equipment;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.follow.group.WorkerGroupService;
 import com.jubitus.travellers.follow.group.WorkerOrderGuard;
+import com.jubitus.travellers.mount.TravellerMountSupport;
+import com.jubitus.travellers.notify.MissionNotifications;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.village.MillSettlements;
@@ -11,6 +13,7 @@ import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.zone.ZoneType;
+import com.jubitus.travellers.zone.stable.WorkerHorsePickup;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
@@ -39,7 +42,7 @@ public final class EquipOrders {
                 return;
             }
             if (detachFromGroup) WorkerGroupService.detachForMission(player, workerId);
-            owned.live.startGetEquipMission(dest, stay, kind);
+            owned.live.trips.startGetEquip(dest, stay, kind);
             return;
         }
 
@@ -57,7 +60,7 @@ public final class EquipOrders {
             WorkerGroupService.detachForMission(player, r.uuid);
             temp.clearEscortLeader();
         }
-        temp.startGetEquipMission(dest, stay, kind);
+        temp.trips.startGetEquip(dest, stay, kind);
 
         NBTTagCompound updatedNbt = new NBTTagCompound();
         temp.writeToNBT(updatedNbt);
@@ -66,6 +69,40 @@ public final class EquipOrders {
         r.goOrderActive = true;
         r.goal = dest;
         VirtualTravellerManager.get(overworld).markDirty();
+    }
+
+    /** A loaded worker reached its Get Equipment target: it and its group followers are equipped there. */
+    public static void onArrived(EntityTravellerWorker worker, BlockPos target, EquipTargetKind kind) {
+        WorldServer world = (WorldServer) worker.world;
+        if (kind == EquipTargetKind.STABLE) {
+            PlayerZoneRecord zone = PlayerZoneManager.get(world).getByOwnerAndCenter(worker.getFollowOwnerId(), target);
+            if (zone == null) return;
+            boolean wantedHorse = worker.getMountUUID() == null;
+            if (wantedHorse) {
+                NBTTagCompound horseNbt = WorkerHorsePickup.claimReadyHorse(world, zone);
+                if (horseNbt != null && !TravellerMountSupport.bondSpecificMount(worker, horseNbt)) {
+                    // Spawn genuinely failed (a UUID collision): don't lose the horse from the pool's count.
+                    WorkerHorsePickup.returnUnclaimedHorse(world, zone, horseNbt);
+                }
+            }
+            // Whoever this order was sent to arriving equips the whole group, as for chest gear.
+            int followerHorses = WorkerHorsePickup.claimForGroupFollowers(world, zone, worker.getUniqueID());
+            if (wantedHorse && worker.getMountUUID() == null) {
+                WorkerHorsePickup.notifyNothingToEquip(world, zone, worker.getFollowOwnerId());
+            }
+            int horses = followerHorses + (wantedHorse && worker.getMountUUID() != null ? 1 : 0);
+            if (horses > 0) {
+                MinecraftServer srv = world.getMinecraftServer();
+                UUID ownerId = worker.getFollowOwnerId();
+                int total = 1 + (srv != null && ownerId != null
+                        ? WorkerGroupService.countFollowers(srv, ownerId, worker.getUniqueID()) : 0);
+                MissionNotifications.equipped(srv, ownerId, horses, total);
+            }
+        } else {
+            boolean useWholeVillage = kind == EquipTargetKind.CONTROLLED_VILLAGE;
+            int[] equip = WorkerEquipExchanger.exchangeWithFollowers(worker, world, target, useWholeVillage);
+            MissionNotifications.equipped(world.getMinecraftServer(), worker.getFollowOwnerId(), equip[0], equip[1]);
+        }
     }
 
     /** Only the player's own controlled villages, Barracks or Stables. */

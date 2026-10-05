@@ -68,7 +68,7 @@ public final class ZoneAssignments {
 
         if (live != null) {
             live.assignZone(zone, dim);
-            if (duty) live.startDutyTravel();
+            if (duty) live.trips.startDutyTravel();
             TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHome(live), player);
         } else {
             WorldServer overworld = server.getWorld(0);
@@ -77,7 +77,7 @@ public final class ZoneAssignments {
             temp.setUniqueId(rec.uuid);
             temp.setPositionAndRotation(rec.posX, rec.posY, rec.posZ, rec.rotYaw, 0);
             temp.assignZone(zone, dim);
-            if (duty) temp.startDutyTravel();
+            if (duty) temp.trips.startDutyTravel();
             NBTTagCompound updated = new NBTTagCompound();
             temp.writeToNBT(updated);
             rec.entityNbt = updated;
@@ -135,9 +135,9 @@ public final class ZoneAssignments {
     private static void mirrorOntoRecord(EntityTravellerWorker w, VirtualTravellerRecord r) {
         r.dutyKind = w.getDutyKind();
         r.dutyZoneCenter = w.getDutyZoneCenter();
-        r.goingToDuty = w.isGoingToDuty();
+        r.goingToDuty = w.trips.isGoingToDuty();
         r.goingHome = w.isGoingHome();
-        r.personalTravelGoal = w.getActivePersonalTravelGoal();
+        r.personalTravelGoal = w.trips.getActivePersonalTravelGoal();
         r.followOrderActive = w.isFollowOrderActive();
         r.workerMode = w.getMode().name();
     }

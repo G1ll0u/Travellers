@@ -21,7 +21,7 @@ public class EntityAIWorkerDuty extends EntityAIBase {
 
     @Override
     public boolean shouldExecute() {
-        return worker.isOnDuty() && !worker.isGoingToDuty();
+        return worker.isOnDuty() && !worker.trips.isGoingToDuty();
     }
 
     @Override

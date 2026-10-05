@@ -946,7 +946,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
         worker.readFromNBT(r.entityNbt);
         worker.setUniqueId(r.uuid);
-        worker.finishGoOrderVirtually(r.goal);
+        worker.trips.finishGoOrderVirtually(r.goal);
         NBTTagCompound updatedNbt = new NBTTagCompound();
         worker.writeToNBT(updatedNbt);
         r.entityNbt = updatedNbt;
@@ -1148,7 +1148,7 @@ public class VirtualTravellerManager extends WorldSavedData {
      * it back into the record, and mirror the finished state onto the record itself. */
     private void finishVirtualEquip(WorldServer world, VirtualTravellerRecord r, EntityTravellerWorker worker,
                                      BlockPos target, boolean stay) {
-        worker.finishGetEquipVirtually(stay, target);
+        worker.trips.finishGetEquipVirtually(stay, target);
         NBTTagCompound updatedNbt = new NBTTagCompound();
         worker.writeToNBT(updatedNbt);
         r.entityNbt = updatedNbt;
@@ -1935,7 +1935,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // it fully intact (cancelGoOrderAndTravel below would wipe the route/target/readyToDepart and
         // strand the worker where it materialized). startGoHome/startDutyTravel already cleared any
         // go order or escort link, so there is nothing else here to reconcile.
-        if (worker.isGoingHome() || worker.isGoingToDuty()) return;
+        if (worker.isGoingHome() || worker.trips.isGoingToDuty()) return;
 
         // D-2: a non-recruited idle worker roaming village-to-village. materializeEntity's worker
         // branch restores its final destination (restoreVirtualRoute) right after this call, and the
@@ -1950,8 +1950,8 @@ public class VirtualTravellerManager extends WorldSavedData {
             // Go order active (possibly a destination issued while virtual): (re)issue it.
             // startGoToDestination rebuilds the travel route from scratch, so any stale route baked into
             // the frozen NBT is overwritten here.
-            if (!worker.isGoOrderActive() || !r.goal.equals(worker.getGoOrderTargetPos())) {
-                worker.startGoToDestination(r.goal, r.dimension);
+            if (!worker.trips.isGoOrderActive() || !r.goal.equals(worker.trips.getGoOrderTargetPos())) {
+                worker.trips.startGoTo(r.goal, r.dimension);
             }
             return;
         }
@@ -1960,7 +1960,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // its own travel from its mode, so leave that restored travel state intact - only drop a stale go
         // order the frozen NBT may still carry and re-enable follow if the record wants it.
         if (!"IDLE".equals(r.workerMode) || !r.isHiredFollower) {
-            if (worker.isGoOrderActive()) worker.cancelGoOrderAndTravel();
+            if (worker.trips.isGoOrderActive()) worker.trips.cancelGoOrder();
             if (r.followOrderActive && !worker.isFollowOrderActive()) worker.setFollowOrderActive(true);
             return;
         }
@@ -1971,7 +1971,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // toward its old group / old location, oscillating at the view border" bug). cancelGoOrderAndTravel
         // clears the go order AND the leftover route/targetVillage/readyToDepart; follow/anchor then drive
         // movement from the record's followOrderActive.
-        worker.cancelGoOrderAndTravel();
+        worker.trips.cancelGoOrder();
         worker.setFollowOrderActive(r.followOrderActive);
     }
 
@@ -2068,15 +2068,15 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.catchupTargetUUID = worker.catchup.getTargetId();
         r.workerMode = worker.getMode().name();
         r.jobGoal = worker.getJobGoal();
-        r.goOrderActive = worker.isGoOrderActive();
+        r.goOrderActive = worker.trips.isGoOrderActive();
         // Duty assignment + personal self-travel (Go Home / Go To Duty): a loaded worker that
         // virtualizes mid-route would otherwise drop these and stall offscreen (nothing refreshes
         // its goal), only resuming when a player walks back into range.
         r.dutyKind = worker.getDutyKind();
         r.dutyZoneCenter = worker.getDutyZoneCenter();
         r.goingHome = worker.isGoingHome();
-        r.goingToDuty = worker.isGoingToDuty();
-        r.personalTravelGoal = worker.getActivePersonalTravelGoal();
+        r.goingToDuty = worker.trips.isGoingToDuty();
+        r.personalTravelGoal = worker.trips.getActivePersonalTravelGoal();
         r.homeVillage = worker.getHomeVillage();
         r.escortLeaderUUID = worker.getEscortLeaderUUID();
         r.captureIdentityFromNbt();

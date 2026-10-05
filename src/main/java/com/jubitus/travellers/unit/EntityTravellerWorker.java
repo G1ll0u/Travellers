@@ -106,11 +106,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private double cachedPlayerCohesion = 0.4D;
 
 
-    // --- "Go..." order state ---
-    private boolean goOrderActive = false;
-    @Nullable private BlockPos goOrderTargetPos = null;
-    private int goOrderTargetDim = 0; // for persistence (same dim usually)
-
     // --- escort leader watchdog ---
     private int escortLeaderCheckCooldown = 0;
     // -1 = uninitialised; set to entity-ID-based phase offset on first tick to spread load across ticks
@@ -159,6 +154,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public final PlayerHostility playerHostility = new PlayerHostility(this);
     public final RecruitMission recruit = new RecruitMission(this);
     public final DeliveryJob delivery = new DeliveryJob(this);
+    public final WorkerTrips trips = new WorkerTrips(this);
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
     // --- follower / hire state (existing) ---
@@ -170,14 +166,12 @@ public class EntityTravellerWorker extends EntityTraveller {
     // --- the one zone assignment: a Barrack (lodging) or a Stable (lodging + duty) ---
     @Nullable
     ZoneRef zone = null;
-    boolean goingHome = false;
-    boolean goingToDuty = false;
     private int anchorScanCooldown = 0;
     private int leaderCountCooldown = 0;
     private int stuckAtVillageTicks = 0;
     boolean returnUsingFollow = false;
     // NEW: whether follow AI is currently active (player’s "Follow" order)
-    private boolean followOrderActive = false;
+    boolean followOrderActive = false;
     // NEW: where the worker was told to stay when follow was toggled OFF
     @Nullable
     BlockPos idleAnchorPos = null;
@@ -189,10 +183,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     BlockPos homeVillageCenter;
     WorkerMode mode = WorkerMode.IDLE;
-    // GET_EQUIPMENT mission flags
-    private boolean getEquipStay = false;
-    private com.jubitus.travellers.unit.equipment.EquipTargetKind getEquipTargetKind =
-            com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK;
     // When true, base EntityTraveller will NOT auto-plan routes
     boolean routeLocked = false;
 
@@ -291,7 +281,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
 
     public boolean isGoingHome() {
-        return goingHome;
+        return trips.isGoingHome();
     }
 
     public ItemStackHandler getPersonalInventory() {
@@ -332,7 +322,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     /** Binds this worker to {@code record} (its home, and its duty if the zone has one). Does not
-     * move it - the assign messages call {@link #startDutyTravel()} for a duty zone. */
+     * move it - the assign messages call {@link WorkerTrips#startDutyTravel()} for a duty zone. */
     public void assignZone(PlayerZoneRecord record, int dim) {
         this.zone = ZoneRef.of(record, dim);
         syncZoneDataParams();
@@ -369,62 +359,18 @@ public class EntityTravellerWorker extends EntityTraveller {
         return zone != null ? zone.dutyKind() : null;
     }
 
-    public boolean isGoingToDuty() {
-        return goingToDuty;
-    }
-
     public boolean isOnDuty() {
         return mode == WorkerMode.ON_DUTY;
-    }
-
-    /**
-     * The fixed self-chosen destination this worker is currently walking to under its own travel AI:
-     * its duty zone ({@link #startDutyTravel()}) or its home barrack ({@link #startGoHome()}), or
-     * null if it is doing neither. Both are "personal travel" - one concrete goal that must keep
-     * progressing offscreen and survive virtualize/materialize regardless of {@code mode}, unlike a
-     * follow/escort slot. Seeded into {@link #getVirtualGoal()} and mirrored onto the virtual record.
-     */
-    @Nullable
-    public BlockPos getActivePersonalTravelGoal() {
-        if (zone == null || zone.dim != this.dimension) return null;
-        if (goingToDuty && zone.isDuty()) return zone.center;
-        if (goingHome) return zone.center;
-        return null;
-    }
-
-    /** Sends the worker to its assigned duty zone via the travel AI - mirrors {@link #startGoHome()}'s
-     * shape, except {@code mode} becomes {@code ON_DUTY} and stays that way once arrived (the duty is
-     * the ongoing state, not a one-shot destination). */
-    public void startDutyTravel() {
-        if (world.isRemote) return;
-        BlockPos dutyCenter = getDutyZoneCenter();
-        if (dutyCenter == null) return;
-        if (zone.dim != this.dimension) return;
-
-        this.mode = WorkerMode.ON_DUTY;
-        this.goingToDuty = true;
-        this.routeLocked = true;
-
-        this.followOrderActive = false;
-        this.idleAnchorPos = null;
-
-        this.getNavigator().clearPath();
-        this.getTravelCommon().setCurrentWaypoint(null);
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.routeTo(dutyCenter);
-        tc.setDepartCooldownTicks(0);
     }
 
     /** Drops the zone assignment. A worker that was working, staying or heading there goes back to
      * following its owner. Returns false if it had none. */
     public boolean releaseFromZone() {
         if (zone == null) return false;
-        boolean boundHere = mode == WorkerMode.ON_DUTY || goingToDuty || goingHome
+        boolean boundHere = mode == WorkerMode.ON_DUTY || trips.isGoingToDuty() || trips.isGoingHome()
                 || zone.center.equals(idleAnchorPos);
         this.zone = null;
-        this.goingHome = false;
-        this.goingToDuty = false;
+        trips.onZoneReleased();
         if (this.mode == WorkerMode.ON_DUTY) this.mode = WorkerMode.IDLE;
         syncZoneDataParams();
         if (boundHere) {
@@ -489,7 +435,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (!isHiredFollower()) return false;
         return recruit.isOnMission() || delivery.isOnMission()
                 || mode == WorkerMode.GET_EQUIPMENT
-                || goOrderActive || goingHome || goingToDuty;
+                || trips.isUnderWay();
     }
 
     public boolean isWorkerChoirActive() { return this.dataManager.get(CHOIR_ACTIVE_DM); }
@@ -898,118 +844,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         TravelCommon tc = this.getTravelCommon();
 
-        if (!world.isRemote && goingHome && zone != null && zone.dim == this.dimension) {
-            int r = tc.arrivalRadiusBlocks(zone.center);
-            if (this.getDistanceSqToCenter(zone.center) <= (double) (r * r)) {
-
-                goingHome = false;
-
-                // 1) wipe travel completely (no route, no waypoint, no target)
-                stopAllTravelNow();
-
-                // 2) now anchor at home (follow OFF)
-                this.followOrderActive = false;
-                this.idleAnchorPos = zone.center;
-                this.getNavigator().clearPath();
-
-                EntityPlayer owner = getFollowOwner();
-                if (owner != null) {
-                    NotificationService.notify(owner, NotificationDefs.WORKER_ARRIVED_HOME);
-                }
-            }
-        }
-
-        // --- Duty zone arrival --- mirrors the Home arrival block above, except mode stays ON_DUTY:
-        // the duty is the ongoing state once arrived, not a one-shot destination like Home is.
-        BlockPos dutyCenter = getDutyZoneCenter();
-        if (!world.isRemote && goingToDuty && dutyCenter != null && zone.dim == this.dimension) {
-            int r = tc.arrivalRadiusBlocks(dutyCenter);
-            if (this.getDistanceSqToCenter(dutyCenter) <= (double) (r * r)) {
-                goingToDuty = false;
-                stopAllTravelNow();
-                this.followOrderActive = false;
-                this.idleAnchorPos = dutyCenter;
-                this.getNavigator().clearPath();
-            }
-        }
-// --- "Go..." order arrival ---
-        if (!world.isRemote && goOrderActive && goOrderTargetPos != null && goOrderTargetDim == this.dimension) {
-            int r = mode == WorkerMode.GET_EQUIPMENT
-                    ? TravellersConfig.WORKER.workerEquipArrivalRadius : TravellersConfig.WORKER.workerGoArrivalRadius;
-            double dx = this.posX - (goOrderTargetPos.getX() + 0.5D);
-            double dz = this.posZ - (goOrderTargetPos.getZ() + 0.5D);
-            if (dx * dx + dz * dz <= (double) (r * r)) {
-
-                goOrderActive = false;
-                stopAllTravelNow();
-                this.getNavigator().clearPath();
-
-                if (mode == WorkerMode.GET_EQUIPMENT) {
-                    if (getEquipTargetKind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE) {
-                        com.jubitus.travellers.zone.PlayerZoneManager zoneMgr =
-                                com.jubitus.travellers.zone.PlayerZoneManager.get(world);
-                        com.jubitus.travellers.zone.PlayerZoneRecord zone =
-                                zoneMgr.getByOwnerAndCenter(this.getFollowOwnerId(), goOrderTargetPos);
-                        if (zone != null) {
-                            boolean wantedHorse = this.getMountUUID() == null;
-                            if (wantedHorse) {
-                                NBTTagCompound horseNbt = com.jubitus.travellers.zone.stable.WorkerHorsePickup
-                                        .claimReadyHorse((net.minecraft.world.WorldServer) world, zone);
-                                if (horseNbt != null && !com.jubitus.travellers.mount.TravellerMountSupport
-                                        .bondSpecificMount(this, horseNbt)) {
-                                    // Spawn genuinely failed (a UUID collision this couldn't avoid) -
-                                    // don't just lose the horse from the pool's own count.
-                                    com.jubitus.travellers.zone.stable.WorkerHorsePickup.returnUnclaimedHorse(
-                                            (net.minecraft.world.WorldServer) world, zone, horseNbt);
-                                }
-                            }
-                            // Whoever this order was sent to arriving is what unlocks the whole group -
-                            // same precedent WorkerEquipExchanger already set for chest gear: followers
-                            // don't each need to travel here individually.
-                            int followerHorses = com.jubitus.travellers.zone.stable.WorkerHorsePickup.claimForGroupFollowers(
-                                    (net.minecraft.world.WorldServer) world, zone, this.getUniqueID());
-                            if (wantedHorse && this.getMountUUID() == null) {
-                                com.jubitus.travellers.zone.stable.WorkerHorsePickup.notifyNothingToEquip(
-                                        world, zone, this.getFollowOwnerId());
-                            }
-                            int horses = followerHorses + (wantedHorse && this.getMountUUID() != null ? 1 : 0);
-                            if (horses > 0) {
-                                net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
-                                UUID ownerId = this.getFollowOwnerId();
-                                int total = 1 + (srv != null && ownerId != null
-                                        ? com.jubitus.travellers.follow.group.WorkerGroupService
-                                        .countFollowers(srv, ownerId, this.getUniqueID()) : 0);
-                                com.jubitus.travellers.notify.MissionNotifications.equipped(srv, ownerId, horses, total);
-                            }
-                        }
-                    } else {
-                        boolean useWholeVillage = getEquipTargetKind
-                                == com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE;
-                        int[] equip = com.jubitus.travellers.unit.equipment.WorkerEquipExchanger
-                                .exchangeWithFollowers(this, world, goOrderTargetPos, useWholeVillage);
-                        com.jubitus.travellers.notify.MissionNotifications.equipped(
-                                world.getMinecraftServer(), this.getFollowOwnerId(), equip[0], equip[1]);
-                    }
-                    if (getEquipStay) {
-                        mode = WorkerMode.IDLE;
-                        this.followOrderActive = false;
-                        this.idleAnchorPos = goOrderTargetPos;
-                    } else {
-                        // Immediately become IDLE so follow AI brings the worker back naturally
-                        finishJob();
-                        if (this.isHiredFollower()) {
-                            this.setFollowOrderActive(true);
-                        }
-                    }
-                } else {
-                    // Normal go order: stay here
-                    this.followOrderActive = false;
-                    this.idleAnchorPos = goOrderTargetPos;
-                    com.jubitus.travellers.notify.MissionNotifications.arrived(
-                            world.getMinecraftServer(), this.getFollowOwnerId(), this.getUniqueID());
-                }
-            }
-        }
+        trips.tickArrival(tc);
 
 
         if (!world.isRemote) {
@@ -1291,11 +1126,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public void resetForBedRespawn(BlockPos spot) {
         clearEscortLeader();
         catchup.stop();
-        this.goOrderActive = false;
-        this.goOrderTargetPos = null;
-        this.goOrderTargetDim = 0;
-        this.goingHome = false;
-        this.goingToDuty = false;
+        trips.clearForBedRespawn();
         recruit.abandon();
         this.returnUsingFollow = false;
         if (this.mode != WorkerMode.ON_DUTY) finishJob();
@@ -1401,8 +1232,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.followOrderActive = active;
         // Following and a Go order are exclusive: either change ends the Go order along with its
         // travel route, or the travel AI keeps walking to the old destination against the follow AI.
-        if (this.goOrderActive) {
-            cancelGoOrderAndTravel();
+        if (trips.isGoOrderActive()) {
+            trips.cancelGoOrder();
             if (!active) {
                 this.idleAnchorPos = this.getPosition();
                 return;
@@ -1410,9 +1241,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         if (active) {
             // Player re-engages follow: cancel any "going home" travel too
-            if (this.goingHome) {
-                this.goingHome = false;
-                stopAllTravelNow();            // clears TravelCommon target/route/waypoint + navigator
+            if (trips.cancelGoHome()) {
                 this.returnUsingFollow = false;
                 delivery.awaitingPickup = false;
             }
@@ -1427,11 +1256,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (!active) {
 
             // ✅ NEW: If we were going home, cancel it NOW.
-            if (this.goingHome) {
-                this.goingHome = false;
-
-                // kill all travel state so nothing keeps pulling toward home
-                stopAllTravelNow();
+            if (trips.cancelGoHome()) {
                 this.returnUsingFollow = false;
                 delivery.awaitingPickup = false;
 
@@ -1469,7 +1294,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         return FollowCatchup.surfaceNear(this.world, target);
     }
 
-    private void stopAllTravelNow() {
+    void stopAllTravelNow() {
         TravelCommon tc = this.getTravelCommon();
 
         tc.clearRoute(false);
@@ -1667,7 +1492,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (!isHiredFollower()) return;
         if (this.mode == WorkerMode.RETURNING && delivery.jobDelivered) return;
         if (isJobActive()) return;
-        if (this.goingHome) return;
+        if (trips.isGoingHome()) return;
         if (followOrderActive) return;
         if (idleAnchorPos == null) return;
 
@@ -1737,9 +1562,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         return normalTravel
                 || this.isJobActive()
                 || isCatchupTravel()
-                || this.goingHome
-                || this.goingToDuty
-                || this.goOrderActive;
+                || trips.isUnderWay();
     }
 
     @Nullable
@@ -1755,7 +1578,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public boolean isItineraryDriven() {
         if (isCatchupTravel()) return false;
-        if (getActivePersonalTravelGoal() != null) return true;
+        if (trips.getActivePersonalTravelGoal() != null) return true;
         if (isOnFixedGoalMission()) return true;
         return !hiredFollower && mode == WorkerMode.IDLE && getEscortLeaderUUID() == null;
     }
@@ -1768,7 +1591,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (!hiredFollower) return false;
         if (mode == WorkerMode.TO_VILLAGE) return delivery.jobVillageCenter != null;
         if (mode == WorkerMode.RECRUITING) return recruit.getCurrentStop() != null;
-        return goOrderActive && goOrderTargetPos != null
+        return trips.isGoOrderActive() && trips.getGoOrderTargetPos() != null
                 && (mode == WorkerMode.IDLE || mode == WorkerMode.GET_EQUIPMENT);
     }
 
@@ -1792,7 +1615,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         // Personal self-travel (Go Home / Go To Duty): a concrete destination the worker is already
         // walking to. Must survive virtualization with a real goal, not null.
-        BlockPos personal = getActivePersonalTravelGoal();
+        BlockPos personal = trips.getActivePersonalTravelGoal();
         if (personal != null) return personal;
         // Active mission modes: go to mission destination, never override with owner pos
         if (mode == WorkerMode.TO_VILLAGE && delivery.jobVillageCenter != null) return delivery.jobVillageCenter;
@@ -1806,7 +1629,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) return recruit.getCurrentStop();
         // Go order (IDLE mode, specific target)
-        if (goOrderActive && goOrderTargetPos != null) return goOrderTargetPos;
+        if (trips.isGoOrderActive() && trips.getGoOrderTargetPos() != null) return trips.getGoOrderTargetPos();
         // Escort follower: head toward the leader (loaded or virtual), never the owner. getVirtualGoal
         // seeds a virtual record's initial goal, and a follower in a group must not be seeded toward
         // the player - the refreshGoal escort branch then refines this into the exact formation slot.
@@ -1864,32 +1687,10 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) {
             if (getDistanceSqToCenter(recruit.getCurrentStop()) < 24.0 * 24.0) return false;
         }
-        if (mode == WorkerMode.GET_EQUIPMENT && goOrderTargetPos != null) {
-            if (getDistanceSqToCenter(goOrderTargetPos) < 48.0 * 48.0) return false;
+        if (mode == WorkerMode.GET_EQUIPMENT && trips.getGoOrderTargetPos() != null) {
+            if (getDistanceSqToCenter(trips.getGoOrderTargetPos()) < 48.0 * 48.0) return false;
         }
         return true;
-    }
-
-    /** Called by VirtualTravellerManager when a Go order is reached offscreen (mirrors the loaded arrival). */
-    public void finishGoOrderVirtually(BlockPos target) {
-        goOrderActive = false;
-        goOrderTargetPos = null;
-        followOrderActive = false;
-        idleAnchorPos = target;
-    }
-
-    /** Called by VirtualTravellerManager after a virtual equipment exchange. */
-    public void finishGetEquipVirtually(boolean stay, BlockPos target) {
-        if (stay) {
-            mode = WorkerMode.IDLE;
-            goOrderActive = false;
-            goOrderTargetPos = null;
-            followOrderActive = false;
-            idleAnchorPos = target;
-        } else {
-            finishJob();
-            if (isHiredFollower()) setFollowOrderActive(true);
-        }
     }
 
     private void tickAnchorDefense() {
@@ -1949,30 +1750,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         double dx = e.posX - ax;
         double dz = e.posZ - az;
         return dx * dx + dz * dz;
-    }
-
-    public void startGoHome() {
-        if (world.isRemote) return;
-        if (zone == null) return;
-        if (zone.dim != this.dimension) return;
-        BlockPos home = zone.center;
-
-        this.goingHome = true;
-        this.routeLocked = true;
-
-        // disable follow, but DO NOT set an anchor yet
-        this.followOrderActive = false;
-        this.idleAnchorPos = null;
-
-        this.setReturnUsingFollow(false);
-
-
-        this.getNavigator().clearPath();
-        this.getTravelCommon().setCurrentWaypoint(null);
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.routeTo(home);
-        tc.setDepartCooldownTicks(0);
     }
 
     public void setReturnUsingFollow(boolean v) {
@@ -2254,84 +2031,13 @@ public class EntityTravellerWorker extends EntityTraveller {
                 .get((net.minecraft.world.WorldServer) world).isVirtual(id);
     }
 
-    public void startGoToDestination(BlockPos pos, int dim) {
-        if (world.isRemote) return;
-        if (pos == null) return;
-        if (dim != this.dimension) return;
-
-        // Cancel anything that could fight with this travel order
-        this.goingHome = false;
-        catchup.stop();
-        this.returnUsingFollow = false;
-        delivery.awaitingPickup = false;
-
-        // Stop job if you want to force the order (optional)
-        // If you prefer to block when job active, do that in the packet handler.
-        if (this.isJobActive()) {
-            // Keep it simple: cancel job travel state but keep inventory
-            this.mode = WorkerMode.IDLE;
-            delivery.jobDelivered = false;
-        }
-
-        // Follow OFF, no anchor yet (anchor will be set once arrived)
-        this.followOrderActive = false;
-        this.idleAnchorPos = null;
-
-        // Mark "go order" active for NBT persistence
-        this.goOrderActive = true;
-        this.goOrderTargetPos = pos;
-        this.goOrderTargetDim = dim;
-
-        // Use TravelAI exactly like GoHome: build a 1-point route
-        this.routeLocked = true;
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.routeTo(pos);
-        tc.setDepartCooldownTicks(0);
-
-        this.getNavigator().clearPath();
-    }
-
-    public void startGetEquipMission(BlockPos target, boolean stay,
-                                      com.jubitus.travellers.unit.equipment.EquipTargetKind kind) {
-        if (world.isRemote || target == null) return;
-
-        this.getEquipStay = stay;
-        this.getEquipTargetKind = kind == null
-                ? com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK : kind;
-        this.mode = WorkerMode.GET_EQUIPMENT;
-
-        this.goingHome = false;
-        catchup.stop();
-        this.returnUsingFollow = false;
-        delivery.awaitingPickup = false;
-        delivery.jobDelivered = false;
-
-        this.followOrderActive = false;
-        this.idleAnchorPos = null;
-        this.goOrderActive = true;
-        this.goOrderTargetPos = target;
-        this.goOrderTargetDim = this.dimension;
-        this.routeLocked = true;
-
-        TravelCommon tc = getTravelCommon();
-        tc.routeTo(target);
-        tc.setDepartCooldownTicks(0);
-
-        getNavigator().clearPath();
-    }
-
-
-
-
     // NBT SAVE/LOAD
     private class WorkerNbtComponent {
         public void write(NBTTagCompound nbt) {
             delivery.writeNbt(nbt);
             recruit.writeNbt(nbt);
             nbt.setInteger("WorkerMode", mode.ordinal());
-            nbt.setBoolean("GetEquipStay", getEquipStay);
-            nbt.setString("GetEquipTargetKind", getEquipTargetKind.name());
+            trips.writeNbt(nbt);
             nbt.setBoolean("RouteLocked", routeLocked);
             nbt.setTag("TravelInventory", travelInventory.serializeNBT());
 
@@ -2360,18 +2066,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
             if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
             if (zone != null) zone.write(nbt);
-            nbt.setBoolean("GoingHome", goingHome);
-            nbt.setBoolean("GoingToDuty", goingToDuty);
 
 
-            // --- "Go..." order persistence ---
-            nbt.setBoolean("GoOrderActive", goOrderActive);
-            if (goOrderTargetPos != null) {
-                nbt.setInteger("GoX", goOrderTargetPos.getX());
-                nbt.setInteger("GoY", goOrderTargetPos.getY());
-                nbt.setInteger("GoZ", goOrderTargetPos.getZ());
-                nbt.setInteger("GoDim", goOrderTargetDim);
-            }
 // NEW: local hostile players (auto retaliation)
             if (!playerHostility.localHostilePlayers.isEmpty()) {
                 NBTTagList list = new NBTTagList();
@@ -2392,13 +2088,6 @@ public class EntityTravellerWorker extends EntityTraveller {
 
             int m = nbt.getInteger("WorkerMode");
             mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
-            getEquipStay = nbt.getBoolean("GetEquipStay");
-            getEquipTargetKind = nbt.hasKey("GetEquipTargetKind")
-                    ? com.jubitus.travellers.unit.equipment.EquipTargetKind.fromNbt(nbt.getString("GetEquipTargetKind"))
-                    // Legacy saves stored a boolean instead - true meant CONTROLLED_VILLAGE, false LONE_BARRACK.
-                    : (nbt.getBoolean("GetEquipWholeVillage")
-                        ? com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE
-                        : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK);
             routeLocked = nbt.getBoolean("RouteLocked");
             if (nbt.hasKey("TravelInventory")) {
                 travelInventory.deserializeNBT(nbt.getCompoundTag("TravelInventory"));
@@ -2460,38 +2149,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             zone = ZoneRef.read(nbt);
             if (!world.isRemote) syncZoneDataParams();
 
-            goingHome = nbt.getBoolean("GoingHome");
-            goingToDuty = nbt.getBoolean("GoingToDuty");
-            BlockPos dutyCenter = getDutyZoneCenter();
-            if (dutyCenter != null) {
-                // Duty is a persistent state, not a one-shot mission - mode must be restored
-                // unconditionally, whether the worker is still travelling there or already arrived.
-                mode = WorkerMode.ON_DUTY;
-                if (!world.isRemote && goingToDuty && zone.dim == dimension) {
-                    TravelCommon dutyTc = getTravelCommon();
-                    boolean dutyRouteMissing = dutyTc.route == null || dutyTc.route.isEmpty() || dutyTc.routeIndex < 0;
-                    if (dutyRouteMissing) {
-                        dutyTc.routeTo(dutyCenter);
-                        dutyTc.setDepartCooldownTicks(0);
-
-                        getNavigator().clearPath();
-                    }
-                }
-            } else if (mode == WorkerMode.ON_DUTY) {
-                mode = WorkerMode.IDLE;
-            }
-            if (!world.isRemote && goingHome && zone != null && zone.dim == dimension) {
-                BlockPos assignedHomePos = zone.center;
-                TravelCommon tc = getTravelCommon();
-
-                boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
-                if (routeMissing) {
-                    tc.routeTo(assignedHomePos);
-                    tc.setDepartCooldownTicks(0);
-
-                    getNavigator().clearPath();
-                }
-            }
+            trips.readZoneTripsNbt(nbt);
 
             boolean hired = nbt.getBoolean("HiredFollower");
             Optional<UUID> owner = nbt.hasUniqueId("FollowOwnerId")
@@ -2506,32 +2164,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             if (recruit.isReturningToOwner() && isHiredFollower()) {
                 setFollowOrderActive(true);
             }
-// --- "Go..." order restore ---
-            goOrderActive = nbt.getBoolean("GoOrderActive");
-            if (nbt.hasKey("GoX")) {
-                goOrderTargetPos = new BlockPos(
-                        nbt.getInteger("GoX"),
-                        nbt.getInteger("GoY"),
-                        nbt.getInteger("GoZ")
-                );
-                goOrderTargetDim = nbt.getInteger("GoDim");
-            } else {
-                goOrderTargetPos = null;
-                goOrderTargetDim = 0;
-            }
-
-// If active, rebuild TravelCommon route so TravelAI continues after reload
-            if (!world.isRemote && goOrderActive && goOrderTargetPos != null) {
-                TravelCommon tc = getTravelCommon();
-
-                boolean routeMissing = tc.route == null || tc.route.isEmpty() || tc.routeIndex < 0;
-                if (routeMissing) {
-                    tc.routeTo(goOrderTargetPos);
-                    tc.setDepartCooldownTicks(0);
-
-                    getNavigator().clearPath();
-                }
-            }
+            trips.readGoOrderNbt(nbt);
             playerHostility.localHostilePlayers.clear();
             if (nbt.hasKey("LocalHostilePlayers", Constants.NBT.TAG_LIST)) {
                 NBTTagList list = nbt.getTagList("LocalHostilePlayers", Constants.NBT.TAG_COMPOUND);
@@ -2607,23 +2240,6 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         return (Math.max(mvSq, moSq) > MOTION_EPSILON) || e.isSprinting() || e.isSneaking();
     }
-
-    public boolean isGoOrderActive() {
-        return goOrderActive;
-    }
-
-    @Nullable
-    public BlockPos getGoOrderTargetPos() {
-        return goOrderTargetPos;
-    }
-
-    public void cancelGoOrderAndTravel() {
-        goOrderActive = false;
-        goOrderTargetPos = null;
-        goOrderTargetDim = 0;
-        stopAllTravelNow();
-    }
-
 
 
 }

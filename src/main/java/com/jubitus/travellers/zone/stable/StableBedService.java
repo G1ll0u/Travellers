@@ -42,7 +42,7 @@ public final class StableBedService {
     static int countLoadedPalfreniersOnStation(WorldServer world, PlayerZoneRecord zone, StableZoneData data) {
         int n = 0;
         for (EntityTravellerWorker w : world.getEntitiesWithinAABB(EntityTravellerWorker.class, workerScanBox(zone))) {
-            if (!w.isEntityAlive() || !w.isOnDuty() || w.isGoingToDuty()) continue;
+            if (!w.isEntityAlive() || !w.isOnDuty() || w.trips.isGoingToDuty()) continue;
             if (!DutyDefs.STABLE_HAND.equals(w.getDutyKind())) continue;
             if (w.getZoneRef() == null || !w.getZoneRef().matches(zone)) continue;
             if (!zone.ownerUUID.equals(w.getFollowOwnerId())) continue;

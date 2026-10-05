@@ -85,7 +85,7 @@ public class WorkerMapStream {
             this.health = w.getHealth();
             this.maxHealth = w.getMaxHealth();
             this.inBattle = w.combat.isInCombatRaw();
-            this.statusKey = statusKeyFor(w.getMode().name(), w.isGoingHome(), w.isGoOrderActive());
+            this.statusKey = statusKeyFor(w.getMode().name(), w.isGoingHome(), w.trips.isGoOrderActive());
             this.followTarget = w.getEscortLeaderUUID();
             this.followsOwner = this.followTarget == null && w.isFollowOrderActive();
             this.role = w.getDutyKind() != null ? w.getDutyKind() : "";

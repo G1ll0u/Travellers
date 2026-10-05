@@ -307,7 +307,7 @@ public final class WorkerGroupService {
             }
             loadedLeader.setFollowOrderActive(false);
             BlockPos from = loadedLeader.getPosition();
-            loadedLeader.startGoToDestination(target, loadedLeader.dimension);
+            loadedLeader.trips.startGoTo(target, loadedLeader.dimension);
             MissionNotifications.goOrdered(player, leaderId, from, target, NotificationDefs.GOTO_GOING_TO_POS);
         } else {
             VirtualTravellerRecord r = vwm(server).getRecord(leaderId);
@@ -617,7 +617,7 @@ public final class WorkerGroupService {
                 FormationLeaderInfo info = new FormationLeaderInfo(w.getUniqueID(), w.getName(), 0,
                         w.posX, w.posZ, false, false);
                 info.followActive = w.isFollowOrderActive();
-                info.goActive = w.isGoOrderActive();
+                info.goActive = w.trips.isGoOrderActive();
                 info.busy = WorkerOrderGuard.isBusy(w);
                 info.cultureId = w.getCultureId();
                 info.textureIndex = w.getTextureIndex();
