@@ -267,7 +267,7 @@ target's ground. Decided (user): a traveller's catchup end also clears its route
 9.12 `unit/WorkerTrips` (`worker.trips`): go home, go to duty, Go order, Get Equipment — state, starts, arrival,
 virtual finishes, save keys (unchanged) and the three reload route rebuilds (one helper). The loaded Get Equipment
 hand-over (chest gear or Stable horses) → `EquipOrders.onArrived`. Behaviour unchanged; the go-order part of the save
-is still read after the follow state (restoring follow would otherwise cancel it). Noticed, not changed: the Stable
+is still read after the follow state (restoring follow would otherwise cancel it). Checked in game by the user. Noticed, not changed: the Stable
 horse pick-up is written twice (loaded `EquipOrders.onArrived`, virtual `tryVirtualHorsePickup`) — phase 10. Catchup checked in game by the user (workers and travellers catch up, Go order / recruit during catchup). In-game check still owed for 9.1–9.10 (load a world, voices, camp sleep, mounts; recruit and delivery
 missions across a save/reload; workers fighting, hit by their owner; backpack on a mission).
 
