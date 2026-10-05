@@ -1,6 +1,6 @@
 # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-05)**: step 1 done; step 2 next.
+**Status (2026-10-05)**: steps 1-2 done; step 3 next.
 
 ## Goal
 
@@ -19,7 +19,9 @@ in a few lines and points to a file for details.
 - A normal start already logs ~230 exceptions from other mods: a log scan must compare against a baseline,
   never alert on "any exception".
 - Vanilla 1.12 (`WorldServer.updateEntities`): with no player and no forced chunk, entity ticking stops after
-  300 ticks; the world tick (our offscreen simulation, `TravellerChunkManager.onWorldTick`) keeps running.
+  300 ticks. Our offscreen simulation is paused on an empty server by default
+  (`OFFSCREEN.pauseWhenServerEmpty`): the runner forces it off in the copy's config before every start.
+- RCON runs commands on its own thread; `/travellersdebug` hops to the server thread and waits.
 - A Forge ticket changes vanilla's tick gate: an entity in a ticketed chunk ticks with a 0-block margin instead
   of 32 (`VirtualTravellerManager.isFrozenByVanilla` mirrors this). Ticketed test zones therefore behave like
   a player's area, except right at their border.
@@ -61,8 +63,10 @@ One script (`tools/servertest/servertest.py`), one verb per call, each printing 
 
 - `zone add <x> <z> <radiusChunks>` / `zone clear` — Forge tickets standing in for players (named spots:
   a village, a road between two villages, a Barrack/Stable built in the snapshot).
-- `invariants` — one pass over loaded entities and records: loaded XOR virtual (no unit both, none lost),
-  no unit inside a Millénaire building, no NaN/void position, every hired worker has an owner, record count.
+- `invariants` — one pass over loaded entities and records: loaded XOR virtual (no unit both, no hired worker
+  vanished without dying), no NaN/void position, every hired worker record has an owner, counts. Placements
+  inside a Millénaire building are caught when the unit appears (user decision: walking past buildings is
+  legitimate), with the mod code path that placed it. Watchers only run under `-Dtravellers.autotest=true`.
 - `soak <minutes>` — zones + profiler + periodic invariants; writes one report.
 - `run <scenario|all>` — scripted scenarios (below); each has setup, a tick budget and an outcome check.
 - Every command answers in one line and writes `logs/travellers-autotest/<run>.txt`: one line per check,
@@ -88,7 +92,9 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    — done: full cycle verified twice; baseline of 69 known signatures stored in `LGV2026_autotest/.autotest/`.
    The test server needs ~7.5 GB free: it cannot run alongside the user's server + client on this machine.
 2. Harness skeleton: `autotest zone`, `invariants`, report file. Smoke test = start, zones, 3 min, invariants,
-   stop, logscan. — todo
+   stop, logscan. — done. Zones used: villages Monzon (-1021, -967) and Abacı-Gölde (-1325, -251), radius 3.
+   Open: one run caught 2 travellers placed inside a building near (-1277, 66, -202) before the placer was
+   recorded; not reproduced in two later runs.
 3. `soak` + compact profile summary; baseline numbers for the current jar. — todo
 4. `ab` comparison between two commits (thresholds agreed with the user from a first noise measurement: run
    the same jar twice). — todo

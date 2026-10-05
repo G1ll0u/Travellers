@@ -56,7 +56,7 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug [profile start|stop|report|status|reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|map stats [reset]|elytra [distance]|elytra give [radius] [rockets]|elytra status|mount give|mount ride|mount lead|mount hitch|stable [list|dump <n>|log <n> [count]|verify <n>]|bow status|sound stress|sound rapidfire|path pos1|path pos2|path mark|path clearmarks|path save [name]|path load [name]|path test [--mount] [--waypoints]|path stop|path show --marks|path show --trace <file>|path export <name>|terrain [region] <x> <z>|terrain export [radius] [mode] [fill]|village show|hide|here|cultures|dialogue setup]";
+        return "/travellersdebug [autotest zone add <x> <z> <radiusChunks>|autotest zone clear|autotest invariants|profile start|stop|report|status|reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|map stats [reset]|elytra [distance]|elytra give [radius] [rockets]|elytra status|mount give|mount ride|mount lead|mount hitch|stable [list|dump <n>|log <n> [count]|verify <n>]|bow status|sound stress|sound rapidfire|path pos1|path pos2|path mark|path clearmarks|path save [name]|path load [name]|path test [--mount] [--waypoints]|path stop|path show --marks|path show --trace <file>|path export <name>|terrain [region] <x> <z>|terrain export [radius] [mode] [fill]|village show|hide|here|cultures|dialogue setup]";
     }
 
     /**
@@ -73,7 +73,7 @@ public class CommandTravellerDebug extends CommandBase {
         if (args.length == 1) {
             return getListOfStringsMatchingLastWord(args, "trace", "profile", "mount", "elytra", "camp", "battle",
                     "map", "reset", "bow", "sound", "path", "cultures", "stable", "equip", "terrain",
-                    "destination", "relations", "dialogue", "village");
+                    "destination", "relations", "dialogue", "village", "autotest");
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("equip")) {
@@ -91,6 +91,8 @@ public class CommandTravellerDebug extends CommandBase {
                     return getListOfStringsMatchingLastWord(args, "start", "stop", "list", "channels");
                 case "profile":
                     return getListOfStringsMatchingLastWord(args, "start", "stop", "report", "status");
+                case "autotest":
+                    return getListOfStringsMatchingLastWord(args, "zone", "invariants");
                 case "mount":
                     return getListOfStringsMatchingLastWord(args, "give", "ride", "lead", "hitch");
                 case "path":
@@ -207,6 +209,15 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        if (!server.isCallingFromMinecraftThread()) {
+            executeOnServerThread(server, sender, args);
+            return;
+        }
+        if (args.length >= 1 && args[0].equalsIgnoreCase("autotest")) {
+            executeAutotest(server, sender, args);
+            return;
+        }
+
         if (args.length >= 2 && args[0].equalsIgnoreCase("reset") && args[1].equalsIgnoreCase("workers")) {
             executeResetWorkers(server, sender);
             return;
@@ -1108,6 +1119,45 @@ public class CommandTravellerDebug extends CommandBase {
         }
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Tracing " + target.getName()
                 + TextFormatting.GRAY + " -> logs/travellers-trace/" + session.getFile().getName()));
+    }
+
+    /** RCON runs commands on its own thread; everything here reads or changes the world, so hop over and wait. */
+    private void executeOnServerThread(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        try {
+            server.callFromMainThread(() -> {
+                execute(server, sender, args);
+                return null;
+            }).get(30, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException e) {
+            if (e.getCause() instanceof CommandException) throw (CommandException) e.getCause();
+            net.minecraftforge.fml.common.FMLLog.log.error("[Travellers] /travellersdebug {} failed", String.join(" ", args), e.getCause());
+            throw new CommandException("Command failed on the server thread: " + e.getCause());
+        } catch (InterruptedException | java.util.concurrent.TimeoutException e) {
+            throw new CommandException("Command did not finish on the server thread: " + e);
+        }
+    }
+
+    private void executeAutotest(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        String usage = "Usage: /travellersdebug autotest zone add <x> <z> <radiusChunks>|zone clear|invariants";
+        String sub = args.length >= 2 ? args[1].toLowerCase() : "";
+        String reply;
+        if (sub.equals("invariants")) {
+            reply = "invariants: " + com.jubitus.travellers.debug.autotest.AutotestInvariants.check(server);
+        } else if (sub.equals("zone") && args.length >= 3 && args[2].equalsIgnoreCase("clear")) {
+            reply = "zones cleared: " + com.jubitus.travellers.debug.autotest.AutotestZones.clear() + " tickets released";
+        } else if (sub.equals("zone") && args.length >= 6 && args[2].equalsIgnoreCase("add")) {
+            int x = parseInt(args[3]), z = parseInt(args[4]), radius = parseInt(args[5], 0, 16);
+            int forced = com.jubitus.travellers.debug.autotest.AutotestZones.add(server.getWorld(0), x, z, radius);
+            if (forced < 0) throw new CommandException("Forge refused a chunk ticket (ticket limit reached).");
+            reply = "zone added at " + x + " " + z + ": " + forced + " chunks forced";
+        } else {
+            throw new CommandException(usage);
+        }
+        if (!sub.equals("invariants")) {
+            com.jubitus.travellers.debug.autotest.AutotestReport.append(String.join(" ", args), java.util.Collections.singletonList(reply));
+        }
+        sender.sendMessage(new TextComponentString(reply + " | "
+                + com.jubitus.travellers.debug.autotest.AutotestReport.file().getPath()));
     }
 
     private void executeProfile(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {

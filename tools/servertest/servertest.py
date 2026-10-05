@@ -45,6 +45,10 @@ MAX_SCAN_LINES = 30
 # Copying these from the source server is useless or huge (config/flare holds 4 GB of profiler dumps).
 SETUP_SKIP = {"world", "logs", "crash-reports", "flare"}
 
+# Mod settings forced on the copy before every start. No player ever joins it, and the default pauses the
+# whole offscreen simulation on an empty server.
+TEST_OVERRIDES = {"OFFSCREEN.pauseWhenServerEmpty": "false"}
+
 
 def die(msg):
     print("ERROR: " + msg)
@@ -183,9 +187,20 @@ def java_command():
             + ["-Dtravellers.autotest=true", "-jar", str(loader)] + settings["GAME_ARGS"].split())
 
 
+def apply_test_overrides():
+    path = SERVER / "config/travellers/travellers_overrides.properties"
+    text = path.read_text() if path.exists() else ""
+    for key, value in TEST_OVERRIDES.items():
+        line = f"{key}={value}"
+        pattern = r"^" + re.escape(key) + r"=.*$"
+        text = re.sub(pattern, line, text, flags=re.M) if re.search(pattern, text, re.M) else text + line + "\n"
+    path.write_text(text)
+
+
 def cmd_start():
     if server_pid():
         die("server already running")
+    apply_test_overrides()
     if not (SERVER / "mods" / JAR_NAME).exists():
         die("no jar deployed; run deploy first")
     free = mem_available_gb()
@@ -218,7 +233,7 @@ def cmd_start():
 
 
 def server_like_processes():
-    out = subprocess.run(["pgrep", "-f", "java.*(cleanroom|minecraft|forge)"], capture_output=True, text=True)
+    out = subprocess.run(["pgrep", "-f", r"java .*(-jar \S*(cleanroom|forge)\S*\.jar|net\.minecraft\.client|launchwrapper)"], capture_output=True, text=True)
     own = server_pid()
     return len([p for p in out.stdout.split() if int(p) != own])
 
