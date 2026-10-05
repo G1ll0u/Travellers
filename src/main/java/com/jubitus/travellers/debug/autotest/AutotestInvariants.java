@@ -1,6 +1,5 @@
 package com.jubitus.travellers.debug.autotest;
 
-import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -9,6 +8,8 @@ import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -33,6 +34,8 @@ public final class AutotestInvariants {
 
     private static final boolean WATCHING = Boolean.getBoolean("travellers.autotest");
     private static final int MAX_LISTED = 40;
+    // Feet this far above a building's lowest block, under open sky, are on its roof (a ground-level courtyard is not).
+    private static final int ROOF_MIN_HEIGHT = 2;
 
     private static final List<String> badPlacements = new ArrayList<>();
     private static final Set<UUID> diedWorkers = new HashSet<>();
@@ -53,12 +56,14 @@ public final class AutotestInvariants {
             return;
         }
         placementsChecked++;
-        if (MillFootprints.isForbiddenLanding(event.getWorld(), e.posX, e.posY, e.posZ)) {
-            MillFootprints.Footprint inside = MillFootprints.at(event.getWorld(), e.posX, e.posY, e.posZ, 0);
-            MillFootprints.Footprint near = inside != null ? inside
-                    : MillFootprints.at(event.getWorld(), e.posX, e.posY, e.posZ, TravellersConfig.VILLAGE_VISIT.buildingClearance);
-            badPlacements.add((inside != null ? "placed inside" : "placed within the clearance of")
-                    + " a Millenaire building " + bounds(near) + ": " + describe(e) + " by " + placer());
+        World world = event.getWorld();
+        if (world.collidesWithAnyBlock(e.getEntityBoundingBox())) {
+            badPlacements.add("placed inside a wall: " + describe(e) + " by " + placer());
+            return;
+        }
+        MillFootprints.Footprint f = MillFootprints.at(world, e.posX, e.posY, e.posZ, 0);
+        if (f != null && e.posY > f.minY + ROOF_MIN_HEIGHT && world.canSeeSky(new BlockPos(e))) {
+            badPlacements.add("placed on a Millenaire roof " + bounds(f) + ": " + describe(e) + " by " + placer());
         }
     }
 

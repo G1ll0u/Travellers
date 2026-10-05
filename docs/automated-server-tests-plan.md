@@ -1,6 +1,6 @@
 # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-05)**: steps 1-3 done; open bug below to discuss before step 4.
+**Status (2026-10-05)**: steps 1-3 done; step 4 next.
 
 ## Goal
 
@@ -64,9 +64,10 @@ One script (`tools/servertest/servertest.py`), one verb per call, each printing 
 - `zone add <x> <z> <radiusChunks>` / `zone clear` — Forge tickets standing in for players (named spots:
   a village, a road between two villages, a Barrack/Stable built in the snapshot).
 - `invariants` — one pass over loaded entities and records: loaded XOR virtual (no unit both, no hired worker
-  vanished without dying), no NaN/void position, every hired worker record has an owner, counts. Placements
-  inside a Millénaire building are caught when the unit appears (user decision: walking past buildings is
-  legitimate), with the mod code path that placed it. Watchers only run under `-Dtravellers.autotest=true`.
+  vanished without dying), no NaN/void position, every hired worker record has an owner, counts. A placement is a FAIL only
+  inside a wall (body in solid blocks) or on a Millénaire roof (inside a footprint, under open sky, above its
+  ground floor) — user rule: being inside a building is fine; a floor with no way out is not checked for now.
+  Each failure names the mod code path that placed the unit. Watchers only run under `-Dtravellers.autotest=true`.
 - `soak <minutes>` — zones + profiler + periodic invariants; writes one report.
 - `run <scenario|all>` — scripted scenarios (below); each has setup, a tick budget and an outcome check.
 - Every command answers in one line and writes `logs/travellers-autotest/<run>.txt`: one line per check,
@@ -102,8 +103,8 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    answers before declaring the server up.
    Baseline (jar 0517bb4d, 20 min): ~175 units loaded, 989 materialized, 43 stalls (longest 527 s),
    travel efficiency on foot 0.71 / mounted 0.74 / leading horse 0.57, A* 2.0 ms/tick.
-   **Open bug**: `materializeEntity` puts units inside Millénaire buildings (7 inside + 1 in clearance in one
-   20-min soak, 3 villages, same spots repeated, e.g. building x -1277..-1272 z -205..-200).
+   The 8 "inside a building" placements it reported were legitimate (village visitors at Millénaire spots):
+   the placement rule was replaced, see Design.
 4. `ab` comparison between two commits (thresholds agreed with the user from a first noise measurement: run
    the same jar twice). — todo
 5. Scenario batch above, one commit per scenario. — todo
