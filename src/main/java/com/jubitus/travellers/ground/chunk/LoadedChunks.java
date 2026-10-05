@@ -35,24 +35,25 @@ public final class LoadedChunks {
     }
 
     /** Is this chunk loaded. Never loads, never delays an unload. */
-    public static boolean isLoaded(World world, int chunkX, int chunkZ) {
+    // INVARIANT: chunk coordinates only; named apart from isLoaded so an int block coordinate can never pick it.
+    public static boolean isChunkLoaded(World world, int chunkX, int chunkZ) {
         if (world instanceof WorldServer) return ((WorldServer) world).getChunkProvider().chunkExists(chunkX, chunkZ);
         return world.isBlockLoaded(new BlockPos(chunkX << 4, 0, chunkZ << 4), false);
     }
 
     public static boolean isLoaded(World world, BlockPos pos) {
-        return isLoaded(world, pos.getX() >> 4, pos.getZ() >> 4);
+        return isChunkLoaded(world, pos.getX() >> 4, pos.getZ() >> 4);
     }
 
     public static boolean isLoaded(World world, double x, double z) {
-        return isLoaded(world, MathHelper.floor(x) >> 4, MathHelper.floor(z) >> 4);
+        return isChunkLoaded(world, MathHelper.floor(x) >> 4, MathHelper.floor(z) >> 4);
     }
 
     /** Every chunk within {@code radius} blocks (XZ) of {@code pos} is loaded. */
     public static boolean isAreaLoaded(World world, BlockPos pos, int radius) {
         for (int cx = (pos.getX() - radius) >> 4; cx <= (pos.getX() + radius) >> 4; cx++) {
             for (int cz = (pos.getZ() - radius) >> 4; cz <= (pos.getZ() + radius) >> 4; cz++) {
-                if (!isLoaded(world, cx, cz)) return false;
+                if (!isChunkLoaded(world, cx, cz)) return false;
             }
         }
         return true;

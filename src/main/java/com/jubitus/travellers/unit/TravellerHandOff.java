@@ -104,7 +104,7 @@ public final class TravellerHandOff {
         int probeDist = (int) Math.max(EDGE_PROBE_MIN_BLOCKS, Math.min(EDGE_PROBE_MAX_BLOCKS, dist));
         int px = from.getX() + (int) Math.round(dx / dist * probeDist);
         int pz = from.getZ() + (int) Math.round(dz / dist * probeDist);
-        return !LoadedChunks.isLoaded(
+        return !LoadedChunks.isChunkLoaded(
                 (WorldServer) unit.world, px >> 4, pz >> 4);
     }
 

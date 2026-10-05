@@ -65,7 +65,7 @@ public final class LandingSpots {
                 for (int dz = -r; dz <= r; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
                     int x = center.getX() + dx, z = center.getZ() + dz;
-                    if (!LoadedChunks.isLoaded(world, x >> 4, z >> 4)) continue;
+                    if (!LoadedChunks.isChunkLoaded(world, x >> 4, z >> 4)) continue;
                     for (int dy = 0; dy <= vertical; dy++) {
                         if (cy - dy >= 1) {
                             BlockPos down = new BlockPos(x, cy - dy, z);
@@ -105,7 +105,7 @@ public final class LandingSpots {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int x = minX; x < maxX; x++) {
             for (int z = minZ; z < maxZ; z++) {
-                if (!LoadedChunks.isLoaded(world, x >> 4, z >> 4)) return true;
+                if (!LoadedChunks.isChunkLoaded(world, x >> 4, z >> 4)) return true;
                 for (int y = minY; y < maxY; y++) {
                     pos.setPos(x, y, z);
                     if (BlockRules.isHazard(world.getBlockState(pos))) return true;

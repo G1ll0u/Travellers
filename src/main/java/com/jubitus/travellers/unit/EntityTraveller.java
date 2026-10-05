@@ -2975,7 +2975,7 @@ public void fall(float distance, float damageMultiplier) {
         net.minecraft.world.WorldServer ws = (net.minecraft.world.WorldServer) world;
         int cx = net.minecraft.util.math.MathHelper.floor(posX) >> 4;
         int cz = net.minecraft.util.math.MathHelper.floor(posZ) >> 4;
-        return LoadedChunks.isLoaded(ws, cx, cz);
+        return LoadedChunks.isChunkLoaded(ws, cx, cz);
     }
 
     protected void clearAggroIfOffscreen() {

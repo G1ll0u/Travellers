@@ -1786,7 +1786,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // The materialize side derives its chunk the same way, so both agree by construction.
         int cx = net.minecraft.util.math.MathHelper.floor(entity.posX) >> 4;
         int cz = net.minecraft.util.math.MathHelper.floor(entity.posZ) >> 4;
-        if (!frozen && LoadedChunks.isLoaded(world, cx, cz)) {
+        if (!frozen && LoadedChunks.isChunkLoaded(world, cx, cz)) {
             virtualizeWatch.remove(id);
             return false;
         }
