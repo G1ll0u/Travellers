@@ -1,6 +1,9 @@
 # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-05)**: steps 1-3 done; step 4 next.
+**Status (2026-10-05)**: steps 1-3 done; step 4 in progress (noise runs).
+
+Test world = the user's `LGV2026_srv/world` as of 2026-10-05 (6 villages, 219 hired workers, most at
+(-1600, -320)), zipped as the copy's `.autotest/snapshot.zip`; the 2026-10-02 one is kept beside it.
 
 ## Goal
 
@@ -66,7 +69,7 @@ One script (`tools/servertest/servertest.py`), one verb per call, each printing 
 - `invariants` — one pass over loaded entities and records: loaded XOR virtual (no unit both, no hired worker
   vanished without dying), no NaN/void position, every hired worker record has an owner, counts. A placement is a FAIL only
   inside a wall (body in solid blocks) or on a Millénaire roof (inside a footprint, under open sky, above its
-  ground floor) — user rule: being inside a building is fine; a floor with no way out is not checked for now.
+  ground floor, with air under the supporting block — fountains, courtyards and terraces are not roofs) — user rule: being inside a building is fine; a floor with no way out is not checked for now.
   Each failure names the mod code path that placed the unit. Watchers only run under `-Dtravellers.autotest=true`.
 - `soak <minutes>` — zones + profiler + periodic invariants; writes one report.
 - `run <scenario|all>` — scripted scenarios (below); each has setup, a tick budget and an outcome check.
@@ -97,12 +100,14 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    Open: one run caught 2 travellers placed inside a building near (-1277, 66, -202) before the placer was
    recorded; not reproduced in two later runs.
 3. `soak` + compact profile summary; baseline numbers for the current jar. — done. Driven by the runner
-   (`soak [minutes]`, default 20, zones = the snapshot's 4 villages + the Monzon/Abacı-Gölde midpoint, user
-   decision); the profiler also writes a flat `.metrics` file next to its report; summaries are kept in
+   (`soak [minutes]`, default 20, zones = the 6 villages + the user's worker base + the Monzon/Abacı-Gölde
+   midpoint, user decision); the profiler also writes a flat `.metrics` file next to its report; summaries are kept in
    `LGV2026_autotest/.autotest/soaks/`. Runner keeps one RCON connection and waits until `/travellersdebug`
    answers before declaring the server up.
    Baseline (jar 0517bb4d, 20 min): ~175 units loaded, 989 materialized, 43 stalls (longest 527 s),
    travel efficiency on foot 0.71 / mounted 0.74 / leading horse 0.57, A* 2.0 ms/tick.
+   Found, not fixed yet: units materialized inside tree leaves (`leaves2`, by `materializeEntity`); vanilla warns
+   "Tried to add entity travellers:traveller_raider but it was marked as removed already".
    The 8 "inside a building" placements it reported were legitimate (village visitors at Millénaire spots):
    the placement rule was replaced, see Design.
 4. `ab` comparison between two commits (thresholds agreed with the user from a first noise measurement: run

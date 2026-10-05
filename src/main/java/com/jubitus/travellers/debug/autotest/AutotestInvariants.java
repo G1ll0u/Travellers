@@ -6,7 +6,11 @@ import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.village.MillFootprints;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
+import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -36,6 +40,7 @@ public final class AutotestInvariants {
     private static final int MAX_LISTED = 40;
     // Feet this far above a building's lowest block, under open sky, are on its roof (a ground-level courtyard is not).
     private static final int ROOF_MIN_HEIGHT = 2;
+    private static final int ROOF_HOLLOW_DEPTH = 6;
 
     private static final List<String> badPlacements = new ArrayList<>();
     private static final Set<UUID> diedWorkers = new HashSet<>();
@@ -58,11 +63,11 @@ public final class AutotestInvariants {
         placementsChecked++;
         World world = event.getWorld();
         if (world.collidesWithAnyBlock(e.getEntityBoundingBox())) {
-            badPlacements.add("placed inside a wall: " + describe(e) + " by " + placer());
+            badPlacements.add("placed inside a wall (" + collidingBlocks(world, e) + "): " + describe(e) + " by " + placer());
             return;
         }
         MillFootprints.Footprint f = MillFootprints.at(world, e.posX, e.posY, e.posZ, 0);
-        if (f != null && e.posY > f.minY + ROOF_MIN_HEIGHT && world.canSeeSky(new BlockPos(e))) {
+        if (f != null && e.posY > f.minY + ROOF_MIN_HEIGHT && world.canSeeSky(new BlockPos(e)) && hollowBelow(world, e, f)) {
             badPlacements.add("placed on a Millenaire roof " + bounds(f) + ": " + describe(e) + " by " + placer());
         }
     }
@@ -72,6 +77,28 @@ public final class AutotestInvariants {
         if (WATCHING && event.getEntity() instanceof EntityTravellerWorker && !event.getEntity().world.isRemote) {
             diedWorkers.add(event.getEntity().getUniqueID());
         }
+    }
+
+    private static String collidingBlocks(World world, Entity e) {
+        AxisAlignedBB box = e.getEntityBoundingBox();
+        Set<String> names = new java.util.TreeSet<>();
+        for (BlockPos p : BlockPos.getAllInBox(new BlockPos(box.minX, box.minY, box.minZ), new BlockPos(box.maxX, box.maxY, box.maxZ))) {
+            IBlockState state = world.getBlockState(p);
+            AxisAlignedBB bb = state.getCollisionBoundingBox(world, p);
+            if (bb != null && bb != Block.NULL_AABB && bb.offset(p).intersects(box)) {
+                names.add(state.getBlock().getRegistryName() + "@" + (p.getY() - MathHelper.floor(e.posY)));
+            }
+        }
+        return String.join(", ", names);
+    }
+
+    /** A roof has a room under it; a fountain, courtyard or filled terrace stands on solid ground. */
+    private static boolean hollowBelow(World world, Entity e, MillFootprints.Footprint f) {
+        BlockPos support = new BlockPos(e).down();
+        for (int dy = 1; dy <= ROOF_HOLLOW_DEPTH && support.getY() - dy >= f.minY; dy++) {
+            if (world.isAirBlock(support.down(dy))) return true;
+        }
+        return false;
     }
 
     private static String bounds(MillFootprints.Footprint f) {
