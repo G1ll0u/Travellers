@@ -1,6 +1,7 @@
 # Debug tools
 
-All under `/travellersdebug` (`command/CommandTravellerDebug`).
+All under `/travellersdebug` (`debug/CommandTravellerDebug`).
+- `/travellersdebug` may arrive on the RCON thread; `execute` hops to the server thread — never read the world before that hop.
 
 ## Per-traveller trace (`trace/`) — the tool of record for one unit's movement
 - One file per traced entity in `logs/travellers-trace/`. Lines: `S`ample / `E`vent / `!`incident / `~`replayed context, pipe-separated `key=value`; channels `move`, `path`, `steer`, `mount`, `ai`, `follow`.
