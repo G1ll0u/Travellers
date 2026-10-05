@@ -53,7 +53,7 @@ SETUP_SKIP = {"world", "logs", "crash-reports", "flare"}
 # hired workers live, and the middle of the Monzon <-> Abaci-Golde trip so units on the move are seen too.
 SOAK_ZONES = [(-1021, -967, 3), (-1325, -251, 3), (-1497, -1417, 3), (-1608, 301, 3), (-1161, -321, 3),
               (-2080, -554, 3), (-1600, -320, 3), (-1173, -609, 3)]
-SOAK_MINUTES = 20
+SOAK_MINUTES = 10
 SOAKS = STATE / "soaks"
 
 # Comparison thresholds, from two soaks of the same jar (same-jar spread: efficiency within 4 %, incident rates

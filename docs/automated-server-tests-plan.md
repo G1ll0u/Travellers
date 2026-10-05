@@ -104,7 +104,7 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    Open: one run caught 2 travellers placed inside a building near (-1277, 66, -202) before the placer was
    recorded; not reproduced in two later runs.
 3. `soak` + compact profile summary; baseline numbers for the current jar. — done. Driven by the runner
-   (`soak [minutes]`, default 20, zones = the 6 villages + the user's worker base + the Monzon/Abacı-Gölde
+   (`soak [minutes]`, default 10 (user decision), zones = the 6 villages + the user's worker base + the Monzon/Abacı-Gölde
    midpoint, user decision); the profiler also writes a flat `.metrics` file next to its report; summaries are kept in
    `LGV2026_autotest/.autotest/soaks/`. Runner keeps one RCON connection and waits until `/travellersdebug`
    answers before declaring the server up.
@@ -134,7 +134,7 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    `LoadedChunks.isLoaded(world, int chunkX, int chunkZ)` (lines ~303, 356, 504, 699), so they always read
    "not loaded": natural-ground search, canopy escape, footprint push-out, mount footprint and the
    `ensureSpawnable` Y re-resolve never run. Fixed by renaming the chunk overload `isChunkLoaded`.
-   Soaks now default to 10 min for `ab` (user: dense population, short runs are enough) and sample tick time;
+   Soaks now default to 10 min (user: dense population, short runs are enough) and sample tick time;
    without a player the server runs ~34 ms/tick (20 TPS, worst minute 41 ms).
 
 ## Bug order (user decision, 2026-10-05)
