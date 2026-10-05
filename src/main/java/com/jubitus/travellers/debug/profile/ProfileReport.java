@@ -40,6 +40,12 @@ final class ProfileReport {
             FMLLog.log(Level.WARN, "[Travellers/Profile] could not write %s: %s", file.getName(), ex.getMessage());
             return null;
         }
+        File metrics = new File(dir, file.getName().replace(".txt", ".metrics"));
+        try (Writer w = new OutputStreamWriter(Files.newOutputStream(metrics.toPath()), StandardCharsets.UTF_8)) {
+            w.write(metrics(s, now));
+        } catch (IOException ex) {
+            FMLLog.log(Level.WARN, "[Travellers/Profile] could not write %s: %s", metrics.getName(), ex.getMessage());
+        }
         return file;
     }
 
@@ -69,6 +75,44 @@ final class ProfileReport {
         hotspots(sb, s);
         worst(sb, s);
         return sb.toString();
+    }
+
+    /** Flat key=value counterpart of the report, read by the automated server tests to compare runs. */
+    private static String metrics(ProfileSession s, long now) {
+        StringBuilder sb = new StringBuilder(2048);
+        long ticks = Math.max(1L, now - s.startTick);
+        double loaded = 0.0D;
+        for (double v : s.presence.values()) loaded += v;
+        metric(sb, "game_seconds", ticks / 20.0D);
+        metric(sb, "loaded_unit_seconds", loaded);
+        metric(sb, "units_tracked", s.states.size());
+        metric(sb, "materialized", s.materialized);
+        metric(sb, "materialize_refused", s.materializeRefused);
+        metric(sb, "stall_episodes", s.stallEpisodes.count);
+        metric(sb, "stall_seconds", s.stalledSeconds);
+        metric(sb, "stall_max_seconds", s.stallEpisodes.max);
+        metric(sb, "stalls_60s_plus", s.stallHistogram[3]);
+        metric(sb, "stalls_after_materialize", s.stallsAfterMaterialize);
+        for (MovementAnomaly a : MovementAnomaly.values()) {
+            Long n = s.anomalies.get(a);
+            metric(sb, "anomaly." + a.name(), n == null ? 0L : n);
+        }
+        for (MovementAnomaly.LedReason r : MovementAnomaly.LedReason.values()) {
+            Long n = s.ledStarts.get(r);
+            metric(sb, "led." + r.name(), n == null ? 0L : n);
+        }
+        for (Map.Entry<String, ProfileSession.Motion> e : s.travelMotion.entrySet()) {
+            ProfileSession.Motion m = e.getValue();
+            if (m.walked > 0) metric(sb, "travel_efficiency." + e.getKey().replace(" / ", ".").replace(' ', '_'), m.progress / m.walked);
+        }
+        metric(sb, "path_ms_per_tick", s.pathTotalNanos / 1e6 / ticks);
+        metric(sb, "path_worst_tick_ms", s.pathMaxTickNanos / 1e6);
+        metric(sb, "travel_budget_full_ticks", s.travelFullTicks);
+        return sb.toString();
+    }
+
+    private static void metric(StringBuilder sb, String key, double value) {
+        sb.append(key).append('=').append(String.format(Locale.ROOT, "%.3f", value)).append('\n');
     }
 
     private static void population(StringBuilder sb, ProfileSession s, double seconds) {

@@ -1,6 +1,6 @@
 # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-05)**: steps 1-2 done; step 3 next.
+**Status (2026-10-05)**: steps 1-3 done; open bug below to discuss before step 4.
 
 ## Goal
 
@@ -95,7 +95,15 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    stop, logscan. — done. Zones used: villages Monzon (-1021, -967) and Abacı-Gölde (-1325, -251), radius 3.
    Open: one run caught 2 travellers placed inside a building near (-1277, 66, -202) before the placer was
    recorded; not reproduced in two later runs.
-3. `soak` + compact profile summary; baseline numbers for the current jar. — todo
+3. `soak` + compact profile summary; baseline numbers for the current jar. — done. Driven by the runner
+   (`soak [minutes]`, default 20, zones = the snapshot's 4 villages + the Monzon/Abacı-Gölde midpoint, user
+   decision); the profiler also writes a flat `.metrics` file next to its report; summaries are kept in
+   `LGV2026_autotest/.autotest/soaks/`. Runner keeps one RCON connection and waits until `/travellersdebug`
+   answers before declaring the server up.
+   Baseline (jar 0517bb4d, 20 min): ~175 units loaded, 989 materialized, 43 stalls (longest 527 s),
+   travel efficiency on foot 0.71 / mounted 0.74 / leading horse 0.57, A* 2.0 ms/tick.
+   **Open bug**: `materializeEntity` puts units inside Millénaire buildings (7 inside + 1 in clearance in one
+   20-min soak, 3 villages, same spots repeated, e.g. building x -1277..-1272 z -205..-200).
 4. `ab` comparison between two commits (thresholds agreed with the user from a first noise measurement: run
    the same jar twice). — todo
 5. Scenario batch above, one commit per scenario. — todo

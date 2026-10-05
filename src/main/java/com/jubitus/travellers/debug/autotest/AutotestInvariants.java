@@ -1,5 +1,6 @@
 package com.jubitus.travellers.debug.autotest;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -53,7 +54,11 @@ public final class AutotestInvariants {
         }
         placementsChecked++;
         if (MillFootprints.isForbiddenLanding(event.getWorld(), e.posX, e.posY, e.posZ)) {
-            badPlacements.add("placed inside a Millenaire building: " + describe(e) + " by " + placer());
+            MillFootprints.Footprint inside = MillFootprints.at(event.getWorld(), e.posX, e.posY, e.posZ, 0);
+            MillFootprints.Footprint near = inside != null ? inside
+                    : MillFootprints.at(event.getWorld(), e.posX, e.posY, e.posZ, TravellersConfig.VILLAGE_VISIT.buildingClearance);
+            badPlacements.add((inside != null ? "placed inside" : "placed within the clearance of")
+                    + " a Millenaire building " + bounds(near) + ": " + describe(e) + " by " + placer());
         }
     }
 
@@ -62,6 +67,10 @@ public final class AutotestInvariants {
         if (WATCHING && event.getEntity() instanceof EntityTravellerWorker && !event.getEntity().world.isRemote) {
             diedWorkers.add(event.getEntity().getUniqueID());
         }
+    }
+
+    private static String bounds(MillFootprints.Footprint f) {
+        return f == null ? "?" : String.format("x %d..%d y %d..%d z %d..%d", f.minX, f.maxX, f.minY, f.maxY, f.minZ, f.maxZ);
     }
 
     /** First mod frame above the spawn call, so a bad placement names its code path. */

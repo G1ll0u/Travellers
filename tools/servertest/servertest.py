@@ -7,6 +7,7 @@
   start              launch the server in tmux, wait for "Done"
   cmd "<command>"    send one console command through RCON, print the reply
   wait <seconds>     sleep
+  soak [minutes]     zones + movement profile + invariants every minute on a running server; prints a summary
   stop               save and stop, kill after a timeout
   status             running or not, deployed jar
   logscan [--baseline]  new problems in the last log; --baseline stores the current signatures as known
@@ -44,6 +45,12 @@ MAX_SCAN_LINES = 30
 
 # Copying these from the source server is useless or huge (config/flare holds 4 GB of profiler dumps).
 SETUP_SKIP = {"world", "logs", "crash-reports", "flare"}
+
+# Soak zones in the snapshot world (x, z, radius in chunks): its 4 villages, and the middle of the
+# Monzon <-> Abaci-Golde trip so units on the move are seen too.
+SOAK_ZONES = [(-1021, -967, 3), (-1325, -251, 3), (-1497, -1417, 3), (-1608, 301, 3), (-1173, -609, 3)]
+SOAK_MINUTES = 20
+SOAKS = STATE / "soaks"
 
 # Mod settings forced on the copy before every start. No player ever joins it, and the default pauses the
 # whole offscreen simulation on an empty server.
@@ -217,7 +224,7 @@ def cmd_start():
     t0 = time.time()
     while time.time() - t0 < START_TIMEOUT_S:
         time.sleep(2)
-        if log.exists() and "Done (" in log.read_text(errors="replace"):
+        if log.exists() and "Done (" in log.read_text(errors="replace") and debug_ready():
             print(f"Server up in {time.time() - t0:.0f}s (tmux session '{TMUX}')")
             if loaded:
                 print(f"Note: {loaded} other Minecraft process(es) running, timings may be skewed")
@@ -230,6 +237,14 @@ def cmd_start():
             print("Log: " + str(log if log.exists() else SERVER / "logs/console.txt"))
             sys.exit(1)
     die(f"no 'Done' after {START_TIMEOUT_S}s; log: {log}")
+
+
+def debug_ready():
+    """The mod's command answers: "Done" alone has come before command registration settled."""
+    try:
+        return "profile" in debug("profile status")
+    except OSError:
+        return False
 
 
 def server_like_processes():
@@ -266,33 +281,55 @@ def cmd_status():
 
 # ---------------------------------------------------------------- RCON
 
-def rcon(command):
-    props = read_props()
-    with socket.create_connection(("127.0.0.1", int(props["rcon.port"])), timeout=30) as s:
-        def send(req_id, kind, body):
-            data = struct.pack("<ii", req_id, kind) + body.encode("utf-8") + b"\x00\x00"
-            s.sendall(struct.pack("<i", len(data)) + data)
+class Rcon:
+    """One connection reused for every command: vanilla 1.12 RCON drops some of many short-lived ones."""
 
-        def recv():
-            size = struct.unpack("<i", read_exact(4))[0]
-            data = read_exact(size)
-            req_id, _ = struct.unpack("<ii", data[:8])
-            return req_id, data[8:-2].decode("utf-8", errors="replace")
-
-        def read_exact(n):
-            buf = b""
-            while len(buf) < n:
-                chunk = s.recv(n - len(buf))
-                if not chunk:
-                    raise OSError("connection closed")
-                buf += chunk
-            return buf
-
-        send(1, 3, props["rcon.password"])
-        if recv()[0] == -1:
+    def __init__(self):
+        props = read_props()
+        self.sock = socket.create_connection(("127.0.0.1", int(props["rcon.port"])), timeout=60)
+        self.send(1, 3, props["rcon.password"])
+        if self.recv()[0] == -1:
             raise OSError("RCON authentication failed")
-        send(2, 2, command)
-        return recv()[1]
+
+    def send(self, req_id, kind, body):
+        data = struct.pack("<ii", req_id, kind) + body.encode("utf-8") + b"\x00\x00"
+        self.sock.sendall(struct.pack("<i", len(data)) + data)
+
+    def recv(self):
+        size = struct.unpack("<i", self.read_exact(4))[0]
+        data = self.read_exact(size)
+        req_id, _ = struct.unpack("<ii", data[:8])
+        return req_id, data[8:-2].decode("utf-8", errors="replace")
+
+    def read_exact(self, n):
+        buf = b""
+        while len(buf) < n:
+            chunk = self.sock.recv(n - len(buf))
+            if not chunk:
+                raise OSError("connection closed")
+            buf += chunk
+        return buf
+
+    def command(self, command):
+        self.send(2, 2, command)
+        return self.recv()[1]
+
+
+_rcon = None
+
+
+def rcon(command):
+    global _rcon
+    for attempt in (1, 2):
+        try:
+            if _rcon is None:
+                _rcon = Rcon()
+            return _rcon.command(command)
+        except OSError:
+            _rcon = None
+            if attempt == 2:
+                raise
+            time.sleep(2)
 
 
 def cmd_cmd(args):
@@ -304,6 +341,67 @@ def cmd_cmd(args):
         print(line)
     if len(lines) > 10:
         print(f"... {len(lines) - 10} more lines")
+
+
+# ---------------------------------------------------------------- soak
+
+def debug(command):
+    return re.sub(r"§.", "", rcon("travellersdebug " + command)).strip()
+
+
+def cmd_soak(args):
+    if not server_pid():
+        die("server not running")
+    minutes = int(args[0]) if args else SOAK_MINUTES
+    for x, z, r in SOAK_ZONES:
+        reply = debug(f"autotest zone add {x} {z} {r}")
+        if "zone added" not in reply:
+            die("zone add: " + reply)
+    reply = debug("profile start")
+    if "started" not in reply:
+        die("profile start: " + reply)
+    verdicts = []
+    for _ in range(minutes):
+        time.sleep(60)
+        verdicts.append(debug("autotest invariants"))
+    reply = debug("profile stop")
+    m = re.search(r"(profile_\S+)\.txt", reply)
+    if not m:
+        die("profile stop: " + reply)
+    metrics = {}
+    for line in (SERVER / "logs/travellers-profile" / (m.group(1) + ".metrics")).read_text().splitlines():
+        k, v = line.split("=", 1)
+        metrics[k] = float(v)
+    fails = [v for v in verdicts if not v.startswith("invariants: PASS")]
+    report = next((v.split(" | ")[-1] for v in verdicts), "")
+    SOAKS.mkdir(exist_ok=True)
+    out = SOAKS / f"soak-{time.strftime('%Y%m%d-%H%M%S')}.metrics"
+    deployed = DEPLOYED.read_text().strip() if DEPLOYED.exists() else "?"
+    out.write_text(f"# {deployed}\n# {minutes} min, zones {SOAK_ZONES}\n"
+                   + f"invariant_fail_passes={len(fails)}\n"
+                   + "".join(f"{k}={v}\n" for k, v in metrics.items()))
+    for line in soak_summary(metrics, minutes, len(fails)):
+        print(line)
+    if fails:
+        print("Invariant failures: " + str(SERVER / report))
+    print(f"Profile: logs/travellers-profile/{m.group(1)}.txt | metrics: {out}")
+
+
+def soak_summary(m, minutes, failed_passes):
+    unit_hours = max(m["loaded_unit_seconds"] / 3600, 1e-6)
+    rate = lambda v: f"{v / unit_hours:.1f}/uh"
+    anomalies = sorted(((v, k[8:]) for k, v in m.items() if k.startswith("anomaly.") and v > 0), reverse=True)
+    lines = [
+        f"Soak {minutes} min: avg {m['loaded_unit_seconds'] / max(m['game_seconds'], 1):.0f} units loaded, "
+        f"{unit_hours:.1f} unit-hours, {m['materialized']:.0f} materialized ({m['materialize_refused']:.0f} refused)",
+        f"Invariants: {'PASS' if failed_passes == 0 else f'FAIL on {failed_passes}/{minutes} passes'}",
+        f"Stalls: {m['stall_episodes']:.0f} ({rate(m['stall_episodes'])}), {m['stalls_60s_plus']:.0f} over 60 s, "
+        f"longest {m['stall_max_seconds']:.0f} s, {100 * m['stall_seconds'] / max(m['loaded_unit_seconds'], 1):.1f}% of loaded time",
+        "Anomalies (per loaded unit-hour): " + (", ".join(f"{k} {v:.0f} ({rate(v)})" for v, k in anomalies[:6]) or "none"),
+        "Travel efficiency: " + ", ".join(f"{k[18:]} {v:.2f}" for k, v in m.items() if k.startswith("travel_efficiency.")),
+        f"A*: {m['path_ms_per_tick']:.2f} ms/tick, worst tick {m['path_worst_tick_ms']:.0f} ms, budget full {m['travel_budget_full_ticks']:.0f} ticks",
+    ]
+    return lines
 
 
 # ---------------------------------------------------------------- log scan
@@ -418,6 +516,7 @@ def main():
         "start": lambda: cmd_start(),
         "cmd": lambda: cmd_cmd(args),
         "wait": lambda: time.sleep(float(args[0])),
+        "soak": lambda: cmd_soak(args),
         "stop": lambda: cmd_stop(),
         "status": lambda: cmd_status(),
         "logscan": lambda: cmd_logscan(args),
