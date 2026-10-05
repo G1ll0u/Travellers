@@ -85,6 +85,11 @@ public final class AutotestInvariants {
         }
     }
 
+    /** A failure found outside the placement watcher, listed in the next invariants pass. */
+    static void fail(String message) {
+        badPlacements.add(message);
+    }
+
     /** Names the placement steps of the spawn that follows, so a bad placement says which one chose the spot. */
     public static void beforeSpawn(String via) {
         if (WATCHING) pendingVia = via;

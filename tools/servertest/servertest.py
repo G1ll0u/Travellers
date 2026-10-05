@@ -437,6 +437,8 @@ def failure_kinds(report):
         if not line.startswith("FAIL "):
             continue
         kind = re.sub(r" \([^)]*\)", "", line[5:])
+        if " by " not in kind:
+            kind = kind.split(": ")[0]
         kind = re.sub(r":.* by ", " by ", kind)
         kind = re.sub(r":\d+\b", "", kind)
         kind = re.sub(r": [0-9a-f-]{36}$", "", kind).replace("=", "-")
