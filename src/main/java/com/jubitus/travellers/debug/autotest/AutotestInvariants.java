@@ -79,6 +79,11 @@ public final class AutotestInvariants {
         }
     }
 
+    /** A virtual battle death removes the record without a LivingDeathEvent. */
+    public static void onVirtualDeath(UUID workerUUID) {
+        if (WATCHING) diedWorkers.add(workerUUID);
+    }
+
     private static String collidingBlocks(World world, Entity e) {
         AxisAlignedBB box = e.getEntityBoundingBox();
         Set<String> names = new java.util.TreeSet<>();

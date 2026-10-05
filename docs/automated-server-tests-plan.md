@@ -118,8 +118,13 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    efficiency -10 %, incident rate x2.5 with at least 20 cases, A* cost x1.5, a new invariant failure kind.
    Same-jar `compare` → no alert.
    Bugs reproduced in both noise runs, not fixed: units materialized inside terrain/leaves (stone, sand,
-   leaves2, fence…); the same 2 hired workers vanish without dying (4fd0dbe1…, 9c94011b…); vanilla refuses a
-   duplicate traveller/raider body ("Keeping entity … already exists"); raider spawned while already removed.
+   leaves2, fence…); vanilla refuses a duplicate traveller/raider body ("Keeping entity … already exists");
+   raider spawned while already removed.
+   "Hired worker vanished without dying" (4fd0dbe1…, 9c94011b…) is a false alarm of the check, not a game bug:
+   the two are pending bed respawns at the user's Stable1 (-2078, -425) in the snapshot, come back at the
+   first morning (~9 min into a run), and die in a virtual battle against raiders camped there a minute
+   later; a virtual death removes the record without a `LivingDeathEvent`, which is all the check listens to.
+   Reproduced in 3 min with `time add 10900`. Fix: to discuss with the user.
 5. Scenario batch above, one commit per scenario. — todo
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
    what needs eyes. — todo

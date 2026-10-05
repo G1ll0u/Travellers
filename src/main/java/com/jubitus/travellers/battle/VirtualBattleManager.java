@@ -696,6 +696,7 @@ public class VirtualBattleManager extends WorldSavedData {
         // chunk to spawn a loose horse into without force-loading it) - its NBT is simply dropped with
         // the record, same as a loaded rider's mount is left as an ordinary loose horse where it died.
 
+        com.jubitus.travellers.debug.autotest.AutotestInvariants.onVirtualDeath(rec.uuid);
         vtm.removeRecord(world, rec.uuid);
         markDirty();
     }
