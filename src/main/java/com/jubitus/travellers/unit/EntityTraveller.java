@@ -392,7 +392,6 @@ public class EntityTraveller extends EntityCreature {
     private boolean lastPathCheckResult = false;
     private boolean wasInCombatPrev = false;
     private int combatSilenceUntilTick = 0;
-    private ForgeChunkManager.Ticket travelTicket;
     private int speakCooldown = 0;
     private int forcedSwingTicks = 0;
     private int hurtAnimCooldown = 0;
@@ -3009,15 +3008,6 @@ public void fall(float distance, float damageMultiplier) {
             if (e.getRevengeTarget() == this) e.setRevengeTarget(null);
             e.getNavigator().clearPath();
         }
-    }
-
-    public ForgeChunkManager.Ticket getOrCreateTravelTicket() {
-        if (world.isRemote) return null;
-        if (travelTicket == null) {
-            travelTicket = ForgeChunkManager.requestTicket(Travellers.INSTANCE, world, ForgeChunkManager.Type.ENTITY);
-            if (travelTicket != null) travelTicket.bindEntity(this);
-        }
-        return travelTicket;
     }
 
 
