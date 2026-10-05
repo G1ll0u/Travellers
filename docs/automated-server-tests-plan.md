@@ -142,7 +142,15 @@ make paths vary between runs. A failure re-runs once before being reported, to s
 1. Vanished hired workers — done (false alarm of the check).
 2. Units materialized inside terrain/leaves — done (13973907): `ab` 10 min, 8 bad placements -> 0, no alert
    on a clean second run (the first B run had the user online and lagging).
-3. Duplicate body refused by vanilla. 4. Raider spawned while already removed (likely related to 3).
+3. Duplicate body refused by vanilla — not reproduced in a 10-min run; `AutotestChunkBodies` now reports one
+   with the circumstances of the save that wrote it. Suspected same family as 4 (rider and horse registered
+   in different chunks).
+4. Raider "marked as removed already" — cause found: vanilla kills a body read from a chunk file when its
+   position lies outside that chunk; a rider is saved inside its horse's chunk while its own position can
+   cross the border (a rearing horse shifts it up to 0.7 block; a restored horse left its rider beside it
+   until its first tick, forever on non-ticking ground). Fix 0ed68b08 (user: HEAD inject only, as light as
+   possible): `MixinChunk` moves our units just inside the chunk instead; a restored horse seats its rider
+   at once. `ab` running.
 Each fix is validated by an `ab` before/after.
 5. Scenario batch above, one commit per scenario. — todo
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
