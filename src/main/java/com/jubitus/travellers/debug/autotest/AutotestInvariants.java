@@ -47,6 +47,7 @@ public final class AutotestInvariants {
     private static Set<UUID> lastHiredWorkers;
     private static int placementsChecked;
     private static int diskLoads;
+    private static String pendingVia;
 
     private AutotestInvariants() {
     }
@@ -61,14 +62,16 @@ public final class AutotestInvariants {
             return;
         }
         placementsChecked++;
+        String via = pendingVia;
+        pendingVia = null;
         World world = event.getWorld();
         if (world.collidesWithAnyBlock(e.getEntityBoundingBox())) {
-            badPlacements.add("placed inside a wall (" + collidingBlocks(world, e) + "): " + describe(e) + " by " + placer());
+            badPlacements.add("placed inside a wall (" + collidingBlocks(world, e) + "): " + describe(e) + " by " + placer(via));
             return;
         }
         MillFootprints.Footprint f = MillFootprints.at(world, e.posX, e.posY, e.posZ, 0);
         if (f != null && e.posY > f.minY + ROOF_MIN_HEIGHT && world.canSeeSky(new BlockPos(e)) && hollowBelow(world, e, f)) {
-            badPlacements.add("placed on a Millenaire roof " + bounds(f) + ": " + describe(e) + " by " + placer());
+            badPlacements.add("placed on a Millenaire roof " + bounds(f) + ": " + describe(e) + " by " + placer(via));
         }
     }
 
@@ -77,6 +80,11 @@ public final class AutotestInvariants {
         if (WATCHING && event.getEntity() instanceof EntityTravellerWorker && !event.getEntity().world.isRemote) {
             diedWorkers.add(event.getEntity().getUniqueID());
         }
+    }
+
+    /** Names the placement steps of the spawn that follows, so a bad placement says which one chose the spot. */
+    public static void beforeSpawn(String via) {
+        if (WATCHING) pendingVia = via;
     }
 
     /** A virtual battle death removes the record without a LivingDeathEvent. */
@@ -111,11 +119,12 @@ public final class AutotestInvariants {
     }
 
     /** First mod frame above the spawn call, so a bad placement names its code path. */
-    private static String placer() {
+    private static String placer(String via) {
         for (StackTraceElement f : new Throwable().getStackTrace()) {
             String c = f.getClassName();
             if (c.startsWith("com.jubitus.travellers") && !c.startsWith("com.jubitus.travellers.debug.autotest")) {
-                return c.substring(c.lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber();
+                return c.substring(c.lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber()
+                        + (via != null ? " via " + via : "");
             }
         }
         return "?";

@@ -94,10 +94,13 @@ public final class MaterializePositionResolver {
 
     public static final class ResolvedPosition {
         public final double x, y, z;
+        // Which placement steps produced this point, for the autotest placement check.
+        public final String via;
 
-        ResolvedPosition(double x, double y, double z) {
+        public ResolvedPosition(double x, double y, double z, String via) {
             this.x = x;
             this.y = y;
+            this.via = via;
             this.z = z;
         }
     }
@@ -123,6 +126,7 @@ public final class MaterializePositionResolver {
         // a blind surface-clamp would push onto the roof.
         boolean preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize
                 && hasDrifted(r);
+        String via = "resolve";
 
         // Mid-battle pawn: appear exactly where the battle sim placed it — no formation slot,
         // ring spread or building avoidance (the fight is where it is). Y is still resolved.
@@ -137,7 +141,7 @@ public final class MaterializePositionResolver {
                 y = ensureNotInSolid(world, bbx, y, bbz);
                 y = sinkToRealGround(world, bbx, y, bbz, TravellersConfig.MATERIALIZATION.canopySinkMaxDrop);
             }
-            return new ResolvedPosition(bbx + 0.5D, y, bbz + 0.5D);
+            return new ResolvedPosition(bbx + 0.5D, y, bbz + 0.5D, "battle");
         }
 
         // Group traveller/raider followers: spawn in a deterministic ring around the leader.
@@ -146,6 +150,7 @@ public final class MaterializePositionResolver {
             double[] leaderPos = findLeaderPosition(world, r.groupLeaderUUID, allRecords);
             if (leaderPos != null) {
                 int[] off = followerSpreadOffset(r.uuid);
+                via += ">groupRing";
                 double cx = Math.floor(leaderPos[0] + off[0]) + 0.5;
                 double cz = Math.floor(leaderPos[2] + off[1]) + 0.5;
                 if (LoadedChunks.isLoaded(world, cx, cz)) {
@@ -183,6 +188,7 @@ public final class MaterializePositionResolver {
                     double ddx = gx - baseX;
                     double ddz = gz - baseZ;
                     if (ddx * ddx + ddz * ddz > 4.0 * 4.0 && LoadedChunks.isLoaded(world, gx, gz)) {
+                        via += ">escortSlot";
                         baseX = gx;
                         baseZ = gz;
                         // The follower's own frozen Y was recorded at its OLD (raw) column, which we
@@ -252,6 +258,7 @@ public final class MaterializePositionResolver {
                     ? findNaturalGround(world, bx, bz, TravellersConfig.MATERIALIZATION.naturalGroundSearchRadius)
                     : null;
             if (g != null) {
+                via += ">naturalGround";
                 bx = g.x;
                 bz = g.z;
                 baseX = bx + 0.5;
@@ -270,6 +277,7 @@ public final class MaterializePositionResolver {
                 BlockPos onLevel = findSpotAtLevel(world, bx, bz, referenceY,
                         TravellersConfig.MATERIALIZATION.sameLevelSearchRadius);
                 if (onLevel != null) {
+                    via += ">sameLevel";
                     baseX = onLevel.getX() + 0.5;
                     baseZ = onLevel.getZ() + 0.5;
                     spawnY = onLevel.getY();
@@ -282,6 +290,7 @@ public final class MaterializePositionResolver {
             BlockPos escaped = escapeCanopyColumn(world, bx, bz, spawnY,
                     TravellersConfig.MATERIALIZATION.naturalGroundSearchRadius);
             if (escaped != null) {
+                via += ">canopyEscape";
                 baseX = escaped.getX() + 0.5;
                 baseZ = escaped.getZ() + 0.5;
                 spawnY = escaped.getY();
@@ -292,6 +301,7 @@ public final class MaterializePositionResolver {
                 BlockPos out = MillFootprints.pushOutside(world,
                         new BlockPos(MathHelper.floor(baseX), MathHelper.floor(spawnY), MathHelper.floor(baseZ)));
                 if (LoadedChunks.isLoaded(world, out.getX(), out.getZ())) {
+                    via += ">footprintPush";
                     baseX = out.getX() + 0.5;
                     baseZ = out.getZ() + 0.5;
                     spawnY = surfaceY(world, out.getX(), out.getZ(), spawnY);
@@ -299,7 +309,7 @@ public final class MaterializePositionResolver {
             }
         }
 
-        return new ResolvedPosition(baseX, spawnY, baseZ);
+        return new ResolvedPosition(baseX, spawnY, baseZ, via);
     }
 
     private static double surfaceY(WorldServer world, int x, int z, double referenceY) {
@@ -342,6 +352,7 @@ public final class MaterializePositionResolver {
                 && hasDrifted(r);
         double y = r.posY;
         double px = bx + 0.5, pz = bz + 0.5;
+        String via = pos.via + ">rawFallback";
         if (LoadedChunks.isLoaded(world, bx, bz)) {
             y = findSafeFloorY(world, bx, bz, r.posY, preferSurface);
             y = ensureNotInSolid(world, bx, y, bz);
@@ -349,12 +360,13 @@ public final class MaterializePositionResolver {
             BlockPos escaped = escapeCanopyColumn(world, bx, bz, y,
                     TravellersConfig.MATERIALIZATION.naturalGroundSearchRadius);
             if (escaped != null) {
+                via += ">canopyEscape";
                 px = escaped.getX() + 0.5;
                 pz = escaped.getZ() + 0.5;
                 y = escaped.getY();
             }
         }
-        return new ResolvedPosition(px, y, pz);
+        return new ResolvedPosition(px, y, pz, via);
     }
 
     // -------------------------------------------------------------------------

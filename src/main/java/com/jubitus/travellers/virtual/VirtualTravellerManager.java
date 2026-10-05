@@ -285,7 +285,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (!world.getChunkProvider().chunkExists(bx >> 4, bz >> 4)) return null;
         if (VirtualTravellerManager.isFrozenByVanillaAt(world, bx + 0.5, bz + 0.5)) return null;
         double y = MaterializePositionResolver.waterSurfaceY(world, bx, bz);
-        return Double.isNaN(y) ? null : new MaterializePositionResolver.ResolvedPosition(bx + 0.5, y, bz + 0.5);
+        return Double.isNaN(y) ? null : new MaterializePositionResolver.ResolvedPosition(bx + 0.5, y, bz + 0.5, "afloat");
     }
 
     private boolean leaderAfloat(VirtualTravellerRecord r) {
@@ -2028,7 +2028,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         BlockPos bed = resolveArrivedPalfrenierBed(world, r);
         if (bed == null) return null;
         BlockPos spot = com.jubitus.travellers.zone.PlayerZoneManager.findSpawnBesideBed(world, bed);
-        return new MaterializePositionResolver.ResolvedPosition(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5);
+        return new MaterializePositionResolver.ResolvedPosition(spot.getX() + 0.5, spot.getY(), spot.getZ() + 0.5, "stableBed");
     }
 
     /**
@@ -2417,7 +2417,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 world, spawnPos.getX(), spawnPos.getZ(), spawnPos.getY());
         cy = MaterializePositionResolver.ensureNotInSolid(world, spawnPos.getX(), cy, spawnPos.getZ());
         return new CampSpawnResult(campStand,
-                new MaterializePositionResolver.ResolvedPosition(spawnPos.getX() + 0.5, cy, spawnPos.getZ() + 0.5));
+                new MaterializePositionResolver.ResolvedPosition(spawnPos.getX() + 0.5, cy, spawnPos.getZ() + 0.5, "campSlot"));
     }
 
     /**
@@ -2506,7 +2506,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                     world, scratch, entity, pos.x, pos.y, pos.z, null,
                     TravellersConfig.MATERIALIZATION.mountFootprintSearchRadius, true);
             if (hf != null) {
-                pos = new MaterializePositionResolver.ResolvedPosition(hf.getX() + 0.5, hf.getY(), hf.getZ() + 0.5);
+                pos = new MaterializePositionResolver.ResolvedPosition(hf.getX() + 0.5, hf.getY(), hf.getZ() + 0.5, pos.via + ">mountFootprint");
             }
         }
 
@@ -2575,6 +2575,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // it would cancel this very spawn), and must come straight back if the join is refused.
         // INVARIANT: loaded XOR virtual - remove the record just before the spawn, restore it if refused.
         records.remove(r.uuid);
+        com.jubitus.travellers.debug.autotest.AutotestInvariants.beforeSpawn(pos.via);
         if (!world.spawnEntity(entity)) {
             records.put(r.uuid, r);
             net.minecraftforge.fml.common.FMLLog.log.warn(

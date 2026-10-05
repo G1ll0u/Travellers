@@ -124,7 +124,19 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    the two are pending bed respawns at the user's Stable1 (-2078, -425) in the snapshot, come back at the
    first morning (~9 min into a run), and die in a virtual battle against raiders camped there a minute
    later; a virtual death removes the record without a `LivingDeathEvent`, which is all the check listens to.
-   Reproduced in 3 min with `time add 10900`. Fix: to discuss with the user.
+   Reproduced in 3 min with `time add 10900`. Fixed in the check (c1e64537).
+   Placement failures now name the placement steps (`via resolve>canopyEscape…`). Cause of units in
+   terrain/leaves found: 4 calls in `MaterializePositionResolver` pass block coordinates to
+   `LoadedChunks.isLoaded(world, int chunkX, int chunkZ)` (lines ~303, 356, 504, 699), so they always read
+   "not loaded": natural-ground search, canopy escape, footprint push-out, mount footprint and the
+   `ensureSpawnable` Y re-resolve never run. Fix: to discuss with the user.
+
+## Bug order (user decision, 2026-10-05)
+
+1. Vanished hired workers — done (false alarm of the check).
+2. Units materialized inside terrain/leaves — cause found, fix to agree.
+3. Duplicate body refused by vanilla. 4. Raider spawned while already removed (likely related to 3).
+Each fix is validated by an `ab` before/after.
 5. Scenario batch above, one commit per scenario. — todo
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
    what needs eyes. — todo
