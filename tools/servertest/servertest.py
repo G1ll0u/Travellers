@@ -8,6 +8,8 @@
   cmd "<command>"    send one console command through RCON, print the reply
   wait <seconds>     sleep
   soak [minutes]     zones + movement profile + invariants every minute on a running server; prints a summary
+  compare <a> <b>    compare two soak .metrics files (paths or names in .autotest/soaks) against the thresholds
+  ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare
   stop               save and stop, kill after a timeout
   status             running or not, deployed jar
   logscan [--baseline]  new problems in the last log; --baseline stores the current signatures as known
@@ -52,6 +54,15 @@ SOAK_ZONES = [(-1021, -967, 3), (-1325, -251, 3), (-1497, -1417, 3), (-1608, 301
               (-2080, -554, 3), (-1600, -320, 3), (-1173, -609, 3)]
 SOAK_MINUTES = 20
 SOAKS = STATE / "soaks"
+
+# Comparison thresholds, from two soaks of the same jar (same-jar spread: efficiency within 4 %, incident rates
+# up to 3x apart on low counts). Rate keys are per loaded unit-hour.
+EFFICIENCY_DROP = 0.10
+INCIDENT_RATIO = 2.5
+INCIDENT_MIN_COUNT = 20
+PATH_COST_RATIO = 1.5
+JDK = "/home/user/.jdks/temurin-25.0.4.1"
+WORKTREES = STATE / "worktrees"
 
 # Mod settings forced on the copy before every start. No player ever joins it, and the default pauses the
 # whole offscreen simulation on an empty server.
@@ -378,14 +389,30 @@ def cmd_soak(args):
     SOAKS.mkdir(exist_ok=True)
     out = SOAKS / f"soak-{time.strftime('%Y%m%d-%H%M%S')}.metrics"
     deployed = DEPLOYED.read_text().strip() if DEPLOYED.exists() else "?"
+    kinds = failure_kinds(SERVER / report) if fails else {}
     out.write_text(f"# {deployed}\n# {minutes} min, zones {SOAK_ZONES}\n"
                    + f"invariant_fail_passes={len(fails)}\n"
+                   + "".join(f"fail_kind:{k}={v}\n" for k, v in kinds.items())
                    + "".join(f"{k}={v}\n" for k, v in metrics.items()))
     for line in soak_summary(metrics, minutes, len(fails)):
         print(line)
     if fails:
         print("Invariant failures: " + str(SERVER / report))
     print(f"Profile: logs/travellers-profile/{m.group(1)}.txt | metrics: {out}")
+
+
+def failure_kinds(report):
+    """FAIL lines without the unit, the block names and line numbers, so two commits' runs compare."""
+    kinds = {}
+    for line in report.read_text(errors="replace").splitlines():
+        if not line.startswith("FAIL "):
+            continue
+        kind = re.sub(r" \([^)]*\)", "", line[5:])
+        kind = re.sub(r":.* by ", " by ", kind)
+        kind = re.sub(r":\d+$", "", kind)
+        kind = re.sub(r": [0-9a-f-]{36}$", "", kind).replace("=", "-")
+        kinds[kind] = kinds.get(kind, 0) + 1
+    return kinds
 
 
 def soak_summary(m, minutes, failed_passes):
@@ -403,6 +430,123 @@ def soak_summary(m, minutes, failed_passes):
         f"A*: {m['path_ms_per_tick']:.2f} ms/tick, worst tick {m['path_worst_tick_ms']:.0f} ms, budget full {m['travel_budget_full_ticks']:.0f} ticks",
     ]
     return lines
+
+
+# ---------------------------------------------------------------- compare / ab
+
+def load_metrics(name):
+    path = Path(name) if Path(name).exists() else SOAKS / name
+    m, header = {}, []
+    for line in path.read_text().splitlines():
+        if line.startswith("#"):
+            header.append(line[2:])
+        elif "=" in line:
+            k, v = line.split("=", 1)
+            m[k] = float(v)
+    return m, header
+
+
+def compare(a, b):
+    """Returns (table lines, alert lines) for run b against run a."""
+    uh_a = max(a["loaded_unit_seconds"] / 3600, 1e-6)
+    uh_b = max(b["loaded_unit_seconds"] / 3600, 1e-6)
+    table, alerts = [], []
+    for k in sorted(k for k in a if k.startswith("travel_efficiency.")):
+        if k not in b:
+            continue
+        table.append(f"{k[18:]:34}{a[k]:9.2f}{b[k]:9.2f}")
+        if b[k] < a[k] * (1 - EFFICIENCY_DROP):
+            alerts.append(f"efficiency {k[18:]} {a[k]:.2f} -> {b[k]:.2f}")
+    incidents = ["stall_episodes", "stalls_60s_plus", "materialize_refused"] + sorted(
+        k for k in a if k.startswith(("anomaly.", "led.")))
+    for k in incidents:
+        ca, cb = a.get(k, 0), b.get(k, 0)
+        if ca + cb == 0:
+            continue
+        ra, rb = ca / uh_a, cb / uh_b
+        table.append(f"{k + ' /uh':34}{ra:9.2f}{rb:9.2f}")
+        if cb >= INCIDENT_MIN_COUNT and rb > max(ra, 1e-6) * INCIDENT_RATIO:
+            alerts.append(f"{k} {ra:.2f} -> {rb:.2f} per unit-hour ({cb:.0f} cases)")
+    k = "path_ms_per_tick"
+    table.append(f"{k:34}{a[k]:9.2f}{b[k]:9.2f}")
+    if b[k] > a[k] * PATH_COST_RATIO:
+        alerts.append(f"A* cost {a[k]:.2f} -> {b[k]:.2f} ms/tick")
+    for k in sorted(k for k in set(a) | set(b) if k.startswith("fail_kind:")):
+        table.append(f"{k[10:][:60]:60}{a.get(k, 0):6.0f}{b.get(k, 0):6.0f}")
+        if k not in a:
+            alerts.append("new invariant failure: " + k[10:])
+    return table, alerts
+
+
+def print_comparison(a, b, label_a, label_b):
+    table, alerts = compare(a, b)
+    print(f"{'':34}{'A':>9}{'B':>9}   A = {label_a} | B = {label_b}")
+    for line in table:
+        print(line)
+    print("ALERTS: " + ("; ".join(alerts) if alerts else "none"))
+    return alerts
+
+
+def cmd_compare(args):
+    if len(args) != 2:
+        die("usage: compare <a.metrics> <b.metrics>")
+    (a, ha), (b, hb) = load_metrics(args[0]), load_metrics(args[1])
+    print_comparison(a, b, ha[0][:50] if ha else args[0], hb[0][:50] if hb else args[1])
+
+
+def build_commit(commit):
+    tree = WORKTREES / commit
+    if not tree.exists():
+        WORKTREES.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "-C", str(PROJECT), "worktree", "add", "--detach", str(tree), commit],
+                       check=True, capture_output=True)
+        (tree / "libs").symlink_to(PROJECT / "libs")
+    env = dict(os.environ, JAVA_HOME=JDK)
+    # build ends with deployToServer (ssh to the remote server); its failure does not mean the jar is missing
+    subprocess.run(["./gradlew", "build", "-q", "-x", "test", "-x", "deployToServer"], cwd=tree, env=env,
+                   capture_output=True)
+    jars = [p for p in (tree / "build/libs").glob("travellers-*.jar")
+            if not re.search(r"-(dev|uberdev|latest)\.jar$", p.name)]
+    if not jars:
+        die(f"build of {commit} produced no jar; run ./gradlew build in {tree} to see why")
+    return max(jars, key=lambda p: p.stat().st_mtime)
+
+
+def soak_commit(commit, minutes):
+    jar = build_commit(commit)
+    cmd_deploy([str(jar)])
+    DEPLOYED.write_text(f"{commit} ({jar.name})\n")
+    cmd_reset()
+    cmd_start()
+    before = set(SOAKS.glob("*.metrics")) if SOAKS.exists() else set()
+    try:
+        cmd_soak([str(minutes)])
+    finally:
+        cmd_stop()
+    produced = sorted(set(SOAKS.glob("*.metrics")) - before)
+    if not produced:
+        die(f"soak of {commit} produced no metrics")
+    return produced[-1]
+
+
+def cmd_ab(args):
+    if len(args) < 2:
+        die("usage: ab <commitA> <commitB> [minutes]")
+    minutes = int(args[2]) if len(args) > 2 else SOAK_MINUTES
+    commits = []
+    for c in args[:2]:
+        out = subprocess.run(["git", "-C", str(PROJECT), "rev-parse", "--short", c], capture_output=True, text=True)
+        if out.returncode != 0:
+            die("unknown commit " + c)
+        commits.append(out.stdout.strip())
+    results = []
+    for c in commits:
+        print(f"=== {c}")
+        results.append(soak_commit(c, minutes))
+    print("=== comparison")
+    alerts = print_comparison(load_metrics(results[0])[0], load_metrics(results[1])[0], commits[0], commits[1])
+    if alerts:
+        print(f"Alert: confirm with a second run of {commits[1]} before concluding (user rule).")
 
 
 # ---------------------------------------------------------------- log scan
@@ -518,6 +662,8 @@ def main():
         "cmd": lambda: cmd_cmd(args),
         "wait": lambda: time.sleep(float(args[0])),
         "soak": lambda: cmd_soak(args),
+        "compare": lambda: cmd_compare(args),
+        "ab": lambda: cmd_ab(args),
         "stop": lambda: cmd_stop(),
         "status": lambda: cmd_status(),
         "logscan": lambda: cmd_logscan(args),

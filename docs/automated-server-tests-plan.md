@@ -1,6 +1,6 @@
 # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-05)**: steps 1-3 done; step 4 in progress (noise runs).
+**Status (2026-10-05)**: steps 1-4 built; first real `ab` run not done yet; step 5 next.
 
 Test world = the user's `LGV2026_srv/world` as of 2026-10-05 (6 villages, 219 hired workers, most at
 (-1600, -320)), zipped as the copy's `.autotest/snapshot.zip`; the 2026-10-02 one is kept beside it.
@@ -110,8 +110,16 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    "Tried to add entity travellers:traveller_raider but it was marked as removed already".
    The 8 "inside a building" placements it reported were legitimate (village visitors at Millénaire spots):
    the placement rule was replaced, see Design.
-4. `ab` comparison between two commits (thresholds agreed with the user from a first noise measurement: run
-   the same jar twice). — todo
+4. `ab` comparison between two commits. — built: `compare <a> <b>` and `ab <commitA> <commitB> [minutes]`
+   (git worktrees in `.autotest/worktrees/`, `libs/` symlinked since it is git-ignored; works for commits that
+   have the autotest harness and profile metrics, i.e. from fbe72570 on).
+   Noise (same jar twice, 20 min, user's world): travel efficiency within 4 %, A* cost +21 %, incident rates
+   16-69 % apart, longest stall 168 vs 740 s. Thresholds (user decision: wide + a second run on alert):
+   efficiency -10 %, incident rate x2.5 with at least 20 cases, A* cost x1.5, a new invariant failure kind.
+   Same-jar `compare` → no alert.
+   Bugs reproduced in both noise runs, not fixed: units materialized inside terrain/leaves (stone, sand,
+   leaves2, fence…); the same 2 hired workers vanish without dying (4fd0dbe1…, 9c94011b…); vanilla refuses a
+   duplicate traveller/raider body ("Keeping entity … already exists"); raider spawned while already removed.
 5. Scenario batch above, one commit per scenario. — todo
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
    what needs eyes. — todo
