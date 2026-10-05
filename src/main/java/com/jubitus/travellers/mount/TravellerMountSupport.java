@@ -1948,6 +1948,9 @@ public final class TravellerMountSupport {
             // horse" while reconcileOnFoot's sustained remount gate counts up.
             setLeashed(horse, null);
             rider.startRiding(horse, true);
+            // Seated now, not on the horse's next tick: a horse on non-ticking ground never moves its rider,
+            // and the pair would be saved split across a chunk border.
+            horse.updatePassenger(rider);
         }
         return horse;
     }

@@ -9,7 +9,8 @@
     "MixinEntityLiving",
     "MixinEntityHorse",
     "MixinEntityTracker",
-    "MixinPathFinder"
+    "MixinPathFinder",
+    "MixinChunk"
   ],
   "client": [
     "MixinLayerHeldItem"
