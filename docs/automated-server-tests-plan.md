@@ -45,6 +45,10 @@ in a few lines and points to a file for details.
   too low and reports that timings may be skewed by a loaded machine.
 - Owner-dependent behaviour (follow the player, assist the owner, notices) stays on the manual list; a
   server-side fake player may be considered later.
+- The test server is left running after a test so the user can join it (localhost:25566) and play during
+  runs; verbs restart it whenever needed, without warning (the user watches). A reset erases what they did.
+- A player's presence is marked, never excluded: soaks record `player_minutes`, `compare` warns when only
+  one side had a player, and a bad placement within view distance of a player is tagged "near a player".
 
 ## Design
 

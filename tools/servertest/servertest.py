@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Drives a local copy of the test server for automated tests. One verb per call, a few lines of output each.
+The server is left running after a test so the user can join it (port 25566); verbs restart it when needed.
 
   setup              create the autotest server copy (once)
-  deploy [jar]       copy a jar (default: newest production jar in build/libs) into the copy's mods/
-  reset              restore the world from the snapshot
+  deploy [jar]       copy a jar (default: newest production jar in build/libs) into the copy's mods/ (stops the server)
+  reset              restore the world from the snapshot (stops the server)
   start              launch the server in tmux, wait for "Done"
   cmd "<command>"    send one console command through RCON, print the reply
   wait <seconds>     sleep
   soak [minutes]     zones + movement profile + invariants every minute on a running server; prints a summary
   compare <a> <b>    compare two soak .metrics files (paths or names in .autotest/soaks) against the thresholds
-  ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare
+  ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare; B is left running
   stop               save and stop, kill after a timeout
   status             running or not, deployed jar
   logscan [--baseline]  new problems in the last log; --baseline stores the current signatures as known
@@ -166,9 +167,14 @@ def git_head():
     return out.stdout.strip()[:70] + (" +uncommitted src changes" if dirty else "")
 
 
-def cmd_deploy(args):
+def stop_if_running():
+    """The server is left running between tests so the user can join; a verb that needs it down stops it."""
     if server_pid():
-        die("server is running; stop it first")
+        cmd_stop()
+
+
+def cmd_deploy(args):
+    stop_if_running()
     jar = Path(args[0]).resolve() if args else newest_production_jar()
     if not jar or not jar.exists():
         die("no jar to deploy; run ./gradlew build")
@@ -182,8 +188,7 @@ def cmd_deploy(args):
 
 
 def cmd_reset():
-    if server_pid():
-        die("server is running; stop it first")
+    stop_if_running()
     world = SERVER / "world"
     if world.exists():
         shutil.rmtree(world)
@@ -373,9 +378,12 @@ def cmd_soak(args):
     if "started" not in reply:
         die("profile start: " + reply)
     verdicts = []
+    player_minutes = 0
     for _ in range(minutes):
         time.sleep(60)
         verdicts.append(debug("autotest invariants"))
+        if players_online() > 0:
+            player_minutes += 1
     reply = debug("profile stop")
     m = re.search(r"(profile_\S+)\.txt", reply)
     if not m:
@@ -392,13 +400,21 @@ def cmd_soak(args):
     kinds = failure_kinds(SERVER / report) if fails else {}
     out.write_text(f"# {deployed}\n# {minutes} min, zones {SOAK_ZONES}\n"
                    + f"invariant_fail_passes={len(fails)}\n"
+                   + f"player_minutes={player_minutes}\n"
                    + "".join(f"fail_kind:{k}={v}\n" for k, v in kinds.items())
                    + "".join(f"{k}={v}\n" for k, v in metrics.items()))
     for line in soak_summary(metrics, minutes, len(fails)):
         print(line)
+    if player_minutes:
+        print(f"A player was online {player_minutes}/{minutes} min: numbers include their area")
     if fails:
         print("Invariant failures: " + str(SERVER / report))
     print(f"Profile: logs/travellers-profile/{m.group(1)}.txt | metrics: {out}")
+
+
+def players_online():
+    m = re.search(r"There are (\d+)", rcon("list") or "")
+    return int(m.group(1)) if m else 0
 
 
 def failure_kinds(report):
@@ -409,7 +425,7 @@ def failure_kinds(report):
             continue
         kind = re.sub(r" \([^)]*\)", "", line[5:])
         kind = re.sub(r":.* by ", " by ", kind)
-        kind = re.sub(r":\d+$", "", kind)
+        kind = re.sub(r":\d+\b", "", kind)
         kind = re.sub(r": [0-9a-f-]{36}$", "", kind).replace("=", "-")
         kinds[kind] = kinds.get(kind, 0) + 1
     return kinds
@@ -480,6 +496,9 @@ def compare(a, b):
 
 def print_comparison(a, b, label_a, label_b):
     table, alerts = compare(a, b)
+    pa, pb = a.get("player_minutes", 0), b.get("player_minutes", 0)
+    if (pa > 0) != (pb > 0):
+        print(f"WARNING: a player was online in only one run (A {pa:.0f} min, B {pb:.0f} min): not comparable")
     print(f"{'':34}{'A':>9}{'B':>9}   A = {label_a} | B = {label_b}")
     for line in table:
         print(line)
@@ -512,7 +531,7 @@ def build_commit(commit):
     return max(jars, key=lambda p: p.stat().st_mtime)
 
 
-def soak_commit(commit, minutes):
+def soak_commit(commit, minutes, keep_running):
     jar = build_commit(commit)
     cmd_deploy([str(jar)])
     DEPLOYED.write_text(f"{commit} ({jar.name})\n")
@@ -522,7 +541,8 @@ def soak_commit(commit, minutes):
     try:
         cmd_soak([str(minutes)])
     finally:
-        cmd_stop()
+        if not keep_running:
+            cmd_stop()
     produced = sorted(set(SOAKS.glob("*.metrics")) - before)
     if not produced:
         die(f"soak of {commit} produced no metrics")
@@ -540,9 +560,9 @@ def cmd_ab(args):
             die("unknown commit " + c)
         commits.append(out.stdout.strip())
     results = []
-    for c in commits:
+    for i, c in enumerate(commits):
         print(f"=== {c}")
-        results.append(soak_commit(c, minutes))
+        results.append(soak_commit(c, minutes, keep_running=i == len(commits) - 1))
     print("=== comparison")
     alerts = print_comparison(load_metrics(results[0])[0], load_metrics(results[1])[0], commits[0], commits[1])
     if alerts:

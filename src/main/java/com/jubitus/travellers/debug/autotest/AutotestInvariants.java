@@ -41,6 +41,8 @@ public final class AutotestInvariants {
     // Feet this far above a building's lowest block, under open sky, are on its roof (a ground-level courtyard is not).
     private static final int ROOF_MIN_HEIGHT = 2;
     private static final int ROOF_HOLLOW_DEPTH = 6;
+    // The test server's view distance (8 chunks): a placement this close was caused or watched by a player.
+    private static final double NEAR_PLAYER_BLOCKS = 128;
 
     private static final List<String> badPlacements = new ArrayList<>();
     private static final Set<UUID> diedWorkers = new HashSet<>();
@@ -65,13 +67,14 @@ public final class AutotestInvariants {
         String via = pendingVia;
         pendingVia = null;
         World world = event.getWorld();
+        String near = world.getClosestPlayer(e.posX, e.posY, e.posZ, NEAR_PLAYER_BLOCKS, false) != null ? " near a player" : "";
         if (world.collidesWithAnyBlock(e.getEntityBoundingBox())) {
-            badPlacements.add("placed inside a wall (" + collidingBlocks(world, e) + "): " + describe(e) + " by " + placer(via));
+            badPlacements.add("placed inside a wall (" + collidingBlocks(world, e) + ")" + near + ": " + describe(e) + " by " + placer(via));
             return;
         }
         MillFootprints.Footprint f = MillFootprints.at(world, e.posX, e.posY, e.posZ, 0);
         if (f != null && e.posY > f.minY + ROOF_MIN_HEIGHT && world.canSeeSky(new BlockPos(e)) && hollowBelow(world, e, f)) {
-            badPlacements.add("placed on a Millenaire roof " + bounds(f) + ": " + describe(e) + " by " + placer(via));
+            badPlacements.add("placed on a Millenaire roof " + bounds(f) + near + ": " + describe(e) + " by " + placer(via));
         }
     }
 
