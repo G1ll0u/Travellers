@@ -179,9 +179,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     private double baseFollowRange;
     private double boostedFollowRange;
     private boolean usingBoostedNav = false;
-    // --- home village ---
-    @Nullable
-    BlockPos homeVillageCenter;
     WorkerMode mode = WorkerMode.IDLE;
     // When true, base EntityTraveller will NOT auto-plan routes
     boolean routeLocked = false;
@@ -540,14 +537,6 @@ public class EntityTravellerWorker extends EntityTraveller {
 
 
     @Nullable
-    public BlockPos getHomeVillage() {
-        return this.homeVillageCenter;
-    }
-
-    public void setHomeVillage(@Nullable BlockPos pos) {
-        this.homeVillageCenter = pos;
-    }
-
     public boolean isUsingTravelAI() {
         return this.dataManager.get(USING_TRAVEL_AI);
     }
@@ -1030,14 +1019,14 @@ public class EntityTravellerWorker extends EntityTraveller {
             clearLeaderFromLoadedEscortsOnDeath();
             setFollowOrderActive(false);
 
-            if (homeVillageCenter != null && world instanceof WorldServer) {
+            if (getHomeVillage() != null && world instanceof WorldServer) {
                 WorldServer ws = (WorldServer) world;
                 TravellerVillageRegistry reg = TravellerVillageRegistry.get(ws);
 
 // Clear only if this UUID is the registered one.
 // Do NOT respawn here: the village may be unloaded.
 // When the village chunks are loaded again, ensureWorkersForVillages() will respawn.
-                reg.clearWorkerFor(homeVillageCenter, this.getUniqueID());
+                reg.clearWorkerFor(getHomeVillage(), this.getUniqueID());
             }
 
             // Bed respawn is decided first: the death notice says whether the worker comes back.
@@ -1921,7 +1910,6 @@ public class EntityTravellerWorker extends EntityTraveller {
          * Barrack home but with an actual job to run once arrived - see EntityAIWorkerDuty. */
         ON_DUTY
     }
-    private final WorkerNbtComponent nbtComponent = new WorkerNbtComponent();
 
 
 
@@ -2031,168 +2019,120 @@ public class EntityTravellerWorker extends EntityTraveller {
                 .get((net.minecraft.world.WorldServer) world).isVirtual(id);
     }
 
-    // NBT SAVE/LOAD
-    private class WorkerNbtComponent {
-        public void write(NBTTagCompound nbt) {
-            delivery.writeNbt(nbt);
-            recruit.writeNbt(nbt);
-            nbt.setInteger("WorkerMode", mode.ordinal());
-            trips.writeNbt(nbt);
-            nbt.setBoolean("RouteLocked", routeLocked);
-            nbt.setTag("TravelInventory", travelInventory.serializeNBT());
-
-
-            // home village (PersonalInventory removed — inventory is saved by EntityTraveller as "TravellerInv")
-            if (homeVillageCenter != null) {
-                nbt.setInteger("HomeVillageX", homeVillageCenter.getX());
-                nbt.setInteger("HomeVillageY", homeVillageCenter.getY());
-                nbt.setInteger("HomeVillageZ", homeVillageCenter.getZ());
-            }
-            if (followOwnerId != null) {
-                nbt.setUniqueId("FollowOwnerId", followOwnerId);
-            }
-
-            nbt.setBoolean("FollowOrderActive", followOrderActive);
-            if (idleAnchorPos != null) {
-                nbt.setInteger("IdleAx", idleAnchorPos.getX());
-                nbt.setInteger("IdleAy", idleAnchorPos.getY());
-                nbt.setInteger("IdleAz", idleAnchorPos.getZ());
-            }
-            UUID leaderId = getEscortLeaderUUID(); // from DataManager
-            if (leaderId != null) {
-                nbt.setUniqueId("EscortLeaderUUID", leaderId);
-            }
-            nbt.setBoolean("HiredFollower", dataManager.get(HIRED_FOLLOWER_DM));
-            Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
-            if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
-            if (zone != null) zone.write(nbt);
-
-
-// NEW: local hostile players (auto retaliation)
-            if (!playerHostility.localHostilePlayers.isEmpty()) {
-                NBTTagList list = new NBTTagList();
-                for (UUID id : playerHostility.localHostilePlayers) {
-                    NBTTagCompound c = new NBTTagCompound();
-                    c.setUniqueId("Player", id);
-                    list.appendTag(c);
-                }
-                nbt.setTag("LocalHostilePlayers", list);
-            }
-
-        }
-
-        public void read(NBTTagCompound nbt) {
-            forceSpawn = true;
-            delivery.readNbt(nbt);
-            recruit.readNbt(nbt);
-
-            int m = nbt.getInteger("WorkerMode");
-            mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
-            routeLocked = nbt.getBoolean("RouteLocked");
-            if (nbt.hasKey("TravelInventory")) {
-                travelInventory.deserializeNBT(nbt.getCompoundTag("TravelInventory"));
-            }
-
-
-
-            // Migrate old PersonalInventory into the unified inventory (backward compat)
-            if (nbt.hasKey("PersonalInventory")) {
-                ItemStackHandler legacy = new ItemStackHandler(18);
-                legacy.deserializeNBT(nbt.getCompoundTag("PersonalInventory"));
-                for (int i = 0; i < legacy.getSlots(); i++) {
-                    ItemStack s = legacy.getStackInSlot(i);
-                    if (!s.isEmpty()) {
-                        net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, s.copy(), false);
-                    }
-                }
-            }
-
-            // home village
-            if (nbt.hasKey("HomeVillageX")) {
-                int x = nbt.getInteger("HomeVillageX");
-                int y = nbt.getInteger("HomeVillageY");
-                int z = nbt.getInteger("HomeVillageZ");
-                homeVillageCenter = new BlockPos(x, y, z);
-            } else {
-                homeVillageCenter = null;
-            }
-            if (nbt.hasUniqueId("FollowOwnerId")) {
-                followOwnerId = nbt.getUniqueId("FollowOwnerId");
-            } else {
-                followOwnerId = null;
-            }
-            hiredFollower = nbt.getBoolean("HiredFollower");
-
-            followOrderActive = nbt.getBoolean("FollowOrderActive");
-            if (nbt.hasKey("IdleAx")) {
-                idleAnchorPos = new BlockPos(
-                        nbt.getInteger("IdleAx"),
-                        nbt.getInteger("IdleAy"),
-                        nbt.getInteger("IdleAz")
-                );
-            } else {
-                idleAnchorPos = null;
-            }
-
-            UUID leaderId = nbt.hasUniqueId("EscortLeaderUUID")
-                    ? nbt.getUniqueId("EscortLeaderUUID")
-                    : null;
-
-// IMPORTANT: set the synced DataParameter on the server
-            if (!world.isRemote) {
-                setEscortLeaderUUID(leaderId); // this updates ESCORT_LEADER_DM
-            }
-
-            if (mode != WorkerMode.RETURNING || !delivery.jobDelivered) {
-                delivery.awaitingPickup = false;
-            }
-            zone = ZoneRef.read(nbt);
-            if (!world.isRemote) syncZoneDataParams();
-
-            trips.readZoneTripsNbt(nbt);
-
-            boolean hired = nbt.getBoolean("HiredFollower");
-            Optional<UUID> owner = nbt.hasUniqueId("FollowOwnerId")
-                    ? Optional.of(nbt.getUniqueId("FollowOwnerId"))
-                    : Optional.absent();
-
-            hiredFollower = hired;
-            followOwnerId = owner.isPresent() ? owner.get() : null;
-
-            dataManager.set(HIRED_FOLLOWER_DM, hired);
-            dataManager.set(FOLLOW_OWNER_DM, owner);
-            if (recruit.isReturningToOwner() && isHiredFollower()) {
-                setFollowOrderActive(true);
-            }
-            trips.readGoOrderNbt(nbt);
-            playerHostility.localHostilePlayers.clear();
-            if (nbt.hasKey("LocalHostilePlayers", Constants.NBT.TAG_LIST)) {
-                NBTTagList list = nbt.getTagList("LocalHostilePlayers", Constants.NBT.TAG_COMPOUND);
-                for (int i = 0; i < list.tagCount(); i++) {
-                    NBTTagCompound c = list.getCompoundTagAt(i);
-                    if (c.hasUniqueId("Player")) {
-                        playerHostility.localHostilePlayers.add(c.getUniqueId("Player"));
-                    }
-                }
-            }
-
-        }
-
-    }
-
+    // --- NBT save / load ---
     @Override
     public void writeEntityToNBT(NBTTagCompound nbt) {
         super.writeEntityToNBT(nbt);
-        nbtComponent.write(nbt);
+        delivery.writeNbt(nbt);
+        recruit.writeNbt(nbt);
+        nbt.setInteger("WorkerMode", mode.ordinal());
+        trips.writeNbt(nbt);
+        nbt.setBoolean("RouteLocked", routeLocked);
+        nbt.setTag("TravelInventory", travelInventory.serializeNBT());
+        nbt.setBoolean("FollowOrderActive", followOrderActive);
+        if (idleAnchorPos != null) {
+            nbt.setInteger("IdleAx", idleAnchorPos.getX());
+            nbt.setInteger("IdleAy", idleAnchorPos.getY());
+            nbt.setInteger("IdleAz", idleAnchorPos.getZ());
+        }
+        UUID leaderId = getEscortLeaderUUID(); // from DataManager
+        if (leaderId != null) {
+            nbt.setUniqueId("EscortLeaderUUID", leaderId);
+        }
+        nbt.setBoolean("HiredFollower", dataManager.get(HIRED_FOLLOWER_DM));
+        Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
+        if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
+        if (zone != null) zone.write(nbt);
+        // Local hostile players (auto retaliation)
+        if (!playerHostility.localHostilePlayers.isEmpty()) {
+            NBTTagList list = new NBTTagList();
+            for (UUID id : playerHostility.localHostilePlayers) {
+                NBTTagCompound c = new NBTTagCompound();
+                c.setUniqueId("Player", id);
+                list.appendTag(c);
+            }
+            nbt.setTag("LocalHostilePlayers", list);
+        }
     }
+
     @Override
     public void readEntityFromNBT(NBTTagCompound nbt) {
         super.readEntityFromNBT(nbt);
-        nbtComponent.read(nbt);
+        forceSpawn = true;
+        delivery.readNbt(nbt);
+        recruit.readNbt(nbt);
+
+        int m = nbt.getInteger("WorkerMode");
+        mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;
+        routeLocked = nbt.getBoolean("RouteLocked");
+        if (nbt.hasKey("TravelInventory")) {
+            travelInventory.deserializeNBT(nbt.getCompoundTag("TravelInventory"));
+        }
+
+        // Migrate old PersonalInventory into the unified inventory (backward compat)
+        if (nbt.hasKey("PersonalInventory")) {
+            ItemStackHandler legacy = new ItemStackHandler(18);
+            legacy.deserializeNBT(nbt.getCompoundTag("PersonalInventory"));
+            for (int i = 0; i < legacy.getSlots(); i++) {
+                ItemStack s = legacy.getStackInSlot(i);
+                if (!s.isEmpty()) {
+                    net.minecraftforge.items.ItemHandlerHelper.insertItemStacked(inventory, s.copy(), false);
+                }
+            }
+        }
+
+        // Hire state; the synced copies are set too, so everything below reads the restored owner.
+        hiredFollower = nbt.getBoolean("HiredFollower");
+        followOwnerId = nbt.hasUniqueId("FollowOwnerId") ? nbt.getUniqueId("FollowOwnerId") : null;
+        dataManager.set(HIRED_FOLLOWER_DM, hiredFollower);
+        dataManager.set(FOLLOW_OWNER_DM, Optional.fromNullable(followOwnerId));
+
+        followOrderActive = nbt.getBoolean("FollowOrderActive");
+        if (nbt.hasKey("IdleAx")) {
+            idleAnchorPos = new BlockPos(
+                    nbt.getInteger("IdleAx"),
+                    nbt.getInteger("IdleAy"),
+                    nbt.getInteger("IdleAz")
+            );
+        } else {
+            idleAnchorPos = null;
+        }
+
+        UUID leaderId = nbt.hasUniqueId("EscortLeaderUUID")
+                ? nbt.getUniqueId("EscortLeaderUUID")
+                : null;
+
+        // Set the synced DataParameter on the server
+        if (!world.isRemote) {
+            setEscortLeaderUUID(leaderId); // this updates ESCORT_LEADER_DM
+        }
+
+        if (mode != WorkerMode.RETURNING || !delivery.jobDelivered) {
+            delivery.awaitingPickup = false;
+        }
+        zone = ZoneRef.read(nbt);
+        if (!world.isRemote) syncZoneDataParams();
+
+        trips.readZoneTripsNbt(nbt);
+        if (recruit.isReturningToOwner() && isHiredFollower()) {
+            setFollowOrderActive(true);
+        }
+        trips.readGoOrderNbt(nbt);
+        playerHostility.localHostilePlayers.clear();
+        if (nbt.hasKey("LocalHostilePlayers", Constants.NBT.TAG_LIST)) {
+            NBTTagList list = nbt.getTagList("LocalHostilePlayers", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < list.tagCount(); i++) {
+                NBTTagCompound c = list.getCompoundTagAt(i);
+                if (c.hasUniqueId("Player")) {
+                    playerHostility.localHostilePlayers.add(c.getUniqueId("Player"));
+                }
+            }
+        }
         if (!world.isRemote) {
             refreshOwnerVisualsFromSavedData();
         }
     }
+
     private void clearLeaderFromLoadedEscortsOnDeath() {
         if (world.isRemote) return;
         if (!(world instanceof WorldServer)) return;
