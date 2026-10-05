@@ -1,0 +1,416 @@
+#!/usr/bin/env python3
+"""Drives a local copy of the test server for automated tests. One verb per call, a few lines of output each.
+
+  setup              create the autotest server copy (once)
+  deploy [jar]       copy a jar (default: newest production jar in build/libs) into the copy's mods/
+  reset              restore the world from the snapshot
+  start              launch the server in tmux, wait for "Done"
+  cmd "<command>"    send one console command through RCON, print the reply
+  wait <seconds>     sleep
+  stop               save and stop, kill after a timeout
+  status             running or not, deployed jar
+  logscan [--baseline]  new problems in the last log; --baseline stores the current signatures as known
+"""
+import os
+import re
+import secrets
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import time
+import zipfile
+from pathlib import Path
+
+PROJECT = Path(__file__).resolve().parents[2]
+SOURCE = Path("/home/user/Desktop/LGV2026_srv")
+SERVER = Path("/home/user/Desktop/LGV2026_autotest")
+STATE = SERVER / ".autotest"
+SNAPSHOT = STATE / "snapshot.zip"
+BASELINE = STATE / "baseline.txt"
+DEPLOYED = STATE / "deployed.txt"
+JAR_NAME = "travellers-autotest.jar"
+TMUX = "travellers-autotest"
+
+GAME_PORT = 25566
+RCON_PORT = 25576
+VOICECHAT_PORT = 24455
+GROOVY_LSP_PORT = 25563
+HEAP_GB = 6
+START_TIMEOUT_S = 300
+STOP_TIMEOUT_S = 120
+MAX_SCAN_LINES = 30
+
+# Copying these from the source server is useless or huge (config/flare holds 4 GB of profiler dumps).
+SETUP_SKIP = {"world", "logs", "crash-reports", "flare"}
+
+
+def die(msg):
+    print("ERROR: " + msg)
+    sys.exit(1)
+
+
+def read_props():
+    props = {}
+    for line in (SERVER / "server.properties").read_text().splitlines():
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            props[k] = v
+    return props
+
+
+def write_props(changes):
+    path = SERVER / "server.properties"
+    lines = path.read_text().splitlines()
+    seen = set()
+    for i, line in enumerate(lines):
+        key = line.split("=", 1)[0]
+        if key in changes:
+            lines[i] = key + "=" + changes[key]
+            seen.add(key)
+    lines += [k + "=" + v for k, v in changes.items() if k not in seen]
+    path.write_text("\n".join(lines) + "\n")
+
+
+def replace_in_file(path, pattern, repl):
+    if path.exists():
+        path.write_text(re.sub(pattern, repl, path.read_text(), flags=re.M))
+
+
+def server_pid():
+    out = subprocess.run(["pgrep", "-f", r"java .*-Dtravellers\.autotest=true"], capture_output=True, text=True)
+    pids = out.stdout.split()
+    return int(pids[0]) if pids else None
+
+
+def mem_available_gb():
+    for line in Path("/proc/meminfo").read_text().splitlines():
+        if line.startswith("MemAvailable:"):
+            return int(line.split()[1]) / 1024 / 1024
+    return 0.0
+
+
+def latest_log():
+    return SERVER / "logs" / "latest.log"
+
+
+# ---------------------------------------------------------------- setup / deploy / reset
+
+def cmd_setup():
+    if SERVER.exists():
+        die(f"{SERVER} already exists; delete it first to rebuild the copy")
+    t0 = time.time()
+
+    def ignore(dirpath, names):
+        if Path(dirpath) == SOURCE:
+            return [n for n in names if n in SETUP_SKIP or n.endswith(".zip")]
+        if Path(dirpath) == SOURCE / "config":
+            return [n for n in names if n in SETUP_SKIP]
+        return []
+
+    shutil.copytree(SOURCE, SERVER, symlinks=True, ignore=ignore)
+    STATE.mkdir()
+    (SERVER / "mods" / "travellers-latest.jar").unlink(missing_ok=True)
+    snapshots = sorted(SOURCE.glob("world-*.zip"))
+    if not snapshots:
+        die("no world-*.zip snapshot in " + str(SOURCE))
+    shutil.copy2(snapshots[-1], SNAPSHOT)
+    write_props({
+        "server-port": str(GAME_PORT),
+        "enable-rcon": "true",
+        "rcon.port": str(RCON_PORT),
+        "rcon.password": secrets.token_hex(12),
+        "broadcast-rcon-to-ops": "false",
+        "motd": "Travellers autotest",
+    })
+    replace_in_file(SERVER / "config/voicechat/voicechat-server.properties", r"^port=\d+", f"port={VOICECHAT_PORT}")
+    replace_in_file(SERVER / "config/groovyscript.cfg", r"languageServerPort=\d+", f"languageServerPort={GROOVY_LSP_PORT}")
+    print(f"Created {SERVER} in {time.time() - t0:.0f}s (snapshot: {snapshots[-1].name})")
+    print(f"Ports: game {GAME_PORT}, rcon {RCON_PORT}, voicechat {VOICECHAT_PORT}")
+
+
+def newest_production_jar():
+    jars = [p for p in (PROJECT / "build/libs").glob("travellers-*.jar")
+            if not re.search(r"-(dev|uberdev|latest)\.jar$", p.name)]
+    return max(jars, key=lambda p: p.stat().st_mtime) if jars else None
+
+
+def git_head():
+    out = subprocess.run(["git", "-C", str(PROJECT), "log", "-1", "--format=%h %s"], capture_output=True, text=True)
+    dirty = subprocess.run(["git", "-C", str(PROJECT), "status", "--porcelain", "--", "src"],
+                           capture_output=True, text=True).stdout.strip()
+    return out.stdout.strip()[:70] + (" +uncommitted src changes" if dirty else "")
+
+
+def cmd_deploy(args):
+    if server_pid():
+        die("server is running; stop it first")
+    jar = Path(args[0]).resolve() if args else newest_production_jar()
+    if not jar or not jar.exists():
+        die("no jar to deploy; run ./gradlew build")
+    for old in (SERVER / "mods").glob("travellers-*.jar"):
+        old.unlink()
+    shutil.copy2(jar, SERVER / "mods" / JAR_NAME)
+    age_min = (time.time() - jar.stat().st_mtime) / 60
+    source = git_head() if not args else "given path"
+    DEPLOYED.write_text(f"{jar.name} built {age_min:.0f} min before deploy | {source}\n")
+    print(f"Deployed {jar.name} (built {age_min:.0f} min ago) | {source}")
+
+
+def cmd_reset():
+    if server_pid():
+        die("server is running; stop it first")
+    world = SERVER / "world"
+    if world.exists():
+        shutil.rmtree(world)
+    world.mkdir()
+    with zipfile.ZipFile(SNAPSHOT) as z:
+        z.extractall(world)
+    print(f"World restored from {SNAPSHOT.name}")
+
+
+# ---------------------------------------------------------------- start / stop / status
+
+def java_command():
+    settings = {}
+    for line in (SERVER / "settings.cfg").read_text().splitlines():
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            settings[k] = v.strip().strip('"')
+    loader = SERVER / f"cleanroom-{settings['CLEANROOM_VER']}.jar"
+    return ([settings["JAVA_PATH"], f"-Xmx{HEAP_GB}G", f"-Xms{HEAP_GB}G"] + settings["JAVA_ARGS"].split()
+            + ["-Dtravellers.autotest=true", "-jar", str(loader)] + settings["GAME_ARGS"].split())
+
+
+def cmd_start():
+    if server_pid():
+        die("server already running")
+    if not (SERVER / "mods" / JAR_NAME).exists():
+        die("no jar deployed; run deploy first")
+    free = mem_available_gb()
+    if free < HEAP_GB + 1.5:
+        die(f"only {free:.1f} GB of memory free, the test server needs about {HEAP_GB + 1.5:.1f} GB")
+    loaded = server_like_processes()
+    log = latest_log()
+    if log.exists():
+        log.unlink()
+    shell_cmd = "cd " + str(SERVER) + " && exec " + " ".join(java_command()) + " > logs/console.txt 2>&1"
+    (SERVER / "logs").mkdir(exist_ok=True)
+    subprocess.run(["tmux", "kill-session", "-t", TMUX], capture_output=True)
+    subprocess.run(["tmux", "new-session", "-d", "-s", TMUX, shell_cmd], check=True)
+    t0 = time.time()
+    while time.time() - t0 < START_TIMEOUT_S:
+        time.sleep(2)
+        if log.exists() and "Done (" in log.read_text(errors="replace"):
+            print(f"Server up in {time.time() - t0:.0f}s (tmux session '{TMUX}')")
+            if loaded:
+                print(f"Note: {loaded} other Minecraft process(es) running, timings may be skewed")
+            return
+        if not server_pid() and time.time() - t0 > 10:
+            crash = sorted((SERVER / "crash-reports").glob("*.txt"), key=lambda p: p.stat().st_mtime)
+            print("Server died during startup.")
+            if crash and crash[-1].stat().st_mtime > t0:
+                print("Crash report: " + str(crash[-1]))
+            print("Log: " + str(log if log.exists() else SERVER / "logs/console.txt"))
+            sys.exit(1)
+    die(f"no 'Done' after {START_TIMEOUT_S}s; log: {log}")
+
+
+def server_like_processes():
+    out = subprocess.run(["pgrep", "-f", "java.*(cleanroom|minecraft|forge)"], capture_output=True, text=True)
+    own = server_pid()
+    return len([p for p in out.stdout.split() if int(p) != own])
+
+
+def cmd_stop():
+    pid = server_pid()
+    if not pid:
+        print("Server not running")
+        return
+    try:
+        print("stop: " + (rcon("stop") or "(no reply)"))
+    except OSError as e:
+        print(f"RCON unreachable ({e}), killing")
+    t0 = time.time()
+    while server_pid() and time.time() - t0 < STOP_TIMEOUT_S:
+        time.sleep(1)
+    if server_pid():
+        subprocess.run(["kill", "-9", str(pid)])
+        print(f"Killed after {STOP_TIMEOUT_S}s (save may be incomplete)")
+    else:
+        print(f"Stopped in {time.time() - t0:.0f}s")
+    subprocess.run(["tmux", "kill-session", "-t", TMUX], capture_output=True)
+
+
+def cmd_status():
+    pid = server_pid()
+    print("Running (pid %d)" % pid if pid else "Not running")
+    print("Deployed: " + (DEPLOYED.read_text().strip() if DEPLOYED.exists() else "nothing"))
+
+
+# ---------------------------------------------------------------- RCON
+
+def rcon(command):
+    props = read_props()
+    with socket.create_connection(("127.0.0.1", int(props["rcon.port"])), timeout=30) as s:
+        def send(req_id, kind, body):
+            data = struct.pack("<ii", req_id, kind) + body.encode("utf-8") + b"\x00\x00"
+            s.sendall(struct.pack("<i", len(data)) + data)
+
+        def recv():
+            size = struct.unpack("<i", read_exact(4))[0]
+            data = read_exact(size)
+            req_id, _ = struct.unpack("<ii", data[:8])
+            return req_id, data[8:-2].decode("utf-8", errors="replace")
+
+        def read_exact(n):
+            buf = b""
+            while len(buf) < n:
+                chunk = s.recv(n - len(buf))
+                if not chunk:
+                    raise OSError("connection closed")
+                buf += chunk
+            return buf
+
+        send(1, 3, props["rcon.password"])
+        if recv()[0] == -1:
+            raise OSError("RCON authentication failed")
+        send(2, 2, command)
+        return recv()[1]
+
+
+def cmd_cmd(args):
+    if not args:
+        die('usage: cmd "<command>"')
+    reply = re.sub(r"§.", "", rcon(" ".join(args))).strip()
+    lines = reply.splitlines() or ["(no reply)"]
+    for line in lines[:10]:
+        print(line)
+    if len(lines) > 10:
+        print(f"... {len(lines) - 10} more lines")
+
+
+# ---------------------------------------------------------------- log scan
+
+HEADER = re.compile(r"^\[\d\d:\d\d:\d\d\] \[([^\]]+)/(\w+)\] \[([^\]]+)\]: (.*)$")
+STD_CALLER = re.compile(r"^\[([^\]]+)\]: ?(.*)$")
+EXCEPTION = re.compile(r"^(?:Caused by: )?([\w$.]+(?:Exception|Error|Throwable))\b")
+FRAME = re.compile(r"^\s*at ([\w$.<>]+)")
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+OURS = re.compile(r"com\.jubitus\.travellers|travellers|TravellerSound", re.I)
+
+
+class Event:
+    def __init__(self, level, logger, first):
+        self.level, self.logger, self.lines = level, logger, [first]
+
+
+def parse_events(path):
+    """Groups a log into events: a header line plus its continuation lines; consecutive STDERR lines from the
+    same caller are one event (printStackTrace writes one header per frame)."""
+    events, current, caller = [], None, None
+    for raw in path.read_text(errors="replace").splitlines():
+        m = HEADER.match(raw)
+        if not m:
+            if current:
+                current.lines.append(raw)
+            continue
+        _, level, logger, msg = m.groups()
+        if logger in ("STDERR", "STDOUT"):
+            cm = STD_CALLER.match(msg)
+            this_caller, msg = (cm.group(1), cm.group(2)) if cm else (None, msg)
+            if current and current.logger == logger and this_caller == caller:
+                current.lines.append(msg)
+                continue
+            caller = this_caller
+        else:
+            caller = None
+        current = Event(level, logger, msg)
+        events.append(current)
+    return events
+
+
+def signature(event):
+    exc = next((m.group(1) for m in map(EXCEPTION.match, (l.strip() for l in event.lines)) if m), None)
+    if exc:
+        frames = [m.group(1) for m in map(FRAME.match, event.lines) if m]
+        ours = [f for f in frames if "com.jubitus" in f]
+        where = (ours or frames or ["?"])[0]
+        return f"{event.logger} | {exc} @ {where}"
+    text = re.sub(r"\d+", "#", UUID.sub("<uuid>", event.lines[0]))[:140]
+    return f"{event.logger} | {event.level} | {text}"
+
+
+def is_problem(event):
+    has_exc = any(EXCEPTION.match(l.strip()) for l in event.lines)
+    if has_exc or event.level in ("ERROR", "FATAL"):
+        return True
+    return event.level == "WARN" and OURS.search(event.logger + " " + event.lines[0]) is not None
+
+
+def cmd_logscan(args):
+    log = latest_log()
+    if not log.exists():
+        die("no log at " + str(log))
+    found = {}
+    for ev in parse_events(log):
+        if is_problem(ev):
+            sig = signature(ev)
+            entry = found.setdefault(sig, [0, ev])
+            entry[0] += 1
+    if args[:1] == ["--baseline"]:
+        BASELINE.write_text("\n".join(sorted(found)) + "\n")
+        print(f"Baseline stored: {len(found)} known problem signatures")
+        return
+    known = set(BASELINE.read_text().splitlines()) if BASELINE.exists() else set()
+    ours, new = [], []
+    for sig, (count, ev) in found.items():
+        is_ours = OURS.search(sig + "\n" + "\n".join(ev.lines)) is not None
+        if is_ours:
+            ours.append((sig in known, sig, count, ev))
+        elif sig not in known:
+            new.append((False, sig, count, ev))
+    report = STATE / f"logscan-{time.strftime('%Y%m%d-%H%M%S')}.txt"
+    with report.open("w") as out:
+        for known_flag, sig, count, ev in ours + new:
+            out.write(f"=== {count}x {'(known) ' if known_flag else ''}{sig}\n")
+            out.write("\n".join(ev.lines[:60]) + "\n\n")
+    print(f"{len(found)} problem kinds, {len(known)} in baseline"
+          + ("" if known else " (NO BASELINE: run logscan --baseline on a reference run)"))
+    lines = [f"OURS{' (known)' if k else ''} {c}x {s}" for k, s, c, _ in sorted(ours)]
+    lines += [f"NEW {c}x {s}" for _, s, c, _ in new]
+    for line in lines[:MAX_SCAN_LINES]:
+        print(line[:200])
+    if len(lines) > MAX_SCAN_LINES:
+        print(f"... {len(lines) - MAX_SCAN_LINES} more")
+    if not lines:
+        print("Nothing new.")
+    print("Details: " + str(report))
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__.strip())
+        return
+    verb, args = sys.argv[1], sys.argv[2:]
+    if verb != "setup" and not SERVER.exists():
+        die(f"{SERVER} missing; run setup first")
+    verbs = {
+        "setup": lambda: cmd_setup(),
+        "deploy": lambda: cmd_deploy(args),
+        "reset": lambda: cmd_reset(),
+        "start": lambda: cmd_start(),
+        "cmd": lambda: cmd_cmd(args),
+        "wait": lambda: time.sleep(float(args[0])),
+        "stop": lambda: cmd_stop(),
+        "status": lambda: cmd_status(),
+        "logscan": lambda: cmd_logscan(args),
+    }
+    if verb not in verbs:
+        die("unknown verb " + verb)
+    verbs[verb]()
+
+
+if __name__ == "__main__":
+    main()

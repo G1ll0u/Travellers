@@ -1,6 +1,6 @@
 # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-05)**: draft, waiting for the user's answers on the open questions. No step started.
+**Status (2026-10-05)**: step 1 done; step 2 next.
 
 ## Goal
 
@@ -33,21 +33,20 @@ in a few lines and points to a file for details.
 - Chunk loading during tests is free: the test world is disposable and tests may do whatever they need.
   (The mod's own rule is unchanged: load a chunk only when needed, never for nothing such as path probes.)
 - Plan in `docs/` rather than a prompt for a fresh agent.
-
-## Open questions (to settle before step 1)
-
-1. **Which server copy**: run tests on a sibling copy `LGV2026_autotest` (recommended: never touches the
-   world the user plays manual tests in), or on `LGV2026_srv` itself?
-2. **Reset between runs**: restore the world from a snapshot before each run (recommended: comparable runs),
-   or let it evolve?
-3. **Owner-dependent behaviour** (follow the player, assist the owner, notices): needs a player in the world.
-   Leave it to the manual list (recommended for now), or try a server-side fake player later?
+- Tests run on a sibling copy `/home/user/Desktop/LGV2026_autotest` (own ports, own frozen jar), never on
+  `LGV2026_srv`.
+- The world is restored from a snapshot before each run (comparable runs).
+- The test server may run while the user's server/client run; the runner refuses to start when free memory is
+  too low and reports that timings may be skewed by a loaded machine.
+- Owner-dependent behaviour (follow the player, assist the owner, notices) stays on the manual list; a
+  server-side fake player may be considered later.
 
 ## Design
 
 ### Runner (outside the game) — `tools/servertest/` — status: todo
 
-One script, one verb per call, each printing ≤ 10 lines:
+One script (`tools/servertest/servertest.py`), one verb per call, each printing ≤ 10 lines:
+- `setup` — one-time copy of `LGV2026_srv` (without world, logs, `config/flare`) with its own ports and RCON.
 - `deploy` — copy `build/libs/travellers-latest.jar` into the server's `mods/` (`./gradlew build`'s own
   `deployToServer` targets the remote server and is ignored).
 - `reset` — restore the world from the snapshot.
@@ -85,7 +84,9 @@ make paths vary between runs. A failure re-runs once before being reported, to s
 ## Steps
 
 1. Runner: `deploy`, `start`, `cmd` (RCON), `stop`, `logscan` with a baseline taken on the current jar.
-   This alone is the startup smoke test (dedicated-server crash, mixin not applied, save read errors). — todo
+   This alone is the startup smoke test (dedicated-server crash, mixin not applied, save read errors).
+   — done: full cycle verified twice; baseline of 69 known signatures stored in `LGV2026_autotest/.autotest/`.
+   The test server needs ~7.5 GB free: it cannot run alongside the user's server + client on this machine.
 2. Harness skeleton: `autotest zone`, `invariants`, report file. Smoke test = start, zones, 3 min, invariants,
    stop, logscan. — todo
 3. `soak` + compact profile summary; baseline numbers for the current jar. — todo
