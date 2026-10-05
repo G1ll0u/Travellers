@@ -379,11 +379,15 @@ def cmd_soak(args):
         die("profile start: " + reply)
     verdicts = []
     player_minutes = 0
+    tick_ms = []
     for _ in range(minutes):
         time.sleep(60)
         verdicts.append(debug("autotest invariants"))
         if players_online() > 0:
             player_minutes += 1
+        ms = mean_tick_ms()
+        if ms is not None:
+            tick_ms.append(ms)
     reply = debug("profile stop")
     m = re.search(r"(profile_\S+)\.txt", reply)
     if not m:
@@ -401,6 +405,7 @@ def cmd_soak(args):
     out.write_text(f"# {deployed}\n# {minutes} min, zones {SOAK_ZONES}\n"
                    + f"invariant_fail_passes={len(fails)}\n"
                    + f"player_minutes={player_minutes}\n"
+                   + (f"tick_ms_avg={sum(tick_ms) / len(tick_ms):.1f}\ntick_ms_worst={max(tick_ms):.1f}\n" if tick_ms else "")
                    + "".join(f"fail_kind:{k}={v}\n" for k, v in kinds.items())
                    + "".join(f"{k}={v}\n" for k, v in metrics.items()))
     for line in soak_summary(metrics, minutes, len(fails)):
@@ -410,6 +415,12 @@ def cmd_soak(args):
     if fails:
         print("Invariant failures: " + str(SERVER / report))
     print(f"Profile: logs/travellers-profile/{m.group(1)}.txt | metrics: {out}")
+
+
+def mean_tick_ms():
+    """Overworld mean tick time over the last 100 ticks, from Forge's /forge tps (50 ms = 20 TPS)."""
+    m = re.search(r"Dim\s+0 .*?Mean tick time: ([\d.]+) ms", re.sub(r"§.", "", rcon("forge tps") or ""))
+    return float(m.group(1)) if m else None
 
 
 def players_online():
@@ -445,6 +456,10 @@ def soak_summary(m, minutes, failed_passes):
         "Travel efficiency: " + ", ".join(f"{k[18:]} {v:.2f}" for k, v in m.items() if k.startswith("travel_efficiency.")),
         f"A*: {m['path_ms_per_tick']:.2f} ms/tick, worst tick {m['path_worst_tick_ms']:.0f} ms, budget full {m['travel_budget_full_ticks']:.0f} ticks",
     ]
+    if "tick_ms_avg" in m:
+        tps = lambda ms: min(20.0, 1000 / max(ms, 1e-6))
+        lines.append(f"Server: {tps(m['tick_ms_avg']):.1f} TPS on average ({m['tick_ms_avg']:.0f} ms/tick), "
+                     f"worst minute {tps(m['tick_ms_worst']):.1f} TPS")
     return lines
 
 
@@ -485,6 +500,8 @@ def compare(a, b):
             alerts.append(f"{k} {ra:.2f} -> {rb:.2f} per unit-hour ({cb:.0f} cases)")
     k = "path_ms_per_tick"
     table.append(f"{k:34}{a[k]:9.2f}{b[k]:9.2f}")
+    if "tick_ms_avg" in a and "tick_ms_avg" in b:
+        table.append(f"{'tick_ms_avg':34}{a['tick_ms_avg']:9.1f}{b['tick_ms_avg']:9.1f}")
     if b[k] > a[k] * PATH_COST_RATIO:
         alerts.append(f"A* cost {a[k]:.2f} -> {b[k]:.2f} ms/tick")
     for k in sorted(k for k in set(a) | set(b) if k.startswith("fail_kind:")):
@@ -521,8 +538,9 @@ def build_commit(commit):
                        check=True, capture_output=True)
         (tree / "libs").symlink_to(PROJECT / "libs")
     env = dict(os.environ, JAVA_HOME=JDK)
-    # build ends with deployToServer (ssh to the remote server); its failure does not mean the jar is missing
-    subprocess.run(["./gradlew", "build", "-q", "-x", "test", "-x", "deployToServer"], cwd=tree, env=env,
+    # build ends with deployToServer (ssh to the remote server); its failure does not mean the jar is missing.
+    # --no-daemon: a worktree build must not leave a second Gradle daemon and its workers behind (user).
+    subprocess.run(["./gradlew", "build", "-q", "--no-daemon", "-x", "test", "-x", "deployToServer"], cwd=tree, env=env,
                    capture_output=True)
     jars = [p for p in (tree / "build/libs").glob("travellers-*.jar")
             if not re.search(r"-(dev|uberdev|latest)\.jar$", p.name)]
