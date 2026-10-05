@@ -40,7 +40,7 @@ public final class TravellerHandOff {
      * even when catching up over a long distance (it re-implements its own stepped waypoints instead),
      * so it has no equivalent of that task's progress-based stuck backstop and would otherwise only ever
      * leave via an actual chunk unload. Ordinary travel, go orders, missions and owner-catchup all end up
-     * driven by {@code EntityAITravel} (directly, or via {@code EntityTravellerWorker.startCatchupTravelTo}),
+     * driven by {@code EntityAITravel} (directly, or via {@code FollowCatchup}),
      * which already measures "am I actually getting closer" over several seconds - a strictly more
      * reliable signal than a single directional sample, so this probe deliberately does not run for them
      * ({@code EntityTraveller.getEdgeProbeGoal()} returns null in that case).

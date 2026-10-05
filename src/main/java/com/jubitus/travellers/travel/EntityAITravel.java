@@ -807,10 +807,9 @@ public class EntityAITravel extends EntityAIBase {
     @Nullable
     private BlockPos getLiveGoalPos() {
         // Dynamic goal while in catchup (return-to-owner for a worker, back-to-leader for a plain
-        // group follower - see EntityTraveller.getDynamicCatchupGoal()/EntityTravellerWorker's own
-        // richer override).
+        // group follower - see FollowCatchup.dynamicGoal()).
         if (mob.isCatchupTravel()) {
-            BlockPos cg = mob.getDynamicCatchupGoal();
+            BlockPos cg = mob.catchup.dynamicGoal();
             if (cg != null) return cg;
         }
 

@@ -457,21 +457,21 @@ public final class WorkerGroupService {
     private static void assignToLeaderLoaded(EntityTravellerWorker w, UUID leaderId) {
         w.setEscortLeaderUUID(leaderId);
         w.setFollowOrderActive(true);
-        w.stopOwnerCatchupTravel();
+        w.catchup.stop();
         w.getNavigator().clearPath();
     }
 
     private static void backToOwnerLoaded(EntityTravellerWorker w) {
         w.clearEscortLeader();
         w.setFollowOrderActive(true);
-        w.stopOwnerCatchupTravel();
+        w.catchup.stop();
         w.getNavigator().clearPath();
     }
 
     private static void becomeAnchoredLeaderLoaded(EntityTravellerWorker w) {
         w.clearEscortLeader();
         w.setFollowOrderActive(false);
-        w.stopOwnerCatchupTravel();
+        w.catchup.stop();
         w.getNavigator().clearPath();
     }
 

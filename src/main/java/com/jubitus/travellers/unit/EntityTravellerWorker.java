@@ -173,9 +173,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     boolean goingHome = false;
     boolean goingToDuty = false;
     private int anchorScanCooldown = 0;
-    // --- dynamic owner catchup goal ---
-    private BlockPos cachedCatchupGoal = null;
-    private long nextCatchupRefreshTick = 0;
     private int leaderCountCooldown = 0;
     private int stuckAtVillageTicks = 0;
     boolean returnUsingFollow = false;
@@ -191,9 +188,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     // --- home village ---
     @Nullable
     BlockPos homeVillageCenter;
-    private boolean catchupTravel;
-    @Nullable
-    private UUID catchupTargetUUID = null;
     WorkerMode mode = WorkerMode.IDLE;
     // GET_EQUIPMENT mission flags
     private boolean getEquipStay = false;
@@ -533,50 +527,24 @@ public class EntityTravellerWorker extends EntityTraveller {
 
 
 
-    @Nullable
-    private EntityLivingBase resolveCatchupTarget() {
-        if (catchupTargetUUID == null) return null;
-        if (world instanceof WorldServer) {
-            Entity e = ((WorldServer) world).getEntityFromUuid(catchupTargetUUID);
-            if (e instanceof EntityLivingBase && !e.isDead) return (EntityLivingBase) e;
-        }
-        return null;
-    }
-
-
-
-    public void startCatchupTravelTo(@Nullable EntityLivingBase target) {
-        if (target == null) return;
-        if (target.dimension != this.dimension) return;
-        beginCatchupToward(target.getUniqueID());
-    }
-
-    private void beginCatchupToward(UUID targetId) {
-        this.catchupTargetUUID = targetId;
-        this.cachedCatchupGoal = null;
-        this.nextCatchupRefreshTick = 0;
-
-        this.catchupTravel = true;
-
+    @Override
+    protected void onCatchupBegin() {
         if (this.isHiredFollower()) {
             this.setFollowOrderActive(true);
         }
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.clearRoute(true);
-
-//        this.getNavigator().clearPath();
         this.setUsingTravelAI(true);
+    }
+
+    @Override
+    protected void onCatchupEnd() {
+        this.getNavigator().clearPath();
+        this.setUsingTravelAI(false);
     }
 
     @Nullable
     public EntityPlayer getFollowOwner() {
         UUID id = getFollowOwnerUUID();
         return id == null ? null : this.world.getPlayerEntityByUUID(id);
-    }
-
-    public void stopOwnerCatchupTravel() {
-        stopCatchupTravel();
     }
 
     // Called when the entity is detected inside an opaque block, before vanilla suffocation damage.
@@ -843,63 +811,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             getNavigator().clearPath();
             return;
         }
-
-        if (!world.isRemote && catchupTravel) {
-            EntityLivingBase t = resolveCatchupTarget();
-            if (t == null) t = getEffectiveFollowTarget();
-
-            if (t != null && !t.isDead && t.dimension == this.dimension) {
-                FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-
-                boolean caveLike = FollowRecoveryHelper.isLeaderMeaningfullyUnderground(world, t, cfg)
-                        || FollowRecoveryHelper.isEnclosedFollowSpace(world, t, cfg);
-
-                // Check distance to SLOT, not to leader. The worker's goal is its
-                // formation position — once it's close enough, normal follow AI takes over.
-                double stopDist = caveLike ? cfg.catchup.stopDistanceCave : cfg.catchup.stopDistanceVisible;
-                boolean stop;
-
-                // Also check distance to leader directly — the slot goal can be
-                // stale if the leader moved/teleported after catchup started.
-                double distToLeader = this.getDistance(t);
-
-                if (followerHasSlotGoal) {
-                    double dx = this.posX - followerSlotGoalX;
-                    double dy = this.posY - followerSlotGoalY;
-                    double dz = this.posZ - followerSlotGoalZ;
-                    double distToSlot = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    double verticalGapSlot = Math.abs(dy);
-
-                    boolean closeToSlot = caveLike
-                            ? (distToSlot <= stopDist && verticalGapSlot <= cfg.cave.verticalTolerance + 1.5D)
-                            : (distToSlot <= stopDist);
-                    // Fallback: also stop if close enough to the leader itself
-                    boolean closeToLeader = distToLeader <= stopDist;
-
-                    stop = closeToSlot || closeToLeader;
-                } else {
-                    // No slot known — fall back to distance to leader
-                    boolean visible = this.canEntityBeSeen(t) || t.canEntityBeSeen(this);
-                    double verticalGap = Math.abs(this.posY - t.posY);
-
-                    stop = caveLike
-                            ? (distToLeader <= stopDist && verticalGap <= cfg.cave.verticalTolerance + 1.5D)
-                            : (distToLeader <= stopDist && (visible || distToLeader <= stopDist * 0.75D));
-                }
-
-                // Near but trapped (a pit under the leader): the travel ladder must finish before follow resumes.
-                if (stop && !getStuckRecord().isEscalating()) {
-                    stopOwnerCatchupTravel();
-                }
-            } else if (virtualEscortSlot == null || !isVirtualLeader(catchupTargetUUID)
-                    || (getDistanceSqToCenter(virtualEscortSlot)
-                    <= FollowRuntimeConfig.get().catchup.stopDistanceVisible * FollowRuntimeConfig.get().catchup.stopDistanceVisible
-                    && !getStuckRecord().isEscalating())) {
-                // An offscreen escort leader is chased through its slot until close to it; a gone one ends catchup.
-                stopOwnerCatchupTravel();
-            }
-        }
-
 
         if (!world.isRemote) {
             recruit.tickReturnToOwner();
@@ -1379,7 +1290,7 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
     public void resetForBedRespawn(BlockPos spot) {
         clearEscortLeader();
-        stopOwnerCatchupTravel();
+        catchup.stop();
         this.goOrderActive = false;
         this.goOrderTargetPos = null;
         this.goOrderTargetDim = 0;
@@ -1458,7 +1369,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         boolean shouldBoost =
                 isInPlayerViewDistance()
                         || isUsingTravelAI()      // << key
-                        || catchupTravel;         // << key
+                        || isCatchupTravel();     // << key
 
         if (shouldBoost == usingBoostedNav) return;
         usingBoostedNav = shouldBoost;
@@ -1533,7 +1444,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             // Normal anchor behavior
             this.idleAnchorPos = this.getPosition();
 
-            if (!this.isJobActive() && !this.catchupTravel && !delivery.isWaitingForPickup()) {
+            if (!this.isJobActive() && !isCatchupTravel() && !delivery.isWaitingForPickup()) {
                 stopAllTravelNow();
                 this.returnUsingFollow = false;
                 delivery.awaitingPickup = false;
@@ -1548,21 +1459,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
     }
 
-    /**
-     * Catchup route: one waypoint that is constantly refreshed
-     */
-    private void updateCatchupRoute(BlockPos newPos) {
-        if (newPos == null) return;
-
-        TravelCommon tc = this.getTravelCommon();
-
-        // Never "wait at stop" in catchup mode.
-        tc.routeTo(newPos);
-        tc.setDepartCooldownTicks(0);
-
-        this.getNavigator().clearPath();
-    }
-
     // Approximate surface position above player's XZ
 // Approximate surface position near any follow target (player OR leader worker)
     public BlockPos getApproximateSurfacePosNear(@Nullable EntityLivingBase target) {
@@ -1570,18 +1466,7 @@ public class EntityTravellerWorker extends EntityTraveller {
             return delivery.getEmployerReturnPos() != null ? delivery.getEmployerReturnPos() : this.getPosition();
         }
 
-        FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-        BlockPos actual = new BlockPos(target.posX, target.getEntityBoundingBox().minY, target.posZ);
-
-        boolean underground = FollowRecoveryHelper.isLeaderMeaningfullyUnderground(this.world, target, cfg)
-                || FollowRecoveryHelper.isEnclosedFollowSpace(this.world, target, cfg);
-
-        if (underground) {
-            return actual;
-        }
-
-        int groundY = ColumnGround.topLayer(this.world, actual.getX(), actual.getZ(), true);
-        return groundY != ColumnGround.NONE ? new BlockPos(actual.getX(), groundY, actual.getZ()) : actual;
+        return FollowCatchup.surfaceNear(this.world, target);
     }
 
     private void stopAllTravelNow() {
@@ -1851,7 +1736,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         return normalTravel
                 || this.isJobActive()
-                || this.catchupTravel
+                || isCatchupTravel()
                 || this.goingHome
                 || this.goingToDuty
                 || this.goOrderActive;
@@ -1860,80 +1745,16 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     public BlockPos getTravelGoalPos() {
         // Catchup/return-to-owner uses dynamic goal
-        BlockPos cg = getDynamicCatchupGoal();
+        BlockPos cg = catchup.dynamicGoal();
         if (cg != null) return cg;
 
         // Normal travel uses the village goal
         return getTravelCommon().getTargetVillage();
     }
 
-    @Nullable
-    public BlockPos getDynamicCatchupGoal() {
-        if (!isCatchupTravel()) return null;
-        if (!(world instanceof WorldServer)) return cachedCatchupGoal;
-        if (catchupTargetUUID == null) return cachedCatchupGoal;
-
-        long now = world.getTotalWorldTime();
-
-        // Refresh more frequently when in view distance — the worker is close
-        // enough that a stale goal causes visible stuck behavior.
-        boolean inView = isInPlayerViewDistance();
-        long refreshInterval = FollowRuntimeConfig.get().catchup.repathIntervalTicks;
-        if (inView) {
-            refreshInterval = Math.min(refreshInterval, 20); // at most 1 second
-        }
-
-        if (cachedCatchupGoal == null || now >= nextCatchupRefreshTick) {
-            Entity e = ((WorldServer) world).getEntityFromUuid(catchupTargetUUID);
-
-            // When in view distance, always navigate toward the LEADER directly.
-            // The slot goal may be stale (set before the player moved/teleported),
-            // and the follow AI will assign the proper slot once catchup ends.
-            if (inView && e instanceof EntityLivingBase && e.isEntityAlive() && e.dimension == this.dimension) {
-                EntityLivingBase target = (EntityLivingBase) e;
-                cachedCatchupGoal = getApproximateSurfacePosNear(target);
-            } else if (followerHasSlotGoal) {
-                // Navigate to the formation SLOT, not to the leader.
-                // In large groups (100-500), the slot can be far from the leader.
-                // The worker must reach its assigned position, not crowd the leader.
-                cachedCatchupGoal = new BlockPos(
-                        MathHelper.floor(followerSlotGoalX),
-                        MathHelper.floor(followerSlotGoalY),
-                        MathHelper.floor(followerSlotGoalZ)
-                );
-            } else if (e instanceof EntityLivingBase && e.isEntityAlive() && e.dimension == this.dimension) {
-                // No slot known yet — fall back to leader position
-                EntityLivingBase target = (EntityLivingBase) e;
-                FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-
-                boolean caveLike = FollowRecoveryHelper.isLeaderMeaningfullyUnderground(world, target, cfg)
-                        || FollowRecoveryHelper.isEnclosedFollowSpace(world, target, cfg);
-
-                BlockPos raw = caveLike
-                        ? new BlockPos(target.posX, target.getEntityBoundingBox().minY, target.posZ)
-                        : getApproximateSurfacePosNear(target);
-
-                int q = caveLike ? cfg.catchup.dynamicGoalQuantizeCave : cfg.catchup.dynamicGoalQuantizeSurface;
-                if (q < 1) q = 1;
-                cachedCatchupGoal = new BlockPos(
-                        MathHelper.floor(raw.getX() / (double) q) * q,
-                        raw.getY(),
-                        MathHelper.floor(raw.getZ() / (double) q) * q
-                );
-            }
-            nextCatchupRefreshTick = now + refreshInterval;
-        }
-
-        return cachedCatchupGoal;
-    }
-
-    public boolean isCatchupTravel() {
-        return catchupTravel;
-    }
-
     @Override
     public boolean isItineraryDriven() {
-        if (catchupTravel) return false;
+        if (isCatchupTravel()) return false;
         if (getActivePersonalTravelGoal() != null) return true;
         if (isOnFixedGoalMission()) return true;
         return !hiredFollower && mode == WorkerMode.IDLE && getEscortLeaderUUID() == null;
@@ -1951,15 +1772,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 && (mode == WorkerMode.IDLE || mode == WorkerMode.GET_EQUIPMENT);
     }
 
-    public void setCatchupTravel(boolean v) {
-        this.catchupTravel = v;
-    }
-
-    @Nullable
-    public UUID getCatchupTargetUUID() {
-        return catchupTargetUUID;
-    }
-
     public WorkerMode getMode() {
         return mode;
     }
@@ -1974,8 +1786,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     public BlockPos getVirtualGoal() {
         // Catchup travel always takes priority
-        if (catchupTravel && catchupTargetUUID != null && world instanceof net.minecraft.world.WorldServer) {
-            Entity tgt = ((net.minecraft.world.WorldServer) world).getEntityFromUuid(catchupTargetUUID);
+        if (isCatchupTravel() && catchup.getTargetId() != null && world instanceof net.minecraft.world.WorldServer) {
+            Entity tgt = ((net.minecraft.world.WorldServer) world).getEntityFromUuid(catchup.getTargetId());
             if (tgt != null && !tgt.isDead) return tgt.getPosition();
         }
         // Personal self-travel (Go Home / Go To Duty): a concrete destination the worker is already
@@ -2078,20 +1890,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             finishJob();
             if (isHiredFollower()) setFollowOrderActive(true);
         }
-    }
-
-    public void stopCatchupTravel() {
-        this.catchupTravel = false;
-
-        this.catchupTargetUUID = null;
-        this.cachedCatchupGoal = null;
-        this.nextCatchupRefreshTick = 0;
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.clearRoute(false);
-
-        this.getNavigator().clearPath();
-        this.setUsingTravelAI(false);
     }
 
     private void tickAnchorDefense() {
@@ -2439,9 +2237,15 @@ public class EntityTravellerWorker extends EntityTraveller {
         notifyFollowerSlotGoal(virtualEscortSlot.getX() + 0.5D, virtualEscortSlot.getY(), virtualEscortSlot.getZ() + 0.5D);
 
         double startDist = FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D;
-        if (!catchupTravel && getDistanceSqToCenter(virtualEscortSlot) > startDist * startDist) {
-            beginCatchupToward(leaderId);
+        if (!isCatchupTravel() && getDistanceSqToCenter(virtualEscortSlot) > startDist * startDist) {
+            catchup.begin(leaderId);
         }
+    }
+
+    @Override
+    @Nullable
+    protected BlockPos getOffscreenLeaderSlot() {
+        return isVirtualLeader(catchup.getTargetId()) ? virtualEscortSlot : null;
     }
 
     private boolean isVirtualLeader(@Nullable UUID id) {
@@ -2457,7 +2261,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Cancel anything that could fight with this travel order
         this.goingHome = false;
-        this.catchupTravel = false;
+        catchup.stop();
         this.returnUsingFollow = false;
         delivery.awaitingPickup = false;
 
@@ -2498,7 +2302,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.mode = WorkerMode.GET_EQUIPMENT;
 
         this.goingHome = false;
-        this.catchupTravel = false;
+        catchup.stop();
         this.returnUsingFollow = false;
         delivery.awaitingPickup = false;
         delivery.jobDelivered = false;

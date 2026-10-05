@@ -374,7 +374,7 @@ public final class RecruitMission {
         worker.routeLocked = true;
 
         // Also ensure we are not in catchupTravel stale state
-        worker.setCatchupTravel(false);
+        worker.catchup.stop();
     }
 
     // Server tick of the return leg to the owner.

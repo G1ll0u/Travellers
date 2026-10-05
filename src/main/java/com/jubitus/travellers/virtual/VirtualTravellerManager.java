@@ -2065,7 +2065,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.followOwnerUUID = worker.getFollowOwnerUUID();
         r.followOrderActive = worker.isFollowOrderActive();
         r.isCatchupMode = worker.isCatchupTravel();
-        r.catchupTargetUUID = worker.getCatchupTargetUUID();
+        r.catchupTargetUUID = worker.catchup.getTargetId();
         r.workerMode = worker.getMode().name();
         r.jobGoal = worker.getJobGoal();
         r.goOrderActive = worker.isGoOrderActive();

@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-03)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (next: 9.11, waiting for the user's decision).
+**Status (2026-10-05)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.11 done; next: 9.12).
 
 ## Goal
 
@@ -224,7 +224,7 @@ cancels is removed from the pool anyway, and a released pen horse is never respa
 Kept: bond invariants in `mount/`, containment AI in `zone/stable/` (each used by one system only); chunk unload
 stays two handlers (bonded horses depend on which riders unload in the same chunk, `ChunkUnloadVirtualizeHandler`).
 
-### Phase 9 — Unit classes split — status: in progress (9.1–9.10 done)
+### Phase 9 — Unit classes split — status: in progress (9.1–9.11 done)
 
 - `EntityTraveller` (5 177 lines): mount runtime state → `TravellerMountState`; voice → `TravellerVoice`; NBT →
   codec; sleep; hazard/cliff repulsion; virtualization eligibility → `VirtualizationGate` (one rule, subclass hooks);
@@ -259,8 +259,12 @@ duplicate "hit by owner" block dropped.
 `rerollsAppearanceAtSpawn`, `getHiredOwner`, `isHostileUnit`, `isOwner`, `shouldRenderBackpack`); raider overrides for
 appearance and spawn equipment. Two raider-only checks left (naming, blacklist). Noticed, not changed: the attacker cap
 divisor is the config value in `computeEffectiveAttackerCap` but a hard-coded 5 in `trySetAttackTargetLimited`.
-Next: 9.11 `FollowCatchup`: the traveller and worker catch-up copies differ — list the differences and get the user's
-decision before merging (visible behaviour). In-game check still owed for 9.1–9.10 (load a world, voices, camp sleep, mounts; recruit and delivery
+9.11 `unit/FollowCatchup` (`unit.catchup`): one start/stop, moving goal and exit watch for traveller and worker; hooks
+`onCatchupBegin`/`onCatchupEnd` (worker: follow on, travel-AI flag, navigator) and `getOffscreenLeaderSlot`. The worker's
+"in view" goal branches were dead (that test is "own chunk loaded", always true for a loaded unit): both always chase the
+target's ground. Decided (user): a traveller's catchup end also clears its route; every worker catchup cancel goes through
+`stop()`; performance ideas deferred (memory). The worker exit check now runs inside the base tick (also during choir freeze).
+Next: 9.12 — pick the next split of `EntityTravellerWorker` (missions) with the user. In-game check still owed for 9.1–9.11 (load a world, voices, camp sleep, mounts; recruit and delivery
 missions across a save/reload; workers fighting, hit by their owner; backpack on a mission).
 
 ### Phase 10 — Virtualization split and record cleanup — status: todo

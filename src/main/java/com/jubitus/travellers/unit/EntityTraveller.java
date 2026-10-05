@@ -177,6 +177,7 @@ public class EntityTraveller extends EntityCreature {
     public final TravellerSleep sleep = new TravellerSleep(this);
     public final TravellerVoice voice = new TravellerVoice(this);
     public final TravellerHandOff handOff = new TravellerHandOff(this);
+    public final FollowCatchup catchup = new FollowCatchup(this);
     public final ItemStackHandler inventory = new ItemStackHandler(18); // 18 slots example
     final TravelCommon travelCommon = new TravelCommon(this);
     public static final String ITINERARY_NBT_KEY = "Itin";
@@ -509,7 +510,7 @@ public class EntityTraveller extends EntityCreature {
 
     // A group follower has no trip of its own: it follows its leader, or catches up to it.
     public boolean isRouteLocked() {
-        return groupLeaderUUID != null || catchupTravel;
+        return groupLeaderUUID != null || isCatchupTravel();
     }
 
     // Whether the auto-planner may give this unit a new roaming route right now.
@@ -1462,7 +1463,7 @@ public class EntityTraveller extends EntityCreature {
             else mountState.clearLeadTrail();
             TravellerMountSupport.tickMount(this);
             tickVirtualGroupLeaderFollow();
-            tickCatchupExit();
+            catchup.tickExit();
             gaze.tickAwareness();
             greeter.tick();
             com.jubitus.travellers.debug.trace.TravellerTracer.tick(this);
@@ -2465,9 +2466,7 @@ public void fall(float distance, float damageMultiplier) {
     // --- Follow-context hooks for EntityAIFollowLeader. Neutral defaults for a plain traveller/
     // raider group follower, whose only concept of a leader is groupLeaderUUID; EntityTravellerWorker
     // overrides most of these with its own richer semantics (player owner, escort leader, missions,
-    // duty) - isCatchupTravel/startCatchupTravelTo/getDynamicCatchupGoal are real here too (see
-    // below), not neutral no-ops: a group follower's catchup target is always its leader, so it
-    // reuses groupLeaderUUID directly instead of tracking a second UUID like a worker does. ---
+    // duty). Catchup itself is shared: see FollowCatchup. ---
 
     /**
      * The entity this follower currently steers toward. Returns null when the leader isn't a loaded
@@ -2508,130 +2507,27 @@ public void fall(float distance, float damageMultiplier) {
         return false;
     }
 
-    private boolean catchupTravel = false;
-    @Nullable private BlockPos cachedCatchupGoal;
-    private long nextCatchupRefreshTick = 0L;
-
     public boolean isCatchupTravel() {
-        return catchupTravel;
+        return catchup.isActive();
     }
 
-    /**
-     * Hands this follower off to {@code EntityAITravel}'s long-distance travel (route planning, its
-     * own stuck-escalation ladder) instead of {@code EntityAIFollowLeader}'s short-range formation
-     * chase - triggered once {@code FollowModeSelector} decides this follower has fallen too far
-     * behind its leader, or is genuinely stuck near its slot for too long. See
-     * {@code EntityAITravel.shouldExecute()}'s {@code !isCatchupTravel()} exemption for
-     * {@link #groupLeaderUUID} and {@code EntityAIFollowLeader.canUseFollow()}'s
-     * {@code isCatchupTravel()} check - the two AI tasks hand the movement mutex to each other purely
-     * off this flag. {@code EntityTravellerWorker} overrides this with its own owner/escort-aware
-     * version (a separate catchup target UUID, since a worker's owner isn't always what
-     * {@link #getEffectiveFollowTarget()} tracks).
-     */
+    /** Hands this follower to catchup travel (see {@link FollowCatchup}). */
     public void startCatchupTravelTo(@Nullable EntityLivingBase target) {
-        if (target == null || target.dimension != this.dimension) return;
-        beginCatchup();
+        catchup.start(target);
     }
 
-    private void beginCatchup() {
-        this.cachedCatchupGoal = null;
-        this.nextCatchupRefreshTick = 0L;
-        this.catchupTravel = true;
-
-        TravelCommon tc = this.getTravelCommon();
-        tc.clearRoute(true);
+    /** Hook run when catchup starts, before the route is cleared. */
+    protected void onCatchupBegin() {
     }
 
-    /** Ends catchup - called once close enough to the leader/slot (see {@link #tickCatchupExit()}),
-     *  or once the leader is confirmed gone. {@code EntityAIFollowLeader} takes back over next tick. */
-    public void stopCatchupTravel() {
-        this.catchupTravel = false;
-        this.cachedCatchupGoal = null;
-        this.nextCatchupRefreshTick = 0L;
+    /** Hook run when catchup ends, after the route is cleared. */
+    protected void onCatchupEnd() {
     }
 
-    /**
-     * The moving destination {@code EntityAITravel} steers toward while {@link #isCatchupTravel()} -
-     * the leader's own position, surface-approximated and refreshed periodically rather than every
-     * tick. Mirrors {@code EntityTravellerWorker.getDynamicCatchupGoal()} but resolves the target via
-     * {@link #getEffectiveFollowTarget()} (always the group leader) instead of a separately tracked
-     * UUID.
-     */
+    /** The slot next to an offscreen leader that catchup drives toward, or null when the leader isn't virtual. */
     @Nullable
-    public BlockPos getDynamicCatchupGoal() {
-        if (!catchupTravel || !(world instanceof WorldServer)) return cachedCatchupGoal;
-
-        EntityLivingBase target = getEffectiveFollowTarget();
-        if (target == null) return virtualLeaderSlot != null ? virtualLeaderSlot : cachedCatchupGoal;
-
-        long now = world.getTotalWorldTime();
-        if (cachedCatchupGoal == null || now >= nextCatchupRefreshTick) {
-            cachedCatchupGoal = approximateSurfacePosNear(target);
-            nextCatchupRefreshTick = now + FollowRuntimeConfig.get().catchup.repathIntervalTicks;
-        }
-        return cachedCatchupGoal;
-    }
-
-    private BlockPos approximateSurfacePosNear(EntityLivingBase target) {
-        FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-        BlockPos actual = new BlockPos(target.posX, target.getEntityBoundingBox().minY, target.posZ);
-
-        if (FollowRecoveryHelper.isLeaderMeaningfullyUnderground(this.world, target, cfg)
-                || FollowRecoveryHelper.isEnclosedFollowSpace(this.world, target, cfg)) {
-            return actual;
-        }
-        int groundY = ColumnGround.topLayer(this.world, actual.getX(), actual.getZ(), true);
-        return groundY != ColumnGround.NONE ? new BlockPos(actual.getX(), groundY, actual.getZ()) : actual;
-    }
-
-    /**
-     * Per-tick exit watch, called unconditionally from {@link #onLivingUpdate()} exactly like
-     * {@link #tickVirtualGroupLeaderFollow()} - mirrors the distance/slot check
-     * {@code EntityTravellerWorker.onLivingUpdate()} runs inline for its own catchup. Hands the
-     * movement mutex back to {@code EntityAIFollowLeader} once close enough, or the instant the
-     * leader is confirmed gone.
-     */
-    private void tickCatchupExit() {
-        if (world.isRemote || !catchupTravel) return;
-
-        EntityLivingBase t = getEffectiveFollowTarget();
-        if (t == null) {
-            // An offscreen leader is chased through its slot until close to it; a gone one ends catchup.
-            if (virtualLeaderSlot == null) {
-                stopCatchupTravel();
-            } else if (getDistanceSqToCenter(virtualLeaderSlot) <= sq(FollowRuntimeConfig.get().catchup.stopDistanceVisible)
-                    && !getStuckRecord().isEscalating()) {
-                stopCatchupTravel();
-            }
-            return;
-        }
-
-        FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-        boolean caveLike = FollowRecoveryHelper.isLeaderMeaningfullyUnderground(world, t, cfg)
-                || FollowRecoveryHelper.isEnclosedFollowSpace(world, t, cfg);
-        double stopDist = caveLike ? cfg.catchup.stopDistanceCave : cfg.catchup.stopDistanceVisible;
-        double distToLeader = this.getDistance(t);
-
-        boolean stop;
-        if (hasFollowerSlotGoal()) {
-            double dx = this.posX - followerSlotGoalX;
-            double dy = this.posY - followerSlotGoalY;
-            double dz = this.posZ - followerSlotGoalZ;
-            double distToSlot = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            boolean closeToSlot = caveLike
-                    ? (distToSlot <= stopDist && Math.abs(dy) <= cfg.cave.verticalTolerance + 1.5D)
-                    : (distToSlot <= stopDist);
-            stop = closeToSlot || distToLeader <= stopDist;
-        } else {
-            boolean visible = this.canEntityBeSeen(t) || t.canEntityBeSeen(this);
-            double verticalGap = Math.abs(this.posY - t.posY);
-            stop = caveLike
-                    ? (distToLeader <= stopDist && verticalGap <= cfg.cave.verticalTolerance + 1.5D)
-                    : (distToLeader <= stopDist && (visible || distToLeader <= stopDist * 0.75D));
-        }
-
-        // Near but trapped (a pit under the leader): the travel ladder must finish before follow resumes.
-        if (stop && !getStuckRecord().isEscalating()) stopCatchupTravel();
+    protected BlockPos getOffscreenLeaderSlot() {
+        return virtualLeaderSlot;
     }
 
     private int cachedGroupSize = 1;
@@ -2653,7 +2549,7 @@ public void fall(float distance, float damageMultiplier) {
     protected double followerSlotGoalX, followerSlotGoalY, followerSlotGoalZ;
 
     /** Called by {@code EntityAIFollowLeader} to report this follower's current formation/idle slot -
-     *  also the signal {@link #tickCatchupExit()} and, for workers, idle-look gating key off.
+     *  also the signal {@link FollowCatchup#tickExit()} and, for workers, idle-look gating key off.
      *  {@code EntityTravellerWorker} overrides this to also stamp a staleness timestamp on top. */
     public void notifyFollowerSlotGoal(double x, double y, double z) {
         this.followerHasSlotGoal = true;
@@ -2713,7 +2609,7 @@ public void fall(float distance, float damageMultiplier) {
 
         if (!isCatchupTravel() && getDistanceSqToCenter(virtualLeaderSlot)
                 > sq(FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D)) {
-            beginCatchup();
+            catchup.begin(leaderId);
         }
     }
 
