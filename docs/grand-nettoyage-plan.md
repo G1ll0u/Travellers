@@ -264,7 +264,7 @@ divisor is the config value in `computeEffectiveAttackerCap` but a hard-coded 5 
 "in view" goal branches were dead (that test is "own chunk loaded", always true for a loaded unit): both always chase the
 target's ground. Decided (user): a traveller's catchup end also clears its route; every worker catchup cancel goes through
 `stop()`; performance ideas deferred (memory). The worker exit check now runs inside the base tick (also during choir freeze).
-Next: 9.12 — pick the next split of `EntityTravellerWorker` (missions) with the user. In-game check still owed for 9.1–9.11 (load a world, voices, camp sleep, mounts; recruit and delivery
+Next: 9.12 — pick the next split of `EntityTravellerWorker` (missions) with the user. Catchup checked in game by the user (workers and travellers catch up, Go order / recruit during catchup). In-game check still owed for 9.1–9.10 (load a world, voices, camp sleep, mounts; recruit and delivery
 missions across a save/reload; workers fighting, hit by their owner; backpack on a mission).
 
 ### Phase 10 — Virtualization split and record cleanup — status: todo
