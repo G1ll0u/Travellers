@@ -396,6 +396,9 @@ def cmd_soak(args):
     for line in (SERVER / "logs/travellers-profile" / (m.group(1) + ".metrics")).read_text().splitlines():
         k, v = line.split("=", 1)
         metrics[k] = float(v)
+    if tick_ms:
+        metrics["tick_ms_avg"] = sum(tick_ms) / len(tick_ms)
+        metrics["tick_ms_worst"] = max(tick_ms)
     fails = [v for v in verdicts if not v.startswith("invariants: PASS")]
     report = next((v.split(" | ")[-1] for v in verdicts), "")
     SOAKS.mkdir(exist_ok=True)
@@ -405,7 +408,6 @@ def cmd_soak(args):
     out.write_text(f"# {deployed}\n# {minutes} min, zones {SOAK_ZONES}\n"
                    + f"invariant_fail_passes={len(fails)}\n"
                    + f"player_minutes={player_minutes}\n"
-                   + (f"tick_ms_avg={sum(tick_ms) / len(tick_ms):.1f}\ntick_ms_worst={max(tick_ms):.1f}\n" if tick_ms else "")
                    + "".join(f"fail_kind:{k}={v}\n" for k, v in kinds.items())
                    + "".join(f"{k}={v}\n" for k, v in metrics.items()))
     for line in soak_summary(metrics, minutes, len(fails)):
