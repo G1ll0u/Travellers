@@ -133,12 +133,15 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    terrain/leaves found: 4 calls in `MaterializePositionResolver` pass block coordinates to
    `LoadedChunks.isLoaded(world, int chunkX, int chunkZ)` (lines ~303, 356, 504, 699), so they always read
    "not loaded": natural-ground search, canopy escape, footprint push-out, mount footprint and the
-   `ensureSpawnable` Y re-resolve never run. Fix: to discuss with the user.
+   `ensureSpawnable` Y re-resolve never run. Fixed by renaming the chunk overload `isChunkLoaded`.
+   Soaks now default to 10 min for `ab` (user: dense population, short runs are enough) and sample tick time;
+   without a player the server runs ~34 ms/tick (20 TPS, worst minute 41 ms).
 
 ## Bug order (user decision, 2026-10-05)
 
 1. Vanished hired workers — done (false alarm of the check).
-2. Units materialized inside terrain/leaves — cause found, fix to agree.
+2. Units materialized inside terrain/leaves — done (13973907): `ab` 10 min, 8 bad placements -> 0, no alert
+   on a clean second run (the first B run had the user online and lagging).
 3. Duplicate body refused by vanilla. 4. Raider spawned while already removed (likely related to 3).
 Each fix is validated by an `ab` before/after.
 5. Scenario batch above, one commit per scenario. — todo
