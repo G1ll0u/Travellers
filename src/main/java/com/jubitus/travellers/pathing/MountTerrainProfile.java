@@ -160,11 +160,6 @@ public final class MountTerrainProfile {
         return Double.NaN;
     }
 
-    private static boolean isLeavesTop(IBlockAccess world, int x, double surface, int z) {
-        BlockPos pos = new BlockPos(x, MathHelper.floor(surface - 1.0E-3D), z);
-        return BlockRules.isLeaves(world, pos, world.getBlockState(pos));
-    }
-
     /** Half a block: fine enough that a 1-wide pillar between two samples is impossible, coarse
      * enough that a 16-block probe stays around 30 iterations. */
     private static final double CORRIDOR_STEP = 0.5D;
@@ -310,8 +305,6 @@ public final class MountTerrainProfile {
                 int bz = MathHelper.floor(originZ + dirZ * dist + dirX * halfWidth * side);
                 double surface = standingSurfaceY(world, bx, bz, feet, ceiling, headroomNeeded);
                 if (Double.isNaN(surface)) continue;
-                // INVARIANT: a horse steps onto leaves but never jumps onto them (it bounces into the foliage).
-                if (surface > feet + 1.0E-3D && isLeavesTop(world, bx, surface, bz)) return null;
                 if (Double.isNaN(best) || surface > best) best = surface;
             }
 

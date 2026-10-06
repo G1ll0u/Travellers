@@ -1,7 +1,7 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
 **Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-step 5 failed twice, reassessing with the user.
+step 5 abandoned; step 6 being measured.
 
 ## Goal
 
@@ -20,8 +20,8 @@ sections 3 and 8.
   made on measurements.
 
 - D1: forest scenario = per route 4 solo riders + 1 mounted group (leader + 3 followers), 5-min budget.
-- D2 (revised after measuring): a horse still steps onto leaves (one block, like any step) but never jumps
-  onto them. The first version (leaves never ground) made leaves wedges 3-5x worse.
+- D2 (revised twice after measuring): leaves stay as they were (ground, step and jump target). Both "never
+  ground" and "never a jump target" made leaves wedges several times worse.
 - 3.3 turn limit: a rider about to turn too sharply for its proven line slows down (to 20 % at least)
   rather than refusing the line and stopping.
 - D3: margin value chosen by the user from measurements (still open).
@@ -78,7 +78,7 @@ sections 3 and 8.
   (village at (-1644, 294); `resolveMountSpawnPos` keeps returning the horse's own spot): 1959 recalls in one
   run.
 
-### 5. Fix 3.2 — leaves are not ground for a horse — both versions failed, waiting for the user
+### 5. Fix 3.2 — leaves are not ground for a horse — abandoned (user), leaves behave as before
 - D2, my recommendation: for the horse only, a leaf block is never a standing surface and never a jump
   target (planner, corridor, jump scan). It stays something to ride under (cost, as today). Riders on foot
   are unchanged. Risk: a floor of leaf bushes becomes something to go round; watched with the no-path count.
