@@ -8,6 +8,7 @@ The server is left running after a test so the user can join it (port 25566); ve
   start              launch the server in tmux, wait for "Done"
   cmd "<command>"    send one console command through RCON, print the reply
   wait <seconds>     sleep
+  forest [seconds]   mounted forest crossing scenario on each FOREST_ROUTES entry (running server); prints results
   soak [minutes]     zones + movement profile + invariants every minute on a running server; prints a summary
   compare <a> <b>    compare two soak .metrics files (paths or names in .autotest/soaks) against the thresholds
   ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare; B is left running
@@ -54,6 +55,12 @@ SETUP_SKIP = {"world", "logs", "crash-reports", "flare"}
 SOAK_ZONES = [(-1021, -967, 3), (-1325, -251, 3), (-1497, -1417, 3), (-1608, 301, 3), (-1161, -321, 3),
               (-2080, -554, 3), (-1600, -320, 3), (-1173, -609, 3)]
 SOAK_MINUTES = 10
+# Dense forest crossings for mounted riders (x1, z1, x2, z2), around the woods the mount review found densest.
+# Chosen from the snapshot's region files: no water on the line, ~17 % of columns with wood or leaves 2-3 blocks
+# above the ground.
+FOREST_ROUTES = [(-1928, -152, -1816, -152), (-2200, -520, -2088, -520), (-1832, 296, -1720, 296)]
+FOREST_SECONDS = 300
+FORESTS = STATE / "forests"
 SOAKS = STATE / "soaks"
 
 # Comparison thresholds, from two soaks of the same jar (same-jar spread: efficiency within 4 %, incident rates
@@ -421,6 +428,37 @@ def cmd_soak(args):
     print(f"Profile: logs/travellers-profile/{m.group(1)}.txt | metrics: {out}")
 
 
+def cmd_forest(args):
+    if not server_pid():
+        die("server not running")
+    seconds = int(args[0]) if args else FOREST_SECONDS
+    results = []
+    for x1, z1, x2, z2 in FOREST_ROUTES:
+        half = max(abs(x2 - x1), abs(z2 - z1)) // 2
+        reply = debug(f"autotest zone add {(x1 + x2) // 2} {(z1 + z2) // 2} {half // 16 + 4}")
+        if "zone added" not in reply:
+            die("zone add: " + reply)
+        time.sleep(5)
+        reply = debug(f"autotest forest {x1} {z1} {x2} {z2} 4 3 {seconds}")
+        if "forest started" not in reply:
+            die("forest: " + reply)
+        while True:
+            time.sleep(10)
+            reply = debug("autotest forest status")
+            if reply.startswith("forest: done"):
+                break
+        results.append(reply.split(" | ", 1)[1].split(" | ")[0])
+        debug("autotest zone clear")
+    FORESTS.mkdir(exist_ok=True)
+    out = FORESTS / f"forest-{time.strftime('%Y%m%d-%H%M%S')}.txt"
+    deployed = DEPLOYED.read_text().strip() if DEPLOYED.exists() else "?"
+    out.write_text(f"# {deployed}\n" + "".join(r + "\n" for r in results))
+    for r in results:
+        print(r)
+    print(f"Per rider: logs/travellers-autotest (latest file) | summary: {out}")
+    return out
+
+
 def mean_tick_ms():
     """Overworld mean tick time over the last 100 ticks, from Forge's /forge tps (50 ms = 20 TPS)."""
     m = re.search(r"Dim\s+0 .*?Mean tick time: ([\d.]+) ms", re.sub(r"§.", "", rcon("forge tps") or ""))
@@ -462,6 +500,10 @@ def soak_summary(m, minutes, failed_passes):
         "Travel efficiency: " + ", ".join(f"{k[18:]} {v:.2f}" for k, v in m.items() if k.startswith("travel_efficiency.")),
         f"A*: {m['path_ms_per_tick']:.2f} ms/tick, worst tick {m['path_worst_tick_ms']:.0f} ms, budget full {m['travel_budget_full_ticks']:.0f} ticks",
     ]
+    if "wedge_episodes" in m:
+        kinds = ", ".join(f"{k[6:]} {v:.0f}" for k, v in m.items() if k.startswith("wedge.") and v > 0)
+        lines.append(f"Mounted wedges: {m['wedge_episodes']:.0f} ({kinds or 'none'}), {m['wedge_over_2s']:.0f} over 2 s; "
+                     f"mounted A* without a full path {m['path_mounted_failed']:.0f}/{m['path_mounted_searches']:.0f}")
     if "tick_ms_avg" in m:
         tps = lambda ms: min(20.0, 1000 / max(ms, 1e-6))
         lines.append(f"Server: {tps(m['tick_ms_avg']):.1f} TPS on average ({m['tick_ms_avg']:.0f} ms/tick), "
@@ -494,8 +536,8 @@ def compare(a, b):
         table.append(f"{k[18:]:34}{a[k]:9.2f}{b[k]:9.2f}")
         if b[k] < a[k] * (1 - EFFICIENCY_DROP):
             alerts.append(f"efficiency {k[18:]} {a[k]:.2f} -> {b[k]:.2f}")
-    incidents = ["stall_episodes", "stalls_60s_plus", "materialize_refused"] + sorted(
-        k for k in a if k.startswith(("anomaly.", "led.")))
+    incidents = ["stall_episodes", "stalls_60s_plus", "materialize_refused", "wedge_episodes", "wedge_over_2s",
+                 "wedge_seconds"] + sorted(k for k in a if k.startswith(("anomaly.", "led.", "wedge.")))
     for k in incidents:
         ca, cb = a.get(k, 0), b.get(k, 0)
         if ca + cb == 0:
@@ -504,6 +546,10 @@ def compare(a, b):
         table.append(f"{k + ' /uh':34}{ra:9.2f}{rb:9.2f}")
         if cb >= INCIDENT_MIN_COUNT and rb > max(ra, 1e-6) * INCIDENT_RATIO:
             alerts.append(f"{k} {ra:.2f} -> {rb:.2f} per unit-hour ({cb:.0f} cases)")
+    if "path_mounted_searches" in a and "path_mounted_searches" in b:
+        fa = a["path_mounted_failed"] / max(a["path_mounted_searches"], 1)
+        fb = b["path_mounted_failed"] / max(b["path_mounted_searches"], 1)
+        table.append(f"{'mounted A* without full path':34}{fa:9.2f}{fb:9.2f}")
     k = "path_ms_per_tick"
     table.append(f"{k:34}{a[k]:9.2f}{b[k]:9.2f}")
     if "tick_ms_avg" in a and "tick_ms_avg" in b:
@@ -563,6 +609,7 @@ def soak_commit(commit, minutes, keep_running):
     cmd_start()
     before = set(SOAKS.glob("*.metrics")) if SOAKS.exists() else set()
     try:
+        cmd_forest([])
         cmd_soak([str(minutes)])
     finally:
         if not keep_running:
@@ -706,6 +753,7 @@ def main():
         "cmd": lambda: cmd_cmd(args),
         "wait": lambda: time.sleep(float(args[0])),
         "soak": lambda: cmd_soak(args),
+        "forest": lambda: cmd_forest(args),
         "compare": lambda: cmd_compare(args),
         "ab": lambda: cmd_ab(args),
         "stop": lambda: cmd_stop(),

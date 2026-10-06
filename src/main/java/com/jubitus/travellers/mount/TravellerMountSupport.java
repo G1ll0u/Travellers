@@ -463,7 +463,8 @@ public final class TravellerMountSupport {
             rider.mountState.setMountWedgedTicks(0);
             rider.mountState.setMountWedgeAnchorYaw(Float.NaN);
             com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
-                    "giving up on sidestepping this spot (" + streak + " tries) - leading horse on foot instead");
+                    "giving up on sidestepping this spot (" + streak + " tries) - leading horse on foot instead, "
+                            + obstacleForTrace(rider, horse));
             com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.SIDESTEP_GAVE_UP);
             setMountMode(rider, MountMode.LED);
             markTerrainFallbackLed(rider);
@@ -506,8 +507,8 @@ public final class TravellerMountSupport {
 
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.MOUNT_SIDESTEP);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
-                String.format(java.util.Locale.ROOT, "sidestep %s (wedged %d ticks, streak %d)",
-                        wentRight ? "right" : "left", wedgedTicks, streak));
+                String.format(java.util.Locale.ROOT, "sidestep %s (wedged %d ticks, streak %d) %s",
+                        wentRight ? "right" : "left", wedgedTicks, streak, obstacleForTrace(rider, horse)));
 
         // Give the nudge a few ticks to actually move the horse before judging it wedged again -
         // isMountWedged would otherwise very likely still read true the very next tick (motion takes
@@ -618,7 +619,17 @@ public final class TravellerMountSupport {
      */
     private static void traceJumpRejection(EntityTraveller rider, String reason) {
         if (!com.jubitus.travellers.debug.trace.TravellerTracer.isTraced(rider.getUniqueID())) return;
-        com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount", "jump rejected: " + reason);
+        Entity horse = rider.getRidingEntity();
+        com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount", "jump rejected: " + reason
+                + (horse != null ? " " + obstacleForTrace(rider, horse) : ""));
+    }
+
+    /** What the horse is pressed against, for a trace line; empty for an untraced rider. */
+    private static String obstacleForTrace(EntityTraveller rider, Entity horse) {
+        if (!com.jubitus.travellers.debug.trace.TravellerTracer.isTraced(rider.getUniqueID())) return "";
+        float yaw = Float.isNaN(rider.mountState.getMountWedgeAnchorYaw())
+                ? horse.rotationYaw : rider.mountState.getMountWedgeAnchorYaw();
+        return com.jubitus.travellers.debug.trace.MountObstacle.probe(horse, yaw).describe();
     }
 
     /**

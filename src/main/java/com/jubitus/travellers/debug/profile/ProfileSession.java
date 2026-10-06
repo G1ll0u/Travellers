@@ -173,6 +173,10 @@ final class ProfileSession {
     final EnumMap<MovementAnomaly, Long> anomalies = new EnumMap<>(MovementAnomaly.class);
     final EnumMap<MovementAnomaly, Map<String, Integer>> anomalySplit = new EnumMap<>(MovementAnomaly.class);
 
+    final EnumMap<com.jubitus.travellers.debug.trace.MountObstacle.Kind, Tally> wedges =
+            new EnumMap<>(com.jubitus.travellers.debug.trace.MountObstacle.Kind.class);
+    long wedgesOver2s;
+
     final EnumMap<MovementAnomaly.LedReason, Long> ledStarts = new EnumMap<>(MovementAnomaly.LedReason.class);
     final EnumMap<MovementAnomaly.LedReason, Tally> ledDurations = new EnumMap<>(MovementAnomaly.LedReason.class);
 
@@ -465,6 +469,13 @@ final class ProfileSession {
                 }
             }
         }
+    }
+
+    void wedge(EntityTraveller e, com.jubitus.travellers.debug.trace.MountObstacle.Kind kind, double seconds, long now) {
+        wedges.computeIfAbsent(kind, k -> new Tally()).add(seconds);
+        if (seconds > 2.0D) wedgesOver2s++;
+        BlockPos pos = e.getPosition();
+        hotspot(pos.getX(), pos.getZ(), biomeAt(e, pos)).kinds.merge("wedge_" + kind.name().toLowerCase(), 1, Integer::sum);
     }
 
     /** Called just before the switch to LED; an entity already leading its horse is not a new LED. */

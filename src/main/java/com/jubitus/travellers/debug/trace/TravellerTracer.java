@@ -191,7 +191,8 @@ public final class TravellerTracer {
                         + " wedged=" + (SCRATCH.mountWedged ? 1 : 0)
                         + " coll=" + (SCRATCH.collided || SCRATCH.horseCollided ? 1 : 0)
                         + " path=" + (SCRATCH.hasPath ? "yes" : "none")
-                        + " ai=" + SCRATCH.runningTasks);
+                        + " ai=" + SCRATCH.runningTasks
+                        + (entity.isMountedOnBondedMount() ? " " + MountWedgeWatch.describeFor(entity) : ""));
         writeTerrainSnapshot(session, entity);
         session.setAutoStopTick(now + cfg.autoCaptureSeconds * 20L);
         AUTO_COOLDOWN.put(id, now + AUTO_RECAPTURE_TICKS);
@@ -288,6 +289,7 @@ public final class TravellerTracer {
                 LAST_POS.remove(e.getKey());
             }
         }
+        MountWedgeWatch.pruneStale(world);
         long now = world.getTotalWorldTime();
         AUTO_COOLDOWN.entrySet().removeIf(e -> e.getValue() < now);
     }

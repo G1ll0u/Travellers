@@ -1138,11 +1138,21 @@ public class CommandTravellerDebug extends CommandBase {
     }
 
     private void executeAutotest(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
-        String usage = "Usage: /travellersdebug autotest zone add <x> <z> <radiusChunks>|zone clear|invariants";
+        String usage = "Usage: /travellersdebug autotest zone add <x> <z> <radiusChunks>|zone clear|invariants"
+                + "|forest <x1> <z1> <x2> <z2> [solo] [followers] [seconds]|forest status|forest stop";
         String sub = args.length >= 2 ? args[1].toLowerCase() : "";
         String reply;
         if (sub.equals("invariants")) {
             reply = "invariants: " + com.jubitus.travellers.debug.autotest.AutotestInvariants.check(server);
+        } else if (sub.equals("forest") && args.length >= 3 && args[2].equalsIgnoreCase("status")) {
+            reply = com.jubitus.travellers.debug.autotest.AutotestForest.status(server.getWorld(0));
+        } else if (sub.equals("forest") && args.length >= 3 && args[2].equalsIgnoreCase("stop")) {
+            reply = com.jubitus.travellers.debug.autotest.AutotestForest.stop(server.getWorld(0));
+        } else if (sub.equals("forest") && args.length >= 6) {
+            reply = com.jubitus.travellers.debug.autotest.AutotestForest.start(server.getWorld(0),
+                    parseInt(args[2]), parseInt(args[3]), parseInt(args[4]), parseInt(args[5]),
+                    args.length > 6 ? parseInt(args[6], 0, 16) : 4, args.length > 7 ? parseInt(args[7], 0, 16) : 3,
+                    args.length > 8 ? parseInt(args[8], 10, 3600) : 300);
         } else if (sub.equals("zone") && args.length >= 3 && args[2].equalsIgnoreCase("clear")) {
             reply = "zones cleared: " + com.jubitus.travellers.debug.autotest.AutotestZones.clear() + " tickets released";
         } else if (sub.equals("zone") && args.length >= 6 && args[2].equalsIgnoreCase("add")) {
@@ -1153,7 +1163,7 @@ public class CommandTravellerDebug extends CommandBase {
         } else {
             throw new CommandException(usage);
         }
-        if (!sub.equals("invariants")) {
+        if (!sub.equals("invariants") && !sub.equals("forest")) {
             com.jubitus.travellers.debug.autotest.AutotestReport.append(String.join(" ", args), java.util.Collections.singletonList(reply));
         }
         sender.sendMessage(new TextComponentString(reply + " | "

@@ -68,6 +68,7 @@ final class ProfileReport {
         stalls(sb, s, seconds);
         anomalies(sb, s);
         led(sb, s);
+        wedges(sb, s);
         scheduler(sb, s, ticks);
         paths(sb, s, ticks);
         boundary(sb, s);
@@ -101,6 +102,27 @@ final class ProfileReport {
             Long n = s.ledStarts.get(r);
             metric(sb, "led." + r.name(), n == null ? 0L : n);
         }
+        long wedgeCount = 0;
+        double wedgeSeconds = 0.0D;
+        for (Map.Entry<com.jubitus.travellers.debug.trace.MountObstacle.Kind, ProfileSession.Tally> e : s.wedges.entrySet()) {
+            wedgeCount += e.getValue().count;
+            wedgeSeconds += e.getValue().sum;
+        }
+        for (com.jubitus.travellers.debug.trace.MountObstacle.Kind k : com.jubitus.travellers.debug.trace.MountObstacle.Kind.values()) {
+            ProfileSession.Tally t = s.wedges.get(k);
+            metric(sb, "wedge." + k.name(), t == null ? 0L : t.count);
+        }
+        metric(sb, "wedge_episodes", wedgeCount);
+        metric(sb, "wedge_seconds", wedgeSeconds);
+        metric(sb, "wedge_over_2s", s.wedgesOver2s);
+        long mountedSearches = 0, mountedFailed = 0;
+        for (Map.Entry<String, ProfileSession.PathStat> e : s.paths.entrySet()) {
+            if (!e.getKey().contains("/ mounted") || e.getKey().contains("probe")) continue;
+            mountedSearches += e.getValue().count;
+            mountedFailed += e.getValue().nulls + e.getValue().partials;
+        }
+        metric(sb, "path_mounted_searches", mountedSearches);
+        metric(sb, "path_mounted_failed", mountedFailed);
         for (Map.Entry<String, ProfileSession.Motion> e : s.travelMotion.entrySet()) {
             ProfileSession.Motion m = e.getValue();
             if (m.walked > 0) metric(sb, "travel_efficiency." + e.getKey().replace(" / ", ".").replace(' ', '_'), m.progress / m.walked);
@@ -215,6 +237,19 @@ final class ProfileReport {
                 sb.append("never remounted during the session");
             }
             sb.append('\n');
+        }
+    }
+
+    private static void wedges(StringBuilder sb, ProfileSession s) {
+        header(sb, "Mounted wedges (horse pressed against something, 0.5 s or more), by obstacle");
+        if (s.wedges.isEmpty()) {
+            sb.append("  none\n");
+            return;
+        }
+        for (Map.Entry<com.jubitus.travellers.debug.trace.MountObstacle.Kind, ProfileSession.Tally> e : s.wedges.entrySet()) {
+            ProfileSession.Tally t = e.getValue();
+            sb.append("  ").append(pad(e.getKey().name(), 20)).append(pad(t.count + "x", 8))
+                    .append("avg ").append(f1(t.avg())).append(" s, max ").append(f1(t.max)).append(" s\n");
         }
     }
 

@@ -65,6 +65,8 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
                 com.jubitus.travellers.pathing.terrain.TerrainWorldState.get(ws);
         if (terrainState != null) terrainState.tick(ws, now);
 
+        if (ws.provider.getDimension() == 0) com.jubitus.travellers.debug.autotest.AutotestForest.tick(ws);
+
         // Debug traces keep a small rolling buffer per loaded traveller; drop the ones whose entity
         // is gone so a long session can't grow that map without bound.
         if (now % 200L == 0L) {

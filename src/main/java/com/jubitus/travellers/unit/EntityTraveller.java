@@ -1467,6 +1467,7 @@ public class EntityTraveller extends EntityCreature {
             greeter.tick();
             com.jubitus.travellers.debug.trace.TravellerTracer.tick(this);
             com.jubitus.travellers.debug.profile.MovementProfiler.tick(this);
+            com.jubitus.travellers.debug.trace.MountWedgeWatch.tick(this);
             headWriters = "";
         }
 

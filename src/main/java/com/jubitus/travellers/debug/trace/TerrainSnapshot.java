@@ -7,7 +7,9 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * The local terrain picture used after every trace incident ({@link TravellerTracer}) and by the
@@ -28,6 +30,18 @@ public final class TerrainSnapshot {
     /** How far above and below the body's feet a column is searched for its floor. */
     private static final int TERRAIN_SCAN_UP = 4;
     private static final int TERRAIN_SCAN_DOWN = 5;
+    /** Ceilings higher than this above the floor are not named (a horse plus its step needs 3). */
+    private static final int CEILING_SCAN = 4;
+
+    /** w / l / s for the block, and remembers its name under that letter for the legend. */
+    private static char kindLetter(World world, BlockPos pos, Map<String, Character> legend) {
+        MountObstacle.Kind kind = MountObstacle.classify(world, pos);
+        char c = kind == MountObstacle.Kind.WOOD ? 'w' : kind == MountObstacle.Kind.LEAVES ? 'l' : 's';
+        net.minecraft.util.ResourceLocation id = world.getBlockState(pos).getBlock().getRegistryName();
+        String name = id == null ? "?" : id.toString();
+        if (legend.size() < 12) legend.putIfAbsent(name, c);
+        return c;
+    }
 
     /** Lines describing the terrain around {@code body}, unprefixed - callers pick their own marker. */
     public static List<String> lines(World world, Entity body, float yaw) {
@@ -43,25 +57,42 @@ public final class TerrainSnapshot {
                 "terrain centre=%d,%d,%d yaw=%.0f  rows=north..south cols=west..east  floor dY relative to feet",
                 cx, feetY, cz, yaw));
 
+        out.add("  grids: floor dY | free blocks above floor | floor block + ceiling block "
+                + "(w wood, l leaves, s other solid, . no ceiling within 4)");
         StringBuilder heights = new StringBuilder();
         StringBuilder head = new StringBuilder();
+        StringBuilder kinds = new StringBuilder();
+        Map<String, Character> legend = new LinkedHashMap<>();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int dz = -TERRAIN_RADIUS; dz <= TERRAIN_RADIUS; dz++) {
             heights.setLength(0);
             head.setLength(0);
+            kinds.setLength(0);
             heights.append("  ");
             head.append("  ");
             for (int dx = -TERRAIN_RADIUS; dx <= TERRAIN_RADIUS; dx++) {
-                int floor = floorYAt(world, cx + dx, feetY, cz + dz);
+                int x = cx + dx;
+                int z = cz + dz;
+                int floor = floorYAt(world, x, feetY, z);
                 if (floor == Integer.MIN_VALUE) {
                     heights.append(" ..");
                     head.append("  .");
+                    kinds.append(" ..");
                 } else {
+                    int free = freeAbove(world, x, floor, z);
                     heights.append(String.format(Locale.ROOT, "%+3d", floor - feetY));
-                    head.append(String.format(Locale.ROOT, "%3d", freeAbove(world, cx + dx, floor, cz + dz)));
+                    head.append(String.format(Locale.ROOT, "%3d", free));
+                    kinds.append(' ').append(kindLetter(world, pos.setPos(x, floor - 1, z), legend));
+                    kinds.append(free <= CEILING_SCAN ? kindLetter(world, pos.setPos(x, floor + free, z), legend) : '.');
                 }
             }
-            out.add(heights.toString() + "   |" + head.substring(2));
+            out.add(heights.toString() + "   |" + head.substring(2) + "   |" + kinds);
         }
+        StringBuilder names = new StringBuilder("  blocks:");
+        for (Map.Entry<String, Character> e : legend.entrySet()) {
+            names.append(' ').append(e.getValue()).append('=').append(e.getKey());
+        }
+        out.add(names.toString());
         return out;
     }
 

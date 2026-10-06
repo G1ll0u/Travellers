@@ -96,6 +96,11 @@ public final class MovementProfiler {
         session.anomaly(e, anomaly, now());
     }
 
+    public static void wedge(EntityTraveller e, com.jubitus.travellers.debug.trace.MountObstacle.Kind kind, double seconds) {
+        if (session == null || e.world.isRemote) return;
+        session.wedge(e, kind, seconds, now());
+    }
+
     public static void ledStarted(EntityTraveller e, MovementAnomaly.LedReason reason) {
         if (session == null || e.world.isRemote) return;
         session.ledStarted(e, reason, now());
