@@ -84,8 +84,11 @@ public final class AutotestChunkBodies {
             if (body == null || body.isDead) {
                 AutotestInvariants.fail("unit killed on load (outside its chunk): " + describe(tag) + where);
             } else if (live != null && !live.isDead) {
+                Chunk loaded = com.jubitus.travellers.ground.chunk.LoadedChunks.peek(world, chunk.x, chunk.z);
                 AutotestInvariants.fail("duplicate body refused on load: " + describe(tag) + where + ", unit alive in chunk "
-                        + live.chunkCoordX + "," + live.chunkCoordZ);
+                        + live.chunkCoordX + "," + live.chunkCoordZ + " for " + live.ticksExisted + " ticks, riding "
+                        + (live.getRidingEntity() != null) + ", chunk already loaded " + (loaded == null ? "no" : loaded == chunk ? "as this object" : "as another object")
+                        + ", loaded by " + loader());
             } else if (VirtualTravellerManager.get(world).isVirtual(uuid)) {
                 AutotestInvariants.fail("body loaded for a virtual unit: " + describe(tag) + where);
             }
@@ -94,6 +97,21 @@ public final class AutotestChunkBodies {
         for (int i = 0; i < passengers.tagCount(); i++) {
             scanLoaded(world, chunk, passengers.getCompoundTagAt(i));
         }
+    }
+
+    /** The first few frames above the chunk loader, so a reload names whoever asked for it. */
+    private static String loader() {
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        for (StackTraceElement f : new Throwable().getStackTrace()) {
+            String c = f.getClassName();
+            if (c.startsWith("com.jubitus.travellers.debug.autotest") || c.startsWith("net.minecraftforge.fml.common.eventhandler")
+                    || c.startsWith("java.") || c.startsWith("sun.") || c.contains("ASMEventHandler")) continue;
+            if (n > 0) sb.append(" < ");
+            sb.append(c.substring(c.lastIndexOf('.') + 1)).append('.').append(f.getMethodName()).append(':').append(f.getLineNumber());
+            if (++n == 8) break;
+        }
+        return sb.toString();
     }
 
     private static Entity bodyInChunk(Chunk chunk, UUID uuid) {
