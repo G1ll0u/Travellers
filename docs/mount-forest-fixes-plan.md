@@ -1,7 +1,7 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
 **Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-steps 5-6 abandoned; step 7 in progress.
+steps 5-6 abandoned; step 7 measured neutral.
 
 ## Goal
 
@@ -99,11 +99,15 @@ sections 3 and 8.
   0.2 -> 3.25, 0.13, 0.61, 2.31, 0.69; 0.3 -> 2.26, 0.17, 0.38, 1.82, 0.73. Forest: no difference.
   No margin beat 3.1 alone, wood wedges included.
 
-### 7. Fix 3.4 — recovery layers stop cancelling each other — in progress
+### 7. Fix 3.4 — recovery layers stop cancelling each other — measured (44dbb989), neutral
 - Follow AI: when the horse is wedged, keep steering into the obstacle instead of skipping the tick, so the
   wedge stays visible and sidestep/jump/escalation can fire (today it flickers 0 / 0.31 every tick).
 - Travel AI: on leaving the task, undo only an LED the travel task caused itself, not the sidestep give-up LED.
 - Validation: `ab` + forest; the flicker signature disappears from auto-traces, no stall over 30 s in a group.
+- Result (1 soak, 3.1 alone in brackets): wedges 2.15 [1.49 / 1.81], over 2 s 0.06 [0.04 / 0.04], stalls 1.02
+  [1.04 / 1.27], mounted efficiency 0.72 [0.73 / 0.74], sidesteps 1.54 [1.22 / 1.24]. Within the noise; no gain
+  or harm visible. Forest unchanged. `LED_HORSE_JAMMED` 5.49: above "before" (1.81) in every run since 3.1
+  (3.35-5.49), though the led horse does not use any changed code; "before" was measured only once.
 
 ### 8. Wrap-up — todo
 - Read recalls and duplicate-horse warnings across the runs and report them (no fix).
