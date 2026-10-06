@@ -152,6 +152,10 @@ make paths vary between runs. A failure re-runs once before being reported, to s
    possible): `MixinChunk` moves our units just inside the chunk instead; a restored horse seats its rider
    at once. `ab` running.
 Each fix is validated by an `ab` before/after.
+Diagnostic audit (user decision 2026-10-06: tools first, horse teleport recalls left to another agent):
+   long stalls checked against auto-captured traces — the counter is right (3/3 real: two hired followers of
+   the 51+ group at the base pushing into a wall for 5-7 min, an archer in combat walking into a wall with no
+   path). Not fixed (gameplay, later). Trace start now works from the console; tests force stall auto-capture.
 5. Scenario batch above, one commit per scenario. — todo
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
    what needs eyes. — todo
