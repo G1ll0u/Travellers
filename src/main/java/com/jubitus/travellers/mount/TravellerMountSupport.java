@@ -857,13 +857,13 @@ public final class TravellerMountSupport {
                 }
                 // Standing where it was left is the whole point, so it is only ever recalled when
                 // the rider has gone so far that the pair would otherwise be separated for good.
-                if (distSq > (leadMax * 2.0D) * (leadMax * 2.0D)) teleportMountNear(rider, horse);
+                if (distSq > (leadMax * 2.0D) * (leadMax * 2.0D)) teleportMountNear(rider, horse, com.jubitus.travellers.debug.profile.MovementAnomaly.HORSE_RECALL_HITCHED);
                 return;
 
             case LED:
                 setLeashed(horse, rider);
                 driveLedHorse(rider, horse, distSq);
-                if (distSq > leadMax * leadMax) teleportMountNear(rider, horse);
+                if (distSq > leadMax * leadMax) teleportMountNear(rider, horse, com.jubitus.travellers.debug.profile.MovementAnomaly.HORSE_RECALL_LED);
                 else if (considerLedStuckRecall(rider, horse, distSq)) return;
                 // Orphaned LED: the terrain-fallback recovery timer isn't armed. For a traveller LED
                 // is *only* ever a transient fallback (terrain, or the water-dismount below), so an
@@ -924,7 +924,7 @@ public final class TravellerMountSupport {
                 if ((waited > TravellersConfig.MOUNTS.remountTimeoutTicks && horseIsFarAway)
                         || distSq > leadMax * leadMax) {
                     rider.mountState.setRemountTicks(0);
-                    teleportMountNear(rider, horse);
+                    teleportMountNear(rider, horse, com.jubitus.travellers.debug.profile.MovementAnomaly.HORSE_RECALL_REMOUNT);
                 }
         }
     }
@@ -1095,7 +1095,7 @@ public final class TravellerMountSupport {
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.LED_HORSE_SNAG_RECALL);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                 "led horse snagged behind and not catching up - bringing it to the rider");
-        teleportMountNear(rider, horse);
+        teleportMountNear(rider, horse, null);
         return true;
     }
 
@@ -1212,13 +1212,16 @@ public final class TravellerMountSupport {
 
     /** Brings a horse back beside its rider, on a spot that is actually clear - the fallback every
      * mode escalates to rather than ever letting the pair drift apart permanently. */
-    private static void teleportMountNear(EntityTraveller rider, EntityHorse horse) {
+    private static void teleportMountNear(EntityTraveller rider, EntityHorse horse,
+                                          @Nullable com.jubitus.travellers.debug.profile.MovementAnomaly reason) {
         MountSpawnPos pos = resolveMountSpawnPos(rider, horse);
         if (TravellersConfig.MOUNTS.debugMounts) {
             FMLLog.log(Level.INFO, "[Travellers/Mounts] %s recalling its horse from %.1f blocks away (mode=%s)",
                     rider.getName(), Math.sqrt(horse.getDistanceSq(rider)), rider.mountState.getMountMode());
         }
         com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, com.jubitus.travellers.debug.profile.MovementAnomaly.HORSE_TELEPORT_RECALL);
+        // The snag recall counts itself (LED_HORSE_SNAG_RECALL) before calling here.
+        if (reason != null) com.jubitus.travellers.debug.profile.MovementProfiler.anomaly(rider, reason);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                 String.format(java.util.Locale.ROOT, "recall horse from %.1f blocks (mode=%s)",
                         Math.sqrt(horse.getDistanceSq(rider)), rider.mountState.getMountMode()));

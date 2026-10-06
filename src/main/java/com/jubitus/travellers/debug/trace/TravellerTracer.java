@@ -41,6 +41,9 @@ public final class TravellerTracer {
     private TravellerTracer() {
     }
 
+    // One unit stuck for minutes must not take every automatic slot: other incidents get captured too.
+    private static final long AUTO_RECAPTURE_TICKS = 10L * 60L * 20L;
+
     /** Samples of context kept before an incident, at {@link #RING_SAMPLE_INTERVAL} ticks apart. */
     private static final int RING_SAMPLES = 60;
     /** Every loaded traveller is sampled this often for the rolling buffer - cheap, and still dense
@@ -191,7 +194,7 @@ public final class TravellerTracer {
                         + " ai=" + SCRATCH.runningTasks);
         writeTerrainSnapshot(session, entity);
         session.setAutoStopTick(now + cfg.autoCaptureSeconds * 20L);
-        AUTO_COOLDOWN.put(id, now + cfg.autoCaptureSeconds * 20L + 600L);
+        AUTO_COOLDOWN.put(id, now + AUTO_RECAPTURE_TICKS);
 
         FMLLog.log(Level.INFO, "[Travellers/Trace] auto-captured %s (stuck) -> %s",
                 entity.getName(), session.getFile().getName());

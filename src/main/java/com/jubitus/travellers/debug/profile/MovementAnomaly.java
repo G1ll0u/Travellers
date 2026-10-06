@@ -14,6 +14,9 @@ public enum MovementAnomaly {
     LED_HORSE_JAMMED("Mount", "led horse jammed (horse A*)"),
     LED_HORSE_SNAG_RECALL("Mount", "led horse snagged, recalled onto trail"),
     HORSE_TELEPORT_RECALL("Mount", "horse teleported to its rider (any reason)"),
+    HORSE_RECALL_HITCHED("Mount", "recall: hitched horse left too far behind"),
+    HORSE_RECALL_LED("Mount", "recall: led horse beyond lead range"),
+    HORSE_RECALL_REMOUNT("Mount", "recall: rider waiting to remount too long or too far"),
     MOUNT_ORPHAN_VEHICLE("Mount", "rider on a vanished horse (repaired)");
 
     public final String family;
