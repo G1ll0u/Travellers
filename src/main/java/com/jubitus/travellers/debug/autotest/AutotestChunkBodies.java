@@ -62,7 +62,7 @@ public final class AutotestChunkBodies {
         }
     }
 
-    // INVARIANT: ChunkDataEvent.Load fires after the chunk's entities were added (or refused) by vanilla.
+    // INVARIANT: ChunkDataEvent.Load fires once bodies are in the chunk's lists (vanilla already killed misplaced ones) but before they join the world.
     @SubscribeEvent
     public static void onLoad(ChunkDataEvent.Load event) {
         if (!WATCHING || !(event.getWorld() instanceof WorldServer)) return;
@@ -77,12 +77,13 @@ public final class AutotestChunkBodies {
     private static void scanLoaded(WorldServer world, Chunk chunk, NBTTagCompound tag) {
         if (tag.getString("id").startsWith("travellers:")) {
             UUID uuid = tag.getUniqueId("UUID");
+            Entity body = bodyInChunk(chunk, uuid);
             Entity live = world.getEntityFromUuid(uuid);
             String saved = lastSave.getOrDefault(uuid, "saved before this run");
             String where = " in chunk " + chunk.x + "," + chunk.z + ", " + saved;
-            if (live == null || live.isDead) {
-                if (!inChunk(tag, chunk)) AutotestInvariants.fail("unit killed on load (outside its chunk): " + describe(tag) + where);
-            } else if (live.chunkCoordX != chunk.x || live.chunkCoordZ != chunk.z) {
+            if (body == null || body.isDead) {
+                AutotestInvariants.fail("unit killed on load (outside its chunk): " + describe(tag) + where);
+            } else if (live != null && !live.isDead) {
                 AutotestInvariants.fail("duplicate body refused on load: " + describe(tag) + where + ", unit alive in chunk "
                         + live.chunkCoordX + "," + live.chunkCoordZ);
             } else if (VirtualTravellerManager.get(world).isVirtual(uuid)) {
@@ -93,6 +94,15 @@ public final class AutotestChunkBodies {
         for (int i = 0; i < passengers.tagCount(); i++) {
             scanLoaded(world, chunk, passengers.getCompoundTagAt(i));
         }
+    }
+
+    private static Entity bodyInChunk(Chunk chunk, UUID uuid) {
+        for (net.minecraft.util.ClassInheritanceMultiMap<Entity> bucket : chunk.getEntityLists()) {
+            for (Entity e : bucket) {
+                if (uuid.equals(e.getUniqueID())) return e;
+            }
+        }
+        return null;
     }
 
     private static boolean inChunk(NBTTagCompound tag, Chunk chunk) {
