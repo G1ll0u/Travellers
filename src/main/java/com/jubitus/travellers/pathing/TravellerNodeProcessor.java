@@ -460,6 +460,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     private int findMountedWalkOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
         int count = 0;
         java.util.Arrays.fill(this.mountedWalkableDir, false);
+        double takeoff = surfaceYForNode(current.x, current.y, current.z);
         for (int i = 0; i < CARDINAL_DIRS.length; i++) {
             int[] d = CARDINAL_DIRS[i];
             if (count >= options.length - 1) break;
@@ -487,6 +488,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
                         nx, fit.surface + 0.001D, nz,
                         nx + this.entitySizeX, fit.surface + this.body.height, nz + this.entitySizeZ);
                 if (bodyCollidesWithTerrain(bodyBox)) continue;
+                if (!canRiseInPlace(current, takeoff, fit.surface)) continue;
             }
 
             PathPoint p = this.openPoint(nx, fit.y, nz);
@@ -496,6 +498,14 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             this.mountedWalkableDir[i] = true;
         }
         return count;
+    }
+
+    // INVARIANT: vanilla's step-up raises the body in place before moving it, so a rise needs headroom above the takeoff too.
+    private boolean canRiseInPlace(PathPoint from, double fromSurface, double toSurface) {
+        if (toSurface <= fromSurface + 1.0E-3D) return true;
+        return !bodyCollidesWithTerrain(new AxisAlignedBB(
+                from.x, fromSurface + this.body.height + 0.001D, from.z,
+                from.x + this.entitySizeX, toSurface + this.body.height, from.z + this.entitySizeZ));
     }
 
     /**
@@ -587,6 +597,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
                         lx, fit.surface + 0.001D, lz,
                         lx + this.entitySizeX, fit.surface + this.body.height, lz + this.entitySizeZ);
                 if (bodyCollidesWithTerrain(bodyBox)) continue;
+                if (!canRiseInPlace(current, feet, climb.landingY)) continue;
             }
 
             PathPoint p = this.openPoint(lx, fit.y, lz);

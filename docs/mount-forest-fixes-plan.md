@@ -1,7 +1,7 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
 **Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-step 3 in progress.
+step 4 being measured.
 
 ## Goal
 
@@ -46,14 +46,19 @@ sections 3 and 8.
   columns with wood/leaves 2-3 blocks above ground): extreme_hills (-1928,-152)->(-1816,-152), forest_hills
   (-2200,-520)->(-2088,-520), forest (-1832,296)->(-1720,296). `ab` runs it before each soak.
 
-### 3. "Before" measurement — in progress
+### 3. "Before" measurement — done
 - Forest, two runs of the same jar (route: arrived, median s, wedged ticks, longest wedge s, obstacles, LED):
   - extreme_hills: 7/7, 28/26, 164/187, 2.9/2.3, leaves 4/6 + step headroom 3/5 + wood 2/0, LED 7/6
   - forest_hills: 8/8, 20/21, 90/72, 2.3/2.2, leaves 2/1 + step headroom 3/2, LED 4/5
   - forest: 8/8, 19/19, 4/20, 0.2/0.7, wood 0/1, LED 4/6
   Everyone arrives; wedges are short (under 5 s). The permanent wedge of the review is not reproduced here.
+- Soak 10 min (d220e4b5, `soak-20261006-143900`): 427 units loaded, stalls 105 (9 over 60 s), mounted efficiency
+  0.65 (on foot 0.79, leading 0.54); wedges 140 = terrain 108, wood 11, leaves 9, step headroom 11 (9 over 2 s);
+  mounted A* without a full path 4901 / 11583 (42 %); recalls 380 (remount 303); `LED_HORSE_JAMMED` 129;
+  sidesteps 103; A* 5.5 ms/tick. Most terrain wedges sit in one place: plains at (-1632, 224), 32 wedges,
+  28 sidesteps, 9 give-up LEDs.
 
-### 4. Fix 3.1 — headroom on the way up a step — todo
+### 4. Fix 3.1 — headroom on the way up a step — in progress (measuring)
 - When a mounted move rises (a step up), require the horse's box at the takeoff spot, raised by that rise, to
   be free — in the planner (`findMountedWalkOptions`), the straight-line check (`corridorClear`) and the jump's
   own takeoff test already does it. Flat moves are unchanged, so riding under a low canopy on level ground

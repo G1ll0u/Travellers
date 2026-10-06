@@ -208,6 +208,8 @@ public final class MountTerrainProfile {
         int headroom = MathHelper.ceil(bodyHeight);
         double startY = from.y;
         double surf = from.y;
+        double prevX = from.x;
+        double prevZ = from.z;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
         // Walk to the end inclusive - the destination's own column is the one that matters most.
@@ -232,6 +234,12 @@ public final class MountTerrainProfile {
                     cx - halfWidth, fit.surface + 1.0E-3D, cz - halfWidth,
                     cx + halfWidth, fit.surface + bodyHeight - 1.0E-3D, cz + halfWidth);
             if (world.collidesWithAnyBlock(sweep)) return false;
+            // A step up: the body first rises in place at the previous sample (vanilla step-up).
+            if (fit.surface > surf + 1.0E-3D && world.collidesWithAnyBlock(new AxisAlignedBB(
+                    prevX - halfWidth, surf + bodyHeight + 1.0E-3D, prevZ - halfWidth,
+                    prevX + halfWidth, fit.surface + bodyHeight - 1.0E-3D, prevZ + halfWidth))) {
+                return false;
+            }
 
             // The rider band: from the top of the body to the top of the stack, suffocating blocks
             // only. The body sweep above already caught everything with a collision box up to the
@@ -248,6 +256,8 @@ public final class MountTerrainProfile {
             }
 
             surf = fit.surface;
+            prevX = cx;
+            prevZ = cz;
         }
         return true;
     }
