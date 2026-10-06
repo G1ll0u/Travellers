@@ -1,7 +1,7 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
 **Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-step 5 abandoned; step 6 being measured.
+steps 5-6 abandoned; step 7 in progress.
 
 ## Goal
 
@@ -22,9 +22,7 @@ sections 3 and 8.
 - D1: forest scenario = per route 4 solo riders + 1 mounted group (leader + 3 followers), 5-min budget.
 - D2 (revised twice after measuring): leaves stay as they were (ground, step and jump target). Both "never
   ground" and "never a jump target" made leaves wedges several times worse.
-- 3.3 turn limit: a rider about to turn too sharply for its proven line slows down (to 20 % at least)
-  rather than refusing the line and stopping.
-- D3: margin value chosen by the user from measurements (still open).
+- D3: no margin (3.3 abandoned after measuring 0.1 / 0.2 / 0.3).
 - D4: each fix is a commit (needed by `ab`), holding only this work's files, never the unrelated local changes.
 
 ## Steps
@@ -93,14 +91,15 @@ sections 3 and 8.
   Much worse: jumping onto a bush is what usually frees the horse. The review's premise for 3.2 does not hold
   on this world.
 
-### 6. Fix 3.3 — a margin against trunks — todo
-- Add a lateral margin to the straight-line checks only (direct ride and mounted follower steering), and give
-  `steerDirect` the same turn limit the path shortcut already has. The planner's 2×2 cells already leave 0.3
-  per side and stay as they are.
-- D3: measured at 2 or 3 margin values (e.g. 0.1 / 0.2 / 0.3) in the forest scenario: wedges on `WOOD` vs
-  mounted no-path count and travel time. I bring the table and a recommendation; the user picks.
+### 6. Fix 3.3 — a margin against trunks — abandoned (user), code removed
+- Tried: 0.1 / 0.2 / 0.3 side margin on straight mounted lines + direct steering slowing (to 20 % at least) for
+  turns it cannot hold. One soak each, per unit-hour (3.1 alone in brackets: 1.49 / 1.81 wedges, 0.04 over
+  2 s, wood 0.25 / 0.15, sidesteps 1.22 / 1.24, mounted efficiency 0.73 / 0.74):
+  0.1 -> wedges 2.83, over 2 s 0.19, wood 0.37, sidesteps 2.38, efficiency 0.70;
+  0.2 -> 3.25, 0.13, 0.61, 2.31, 0.69; 0.3 -> 2.26, 0.17, 0.38, 1.82, 0.73. Forest: no difference.
+  No margin beat 3.1 alone, wood wedges included.
 
-### 7. Fix 3.4 — recovery layers stop cancelling each other — todo
+### 7. Fix 3.4 — recovery layers stop cancelling each other — in progress
 - Follow AI: when the horse is wedged, keep steering into the obstacle instead of skipping the tick, so the
   wedge stays visible and sidestep/jump/escalation can fire (today it flickers 0 / 0.31 every tick).
 - Travel AI: on leaving the task, undo only an LED the travel task caused itself, not the sidestep give-up LED.
