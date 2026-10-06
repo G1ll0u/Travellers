@@ -65,6 +65,8 @@ One script (`tools/servertest/servertest.py`), one verb per call, each printing 
 - `logscan` — new problems only: exceptions and errors whose stack or logger mentions `com.jubitus`, mixin
   failures, and any exception signature absent from a stored baseline. Deduplicated, ≤ 30 lines, full log path.
 - `ab <commitA> <commitB>` (step 4) — build both commits in a git worktree, run the same soak on each, diff.
+- `forest [seconds]` — mounted forest crossing scenario (`/travellersdebug autotest forest`) on 3 fixed routes;
+  `ab` runs it before each soak. Summaries in `.autotest/forests/`.
 
 ### In-game harness — `debug/autotest/`, under `/travellersdebug autotest` — status: todo
 

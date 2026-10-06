@@ -1,7 +1,8 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
-**Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-steps 5-6 abandoned; step 7 measured neutral.
+**Status (2026-10-06)**: paused by the user (in-game tests). Kept: 3.1 (5ce52540) and 3.4 (44dbb989).
+3.2 and 3.3 abandoned after measuring. Left: step 8, and possibly one more "before" soak (d220e4b5) to settle
+whether `LED_HORSE_JAMMED` really rose.
 
 ## Goal
 
