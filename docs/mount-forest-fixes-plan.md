@@ -1,7 +1,7 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
 **Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-step 4 being measured.
+step 5 being measured.
 
 ## Goal
 
@@ -58,15 +58,24 @@ sections 3 and 8.
   sidesteps 103; A* 5.5 ms/tick. Most terrain wedges sit in one place: plains at (-1632, 224), 32 wedges,
   28 sidesteps, 9 give-up LEDs.
 
-### 4. Fix 3.1 — headroom on the way up a step — in progress (measuring)
+### 4. Fix 3.1 — headroom on the way up a step — done (5ce52540)
 - When a mounted move rises (a step up), require the horse's box at the takeoff spot, raised by that rise, to
   be free — in the planner (`findMountedWalkOptions`), the straight-line check (`corridorClear`) and the jump's
   own takeoff test already does it. Flat moves are unchanged, so riding under a low canopy on level ground
   stays allowed (this is what keeps the old "43 % of a route with no path" problem away: that came from
   demanding the rider's full height everywhere, not only at steps).
 - Validation: `ab` + forest; the `HEADROOM_AT_STEP` class must drop, mounted no-path count must not rise.
+- Result (2 soaks vs before): mounted efficiency 0.65 -> 0.73 / 0.74; stalls 1.47 -> 1.04 / 1.27 per unit-hour;
+  wedges over 2 s 0.13 -> 0.04 / 0.04; mounted A* without full path 42 % -> 35 % / 42 %; A* cost unchanged.
+  Step-headroom wedges did not drop (0.15 -> 0.15 / 0.13): traced ones are followers whose horse turned off the
+  proven straight line (cause 3.3). Leaves wedges rose 0.13 -> 0.22 / 0.24 (target of step 5).
+  `LED_HORSE_JAMMED` 1.81 -> 4.36 / 3.35, concentrated on 2-3 spots (raiders camped at the base, the recall
+  loop below); the led horse does not use the changed planner. Forest: unchanged (all arrive, wedges short).
+- Found, out of scope: a rider on foot whose horse is "recalled" every tick from 14.1 blocks without moving
+  (village at (-1644, 294); `resolveMountSpawnPos` keeps returning the horse's own spot): 1959 recalls in one
+  run.
 
-### 5. Fix 3.2 — leaves are not ground for a horse — todo
+### 5. Fix 3.2 — leaves are not ground for a horse — in progress (measuring)
 - D2, my recommendation: for the horse only, a leaf block is never a standing surface and never a jump
   target (planner, corridor, jump scan). It stays something to ride under (cost, as today). Riders on foot
   are unchanged. Risk: a floor of leaf bushes becomes something to go round; watched with the no-path count.

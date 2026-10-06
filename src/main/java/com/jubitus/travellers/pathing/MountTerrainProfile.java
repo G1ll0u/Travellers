@@ -139,6 +139,8 @@ public final class MountTerrainProfile {
             if (material == Material.WATER && waterTop == Integer.MIN_VALUE) waterTop = y;
             AxisAlignedBB bb = state.getCollisionBoundingBox(world, pos);
             if (bb == null) continue;
+            // INVARIANT: leaves are never ground for a horse (nor a jump target); they still block headroom above a floor.
+            if (BlockRules.isLeaves(world, pos, state)) continue;
 
             if (waterTop != Integer.MIN_VALUE
                     && waterTop - y > TravellersConfig.MOUNTS.mountedMaxFordDepth) {
