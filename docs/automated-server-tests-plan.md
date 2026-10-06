@@ -156,6 +156,18 @@ Diagnostic audit (user decision 2026-10-06: tools first, horse teleport recalls 
    long stalls checked against auto-captured traces — the counter is right (3/3 real: two hired followers of
    the 51+ group at the base pushing into a wall for 5-7 min, an archer in combat walking into a wall with no
    path). Not fixed (gameplay, later). Trace start now works from the console; tests force stall auto-capture.
+   Handoff for the agent fixing horse teleport recalls (user: later, another agent):
+   - Measure: `servertest.py soak` (10 min) then the profile's anomaly lines; `compare`/`ab` before/after.
+     `HORSE_TELEPORT_RECALL` is the total (comparable with older runs), split into `HORSE_RECALL_REMOUNT`,
+     `HORSE_RECALL_LED`, `HORSE_RECALL_HITCHED` and `LED_HORSE_SNAG_RECALL` (all counted in
+     `TravellerMountSupport.teleportMountNear` and its callers).
+   - Baseline (c850cd73, 10 min, ~420 units loaded): 327 recalls, 310 of them REMOUNT, 17 LED, 0 hitched,
+     0 snag. Traced REMOUNT recalls jump 25 blocks on average (max 38): visible. Rule that fires: rider in
+     MOUNTED mode on foot waiting to remount for more than `remountTimeoutTicks` (15 s) with the horse over
+     8 blocks away, or the horse beyond `leadMaxDistance`.
+   - Hotspots (64x64 cells): (-1248, -608) mesa_rock 92 REMOUNT, then (-1504, -1440) and (-1504, -1376)
+     ~35 each, (-1056, -928) 23. A trace event `recall horse from N blocks (mode=…)` is written on traced
+     units; `trace start <name>` works from the console, stalls are auto-traced in tests.
 5. Scenario batch above, one commit per scenario. — todo
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
    what needs eyes. — todo
