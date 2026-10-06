@@ -157,6 +157,8 @@ Diagnostic audit (user decision 2026-10-06: tools first, horse teleport recalls 
    the 51+ group at the base pushing into a wall for 5-7 min, an archer in combat walking into a wall with no
    path). Not fixed (gameplay, later). Trace start now works from the console; tests force stall auto-capture.
    Handoff for the agent fixing horse teleport recalls (user: later, another agent):
+   - Before fixing: trace a few hotspot riders to see why they dismount and why the horse drifts; the
+     recall is the symptom, not the cause.
    - Measure: `servertest.py soak` (10 min) then the profile's anomaly lines; `compare`/`ab` before/after.
      `HORSE_TELEPORT_RECALL` is the total (comparable with older runs), split into `HORSE_RECALL_REMOUNT`,
      `HORSE_RECALL_LED`, `HORSE_RECALL_HITCHED` and `LED_HORSE_SNAG_RECALL` (all counted in
