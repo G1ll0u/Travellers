@@ -17,5 +17,8 @@ All under `/travellersdebug` (`debug/CommandTravellerDebug`).
 - Spawns a throwaway worker between two chosen points using the real travel code, compared against a hand-marked ideal route (`pos1`/`pos2`/`mark`, `test [--mount] [--waypoints]`, `export`).
 - A spawned worker needs `setTargetVillage()` **and** `getTravelCommon().setReadyToDepart(true)`, or the travel task is yanked every tick.
 
+## Autotest
+- `autotest forest <x1> <z1> <x2> <z2> [solo] [followers] [seconds]|status|stop`: mounted forest crossing scenario; `servertest.py forest` runs it on 3 fixed routes.
+
 ## Others
 `destination report|log`, `relations`, `village …`, `stable …`, `map …`, `camp reset`, `battle`, `mount`, `elytra`, `terrain region`, `dialogue memory dump`, `reset [workers]`.
