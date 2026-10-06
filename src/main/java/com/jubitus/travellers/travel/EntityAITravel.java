@@ -309,12 +309,12 @@ public class EntityAITravel extends EntityAIBase {
         if (isInBoat()) {
             dismountAndDeleteBoat();
         }
-        // Never leave a rider on foot because of terrain this task is no longer routing through -
-        // getLedFallbackSinceTick() >= 0 means TravellerMountSupport is still tracking a fallback LED
-        // this task caused (or the sidestep give-up did; both share the same tracking).
-        if (mob.mountState.getLedFallbackSinceTick() >= 0) {
+        // Never leave a rider on foot because of terrain this task is no longer routing through.
+        // Only the terrain LED this task chose itself; a sidestep give-up, water or melee LED is not ours to undo.
+        if (terrainLedByThisTask && mob.mountState.getLedFallbackSinceTick() >= 0) {
             TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
         }
+        terrainLedByThisTask = false;
         if (mob instanceof EntityTravellerWorker) {
             ((EntityTravellerWorker) mob).setUsingTravelAI(false);
         }
@@ -1337,6 +1337,7 @@ public class EntityAITravel extends EntityAIBase {
         // tick from TravellerMountSupport.tickMount() regardless of which AI task is currently
         // running, not just while this task's updateTask() happens to be active.
         TravellerMountSupport.markTerrainFallbackLed(mob);
+        terrainLedByThisTask = true;
         TravellerMountSupport.notifyMountLedFallback(mob,
                 com.jubitus.travellers.notify.NotificationDefs.MOUNT_LED_TERRAIN_BLOCKED);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "mount",
@@ -1348,6 +1349,8 @@ public class EntityAITravel extends EntityAIBase {
     private static final int UNUSABLE_ROUTES_BEFORE_DISMOUNT = 3;
 
     private int unusableRouteStreak;
+    /** This task put the rider in a terrain LED that is still armed; undone when the task stops. */
+    private boolean terrainLedByThisTask;
 
     // =====================================================================================
     // Mounted rider meets water

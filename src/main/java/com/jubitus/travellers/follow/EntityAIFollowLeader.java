@@ -1673,7 +1673,10 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // the only reliable witness for a mounted body, so it must win outright, not merely be
         // consulted once the rider-sized heuristics happen to agree nothing is wrong.
         if (TravellerMountSupport.isMountWedged(follower)) {
-            steeringBlockedTicks++;
+            int blocked = steeringBlockedTicks + 1;
+            // INVARIANT: a wedged horse keeps being pushed, or the wedge flickers off and sidestep/jump never fire.
+            steerTo(goal.x, goal.y, goal.z, Math.max(0.20D, moveSpeed * 0.90D));
+            steeringBlockedTicks = blocked;
             return;
         }
 
