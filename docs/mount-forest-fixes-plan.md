@@ -1,7 +1,7 @@
 # Mount forest fixes — keep the real horse, fix its defects
 
 **Status (2026-10-06)**: approved by the user (D1, D2, D4 as recommended; D3 after measuring). Steps 1-2 done;
-step 5 being measured.
+step 5 failed, reassessing with the user.
 
 ## Goal
 
@@ -75,11 +75,16 @@ sections 3 and 8.
   (village at (-1644, 294); `resolveMountSpawnPos` keeps returning the horse's own spot): 1959 recalls in one
   run.
 
-### 5. Fix 3.2 — leaves are not ground for a horse — in progress (measuring)
+### 5. Fix 3.2 — leaves are not ground for a horse — failed, waiting for the user (fa01cae8)
 - D2, my recommendation: for the horse only, a leaf block is never a standing surface and never a jump
   target (planner, corridor, jump scan). It stays something to ride under (cost, as today). Riders on foot
   are unchanged. Risk: a floor of leaf bushes becomes something to go round; watched with the no-path count.
 - Validation: `ab` + forest; repeated "jump into foliage" and `LEAVES` wedges must drop.
+- Result (2 soaks vs before, 3.1 in brackets): leaves wedges 0.13 -> 0.50 / 0.67 [0.22 / 0.24], sidesteps
+  1.44 -> 2.14 / 2.01 [1.22 / 1.24], step-headroom wedges 0.44 / 0.31 [0.15 / 0.13], mounted efficiency
+  0.65 / 0.72 [0.73 / 0.74]. Worse. Traces: one-block leaf bushes on the ground, which a horse physically
+  steps onto (Dynamic Trees leaves have full collision), became obstacles to go round, and the horse brushes
+  them instead.
 
 ### 6. Fix 3.3 — a margin against trunks — todo
 - Add a lateral margin to the straight-line checks only (direct ride and mounted follower steering), and give
