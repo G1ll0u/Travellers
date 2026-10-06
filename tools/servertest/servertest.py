@@ -67,7 +67,9 @@ WORKTREES = STATE / "worktrees"
 
 # Mod settings forced on the copy before every start. No player ever joins it, and the default pauses the
 # whole offscreen simulation on an empty server.
-TEST_OVERRIDES = {"OFFSCREEN.pauseWhenServerEmpty": "false"}
+TEST_OVERRIDES = {"OFFSCREEN.pauseWhenServerEmpty": "false",
+                  # Stalls are captured into logs/travellers-trace on their own, so a run leaves traces to read.
+                  "TRACE.autoCapture": "true"}
 
 
 def die(msg):

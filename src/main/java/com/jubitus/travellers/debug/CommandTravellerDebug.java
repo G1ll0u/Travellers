@@ -1226,7 +1226,7 @@ public class CommandTravellerDebug extends CommandBase {
 
     private EntityTraveller resolveTraceTarget(ICommandSender sender, String[] args, int nameIndex)
             throws CommandException {
-        if (!(sender instanceof EntityPlayerMP)) throw new CommandException("Must be run by a player.");
+        if (!(sender instanceof EntityPlayerMP)) return resolveTraceTargetAnywhere(sender, args, nameIndex);
         EntityPlayerMP player = (EntityPlayerMP) sender;
 
         List<EntityTraveller> nearby = player.world.getEntitiesWithinAABB(EntityTraveller.class,
@@ -1267,6 +1267,22 @@ public class CommandTravellerDebug extends CommandBase {
             }
         }
         return bestLooked != null ? bestLooked : nearest;
+    }
+
+    /** Console / RCON: a loaded unit anywhere, by full name (spaces allowed) or UUID prefix. */
+    private EntityTraveller resolveTraceTargetAnywhere(ICommandSender sender, String[] args, int nameIndex)
+            throws CommandException {
+        if (args.length <= nameIndex) throw new CommandException("From the console, give a name or a UUID prefix.");
+        String wanted = String.join(" ", java.util.Arrays.copyOfRange(args, nameIndex, args.length)).toLowerCase();
+        for (net.minecraft.world.WorldServer world : sender.getServer().worlds) {
+            for (Entity e : world.loadedEntityList) {
+                if (e instanceof EntityTraveller && e.isEntityAlive()
+                        && (e.getName().equalsIgnoreCase(wanted) || e.getUniqueID().toString().startsWith(wanted))) {
+                    return (EntityTraveller) e;
+                }
+            }
+        }
+        throw new CommandException("No loaded traveller named or with UUID '" + wanted + "'.");
     }
 
     private void executeMountDebug(ICommandSender sender, String[] args) throws CommandException {
