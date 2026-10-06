@@ -486,6 +486,9 @@ public class TravellerNavigateGround extends PathNavigateGround {
      * much either (low headroom is a cost there, not a refusal), and a stricter shortcut would simply
      * never fire in woodland, exactly where cutting the corner matters most.
      */
+    /** Free space a straight mounted line must leave on each side of the horse (it cannot hold the line exactly). */
+    static final double MOUNTED_LATERAL_MARGIN = 0.2D;
+
     public boolean isBodyCorridorClear(Vec3d from, Vec3d to) {
         double bodyHeight = PathBody.height(this.entity);
         double stepRise = PathBody.stepHeight(this.entity);
@@ -508,8 +511,9 @@ public class TravellerNavigateGround extends PathNavigateGround {
             }
         }
 
+        double margin = body != this.entity ? MOUNTED_LATERAL_MARGIN : 0.0D;
         return MountTerrainProfile.corridorClear(this.world, from, to,
-                PathBody.width(this.entity) / 2.0D,
+                PathBody.width(this.entity) / 2.0D + margin,
                 bodyHeight,
                 stepRise,
                 TravellersConfig.MOUNTS.mountedMaxStraightDrop,
@@ -542,33 +546,41 @@ public class TravellerNavigateGround extends PathNavigateGround {
      * correctness problem, only a missed optimization.
      */
     private boolean headingAllowsCorridorShortcut(Vec3d from, Vec3d to) {
-        if (!TravellersConfig.MOUNTS.mountedCorridorTurnGateEnabled) return true;
+        return turnSpeedFactor(from, to) >= 1.0D;
+    }
+
+    /**
+     * How much of its current speed the horse may keep while turning onto the line {@code from -> to}
+     * so that its turning arc ({@code r = speed / turnCapRad}, worst bow {@code r * (1 - cos delta)})
+     * stays within the turn-gate margin of that line. 1 when no slowing is needed, never below
+     * {@link #MIN_TURN_SPEED_FACTOR}.
+     */
+    private double turnSpeedFactor(Vec3d from, Vec3d to) {
+        if (!TravellersConfig.MOUNTS.mountedCorridorTurnGateEnabled) return 1.0D;
 
         double dx = to.x - from.x;
         double dz = to.z - from.z;
-        if (dx * dx + dz * dz < 1.0E-8D) return true;
+        if (dx * dx + dz * dz < 1.0E-8D) return 1.0D;
 
         net.minecraft.entity.Entity body = PathBody.of(this.entity);
         double vx = body.posX - body.prevPosX;
         double vz = body.posZ - body.prevPosZ;
         double speed = Math.sqrt(vx * vx + vz * vz);
-        if (speed < 1.0E-4D) return true;
+        if (speed < 1.0E-4D) return 1.0D;
 
         double half = PathBody.width(this.entity) / 2.0D * TravellersConfig.MOUNTS.mountedCorridorTurnGateMargin;
         double turnCapRad = Math.toRadians(TravellersConfig.MOUNTS.mountedMaxTurnPerTick);
-        double radius = speed / turnCapRad;
-
-        // Even a full about-turn's worst-case bow (2r) stays inside the margin at this radius.
-        if (radius * 2.0D <= half) return true;
-
-        double cosMax = 1.0D - half / radius;
-        if (cosMax <= -1.0D) return true;
-        double deltaMaxDeg = Math.toDegrees(Math.acos(cosMax));
-
         double bearingDeg = Math.toDegrees(Math.atan2(-dx, dz));
-        double deltaDeg = Math.abs(MathHelper.wrapDegrees(bearingDeg - body.rotationYaw));
-        return deltaDeg <= deltaMaxDeg;
+        double delta = Math.toRadians(Math.abs(MathHelper.wrapDegrees(bearingDeg - body.rotationYaw)));
+        double bowPerRadius = 1.0D - Math.cos(Math.min(delta, Math.PI));
+        if (bowPerRadius < 1.0E-6D) return 1.0D;
+
+        double maxSpeed = half * turnCapRad / bowPerRadius;
+        return MathHelper.clamp(maxSpeed / speed, MIN_TURN_SPEED_FACTOR, 1.0D);
     }
+
+    /** A horse slowed for a turn keeps at least this share of its speed, so it still turns rather than stops. */
+    private static final double MIN_TURN_SPEED_FACTOR = 0.2D;
 
     /**
      * Steers straight at a point when there is no path to follow, provided the body can actually get
@@ -644,7 +656,9 @@ public class TravellerNavigateGround extends PathNavigateGround {
             return false;
         }
 
-        this.entity.getMoveHelper().setMoveTo(x, ground, z, speed);
+        // A mounted body slows before a sharp turn so its arc stays near the line proven above.
+        double turn = PathBody.isMounted(this.entity) ? turnSpeedFactor(from, new Vec3d(x, ground, z)) : 1.0D;
+        this.entity.getMoveHelper().setMoveTo(x, ground, z, speed * turn);
         return true;
     }
 
