@@ -180,7 +180,7 @@ Each phase: explain to the user → ask what's open → implement → build → 
   terrain, `tryVirtualizeStuckAtEdge` only toward unloaded ground).
 - Acceptance: movement profiler stall/rescue counts equal or better than before over a long session.
 
-### Phase 4 — Cleanup and split
+### Phase 4 — Cleanup and split — status: done (split in grand-nettoyage 11.5; worker fixed-goal scope and shared boat gestures were already in the code)
 - Boat logic shared with `FollowBoatController`; delete dead helpers (§3.3); split `EntityAITravel`
   into orchestrator (~600–800 lines) + itinerary follower + stuck ladder + boat.
 - Extend scope to recruited workers on fixed-goal missions (go/transport/home/duty) with roads;

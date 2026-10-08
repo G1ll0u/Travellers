@@ -125,7 +125,7 @@ final class TravelBoatMode {
         if (ai.isInBoat()) {
 
             if (ai.currentWaypoint == null) {
-                ai.currentWaypoint = ai.computeNextWaypointToward(ai.targetVillage, ai.stepBlocks);
+                ai.currentWaypoint = ai.waypoints.computeNextWaypointToward(ai.targetVillage, ai.stepBlocks);
                 mob.getTravelCommon().setCurrentWaypoint(ai.currentWaypoint);
                 ai.debugMark(ai.currentWaypoint);
             }
@@ -140,7 +140,7 @@ final class TravelBoatMode {
 
                 // Use a slightly larger threshold than 0.25 to avoid “micro-stall”
                 if (d2xz <= 2.0 * 2.0) {
-                    BlockPos next = ai.computeNextWaypointToward(ai.targetVillage, ai.stepBlocks);
+                    BlockPos next = ai.waypoints.computeNextWaypointToward(ai.targetVillage, ai.stepBlocks);
                     if (next != null) {
                         ai.currentWaypoint = next;
                         mob.getTravelCommon().setCurrentWaypoint(next);
@@ -174,7 +174,7 @@ final class TravelBoatMode {
                 // Optional: don’t immediately boat if we just stepped into a puddle
                 // Only do it if we’re *actually* swimming / stalled / long corridor
                 // (pick one or two of these guards)
-                boolean stalled = (ai.noMoveTicks >= 20);              // 1s not moving
+                boolean stalled = (ai.stuckActions.noMoveTicks >= 20);              // 1s not moving
                 boolean noPath = mob.getNavigator().noPath();
 
                 if (stalled || noPath) {
@@ -183,7 +183,7 @@ final class TravelBoatMode {
                     if (dest != null && shouldUseBoat(from, dest)) {
 
                         Vec3d dirToDest = TravelTerrain.goalDirXZ(mob, dest);
-                        int step = Math.max(16, ai.dynamicStep(from, dest));
+                        int step = Math.max(16, ai.waypoints.dynamicStep(from, dest));
 
                         BlockPos boatWp = pickFirstBoatWaypoint(from, dest, dirToDest, step);
                         if (boatWp != null) {
@@ -199,7 +199,7 @@ final class TravelBoatMode {
                                 ai.currentWaypoint = boatWp;
                                 mob.getTravelCommon().setCurrentWaypoint(boatWp);
                                 ai.debugMark(boatWp);
-                                ai.clearNav();
+                                ai.paths.clearNav();
                             } else {
                                 boatRetryCooldown = BOAT_RETRY_CD;
                             }
@@ -232,7 +232,7 @@ final class TravelBoatMode {
         // A planned crossing rows along the itinerary; the shore contact ends it.
         if (usesPlannedBoats()) {
             BlockPos c = boatCarrot();
-            if (c != null) return ai.picked("itineraryBoat", c, dest);
+            if (c != null) return ai.waypoints.picked("itineraryBoat", c, dest);
         }
 
         // 2) Otherwise, pick a water waypoint using your water-specific helper.
@@ -317,7 +317,7 @@ final class TravelBoatMode {
         ai.currentWaypoint = wp;
         mob.getTravelCommon().setCurrentWaypoint(wp);
         ai.debugMark(wp);
-        ai.clearNav();
+        ai.paths.clearNav();
     }
 
     /**
@@ -337,7 +337,7 @@ final class TravelBoatMode {
     void tickBoatStallBackstop() {
         if (mob.world.isRemote || ai.targetVillage == null) return;
 
-        double rem = ai.progressDist(); // along the itinerary, which may head away from the target
+        double rem = ai.itinerary.progressDist(); // along the itinerary, which may head away from the target
         if (rem < boatBestRemaining - ai.PROGRESS_IMPROVE_BLOCKS) {
             boatBestRemaining = rem;
             boatNoProgressTicks = 0;
@@ -392,7 +392,7 @@ final class TravelBoatMode {
             boatRetryCooldown = BOAT_RETRY_CD;
             return false;
         }
-        ai.clearNav();
+        ai.paths.clearNav();
         return true;
     }
 
@@ -416,7 +416,7 @@ final class TravelBoatMode {
 
 
         TravellerBoats.steer(mob, boat, target.x, target.z, ai.getActiveSpeed() * BOAT_SPEED_MULT);
-        ai.clearNav();
+        ai.paths.clearNav();
     }
 
     boolean boatHitSurface(EntityTravellerBoat boat) {
@@ -506,8 +506,8 @@ final class TravelBoatMode {
             boatRetryCooldown = 0;
             // The boat crossed straight over water, possibly past the itinerary's forward window: replan
             // from the shore, or the cursor could aim back at a vertex now behind (U-turn into the river).
-            ai.nextItineraryReplanTick = 0;
-            ai.replanItineraryFromHere("landed from boat");
+            ai.itinerary.nextItineraryReplanTick = 0;
+            ai.itinerary.replanItineraryFromHere("landed from boat");
         }
         ai.resetStuckState();
 
@@ -516,11 +516,11 @@ final class TravelBoatMode {
             ai.currentWaypoint = shore;
             mob.getTravelCommon().setCurrentWaypoint(shore);
             ai.debugMark(shore);
-            ai.clearNav();
-            ai.pushPathToWaypoint();
+            ai.paths.clearNav();
+            ai.paths.pushPathToWaypoint();
         } else {
             // fallback: just let travellers swim / walk from wherever he ends up
-            ai.clearNav();
+            ai.paths.clearNav();
         }
     }
 

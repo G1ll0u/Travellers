@@ -217,7 +217,7 @@ final class TravelRescue {
     private void landOn(BlockPos spot) {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
         Relocate.teleport(mob, spot.getX() + 0.5, LandingSpots.feetY(mob.world, spot), spot.getZ() + 0.5);
-        ai.clearNav();
+        ai.paths.clearNav();
     }
 
     boolean teleportToSurfaceRescue(int radius, int minRise) {
@@ -301,7 +301,7 @@ final class TravelRescue {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 
         Relocate.teleport(mob, best.getX() + 0.5, LandingSpots.feetY(w, best), best.getZ() + 0.5);
-        ai.clearNav();
+        ai.paths.clearNav();
         return true;
     }
 
@@ -361,7 +361,7 @@ final class TravelRescue {
         if (ai.isInBoat()) ai.dismountAndDeleteBoat();
 
         Relocate.teleport(mob, best.getX() + 0.5, LandingSpots.feetY(mob.world, best), best.getZ() + 0.5);
-        ai.clearNav();
+        ai.paths.clearNav();
         return true;
     }
 }

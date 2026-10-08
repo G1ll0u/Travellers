@@ -305,13 +305,6 @@ public final class TravelTerrain {
         return standPos;
     }
 
-    boolean isPathBelow(BlockPos feet) {
-        BlockPos below = feet.down();
-        if (!mob.world.isBlockLoaded(below)) return false;
-        IBlockState st = mob.world.getBlockState(below);
-        return st.getBlock() instanceof IBlockPath;
-    }
-
     float yawFromDirection(Vec3d dir) {
         // Minecraft yaw: 0 = south (+Z), 90 = west (-X)
         // Standard conversion:

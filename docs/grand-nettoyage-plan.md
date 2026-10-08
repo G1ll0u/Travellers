@@ -310,7 +310,7 @@ must load (in-game check).
 ### Phase 11 — AI and command giants split — status: todo
 
 Mechanical splits, behaviour unchanged:
-- `EntityAITravel` → waypoint picker, itinerary, path driver, mount policy, stuck actions (closes the itinerary plan's phase 4).
+- **11.5 `EntityAITravel` done** (2 014 → ≈680 lines: `TravelWaypointPicker`, `TravelItineraryFollower`, `TravelPathDriver`, `TravelMountPolicy`, `TravelStuckActions`, same folder; closes the itinerary plan's phase 4). Decided with the user: no relays, `TravelBoatMode`/`TravelRescue` call the new classes directly; public API unchanged. Invisible cleanups: one `isOffscreen` (was 2 copies), one `followOrderOwnsMovement` (2 copies), dead `debug()`, dead `lastMovePos`, dead path-tile branch in the straight tier (and `TravelTerrain.isPathBelow`), `preferShoreWhenInWater` overload, `reportMountedPathFailure` relay; misplaced javadocs moved. Not merged (hand rewrite): the ~8 "set waypoint, mark, push path" sequences. `travel/CLAUDE.md` is stale (`TravelPathScheduler`, destination folder): phase 13.
 - `EntityAIFollowLeader` → `FollowState` (one reset instead of 5), goal resolver, path requester, speed policy,
   direct steering, idle-at-slot.
 - **11.3 `FollowFormationCoordinator` done** (1 587 → 340 lines: `LeaderFormation`, `HeadingTracker`, `CrowdGrid`, `FormationSpace`, `SlotOrdering`, `AngleMath`; `SlotAssignment` kept nested). Decided with the user: the heading smoother is NOT shared with `GroupFormationTracker` (it has no smoothing; sharing would change group behaviour). Private `SlotOffset` removed (uses `FormationGeometry.SlotOffset`); the second `wrapToPi` copy in `EntityAIFollowLeader` goes in 11.6.

@@ -1,6 +1,6 @@
 # Travel AI
 
-`EntityAITravel` is the orchestrator (waypoints, pathing, mounts, stuck ladder). Helpers: `TravelTerrain` (terrain questions, loaded chunks only), `TravelRescue` (short rescue hops), `TravelBoatMode` (afloat / water edge), `TravelStuckLadder` + `StuckRecord` (stuck rescue), `TravelPathScheduler` (A* budget). Routes come from the itinerary (`pathing/CLAUDE.md`). Active plan: `docs/travel-ai-unified-itinerary-plan.md`.
+`EntityAITravel` is the orchestrator; it owns `TravelWaypointPicker` (waypoints), `TravelItineraryFollower` (itinerary), `TravelPathDriver` (A* requests via `PathBudget`), `TravelMountPolicy` (direct ride, terrain LED), `TravelStuckActions` (ladder evidence and rungs), plus `TravelTerrain` (terrain questions, loaded chunks only), `TravelRescue` (short rescue hops), `TravelBoatMode` (afloat / water edge). `TravelStuckLadder` + `StuckRecord` hold the stuck state. Routes come from the itinerary (`pathing/CLAUDE.md`). Active plan: `docs/travel-ai-unified-itinerary-plan.md`.
 
 ## Waypoints
 - A travel waypoint is an XZ column: arrival is XZ-only; its Y comes from `TravelTerrain.findGroundNear`. Every pick goes through `picked(source, …)` (logged to the trace).
