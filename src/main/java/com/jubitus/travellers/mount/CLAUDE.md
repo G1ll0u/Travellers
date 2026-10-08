@@ -17,7 +17,7 @@ Permanent 1:1 bond between an `EntityTraveller` subclass and a vanilla `EntityHo
 - Mounted travel is direct-ride-first (`EntityAITravel.tryMountedDirectRide`, legs proved by `corridorClear`); A* is the fallback.
 
 ## LED (dismount and lead)
-- Triggers: terrain (sustained failure + an on-foot route that really **arrives**), water ahead, low horse health, melee in reach, inside a village radius. All go through `TravellerMountSupport.enterFallbackLed` (profiler, LED, remount self-heal, optional notice) so one auto-remount path handles them; every remount path refuses while the trigger still holds (horse hurt, inside village).
+- Triggers: terrain (sustained failure + an on-foot route that really **arrives**), low horse health, melee in reach, inside a village radius, giving up on sidesteps. All go through `TravellerMountSupport.enterFallbackLed` (profiler, LED, remount self-heal, optional notice) so one auto-remount path handles them; every remount path refuses while the trigger still holds (horse hurt, inside village).
 - Remount only on a sustained strict-dry gate (`canRemountHere`) — never into water.
 - A led horse follows the rider's `leadTrail` (`driveLedHorse` steers it every tick); its own A* only on a real jam. Vanilla leash steering is cancelled for bonded mounts (`MixinEntityCreature`). The rider only slows while leading, never stops.
 - `leadTrail` is recorded whenever a rider has a bonded horse (also used by mounted followers).
