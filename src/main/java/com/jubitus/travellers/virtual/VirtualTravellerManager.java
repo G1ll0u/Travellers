@@ -2616,27 +2616,6 @@ public class VirtualTravellerManager extends WorldSavedData {
         return n;
     }
 
-    /** Returns virtual worker block positions in the given dimension within the radius. */
-    public List<BlockPos> getPositionsInRadius(int dim, int centerX, int centerZ, int radiusBlocks) {
-        return getPositionsInRadius(dim, centerX, centerZ, radiusBlocks, "WORKER");
-    }
-
-    /** Returns virtual entity positions of a given entityClass in the given dimension within the radius. */
-    public List<BlockPos> getPositionsInRadius(int dim, int centerX, int centerZ, int radiusBlocks, String entityClass) {
-        List<BlockPos> result = new ArrayList<>();
-        int r2 = radiusBlocks * radiusBlocks;
-        for (VirtualTravellerRecord rec : records.values()) {
-            if (rec.dimension != dim) continue;
-            if (!entityClass.equals(rec.entityClass)) continue;
-            int dx = MathHelper.floor(rec.posX) - centerX;
-            int dz = MathHelper.floor(rec.posZ) - centerZ;
-            if (dx * dx + dz * dz <= r2) {
-                result.add(new BlockPos(rec.posX, rec.posY, rec.posZ));
-            }
-        }
-        return result;
-    }
-
     /** Remove the virtual record for a worker that died via other means. */
     public void removeRecord(WorldServer world, UUID uuid) {
         VirtualTravellerRecord r = records.remove(uuid);

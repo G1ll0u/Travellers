@@ -30,6 +30,7 @@ public class MsgSubscribePopulationMap implements IMessage {
         @Override
         public IMessage onMessage(MsgSubscribePopulationMap msg, MessageContext ctx) {
             EntityPlayerMP p = ctx.getServerHandler().player;
+            if (msg.subscribe && !com.jubitus.travellers.debug.DebugAccess.allowed(p)) return null;
             p.getServerWorld().addScheduledTask(() -> {
                 if (msg.subscribe) {
                     PopulationMapStream.subscribe(p.getUniqueID());

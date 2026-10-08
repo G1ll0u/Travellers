@@ -66,6 +66,7 @@ public class MsgItineraryDebugRequest implements IMessage {
         @Override
         public IMessage onMessage(MsgItineraryDebugRequest msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
+            if (!com.jubitus.travellers.debug.DebugAccess.allowed(player)) return null;
             WorldServer world = player.getServerWorld();
             world.addScheduledTask(() -> {
                 MsgItineraryDebugMap reply = msg.selected != null

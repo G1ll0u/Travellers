@@ -35,8 +35,7 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
 
     @Override
     public int getRequiredPermissionLevel() {
-        // 0 = anyone can use; change to 2 if you want op-only
-        return 0;
+        return 2;
     }
 }
 

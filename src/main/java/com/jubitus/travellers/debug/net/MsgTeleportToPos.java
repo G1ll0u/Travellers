@@ -32,6 +32,7 @@ public class MsgTeleportToPos implements IMessage {
         @Override
         public IMessage onMessage(MsgTeleportToPos msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
+            if (!com.jubitus.travellers.debug.DebugAccess.allowed(player)) return null;
 
             player.getServerWorld().addScheduledTask(() -> {
                 BlockPos top = player.world.getHeight(new BlockPos(msg.x, 0, msg.z));

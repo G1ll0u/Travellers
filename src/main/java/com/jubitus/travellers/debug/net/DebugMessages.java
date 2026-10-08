@@ -18,8 +18,6 @@ public final class DebugMessages {
         toServer(MsgTeleportToPos.class, MsgTeleportToPos.Handler.class);
         toServer(MsgSpawnEntityAtPos.class, MsgSpawnEntityAtPos.Handler.class);
         toClient(MsgVillageDebugView.class, () -> new MsgVillageDebugView.Handler());
-        toClient(PacketTravellerChunks.class, () -> new PacketTravellerChunksClientHandler());
-        toServer(PacketTravellerChunksRequest.class, PacketTravellerChunksRequest.Handler.class);
         toServer(MsgLoadedChunksRequest.class, MsgLoadedChunksRequest.Handler.class);
         toClient(MsgLoadedChunksMap.class, () -> new MsgLoadedChunksMap.ClientHandler());
     }

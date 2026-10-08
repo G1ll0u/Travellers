@@ -52,6 +52,7 @@ public class MsgLoadedChunksRequest implements IMessage {
         @Override
         public IMessage onMessage(MsgLoadedChunksRequest msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
+            if (!com.jubitus.travellers.debug.DebugAccess.allowed(player)) return null;
             WorldServer world = player.getServerWorld();
             world.addScheduledTask(() -> {
                 int w = Math.max(1, Math.min(MAX_CHUNKS, msg.wChunks));

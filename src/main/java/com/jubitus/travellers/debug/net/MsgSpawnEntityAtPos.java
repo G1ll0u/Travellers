@@ -53,7 +53,7 @@ public class MsgSpawnEntityAtPos implements IMessage {
         @Override
         public IMessage onMessage(MsgSpawnEntityAtPos msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
-            if (!player.canUseCommand(2, "travellersdebug")) {
+            if (!com.jubitus.travellers.debug.DebugAccess.allowed(player)) {
                 return null;
             }
 
