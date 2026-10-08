@@ -20,7 +20,7 @@ import net.minecraft.world.World;
  * <p>Deliberately walks first, mounts second: {@link TravellerMountSupport#bondToLiveHorse} only
  * tags the bond once the worker is already standing next to the horse, so the actual climb-on goes
  * through the same gradual leash-then-remount path every returning bonded rider uses (the
- * {@code MOUNTED} case of {@code TravellerMountSupport.reconcileOnFoot}) - never a teleport-to-mount.
+ * {@code MOUNTED} case of {@code MountModes.reconcileOnFoot}) - never a teleport-to-mount.
  */
 public class EntityAIClaimLooseMount extends EntityAIBase {
 

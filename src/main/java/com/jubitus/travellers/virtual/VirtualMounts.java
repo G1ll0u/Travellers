@@ -89,7 +89,7 @@ final class VirtualMounts {
         com.jubitus.travellers.village.visit.VillageVisitState visit = r.visit;
         if (visit != null && visit.hitchPos != null && (r.mountNbt != null || visit.horseAtPost)) {
             // Tied at the village edge: the horse belongs at its post, not beside the rider. Held as
-            // data until that ground is loaded (TravellerMountSupport.tickParkedMount), or already
+            // data until that ground is loaded (MountPersistence.tickParkedMount), or already
             // standing there.
             entity.mountState.setMountModeRaw(MountMode.HITCHED);
             entity.setVillageHitchStop(visit.stop);

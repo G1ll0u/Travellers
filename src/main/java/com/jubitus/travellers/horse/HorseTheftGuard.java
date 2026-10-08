@@ -20,7 +20,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  *   <li>{@link #onMount} additionally cancels the {@link EntityMountEvent} itself - the actual gate
  *       {@code Entity.startRiding}/{@code dismountRidingEntity} check before completing a mount.
  *       Belt-and-suspenders: without it, a bonded horse whose rightful rider reclaims it every tick
- *       via {@code TravellerMountSupport.reconcileOnFoot} could still let a player's interact sneak
+ *       via {@code MountModes.reconcileOnFoot} could still let a player's interact sneak
  *       through once and get force-evicted a tick later, which reads as a flash mount-then-dismount.</li>
  * </ul>
  */

@@ -43,7 +43,7 @@ public final class MountBondLoadHandler {
                 log("removed a stale copy of a bonded horse", horse);
                 return;
             case RELEASE:
-                TravellerMountSupport.detachBondFromHorse(horse);
+                MountLifecycle.detachBondFromHorse(horse);
                 log("released a bonded horse nobody claims any more", horse);
                 return;
             case TO_RECORD:

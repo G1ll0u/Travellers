@@ -786,7 +786,7 @@ public class EntityTraveller extends EntityCreature {
     }
 
     // The settlement whose edge this rider hitched its horse at, to visit it on foot. A HITCHED horse
-    // carrying this marker is never recalled; see TravellerMountSupport.reconcileOnFoot.
+    // carrying this marker is never recalled; see MountModes.reconcileOnFoot.
     @Nullable
     private BlockPos villageHitchStop;
 

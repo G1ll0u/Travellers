@@ -17,11 +17,11 @@ import javax.annotation.Nullable;
 /**
  * The rider's own walking pace while leading its bonded horse on foot, shared by
  * {@code EntityAITravel} and {@code EntityAIFollowLeader} so they never disagree. It never moves the
- * horse: that is {@code TravellerMountSupport.reconcileOnFoot}, the sole authority over a bonded horse.
+ * horse: that is {@code MountModes.reconcileOnFoot}, the sole authority over a bonded horse.
  *
  * <p>There is no stop-and-wait: a rider leading on foot only ever <em>slows</em>
  * ({@code MOUNTS.ledRiderPaceFactor}), and the horse is given its own full travel pace to close the
- * gap (see {@code TravellerMountSupport.driveLedHorse}).
+ * gap (see {@code LedHorseDriver.driveLedHorse}).
  */
 public final class MountedLeadController {
 

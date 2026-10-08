@@ -1314,16 +1314,11 @@ public class EntityAITravel extends EntityAIBase {
         if (!onFoot) return;
 
         unusableRouteStreak = 0;
-        com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(mob, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.TERRAIN);
-        TravellerMountSupport.setMountMode(mob, MountMode.LED);
-        // Arms the shared time+distance self-heal back to MOUNTED - see
-        // TravellerMountSupport.markTerrainFallbackLed/considerTerrainFallbackRemount. Ticked every
-        // tick from TravellerMountSupport.tickMount() regardless of which AI task is currently
-        // running, not just while this task's updateTask() happens to be active.
-        TravellerMountSupport.markTerrainFallbackLed(mob);
-        terrainLedByThisTask = true;
-        TravellerMountSupport.notifyMountLedFallback(mob,
+        // Also arms the shared time+distance self-heal back to MOUNTED (MountModes.considerTerrainFallbackRemount),
+        // ticked from TravellerMountSupport.tickMount() whichever AI task is running.
+        TravellerMountSupport.enterFallbackLed(mob, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.TERRAIN,
                 com.jubitus.travellers.notify.NotificationDefs.MOUNT_LED_TERRAIN_BLOCKED);
+        terrainLedByThisTask = true;
         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "mount",
                 "dismounting to lead the horse through terrain it cannot path");
         clearNav();

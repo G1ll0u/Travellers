@@ -653,7 +653,7 @@ public final class MaterializePositionResolver {
      * Like {@link #findClearMountFootprint}, but tests only the <em>horse's own body</em> - no rider
      * silhouette stacked on top. This is the right question when nobody is going to climb on where
      * the horse appears: a rider that is leading or hitching its horse (see
-     * {@code TravellerMountSupport.resolveMountSpawnPos}). Asking for the full ~2.6-block mounted
+     * {@code MountBonding.resolveMountSpawnPos}). Asking for the full ~2.6-block mounted
      * silhouette there needlessly refuses spots a horse fits fine and pushes the search outward -
      * closer to the lifted best-effort fallback, which is what put a led horse up in the canopy.
      */

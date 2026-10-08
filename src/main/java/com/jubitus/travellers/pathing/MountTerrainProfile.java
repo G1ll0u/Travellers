@@ -196,7 +196,7 @@ public final class MountTerrainProfile {
      * <p>{@code maxStepRise} is how much one sample may rise over the previous one - the mounted
      * caller passes the horse's own jump capability here, not its step height, because charging a
      * jumpable ledge in a straight line IS how a ridden horse takes it: the reactive jump
-     * ({@code TravellerMountSupport.tickMountedJump}) fires on contact. Refusing those lines was
+     * ({@code MountRiding.tickMountedJump}) fires on contact. Refusing those lines was
      * what kept handing mountain travel to the route planner at every 2-block step.
      *
      * <p>{@code stackClearance} is the rider's full silhouette above the ground

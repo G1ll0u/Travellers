@@ -314,8 +314,7 @@ Mechanical splits, behaviour unchanged:
 - `EntityAIFollowLeader` → `FollowState` (one reset instead of 5), goal resolver, path requester, speed policy,
   direct steering, idle-at-slot.
 - **11.3 `FollowFormationCoordinator` done** (1 587 → 340 lines: `LeaderFormation`, `HeadingTracker`, `CrowdGrid`, `FormationSpace`, `SlotOrdering`, `AngleMath`; `SlotAssignment` kept nested). Decided with the user: the heading smoother is NOT shared with `GroupFormationTracker` (it has no smoothing; sharing would change group behaviour). Private `SlotOffset` removed (uses `FormationGeometry.SlotOffset`); the second `wrapToPi` copy in `EntityAIFollowLeader` goes in 11.6.
-- `TravellerMountSupport` → bond, ticker, riding physics, led-horse driver, mode machine (one `enterFallbackLed`
-  instead of 6 pastes), lifecycle, persistence.
+- **11.4 `TravellerMountSupport` done** (2 105 → 449 lines: `MountBonding`, `MountRiding`, `LedHorseDriver`, `MountModes`, `MountLifecycle`, `MountPersistence`). Decided with the user: `TravellerMountSupport` stays the public facade (one-line delegates) so the 37 calling files are untouched; the 5 pasted "fallback to LED" sequences (low health, village, sidestep give-up, melee, terrain) are one `enterFallbackLed`; dead `chanceFor` removed.
 - Travel/follow shared bits: gap-jump guard, rider-meets-water probe, one `PARTIAL_PATH_TOLERANCE`; boats: one stall
   watchdog, one `landAshore`.
 - **11.2a `EntityAIRangedBowTravellerSafe` done** (794 → 339 lines: `BowBallistics`, `BowShotLine`, `ArcherMovement`, same folder; shot behaviour and RNG call order unchanged). **11.2b `StableHandTask` done** (1 052 → 321 lines: `StableChores`, `StableTaming`, `StableAmbience`, `StableHandSupport` for the shared helpers + per-tick scratch; same folder; phase logic moved verbatim).

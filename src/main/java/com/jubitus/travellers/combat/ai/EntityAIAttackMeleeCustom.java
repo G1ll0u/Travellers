@@ -242,9 +242,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         if (inReach && TravellersConfig.COMBAT.mountedMeleeDismountEnabled && attacker instanceof EntityTraveller) {
             EntityTraveller t = (EntityTraveller) attacker;
             if (t.isMountedOnBondedMount()) {
-                com.jubitus.travellers.debug.profile.MovementProfiler.ledStarted(t, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.MELEE);
-                TravellerMountSupport.setMountMode(t, MountMode.LED);
-                TravellerMountSupport.markTerrainFallbackLed(t);
+                TravellerMountSupport.enterFallbackLed(t, com.jubitus.travellers.debug.profile.MovementAnomaly.LedReason.MELEE, null);
             }
         }
 

@@ -342,7 +342,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         // later walks the resulting path, TravellerNavigateGround's existing reactive gap-jump
         // fires naturally once it nears the edge, since its target is already that same landing.
         // A mounted body gets its own gap candidates (addMountGapCandidates), fired by the horse's
-        // own jump (TravellerMountSupport.tickMountedGapJump), never the pedestrian one.
+        // own jump (MountRiding.tickMountedGapJump), never the pedestrian one.
         // 6b) Hop-over candidates: a mounted body may clear an obstacle one cell thick rather than
         // walk round it. Without this the planner only knows "walk, one block of rise at most", and
         // everything beyond that is left to the reactive jump - which by definition only fires once
@@ -622,7 +622,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
      * Jump-across candidates for a mounted body: a hole or stream directly ahead (the footprint
      * cannot step one cell forward onto dry ground) with dry ground for the whole footprint again
      * within {@code MOUNTS.mountedMaxGapWidth} cells, near the takeoff height. Closest landing first.
-     * The flight volume must be clear; {@code TravellerMountSupport.tickMountedGapJump} fires it.
+     * The flight volume must be clear; {@code MountRiding.tickMountedGapJump} fires it.
      */
     private int addMountGapCandidates(PathPoint[] options, int w, PathPoint current, PathPoint target,
                                       float maxDistance) {
@@ -677,7 +677,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     /** Low on purpose: below the water malus of even a two-block swim, so a stream is jumped, not waded. */
     private static final float MOUNT_GAP_JUMP_MALUS = 1.0F;
 
-    /** Same margin the reactive jump requires - see {@code TravellerMountSupport.JUMP_CLEARANCE_MARGIN}. */
+    /** Same margin the reactive jump requires - see {@code MountRiding.JUMP_CLEARANCE_MARGIN}. */
     private static final double JUMP_CLEARANCE_MARGIN = 0.2D;
 
     private double surfaceYForNode(int x, int y, int z) {

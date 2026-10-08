@@ -86,7 +86,7 @@ public final class TravellerMountState {
     }
 
     // Where the horse held as data in pendingMountNbt stands (tied at a village post); null = beside
-    // the rider. See TravellerMountSupport.tickParkedMount.
+    // the rider. See MountPersistence.tickParkedMount.
     @Nullable
     private BlockPos pendingMountPos;
 
@@ -131,7 +131,7 @@ public final class TravellerMountState {
     }
 
     /** True while EntityAITravel is executing - the one discriminator
-     * {@code TravellerMountSupport.applyMountedSpeed} needs to pick between the travel and follow
+     * {@code MountRiding.applyMountedSpeed} needs to pick between the travel and follow
      * mounted speed multipliers (a rider crossing the world alone rides faster than one holding
      * formation). Transient, maintained by EntityAITravel's startExecuting/resetTask. */
     private boolean travelSpeedContext;
@@ -158,7 +158,7 @@ public final class TravellerMountState {
 
     /** Consecutive ticks {@code TravellerMountSupport.isMountWedged} has read true in a row. Transient
      * (never persisted, reset the instant the horse is no longer wedged) - see
-     * TravellerMountSupport.trySidestepIfWedged. */
+     * MountRiding.trySidestepIfWedged. */
     private int mountWedgedTicks = 0;
 
     public int getMountWedgedTicks() {
@@ -178,7 +178,7 @@ public final class TravellerMountState {
      * target, which swings noticeably from just the small position jitter a stuck horse still has
      * (a trace caught a ~19 degree swing from under a block of z-jitter). Chasing that live bearing
      * made the escalation reverse itself mid-attempt instead of committing to one side. Freezing the
-     * yaw for the whole episode fixes that; see TravellerMountSupport.trySidestepIfWedged.
+     * yaw for the whole episode fixes that; see MountRiding.trySidestepIfWedged.
      */
     private float mountWedgeAnchorYaw = Float.NaN;
 
@@ -230,7 +230,7 @@ public final class TravellerMountState {
 
     /**
      * Consecutive ticks the dismounted rider and its bonded horse have <em>both</em> been on dry
-     * solid ground and close enough to remount (see {@code TravellerMountSupport.reconcileOnFoot}).
+     * solid ground and close enough to remount (see {@code MountModes.reconcileOnFoot}).
      * The remount only fires once this reaches {@code MOUNTS.remountStableTicks} - a shelving bank
      * where the horse touches bottom for a tick or two never reaches it. Transient, never persisted.
      */
@@ -247,7 +247,7 @@ public final class TravellerMountState {
     /** While this rider leads its horse on foot: consecutive ticks the horse has stayed past
      * {@code MOUNTS.ledStuckRecallDistance} without closing the gap. Past
      * {@code MOUNTS.ledStuckRecallTicks} the horse is brought to the rider - see
-     * {@code TravellerMountSupport.reconcileOnFoot}. Transient, reset whenever the mode leaves LED. */
+     * {@code MountModes.reconcileOnFoot}. Transient, reset whenever the mode leaves LED. */
     private int ledHorseStuckTicks = 0;
     /** Smallest rider-horse gap (squared) seen this led-stuck episode, to tell "closing" from
      * "snagged". Transient. */
@@ -292,7 +292,7 @@ public final class TravellerMountState {
     }
 
     // --- Lead trail: this rider's recent ground positions - a led horse follows in single file
-    // instead of cutting straight at the rider and weaving (TravellerMountSupport.driveLedHorse), and
+    // instead of cutting straight at the rider and weaving (LedHorseDriver.driveLedHorse), and
     // a mounted group's followers retrace it when their own straight-line steer fails on rough terrain
     // instead of guessing blind (EntityAIFollowLeader.tryFollowLeaderTrail, MountedFollowPacer) - the
     // leader already proved that ground passable a few ticks ago. Transient (loaded-only), maintained
@@ -371,7 +371,7 @@ public final class TravellerMountState {
     }
 
     /** How many mount sidesteps have fired close together in time - see
-     * TravellerMountSupport.trySidestepIfWedged. Transient, never persisted. */
+     * MountRiding.trySidestepIfWedged. Transient, never persisted. */
     private int sidestepStreak = 0;
     /** {@code ticksExisted} the last sidestep fired at, or 0 before the first one. Transient. */
     private int lastSidestepTick = 0;

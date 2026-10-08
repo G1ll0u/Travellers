@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * led-horse driving, three steering sources fighting over one body, which is exactly the "erratic
  * led horse" report: charge at the rider, overshoot, re-path, zigzag.
  *
- * <p>Cancelled wholesale for bonded mounts so {@code TravellerMountSupport.driveLedHorse} is the
+ * <p>Cancelled wholesale for bonded mounts so {@code LedHorseDriver.driveLedHorse} is the
  * single driver; the leash itself stays attached and rendered (this method only steers, it never
  * detaches - the 10-block snap it would also do is already blocked by {@code MixinEntityLiving}).
  * What the cancel skips is all covered elsewhere: {@code tickMount} re-asserts leash state every
