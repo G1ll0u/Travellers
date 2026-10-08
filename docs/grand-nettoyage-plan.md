@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-08)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.18 done, 9.1–9.13 checked in game; 9.14–9.17 await an in-game check; next phase 10).
+**Status (2026-10-08)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.18 done, 9.1–9.13 checked in game; 9.14–9.17 await an in-game check; next phase 11).
 
 ## Goal
 
@@ -286,7 +286,8 @@ Stable horse pick-up written once (`WorkerHorsePickup.equipAtStable`, used by `E
 10.3 done (light version, agreed with the user: no single field list, since entity state already round-trips through NBT):
 `virtual/VirtualSnapshot` (capture of worker/traveller, apply-on-materialize, camp occupation, trip/itinerary/visit hand-over),
 `virtual/VirtualMounts` (mount capture/restore), shared `commitVirtualized` tail. Manager 2 166 → 1 842 lines.
-Next: record duplicates (a Barrack save must load) and the shared goal resolver (`getVirtualGoal` vs `refreshGoal`).
+Phase 10 closed with the user: the record's mirrored fields stay (offscreen sim reads them constantly); `getVirtualGoal`/`refreshGoal` stay two (entity vs record).
+Next: phase 11.
 In-game check of 9.1–9.13 done by the user (2026-10-08, short run, fine).
 9.14 `unit/VirtualizationGate.mayVirtualize(unit, battleParticipant)`: the one eligibility rule (replaces `canVirtualize`,
 `canVirtualizeIgnoringCombat` and the manager's `canVirtualizeMaybeBattling`); hooks `combatBlocksVirtualization()` (worker
@@ -298,7 +299,7 @@ delivery <48, recruiting <24, Get Equipment <48): the offscreen sim already fini
 (`checkJobArrivals`, RETURNING tracks the owner). Visible: a worker in a fight or mission at the loaded border now
 virtualizes like a raider. In-game check: worker mid-delivery/recruiting walking out of loaded chunks, raider near a player.
 
-### Phase 10 — Virtualization split and record cleanup — status: in progress (10.1–10.3 done)
+### Phase 10 — Virtualization split and record cleanup — status: done (record mirrors and goal resolver deliberately left: hot-path copies, two different data sources)
 
 `VirtualTravellerManager` (2 808 lines) → tick driver + `VirtualMover`, `VirtualTripSimulator`, `VirtualWorkerMissions`,
 `VirtualSnapshot` (capture and restore from one field list, so a captured field is always restored).
@@ -320,7 +321,8 @@ Mechanical splits, behaviour unchanged:
   watchdog, one `landAshore`.
 - `EntityAIRangedBowTravellerSafe` → ballistics, shot-line check, archer movement; `StableHandTask` → chores,
   mount ritual, ambient/night.
-- `CommandTravellerDebug` → one class per subcommand. **To decide at the phase**: fold `/travellerChunks`,
+- **11.1 `CommandTravellerDebug` → one class per subcommand — done** (`debug/cmd/`: 20 subcommands behind `DebugSubcommand` + `DebugCommandSupport`; main class 2 203 → 85 lines, a name → subcommand table). An unrecognised subcommand still falls back to the cultures dump, as before. `/travellerChunks` and other commands untouched (no visible name change).
+- (original line:) `CommandTravellerDebug` → one class per subcommand. **To decide at the phase**: fold `/travellerChunks`,
   route dump and shelter commands into `/travellersdebug` (player-visible command names).
 
 ### Phase 12 — Follow stuck handling onto the ladder — status: todo

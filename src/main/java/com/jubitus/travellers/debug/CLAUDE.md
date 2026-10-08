@@ -1,6 +1,6 @@
 # Debug tools
 
-All under `/travellersdebug` (`debug/CommandTravellerDebug`).
+All under `/travellersdebug`: one class per subcommand in `debug/cmd/`, registered in `CommandTravellerDebug`'s table.
 - `/travellersdebug` may arrive on the RCON thread; `execute` hops to the server thread — never read the world before that hop.
 
 ## Per-traveller trace (`trace/`) — the tool of record for one unit's movement
