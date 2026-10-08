@@ -109,7 +109,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     // --- escort leader watchdog ---
     private int escortLeaderCheckCooldown = 0;
     // -1 = uninitialised; set to entity-ID-based phase offset on first tick to spread load across ticks
-    private int virtualLeaderRepathCooldown = -1;
     // The formation slot of an offscreen escort leader; catchup travel drives toward it.
     @Nullable private BlockPos virtualEscortSlot;
 
@@ -737,144 +736,121 @@ public class EntityTravellerWorker extends EntityTraveller {
             escapeFromSolid();
         }
         super.onLivingUpdate();
+        if (world.isRemote) return;
 
         // Choir freeze: skip ALL worker navigation/movement logic.
         // Movement and look are handled by EntityAIChoirFreeze (priority 0, mutex 3).
-        if (!world.isRemote && choirFreezeActive) {
+        if (choirFreezeActive) {
             this.motionX = 0;
             this.motionZ = 0;
             getNavigator().clearPath();
             return;
         }
 
-        if (!world.isRemote) {
-            recruit.tickReturnToOwner();
+        recruit.tickReturnToOwner();
+        if (this.ticksExisted % 20 == 0) {
+            refreshCachedAttitude();
+            dropTargetNoLongerEnemy();
         }
+        tickFollowAndMaintenance();
+        playerHostility.tickServer();
 
-        // Server-side: register/update this worker as a chunkloader
-        if (!world.isRemote) {
-            if ((this.ticksExisted % 20) == 0) { // once per second
-                refreshCachedAttitude();
+        if (isGuardingAnchor() && tickGuardLeash()) return; // keeps aggro: skip the rest of the tick
 
-                EntityLivingBase tgt = this.getAttackTarget();
-                if (tgt instanceof EntityPlayer) {
-                    if (!playerHostility.isEnemyPlayer((EntityPlayer) tgt)) {
-                        this.setAttackTarget(null);
-                        this.setRevengeTarget(null);
-                        this.setInCombat(false);
-                    }
-                } else if (tgt instanceof EntityTravellerWorker) {
-                    if (!playerHostility.isEnemyHiredWorker((EntityTravellerWorker) tgt)) {
-                        this.setAttackTarget(null);
-                        this.setRevengeTarget(null);
-                        this.setInCombat(false);
-                    }
-                }
-            }
-
-            if (--escortLeaderCheckCooldown <= 0) {
-                escortLeaderCheckCooldown = 20;
-                tickEscortLeaderValidity();
-            }
-            tickVirtualLeaderFollow();
-
-// Update leader follower count every 5s. world.getEntities() is not cheap at 500 workers.
-            if (--leaderCountCooldown <= 0) {
-                leaderCountCooldown = 100;
-                updateLeaderFollowerCount();
-                equipment.syncEquipmentFromInventory();
-                resolveLegacyZoneRef();
-            }
-
-            updateDynamicNavigation();
-            tickFollowerIdleBehaviour();
-            tickStayAtIdleAnchor(); // NEW
-            playerHostility.tickServer();
-
-            // --- NEW: guard leash when Follow is OFF ---
-            if (!world.isRemote && isGuardingAnchor()) {
-                EntityLivingBase tgt = this.getAttackTarget();
-                if (tgt instanceof EntityPlayer && playerHostility.isEnemyPlayer((EntityPlayer) tgt)) {
-                    return; // keep aggro (declared OR engaged)
-                }
-
-                double hardLeashSq = ANCHOR_HARD_LEASH * ANCHOR_HARD_LEASH;
-
-                // If WE got pulled too far from the anchor, stop fighting and go back.
-                if (this.getDistanceSqToCenter(idleAnchorPos) > hardLeashSq) {
-                    this.setAttackTarget(null);
-                    this.setRevengeTarget(null);
-                    this.setInCombat(false);
-                    this.getNavigator().clearPath();
-                    tickStayAtIdleAnchor();
-                }
-
-                // Optional: don't even ACCEPT targets that are far from the anchor.
-                if (tgt != null) {
-                    double guardSq = ANCHOR_GUARD_RADIUS * ANCHOR_GUARD_RADIUS;
-                    if (distSqFromAnchor(tgt) > guardSq) {
-                        this.setAttackTarget(null);
-                        this.setRevengeTarget(null);
-                        this.setInCombat(false);
-                        this.getNavigator().clearPath();
-                    }
-                }
-            }
-
-            clearAggroIfOffscreen();
-            this.setUsingTravelAI(shouldBeUsingTravelAI());
-            boolean carrying = computeMissionCarry();
-            if (carrying != this.dataManager.get(MISSION_CARRY_DM)) this.dataManager.set(MISSION_CARRY_DM, carrying);
-//            tickUndergroundFollowRescue();
-
-        }
-
-        if (world.isRemote) return;
+        clearAggroIfOffscreen();
+        this.setUsingTravelAI(shouldBeUsingTravelAI());
+        boolean carrying = computeMissionCarry();
+        if (carrying != this.dataManager.get(MISSION_CARRY_DM)) this.dataManager.set(MISSION_CARRY_DM, carrying);
 
         TravelCommon tc = this.getTravelCommon();
-
         trips.tickArrival(tc);
-
-
-        if (!world.isRemote) {
-            recruit.tickTour();
-        }
+        recruit.tickTour();
         delivery.tick(tc);
+        tickVillageStuckWatchdog(tc);
+    }
 
-        if (!world.isRemote) {
-            if (this.mode == WorkerMode.IDLE
-                    && !this.isJobActive()
-                    && !this.isHiredFollower()
-                    && tc.getTargetVillage() != null
-                    && tc.isAtTargetStop()
-                    && this.getNavigator().noPath()
-                    && !tc.isReadyToDepart()) {
+    // A target player / hired worker that is no longer an enemy is dropped.
+    private void dropTargetNoLongerEnemy() {
+        EntityLivingBase tgt = this.getAttackTarget();
+        boolean stale = (tgt instanceof EntityPlayer && !playerHostility.isEnemyPlayer((EntityPlayer) tgt))
+                || (tgt instanceof EntityTravellerWorker
+                && !playerHostility.isEnemyHiredWorker((EntityTravellerWorker) tgt));
+        if (stale) {
+            this.setAttackTarget(null);
+            this.setRevengeTarget(null);
+            this.setInCombat(false);
+        }
+    }
 
-                stuckAtVillageTicks++;
+    // Escort watchdog, virtual-leader follow, follower count / equipment sync, navigation, idle behaviour.
+    private void tickFollowAndMaintenance() {
+        if (--escortLeaderCheckCooldown <= 0) {
+            escortLeaderCheckCooldown = 20;
+            tickEscortLeaderValidity();
+        }
+        tickVirtualLeaderFollow();
 
-                if (stuckAtVillageTicks > 20 * 120) { // 2 minutes, tweak as you like
-                    BlockPos v = tc.getTargetVillage();
-                    MillLog.major(this, "[TravellersWorker] Watchdog: stuck at village "
-                            + v + " – forcing new route.");
-
-                    // Let travel AI move on
-                    tc.setReadyToDepart(true);
-                    tc.setDepartCooldownTicks(0);
-                    tc.routeIndex = -1;
-                    this.getNavigator().clearPath();
-
-                    stuckAtVillageTicks = 0;
-
-                    // Optionally mark village bad for this worker:
-                    tc.markVillageBad(v);
-                }
-
-            } else {
-                stuckAtVillageTicks = 0;
-            }
+        // world.getEntities() is not cheap at 500 workers: every 5s.
+        if (--leaderCountCooldown <= 0) {
+            leaderCountCooldown = 100;
+            updateLeaderFollowerCount();
+            equipment.syncEquipmentFromInventory();
+            resolveLegacyZoneRef();
         }
 
+        updateDynamicNavigation();
+        tickFollowerIdleBehaviour();
+        tickStayAtIdleAnchor();
+    }
 
+    // Guard leash while Follow is OFF. Returns true while an enemy player is targeted (aggro kept).
+    private boolean tickGuardLeash() {
+        EntityLivingBase tgt = this.getAttackTarget();
+        if (tgt instanceof EntityPlayer && playerHostility.isEnemyPlayer((EntityPlayer) tgt)) {
+            return true; // declared OR engaged
+        }
+
+        // If WE got pulled too far from the anchor, stop fighting and go back.
+        if (this.getDistanceSqToCenter(idleAnchorPos) > ANCHOR_HARD_LEASH * ANCHOR_HARD_LEASH) {
+            this.setAttackTarget(null);
+            this.setRevengeTarget(null);
+            this.setInCombat(false);
+            this.getNavigator().clearPath();
+            tickStayAtIdleAnchor();
+        }
+
+        // Don't even ACCEPT targets that are far from the anchor.
+        if (tgt != null && distSqFromAnchor(tgt) > ANCHOR_GUARD_RADIUS * ANCHOR_GUARD_RADIUS) {
+            this.setAttackTarget(null);
+            this.setRevengeTarget(null);
+            this.setInCombat(false);
+            this.getNavigator().clearPath();
+        }
+        return false;
+    }
+
+    // An idle worker parked at its target village for 2 minutes is sent on a new route.
+    private void tickVillageStuckWatchdog(TravelCommon tc) {
+        if (!(this.mode == WorkerMode.IDLE
+                && !this.isJobActive()
+                && !this.isHiredFollower()
+                && tc.getTargetVillage() != null
+                && tc.isAtTargetStop()
+                && this.getNavigator().noPath()
+                && !tc.isReadyToDepart())) {
+            stuckAtVillageTicks = 0;
+            return;
+        }
+        if (++stuckAtVillageTicks <= 20 * 120) return;
+
+        BlockPos v = tc.getTargetVillage();
+        MillLog.major(this, "[TravellersWorker] Watchdog: stuck at village " + v + " – forcing new route.");
+        tc.setReadyToDepart(true);
+        tc.setDepartCooldownTicks(0);
+        tc.routeIndex = -1;
+        this.getNavigator().clearPath();
+        stuckAtVillageTicks = 0;
+        tc.markVillageBad(v);
     }
 
     public int getOwnerMarkColor() {
@@ -1963,11 +1939,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
 
         // Staggered: resolvePhysicalFollowerGoal is O(followers of this leader).
-        if (virtualLeaderRepathCooldown < 0) {
-            virtualLeaderRepathCooldown = Math.floorMod(getEntityId(), 40);
-        }
-        if (--virtualLeaderRepathCooldown > 0) return;
-        virtualLeaderRepathCooldown = 40;
+        if (!catchup.virtualRepathDue()) return;
 
         net.minecraft.util.math.BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
         if (leaderPos == null) return;
@@ -1985,10 +1957,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         virtualEscortSlot = resolveVirtualSlot(slotPos.getX() + 0.5D, slotPos.getZ() + 0.5D);
         notifyFollowerSlotGoal(virtualEscortSlot.getX() + 0.5D, virtualEscortSlot.getY(), virtualEscortSlot.getZ() + 0.5D);
 
-        double startDist = FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D;
-        if (!isCatchupTravel() && getDistanceSqToCenter(virtualEscortSlot) > startDist * startDist) {
-            catchup.begin(leaderId);
-        }
+        catchup.beginIfFarFromVirtualSlot(leaderId, virtualEscortSlot);
     }
 
     @Override

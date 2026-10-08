@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-08)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.16 done, 9.1–9.13 checked in game; 9.15–9.16 await an in-game check; next 9.17).
+**Status (2026-10-08)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.18 done, 9.1–9.13 checked in game; 9.14–9.17 await an in-game check; next phase 10).
 
 ## Goal
 
@@ -276,8 +276,11 @@ their own keys): the worker's shadow `homeVillageCenter` removed (it uses the ba
 and hired flag are written and read once; the `WorkerNbtComponent` inner class inlined into the two overrides. 9.16 `TravellerCombatLogic.tickEngagement/tickTargetLoss/tickChaseMemory` replace the combat blocks of `EntityTraveller.onUpdate`
 (271 → ~35 lines); their state (`wasInCombatPrev`, stuck-target counters, dead-target boost guard, post-combat silence) moved with
 them; order of the steps unchanged. Debug map: operator-only (`DebugAccess`), old chunk-snapshot screen deleted.
-Next: 9.17 duplicate audit (virtual leader-follow ×2, attacker-cap divisor config vs hard-coded 5, Stable horse pick-up ×2
-— the last also touches phase 10); 9.18 worker `onLivingUpdate` and ghost-item helpers → equipment.
+9.17 done: `trySetAttackTargetLimited` now calls `computeEffectiveAttackerCap` (was a hard-coded 5); the staggered repath
+delay and the "far from slot → begin catchup" trigger of the virtual leader-follow (traveller + worker) live in `FollowCatchup`.
+Stable horse pick-up ×2 left to phase 10.
+9.18 done: worker `onLivingUpdate` split into small methods (33 lines); dead travel-torch system (never called) and its 5 config keys deleted; ghost rod/bow/block wrappers kept (one-line, 3 AI callers).
+Next: phase 10 (split `VirtualTravellerManager`, record duplicates, Stable horse pick-up ×2).
 In-game check of 9.1–9.13 done by the user (2026-10-08, short run, fine).
 9.14 `unit/VirtualizationGate.mayVirtualize(unit, battleParticipant)`: the one eligibility rule (replaces `canVirtualize`,
 `canVirtualizeIgnoringCombat` and the manager's `canVirtualizeMaybeBattling`); hooks `combatBlocksVirtualization()` (worker

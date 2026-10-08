@@ -397,7 +397,6 @@ public class EntityTraveller extends EntityCreature {
     // --- Voice channel ---
     private int hurtSoundCooldownUntilTick = 0;
     private boolean choirSinging = false;   // managed by ChoirCoordinator, server-side only
-    private int travelTorchCooldown = 0;
     @Nullable
     // Set/cleared each tick by EntityAICampStay while peacefully occupying a camp (building, wandering,
     // napping, sleeping). Never persisted: purely a same-tick "don't proactively engage" signal for
@@ -448,10 +447,6 @@ public class EntityTraveller extends EntityCreature {
     @Override
     protected EntityBodyHelper createBodyHelper() {
         return new TravellerBodyHelper(this);
-    }
-
-    public boolean isGhostTorch(ItemStack s) {
-        return equipment.isGhostTorch(s);
     }
 
     public static double pointToSegment2DSq(Vec3d P, Vec3d A, Vec3d B) {
@@ -1205,7 +1200,6 @@ public class EntityTraveller extends EntityCreature {
             }
 
             if (spawnAmbientCooldownTicks > 0) spawnAmbientCooldownTicks--;
-            if (travelTorchCooldown > 0) travelTorchCooldown--;  // NEW
 
             HazardRepulsion.tick(this);
             if (getMountUUID() != null) mountState.recordLeadTrailPoint();
@@ -1320,12 +1314,6 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public void setItemStackToSlot(EntityEquipmentSlot slot, ItemStack stack) {
         if (slot == EntityEquipmentSlot.OFFHAND) {
-            // Ghost torch: purely visual – don't run backpack logic for it
-            if (!stack.isEmpty() && isGhostTorch(stack)) {
-                super.setItemStackToSlot(slot, stack);
-                return;
-            }
-
             // Real items still go through your backpack handling
             if (!stack.isEmpty()) {
                 ItemStack rem = ItemHandlerHelper.insertItemStacked(inventory, stack, false);
@@ -2316,7 +2304,6 @@ public void fall(float distance, float damageMultiplier) {
     public double getFollowerSlotGoalY() { return followerSlotGoalY; }
     public double getFollowerSlotGoalZ() { return followerSlotGoalZ; }
 
-    private int virtualLeaderRepathCooldown = -1;
     // The slot of an offscreen group leader, surface-resolved where loaded; catchup travel drives toward it.
     @Nullable private BlockPos virtualLeaderSlot;
 
@@ -2344,11 +2331,7 @@ public void fall(float distance, float damageMultiplier) {
             return;
         }
 
-        if (virtualLeaderRepathCooldown < 0) {
-            virtualLeaderRepathCooldown = Math.floorMod(getEntityId(), 40);
-        }
-        if (--virtualLeaderRepathCooldown > 0) return;
-        virtualLeaderRepathCooldown = 40;
+        if (!catchup.virtualRepathDue()) return;
 
         BlockPos leaderPos = vwm.getVirtualPosition(leaderId);
         if (leaderPos == null) return;
@@ -2357,10 +2340,7 @@ public void fall(float distance, float damageMultiplier) {
                 com.jubitus.travellers.follow.formations.FormationGeometry.computeRingOffset(getUniqueID());
         virtualLeaderSlot = resolveVirtualSlot(leaderPos.getX() + 0.5D + off.dx, leaderPos.getZ() + 0.5D + off.dz);
 
-        if (!isCatchupTravel() && getDistanceSqToCenter(virtualLeaderSlot)
-                > sq(FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D)) {
-            catchup.begin(leaderId);
-        }
+        catchup.beginIfFarFromVirtualSlot(leaderId, virtualLeaderSlot);
     }
 
     /** A slot next to an offscreen leader: its ground where loaded (the virtual Y is not tracked), else our own height. */
@@ -2371,10 +2351,6 @@ public void fall(float distance, float damageMultiplier) {
         int y = com.jubitus.travellers.ground.ColumnGround.nearestLayer(world, column.getX(), column.getZ(),
                 column.getY(), true);
         return y == com.jubitus.travellers.ground.ColumnGround.NONE ? column : new BlockPos(column.getX(), y, column.getZ());
-    }
-
-    private static double sq(double v) {
-        return v * v;
     }
 
     /**
@@ -2506,58 +2482,6 @@ public void fall(float distance, float damageMultiplier) {
         return false;
     }
 
-    public void setTravelTorchVisible(boolean on) {
-        if (world.isRemote) return;
-
-        ItemStack off = getItemStackFromSlot(EntityEquipmentSlot.OFFHAND);
-
-        // === HARD GLOBAL OFF SWITCH ===
-        if (!TravellersConfig.TRAVEL.travelTorchEnabled) {
-            // If a ghost torch is currently showing, kill it and clear cooldown
-            if (!off.isEmpty() && isGhostTorch(off)) {
-                // note: call super so we don't trigger backpack logic
-                super.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
-            }
-            travelTorchCooldown = 0;
-            return; // absolutely no more torch logic when disabled
-        }
-
-        // === NORMAL BEHAVIOR WHEN ENABLED ===
-
-        if (on) {
-            // Don't show while fighting or doing something hand-active
-            if (this.isInCombat() || this.isAutoEating()) return;
-            // Don't show when idling at village or camping
-            if (travelCommon.isVillageIdling() || isCampingPassive()) return;
-            // Cooldown: don't re-enable immediately after we just turned it off
-            int cd = TravellersConfig.TRAVEL.travelTorchCooldownTicks > 0
-                    ? TravellersConfig.TRAVEL.travelTorchCooldownTicks
-                    : TravellersConfig.TRAVEL.travelTorchCooldownTicksDefault;
-            if (travelTorchCooldown > 0) return;
-
-            // If another travellers nearby already has a torch, skip
-            double rad = TravellersConfig.TRAVEL.travelTorchNearbyRadius > 0
-                    ? TravellersConfig.TRAVEL.travelTorchNearbyRadius
-                    : TravellersConfig.TRAVEL.travelTorchNearbyRadiusDefault;
-            if (hasNearbyTravellerTorch(rad)) return;
-
-            // Only equip if offhand is empty or already ghost torch
-            if (off.isEmpty() || isGhostTorch(off)) {
-                setItemStackToSlot(EntityEquipmentSlot.OFFHAND, makeGhostTorch());
-            }
-        } else {
-            // Turning OFF: clear ghost torch and start cooldown
-            if (!off.isEmpty() && isGhostTorch(off)) {
-                setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
-
-                int cd = TravellersConfig.TRAVEL.travelTorchCooldownTicks > 0
-                        ? TravellersConfig.TRAVEL.travelTorchCooldownTicks
-                        : TravellersConfig.TRAVEL.travelTorchCooldownTicksDefault;
-                travelTorchCooldown = cd;
-            }
-        }
-    }
-
     public boolean isInCombat() {
         return combat.isInCombat();
     }
@@ -2592,29 +2516,6 @@ public void fall(float distance, float damageMultiplier) {
     public boolean isLowHealth() {
         float max = getMaxHealth();
         return max > 0 && getHealth() / max < TravellersConfig.COMBAT.lowHealthCombatFrac;
-    }
-
-    public boolean hasNearbyTravellerTorch(double radius) {
-        if (world == null) return false;
-
-        AxisAlignedBB box = this.getEntityBoundingBox().grow(radius, 2.0, radius);
-        List<EntityTraveller> peers = world.getEntitiesWithinAABB(
-                EntityTraveller.class,
-                box,
-                e -> e != null
-                        && e != this
-                        && e.isEntityAlive()
-                        && e.hasTravelTorchVisible()
-        );
-        return !peers.isEmpty();
-    }
-
-    public ItemStack makeGhostTorch() {
-        return equipment.makeGhostTorch();
-    }
-
-    public boolean hasTravelTorchVisible() {
-        return isGhostTorch(getItemStackFromSlot(EntityEquipmentSlot.OFFHAND));
     }
 
     public boolean isVillageIdling() {  // you already store this
@@ -2912,9 +2813,7 @@ public void fall(float distance, float damageMultiplier) {
             return true;
         }
         int prio = AttackTargetLimiter.priorityFor(this);
-        int dynamicMax = AttackTargetLimiter.getEffectiveMax(target, world.getTotalWorldTime());
-        int effectiveMax = Math.max(dynamicMax, groupAttackerCapFloor(5));
-        if (!AttackTargetLimiter.tryJoin(this, target, prio, effectiveMax)) {
+        if (!AttackTargetLimiter.tryJoin(this, target, prio, computeEffectiveAttackerCap(target))) {
             ignoreTarget(target, 30); // brief backoff — prevents frantic retry every scan tick
             return false;
         }

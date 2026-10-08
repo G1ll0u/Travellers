@@ -1455,27 +1455,8 @@ public class TravellersConfig {
     }
 
     public static class Travel {
-        @Config.Comment("If true, travellers can carry torches while travelling at night.")
-        public boolean travelTorchEnabled = false;
-
-        @Config.Comment("Cooldown (ticks) after unequipping travel torch before it can be used again.")
-        @Config.RangeInt(min = 0, max = 72000)
-        public int travelTorchCooldownTicks = 200;
-
-        @Config.Comment("Radius (blocks) within which a nearby light source counts as existing cover.")
-        @Config.RangeDouble(min = 0.0, max = 128.0)
-        public float travelTorchNearbyRadius = 20.0f;
-
         @Config.Comment("If true, travellers may fish while stopped near water.")
         public boolean fishWhileTravelEnabled = true;
-
-        @Config.Comment("Fallback torch cooldown (ticks) used only if travelTorchCooldownTicks is set to 0.")
-        @Config.RangeInt(min = 1, max = 72000)
-        public int travelTorchCooldownTicksDefault = 20 * 10;
-
-        @Config.Comment("Fallback 'someone else has light' radius (blocks) used only if travelTorchNearbyRadius is set to 0.")
-        @Config.RangeDouble(min = 1.0, max = 128.0)
-        public double travelTorchNearbyRadiusDefault = 10.0;
 
         @Config.Comment("Width (blocks) of the corridor used to collect intermediate village stops along a travel route.")
         @Config.RangeDouble(min = 8.0, max = 256.0)

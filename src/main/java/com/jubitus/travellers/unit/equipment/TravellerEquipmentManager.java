@@ -276,14 +276,6 @@ public class TravellerEquipmentManager {
         return tagGhost(src, GHOST_BOW_TAG);
     }
 
-    public ItemStack makeGhostTorch() {
-        ItemStack copy = new ItemStack(Blocks.TORCH);
-        NBTTagCompound tag = new NBTTagCompound();
-        tag.setBoolean(GHOST_TORCH_TAG, true);
-        copy.setTagCompound(tag);
-        return copy;
-    }
-
     public boolean isGhostWeapon(ItemStack s) {
         return checkGhostTag(s, GHOST_SWORD_TAG);
     }

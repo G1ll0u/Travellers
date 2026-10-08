@@ -25,9 +25,28 @@ public final class FollowCatchup {
     @Nullable private UUID targetId;
     @Nullable private BlockPos cachedGoal;
     private long nextRefreshTick;
+    private int virtualRepathCooldown = -1;
 
     FollowCatchup(EntityTraveller unit) {
         this.unit = unit;
+    }
+
+    /** True once per 40 ticks, staggered per unit, while following an offscreen leader. */
+    boolean virtualRepathDue() {
+        if (virtualRepathCooldown < 0) {
+            virtualRepathCooldown = Math.floorMod(unit.getEntityId(), 40);
+        }
+        if (--virtualRepathCooldown > 0) return false;
+        virtualRepathCooldown = 40;
+        return true;
+    }
+
+    /** Starts catchup toward an offscreen leader when the follower is far from its slot there. */
+    void beginIfFarFromVirtualSlot(UUID leaderId, BlockPos slot) {
+        double startDist = FollowRuntimeConfig.get().catchup.stopDistanceVisible * 2.0D;
+        if (!active && unit.getDistanceSqToCenter(slot) > startDist * startDist) {
+            begin(leaderId);
+        }
     }
 
     public boolean isActive() {
