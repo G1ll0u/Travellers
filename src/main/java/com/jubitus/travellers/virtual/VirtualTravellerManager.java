@@ -1726,9 +1726,6 @@ public class VirtualTravellerManager extends WorldSavedData {
             else if (e instanceof EntityTraveller) travellers.add((EntityTraveller) e);
         }
 
-        com.jubitus.travellers.battle.VirtualBattleManager battleMgr =
-                com.jubitus.travellers.battle.VirtualBattleManager.get(world);
-
         Set<UUID> stillLoaded = new HashSet<>();
 
         for (EntityTravellerWorker worker : workers) {
@@ -1736,13 +1733,9 @@ public class VirtualTravellerManager extends WorldSavedData {
             stillLoaded.add(id);
             if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
             boolean frozen = isFrozenByVanilla(world, worker);
-            // The eligibility gate is skipped for a frozen unit on purpose. Every condition it
-            // protects - finishing a delivery near the target village, waiting for a pickup, riding a
-            // boat - assumes the unit is still running its AI and will finish what it is doing. A
-            // frozen one never will, and worse, several of those states can no longer end: an entity
-            // that stopped ticking mid-meal keeps isHandActive() forever. Honouring the gate here is
-            // therefore the same as leaving it standing at the border for good.
-            if (!frozen && !VirtualizationGate.mayVirtualize(worker, battleMgr.isParticipant(id))) { virtualizeWatch.remove(id); continue; }
+            // INVARIANT: the gate is skipped for a frozen unit - it never ticks again, so a blocker like
+            // isHandActive() (stopped mid-meal) could never end and it would stand at the border for good.
+            if (!frozen && !VirtualizationGate.mayVirtualize(worker)) { virtualizeWatch.remove(id); continue; }
             if (!tickUnneededWatch(id, worker, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", worker);
             if (frozen) {
@@ -1757,11 +1750,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             stillLoaded.add(id);
             if (graceUntil.containsKey(id)) { virtualizeWatch.remove(id); continue; }
             boolean frozen = isFrozenByVanilla(world, entity);
-            // Unlike workers, travellers/raiders can proximity-acquire a passive player as attackTarget
-            // (RaiderAttackTargetAI) and stay "in combat" (travellerNoAggroOffscreen) for as long as that
-            // player is nearby. Virtualization eligibility must ignore that state entirely, or a raider
-            // idling near a stationary player it's eyeing would never leave the world.
-            if (!frozen && !VirtualizationGate.mayVirtualize(entity, battleMgr.isParticipant(id))) { virtualizeWatch.remove(id); continue; }
+            if (!frozen && !VirtualizationGate.mayVirtualize(entity)) { virtualizeWatch.remove(id); continue; }
             if (!tickUnneededWatch(id, entity, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", entity);
             if (frozen) {

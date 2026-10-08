@@ -1666,26 +1666,6 @@ public class EntityTravellerWorker extends EntityTraveller {
                 .get(ws).getVirtualPosition(escortLeader);
     }
 
-    @Override
-    public boolean combatBlocksVirtualization() {
-        return true;
-    }
-
-    @Override
-    public boolean isBusyForVirtualization() {
-        if (delivery.awaitingPickup) return true;
-        if (mode == WorkerMode.TO_VILLAGE && delivery.jobVillageCenter != null) {
-            if (getDistanceSqToCenter(delivery.jobVillageCenter) < 48.0 * 48.0) return true;
-        }
-        if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) {
-            if (getDistanceSqToCenter(recruit.getCurrentStop()) < 24.0 * 24.0) return true;
-        }
-        if (mode == WorkerMode.GET_EQUIPMENT && trips.getGoOrderTargetPos() != null) {
-            if (getDistanceSqToCenter(trips.getGoOrderTargetPos()) < 48.0 * 48.0) return true;
-        }
-        return false;
-    }
-
     private void tickAnchorDefense() {
         if (world.isRemote) return;
 

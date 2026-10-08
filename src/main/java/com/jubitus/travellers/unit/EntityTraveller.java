@@ -2692,16 +2692,6 @@ public void fall(float distance, float damageMultiplier) {
         travelCommon.setVisitedStop(null);
     }
 
-    /** Whether a fight keeps this unit loaded (a virtual battle participant is exempt). Workers only. */
-    public boolean combatBlocksVirtualization() {
-        return false;
-    }
-
-    /** Role-specific reason to stay loaded for now (a worker mid-mission); see {@link VirtualizationGate}. */
-    public boolean isBusyForVirtualization() {
-        return false;
-    }
-
     public void setDebugPathTest(boolean value) {
         this.debugPathTest = value;
     }
