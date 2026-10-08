@@ -77,27 +77,8 @@ public final class EquipOrders {
         if (kind == EquipTargetKind.STABLE) {
             PlayerZoneRecord zone = PlayerZoneManager.get(world).getByOwnerAndCenter(worker.getFollowOwnerId(), target);
             if (zone == null) return;
-            boolean wantedHorse = worker.getMountUUID() == null;
-            if (wantedHorse) {
-                NBTTagCompound horseNbt = WorkerHorsePickup.claimReadyHorse(world, zone);
-                if (horseNbt != null && !TravellerMountSupport.bondSpecificMount(worker, horseNbt)) {
-                    // Spawn genuinely failed (a UUID collision): don't lose the horse from the pool's count.
-                    WorkerHorsePickup.returnUnclaimedHorse(world, zone, horseNbt);
-                }
-            }
-            // Whoever this order was sent to arriving equips the whole group, as for chest gear.
-            int followerHorses = WorkerHorsePickup.claimForGroupFollowers(world, zone, worker.getUniqueID());
-            if (wantedHorse && worker.getMountUUID() == null) {
-                WorkerHorsePickup.notifyNothingToEquip(world, zone, worker.getFollowOwnerId());
-            }
-            int horses = followerHorses + (wantedHorse && worker.getMountUUID() != null ? 1 : 0);
-            if (horses > 0) {
-                MinecraftServer srv = world.getMinecraftServer();
-                UUID ownerId = worker.getFollowOwnerId();
-                int total = 1 + (srv != null && ownerId != null
-                        ? WorkerGroupService.countFollowers(srv, ownerId, worker.getUniqueID()) : 0);
-                MissionNotifications.equipped(srv, ownerId, horses, total);
-            }
+            WorkerHorsePickup.equipAtStable(world, zone, worker.getUniqueID(), worker.getFollowOwnerId(),
+                    worker.getMountUUID() == null, horseNbt -> TravellerMountSupport.bondSpecificMount(worker, horseNbt));
         } else {
             boolean useWholeVillage = kind == EquipTargetKind.CONTROLLED_VILLAGE;
             int[] equip = WorkerEquipExchanger.exchangeWithFollowers(worker, world, target, useWholeVillage);

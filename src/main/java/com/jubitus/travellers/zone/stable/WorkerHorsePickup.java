@@ -150,6 +150,35 @@ public final class WorkerHorsePickup {
         return claimed;
     }
 
+    /**
+     * A worker reached the Stable of a Get Equipment order: it claims a horse if it wants one, and its
+     * group followers are equipped too. {@code attachHorse} binds the claimed horse to the worker (a live
+     * bond or a virtual record) and returns false if that failed, which puts the horse back in the pool.
+     */
+    public static void equipAtStable(WorldServer world, PlayerZoneRecord zone, UUID workerId,
+                                     @Nullable UUID ownerId, boolean wantsHorse,
+                                     java.util.function.Predicate<NBTTagCompound> attachHorse) {
+        boolean gotHorse = false;
+        if (wantsHorse) {
+            NBTTagCompound horseNbt = claimReadyHorse(world, zone);
+            if (horseNbt != null) {
+                gotHorse = attachHorse.test(horseNbt);
+                // Spawn genuinely failed (a UUID collision): don't lose the horse from the pool's count.
+                if (!gotHorse) returnUnclaimedHorse(world, zone, horseNbt);
+            }
+        }
+        // Whoever this order was sent to arriving equips the whole group, as for chest gear.
+        int followerHorses = claimForGroupFollowers(world, zone, workerId);
+        if (wantsHorse && !gotHorse) notifyNothingToEquip(world, zone, ownerId);
+        int horses = followerHorses + (gotHorse ? 1 : 0);
+        if (horses > 0) {
+            MinecraftServer srv = world.getMinecraftServer();
+            int total = 1 + (srv != null && ownerId != null
+                    ? com.jubitus.travellers.follow.group.WorkerGroupService.countFollowers(srv, ownerId, workerId) : 0);
+            com.jubitus.travellers.notify.MissionNotifications.equipped(srv, ownerId, horses, total);
+        }
+    }
+
     /** Toast the owner when a Get Equipment order reached a Stable that had no saddled horse spare to
      * hand out (empty of ready stock, or only its reserve left) - otherwise the worker just walks
      * there and back with nothing and no explanation. Fire once per order, from the arrival site. */

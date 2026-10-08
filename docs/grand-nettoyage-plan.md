@@ -280,7 +280,13 @@ them; order of the steps unchanged. Debug map: operator-only (`DebugAccess`), ol
 delay and the "far from slot → begin catchup" trigger of the virtual leader-follow (traveller + worker) live in `FollowCatchup`.
 Stable horse pick-up ×2 left to phase 10.
 9.18 done: worker `onLivingUpdate` split into small methods (33 lines); dead travel-torch system (never called) and its 5 config keys deleted; ghost rod/bow/block wrappers kept (one-line, 3 AI callers).
-Next: phase 10 (split `VirtualTravellerManager`, record duplicates, Stable horse pick-up ×2).
+10.1 done: offscreen worker missions (Go, delivery, recruiting, Get Equipment) moved to `virtual/VirtualWorkerMissions`;
+Stable horse pick-up written once (`WorkerHorsePickup.equipAtStable`, used by `EquipOrders.onArrived` and the virtual path).
+10.2 done: offscreen village stays moved to `virtual/VirtualVillageVisits` (manager 2 757 → 2 166 lines).
+10.3 done (light version, agreed with the user: no single field list, since entity state already round-trips through NBT):
+`virtual/VirtualSnapshot` (capture of worker/traveller, apply-on-materialize, camp occupation, trip/itinerary/visit hand-over),
+`virtual/VirtualMounts` (mount capture/restore), shared `commitVirtualized` tail. Manager 2 166 → 1 842 lines.
+Next: record duplicates (a Barrack save must load) and the shared goal resolver (`getVirtualGoal` vs `refreshGoal`).
 In-game check of 9.1–9.13 done by the user (2026-10-08, short run, fine).
 9.14 `unit/VirtualizationGate.mayVirtualize(unit, battleParticipant)`: the one eligibility rule (replaces `canVirtualize`,
 `canVirtualizeIgnoringCombat` and the manager's `canVirtualizeMaybeBattling`); hooks `combatBlocksVirtualization()` (worker
@@ -292,7 +298,7 @@ delivery <48, recruiting <24, Get Equipment <48): the offscreen sim already fini
 (`checkJobArrivals`, RETURNING tracks the owner). Visible: a worker in a fight or mission at the loaded border now
 virtualizes like a raider. In-game check: worker mid-delivery/recruiting walking out of loaded chunks, raider near a player.
 
-### Phase 10 — Virtualization split and record cleanup — status: todo
+### Phase 10 — Virtualization split and record cleanup — status: in progress (10.1–10.3 done)
 
 `VirtualTravellerManager` (2 808 lines) → tick driver + `VirtualMover`, `VirtualTripSimulator`, `VirtualWorkerMissions`,
 `VirtualSnapshot` (capture and restore from one field list, so a captured field is always restored).

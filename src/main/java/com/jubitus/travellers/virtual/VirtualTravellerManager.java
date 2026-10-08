@@ -67,10 +67,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     // After player-triggered materialization, block re-virtualization for this many ticks
     private static final int MATERIALIZE_GRACE_TICKS = 60;
 
-    // Force-materialize when the worker arrives within this range of a job destination (blocks)
-    private static final double JOB_ARRIVAL_FORCE_DIST = 48.0;
     /** A tied horse farther than this from its rider going offscreen is left standing at its post. */
-    private static final double HORSE_LEFT_AT_POST_BLOCKS = 8.0;
 
     // Max forced materializations per tick (hired workers are prioritized)
     private static final int DELIVERY_PER_TICK = 2;
@@ -88,6 +85,8 @@ public class VirtualTravellerManager extends WorldSavedData {
     private static final int VIRTUALIZE_CHECK_INTERVAL = 10;
 
     private final Map<UUID, VirtualTravellerRecord> records = new HashMap<>();
+    private final VirtualWorkerMissions missions = new VirtualWorkerMissions(this, records);
+    private final VirtualVillageVisits visits = new VirtualVillageVisits(this, records);
     private final Map<UUID, Long> graceUntil = new HashMap<>();
     /**
      * Mirror of {@link #graceUntil}: blocks re-materializing for a moment after a unit went virtual.
@@ -177,7 +176,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // had not changed 19 times out of 20.
         if (now - lastJobArrivalTick >= every(JOB_ARRIVAL_CHECK_INTERVAL, stretch)) {
             lastJobArrivalTick = now;
-            checkJobArrivals(world, now);
+            missions.checkArrivals(world);
         }
 
         // Check for player-triggered materialization
@@ -674,9 +673,9 @@ public class VirtualTravellerManager extends WorldSavedData {
             // a known, accepted simplification, not a bug.
             if (r.groupLeaderUUID != null) {
                 if (r.visit != null) {
-                    tickVirtualVisit(world, r, now);
+                    visits.tick(world, r, now);
                     if (r.visit != null) return;
-                } else if (tryStartFollowerVisit(world, r, now)) {
+                } else if (visits.tryStartFollower(world, r, now)) {
                     return;
                 }
                 VirtualTravellerRecord leaderRec = records.get(r.groupLeaderUUID);
@@ -740,7 +739,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (r.personalTravelGoal != null) {
             double pdx = r.personalTravelGoal.getX() + 0.5 - r.posX;
             double pdz = r.personalTravelGoal.getZ() + 0.5 - r.posZ;
-            if (pdx * pdx + pdz * pdz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
+            if (pdx * pdx + pdz * pdz <= VirtualWorkerMissions.JOB_ARRIVAL_FORCE_DIST * VirtualWorkerMissions.JOB_ARRIVAL_FORCE_DIST) {
                 // Arrived offscreen (straight-line check to the commanded point - unchanged
                 // semantics). Clear the in-transit markers on both the record and its frozen NBT so a
                 // later materialize doesn't re-arm travel from a stale GoingHome/GoingToDuty flag
@@ -770,7 +769,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             r.goal = r.dutyZoneCenter;
             double ddx = r.dutyZoneCenter.getX() + 0.5 - r.posX;
             double ddz = r.dutyZoneCenter.getZ() + 0.5 - r.posZ;
-            if (ddx * ddx + ddz * ddz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
+            if (ddx * ddx + ddz * ddz <= VirtualWorkerMissions.JOB_ARRIVAL_FORCE_DIST * VirtualWorkerMissions.JOB_ARRIVAL_FORCE_DIST) {
                 com.jubitus.travellers.zone.duty.VirtualDutyBehavior behavior =
                         com.jubitus.travellers.zone.duty.VirtualDutyDefs.get(r.dutyKind);
                 if (behavior != null) behavior.tickVirtual(world, r, now);
@@ -846,333 +845,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Follow OFF / no owner / hired-but-anchored: goal stays unchanged so the worker stays put.
     }
 
-    // -------------------------------------------------------------------------
-    // Forced materialization when worker arrives at job destination
-    // -------------------------------------------------------------------------
-
-    private void checkJobArrivals(WorldServer world, long now) {
-        if (records.isEmpty()) return;
-
-        List<VirtualTravellerRecord> hiredArrivals = null;
-        List<UUID> recruitArrivals = null;
-        List<UUID> getEquipArrivals = null;
-        List<UUID> goArrivals = null;
-
-        int dim = world.provider.getDimension();
-        for (VirtualTravellerRecord r : records.values()) {
-            if (r.dimension != dim) continue;
-            if (r.battleId != null) continue; // no job arrivals mid-battle
-
-            // Hired workers on TO_VILLAGE missions: virtual delivery (inventory trade, no chunk load)
-            if (r.isHiredFollower && r.jobGoal != null && "TO_VILLAGE".equals(r.workerMode)) {
-                double dx = r.jobGoal.getX() + 0.5 - r.posX;
-                double dz = r.jobGoal.getZ() + 0.5 - r.posZ;
-                if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
-                    if (hiredArrivals == null) hiredArrivals = new ArrayList<>();
-                    hiredArrivals.add(r);
-                }
-                continue;
-            }
-
-            // GET_EQUIPMENT missions: virtual exchange when near barracks (no chunk loading for pathfinding)
-            if (r.isHiredFollower && r.goal != null && "GET_EQUIPMENT".equals(r.workerMode)) {
-                double dx = r.goal.getX() + 0.5 - r.posX;
-                double dz = r.goal.getZ() + 0.5 - r.posZ;
-                if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
-                    if (getEquipArrivals == null) getEquipArrivals = new ArrayList<>();
-                    getEquipArrivals.add(r.uuid);
-                }
-                continue;
-            }
-
-            // Hired workers on RECRUITING missions: collect for post-iteration processing (records.put inside)
-            if (r.isHiredFollower && r.jobGoal != null && "RECRUITING".equals(r.workerMode)) {
-                double dx = r.jobGoal.getX() + 0.5 - r.posX;
-                double dz = r.jobGoal.getZ() + 0.5 - r.posZ;
-                if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
-                    if (recruitArrivals == null) recruitArrivals = new ArrayList<>();
-                    recruitArrivals.add(r.uuid);
-                }
-                continue;
-            }
-
-            // Hired workers on a plain Go order: arrival is resolved offscreen too, so the player
-            // gets the same notice and the worker anchors exactly as the loaded arrival does.
-            if (r.isHiredFollower && r.goOrderActive && r.goal != null && "IDLE".equals(r.workerMode)) {
-                double dx = r.goal.getX() + 0.5 - r.posX;
-                double dz = r.goal.getZ() + 0.5 - r.posZ;
-                double rad = TravellersConfig.WORKER.workerGoArrivalRadius;
-                if (dx * dx + dz * dz <= rad * rad) {
-                    if (goArrivals == null) goArrivals = new ArrayList<>();
-                    goArrivals.add(r.uuid);
-                }
-                continue;
-            }
-
-        }
-
-        if (goArrivals != null) {
-            for (UUID id : goArrivals) {
-                VirtualTravellerRecord r = records.get(id);
-                if (r != null) finishVirtualGoOrder(world, r);
-            }
-        }
-
-        // GET_EQUIPMENT arrivals: virtual exchange (force-loads only chest chunks, no entity spawn/pathfinding)
-        if (getEquipArrivals != null) {
-            for (UUID id : getEquipArrivals) {
-                VirtualTravellerRecord r = records.get(id);
-                if (r != null) tryVirtualEquipExchange(world, r);
-            }
-        }
-
-        // Hired workers: virtual delivery (chest chunks borrowed for the trade, worker stays virtual then RETURNING)
-        if (hiredArrivals != null) {
-            for (VirtualTravellerRecord r : hiredArrivals) {
-                tryHiredVirtualDelivery(world, r);
-            }
-        }
-
-        // Hired workers on RECRUITING missions: processed after iteration to avoid ConcurrentModificationException
-        if (recruitArrivals != null) {
-            for (UUID id : recruitArrivals) {
-                VirtualTravellerRecord r = records.get(id);
-                if (r != null) tryVirtualRecruitment(world, r);
-            }
-        }
-
-    }
-
-    private void finishVirtualGoOrder(WorldServer world, VirtualTravellerRecord r) {
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.trips.finishGoOrderVirtually(r.goal);
-        NBTTagCompound updatedNbt = new NBTTagCompound();
-        worker.writeToNBT(updatedNbt);
-        r.entityNbt = updatedNbt;
-        r.invalidateNbtCaches();
-
-        r.goOrderActive = false;
-        r.followOrderActive = false;
-        markDirty();
-
-        com.jubitus.travellers.notify.MissionNotifications.arrived(
-                world.getMinecraftServer(), r.followOwnerUUID, r.uuid);
-    }
-
-    private void tryHiredVirtualDelivery(WorldServer world, VirtualTravellerRecord r) {
-        if (r.jobGoal == null) return;
-        if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
-
-        // Build a temporary entity (not spawned) to run the delivery logic
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-
-        // Loads the village's chest chunks only for the trade, then releases them
-        worker.delivery.deliverCargo(r.jobGoal);
-
-        // Persist updated state (empty cargo, money added, mode=RETURNING)
-        NBTTagCompound updatedNbt = new NBTTagCompound();
-        worker.writeToNBT(updatedNbt);
-        com.jubitus.travellers.debug.MissionDebugLog.record(r.uuid, r.name, "virtual-trade-after", updatedNbt);
-        r.entityNbt = updatedNbt;
-        r.invalidateNbtCaches();
-
-        // Update record to RETURNING so the virtual worker heads back to the employer
-        r.workerMode = "RETURNING";
-        r.jobGoal = null;
-        BlockPos returnGoal = worker.getVirtualGoal(); // returns employerReturnPos when RETURNING
-        if (returnGoal != null) r.goal = returnGoal;
-
-        markDirty();
-    }
-
-    private void tryVirtualRecruitment(WorldServer world, VirtualTravellerRecord r) {
-        BlockPos stop = r.jobGoal;
-        if (stop == null) return;
-
-        // Load recruiter temporarily to advance recruit state
-        EntityTravellerWorker recruiter = new EntityTravellerWorker(world);
-        recruiter.readFromNBT(r.entityNbt);
-        recruiter.setUniqueId(r.uuid);
-        recruiter.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-
-        int recruitCount = recruiter.recruit.advanceStopVirtually(stop);
-
-        // Create virtual recruits with proper culture/name via onInitialSpawn
-        EntityPlayer owner = r.followOwnerUUID != null
-                ? world.getPlayerEntityByUUID(r.followOwnerUUID) : null;
-        if (owner != null && recruitCount > 0) {
-            DifficultyInstance diff = new DifficultyInstance(
-                    world.getDifficulty(), world.getWorldTime(), 0, 0.5f);
-
-            for (int i = 0; i < recruitCount; i++) {
-                EntityTravellerWorker recruit = new EntityTravellerWorker(world);
-                recruit.setPosition(stop.getX() + 0.5, stop.getY(), stop.getZ() + 0.5);
-                recruit.onInitialSpawn(diff, null); // sets culture, name, equipment
-                recruit.setHomeVillage(null);
-                recruit.hireAsFollower(owner);
-                recruit.setEscortLeaderUUID(r.uuid); // must be before writeToNBT so it persists
-
-                NBTTagCompound recruitNbt = new NBTTagCompound();
-                recruit.writeToNBT(recruitNbt);
-
-                UUID recruitId = recruit.getUniqueID();
-                VirtualTravellerRecord rec = new VirtualTravellerRecord(
-                        recruitId, stop.getX(), stop.getY(), stop.getZ(),
-                        recruit.rotationYaw, r.dimension, recruitNbt);
-                rec.isHiredFollower = true;
-                rec.name = recruit.getName();
-                rec.ownerColor = recruit.getOwnerMarkColor() & 0xFFFFFF;
-                rec.followOwnerUUID = r.followOwnerUUID;
-                rec.escortLeaderUUID = r.uuid;
-                rec.workerMode = "IDLE";
-                rec.goal = new BlockPos(r.posX, r.posY, r.posZ);
-                records.put(recruitId, rec);
-            }
-
-            org.millenaire.common.village.Building recruitTh = MillSettlements.townHall(world, stop);
-            String villageName = recruitTh != null ? recruitTh.getVillageQualifiedName() : "a village";
-            com.jubitus.travellers.notify.NotificationService.notify(owner,
-                    com.jubitus.travellers.notify.NotificationDefs.RECRUIT_WORKERS_RECRUITED,
-                    String.valueOf(recruitCount), villageName);
-        }
-
-        // Save recruiter updated state
-        NBTTagCompound updatedNbt = new NBTTagCompound();
-        recruiter.writeToNBT(updatedNbt);
-        r.entityNbt = updatedNbt;
-        r.invalidateNbtCaches();
-        r.workerMode = recruiter.getMode().name();
-        r.jobGoal = recruiter.getJobGoal(); // next stop, or null if returning
-        BlockPos nextGoal = recruiter.getVirtualGoal();
-        if (nextGoal != null) r.goal = nextGoal;
-
-        markDirty();
-    }
-
-    private void tryVirtualEquipExchange(WorldServer world, VirtualTravellerRecord r) {
-        BlockPos target = r.goal;
-        if (target == null) return;
-
-        com.jubitus.travellers.unit.equipment.EquipTargetKind kind = r.entityNbt.hasKey("GetEquipTargetKind")
-                ? com.jubitus.travellers.unit.equipment.EquipTargetKind.fromNbt(r.entityNbt.getString("GetEquipTargetKind"))
-                // Legacy records stored a boolean instead - true meant CONTROLLED_VILLAGE.
-                : (r.entityNbt.getBoolean("GetEquipWholeVillage")
-                    ? com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE
-                    : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK);
-        boolean stay = r.entityNbt.getBoolean("GetEquipStay");
-
-        if (kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE) {
-            tryVirtualHorsePickup(world, r, target, stay);
-            return;
-        }
-
-        boolean useWholeVillage = kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE;
-        if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
-
-        // Load only the chest chunks, just for the swap, and release them right after.
-        java.util.List<net.minecraft.world.chunk.Chunk> loadedChunks =
-                com.jubitus.travellers.unit.equipment.WorkerEquipExchanger.loadChestChunks(world, target, useWholeVillage);
-
-        // Temporary entity (not spawned) carries equipment state for the swap
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-
-        int[] equip;
-        try {
-            equip = com.jubitus.travellers.unit.equipment.WorkerEquipExchanger
-                    .exchangeWithFollowers(worker, world, target, useWholeVillage);
-        } finally {
-            com.jubitus.travellers.ground.chunk.LoadedChunks.release(world, loadedChunks);
-        }
-        com.jubitus.travellers.notify.MissionNotifications.equipped(
-                world.getMinecraftServer(), r.followOwnerUUID, equip[0], equip[1]);
-
-        finishVirtualEquip(world, r, worker, target, stay);
-    }
-
-    /**
-     * STABLE branch of {@link #tryVirtualEquipExchange}: zero chunk loading, zero entity spawning
-     * when both the requesting worker and the stable's horse are virtual. The claimed horse's NBT is
-     * captured straight into {@code r.mountNbt}/{@code r.mounted} - the exact same shape
-     * {@code captureMountIfBonded} already uses for any other virtual-bonded mount - so the existing
-     * {@code restoreOrBondMount} materialize path spawns and bonds it later with no code duplicated
-     * here. Never touches {@code TravellerMountSupport.bondSpecificMount} (that's the loaded-arrival
-     * counterpart, which needs an already-materialized rider to bond onto).
-     */
-    private void tryVirtualHorsePickup(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-
-        com.jubitus.travellers.zone.PlayerZoneRecord zone =
-                com.jubitus.travellers.zone.PlayerZoneManager.get(world)
-                        .getByOwnerAndCenter(r.followOwnerUUID, target);
-        if (zone != null) {
-            boolean wantedHorse = worker.getMountUUID() == null && r.mountNbt == null;
-            if (wantedHorse) {
-                NBTTagCompound horseNbt = com.jubitus.travellers.zone.stable.WorkerHorsePickup
-                        .claimReadyHorse(world, zone);
-                if (horseNbt != null) {
-                    r.mountNbt = horseNbt;
-                    r.mounted = true;
-                    r.mountMode = com.jubitus.travellers.mount.MountMode.MOUNTED.name();
-                }
-            }
-            // Same "whoever arrives equips the whole group" precedent as the loaded path.
-            int followerHorses = com.jubitus.travellers.zone.stable.WorkerHorsePickup
-                    .claimForGroupFollowers(world, zone, r.uuid);
-            if (wantedHorse && !r.mounted) {
-                com.jubitus.travellers.zone.stable.WorkerHorsePickup.notifyNothingToEquip(
-                        world, zone, r.followOwnerUUID);
-            }
-            int horses = followerHorses + (wantedHorse && r.mounted ? 1 : 0);
-            if (horses > 0 && r.followOwnerUUID != null) {
-                int total = 1 + com.jubitus.travellers.follow.group.WorkerGroupService
-                        .countFollowers(world.getMinecraftServer(), r.followOwnerUUID, r.uuid);
-                com.jubitus.travellers.notify.MissionNotifications.equipped(
-                        world.getMinecraftServer(), r.followOwnerUUID, horses, total);
-            }
-        }
-
-        finishVirtualEquip(world, r, worker, target, stay);
-    }
-
-    /** Shared tail of both Get-Equipment branches: finalize mission state on the temp entity, persist
-     * it back into the record, and mirror the finished state onto the record itself. */
-    private void finishVirtualEquip(WorldServer world, VirtualTravellerRecord r, EntityTravellerWorker worker,
-                                     BlockPos target, boolean stay) {
-        worker.trips.finishGetEquipVirtually(stay, target);
-        NBTTagCompound updatedNbt = new NBTTagCompound();
-        worker.writeToNBT(updatedNbt);
-        r.entityNbt = updatedNbt;
-        r.invalidateNbtCaches();
-
-        r.workerMode = "IDLE";
-        r.goOrderActive = false;
-        if (stay) {
-            r.followOrderActive = false;
-            r.goal = target;
-        } else {
-            r.followOrderActive = true;
-            // Seed the return goal; refreshGoal will keep it current
-            if (r.followOwnerUUID != null) {
-                net.minecraft.entity.player.EntityPlayer owner = world.getPlayerEntityByUUID(r.followOwnerUUID);
-                if (owner != null && !owner.isDead) r.goal = owner.getPosition();
-            }
-        }
-
-        markDirty();
-    }
-
-    private void tryVirtualDonate(WorldServer world, VirtualTravellerRecord r) {
+    void tryVirtualDonate(WorldServer world, VirtualTravellerRecord r) {
         BlockPos center = r.currentTripStop() != null ? r.currentTripStop() : r.goal;
         if (center == null) return;
         // A gift is skipped rather than delayed when the chest budget is spent this tick.
@@ -1245,7 +918,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     /** Leg finished: move on to the next stop of the trip, or pick a new trip after the last one. */
-    private void advanceTrip(WorldServer world, VirtualTravellerRecord r, long now) {
+    void advanceTrip(WorldServer world, VirtualTravellerRecord r, long now) {
         if (r.tripIndex >= 0 && r.tripIndex < r.tripStops.size() - 1) {
             r.tripIndex++;
             r.itinerary.clear();
@@ -1264,7 +937,7 @@ public class VirtualTravellerManager extends WorldSavedData {
      */
     private void tickRoamRoute(WorldServer world, VirtualTravellerRecord r, long now) {
         if (r.visit != null) {
-            tickVirtualVisit(world, r, now);
+            visits.tick(world, r, now);
             return;
         }
         BlockPos stop = r.currentTripStop();
@@ -1279,7 +952,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             return;
         }
         ItineraryPlanner.tryPlanBacklog(world, r.uuid, r.itinerary, isMountedRecord(r), r.cultureId, now);
-        if (tryStartVirtualVisit(world, r, stop, now)) return;
+        if (visits.tryStart(world, r, stop, now)) return;
         if (legReached(r, stop)) {
             // No stay here (visits off, or no Millénaire data): a worker still leaves its gift.
             if ("WORKER".equals(r.entityClass)) tryVirtualDonate(world, r);
@@ -1287,271 +960,6 @@ public class VirtualTravellerManager extends WorldSavedData {
             return;
         }
         updateGoalFromItinerary(r);
-    }
-
-    // -------------------------------------------------------------------------
-    // Village stays offscreen (see VillageVisitState; the loaded side is EntityAIVillageVisit)
-    // -------------------------------------------------------------------------
-
-    private static boolean visitsEnabledFor(VirtualTravellerRecord r) {
-        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
-        if ("RAIDER".equals(r.entityClass)) return cfg.enabledRaiders;
-        if ("WORKER".equals(r.entityClass)) return cfg.enabledWorkers && !r.isHiredFollower;
-        return cfg.enabledTravellers;
-    }
-
-    /** Starts a stay once the record is inside the stop's arrival radius, like the loaded arrival. */
-    private boolean tryStartVirtualVisit(WorldServer world, VirtualTravellerRecord r, BlockPos stop, long now) {
-        if (!visitsEnabledFor(r)) return false;
-        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
-        double dx = stop.getX() + 0.5 - r.posX;
-        double dz = stop.getZ() + 0.5 - r.posZ;
-        double d2 = dx * dx + dz * dz;
-        int reach = Math.max(cfg.arrivalRadius, cfg.loneBuildingArrivalRadius);
-        if (d2 > (double) reach * reach) return false;
-        if (r.entityNbt != null && r.entityNbt.hasKey("VisitedStop")
-                && BlockPos.fromLong(r.entityNbt.getLong("VisitedStop")).equals(stop)) return false;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, stop);
-        if (s == null) return false;
-        int arrive = s.lone ? cfg.loneBuildingArrivalRadius : cfg.arrivalRadius;
-        if (d2 > (double) arrive * arrive) return false;
-
-        int min = s.lone ? cfg.loneBuildingHaltMinSeconds : cfg.stayMinSeconds;
-        int max = Math.max(min, s.lone ? cfg.loneBuildingHaltMaxSeconds : cfg.stayMaxSeconds);
-        com.jubitus.travellers.village.visit.VillageVisitState st =
-                new com.jubitus.travellers.village.visit.VillageVisitState(stop, 20 * (min + world.rand.nextInt(max - min + 1)), false);
-        startStay(world, r, st, s, now);
-        return true;
-    }
-
-    private void startStay(WorldServer world, VirtualTravellerRecord r, com.jubitus.travellers.village.visit.VillageVisitState st,
-                           com.jubitus.travellers.village.VillageVisitIndex.Settlement s, long now) {
-        if (r.mounted && r.mountNbt != null && TravellersConfig.MOUNTS.hitchMountInVillages
-                && (r.mountMode == null || "MOUNTED".equals(r.mountMode))) {
-            // Tied where the grounds begin, on the side it came from, like the loaded hitch.
-            st.hitchPos = edgePostFor(world, s, r.posX, r.posY, r.posZ);
-            r.mountMode = MountMode.HITCHED.name();
-            if (r.entityNbt != null) r.entityNbt.setLong("VillageHitchStop", st.stop.toLong());
-        }
-        r.visit = st;
-        r.visitClockTick = now;
-        pickVirtualSpot(world, r, s, now);
-        markDirty();
-    }
-
-    /** The point on the settlement's edge between its centre and (x, z), clear of any building. */
-    private static BlockPos edgePostFor(WorldServer world, com.jubitus.travellers.village.VillageVisitIndex.Settlement s,
-                                        double x, double y, double z) {
-        double cx = s.center.getX() + 0.5, cz = s.center.getZ() + 0.5;
-        double dx = x - cx, dz = z - cz;
-        double len = Math.sqrt(dx * dx + dz * dz);
-        if (len < 1.0E-3) {
-            dx = 1.0;
-            len = 1.0;
-        }
-        double edge = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
-        for (int extra = 0; extra <= 8; extra += 2) {
-            double px = cx + dx / len * (edge + extra), pz = cz + dz / len * (edge + extra);
-            if (!com.jubitus.travellers.village.MillFootprints.isForbiddenLanding(world, px, y, pz)) {
-                return new BlockPos(px, y, pz);
-            }
-        }
-        return new BlockPos(cx + dx / len * edge, y, cz + dz / len * edge);
-    }
-
-    /**
-     * The offscreen stay: every few seconds the record moves on to another spot of the village (the
-     * entrance of a building it visits or of a street it strolls, quieter ones preferred, a little
-     * apart from the others), walked there by advanceVirtual. At the end it goes back to its horse's
-     * post, a worker leaves its gift, and the trip moves on. A follower's stay lasts its leader's.
-     */
-    private void tickVirtualVisit(WorldServer world, VirtualTravellerRecord r, long now) {
-        com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, st.stop);
-        if (s == null) {
-            endVirtualVisit(world, r, now);
-            return;
-        }
-        // Capped: a paused simulation (empty server) must not end every stay in one step.
-        long elapsed = r.visitClockTick < 0 ? 0 : Math.min(200L, Math.max(0, now - r.visitClockTick));
-        r.visitClockTick = now;
-        if (st.asFollower) {
-            if (!st.isLeaving() && leaderVisitStop(world, r.groupLeaderUUID) == null) st.remainingTicks = 0;
-        } else if (!st.isLeaving()) {
-            st.remainingTicks -= (int) Math.min(Integer.MAX_VALUE, elapsed);
-        }
-
-        if (!st.isLeaving()) {
-            if (now >= st.nextStepTick) pickVirtualSpot(world, r, s, now);
-            return;
-        }
-
-        // Leaving: back to the horse first.
-        st.spot = null;
-        st.facing = null;
-        if (st.hitchPos != null) {
-            r.goal = st.hitchPos;
-            double dx = st.hitchPos.getX() + 0.5 - r.posX;
-            double dz = st.hitchPos.getZ() + 0.5 - r.posZ;
-            if (dx * dx + dz * dz > 4.0) return;
-            if (st.horseAtPost && !reclaimHorseAtPost(world, r, st, now)) return;
-        }
-        endVirtualVisit(world, r, now);
-    }
-
-    /**
-     * The horse is still standing at its post (its rider went offscreen while it was there). It is
-     * never made to vanish in view: the record waits here until the post's chunk unloads (the horse
-     * then becomes the record's data) or the record itself reappears here. Past the timeout it leaves
-     * without it - the bond stays, and the horse joins it back as data when its chunk is next loaded.
-     */
-    private boolean reclaimHorseAtPost(WorldServer world, VirtualTravellerRecord r,
-                                       com.jubitus.travellers.village.visit.VillageVisitState st, long now) {
-        if (r.mountNbt != null) {
-            st.horseAtPost = false;
-            return true;
-        }
-        if (st.waitingForHorseSince < 0) st.waitingForHorseSince = now;
-        boolean timedOut = now - st.waitingForHorseSince >= TravellersConfig.VILLAGE_VISIT.hitchReclaimTimeoutSeconds * 20L;
-        UUID horseId = r.entityNbt != null && r.entityNbt.hasUniqueId("MountUUID") ? r.entityNbt.getUniqueId("MountUUID") : null;
-        Entity horse = horseId == null ? null : world.getEntityFromUuid(horseId);
-        if (horse == null || horse.isDead) {
-            if (!timedOut) return false;
-            st.horseAtPost = false;
-            return true;
-        }
-        // Frozen ground is still drawn but nothing there moves: a last resort, after the timeout.
-        if (timedOut && isFrozenByVanillaAt(world, horse.posX, horse.posZ)
-                && horse instanceof net.minecraft.entity.passive.EntityHorse
-                && ((net.minecraft.entity.passive.EntityHorse) horse).getHealth() > 0.0F) {
-            NBTTagCompound nbt = com.jubitus.travellers.horse.HorseSnapshots.capture((net.minecraft.entity.passive.EntityHorse) horse);
-            horse.setDead();
-            r.mountNbt = nbt;
-            st.horseAtPost = false;
-            return true;
-        }
-        return false;
-    }
-
-    private void endVirtualVisit(WorldServer world, VirtualTravellerRecord r, long now) {
-        com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
-        r.visit = null;
-        r.visitClockTick = -1L;
-        com.jubitus.travellers.village.visit.VisitOccupancy.release(world, r.uuid);
-        if ("HITCHED".equals(r.mountMode)) r.mountMode = MountMode.MOUNTED.name();
-        if (r.entityNbt != null) r.entityNbt.removeTag("VillageHitchStop");
-        markDirty();
-        // A follower's own trip isn't what brought it here; it simply goes back to following.
-        if (st == null || st.asFollower) return;
-        if ("WORKER".equals(r.entityClass)) tryVirtualDonate(world, r);
-        advanceTrip(world, r, now);
-    }
-
-    /** Draws the record's next spot in the village, the same way the loaded visit draws its targets. */
-    private void pickVirtualSpot(WorldServer world, VirtualTravellerRecord r,
-                                 com.jubitus.travellers.village.VillageVisitIndex.Settlement s, long now) {
-        com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
-        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
-        java.util.Random rng = world.rand;
-        int step = cfg.virtualStepSeconds * 20;
-        st.nextStepTick = now + step / 2 + rng.nextInt(step + 1);
-
-        boolean streetsOnly = "RAIDER".equals(r.entityClass) && !cfg.raidersVisitBuildings;
-        java.util.List<BlockPos> spots = new java.util.ArrayList<>();
-        java.util.List<BlockPos> faces = new java.util.ArrayList<>();
-        java.util.List<Double> weights = new java.util.ArrayList<>();
-        double wStroll = Math.max(0, cfg.weightStroll);
-        double wBuilding = streetsOnly ? 0 : Math.max(0, cfg.weightBuilding);
-        double wPanel = streetsOnly || !cfg.visitPanels ? 0 : Math.max(0, cfg.weightPanel);
-        if (!s.buildings.isEmpty() && wBuilding > 0) {
-            for (com.jubitus.travellers.village.VillageVisitIndex.Target t : s.buildings) {
-                addSpot(world, r, s, t.entrance, t.point, wBuilding / s.buildings.size(), spots, faces, weights);
-            }
-        }
-        if (!s.panelGroups.isEmpty() && wPanel > 0) {
-            for (java.util.List<com.jubitus.travellers.village.VillageVisitIndex.Target> g : s.panelGroups) {
-                com.jubitus.travellers.village.VillageVisitIndex.Target t = g.get(rng.nextInt(g.size()));
-                addSpot(world, r, s, t.entrance, t.point, wPanel / s.panelGroups.size(), spots, faces, weights);
-            }
-        }
-        if (!s.entrances.isEmpty() && (wStroll > 0 || spots.isEmpty())) {
-            double w = Math.max(wStroll, 1.0) / s.entrances.size();
-            for (BlockPos e : s.entrances) addSpot(world, r, s, e, null, w, spots, faces, weights);
-        }
-        if (spots.isEmpty()) {
-            st.spot = s.center;
-            st.facing = null;
-            r.goal = st.spot;
-            return;
-        }
-        double total = 0;
-        for (double w : weights) total += w;
-        double roll = rng.nextDouble() * total;
-        int pick = spots.size() - 1;
-        for (int i = 0; i < spots.size(); i++) {
-            roll -= weights.get(i);
-            if (roll <= 0) {
-                pick = i;
-                break;
-            }
-        }
-        // A little apart from anyone else standing at the same entrance.
-        double angle = rng.nextDouble() * Math.PI * 2.0;
-        double radius = 1.5 + rng.nextDouble() * 1.5;
-        BlockPos base = spots.get(pick);
-        st.spot = new BlockPos(base.getX() + Math.cos(angle) * radius, base.getY(), base.getZ() + Math.sin(angle) * radius);
-        st.facing = faces.get(pick);
-        r.goal = st.spot;
-        com.jubitus.travellers.village.visit.VisitOccupancy.claim(world, r.uuid, st.spot, step * 2);
-    }
-
-    private static void addSpot(WorldServer world, VirtualTravellerRecord r,
-                                com.jubitus.travellers.village.VillageVisitIndex.Settlement s,
-                                @Nullable BlockPos entrance, @Nullable BlockPos point, double weight,
-                                java.util.List<BlockPos> spots, java.util.List<BlockPos> faces, java.util.List<Double> weights) {
-        // Offscreen visitors stand outside: at the entrance, never at an indoor point.
-        BlockPos at = entrance;
-        if (at == null && point != null && com.jubitus.travellers.village.MillFootprints.at(world,
-                point.getX() + 0.5, point.getY(), point.getZ() + 0.5, 0) == null) at = point;
-        if (at == null || weight <= 0) return;
-        double crowd = com.jubitus.travellers.village.visit.VisitOccupancy.crowdFactor(world, at, 4.0, r.uuid,
-                TravellersConfig.VILLAGE_VISIT.crowdPenalty);
-        spots.add(at);
-        faces.add(point != null ? point : null);
-        weights.add(weight * crowd);
-    }
-
-    /** The village a group leader (loaded or offscreen) is staying in right now, or null. */
-    @Nullable
-    private BlockPos leaderVisitStop(WorldServer world, @Nullable UUID leaderId) {
-        if (leaderId == null) return null;
-        VirtualTravellerRecord leaderRec = records.get(leaderId);
-        if (leaderRec != null) {
-            com.jubitus.travellers.village.visit.VillageVisitState lv = leaderRec.visit;
-            return lv != null && !lv.isLeaving() && !lv.asFollower ? lv.stop : null;
-        }
-        Entity live = world.getEntityFromUuid(leaderId);
-        if (!(live instanceof EntityTraveller) || live.isDead) return null;
-        com.jubitus.travellers.village.visit.EntityAIVillageVisit v = ((EntityTraveller) live).getVillageVisitAI();
-        return v != null && v.isStaying() ? v.getVisitStop() : null;
-    }
-
-    /** A group follower record inside the village its leader stays in visits on its own until the leader leaves. */
-    private boolean tryStartFollowerVisit(WorldServer world, VirtualTravellerRecord r, long now) {
-        if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !visitsEnabledFor(r)) return false;
-        BlockPos stop = leaderVisitStop(world, r.groupLeaderUUID);
-        if (stop == null) return false;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, stop);
-        if (s == null) return false;
-        double dx = s.center.getX() + 0.5 - r.posX;
-        double dz = s.center.getZ() + 0.5 - r.posZ;
-        double rad = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
-        if (dx * dx + dz * dz > rad * rad) return false;
-        startStay(world, r, new com.jubitus.travellers.village.visit.VillageVisitState(stop, Integer.MAX_VALUE / 2, true), s, now);
-        return true;
     }
 
     /**
@@ -1902,63 +1310,6 @@ public class VirtualTravellerManager extends WorldSavedData {
     // -------------------------------------------------------------------------
 
     /**
-     * After readFromNBT, the entity reflects state at virtualization time. This method
-     * applies whatever the live record fields say, overriding stale NBT values for the
-     * fields that commands can change while the worker is virtual (follow order, go order,
-     * escort leader). Called once, immediately after readFromNBT in materializeWorker.
-     */
-    private static void applyRecordStateToWorker(VirtualTravellerRecord r, EntityTravellerWorker worker) {
-        // Escort leader may have changed while virtual (create/assign/merge/come-back commands).
-        if (!java.util.Objects.equals(r.escortLeaderUUID, worker.getEscortLeaderUUID())) {
-            worker.setEscortLeaderUUID(r.escortLeaderUUID);
-        }
-
-        // Go Home / Go To Duty travel was already re-armed from the frozen NBT by readEntityFromNBT.
-        // That is legitimate self-travel toward a fixed destination, not a stale follow route - leave
-        // it fully intact (cancelGoOrderAndTravel below would wipe the route/target/readyToDepart and
-        // strand the worker where it materialized). startGoHome/startDutyTravel already cleared any
-        // go order or escort link, so there is nothing else here to reconcile.
-        if (worker.isGoingHome() || worker.trips.isGoingToDuty()) return;
-
-        // D-2: a non-recruited idle worker roaming village-to-village. materializeEntity's worker
-        // branch restores its final destination (restoreVirtualRoute) right after this call, and the
-        // loaded roam AI then drives the leg - leave it alone here, exactly like Go Home / Go To Duty
-        // above (the cancelGoOrderAndTravel paths below would strand it).
-        if (!r.isHiredFollower && "IDLE".equals(r.workerMode) && r.personalTravelGoal == null
-                && r.escortLeaderUUID == null) {
-            return;
-        }
-
-        if (r.goOrderActive && r.goal != null) {
-            // Go order active (possibly a destination issued while virtual): (re)issue it.
-            // startGoToDestination rebuilds the travel route from scratch, so any stale route baked into
-            // the frozen NBT is overwritten here.
-            if (!worker.trips.isGoOrderActive() || !r.goal.equals(worker.trips.getGoOrderTargetPos())) {
-                worker.trips.startGoTo(r.goal, r.dimension);
-            }
-            return;
-        }
-
-        // No go order in the record. A mission (workerMode != IDLE) or a non-hired roaming worker drives
-        // its own travel from its mode, so leave that restored travel state intact - only drop a stale go
-        // order the frozen NBT may still carry and re-enable follow if the record wants it.
-        if (!"IDLE".equals(r.workerMode) || !r.isHiredFollower) {
-            if (worker.trips.isGoOrderActive()) worker.trips.cancelGoOrder();
-            if (r.followOrderActive && !worker.isFollowOrderActive()) worker.setFollowOrderActive(true);
-            return;
-        }
-
-        // Hired + IDLE + no go order = following the owner/escort leader, or anchored in place. In every
-        // such case the worker must NOT keep a stale travel route/target from the frozen NBT, or the
-        // travel AI walks it off to that old location on materialize (the "just-promoted leader heads back
-        // toward its old group / old location, oscillating at the view border" bug). cancelGoOrderAndTravel
-        // clears the go order AND the leftover route/targetVillage/readyToDepart; follow/anchor then drive
-        // movement from the record's followOrderActive.
-        worker.trips.cancelGoOrder();
-        worker.setFollowOrderActive(r.followOrderActive);
-    }
-
-    /**
      * A palfrenier materializing at night reappears already asleep in its assigned Stable bed,
      * rather than walking there from wherever it spawned - unless it was pulled into a virtual
      * battle (r.battleId set), in which case it materializes awake and fighting via the normal path.
@@ -2025,67 +1376,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     public boolean virtualizeWorker(WorldServer world, EntityTravellerWorker worker, long now) {
         if (records.containsKey(worker.getUniqueID())) return false;
 
-        // The sleep pose (palfrenier in its Stable bed at night) is a purely-loaded cosmetic state,
-        // never simulated or persisted - clear it before snapshotting so entityNbt can't freeze a
-        // 0.2-wide hitbox / pinned position. Re-derived on materialize (see materializeEntity).
-        if (worker.sleep.isSleeping()) worker.sleep.wakeUp();
-
-        NBTTagCompound entityNbt = new NBTTagCompound();
-        worker.writeToNBT(entityNbt); // full NBT: name, culture, voice, equipment, etc.
-        com.jubitus.travellers.debug.MissionDebugLog.record(worker.getUniqueID(), worker.getName(), "virtualize", entityNbt);
-
-        VirtualTravellerRecord r = new VirtualTravellerRecord(
-                worker.getUniqueID(),
-                worker.posX, worker.posY, worker.posZ,
-                worker.rotationYaw,
-                world.provider.getDimension(),
-                entityNbt
-        );
-
-        r.isHiredFollower = worker.isHiredFollower();
-        r.name = worker.getName();
-        r.ownerColor = worker.getOwnerMarkColor() & 0xFFFFFF;
-        r.followOwnerUUID = worker.getFollowOwnerUUID();
-        r.followOrderActive = worker.isFollowOrderActive();
-        r.isCatchupMode = worker.isCatchupTravel();
-        r.catchupTargetUUID = worker.catchup.getTargetId();
-        r.workerMode = worker.getMode().name();
-        r.jobGoal = worker.getJobGoal();
-        r.goOrderActive = worker.trips.isGoOrderActive();
-        // Duty assignment + personal self-travel (Go Home / Go To Duty): a loaded worker that
-        // virtualizes mid-route would otherwise drop these and stall offscreen (nothing refreshes
-        // its goal), only resuming when a player walks back into range.
-        r.dutyKind = worker.getDutyKind();
-        r.dutyZoneCenter = worker.getDutyZoneCenter();
-        r.goingHome = worker.isGoingHome();
-        r.goingToDuty = worker.trips.isGoingToDuty();
-        r.personalTravelGoal = worker.trips.getActivePersonalTravelGoal();
-        r.homeVillage = worker.getHomeVillage();
-        r.escortLeaderUUID = worker.getEscortLeaderUUID();
-        r.captureIdentityFromNbt();
-        r.virtualizedTick = now;
-
-        // Seed the persistent formation slot from the loaded coordinator's current ordinal (if any)
-        // so VirtualFormationSimulator keeps the worker in the same slot instead of appending it
-        // at the back of the line the moment it goes virtual.
-        if (r.escortLeaderUUID != null && r.formationOrdinal < 0) {
-            r.formationOrdinal = com.jubitus.travellers.follow.FollowFormationCoordinator
-                    .snapshotOrdinal(r.escortLeaderUUID, world.provider.getDimension(), worker.getUniqueID());
-        }
-
-        // Compute initial goal
-        BlockPos initialGoal = worker.getVirtualGoal();
-        r.goal = initialGoal;
-        r.health = worker.getHealth();
-
-        // A non-recruited idle worker roams village-to-village offscreen exactly like a traveller:
-        // capture its trip. Hired / escort / mission / personal-travel workers keep no trip.
-        if (!r.isHiredFollower && "IDLE".equals(r.workerMode) && r.personalTravelGoal == null
-                && r.escortLeaderUUID == null) {
-            captureTrip(worker, r);
-        }
-        handOverItinerary(worker, r);
-        handOverVisit(worker, r);
+        VirtualTravellerRecord r = VirtualSnapshot.captureWorker(world, worker, now);
 
         // getVirtualGoal()'s escort/follow-owner branches deliberately seed the raw leader/owner
         // position with no formation offset applied (see its own comment) - by design that's only
@@ -2101,82 +1392,24 @@ public class VirtualTravellerManager extends WorldSavedData {
 
         // Non-hired workers camp exactly like travellers; re-derive occupation from the campsite.
         if (TravellersConfig.CAMP_EVENTS.workersCanCamp && !r.isHiredFollower) {
-            deriveCampOccupation(world, worker.getUniqueID(), now, r);
+            VirtualSnapshot.deriveCampOccupation(world, worker.getUniqueID(), now, r);
         }
 
+        // Followers are NOT force-virtualized here; each one virtualizes individually
+        // once it leaves the player's view distance (via checkVirtualize).
+        return commitVirtualized(world, worker, r, now);
+    }
+
+    /** Final step of both virtualize doors: the record takes the identity, then the body leaves the world. */
+    private boolean commitVirtualized(WorldServer world, EntityTraveller entity, VirtualTravellerRecord r, long now) {
         records.put(r.uuid, r);
         materializeGraceUntil.put(r.uuid, now + TravellersConfig.MATERIALIZATION.rematerializeGraceTicks);
         com.jubitus.travellers.battle.VirtualBattleManager.get(world)
                 .restoreBattleIdIfParticipant(r);
-
-        captureMountIfBonded(worker, r);
-        worker.setDead();
-
+        VirtualMounts.captureIfBonded(entity, r);
+        entity.setDead();
         markDirty();
-        // Followers are NOT force-virtualized here; each one virtualizes individually
-        // once it leaves the player's view distance (via checkVirtualize).
         return true;
-    }
-
-    /**
-     * Captures a bonded horse's full state (identity, tame/saddle, attributes, age, color) into the
-     * record and removes it from the world, mirroring how {@code entity} itself goes virtual instead
-     * of despawning. Restored by the matching branch in {@link #materializeEntity}. No-op if the
-     * entity isn't currently riding its bonded mount.
-     */
-    private void captureMountIfBonded(EntityTraveller entity, VirtualTravellerRecord r) {
-        // A mount already captured off-body for a solo boat crossing (EntityAITravel) takes priority -
-        // it must be carried into the record instead of silently lost, however long entity itself
-        // now stays virtual before that crossing would have finished.
-        MountMode mode = entity.mountState.getMountMode();
-        boolean tiedAtVillage = mode == MountMode.HITCHED && entity.getVillageHitchStop() != null && r.visit != null;
-        NBTTagCompound pending = entity.mountState.getPendingMountNbt();
-        if (pending != null) {
-            // Held as data already (tied at an unloaded post): it stays tied there, as the record's data.
-            r.mountNbt = pending;
-            r.mounted = true;
-            r.mountMode = (mode == MountMode.LED ? MountMode.MOUNTED : mode).name();
-            if (tiedAtVillage && entity.mountState.getPendingMountPos() != null) r.visit.hitchPos = entity.mountState.getPendingMountPos();
-            entity.mountState.setParkedMount(null, null);
-            r.entityNbt.removeTag("PendingMountNbt");
-            r.entityNbt.removeTag("PendingMountPos");
-            return;
-        }
-
-        if (tiedAtVillage) {
-            net.minecraft.entity.passive.EntityHorse horse = TravellerMountSupport.getBondedHorse(entity);
-            if (horse != null && horse.getHealth() > 0.0F) {
-                r.visit.hitchPos = horse.getPosition();
-                r.mounted = true;
-                r.mountMode = MountMode.HITCHED.name();
-                if (horse.getDistanceSq(entity) > HORSE_LEFT_AT_POST_BLOCKS * HORSE_LEFT_AT_POST_BLOCKS) {
-                    // Standing at its post, maybe in view: it stays there. The record comes back past
-                    // the post before leaving (tickVirtualVisit), and gets it as data if the post's
-                    // chunk unloads first (handleBondedHorseChunkUnload -> captureOrphanedMount).
-                    r.visit.horseAtPost = true;
-                    return;
-                }
-            }
-        }
-
-        NBTTagCompound mountNbt = TravellerMountSupport.captureMount(entity);
-        if (mountNbt == null) {
-            // The horse isn't loaded (its chunk unloaded on another tick, or it was never reloaded
-            // after a restart). The bond is kept: MountBondLoadHandler hands that horse to this record
-            // the moment it loads, and the bond generation keeps any rebuilt copy from becoming a twin.
-            return;
-        }
-        r.mountNbt = mountNbt;
-        if (r.visit != null) r.visit.horseAtPost = false;
-        // LED is a transient loaded-only reconciler state (terrain fallback, boat/water crossing);
-        // its recovery tracking never persists and there is no terrain to path offscreen anyway, so
-        // freezing a record as LED is what strands a materialized rider on foot forever. Record
-        // MOUNTED; if the ground where it materializes really is impassable, the loaded AI re-derives
-        // LED on the next failed path. Mirrors EntityTraveller.writeEntityToNBT.
-        r.mountMode = (mode == MountMode.LED ? MountMode.MOUNTED : mode).name();
-        // Covers mounts bonded outside the spawn-roll path too (e.g. /travellersdebug mount give),
-        // where r.mounted was never rolled true - riding a bonded mount is definitive either way.
-        r.mounted = true;
     }
 
     /**
@@ -2222,59 +1455,6 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     /**
-     * Symmetric counterpart to {@link #captureMountIfBonded}: restores the exact same horse (same
-     * UUID, same tame/saddle/attributes/age/color) from {@code r.mountNbt} if one was captured, or
-     * bonds a brand new one via {@link TravellerMountSupport#bondNewMount} for a record that rolled
-     * mounted at spawn (Phase 1) but never actually went virtual while mounted before. No-op if
-     * neither applies. Must run after {@code entity} is already spawned into {@code world}.
-     */
-    private void restoreOrBondMount(WorldServer world, EntityTraveller entity, VirtualTravellerRecord r) {
-        if (r.mountMode != null) {
-            entity.mountState.setMountModeRaw(com.jubitus.travellers.mount.MountMode.byName(r.mountMode));
-        }
-        com.jubitus.travellers.village.visit.VillageVisitState visit = r.visit;
-        if (visit != null && visit.hitchPos != null && (r.mountNbt != null || visit.horseAtPost)) {
-            // Tied at the village edge: the horse belongs at its post, not beside the rider. Held as
-            // data until that ground is loaded (TravellerMountSupport.tickParkedMount), or already
-            // standing there.
-            entity.mountState.setMountModeRaw(MountMode.HITCHED);
-            entity.setVillageHitchStop(visit.stop);
-            if (r.mountNbt != null) entity.mountState.setParkedMount(r.mountNbt, visit.hitchPos);
-            return;
-        }
-        if (r.mountNbt != null) {
-            // TravellerMountSupport.restoreMount re-syncs speed to the live config and strips the
-            // horse's own AI itself - see its doc for why both matter on every restore, not just a
-            // fresh bond.
-            TravellerMountSupport.restoreMount(entity, r.mountNbt);
-        } else if (r.mounted) {
-            TravellerMountSupport.bondNewMount(entity);
-        }
-    }
-
-    /**
-     * Re-derives {@code r.campSiteId}/{@code campSlotIndex} from the campsite occupant (the source of
-     * truth) at virtualize time, and resets the occupant's virtual build clock so loaded time spent
-     * pacing/fighting between block placements doesn't retroactively convert into virtual progress.
-     * Shared by traveller/raider and (non-hired, idle) worker virtualization.
-     */
-    private void deriveCampOccupation(WorldServer world, UUID uuid, long now, VirtualTravellerRecord r) {
-        CampsiteRecord camp = CampsiteManager.get(world).campOf(uuid);
-        if (camp == null) return;
-        for (Map.Entry<Integer, CampOccupant> e : camp.occupants.entrySet()) {
-            if (e.getValue().travellerUUID.equals(uuid)) {
-                r.campSiteId = camp.id;
-                r.campSlotIndex = e.getKey();
-                CampOccupant occ = e.getValue();
-                if (occ.buildState != CampOccupant.BuildState.BUILT) {
-                    occ.lastProgressTick = now;
-                }
-                break;
-            }
-        }
-    }
-
-    /**
      * Virtualizes a non-worker EntityTraveller (traveller or raider). Returns true if it actually
      * went offscreen - see {@link #virtualizeWorker} for why the duplicate case refuses rather than
      * overwriting, and why callers must not assume success.
@@ -2282,88 +1462,8 @@ public class VirtualTravellerManager extends WorldSavedData {
     public boolean virtualizeTraveller(WorldServer world, EntityTraveller entity, long now) {
         if (records.containsKey(entity.getUniqueID())) return false;
 
-        NBTTagCompound entityNbt = new NBTTagCompound();
-        entity.writeToNBT(entityNbt);
-
-        VirtualTravellerRecord r = new VirtualTravellerRecord(
-                entity.getUniqueID(),
-                entity.posX, entity.posY, entity.posZ,
-                entity.rotationYaw,
-                world.provider.getDimension(),
-                entityNbt
-        );
-
-        r.entityClass = entity instanceof EntityTravellerRaider ? "RAIDER" : "TRAVELLER";
-        r.groupLeaderUUID = entity.getGroupLeaderUUID();
-        r.groupFormationStyle = entity.getGroupFormationStyle().name();
-        // The entity's own home identity is authoritative — TravellerSoftSpawner's population
-        // accounting reads r.homeVillage directly, so this must stay in sync with it. Deliberately
-        // NEVER overwritten by a "nearest village" proximity guess below: a traveller virtualizing
-        // far from home (the normal case — that's the whole point of travelling) must keep counting
-        // toward the village that actually spawned it, not get silently "adopted" by whichever
-        // village it happens to be nearest to at this exact moment. An earlier version of this method
-        // did exactly that unconditionally, re-labelling every traveller's home on every virtualize —
-        // which fed the same undercounting/over-spawn bug this field was added to fix in the first
-        // place (see population-overshoot fix notes), just one layer deeper.
-        r.homeVillage = entity.getHomeVillage();
-        r.captureIdentityFromNbt();
-
-        deriveCampOccupation(world, entity.getUniqueID(), now, r);
-
-        // Fallback only: an entity that never got a home identity at all (a save from before this
-        // field existed) approximates one via nearest village, once, and the assignment is made
-        // sticky on the entity itself so it doesn't need to keep guessing on every future virtualize.
-        if (r.homeVillage == null) {
-            MillSettlements.Settlement nearest = MillSettlements.nearest(world, entity.getPosition(), 3000);
-            if (nearest != null) {
-                r.homeVillage = new BlockPos(nearest.center.getX(), 0, nearest.center.getZ());
-                entity.setHomeVillage(r.homeVillage);
-            }
-        }
-
-        captureTrip(entity, r);
-        handOverItinerary(entity, r);
-        handOverVisit(entity, r);
-
-        r.virtualizedTick = now;
-        r.health = entity.getHealth();
-
-        records.put(r.uuid, r);
-        materializeGraceUntil.put(r.uuid, now + TravellersConfig.MATERIALIZATION.rematerializeGraceTicks);
-        com.jubitus.travellers.battle.VirtualBattleManager.get(world)
-                .restoreBattleIdIfParticipant(r);
-        captureMountIfBonded(entity, r);
-        entity.setDead();
-        markDirty();
-        return true;
-    }
-
-    /** Copies the loaded village trip (TravelCommon.route/routeIndex) onto the record. */
-    private static void captureTrip(EntityTraveller entity, VirtualTravellerRecord r) {
-        List<BlockPos> liveRoute = entity.getTravelRoute();
-        int liveIndex = entity.getVillageRouteIndex();
-        if (!liveRoute.isEmpty() && liveIndex >= 0 && liveIndex < liveRoute.size()) {
-            r.setTrip(liveRoute, liveIndex);
-            r.goal = liveRoute.get(liveIndex);
-        } else if (entity.getTravelCommon().getTargetVillage() != null) {
-            r.setTrip(java.util.Collections.singletonList(entity.getTravelCommon().getTargetVillage()), 0);
-            r.goal = entity.getTravelCommon().getTargetVillage();
-        }
-    }
-
-    /** Moves the entity's village stay onto the record as-is (never duplicated in entityNbt). */
-    private static void handOverVisit(EntityTraveller entity, VirtualTravellerRecord r) {
-        r.visit = entity.getVillageVisitState();
-        entity.setVillageVisitState(null);
-        r.entityNbt.removeTag(com.jubitus.travellers.village.visit.VillageVisitState.NBT_KEY);
-        if (r.visit != null) r.visit.nextStepTick = 0L;
-    }
-
-    /** Moves the entity's itinerary + cursor onto the record as-is (never duplicated in entityNbt). */
-    private static void handOverItinerary(EntityTraveller entity, VirtualTravellerRecord r) {
-        r.itinerary = entity.getItineraryState();
-        entity.setItineraryState(null);
-        r.entityNbt.removeTag(EntityTraveller.ITINERARY_NBT_KEY);
+        VirtualTravellerRecord r = VirtualSnapshot.captureTraveller(world, entity, now);
+        return commitVirtualized(world, entity, r, now);
     }
 
     /** Pairing of the raw camp slot (or null if not camping) and the resolved safe spawn position. */
@@ -2504,24 +1604,9 @@ public class VirtualTravellerManager extends WorldSavedData {
         entity.motionZ = 0;
 
         if (isWorker) {
-            applyRecordStateToWorker(r, (EntityTravellerWorker) entity);
+            VirtualSnapshot.applyToWorker(r, (EntityTravellerWorker) entity);
         } else {
-            // Unconditional: entityNbt may still carry a stale (e.g. dead-leader) UUID that r.groupLeaderUUID
-            // has since cleared (see VirtualBattleManager.endBattle) — always overwrite, null included.
-            entity.setGroupLeaderUUID(r.groupLeaderUUID);
-            // Same unconditional-overwrite reasoning: the record is authoritative for population
-            // accounting (TravellerSoftSpawner), entityNbt is just a frozen snapshot.
-            entity.setHomeVillage(r.homeVillage);
-            if (r.groupFormationStyle != null) {
-                try {
-                    entity.setGroupFormationStyle(
-                            com.jubitus.travellers.follow.formations.WorkerFormationStyle
-                                    .valueOf(r.groupFormationStyle));
-                } catch (IllegalArgumentException ignored) {
-                    entity.setGroupFormationStyle(
-                            com.jubitus.travellers.follow.formations.WorkerFormationStyle.RING);
-                }
-            }
+            VirtualSnapshot.applyToTraveller(r, entity);
         }
 
         // The trip moved on offscreen: a visit finished before virtualizing says nothing about now.
@@ -2549,7 +1634,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 && !r.isHiredFollower && "IDLE".equals(r.workerMode)
                 && r.personalTravelGoal == null && r.escortLeaderUUID == null) {
             // A non-recruited idle worker that was roaming gets its trip back, same rule as travellers.
-            // Every other worker case is handled by applyRecordStateToWorker above.
+            // Every other worker case is handled by VirtualSnapshot.applyToWorker above.
             entity.restoreVirtualRoute(r.tripStops, r.tripIndex);
         }
 
@@ -2568,7 +1653,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             return false;
         }
 
-        restoreOrBondMount(world, entity, r);
+        VirtualMounts.restoreOrBond(entity, r);
         if (isWorker) {
             maybeRestoreStableSleep(world, (EntityTravellerWorker) entity, r);
         }
