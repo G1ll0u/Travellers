@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 /**
  * A loaded unit leaving the world for the offscreen simulation on its own initiative: the loaded
  * border probe, the stuck-at-border hand-off, and the forced hand-off that resolves soft blockers.
- * Whether it may virtualize at all stays on the unit ({@code canVirtualize*}, subclass hooks).
+ * Whether it may virtualize at all is {@link VirtualizationGate}.
  */
 public final class TravellerHandOff {
 
@@ -109,10 +109,10 @@ public final class TravellerHandOff {
     }
 
     /**
-     * Virtualize now, resolving the soft blockers {@code EntityTraveller.canVirtualizeIgnoringCombat()} normally
+     * Virtualize now, resolving the soft blockers {@link VirtualizationGate} normally
      * obeys instead of waiting them out: a boat this mod spawned is dismounted and killed, and a
      * raised hand is dropped. A bonded horse mount is NOT dismounted here - it is an allowed rider
-     * (see {@code EntityTraveller.canVirtualizeIgnoringCombat()}) and {@code tryVirtualize()} below captures it
+     * (see {@link VirtualizationGate}) and {@code tryVirtualize()} below captures it
      * along with the entity.
      *
      * <p>Used by the two paths that get no second chance. {@link com.jubitus.travellers.virtual.ChunkUnloadVirtualizeHandler}

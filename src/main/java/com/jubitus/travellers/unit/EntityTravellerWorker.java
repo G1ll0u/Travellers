@@ -1667,19 +1667,23 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     @Override
-    public boolean canVirtualizeIgnoringCombat() {
-        if (!super.canVirtualizeIgnoringCombat()) return false;
-        if (delivery.awaitingPickup) return false;
+    public boolean combatBlocksVirtualization() {
+        return true;
+    }
+
+    @Override
+    public boolean isBusyForVirtualization() {
+        if (delivery.awaitingPickup) return true;
         if (mode == WorkerMode.TO_VILLAGE && delivery.jobVillageCenter != null) {
-            if (getDistanceSqToCenter(delivery.jobVillageCenter) < 48.0 * 48.0) return false;
+            if (getDistanceSqToCenter(delivery.jobVillageCenter) < 48.0 * 48.0) return true;
         }
         if (mode == WorkerMode.RECRUITING && recruit.getCurrentStop() != null) {
-            if (getDistanceSqToCenter(recruit.getCurrentStop()) < 24.0 * 24.0) return false;
+            if (getDistanceSqToCenter(recruit.getCurrentStop()) < 24.0 * 24.0) return true;
         }
         if (mode == WorkerMode.GET_EQUIPMENT && trips.getGoOrderTargetPos() != null) {
-            if (getDistanceSqToCenter(trips.getGoOrderTargetPos()) < 48.0 * 48.0) return false;
+            if (getDistanceSqToCenter(trips.getGoOrderTargetPos()) < 48.0 * 48.0) return true;
         }
-        return true;
+        return false;
     }
 
     private void tickAnchorDefense() {

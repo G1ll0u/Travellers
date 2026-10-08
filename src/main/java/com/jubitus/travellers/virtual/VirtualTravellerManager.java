@@ -8,6 +8,7 @@ import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.VirtualizationGate;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.pathing.MPBIntegration;
 import com.jubitus.travellers.pathing.PathBody;
@@ -1741,7 +1742,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             // frozen one never will, and worse, several of those states can no longer end: an entity
             // that stopped ticking mid-meal keeps isHandActive() forever. Honouring the gate here is
             // therefore the same as leaving it standing at the border for good.
-            if (!frozen && !canVirtualizeMaybeBattling(worker, battleMgr)) { virtualizeWatch.remove(id); continue; }
+            if (!frozen && !VirtualizationGate.mayVirtualize(worker, battleMgr.isParticipant(id))) { virtualizeWatch.remove(id); continue; }
             if (!tickUnneededWatch(id, worker, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", worker);
             if (frozen) {
@@ -1760,7 +1761,7 @@ public class VirtualTravellerManager extends WorldSavedData {
             // (RaiderAttackTargetAI) and stay "in combat" (travellerNoAggroOffscreen) for as long as that
             // player is nearby. Virtualization eligibility must ignore that state entirely, or a raider
             // idling near a stationary player it's eyeing would never leave the world.
-            if (!frozen && !entity.canVirtualizeIgnoringCombat()) { virtualizeWatch.remove(id); continue; }
+            if (!frozen && !VirtualizationGate.mayVirtualize(entity, battleMgr.isParticipant(id))) { virtualizeWatch.remove(id); continue; }
             if (!tickUnneededWatch(id, entity, world, now, unneededTicks, frozen)) continue;
             VirtualizationLog.virtualize(frozen ? "frozen by vanilla" : "chunk not loaded", entity);
             if (frozen) {
@@ -1901,13 +1902,6 @@ public class VirtualTravellerManager extends WorldSavedData {
         net.minecraftforge.fml.common.FMLLog.log.info(
                 "[Travellers/Frozen] {} at ({}, {}) was no longer ticked by vanilla -> virtualize {}",
                 entity.getName(), (int) entity.posX, (int) entity.posZ, ok ? "OK" : "REFUSED");
-    }
-
-    /** Battle participants may re-virtualize mid-combat (the sim takes over); others keep the combat gate. */
-    private static boolean canVirtualizeMaybeBattling(
-            EntityTraveller entity, com.jubitus.travellers.battle.VirtualBattleManager battleMgr) {
-        if (entity.canVirtualize()) return true;
-        return battleMgr.isParticipant(entity.getUniqueID()) && entity.canVirtualizeIgnoringCombat();
     }
 
     // -------------------------------------------------------------------------

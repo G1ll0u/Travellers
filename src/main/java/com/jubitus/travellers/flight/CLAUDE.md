@@ -8,4 +8,4 @@ Any `EntityTraveller` wearing a usable elytra can glide (`TravellersConfig.ELYTR
 - `ElytraCapability.canKeepFlying()` is looser than `canTakeOff()`: combat mid-air ends flight by landing.
 - **Every exit path terminates**: ground or liquid contact ends a flight, `land()` clears the flag unconditionally, a hard tick ceiling backstops it. Fall damage is cancelled per tick while flaring.
 - `ElytraOpportunityScanner` decides takeoffs (glide line clear), budgeted, never loads a chunk.
-- **Loaded-only**: `canVirtualize()` refuses mid-flight; loading/materializing always clears flag 7 and resets the controller.
+- **Loaded-only**: `VirtualizationGate` refuses mid-flight; loading/materializing always clears flag 7 and resets the controller.

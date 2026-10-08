@@ -2692,12 +2692,14 @@ public void fall(float distance, float damageMultiplier) {
         travelCommon.setVisitedStop(null);
     }
 
-    /**
-     * Returns true if this entity can safely be virtualized (removed from world and simulated offscreen).
-     * Does NOT check player distance — that is the caller's responsibility.
-     */
-    public boolean canVirtualize() {
-        return !isInCombat() && canVirtualizeIgnoringCombat();
+    /** Whether a fight keeps this unit loaded (a virtual battle participant is exempt). Workers only. */
+    public boolean combatBlocksVirtualization() {
+        return false;
+    }
+
+    /** Role-specific reason to stay loaded for now (a worker mid-mission); see {@link VirtualizationGate}. */
+    public boolean isBusyForVirtualization() {
+        return false;
     }
 
     public void setDebugPathTest(boolean value) {
@@ -2706,21 +2708,6 @@ public void fall(float distance, float damageMultiplier) {
 
     public boolean isDebugPathTest() {
         return debugPathTest;
-    }
-
-    /** Combat-agnostic eligibility — virtual battle participants may virtualize mid-fight. */
-    public boolean canVirtualizeIgnoringCombat() {
-        if (debugPathTest) return false;
-        if (isDead) return false;
-        if (isHandActive()) return false;
-        // A bonded mount comes along into virtualization (see VirtualTravellerManager); any other
-        // ride (boat, someone else's horse) still blocks, same as before.
-        if (isRiding() && !isMountedOnBondedMount()) return false;
-        // Mid-flight there is no sane position to hand to the offscreen simulation, which only ever
-        // walks records along the ground. forceVirtualizeResolvingBlockers() overrides this, as it
-        // does for the other soft blockers here.
-        if (elytraFlight.isActive()) return false;
-        return true;
     }
 
     /**
