@@ -31,7 +31,7 @@ public final class TravellerBoats {
     public static boolean isOnWater(World world, EntityBoat boat) {
         BlockPos pos = new BlockPos(MathHelper.floor(boat.posX), MathHelper.floor(boat.posY - 0.2D), MathHelper.floor(boat.posZ));
         if (!world.isBlockLoaded(pos)) return false;
-        return BlockRules.isVanillaWater(world.getBlockState(pos)) || BlockRules.isVanillaWater(world.getBlockState(pos.down()));
+        return BlockRules.isWater(world.getBlockState(pos)) || BlockRules.isWater(world.getBlockState(pos.down()));
     }
 
     public static float yawToward(double dx, double dz) {

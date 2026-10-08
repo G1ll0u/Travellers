@@ -1,4 +1,4 @@
-# Automated server tests — Claude builds, runs and reads in-game tests itself
+    # Automated server tests — Claude builds, runs and reads in-game tests itself
 
 **Status (2026-10-06)**: steps 1-4 done, bugs 1, 2, 4 fixed; step 5 paused (user) while a fresh agent reviews the mount system (`docs/mount-system-review.md`).
 
@@ -45,8 +45,8 @@ in a few lines and points to a file for details.
   too low and reports that timings may be skewed by a loaded machine.
 - Owner-dependent behaviour (follow the player, assist the owner, notices) stays on the manual list; a
   server-side fake player may be considered later.
-- The test server is left running after a test so the user can join it (localhost:25566) and play during
-  runs; verbs restart it whenever needed, without warning (the user watches). A reset erases what they did.
+- The test server is never left running: `forest`, `soak` and `ab` stop it when they finish, and Claude stops
+  it after any manual `start` (user, 2026-10-06). Verbs restart it whenever needed, without warning.
 - A player's presence is marked, never excluded: soaks record `player_minutes`, `compare` warns when only
   one side had a player, and a bad placement within view distance of a player is tagged "near a player".
 

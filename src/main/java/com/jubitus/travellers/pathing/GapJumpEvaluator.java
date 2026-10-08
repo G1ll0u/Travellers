@@ -107,7 +107,7 @@ public final class GapJumpEvaluator {
             scanPos.setPos(cx + dx, scanY, cz + dz);
             IBlockState scanned = world.getBlockState(scanPos);
             Material m = scanned.getMaterial();
-            if (BlockRules.isHazard(scanned) || BlockRules.isVanillaWater(scanned)) {
+            if (BlockRules.isHazard(scanned) || BlockRules.isWater(scanned)) {
                 firstColHazardMaterial = true;
                 break;
             }
@@ -215,7 +215,7 @@ public final class GapJumpEvaluator {
     private static boolean isHazard(IBlockAccess world, int x, int y, int z) {
         IBlockState s = world.getBlockState(new BlockPos(x, y, z));
         // Water is a hazard for landings: prevents jumping into rivers/ponds
-        return BlockRules.isHazard(s) || BlockRules.isVanillaWater(s);
+        return BlockRules.isHazard(s) || BlockRules.isWater(s);
     }
 
     // ----- cache internals -----

@@ -137,7 +137,7 @@ public final class TravelTerrain {
         for (int y = top; y >= bottom; y--) {
             if (best != null && refY - y > bestDy) break;
             p.setPos(x, y, z);
-            if (BlockRules.isVanillaWater(mob.world.getBlockState(p))) {
+            if (BlockRules.isWater(mob.world.getBlockState(p))) {
                 BlockPos surface = snapToWaterSurface(p.toImmutable());
                 if (surface != null && isSwimmable(surface) && Math.abs(surface.getY() - refY) < bestDy) {
                     bestDy = Math.abs(surface.getY() - refY);
@@ -215,8 +215,8 @@ public final class TravelTerrain {
             IBlockState feet = mob.world.getBlockState(surf);
             IBlockState below = mob.world.getBlockState(surf.down());
 
-            boolean waterFeet = BlockRules.isVanillaWater(feet);
-            boolean waterBelow = BlockRules.isVanillaWater(below);
+            boolean waterFeet = BlockRules.isWater(feet);
+            boolean waterBelow = BlockRules.isWater(below);
 
             if (waterFeet || waterBelow) waterCount++;
             samples++;
@@ -236,7 +236,7 @@ public final class TravelTerrain {
         BlockPos surf = findSurfaceOrWaterY(guess);
         if (surf == null || !LoadedChunks.isAreaLoaded(mob.world, surf, 1)) return null;
 
-        if (BlockRules.isVanillaWater(mob.world.getBlockState(surf))) {
+        if (BlockRules.isWater(mob.world.getBlockState(surf))) {
             BlockPos snapped = snapToWaterSurface(surf);
             if (snapped != null) surf = snapped;
         }
@@ -356,7 +356,7 @@ public final class TravelTerrain {
             IBlockState s = w.getBlockState(surf);
 
             // corridor is only valid if the *surface* is vanilla water
-            if (!BlockRules.isVanillaWater(s)) {
+            if (!BlockRules.isWater(s)) {
                 return false; // solid/ice/etc. -> obstacle
             }
         }
@@ -420,7 +420,7 @@ public final class TravelTerrain {
                 BlockPos check = new BlockPos(nx, mobY + dy, nz);
                 if (!mob.world.isBlockLoaded(check)) { hasSupport = true; break; }
                 IBlockState s = mob.world.getBlockState(check);
-                if (BlockRules.isVanillaWater(s)) { hasSupport = true; break; }
+                if (BlockRules.isWater(s)) { hasSupport = true; break; }
                 if (!s.getMaterial().isLiquid() && s.getMaterial().blocksMovement()) {
                     hasSupport = true;
                     break;
@@ -446,12 +446,12 @@ public final class TravelTerrain {
         BlockPos q = p;
 
         // If we're not actually in water, don't try to "surface" it.
-        if (!BlockRules.isVanillaWater(w.getBlockState(q))) return q;
+        if (!BlockRules.isWater(w.getBlockState(q))) return q;
 
         int maxY = w.getActualHeight() - 1;
 
         // Climb up through water until the next block is NOT water
-        while (q.getY() < maxY && BlockRules.isVanillaWater(w.getBlockState(q.up()))) {
+        while (q.getY() < maxY && BlockRules.isWater(w.getBlockState(q.up()))) {
             q = q.up();
             if (!LoadedChunks.isAreaLoaded(mob.world, q, 1)) return null;
         }

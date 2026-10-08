@@ -194,7 +194,7 @@ final class HazardRepulsion {
         for (int dy = 0; dy >= -1; dy--) {
             BlockPos p = col.up(dy);
             if (!world.isBlockLoaded(p)) continue;
-            if (BlockRules.isVanillaWater(world.getBlockState(p))) return true;
+            if (BlockRules.isWater(world.getBlockState(p))) return true;
         }
         return false;
     }

@@ -104,8 +104,6 @@ public class EntityAITravel extends EntityAIBase {
     private int targetNearSq = 0;
     // simple guard so we don't spam boat spawning
 
-    // --- mounted rider meets water: see MountedLeadController (shared with the follow AIs) ---
-    private int nextWaterProbeTick = 0;
     // Itinerary version the progress baselines were taken against (re-baselined when it changes)
     int nextItineraryReplanTick = 0;
     private static final int ITINERARY_REPLAN_COOLDOWN_TICKS = 10 * 20;
@@ -436,20 +434,6 @@ public class EntityAITravel extends EntityAIBase {
         if (tryTakeOff()) return;
 
         if (boats.tickAfloat()) return;
-        // -----------------------------------------
-        // Mounted rider meets water: step off and lead the horse in on foot. The plain on-foot
-        // travel AI below (swim pathing, boat spawning, shore rescue) then carries the pair across;
-        // TravellerMountSupport remounts once both are back on dry ground together. No crossing state
-        // machine - just "un-fordable water ahead => LED".
-        // -----------------------------------------
-        if (!mob.world.isRemote && TravellersConfig.MOUNTS.mountedDismountForWater
-                && mob.isMountedOnBondedMount() && mob.ticksExisted >= nextWaterProbeTick) {
-            nextWaterProbeTick = mob.ticksExisted + 8;
-            if (MountedLeadController.waterAheadNeedsLeading(mob, travelBearingXZ())) {
-                MountedLeadController.enterLedForWater(mob);
-            }
-        }
-
         boolean inWaterNow = mob.isInWater();
         boats.tickEmbark(inWaterNow);
         wasInWater = inWaterNow;
@@ -1351,27 +1335,6 @@ public class EntityAITravel extends EntityAIBase {
     private int unusableRouteStreak;
     /** This task put the rider in a terrain LED that is still armed; undone when the task stops. */
     private boolean terrainLedByThisTask;
-
-    // =====================================================================================
-    // Mounted rider meets water
-    //
-    // Deliberately tiny: the only mounted-specific rule is "un-fordable water right ahead => step
-    // off and lead the horse in". Everything after that - swimming, boats, shore rescue, remounting
-    // on the far bank - is the ordinary on-foot travel AI plus TravellerMountSupport's leash/remount
-    // reconcile. No crossing state machine (that version fought the navigator and oscillated).
-    // =====================================================================================
-
-    /** Bearing (XZ, normalised) from the mob toward its current aim (waypoint, else target village). */
-    @Nullable
-    double[] travelBearingXZ() {
-        BlockPos aim = currentWaypoint != null ? currentWaypoint : targetVillage;
-        if (aim == null) return null;
-        double dx = (aim.getX() + 0.5) - mob.posX;
-        double dz = (aim.getZ() + 0.5) - mob.posZ;
-        double len = Math.sqrt(dx * dx + dz * dz);
-        if (len < 1.0E-3) return null;
-        return new double[]{dx / len, dz / len};
-    }
 
     /** Ticks direct riding stays off after a refused corridor, so the planner's route actually gets
      * walked instead of being recomputed and discarded at every clear/blocked boundary. */

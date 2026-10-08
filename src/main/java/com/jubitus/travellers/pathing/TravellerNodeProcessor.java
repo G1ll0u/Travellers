@@ -50,6 +50,8 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
      * see Task 4 of the mounted-follow perf plan. Only meaningful within one {@code findPathOptions}
      * call; each call to findMountedWalkOptions resets it for the new current node. */
     private final boolean[] mountedWalkableDir = new boolean[CARDINAL_DIRS.length];
+    /** Per cardinal direction, set by findMountedWalkOptions: a plain step there lands on dry ground at most one block down. */
+    private final boolean[] mountedDryStepDir = new boolean[CARDINAL_DIRS.length];
 
     void setIgnoreMount(boolean value) {
         this.ignoreMount = value;
@@ -139,9 +141,8 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
 
         int iy = MathHelper.floor(this.body.getEntityBoundingBox().minY + 0.5D);
         if (this.body.isInWater()) {
-            // Standing on a fordable stream bed: the feet cell is inside the water, which is exactly
-            // where the ford rule expects the search to start. Only genuinely swimming (feet well
-            // below the surface) has no valid start, and the search failing there is correct.
+            // Standing on a fordable stream bed or swimming: the feet cell is inside the water,
+            // which is where the ford and swim rules expect the search to start.
             iy = MathHelper.floor(this.body.getEntityBoundingBox().minY);
         }
 
@@ -153,7 +154,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             MountTerrainProfile.FootprintFit fit = MountTerrainProfile.fitFootprint(
                     this.blockaccess, c[0], c[1], this.entitySizeX, this.entitySizeZ,
                     iy, this.body.stepHeight, TravellersConfig.MOUNTS.mountedMaxStraightDrop,
-                    this.entitySizeY);
+                    this.entitySizeY, true);
             if (fit != null) return this.openPoint(c[0], fit.y, c[1]);
         }
         return this.openPoint(ix, iy, iz);
@@ -340,9 +341,8 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         // the exact landing GapJumpEvaluator would compute for that direction — when the entity
         // later walks the resulting path, TravellerNavigateGround's existing reactive gap-jump
         // fires naturally once it nears the edge, since its target is already that same landing.
-        // Never while mounted: TravellerNavigateGround.evaluateJump refuses to fire a pedestrian gap
-        // jump for a rider whose position comes from its horse, so routing a mounted rider across one
-        // plans a step it can physically never take - it walks to the edge and stalls there.
+        // A mounted body gets its own gap candidates (addMountGapCandidates), fired by the horse's
+        // own jump (TravellerMountSupport.tickMountedGapJump), never the pedestrian one.
         // 6b) Hop-over candidates: a mounted body may clear an obstacle one cell thick rather than
         // walk round it. Without this the planner only knows "walk, one block of rise at most", and
         // everything beyond that is left to the reactive jump - which by definition only fires once
@@ -354,6 +354,11 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
                 && TravellersConfig.MOUNTS.mountedJumpEnabled
                 && w < options.length - 4) {
             w = addMountHopCandidates(options, w, current, target, maxDistance);
+        }
+        if (this.bodyIsMount && TravellersConfig.MOUNTS.mountedJumpEnabled
+                && TravellersConfig.MOUNTS.mountedMaxGapWidth > 0
+                && w < options.length - 4) {
+            w = addMountGapCandidates(options, w, current, target, maxDistance);
         }
 
         if (TravellersConfig.GAP_JUMP.pathfinderAware && this.entity != null
@@ -460,6 +465,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
     private int findMountedWalkOptions(PathPoint[] options, PathPoint current, PathPoint target, float maxDistance) {
         int count = 0;
         java.util.Arrays.fill(this.mountedWalkableDir, false);
+        java.util.Arrays.fill(this.mountedDryStepDir, false);
         double takeoff = surfaceYForNode(current.x, current.y, current.z);
         for (int i = 0; i < CARDINAL_DIRS.length; i++) {
             int[] d = CARDINAL_DIRS[i];
@@ -470,7 +476,7 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             MountTerrainProfile.FootprintFit fit = MountTerrainProfile.fitFootprint(
                     this.blockaccess, nx, nz, this.entitySizeX, this.entitySizeZ,
                     current.y, this.body.stepHeight, TravellersConfig.MOUNTS.mountedMaxStraightDrop,
-                    this.entitySizeY);
+                    this.entitySizeY, true);
             if (fit == null) continue;
 
             // fitFootprint judges each column's standing height on its own - a per-cell
@@ -496,6 +502,8 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
             p.nodeType = PathNodeType.WALKABLE;
             options[count++] = p;
             this.mountedWalkableDir[i] = true;
+            this.mountedDryStepDir[i] = fit.surface >= current.y - 1.0D
+                    && this.blockaccess.getBlockState(new BlockPos(nx, fit.y, nz)).getMaterial() != Material.WATER;
         }
         return count;
     }
@@ -609,6 +617,65 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
         }
         return w;
     }
+
+    /**
+     * Jump-across candidates for a mounted body: a hole or stream directly ahead (the footprint
+     * cannot step one cell forward onto dry ground) with dry ground for the whole footprint again
+     * within {@code MOUNTS.mountedMaxGapWidth} cells, near the takeoff height. Closest landing first.
+     * The flight volume must be clear; {@code TravellerMountSupport.tickMountedGapJump} fires it.
+     */
+    private int addMountGapCandidates(PathPoint[] options, int w, PathPoint current, PathPoint target,
+                                      float maxDistance) {
+        double takeoff = surfaceYForNode(current.x, current.y, current.z);
+        int size = this.entitySizeX;
+        int maxGap = TravellersConfig.MOUNTS.mountedMaxGapWidth;
+
+        for (int i = 0; i < CARDINAL_DIRS.length; i++) {
+            if (w >= options.length - 1) break;
+            if (this.mountedDryStepDir[i]) continue; // dry ground right ahead: not a gap
+            int[] d = CARDINAL_DIRS[i];
+            // A wall or trunk right ahead is not a gap either - and the cheapest refusal.
+            if (bodyCollidesWithTerrain(new AxisAlignedBB(
+                    current.x + d[0], takeoff + 0.001D, current.z + d[1],
+                    current.x + d[0] + this.entitySizeX, takeoff + this.body.height,
+                    current.z + d[1] + this.entitySizeZ))) {
+                continue;
+            }
+            // Shifting a footprint of `size` cells by `shift` leaves `shift - size` cells between.
+            for (int shift = size + 1; shift <= size + maxGap; shift++) {
+                int lx = current.x + d[0] * shift;
+                int lz = current.z + d[1] * shift;
+                MountTerrainProfile.FootprintFit fit = MountTerrainProfile.fitFootprint(
+                        this.blockaccess, lx, lz, this.entitySizeX, this.entitySizeZ,
+                        current.y, 1.0D, 1.0D, this.entitySizeY);
+                if (fit == null) continue;
+
+                double flightFloor = Math.max(takeoff, fit.surface) + MOUNT_GAP_FLIGHT_LIFT;
+                AxisAlignedBB flight = new AxisAlignedBB(
+                        Math.min(current.x, lx), flightFloor, Math.min(current.z, lz),
+                        Math.max(current.x, lx) + this.entitySizeX, flightFloor + this.body.height,
+                        Math.max(current.z, lz) + this.entitySizeZ);
+                AxisAlignedBB landing = new AxisAlignedBB(
+                        lx, fit.surface + 0.001D, lz,
+                        lx + this.entitySizeX, fit.surface + this.body.height, lz + this.entitySizeZ);
+                if (bodyCollidesWithTerrain(flight) || bodyCollidesWithTerrain(landing)) break;
+
+                PathPoint p = this.openPoint(lx, fit.y, lz);
+                if (!p.visited && p.distanceTo(target) < maxDistance) {
+                    p.nodeType = PathNodeType.WALKABLE;
+                    p.costMalus = Math.max(p.costMalus, MOUNT_GAP_JUMP_MALUS);
+                    options[w++] = p;
+                }
+                break;
+            }
+        }
+        return w;
+    }
+
+    /** Height above the higher rim the planned flight volume starts at - the arc's lowest clearance. */
+    private static final double MOUNT_GAP_FLIGHT_LIFT = 0.5D;
+    /** Low on purpose: below the water malus of even a two-block swim, so a stream is jumped, not waded. */
+    private static final float MOUNT_GAP_JUMP_MALUS = 1.0F;
 
     /** Same margin the reactive jump requires - see {@code TravellerMountSupport.JUMP_CLEARANCE_MARGIN}. */
     private static final double JUMP_CLEARANCE_MARGIN = 0.2D;

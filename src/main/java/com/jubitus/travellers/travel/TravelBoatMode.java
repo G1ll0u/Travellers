@@ -432,8 +432,8 @@ final class TravelBoatMode {
         IBlockState feet = w.getBlockState(boatCol);
         IBlockState below = w.getBlockState(boatCol.down());
 
-        boolean feetWater = BlockRules.isVanillaWater(feet);
-        boolean belowWater = BlockRules.isVanillaWater(below);
+        boolean feetWater = BlockRules.isWater(feet);
+        boolean belowWater = BlockRules.isWater(below);
 
         // 1) If we’re not over water at all, we beached / hit land/ice
         if (!feetWater && !belowWater) {
@@ -476,7 +476,7 @@ final class TravelBoatMode {
         IBlockState aFeet = w.getBlockState(ahead);
         IBlockState aBelow = w.getBlockState(ahead.down());
 
-        boolean aheadWater = BlockRules.isVanillaWater(aFeet) || BlockRules.isVanillaWater(aBelow);
+        boolean aheadWater = BlockRules.isWater(aFeet) || BlockRules.isWater(aBelow);
 
         // If ahead column is not water, we’re about to grind shoreline
         return !aheadWater;
@@ -563,7 +563,7 @@ final class TravelBoatMode {
         IBlockState feet = w.getBlockState(from);
         IBlockState below = w.getBlockState(from.down());
 
-        if (!BlockRules.isVanillaWater(feet) && !BlockRules.isVanillaWater(below) && dir != null) {
+        if (!BlockRules.isWater(feet) && !BlockRules.isWater(below) && dir != null) {
             int stepX = (int) Math.signum(dir.x);
             int stepZ = (int) Math.signum(dir.z);
             if (stepX != 0 || stepZ != 0) {
@@ -585,7 +585,7 @@ final class TravelBoatMode {
             if (!w.isBlockLoaded(p)) break;
             IBlockState s = w.getBlockState(p);
 
-            if (BlockRules.isVanillaWater(s)) {
+            if (BlockRules.isWater(s)) {
                 topWater = p; // keep updating as we go up
             } else if (topWater != null) {
                 // we left the water column; topWater is the surface water
@@ -599,7 +599,7 @@ final class TravelBoatMode {
                 BlockPos p = new BlockPos(x, y, z);
                 if (!w.isBlockLoaded(p)) break;
                 IBlockState s = w.getBlockState(p);
-                if (BlockRules.isVanillaWater(s)) {
+                if (BlockRules.isWater(s)) {
                     topWater = p;
                     break;
                 }

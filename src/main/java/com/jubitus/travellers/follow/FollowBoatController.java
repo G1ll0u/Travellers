@@ -359,7 +359,7 @@ final class FollowBoatController {
 
                 IBlockState feet = follower.world.getBlockState(p);
                 IBlockState above = follower.world.getBlockState(p.up());
-                if (!BlockRules.isVanillaWater(feet)) continue;
+                if (!BlockRules.isWater(feet)) continue;
                 if (!(above.getMaterial().isReplaceable() || above.getCollisionBoundingBox(follower.world, p.up()) == null)) continue;
 
                 double distFollowerSq = p.distanceSq(center);
@@ -512,7 +512,7 @@ final class FollowBoatController {
                 if (!follower.world.isBlockLoaded(pos)) continue;
 
                 IBlockState state = follower.world.getBlockState(pos);
-                if (!BlockRules.isVanillaWater(state)) continue;
+                if (!BlockRules.isWater(state)) continue;
                 if (!follower.world.isAirBlock(pos.up())) continue;
 
                 double distSq = pos.distanceSq(center);

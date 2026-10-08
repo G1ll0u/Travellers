@@ -395,7 +395,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                     BlockPos probe = col.down(dy);
                     IBlockState s = w.getBlockState(probe);
                     IBlockState above = w.getBlockState(probe.up());
-                    if (BlockRules.isVanillaWater(s) && (BlockRules.isVanillaWater(above) || above.getMaterial().isReplaceable())) {
+                    if (BlockRules.isWater(s) && (BlockRules.isWater(above) || above.getMaterial().isReplaceable())) {
                         double d2 = around.distanceSq(probe);
                         if (d2 < bestD2) {
                             bestD2 = d2;
@@ -493,7 +493,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                     BlockPos probe = col.down(dy);
                     IBlockState s = w.getBlockState(probe);
                     IBlockState above = w.getBlockState(probe.up());
-                    if (BlockRules.isVanillaWater(s) && (BlockRules.isVanillaWater(above) || above.getMaterial().isReplaceable())) {
+                    if (BlockRules.isWater(s) && (BlockRules.isWater(above) || above.getMaterial().isReplaceable())) {
                         return true;
                     }
                 }

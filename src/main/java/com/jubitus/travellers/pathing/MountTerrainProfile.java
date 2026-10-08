@@ -74,13 +74,21 @@ public final class MountTerrainProfile {
     @Nullable
     public static FootprintFit fitFootprint(IBlockAccess world, int cornerX, int cornerZ, int sizeX, int sizeZ,
                                              int refY, double maxRise, double maxDrop, int headroomNeeded) {
+        return fitFootprint(world, cornerX, cornerZ, sizeX, sizeZ, refY, maxRise, maxDrop, headroomNeeded, false);
+    }
+
+    /** {@code swim}: deep water counts as a surface at the water's top layer (see {@link #standingSurfaceY}). */
+    @Nullable
+    public static FootprintFit fitFootprint(IBlockAccess world, int cornerX, int cornerZ, int sizeX, int sizeZ,
+                                             int refY, double maxRise, double maxDrop, int headroomNeeded,
+                                             boolean swim) {
         double ceiling = refY + maxRise;
         double feetBound = refY - maxDrop;
         double best = Double.NaN;
 
         for (int dx = 0; dx < sizeX; dx++) {
             for (int dz = 0; dz < sizeZ; dz++) {
-                double s = standingSurfaceY(world, cornerX + dx, cornerZ + dz, feetBound, ceiling, headroomNeeded);
+                double s = standingSurfaceY(world, cornerX + dx, cornerZ + dz, feetBound, ceiling, headroomNeeded, swim);
                 if (Double.isNaN(s)) return null; // a column with nothing to stand on at all - infeasible
                 if (Double.isNaN(best) || s > best) best = s;
             }
@@ -114,18 +122,20 @@ public final class MountTerrainProfile {
      *
      * <p><b>Water is fordable ground, up to {@code MOUNTS.mountedMaxFordDepth} deep.</b> A horse
      * wades a shallow stream on the bottom exactly like a player rides one - the standing surface is
-     * the solid floor under the water. Deeper than that the column is refused: the horse would be
-     * swimming, which ejects its rider, so a route may not plan through it. This single rule is what
-     * every clearance question (planner nodes, corridor shortcuts, jump scans) sees, so they can
-     * never disagree about a stream. Before it, water was skipped like air here (any depth "walkable"
-     * to the planner) while the corridor test refused all of it - the disagreement behind riders
-     * dismounting at every ankle-deep crossing. Lava anywhere in the scanned column refuses it
-     * outright.
+     * the solid floor under the water. Deeper water is refused, except with {@code swim} (planner
+     * nodes only): there the surface is the top water layer, so a mounted route may lead into a river
+     * like a player riding in - the rider steps off once the horse swims and crosses on foot. Corridor
+     * shortcuts and jump scans never swim. Lava anywhere in the scanned column refuses it outright.
      *
      * @return the standing Y, or {@code NaN} when nothing in range qualifies.
      */
     public static double standingSurfaceY(IBlockAccess world, int x, int z, double feet, double ceiling,
                                            int headroomNeeded) {
+        return standingSurfaceY(world, x, z, feet, ceiling, headroomNeeded, false);
+    }
+
+    public static double standingSurfaceY(IBlockAccess world, int x, int z, double feet, double ceiling,
+                                           int headroomNeeded, boolean swim) {
         int top = MathHelper.floor(ceiling);
         int bottom = MathHelper.floor(feet) - 1;
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
@@ -142,7 +152,7 @@ public final class MountTerrainProfile {
 
             if (waterTop != Integer.MIN_VALUE
                     && waterTop - y > TravellersConfig.MOUNTS.mountedMaxFordDepth) {
-                return Double.NaN;
+                return swim && waterTop >= feet ? waterTop : Double.NaN;
             }
 
             boolean clear = true;
@@ -157,7 +167,8 @@ public final class MountTerrainProfile {
             // rise/step math downstream is honest only if the surface is.
             if (clear) return y + bb.maxY;
         }
-        return Double.NaN;
+        // Water deeper than the scanned window: no floor found at all.
+        return swim && waterTop != Integer.MIN_VALUE && waterTop >= feet ? waterTop : Double.NaN;
     }
 
     /** Half a block: fine enough that a 1-wide pillar between two samples is impossible, coarse

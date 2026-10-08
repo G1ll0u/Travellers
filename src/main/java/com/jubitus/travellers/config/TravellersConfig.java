@@ -1677,6 +1677,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 20.0)
         public double mountedJumpCostMalus = 4.0;
 
+        @Config.Comment("Widest hole or stream, in blocks, a mounted rider jumps across instead of going around or riding into the water. 0 = horses never jump across gaps.")
+        @Config.RangeInt(min = 0, max = 6)
+        public int mountedMaxGapWidth = 4;
+
         @Config.Comment("Let the route planner itself route a mounted traveller over an obstacle its horse could jump, instead of only ever walking around one. Turn off and the planner never plans a jump - it only ever routes around obstacles, and any jumping left is purely reactive (see mountedReactiveJumpEnabled).")
         public boolean mountedJumpEnabled = true;
 
@@ -1811,8 +1815,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.2, max = 1.0)
         public double ledRiderPaceFactor = 0.9;
 
-        @Config.Comment("When un-fordable water is right ahead on a mounted rider's route, it steps off and leads the horse in on foot (the pair then swims or takes a boat across like any traveller, and the rider climbs back on once both are dry on the far bank). Turn off to make riders stay mounted and let the pathfinder deal with the water.")
-        public boolean mountedDismountForWater = true;
 
         @Config.Comment("A mounted traveller, raider or non-hired worker steps off and leads its horse as soon as it enters a village or lone building's grounds, walking through on foot and climbing back on once clear. Does not apply to a hired worker actively escorting its owner. Turn off to let horses ride straight through villages.")
         public boolean mountedDismountNearVillage = true;

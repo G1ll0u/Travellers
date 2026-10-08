@@ -52,10 +52,9 @@ public final class BlockRules {
     private static final Map<Block, Boolean> LISTED_HAZARD = new IdentityHashMap<>();
     private static Set<String> hazardIds;
 
-    /** Vanilla water only: the one liquid units may swim or row through. */
-    public static boolean isVanillaWater(IBlockState s) {
-        Block b = s.getBlock();
-        return b == Blocks.WATER || b == Blocks.FLOWING_WATER;
+    /** Any water-material liquid (vanilla, Streams rivers, modded water): the one liquid units may swim or row through. */
+    public static boolean isWater(IBlockState s) {
+        return s.getMaterial() == Material.WATER;
     }
 
     /** Leaves, vanilla or modded (mods override {@code isLeaves}; world/pos may be null when unknown). */
@@ -126,7 +125,7 @@ public final class BlockRules {
      */
     public static boolean isHazard(IBlockState s) {
         Block b = s.getBlock();
-        if ((s.getMaterial().isLiquid() || b instanceof IFluidBlock) && !isVanillaWater(s)) return true;
+        if ((s.getMaterial().isLiquid() || b instanceof IFluidBlock) && !isWater(s)) return true;
         if (b == Blocks.FIRE || b == Blocks.MAGMA || b == Blocks.CACTUS) return true;
         return isListedHazard(b);
     }

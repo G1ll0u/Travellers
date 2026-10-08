@@ -146,7 +146,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
     private int recentPathSuccessTicks;
     private int activePathTicks;
     private int recoveryCooldown;
-    private int nextWaterLeadProbeTick;
 
     private boolean hasProgressAnchor;
 
@@ -413,19 +412,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
             return;
         }
 
-        // Mounted follower meets water its horse can't ford: step off and lead it in on foot. The
-        // on-foot follow logic below then swims the crossing (it already treats water as safe while
-        // the leader is in it), TravellerMountSupport.reconcileOnFoot tows the horse, and its
-        // sustained strict-dry gate remounts once both are dry on the far bank. Same geometric probe
-        // EntityAITravel uses - see MountedLeadController, deliberately no crossing state machine.
-        if (!follower.world.isRemote && TravellersConfig.MOUNTS.mountedDismountForWater
-                && follower.isMountedOnBondedMount()
-                && follower.ticksExisted >= nextWaterLeadProbeTick) {
-            nextWaterLeadProbeTick = follower.ticksExisted + 8;
-            if (MountedLeadController.waterAheadNeedsLeading(follower, bearingXZ(target.posX, target.posZ))) {
-                MountedLeadController.enterLedForWater(follower);
-            }
-        }
         if (recoveryCooldown > 0) recoveryCooldown--;
         if (schedulerDeniedTicks > 0) schedulerDeniedTicks--;
         if (recentPathSuccessTicks > 0) recentPathSuccessTicks--;
@@ -780,7 +766,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         double distToGoal = Math.sqrt(distGoalSq);
         double moveSpeed = computeMoveSpeed(target, slot, distToLeader, distToGoal, mode, airborneLeader);
         // Leading a bonded horse on foot over dry ground: hang back so the leash doesn't drag it
-        // (no-op unless in a water-lead LED spell - see MountedLeadController).
+        // (no-op unless leading the horse on foot - see MountedLeadController).
         moveSpeed *= MountedLeadController.ledRiderPaceMultiplier(follower);
 
         // Prefer cheap direct steering over a full A* search - most of the time a follower's slot
@@ -1610,16 +1596,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         return com.jubitus.travellers.pathing.PathBody.isMounted(follower);
     }
 
-    /** Normalised XZ bearing from the follower toward (x, z), or {@code null} if it is underfoot. */
-    @Nullable
-    private double[] bearingXZ(double x, double z) {
-        double dx = x - follower.posX;
-        double dz = z - follower.posZ;
-        double len = Math.sqrt(dx * dx + dz * dz);
-        if (len < 1.0E-3D) return null;
-        return new double[]{dx / len, dz / len};
-    }
-
     private double getDesiredFollowDistance(EntityLivingBase target, FollowMode mode, FollowRuntimeConfig cfg) {
         if (mode == FollowMode.CAVE) {
             return cfg.cave.baseLeaderDistance;
@@ -2195,7 +2171,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
     /** A hazard ({@link BlockRules#isHazard}), or vanilla water when the follower must stay dry. */
     private static boolean isUnsafeBlock(IBlockState s, boolean waterIsSafe) {
-        return BlockRules.isHazard(s) || (!waterIsSafe && BlockRules.isVanillaWater(s));
+        return BlockRules.isHazard(s) || (!waterIsSafe && BlockRules.isWater(s));
     }
 
     private boolean isHazardousStandPos(BlockPos feet, boolean waterIsSafe) {

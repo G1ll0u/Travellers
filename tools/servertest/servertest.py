@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Drives a local copy of the test server for automated tests. One verb per call, a few lines of output each.
-The server is left running after a test so the user can join it (port 25566); verbs restart it when needed.
+Test verbs (forest, soak, ab) stop the server when they finish (user rule: never leave it running).
 
   setup              create the autotest server copy (once)
   deploy [jar]       copy a jar (default: newest production jar in build/libs) into the copy's mods/ (stops the server)
@@ -8,10 +8,10 @@ The server is left running after a test so the user can join it (port 25566); ve
   start              launch the server in tmux, wait for "Done"
   cmd "<command>"    send one console command through RCON, print the reply
   wait <seconds>     sleep
-  forest [seconds]   mounted forest crossing scenario on each FOREST_ROUTES entry (running server); prints results
-  soak [minutes]     zones + movement profile + invariants every minute on a running server; prints a summary
+  forest [seconds]   mounted forest crossing scenario on each FOREST_ROUTES entry (running server, stopped after)
+  soak [minutes]     zones + movement profile + invariants every minute on a running server (stopped after)
   compare <a> <b>    compare two soak .metrics files (paths or names in .autotest/soaks) against the thresholds
-  ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare; B is left running
+  ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare
   stop               save and stop, kill after a timeout
   status             running or not, deployed jar
   logscan [--baseline]  new problems in the last log; --baseline stores the current signatures as known
@@ -176,8 +176,15 @@ def git_head():
     return out.stdout.strip()[:70] + (" +uncommitted src changes" if dirty else "")
 
 
+def run_then_stop(verb, args):
+    try:
+        return verb(args)
+    finally:
+        stop_if_running()
+
+
 def stop_if_running():
-    """The server is left running between tests so the user can join; a verb that needs it down stops it."""
+    """A verb that needs the server down stops it first."""
     if server_pid():
         cmd_stop()
 
@@ -376,6 +383,10 @@ def debug(command):
 
 
 def cmd_soak(args):
+    run_then_stop(soak, args)
+
+
+def soak(args):
     if not server_pid():
         die("server not running")
     minutes = int(args[0]) if args else SOAK_MINUTES
@@ -429,6 +440,10 @@ def cmd_soak(args):
 
 
 def cmd_forest(args):
+    return run_then_stop(forest, args)
+
+
+def forest(args):
     if not server_pid():
         die("server not running")
     seconds = int(args[0]) if args else FOREST_SECONDS
@@ -601,7 +616,7 @@ def build_commit(commit):
     return max(jars, key=lambda p: p.stat().st_mtime)
 
 
-def soak_commit(commit, minutes, keep_running):
+def soak_commit(commit, minutes):
     jar = build_commit(commit)
     cmd_deploy([str(jar)])
     DEPLOYED.write_text(f"{commit} ({jar.name})\n")
@@ -609,11 +624,10 @@ def soak_commit(commit, minutes, keep_running):
     cmd_start()
     before = set(SOAKS.glob("*.metrics")) if SOAKS.exists() else set()
     try:
-        cmd_forest([])
-        cmd_soak([str(minutes)])
+        forest([])
+        soak([str(minutes)])
     finally:
-        if not keep_running:
-            cmd_stop()
+        stop_if_running()
     produced = sorted(set(SOAKS.glob("*.metrics")) - before)
     if not produced:
         die(f"soak of {commit} produced no metrics")
@@ -631,9 +645,9 @@ def cmd_ab(args):
             die("unknown commit " + c)
         commits.append(out.stdout.strip())
     results = []
-    for i, c in enumerate(commits):
+    for c in commits:
         print(f"=== {c}")
-        results.append(soak_commit(c, minutes, keep_running=i == len(commits) - 1))
+        results.append(soak_commit(c, minutes))
     print("=== comparison")
     alerts = print_comparison(load_metrics(results[0])[0], load_metrics(results[1])[0], commits[0], commits[1])
     if alerts:

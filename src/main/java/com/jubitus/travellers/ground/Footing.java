@@ -31,11 +31,11 @@ public final class Footing {
     public static boolean canSwimAt(World world, BlockPos feet) {
         if (!LoadedChunks.isLoaded(world, feet)) return false;
         IBlockState atFeet = world.getBlockState(feet);
-        if (!BlockRules.isVanillaWater(atFeet)) return false;
+        if (!BlockRules.isWater(atFeet)) return false;
         BlockPos up = feet.up();
         IBlockState atHead = world.getBlockState(up);
         if (BlockRules.isHazard(atHead) || BlockRules.isHazard(world.getBlockState(feet.down()))) return false;
-        return BlockRules.isVanillaWater(atHead) || atHead.getMaterial().isReplaceable()
+        return BlockRules.isWater(atHead) || atHead.getMaterial().isReplaceable()
                 || atHead.getCollisionBoundingBox(world, up) == null;
     }
 

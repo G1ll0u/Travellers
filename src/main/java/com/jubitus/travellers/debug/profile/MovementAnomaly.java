@@ -29,7 +29,6 @@ public enum MovementAnomaly {
 
     public enum LedReason {
         TERRAIN("terrain the horse cannot path"),
-        WATER("water ahead"),
         LOW_HEALTH("horse badly hurt"),
         VILLAGE("entered a settlement"),
         MELEE("melee range"),

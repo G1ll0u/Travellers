@@ -270,7 +270,7 @@ public class EntityTravellerBoat extends net.minecraft.entity.item.EntityBoat {
         IBlockState feet = world.getBlockState(pos);
         IBlockState below = world.getBlockState(pos.down());
 
-        return BlockRules.isVanillaWater(feet) || BlockRules.isVanillaWater(below);
+        return BlockRules.isWater(feet) || BlockRules.isWater(below);
     }
 
     private boolean hasDriver() {

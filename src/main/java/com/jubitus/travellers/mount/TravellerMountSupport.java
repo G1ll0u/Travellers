@@ -405,6 +405,8 @@ public final class TravellerMountSupport {
         traveller.prevRenderYawOffset = traveller.rotationYaw;
 
         applyMountedSpeed(traveller, horse);
+        releaseJumpYawOnLanding(traveller, horse);
+        tickMountedGapJump(traveller, horse);
         tickMountedJump(traveller, horse);
         trySidestepIfWedged(traveller, horse);
         logHorseDiagnostic(traveller, horse);
@@ -545,9 +547,7 @@ public final class TravellerMountSupport {
      * <p>No cooldown is needed. Vanilla clears {@code isHorseJumping()} on landing (in the steered
      * branch of {@code travel()}), so at most one jump is in flight at a time.
      */
-    private static void tickMountedJump(EntityTraveller rider, EntityHorse horse) {
-        if (!TravellersConfig.MOUNTS.mountedJumpEnabled) return;
-        if (!TravellersConfig.MOUNTS.mountedReactiveJumpEnabled) return;
+    private static void releaseJumpYawOnLanding(EntityTraveller rider, EntityHorse horse) {
         // Back on the ground: hand steering back (see TravellerMoveHelper).
         // `horse.onGround` alone is not enough - a trace caught it reading true for one tick while
         // the horse was still clearly climbing (posY rising for several more ticks after), releasing
@@ -558,6 +558,11 @@ public final class TravellerMountSupport {
         if (horse.onGround && horse.motionY <= 0.0D && !Float.isNaN(rider.mountState.getMountJumpYaw())) {
             rider.mountState.setMountJumpYaw(Float.NaN);
         }
+    }
+
+    private static void tickMountedJump(EntityTraveller rider, EntityHorse horse) {
+        if (!TravellersConfig.MOUNTS.mountedJumpEnabled) return;
+        if (!TravellersConfig.MOUNTS.mountedReactiveJumpEnabled) return;
         if (!horse.onGround || horse.isHorseJumping()) return;
         if (!horse.collidedHorizontally || rider.moveForward <= 0.02F) return;
 
@@ -609,6 +614,135 @@ public final class TravellerMountSupport {
                         "jump rise=%.2f impulse=%.2f capability=%.2f strength=%.2f columnsAhead=%d",
                         rise, impulse, jumpHeightOf(horse), horse.getHorseJumpStrength(), target.columnsAhead));
     }
+
+    /**
+     * Jumps a hole or stream the planner routed across ({@code TravellerNodeProcessor.addMountGapCandidates}):
+     * fires once the column under the horse's leading edge has no dry ground and the steering target
+     * lies beyond dry ground within {@code MOUNTS.mountedMaxGapWidth}. Cardinal only, like the planner,
+     * so the scanned line is the flown line. The impulse is sized from vanilla's airborne physics
+     * (gravity, 0.91 horizontal drag) to land the whole body on the far rim.
+     */
+    private static void tickMountedGapJump(EntityTraveller rider, EntityHorse horse) {
+        int maxGap = TravellersConfig.MOUNTS.mountedMaxGapWidth;
+        if (!TravellersConfig.MOUNTS.mountedJumpEnabled || maxGap <= 0) return;
+        if (!horse.onGround || horse.isHorseJumping() || horse.isInWater()) return;
+        if (rider.moveForward <= 0.02F || !rider.getMoveHelper().isUpdating()) return;
+
+        double toX = rider.getMoveHelper().getX() - horse.posX;
+        double toZ = rider.getMoveHelper().getZ() - horse.posZ;
+        boolean alongX = Math.abs(toX) >= Math.abs(toZ);
+        double toAlong = alongX ? toX : toZ;
+        if (Math.abs(alongX ? toZ : toX) > GAP_TARGET_MAX_SIDE_OFFSET) return;
+        int sg = toAlong > 0 ? 1 : -1;
+        double along = alongX ? horse.posX : horse.posZ;
+        double side = alongX ? horse.posZ : horse.posX;
+        double half = horse.width / 2.0D;
+        // A planned jump steers at a node beyond the gap; ordinary walking steers one cell ahead.
+        if (Math.abs(toAlong) < half + 1.5D) return;
+        double feet = horse.getEntityBoundingBox().minY;
+
+        // One column read per tick on ordinary ground: the one under the middle of the chest.
+        int first = MathHelper.floor(along + sg * (half + 0.3D));
+        double fx = alongX ? first + 0.5D : side;
+        double fz = alongX ? side : first + 0.5D;
+        if (!Double.isNaN(com.jubitus.travellers.pathing.MountTerrainProfile.groundYNear(
+                horse.world, fx, fz, feet, horse.stepHeight, 1.0D, 2))) {
+            return;
+        }
+
+        for (int g = 1; g <= maxGap; g++) {
+            int col = first + sg * g;
+            double near = rimSurface(horse.world, alongX, col, side, half, feet, 1.0D);
+            if (Double.isNaN(near)) continue;
+            double far = rimSurface(horse.world, alongX, col + sg, side, half, feet, 1.0D);
+            if (Double.isNaN(far)) return;
+            double landY = Math.max(near, far);
+            double landAlong = (sg > 0 ? col : col + 1) + sg * (half + 0.2D);
+            double distance = Math.abs(landAlong - along);
+            if (Math.abs(toAlong) < distance - half) return; // steering target is not across the gap
+
+            AxisAlignedBB box = horse.getEntityBoundingBox();
+            double floor = Math.max(feet, landY) + 0.3D;
+            double top = floor + com.jubitus.travellers.pathing.PathBody.clearanceHeight(rider);
+            double lo = Math.min(along, landAlong) - half;
+            double hi = Math.max(along, landAlong) + half;
+            AxisAlignedBB flight = alongX
+                    ? new AxisAlignedBB(lo, floor, box.minZ, hi, top, box.maxZ)
+                    : new AxisAlignedBB(box.minX, floor, lo, box.maxX, top, hi);
+            if (horse.world.collidesWithAnyBlock(flight)) {
+                traceJumpRejection(rider, "gap ahead but the flight path is blocked");
+                return;
+            }
+
+            double strength = horse.getHorseJumpStrength();
+            double drop = landY - feet;
+            double vy = requiredJumpVelocity(Math.max(0.0D, drop) + GAP_JUMP_APEX, strength);
+            double vh = gapJumpHorizontalSpeed(distance, airTicks(vy, drop));
+            if (vh > GAP_JUMP_MAX_SPEED) {
+                vy = strength;
+                vh = gapJumpHorizontalSpeed(distance, airTicks(vy, drop));
+                if (vh > GAP_JUMP_MAX_SPEED) {
+                    traceJumpRejection(rider, "gap too wide for this horse");
+                    return;
+                }
+            }
+
+            horse.motionY = vy;
+            horse.motionX = alongX ? sg * vh : 0.0D;
+            horse.motionZ = alongX ? 0.0D : sg * vh;
+            horse.setHorseJumping(true);
+            horse.isAirBorne = true;
+            float yaw = alongX ? (sg > 0 ? -90.0F : 90.0F) : (sg > 0 ? 0.0F : 180.0F);
+            horse.rotationYaw = yaw;
+            rider.rotationYaw = yaw;
+            rider.mountState.setMountJumpYaw(yaw);
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
+                    String.format(java.util.Locale.ROOT, "gap jump width=%d dist=%.2f drop=%.2f vy=%.2f vh=%.2f",
+                            g, distance, drop, vy, vh));
+            return;
+        }
+    }
+
+    /**
+     * The dry surface under one cross-section of the horse ({@code col} along the axis, its width
+     * across), or NaN when any part of it has nothing to stand on between one block below
+     * {@code feet} and {@code rise} above.
+     */
+    private static double rimSurface(World world, boolean alongX, int col, double side, double half,
+                                     double feet, double rise) {
+        double best = Double.NaN;
+        for (double s = -half + 0.05D; s <= half - 0.05D + 1.0E-6D; s += half - 0.05D) {
+            double x = alongX ? col + 0.5D : side + s;
+            double z = alongX ? side + s : col + 0.5D;
+            double y = com.jubitus.travellers.pathing.MountTerrainProfile.groundYNear(world, x, z, feet, rise, 1.0D, 2);
+            if (Double.isNaN(y)) return Double.NaN;
+            if (Double.isNaN(best) || y > best) best = y;
+        }
+        return best;
+    }
+
+    /** Ticks airborne for a launch at {@code vy} landing {@code drop} blocks above takeoff (negative = below). */
+    private static int airTicks(double vy, double drop) {
+        double y = 0.0D;
+        for (int t = 1; t <= 60; t++) {
+            y += vy;
+            vy = (vy - 0.08D) * 0.98D;
+            if (vy < 0.0D && y <= drop) return t;
+        }
+        return 60;
+    }
+
+    /** Launch speed covering {@code distance} in {@code ticks} under the 0.91 airborne drag. */
+    private static double gapJumpHorizontalSpeed(double distance, int ticks) {
+        return distance * (1.0D - 0.91D) / (1.0D - Math.pow(0.91D, ticks));
+    }
+
+    /** How far beside the jump axis the steering target may sit. */
+    private static final double GAP_TARGET_MAX_SIDE_OFFSET = 1.5D;
+    /** Arc height above the higher rim - enough to clear the far edge with the whole body. */
+    private static final double GAP_JUMP_APEX = 0.8D;
+    /** Fastest launch allowed, blocks/tick - a full-strength horse at a gallop. */
+    private static final double GAP_JUMP_MAX_SPEED = 0.9D;
 
     /**
      * Records why a horse pressed against something did NOT jump - the reactive side of the mount

@@ -511,7 +511,7 @@ public final class MaterializePositionResolver {
     /** Y just above the column's open water surface (the top layer is water), else NaN. */
     public static double waterSurfaceY(WorldServer world, int bx, int bz) {
         int y = ColumnGround.topLayer(world, bx, bz, true);
-        if (y == ColumnGround.NONE || !BlockRules.isVanillaWater(world.getBlockState(new BlockPos(bx, y, bz)))) {
+        if (y == ColumnGround.NONE || !BlockRules.isWater(world.getBlockState(new BlockPos(bx, y, bz)))) {
             return Double.NaN;
         }
         return y + 1.0;

@@ -80,9 +80,9 @@ public final class ColumnGround {
 
             int feet = NONE;
             boolean stop = false;
-            if (BlockRules.isVanillaWater(s)) {
+            if (BlockRules.isWater(s)) {
                 // The top water block is where a swimmer's feet are; never look for a seabed.
-                if (allowWater && Footing.canSwimAt(world, p) && !BlockRules.isVanillaWater(world.getBlockState(p.up()))) {
+                if (allowWater && Footing.canSwimAt(world, p) && !BlockRules.isWater(world.getBlockState(p.up()))) {
                     feet = y;
                 }
                 stop = true;
