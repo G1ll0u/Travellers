@@ -20,5 +20,7 @@ public final class DebugMessages {
         toClient(MsgVillageDebugView.class, () -> new MsgVillageDebugView.Handler());
         toClient(PacketTravellerChunks.class, () -> new PacketTravellerChunksClientHandler());
         toServer(PacketTravellerChunksRequest.class, PacketTravellerChunksRequest.Handler.class);
+        toServer(MsgLoadedChunksRequest.class, MsgLoadedChunksRequest.Handler.class);
+        toClient(MsgLoadedChunksMap.class, () -> new MsgLoadedChunksMap.ClientHandler());
     }
 }

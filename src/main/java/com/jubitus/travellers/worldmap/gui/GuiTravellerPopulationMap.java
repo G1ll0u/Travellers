@@ -11,7 +11,9 @@ import com.jubitus.travellers.worldmap.net.MsgMapPopulationUpdate;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeCampMap;
 import com.jubitus.travellers.worldmap.net.MsgSubscribePopulationMap;
 import com.jubitus.travellers.debug.client.ClientItineraryDebugOverlay;
+import com.jubitus.travellers.debug.client.ClientLoadedChunksOverlay;
 import com.jubitus.travellers.debug.client.ClientTerrainDebugOverlay;
+import com.jubitus.travellers.debug.net.MsgLoadedChunksRequest;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.debug.net.MsgItineraryDebugRequest;
@@ -49,6 +51,9 @@ public class GuiTravellerPopulationMap extends GuiScreen
     private GuiButton terrainButton;
     private GuiButton routeButton;
     private long lastRouteReqMs;
+    private GuiButton loadedChunksButton;
+    private boolean highlightLoadedChunks;
+    private long lastLoadedChunksReqMs;
 
     /** null = overlay off; otherwise the scanned-terrain map currently shown instead of the worldmap. */
     private TerrainProfileImageExport.Mode terrainMode;
@@ -75,7 +80,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         super.initGui();
 
         mapW = Math.min(360, this.width - 20);
-        mapH = Math.min(240, this.height - 95);
+        mapH = Math.min(240, this.height - 119);
         mapX = (this.width - mapW) / 2;
         mapY = (this.height - mapH) / 2 - 10;
 
@@ -107,6 +112,8 @@ public class GuiTravellerPopulationMap extends GuiScreen
                 I18n.format("travellers.map.spawn_worker", "Spawn worker")));
         routeButton = this.addButton(new GuiTravellersButton(14, mapX + 3 * (sbw + 4), zTop2, sbw, 20, routeLabel()));
 
+        loadedChunksButton = this.addButton(new GuiTravellersButton(15, mapX, zTop2 + 24, mapW, 20, loadedChunksLabel()));
+
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
         TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribePopulationMap(true));
         TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeCampMap(true));
@@ -121,6 +128,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
             mapController.panel.debugBackgroundOverlay = null;
         }
         ClientTerrainDebugOverlay.clear();
+        ClientLoadedChunksOverlay.clear();
         ClientItineraryDebugOverlay.clear();
     }
 
@@ -135,6 +143,38 @@ public class GuiTravellerPopulationMap extends GuiScreen
         if (id == null) return;
         lastRouteReqMs = Minecraft.getSystemTime();
         TravellersNetwork.CHANNEL.sendToServer(new MsgItineraryDebugRequest(0, 0, 0, id));
+    }
+
+    private String loadedChunksLabel() {
+        return "Highlight loaded chunks: " + (highlightLoadedChunks ? "ON" : "OFF");
+    }
+
+    /** Asks the server which chunks of the current viewport (plus a small margin) are loaded. */
+    private void requestLoadedChunks() {
+        if (!highlightLoadedChunks) return;
+        lastLoadedChunksReqMs = Minecraft.getSystemTime();
+        float bpp = mapController.panel.getZoomBlocksPerPixel();
+        int cx = Math.round(mapController.panel.getCenterXf());
+        int cz = Math.round(mapController.panel.getCenterZf());
+        int halfWBlocks = Math.round(mapW / 2f * bpp) + 32;
+        int halfHBlocks = Math.round(mapH / 2f * bpp) + 32;
+
+        int minX = Math.floorDiv(cx - halfWBlocks, 16);
+        int minZ = Math.floorDiv(cz - halfHBlocks, 16);
+        int w = Math.floorDiv(cx + halfWBlocks, 16) - minX + 1;
+        int h = Math.floorDiv(cz + halfHBlocks, 16) - minZ + 1;
+
+        // Zoomed way out: a centred patch rather than nothing.
+        int cap = MsgLoadedChunksRequest.MAX_CHUNKS;
+        if (w > cap) {
+            minX = Math.floorDiv(cx, 16) - cap / 2;
+            w = cap;
+        }
+        if (h > cap) {
+            minZ = Math.floorDiv(cz, 16) - cap / 2;
+            h = cap;
+        }
+        TravellersNetwork.CHANNEL.sendToServer(new MsgLoadedChunksRequest(minX, minZ, w, h));
     }
 
     private String terrainLabel() {
@@ -191,6 +231,11 @@ public class GuiTravellerPopulationMap extends GuiScreen
                     mapController.panel.getCenterXf(), mapController.panel.getCenterZf(),
                     mapController.panel.getZoomBlocksPerPixel());
         }
+        if (highlightLoadedChunks) {
+            ClientLoadedChunksOverlay.draw(mapX, mapY, mapW, mapH,
+                    mapController.panel.getCenterXf(), mapController.panel.getCenterZf(),
+                    mapController.panel.getZoomBlocksPerPixel());
+        }
         ClientItineraryDebugOverlay.draw(mapX, mapY, mapW, mapH,
                 mapController.panel.getCenterXf(), mapController.panel.getCenterZf(),
                 mapController.panel.getZoomBlocksPerPixel());
@@ -206,6 +251,9 @@ public class GuiTravellerPopulationMap extends GuiScreen
         // Debug terrain overlay: refresh the tile ~once a second (markers stay live on their own).
         if (terrainMode != null && Minecraft.getSystemTime() - lastTerrainReqMs > 1000L) {
             requestTerrain();
+        }
+        if (highlightLoadedChunks && Minecraft.getSystemTime() - lastLoadedChunksReqMs > 1000L) {
+            requestLoadedChunks();
         }
         if (ClientItineraryDebugOverlay.selected() != null && Minecraft.getSystemTime() - lastRouteReqMs > 1000L) {
             refreshRoute();
@@ -362,6 +410,13 @@ public class GuiTravellerPopulationMap extends GuiScreen
         if (button == spawnWorkerButton) { setClickMode(ClickMode.SPAWN_WORKER); return; }
         if (button == spawnRaiderButton) { setClickMode(ClickMode.SPAWN_RAIDER); return; }
         if (button == terrainButton) { cycleTerrainMode(); return; }
+        if (button == loadedChunksButton) {
+            highlightLoadedChunks = !highlightLoadedChunks;
+            loadedChunksButton.displayString = loadedChunksLabel();
+            if (highlightLoadedChunks) requestLoadedChunks();
+            else ClientLoadedChunksOverlay.clear();
+            return;
+        }
         if (button == routeButton) {
             if (clickMode != ClickMode.ROUTE && ClientItineraryDebugOverlay.isActive()) {
                 ClientItineraryDebugOverlay.clear();
