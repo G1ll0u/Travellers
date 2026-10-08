@@ -313,8 +313,7 @@ Mechanical splits, behaviour unchanged:
 - `EntityAITravel` → waypoint picker, itinerary, path driver, mount policy, stuck actions (closes the itinerary plan's phase 4).
 - `EntityAIFollowLeader` → `FollowState` (one reset instead of 5), goal resolver, path requester, speed policy,
   direct steering, idle-at-slot.
-- `FollowFormationCoordinator` → leader registry, heading smoother (shared with `GroupFormationTracker`), crowd grid,
-  slot assigner, cave geometry; private `SlotOffset` and `wrapToPi` copies removed.
+- **11.3 `FollowFormationCoordinator` done** (1 587 → 340 lines: `LeaderFormation`, `HeadingTracker`, `CrowdGrid`, `FormationSpace`, `SlotOrdering`, `AngleMath`; `SlotAssignment` kept nested). Decided with the user: the heading smoother is NOT shared with `GroupFormationTracker` (it has no smoothing; sharing would change group behaviour). Private `SlotOffset` removed (uses `FormationGeometry.SlotOffset`); the second `wrapToPi` copy in `EntityAIFollowLeader` goes in 11.6.
 - `TravellerMountSupport` → bond, ticker, riding physics, led-horse driver, mode machine (one `enterFallbackLed`
   instead of 6 pastes), lifecycle, persistence.
 - Travel/follow shared bits: gap-jump guard, rider-meets-water probe, one `PARTIAL_PATH_TOLERANCE`; boats: one stall
