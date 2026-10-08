@@ -14,11 +14,13 @@ import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.*;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemBow;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -52,6 +54,221 @@ public class TravellerCombatLogic {
 
     public TravellerCombatLogic(EntityTraveller entity) {
         this.entity = entity;
+    }
+
+    // --- Per-tick upkeep state ---
+    private boolean wasInCombatPrev = false;
+    private int silenceUntilTick = 0;
+    private int stuckTargetTicks = 0;
+    private double lastTargetDistSq = -1.0D;
+    // Last dead attack target a retarget boost was armed for: cleanup is deferred while boosted, so the
+    // dead target stays assigned and would otherwise re-arm the boost every tick.
+    @Nullable private EntityLivingBase lastHandledDeadTarget = null;
+
+    // -------------------------------------------------------------------------
+    // Per-tick upkeep (server only; EntityTraveller.onUpdate calls these in this order)
+    // -------------------------------------------------------------------------
+
+    /** 5 s of voice silence after a fight ends. */
+    public boolean isInPostCombatSilence() {
+        return entity.ticksExisted < silenceUntilTick;
+    }
+
+    /** Attacker-slot upkeep, combat-end reset, disengage when too far, stuck target, revenge re-engage. */
+    public void tickEngagement() {
+        EntityLivingBase at = entity.getAttackTarget();
+        // Archers bypass the limiter - no slot to maintain
+        if (at != null && at.isEntityAlive() && !entity.shouldBypassAttackTargetLimiter(at)) {
+            // Same effective cap as the initial join in setAttackTarget(): the plain default cap is
+            // smaller than the group-scaled cap workers actually joined under.
+            boolean ok = AttackTargetLimiter.tryJoin(entity, at, AttackTargetLimiter.priorityFor(entity),
+                    entity.computeEffectiveAttackerCap(at));
+            if (!ok) {
+                // Evicted from the slot: back off briefly so we don't frantic-retry every tick
+                entity.ignoreTarget(at, 30);
+                entity.setAttackTarget(null);
+                entity.setInCombat(false);
+                entity.getNavigator().clearPath();
+                entity.setSprinting(false);
+            }
+        }
+
+        boolean inCombatNow = isInCombat();
+        if (wasInCombatPrev && !inCombatNow) {
+            entity.getNavigator().clearPath();
+            entity.setSprinting(false);
+            entity.setAIMoveSpeed((float) entity.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue());
+            silenceUntilTick = entity.ticksExisted + 100;
+        }
+        wasInCombatPrev = inCombatNow;
+
+        disengageIfTooFar();
+        abandonUnreachableTarget();
+        reengageRevengeTarget();
+    }
+
+    private void disengageIfTooFar() {
+        EntityLivingBase tgt = entity.getAttackTarget();
+        if (tgt == null || !tgt.isEntityAlive()) return;
+        double maxEngage = TravellersConfig.COMBAT.attackTriggerRange;
+        boolean hasBow = entity.hasBowInBackpackPublic()
+                || (!entity.getHeldItemMainhand().isEmpty() && entity.getHeldItemMainhand().getItem() instanceof ItemBow);
+        if (hasBow) {
+            maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.rangedMaxDist * 1.25);
+        }
+        // helpRange is used for assistance chaining
+        maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.helpRange);
+        if (entity.getDistanceSq(tgt) > maxEngage * maxEngage) {
+            entity.setAttackTarget(null);
+            entity.setInCombat(false);
+            if (entity.isAimingBow()) {
+                entity.setAimingBow(false);
+                entity.resetActiveHand();
+            }
+        }
+    }
+
+    /** A target that does not get closer for 80 ticks (other level, out of sight) is dropped for a while. */
+    private void abandonUnreachableTarget() {
+        EntityLivingBase tgt = entity.getAttackTarget();
+        if (tgt == null || !tgt.isEntityAlive()) {
+            stuckTargetTicks = 0;
+            lastTargetDistSq = -1.0D;
+            return;
+        }
+        double d2 = entity.getDistanceSq(tgt);
+        // In melee range the distance barely changes while trading blows: not stuck
+        final double meleeRangeSq = 3.5 * 3.5;
+        if (d2 > meleeRangeSq && lastTargetDistSq >= 0 && d2 >= lastTargetDistSq - 2.0D) {
+            stuckTargetTicks++;
+        } else {
+            stuckTargetTicks = 0;
+        }
+        lastTargetDistSq = d2;
+        if (stuckTargetTicks <= 80) return;
+
+        boolean abandon = false;
+        if (Math.abs(tgt.posY - entity.posY) > 4.0D) {
+            abandon = true;
+        } else if (((entity.ticksExisted + entity.getEntityId()) % 20) == 0) {
+            abandon = !entity.getEntitySenses().canSee(tgt);
+        }
+        if (abandon) {
+            // Shorter ignore for revenge targets (they attacked us): re-engage sooner
+            entity.ignoreTarget(tgt, entity.getRevengeTarget() == tgt ? 40 : 200);
+            entity.setAttackTarget(null);
+            entity.setInCombat(false);
+            entity.getNavigator().clearPath();
+            stuckTargetTicks = 0;
+            lastTargetDistSq = -1.0D;
+        }
+    }
+
+    /** Skips the 0-8 tick scan delay of EntityAIDefendIfClose after the attack target was cleared. */
+    private void reengageRevengeTarget() {
+        if (entity.getAttackTarget() != null) return;
+        EntityLivingBase rev = entity.getRevengeTarget();
+        if (rev != null && rev.isEntityAlive() && !entity.isIgnoring(rev)) {
+            double r = TravellersConfig.COMBAT.attackTriggerRange;
+            if (entity.getDistanceSq(rev) <= r * r) {
+                entity.trySetAttackTargetLimited(rev);
+            }
+        }
+    }
+
+    /** Dead or vanished target: arm the retarget boost once, then clean up unless a revenge target or the boost holds. */
+    public void tickTargetLoss() {
+        EntityLivingBase tgt = entity.getAttackTarget();
+        if (tgt != null && !tgt.isEntityAlive() && lastHandledDeadTarget != tgt) {
+            // Bypass target-scan throttling so the next enemy is picked up within a tick or two
+            lastHandledDeadTarget = tgt;
+            entity.requestImmediateRetarget();
+        }
+        if (tgt != null && tgt.isEntityAlive()) return;
+
+        EntityLivingBase rev = entity.getRevengeTarget();
+        boolean revAlive = rev != null && rev.isEntityAlive();
+        // While boosted, hold off so target-scan tasks can pick up a nearby threat before control goes back to travel/formation AI.
+        // A living revenge target is kept: vanilla's revengeTimer decays it (~5 s) and reengageRevengeTarget() re-locks on range.
+        if (revAlive || entity.isRetargetBoosted()) return;
+        if (isInCombat()) {
+            entity.setInCombat(false);
+            entity.setAttackTarget(null);
+            entity.setRevengeTarget(null);
+            entity.getNavigator().clearPath();
+            entity.getTravelCommon().setTravelRecoverTicks(60);
+        } else if (tgt != null) {
+            entity.setAttackTarget(null);
+            entity.setRevengeTarget(null);
+            entity.getNavigator().clearPath();
+        }
+    }
+
+    /** Bow pose reset, player-chase forgiveness and watch-fight upkeep. Server only: the client must only mirror synced state. */
+    public void tickChaseMemory() {
+        if (!isInCombat() && entity.isAimingBow()) {
+            // Only cancel if the thing in use is a bow, so eating stays intact
+            ItemStack hand = entity.getHeldItemMainhand();
+            if (!hand.isEmpty() && hand.getItem() instanceof ItemBow) {
+                entity.resetActiveHand();
+            }
+            entity.setAimingBow(false);
+        }
+
+        EntityLivingBase tgt = entity.getAttackTarget();
+        if (tgt instanceof EntityPlayer) {
+            forgivePlayerIfCalm((EntityPlayer) tgt);
+        } else if (tgt == null) {
+            resetChaseMemory();
+        }
+
+        if (entity.isAimingBow()) {
+            entity.setSprinting(false);
+            if ((entity.ticksExisted & 0x3F) == 0) {
+                pruneGraceHits();
+            }
+        }
+
+        if (entity.getAttackTarget() == null && hasWatchFightTarget()) {
+            if (isWatchFightExpired()) {
+                clearWatchFight();
+            } else if (entity.world instanceof WorldServer) {
+                Entity e = ((WorldServer) entity.world).getEntityFromUuid(getWatchFightTargetId());
+                if (e instanceof EntityLivingBase && e.isEntityAlive()) {
+                    entity.getNavigator().clearPath();
+                    entity.getLookHelper().setLookPositionWithEntity(e, 30.0F, (float) entity.getVerticalFaceSpeed());
+                } else {
+                    clearWatchFight();
+                }
+            }
+        }
+    }
+
+    private void forgivePlayerIfCalm(EntityPlayer p) {
+        // Still engaging: line of sight or being near keeps the chase fresh
+        double keepDist = TravellersConfig.PLAYER_AGGRO.playerFleeKeepDistance;
+        if (entity.getEntitySenses().canSee(p) || entity.getDistanceSq(p) <= keepDist * keepDist) {
+            lastLOSorCloseTick = entity.ticksExisted;
+        }
+        boolean playerCalm = lastPlayerAggroAgeTicks(p) > TravellersConfig.PLAYER_AGGRO.playerCalmForgiveTicks;
+        Threat th = getThreat(p.getUniqueID());
+        boolean wasRecentlyThreat = th != null && entity.ticksExisted - th.lastSeenTick <= 40;
+        boolean fleeingLongEnough =
+                entity.ticksExisted - lastLOSorCloseTick > TravellersConfig.PLAYER_AGGRO.playerFleeForgiveTicks;
+        // An assist chase (worker joining its owner against a player that never attacked it) lives as long as the owner fights
+        boolean assistStillDriven = entity.isOwnerStillFightingAssistTarget(p);
+
+        if (playerCalm && fleeingLongEnough && !wasRecentlyThreat && !assistStillDriven) {
+            entity.setAttackTarget(null);
+            entity.setInCombat(false);
+            entity.getNavigator().clearPath();
+            if (entity.isAimingBow()) {
+                entity.setAimingBow(false);
+                entity.resetActiveHand();
+            }
+            resetChaseMemory();
+            entity.setRevengeTarget(null);
+        }
     }
 
     // -------------------------------------------------------------------------

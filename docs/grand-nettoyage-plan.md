@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-08)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.15 done, 9.1–9.13 checked in game; 9.15 awaits an in-game check; then phase 10).
+**Status (2026-10-08)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 in progress (9.1–9.16 done, 9.1–9.13 checked in game; 9.15–9.16 await an in-game check; next 9.17).
 
 ## Goal
 
@@ -224,7 +224,7 @@ cancels is removed from the pool anyway, and a released pen horse is never respa
 Kept: bond invariants in `mount/`, containment AI in `zone/stable/` (each used by one system only); chunk unload
 stays two handlers (bonded horses depend on which riders unload in the same chunk, `ChunkUnloadVirtualizeHandler`).
 
-### Phase 9 — Unit classes split — status: in progress (9.1–9.15 done)
+### Phase 9 — Unit classes split — status: in progress (9.1–9.16 done; revised 2026-10-08, see below)
 
 - `EntityTraveller` (5 177 lines): mount runtime state → `TravellerMountState`; voice → `TravellerVoice`; NBT →
   codec; sleep; hazard/cliff repulsion; virtualization eligibility → `VirtualizationGate` (one rule, subclass hooks);
@@ -234,7 +234,9 @@ stays two handlers (bonded horses depend on which riders unload in the same chun
 - `EntityTravellerWorker` (4 218 lines): `WorkerMissions` (go-home, duty, go order, get-equipment, delivery return),
   `RecruitMission`, `DeliveryJob`; escort and follower counting → `WorkerGroupService` (cycle check and counter
   already exist there); `WorkerNbtComponent` top-level.
-Target: no unit class above ~1 500 lines. Visible: none.
+Target (revised with the user, 2026-10-08): the line count is not the goal. Done when no tick method exceeds ~80 lines and
+`EntityTraveller` holds only vanilla overrides, wiring and accessors; each step also looks for duplicates and needless
+complexity to remove, not just code to move. Visible: none unless a merge says so (confirmed with the user).
 Done (one commit each, `EntityTraveller` 5 055 → 3 689 lines): 9.1 `TravellerSleep`; 9.2 `HazardRepulsion`;
 9.3 `TravellerVoice` (channel, barks, personality, hello; `TravellerVoice.Kind`; raider hooks `resolveVoiceSetFor*`,
 `pickVoicePersonalityId` stay on the entity); 9.4 `TravellerMountState` (`unit.mountState`; the bond UUID stays on the
@@ -271,7 +273,12 @@ is still read after the follow state (restoring follow would otherwise cancel it
 horse pick-up is written twice (loaded `EquipOrders.onArrived`, virtual `tryVirtualHorsePickup`) — phase 10.
 9.13 save code (user: no codec class — the entity's own fields stay saved beside them, components already save
 their own keys): the worker's shadow `homeVillageCenter` removed (it uses the base home village, same keys); the owner
-and hired flag are written and read once; the `WorkerNbtComponent` inner class inlined into the two overrides. In-game check of 9.1–9.13 done by the user (2026-10-08, short run, fine).
+and hired flag are written and read once; the `WorkerNbtComponent` inner class inlined into the two overrides. 9.16 `TravellerCombatLogic.tickEngagement/tickTargetLoss/tickChaseMemory` replace the combat blocks of `EntityTraveller.onUpdate`
+(271 → ~35 lines); their state (`wasInCombatPrev`, stuck-target counters, dead-target boost guard, post-combat silence) moved with
+them; order of the steps unchanged. Debug map: operator-only (`DebugAccess`), old chunk-snapshot screen deleted.
+Next: 9.17 duplicate audit (virtual leader-follow ×2, attacker-cap divisor config vs hard-coded 5, Stable horse pick-up ×2
+— the last also touches phase 10); 9.18 worker `onLivingUpdate` and ghost-item helpers → equipment.
+In-game check of 9.1–9.13 done by the user (2026-10-08, short run, fine).
 9.14 `unit/VirtualizationGate.mayVirtualize(unit, battleParticipant)`: the one eligibility rule (replaces `canVirtualize`,
 `canVirtualizeIgnoringCombat` and the manager's `canVirtualizeMaybeBattling`); hooks `combatBlocksVirtualization()` (worker
 only, as before) and `isBusyForVirtualization()` (worker mission checks). Behaviour unchanged; `forceResolvingBlockers` still bypasses it.
