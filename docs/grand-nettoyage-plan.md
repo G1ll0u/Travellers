@@ -319,8 +319,7 @@ Mechanical splits, behaviour unchanged:
   instead of 6 pastes), lifecycle, persistence.
 - Travel/follow shared bits: gap-jump guard, rider-meets-water probe, one `PARTIAL_PATH_TOLERANCE`; boats: one stall
   watchdog, one `landAshore`.
-- `EntityAIRangedBowTravellerSafe` → ballistics, shot-line check, archer movement; `StableHandTask` → chores,
-  mount ritual, ambient/night.
+- **11.2a `EntityAIRangedBowTravellerSafe` done** (794 → 339 lines: `BowBallistics`, `BowShotLine`, `ArcherMovement`, same folder; shot behaviour and RNG call order unchanged). **11.2b `StableHandTask` done** (1 052 → 321 lines: `StableChores`, `StableTaming`, `StableAmbience`, `StableHandSupport` for the shared helpers + per-tick scratch; same folder; phase logic moved verbatim).
 - **11.1 `CommandTravellerDebug` → one class per subcommand — done** (`debug/cmd/`: 20 subcommands behind `DebugSubcommand` + `DebugCommandSupport`; main class 2 203 → 85 lines, a name → subcommand table). An unrecognised subcommand still falls back to the cultures dump, as before. `/travellerChunks` and other commands untouched (no visible name change).
 - (original line:) `CommandTravellerDebug` → one class per subcommand. **To decide at the phase**: fold `/travellerChunks`,
   route dump and shelter commands into `/travellersdebug` (player-visible command names).
