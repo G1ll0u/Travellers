@@ -2,6 +2,8 @@
 
 **One task, `EntityAIFollowLeader`, drives every follower** (registered by `EntityTraveller`, mirrored in `EntityTravellerRaider`, and by `EntityTravellerWorker`). Follow-context hooks (`getEffectiveFollowTarget`, `isHiredFollower`, `isJobActive`, …) have neutral defaults on `EntityTraveller` and worker overrides. A plain group follower's only "leader" is `groupLeaderUUID`.
 
+`EntityAIFollowLeader` orchestrates; it owns `FollowGoalResolver` (where to stand), `FollowSteering` (direct steering, hazards), `FollowPathRequester` (budgeted A*), `FollowStuckSignals` (stuck evidence, cave rescue), `FollowSpeedPolicy`. Resets are built from named groups that each clear a deliberate subset — never merge them into one.
+
 ## Formations
 - `FormationGeometry` is the pure slot math shared by every consumer: `FollowFormationCoordinator` (loaded workers; registration, settings, cave mode — worker-only), `GroupFormationTracker` (loaded groups; dense rank, smoothed heading), `VirtualFormationSimulator` (offscreen workers).
 - `COLUMN` is internal (cave single-file); `RING` is groups-only. A group's style is rolled once at creation, group-atomic, persisted. Fully offscreen groups always use the ring spread.

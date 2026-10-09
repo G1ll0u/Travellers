@@ -174,7 +174,7 @@ final class HeadingTracker {
 
         double currentAngle = Math.atan2(targetDirZ, targetDirX);
         double targetAngle = Math.atan2(nz, nx);
-        double delta = AngleMath.wrapToPi(targetAngle - currentAngle);
+        double delta = FollowMath.wrapToPi(targetAngle - currentAngle);
         double absDelta = Math.abs(delta);
 
         if (absDelta < minAngleRad) {
@@ -195,7 +195,7 @@ final class HeadingTracker {
             } else {
                 targetAngle = currentAngle - (Math.PI * 0.5D);
             }
-            delta = AngleMath.wrapToPi(targetAngle - currentAngle);
+            delta = FollowMath.wrapToPi(targetAngle - currentAngle);
             absDelta = Math.abs(delta);
         }
 
@@ -228,7 +228,7 @@ final class HeadingTracker {
 
         double curAngle = Math.atan2(stableDirZ, stableDirX);
         double tgtAngle = Math.atan2(targetDirZ, targetDirX);
-        double delta = AngleMath.wrapToPi(tgtAngle - curAngle);
+        double delta = FollowMath.wrapToPi(tgtAngle - curAngle);
         double step = MathHelper.clamp(delta, -maxStepRad, maxStepRad);
         double newAngle = curAngle + step;
 
