@@ -1,6 +1,7 @@
 package com.jubitus.travellers.travel;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -163,9 +164,6 @@ final class TravelPathDriver {
 
     }
 
-    /** How far a path may end from the waypoint it was asked for before it counts as a partial. */
-    private static final double PARTIAL_PATH_TOLERANCE = 3.0D;
-
     /** A partial route ending this close to where the entity already stands has gained it nothing. */
     private static final double STILLBORN_PATH_RADIUS = 2.5D;
 
@@ -200,7 +198,7 @@ final class TravelPathDriver {
 
         double missX = (end.x + 0.5D) - (waypoint.getX() + 0.5D);
         double missZ = (end.z + 0.5D) - (waypoint.getZ() + 0.5D);
-        if (missX * missX + missZ * missZ <= PARTIAL_PATH_TOLERANCE * PARTIAL_PATH_TOLERANCE) return false;
+        if (missX * missX + missZ * missZ <= TravellerNavigateGround.PARTIAL_PATH_TOLERANCE * TravellerNavigateGround.PARTIAL_PATH_TOLERANCE) return false;
 
         double gainX = (end.x + 0.5D) - mob.posX;
         double gainZ = (end.z + 0.5D) - mob.posZ;
@@ -232,7 +230,7 @@ final class TravelPathDriver {
         double dx = (end.x + 0.5D) - (waypoint.getX() + 0.5D);
         double dz = (end.z + 0.5D) - (waypoint.getZ() + 0.5D);
         double miss = Math.sqrt(dx * dx + dz * dz);
-        if (miss <= PARTIAL_PATH_TOLERANCE) return;
+        if (miss <= TravellerNavigateGround.PARTIAL_PATH_TOLERANCE) return;
 
         com.jubitus.travellers.debug.trace.TravellerTracer.event(mob, "path",
                 String.format(java.util.Locale.ROOT,

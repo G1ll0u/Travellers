@@ -1,6 +1,7 @@
 package com.jubitus.travellers.debug.profile;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.follow.EntityAIFollowLeader;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.mount.MountMode;
@@ -41,7 +42,6 @@ final class ProfileSession {
     private static final double STALL_BLOCKS_PER_SECOND = 0.3D;
     private static final int FORGET_AFTER_TICKS = 100;
     private static final int AFTER_MATERIALIZE_TICKS = 600;
-    private static final double PARTIAL_PATH_TOLERANCE_SQ = 3.0D * 3.0D;
 
     final long startTick;
     final long startMillis;
@@ -536,7 +536,7 @@ final class ProfileSession {
             if (end != null) {
                 double dx = end.x + 0.5D - tx;
                 double dz = end.z + 0.5D - tz;
-                if (dx * dx + dz * dz > PARTIAL_PATH_TOLERANCE_SQ) ps.partials++;
+                if (dx * dx + dz * dz > TravellerNavigateGround.PARTIAL_PATH_TOLERANCE * TravellerNavigateGround.PARTIAL_PATH_TOLERANCE) ps.partials++;
             }
         }
         pathTotalNanos += nanos;

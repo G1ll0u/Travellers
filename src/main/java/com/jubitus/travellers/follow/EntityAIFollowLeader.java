@@ -291,10 +291,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // EntityAITravel uses. Without this, applyNonPathSteering's per-tick moveHelper.setMoveTo
         // toward the (different) formation goal fights the ballistic motionX/Z the jump set up,
         // which is what made jumps consistently land short once steering became the default path.
-        PathNavigate navCheck = follower.getNavigator();
-        if (navCheck instanceof TravellerNavigateGround && ((TravellerNavigateGround) navCheck).isGapJumping()) {
-            return;
-        }
+        if (TravellerNavigateGround.isMidGapJump(follower)) return;
 
         EntityLivingBase target = follower.getEffectiveFollowTarget();
         if (!isValidTarget(target)) {

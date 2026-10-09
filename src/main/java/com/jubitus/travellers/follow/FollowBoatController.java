@@ -24,9 +24,7 @@ import java.util.List;
 /**
  * Shared boat-following logic: a follower keeps pace with a target that may cross water by boat,
  * either boarding the target's own boat (room permitting) or spawning/steering its own alongside it.
- * Used by both worker escort following ({@link EntityAIFollowLeader}) and traveller/raider
- * group following ({@link EntityAIFollowLeader}) - extracted so the two never diverge on boat
- * behavior instead of maintaining two copies.
+ * Used by {@link EntityAIFollowLeader} for worker escorts and traveller/raider groups alike.
  *
  * Lifecycle invariants this class enforces everywhere it dismounts/finishes with a boat:
  * - A boat this controller spawned ({@link EntityTravellerBoat}) is always killed on dismount -
@@ -182,16 +180,7 @@ final class FollowBoatController {
                 MathHelper.floor(myBoat.posX), MathHelper.floor(myBoat.posY), MathHelper.floor(myBoat.posZ));
         BlockPos shoreSpot = findDrySpotNear(boatPos, NO_TARGET_SHORE_SEARCH_RADIUS);
         if (shoreSpot != null && !follower.world.getBlockState(shoreSpot).getMaterial().isLiquid()) {
-            TravellerBoats.leave(follower);
-            follower.setLocationAndAngles(
-                    shoreSpot.getX() + 0.5D, shoreSpot.getY(), shoreSpot.getZ() + 0.5D,
-                    follower.rotationYaw, follower.rotationPitch
-            );
-            follower.motionX = 0.0D;
-            follower.motionY = 0.0D;
-            follower.motionZ = 0.0D;
-            follower.getNavigator().clearPath();
-            follower.setSprinting(false);
+            landOn(shoreSpot);
             return false;
         }
 
@@ -200,21 +189,7 @@ final class FollowBoatController {
         myBoat.motionX *= 0.8D;
         myBoat.motionZ *= 0.8D;
 
-        double dx = myBoat.posX - lastBoatX;
-        double dz = myBoat.posZ - lastBoatZ;
-        boolean boatMoved = Double.isNaN(lastBoatX) || (dx * dx + dz * dz) > 0.04D;
-        lastBoatX = myBoat.posX;
-        lastBoatZ = myBoat.posZ;
-        if (boatMoved) {
-            strandedTicks = 0;
-        } else {
-            strandedTicks++;
-        }
-        if (strandedTicks >= STRANDED_TIMEOUT_TICKS) {
-            strandedTicks = 0;
-            TravellerBoats.leave(follower);
-            return false;
-        }
+        if (abandonIfStranded(myBoat)) return false;
 
         follower.getNavigator().clearPath();
         return true;
@@ -249,16 +224,7 @@ final class FollowBoatController {
                 4
         );
         if (shoreSpot != null && !follower.world.getBlockState(shoreSpot).getMaterial().isLiquid()) {
-            TravellerBoats.leave(follower);
-            follower.setLocationAndAngles(
-                    shoreSpot.getX() + 0.5D, shoreSpot.getY(), shoreSpot.getZ() + 0.5D,
-                    follower.rotationYaw, follower.rotationPitch
-            );
-            follower.motionX = 0.0D;
-            follower.motionY = 0.0D;
-            follower.motionZ = 0.0D;
-            follower.getNavigator().clearPath();
-            follower.setSprinting(false);
+            landOn(shoreSpot);
             return false;
         }
 
@@ -284,21 +250,7 @@ final class FollowBoatController {
         }
 
         // Target is on land but boat isn't progressing — force dismount after timeout.
-        double dx = myBoat.posX - lastBoatX;
-        double dz = myBoat.posZ - lastBoatZ;
-        boolean boatMoved = Double.isNaN(lastBoatX) || (dx * dx + dz * dz) > 0.04D;
-        lastBoatX = myBoat.posX;
-        lastBoatZ = myBoat.posZ;
-        if (boatMoved) {
-            strandedTicks = 0;
-        } else {
-            strandedTicks++;
-        }
-        if (strandedTicks >= STRANDED_TIMEOUT_TICKS) {
-            strandedTicks = 0;
-            TravellerBoats.leave(follower);
-            return false;
-        }
+        if (abandonIfStranded(myBoat)) return false;
 
         steerBoatTowards(myBoat, targetX, targetZ, 0.55D);
         follower.getNavigator().clearPath();
@@ -486,15 +438,39 @@ final class FollowBoatController {
     private boolean tryDismountNear(BlockPos center, int radius) {
         BlockPos best = findDrySpotNear(center, radius);
         if (best == null) return false;
+        landOn(best);
+        return true;
+    }
 
+    /** Leaves the boat and stands the follower on {@code spot}, at rest. */
+    private void landOn(BlockPos spot) {
         TravellerBoats.leave(follower);
-        follower.setLocationAndAngles(best.getX() + 0.5D, best.getY(), best.getZ() + 0.5D, follower.rotationYaw, follower.rotationPitch);
+        follower.setLocationAndAngles(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, follower.rotationYaw, follower.rotationPitch);
         follower.motionX = 0.0D;
         follower.motionY = 0.0D;
         follower.motionZ = 0.0D;
         follower.getNavigator().clearPath();
         follower.setSprinting(false);
-        return true;
+    }
+
+    /** Counts ticks the boat has not moved; leaves it and returns true once it sat still too long. */
+    private boolean abandonIfStranded(EntityBoat myBoat) {
+        double dx = myBoat.posX - lastBoatX;
+        double dz = myBoat.posZ - lastBoatZ;
+        boolean boatMoved = Double.isNaN(lastBoatX) || (dx * dx + dz * dz) > 0.04D;
+        lastBoatX = myBoat.posX;
+        lastBoatZ = myBoat.posZ;
+        if (boatMoved) {
+            strandedTicks = 0;
+        } else {
+            strandedTicks++;
+        }
+        if (strandedTicks >= STRANDED_TIMEOUT_TICKS) {
+            strandedTicks = 0;
+            TravellerBoats.leave(follower);
+            return true;
+        }
+        return false;
     }
 
     private boolean isBoatOnWater(EntityBoat boat) {

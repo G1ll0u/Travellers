@@ -39,8 +39,7 @@ final class HazardRepulsion {
         // A glide is a deliberate flight over exactly the drops this nudge exists to avoid.
         if (u.elytraFlight.isActive()) return;
 
-        PathNavigate nav = u.getNavigator();
-        if (nav instanceof TravellerNavigateGround && ((TravellerNavigateGround) nav).isGapJumping()) return;
+        if (TravellerNavigateGround.isMidGapJump(u)) return;
 
         // Staggered like the follow AI's own heavy-update cadence - the scan itself is cheap per
         // entity, but this now runs for every traveller/raider/worker in the world, not just

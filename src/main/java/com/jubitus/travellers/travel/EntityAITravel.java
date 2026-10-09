@@ -279,11 +279,7 @@ public class EntityAITravel extends EntityAIBase {
     public void updateTask() {
 
         // Don't interfere with an active gap jump — let physics carry the entity.
-        if (mob.getNavigator() instanceof com.jubitus.travellers.pathing.TravellerNavigateGround) {
-            if (((com.jubitus.travellers.pathing.TravellerNavigateGround) mob.getNavigator()).isGapJumping()) {
-                return;
-            }
-        }
+        if (com.jubitus.travellers.pathing.TravellerNavigateGround.isMidGapJump(mob)) return;
 
         if (!mob.world.isRemote) {
             if (isOffscreen()) {

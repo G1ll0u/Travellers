@@ -1,6 +1,7 @@
 package com.jubitus.travellers.follow;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
@@ -19,8 +20,6 @@ final class FollowPathRequester {
     boolean hasActivePathGoal;
     private static final int SCHEDULER_DENIAL_BLOCK_TELEPORT_TICKS = 60;
     private static final int RECENT_PATH_SUCCESS_BLOCK_TELEPORT_TICKS = 80;
-    // A route ending farther than this from the goal is vanilla's partial best effort, not a success.
-    private static final double PARTIAL_PATH_TOLERANCE = 3.0D;
     int repathCooldown;
 
     FollowPathRequester(EntityAIFollowLeader ai, EntityTraveller follower) {
@@ -235,8 +234,8 @@ final class FollowPathRequester {
         if (end == null) return false;
         double dx = end.x + 0.5D - goal.x;
         double dz = end.z + 0.5D - goal.z;
-        return dx * dx + dz * dz <= PARTIAL_PATH_TOLERANCE * PARTIAL_PATH_TOLERANCE
-                && Math.abs(end.y - goal.y) <= PARTIAL_PATH_TOLERANCE;
+        return dx * dx + dz * dz <= TravellerNavigateGround.PARTIAL_PATH_TOLERANCE * TravellerNavigateGround.PARTIAL_PATH_TOLERANCE
+                && Math.abs(end.y - goal.y) <= TravellerNavigateGround.PARTIAL_PATH_TOLERANCE;
     }
 
     private void markActivePathGoal(GoalCandidate goal) {

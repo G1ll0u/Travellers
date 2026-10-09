@@ -181,6 +181,12 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return new Vec3d(p.x + off, y, p.z + off);
     }
 
+    /** True while {@code entity} is mid gap jump: physics carries it, no AI may steer it this tick. */
+    public static boolean isMidGapJump(net.minecraft.entity.EntityLiving entity) {
+        net.minecraft.pathfinding.PathNavigate nav = entity.getNavigator();
+        return nav instanceof TravellerNavigateGround && ((TravellerNavigateGround) nav).isGapJumping();
+    }
+
     /**
      * True while a gap jump was recently fired and the entity is still airborne. Also detects the
      * exact tick a jump lands (the moment this flips from true to false) and, right then, damps
@@ -687,7 +693,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
             if (end == null) return false;
             double dx = (end.x + 0.5D) - (target.getX() + 0.5D);
             double dz = (end.z + 0.5D) - (target.getZ() + 0.5D);
-            return dx * dx + dz * dz <= REACH_TOLERANCE_SQ;
+            return dx * dx + dz * dz <= PARTIAL_PATH_TOLERANCE * PARTIAL_PATH_TOLERANCE;
         } finally {
             travellerProc.setIgnoreMount(false);
             searchRangeCap = -1.0F;
@@ -750,9 +756,8 @@ public class TravellerNavigateGround extends PathNavigateGround {
         e.setEntityBoundingBox(e.getEntityBoundingBox().offset(dx, dy, dz));
     }
 
-    /** How close, squared, a diagnostic route must end to its target to count as reaching it -
-     * matches EntityAITravel's own partial-path tolerance (3 blocks). */
-    private static final double REACH_TOLERANCE_SQ = 3.0D * 3.0D;
+    /** How far a route may end from its target and still count as reaching it; beyond, it is vanilla's partial best effort. */
+    public static final double PARTIAL_PATH_TOLERANCE = 3.0D;
 
     /** How many candidate nodes the mounted shortcut tests per pass, farthest first. */
     private static final int MOUNTED_SHORTCUT_PROBES = 4;
