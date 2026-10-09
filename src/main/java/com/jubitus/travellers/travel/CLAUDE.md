@@ -1,6 +1,6 @@
 # Travel AI
 
-`EntityAITravel` is the orchestrator; it owns `TravelWaypointPicker` (waypoints), `TravelItineraryFollower` (itinerary), `TravelPathDriver` (A* requests via `PathBudget`), `TravelMountPolicy` (direct ride, terrain LED), `TravelStuckActions` (ladder evidence and rungs), plus `TravelTerrain` (terrain questions, loaded chunks only), `TravelRescue` (short rescue hops), `TravelBoatMode` (afloat / water edge). `TravelStuckLadder` + `StuckRecord` hold the stuck state. Routes come from the itinerary (`pathing/CLAUDE.md`). Active plan: `docs/travel-ai-unified-itinerary-plan.md`.
+`EntityAITravel` is the orchestrator; it owns `TravelWaypointPicker` (waypoints), `TravelItineraryFollower` (itinerary), `TravelPathDriver` (A* requests via `PathBudget`), `TravelMountPolicy` (direct ride, terrain LED), `TravelStuckActions` (ladder evidence and rungs), plus `TravelTerrain` (terrain questions, loaded chunks only), `TravelRescue` (short rescue hops), `TravelBoatMode` (afloat / water edge). `TravelStuckLadder` + `StuckRecord` hold the stuck state. Routes come from the itinerary (`pathing/CLAUDE.md`).
 
 ## Waypoints
 - A travel waypoint is an XZ column: arrival is XZ-only; its Y comes from `TravelTerrain.findGroundNear`. Every pick goes through `picked(source, …)` (logged to the trace).
@@ -25,7 +25,7 @@
 - `EntityAIPassDoor` (`setMutexBits(0)`, mirrored in the raider) + `TravellerDoorways` (type checks, open/close, ref-counted registry of doorways held open, per world).
 - Opens only a closed doorway on the next few path nodes. Closes behind on a plane-crossing test; only the last holder closes, never on a living entity. A doorway a player propped open is left alone. Offscreen: inert.
 
-## Destination choice (`travelcommon/TravelDestinationChooser`)
+## Destination choice (`destination/TravelDestinationChooser`)
 - The single destination authority, loaded and virtual alike (travellers, raiders inverted, non-recruited workers). Distance is the dominant term — a soft regional bias, never a hard partition (except open conflict). `TravelDestinationChooserTest` enforces the distance balance.
 - Raider inversion is exactly three sign flips (conflict filter skipped, foreign culture, low relation).
 - Unknown relation (`null`) = neutral, never excluded. Caches are bounded by settlement pairs, never by traveller count.

@@ -324,7 +324,7 @@ final class TravelBoatMode {
      * The stall backstop for the boat branch, which returns before the on-foot one below ever runs.
      *
      * <p>Everything that normally rescues a stuck traveller lives past that early return: the
-     * stuck ladder is not even ticked while afloat, so neither it nor {@code tryVirtualizeStuckAtEdge()} could ever fire. And a traveller
+     * stuck ladder is not even ticked while afloat, so neither it nor {@code TravellerHandOff.tryAtLoadedBorder} could ever fire. And a traveller
      * in a boat cannot be retired by {@code checkVirtualize} either - riding one fails the ordinary
      * eligibility gate, and only the frozen-by-vanilla branch resolves that. A boat whose next waypoint
      * stops resolving (routinely, at the edge of loaded terrain: waypoints are only ever placed on

@@ -69,6 +69,7 @@ Packages under `src/main/java/com/jubitus/travellers/`, **one folder per feature
 | Elytra flight | `flight/` | `flight/CLAUDE.md` |
 | Fishing, eating | `ambient/` | — |
 | Horse mounts | `mount/`, `pathing/{PathBody,MountTerrainProfile}`, mount mixins | `mount/CLAUDE.md` |
+| Horse core shared by mounts and the Stable (markers, snapshots, join/death, theft guard) | `horse/` | `mount/CLAUDE.md` |
 | Player zones, Stable, duty | `zone/` | `zone/CLAUDE.md` |
 | Hired-worker orders, recruiting, worker screens | `worker/` | — |
 | Millénaire integration, village visits, village relations | `village/` | `village/CLAUDE.md` |
@@ -109,6 +110,11 @@ One question, one answer. Never add a second helper for a question listed here.
 | Player-facing notices | `notify/NotificationService` |
 | Is this unit watched by a player | `isInPlayerViewDistanceApprox()` |
 | Peaceful difficulty blocks combat | `TravellersDerivedConfig.isPeacefulBlocked(world)` |
+| Can a unit be put down here | `unit/LandingSpots` |
+| Budget an expensive search (A*, route job, scan) | `pathing/PathBudget` |
+| Are two units on opposite sides | `combat/Hostility` |
+| Find a worker by id, loaded or virtual | `unit/WorkerLookup` |
+| Any marker on a vanilla horse / a horse joining or dying | `horse/HorseMarkers`, `horse/HorseEvents` |
 
 ## Cross-cutting invariants
 
@@ -116,7 +122,7 @@ One question, one answer. Never add a second helper for a question listed here.
 - **Never load a chunk** if avoidable. When unavoidable: `LoadedChunks.loadTemporarily` + `release`, budgeted (`tryAcquireJob`), never a burst. Reachability probes cap their A* range (a full-range probe builds a chunk cache that loads chunks).
 - **`EntityTravellerRaider.initEntityAI()` replaces `tasks`/`targetTasks` without calling `super`** — every new base-class AI task must be mirrored there by hand.
 - **Every `targetTasks` entry uses `setMutexBits(1)`.**
-- **Adding state to a unit**: persist it in `VirtualTravellerRecord`; simulate offscreen progress in `refreshGoal()` if needed; for traveller/raider state capture it in `virtualizeTraveller()` and restore it in `materializeEntity()`; re-apply remote-changeable worker state in `applyRecordStateToWorker()`; reset AI flags and nullable UUIDs **unconditionally** at materialize; update `VirtualizationGate` (or its hooks) if it should block virtualization.
+- **Adding state to a unit**: persist it in `VirtualTravellerRecord`; simulate offscreen progress in `refreshGoal()` if needed; capture and restore it in `VirtualSnapshot` (`capture*` / `applyTo*`; `applyToWorker` re-applies worker state that commands can change while virtual); reset AI flags and nullable UUIDs **unconditionally** at materialize; update `VirtualizationGate.mayVirtualize` (physical blockers only) if it should block virtualization.
 - **Loaded and virtual behaviour must match** — the user cares most about anything that would visibly differ once a unit comes back into view.
 - **A follower never teleports to catch up** with a leader who walked away; teleport is only a stuck-rescue last resort. Hired workers never despawn.
 - **Never place a unit inside a Millénaire building** — every placement path rejects `MillFootprints.isForbiddenLanding`.
@@ -138,7 +144,7 @@ One question, one answer. Never add a second helper for a question listed here.
 
 ## Config
 
-All fields live in `config/TravellersConfig.java` as public non-final fields in inner static classes; infrastructure (GUI, persistence, sync) is the shared `forge-config-lib` (`libs/jubiconfig-1.0.0.jar`, source in `/home/user/IdeaProjects/forge-config-lib/`) — never add infrastructure here.
+All fields live in `config/TravellersConfig.java` as public non-final fields in inner static classes; infrastructure (GUI, persistence, sync) is the shared `forge-config-lib` (`libs/jubiconfig-*.jar`, source in `/home/user/IdeaProjects/forge-config-lib/`) — never add infrastructure here.
 
 ```java
 @Config.Comment("How close workers stay behind you.")

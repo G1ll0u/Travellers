@@ -34,7 +34,6 @@ final class HeadingTracker {
     private double headingAnchorX = Double.NaN;
     private double headingAnchorZ = Double.NaN;
     private int headingAccumTicks = 0;
-    private double lastMeaningfulHeadingSpeed = 0.0D;
 
     void update(EntityLivingBase leader, WorkerFormationSettings formationSettings) {
         boolean workerLeader = leader instanceof EntityTravellerWorker;
@@ -178,7 +177,6 @@ final class HeadingTracker {
         double absDelta = Math.abs(delta);
 
         if (absDelta < minAngleRad) {
-            lastMeaningfulHeadingSpeed = len / Math.max(1.0D, headingAccumTicks);
             headingAnchorX = leader.posX;
             headingAnchorZ = leader.posZ;
             headingAccumTicks = 0;
@@ -214,7 +212,6 @@ final class HeadingTracker {
             targetDirZ = nz;
         }
 
-        lastMeaningfulHeadingSpeed = len / Math.max(1.0D, headingAccumTicks);
         headingAnchorX = leader.posX;
         headingAnchorZ = leader.posZ;
         headingAccumTicks = 0;

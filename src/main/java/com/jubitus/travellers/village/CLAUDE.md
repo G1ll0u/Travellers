@@ -16,6 +16,6 @@ Travellers, raiders (mirrored, streets only by default) and non-hired workers. R
 - Head only through `TravellerGaze` foci. Talks are `VillageConversation` (loaded-only).
 - Leaving is a sequence: out of buildings → back to the hitched horse → a leader waits for its members → `visitedStop`. A worker donates (`donateToConstruction`) then.
 - Group followers disperse while their leader stays (`isDispersedInVillage`); their stay ends when the leader leaves.
-- Offscreen: `VirtualTravellerManager.tickVirtualVisit`, same draw and sequence.
+- Offscreen: `VirtualVillageVisits.tick`, same draw and sequence.
 
 Debug: `/travellersdebug village needs|show|hide|here`.
