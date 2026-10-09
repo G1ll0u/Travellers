@@ -1,6 +1,6 @@
 # Grand nettoyage — feature packages, one authority per question, giant classes split
 
-**Status (2026-10-09)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 done (9.14–9.17 await an in-game check); phases 10–11 done; next phase 12.
+**Status (2026-10-09)**: plan validated. Phases 0–4 done (phase 3 with items skipped on purpose); phase 5 done (in-game check of 5.4 deferred by the user, to bundle with a later check); phases 6–8 done; phase 9 done (9.14–9.17 await an in-game check); phases 10–12 done (12 awaits an in-game check); next phase 13.
 
 ## Goal
 
@@ -320,12 +320,14 @@ Mechanical splits, behaviour unchanged:
 - (original line:) `CommandTravellerDebug` → one class per subcommand. **To decide at the phase**: fold `/travellerChunks`,
   route dump and shelter commands into `/travellersdebug` (player-visible command names).
 
-### Phase 12 — Follow stuck handling onto the ladder — status: todo
+### Phase 12 — Follow stuck handling onto the ladder — status: done (in-game check pending)
 
-The follow AI's 8 stuck counters become one `StuckRecord` evidence feeding `TravelStuckLadder`, following the
-lessons in memory (progress = entered a new cell; partial path = failure; no new reset path). Instrument first
-with `/travellersdebug trace`, then steps each confirmed in game. **To decide at the phase**: whether the camp,
-village-visit, stable and led-horse progress windows join too. Visible: yes — this is a behaviour redesign.
+Found already built before this plan (shared `StuckRecord` stall = "entered a new cell", partial path = failure,
+stuck surface follower handed to catchup with the ladder preloaded). The other follow counters are signals (path
+priority, when to pathfind, when to hand over), not rescues; the workers' CAVE rescue stays separate on purpose.
+Done with the user: the follower's stall is read straight from the record (four local zeroings that the record
+overwrote a tick later removed), and the mounted pacer records its position so real riding clears the stall
+instead of a mounted follower resuming with pre-ride evidence. In-game check: mounted worker following, then stop.
 
 ### Phase 13 — Wrap-up — status: todo
 

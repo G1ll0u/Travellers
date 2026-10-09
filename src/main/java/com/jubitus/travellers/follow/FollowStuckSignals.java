@@ -10,7 +10,6 @@ final class FollowStuckSignals {
     private final EntityTraveller follower;
 
     int pathFailTicks;
-    int stagnationTicks;
     int failedAllowedPathTicks;
     int schedulerDeniedTicks;
     int recentPathSuccessTicks;
@@ -43,6 +42,11 @@ final class FollowStuckSignals {
         this.follower = follower;
     }
 
+    /** Ticks spent wanting to move without entering a new cell; lives in the entity's shared stuck record. */
+    int stagnationTicks() {
+        return follower.getStuckRecord().followStall();
+    }
+
     void tickStuckSignals(GoalCandidate goal) {
         boolean hasPath = !follower.getNavigator().noPath();
         if (hasPath) activePathTicks++;
@@ -53,7 +57,6 @@ final class FollowStuckSignals {
         if (!hasProgressAnchor) {
             bestGoalDistSq = goalDistSq;
             hasProgressAnchor = true;
-            stagnationTicks = 0;
             progressedTowardGoalLastTick = true;
             return;
         }
@@ -69,7 +72,7 @@ final class FollowStuckSignals {
 
         // Stagnation is the entity's shared stuck evidence (new cells, see StuckRecord): jostling or
         // pacing never fakes it, and it survives target changes and follow/travel hand-offs.
-        stagnationTicks = follower.getStuckRecord().tickFollow(follower.posX, follower.posY, follower.posZ, tryingToMove);
+        follower.getStuckRecord().tickFollow(follower.posX, follower.posY, follower.posZ, tryingToMove);
 
         if (!tryingToMove && failedAllowedPathTicks > 0) {
             failedAllowedPathTicks--;
@@ -101,7 +104,7 @@ final class FollowStuckSignals {
 
         int trigger = mode == FollowMode.CAVE ? cfg.cave.orbitTriggerTicks : 50;
 
-        if (Math.abs(delta) > 0.10D && stagnationTicks > 10) {
+        if (Math.abs(delta) > 0.10D && stagnationTicks() > 10) {
             orbitTicks++;
         } else if (orbitTicks > 0) {
             orbitTicks--;
@@ -152,7 +155,7 @@ final class FollowStuckSignals {
         }
 
         boolean caveCase =
-                stagnationTicks >= minStagnation
+                stagnationTicks() >= minStagnation
                         && failedAllowedPathTicks >= minFailed
                         && (activePathTicks >= cfg.rescue.minActivePathTicks || outsideVsUnderground);
 
@@ -201,7 +204,7 @@ final class FollowStuckSignals {
 
         boolean extremeFailure =
                 failedAllowedPathTicks >= cfg.rescue.caveRequireSamePocketFailTicks
-                        && stagnationTicks >= cfg.rescue.caveRequireSamePocketStagnationTicks
+                        && stagnationTicks() >= cfg.rescue.caveRequireSamePocketStagnationTicks
                         && activePathTicks >= cfg.rescue.minActivePathTicks * 2;
 
         return outsideVsUnderground || aboveLeader || extremeFailure;
@@ -222,7 +225,6 @@ final class FollowStuckSignals {
     void resetEvidence() {
         pathFailTicks = 0;
         failedAllowedPathTicks = 0;
-        stagnationTicks = 0;
         activePathTicks = 0;
         recentPathSuccessTicks = 0;
         schedulerDeniedTicks = 0;

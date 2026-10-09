@@ -328,11 +328,11 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (stuck.recentPathSuccessTicks > 0) stuck.recentPathSuccessTicks--;
 
         FollowRuntimeConfig cfg = FollowRuntimeConfig.get();
-        FollowMode selected = modeSelector.select(target, stuck.pathFailTicks, stuck.stagnationTicks);
+        FollowMode selected = modeSelector.select(target, stuck.pathFailTicks, stuck.stagnationTicks());
         // Stuck outside a cave with no working way to move (failed routes or blocked steering, not a
         // crowd jostle): the travel AI's ladder and its hop to a resume point take over.
         if (selected == FollowMode.SURFACE
-                && stuck.stagnationTicks >= TravellersConfig.WORKER_FORMATION.followStuckCatchupSeconds * 20
+                && stuck.stagnationTicks() >= TravellersConfig.WORKER_FORMATION.followStuckCatchupSeconds * 20
                 && (stuck.pathFailTicks >= 3
                 || steering.steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks)) {
             selected = FollowMode.CATCHUP;
@@ -393,15 +393,16 @@ public class EntityAIFollowLeader extends EntityAIBase {
                         target)) {
             follower.notifyFollowerSlotGoal(slot.idealX, slot.idealY, slot.idealZ);
             follower.setSprinting(false);
+            // Real movement while pacing is progress: new cells clear the stall evidence, a wedged horse keeps it.
+            follower.getStuckRecord().visit(follower.posX, follower.posY, follower.posZ);
             // Leave no half-finished servo state behind for the moment the pacer disengages - a
-            // stale goal/settle/stagnation carried across the handover is exactly the kind of state
+            // stale goal/settle carried across the handover is exactly the kind of state
             // that fires a rescue the instant the servo resumes.
             idleAtSlot = false;
             settledTicks = 0;
             paths.hasActivePathGoal = false;
             currentGoal = null;
             hasGoal = false;
-            stuck.stagnationTicks = 0;
             stuck.hasProgressAnchor = false;
             steering.steeringBlockedTicks = 0;
             return;
@@ -820,7 +821,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (newMode == FollowMode.CAVE) {
             stuck.pathFailTicks = 0;
             stuck.failedAllowedPathTicks = 0;
-            stuck.stagnationTicks = 0;
             stuck.activePathTicks = 0;
             // Workers on the surface while the leader is underground can't get active paths —
             // skip the recent-path delay so cave rescue can fire quickly for them.
