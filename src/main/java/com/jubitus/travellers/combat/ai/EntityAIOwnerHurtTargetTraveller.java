@@ -21,6 +21,7 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
     public EntityAIOwnerHurtTargetTraveller(EntityTravellerWorker worker) {
         super(worker, false);
         this.worker = worker;
+        this.setMutexBits(1);
     }
 
     @Override
