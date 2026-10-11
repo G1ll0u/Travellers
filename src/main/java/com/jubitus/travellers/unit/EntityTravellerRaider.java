@@ -8,6 +8,7 @@ import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.culture.VillagerFilterRules;
 import com.jubitus.travellers.unit.culture.VoiceSet;
+import com.jubitus.travellers.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
 import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
 import com.jubitus.travellers.combat.ai.EntityAIAttackMeleeCustom;
@@ -128,7 +129,7 @@ public class EntityTravellerRaider extends EntityTraveller {
                 TravellersConfig.COMBAT.rangedMinDist,
                 TravellersConfig.COMBAT.rangedMaxDist,
                 TravellersConfig.COMBAT.rangedCooldown,
-                Math.max(2.5D, TravellersConfig.COMBAT.rangedMinDist + 1.0D),
+                Math.max(2.5D, TravellersConfig.COMBAT.rangedMinDist - 1.0D),
                 /* ghostEquipBow */ true
         );
         this.tasks.addTask(2, aiRanged);
@@ -158,7 +159,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // General travel route behavior. Keep the reference: getTravelAI()/offscreenHopTowardPos
         // (stuck-rescue step-teleport) are null-checked against it and were silently disabled for
         // raiders while it wasn't stored.
-        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 48);
+        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(12, aiTravel);
 
         // Village visit (streets only for raiders, see EntityAIVillageVisit)
@@ -167,7 +168,9 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.tasks.addTask(11, visit);
 
         // Fish while travelling (adds flavor during travel phases)
-        this.tasks.addTask(11, new EntityAIFishWhileTravel(this));
+        if (TravellersConfig.TRAVEL.fishWhileTravelEnabled) {
+            this.tasks.addTask(11, new EntityAIFishWhileTravel(this));
+        }
 
         // === UTILITY / IDLE BEHAVIOR =========================================================
 
@@ -176,10 +179,8 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.tasks.addTask(9, new com.jubitus.travellers.travel.EntityAIPassDoor(this));
         // Looking around is the gaze's job (TravellerGaze), not an AI task.
 
-        // === OPTIONAL / DISABLED FEATURES ====================================================
-
-        // Raiders don't auto-eat by default; add this back if you want survival-focused foes.
-        autoEatTask = null;
+        autoEatTask = new EntityAIAutoEat(this, TravellersConfig.COMBAT.eatHealthThreshold);
+        this.tasks.addTask(8, autoEatTask);
     }
 
     @Override

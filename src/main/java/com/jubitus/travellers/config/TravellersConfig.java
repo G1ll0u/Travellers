@@ -2536,7 +2536,7 @@ public class TravellersConfig {
         @Config.Comment("Also detect and notify about fights between hired workers, raiders and other players' workers while everyone involved is in a loaded area (not just offscreen virtual battles).")
         public boolean detectLoadedEncounters = true;
 
-        @Config.Comment("Virtual travellers/workers regain health offscreen after combat, mirroring the physical EntityAIAutoEat AI (raiders excluded, they don't auto-eat physically either).")
+        @Config.Comment("Units out of sight slowly heal after a fight, like they do by eating when you can see them.")
         public boolean virtualCombatHealingEnabled = true;
 
         @Config.Comment("Ticks after last combat before offscreen healing can start (mirrors EntityAIAutoEat's physical post-combat lockout, 30-50 ticks).")

@@ -509,14 +509,12 @@ public class VirtualTravellerManager extends WorldSavedData {
     /**
      * Offscreen counterpart to {@link com.jubitus.travellers.ambient.EntityAIAutoEat}:
      * gradually heals a virtual record using the same threshold/lockout knobs as the physical AI, so a
-     * traveller/worker that fought (and survived) a virtual battle recovers HP while offscreen instead
-     * of staying wounded until a player happens to materialize it. Raiders are excluded (they don't
-     * auto-eat physically either — see EntityTravellerRaider.initEntityAI). Called every
+     * unit that fought (and survived) a virtual battle recovers HP while offscreen instead
+     * of staying wounded until a player happens to materialize it. Called every
      * GOAL_REFRESH_INTERVAL (20 ticks), matching this method's own cadence.
      */
     private void simulateHealing(VirtualTravellerRecord r, long now) {
         if (!TravellersConfig.BATTLE_EVENTS.virtualCombatHealingEnabled) return;
-        if ("RAIDER".equals(r.entityClass)) return;
         if (r.battleId != null) return; // still fighting: physical AI blocks eating during combat too
         if (r.entityNbt == null) return;
 
