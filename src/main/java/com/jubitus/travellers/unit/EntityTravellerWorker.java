@@ -175,8 +175,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Nullable
     BlockPos idleAnchorPos = null;
     // NEW: leader logic – if non-null, this worker follows another worker instead of the player
-    private double baseFollowRange;
-    private double boostedFollowRange;
     private boolean usingBoostedNav = false;
     WorkerMode mode = WorkerMode.IDLE;
     // When true, base EntityTraveller will NOT auto-plan routes
@@ -602,12 +600,6 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     @Override
-    protected void applyEntityAttributes() {
-        super.applyEntityAttributes();
-        refreshFollowRanges();
-    }
-
-    @Override
     protected double configuredMaxHealth() {
         return TravellersConfig.ATTRIBUTES.workerMaxHealth;
     }
@@ -618,11 +610,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     // Boosted range bounds vanilla's A* chunk cache; keep it at 2x so a path search stays near loaded ground.
-    private void refreshFollowRanges() {
-        baseFollowRange = configuredFollowRange();
-        boostedFollowRange = baseFollowRange * 2.0D;
-        IAttributeInstance followAttr = getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
-        if (followAttr != null) followAttr.setBaseValue(usingBoostedNav ? boostedFollowRange : baseFollowRange);
+    private void applyFollowRange() {
+        double range = configuredFollowRange();
+        getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(usingBoostedNav ? range * 2.0D : range);
     }
 
     @Override
@@ -1064,7 +1054,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onConfigReload() {
         super.onConfigReload();
-        refreshFollowRanges();
+        applyFollowRange();
         FollowRuntimeConfig.get().reloadFromTravellersConfig();
     }
 
@@ -1169,16 +1159,11 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         if (shouldBoost == usingBoostedNav) return;
         usingBoostedNav = shouldBoost;
+        applyFollowRange();
 
-        IAttributeInstance followAttr =
-                this.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
-        if (followAttr != null) {
-            followAttr.setBaseValue(shouldBoost ? boostedFollowRange : baseFollowRange);
-        }
-
-        // Optional but strongly recommended: also keep travel step sane vs follow range
+        // Keep the travel step within the follow range
         if (aiTravel != null) {
-            int fr = (int) Math.floor(followAttr.getAttributeValue());
+            int fr = (int) Math.floor(getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).getAttributeValue());
             aiTravel.setStepBlocks(Math.min(TravellersConfig.ATTRIBUTES.workerStepBlocks, Math.max(12, fr - 8)));
         }
     }
