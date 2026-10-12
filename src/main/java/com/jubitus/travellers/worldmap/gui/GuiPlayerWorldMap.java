@@ -89,6 +89,7 @@ public class GuiPlayerWorldMap extends GuiScreen
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
+        rebuildMarkers(); // markers glide between updates, so they are re-placed every frame
 
         int wheel = Mouse.getDWheel();
         if (wheel != 0) mapController.handleWheel(mouseX, mouseY, wheel);

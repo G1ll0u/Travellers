@@ -34,3 +34,7 @@
 - `FollowBoatController` / `FollowFlightController` are the shared boat/elytra halves.
 - A transport worker returning to its owner takes the pickup-escort slot until loot is collected.
 - Group operations for hired workers: `follow/group/WorkerGroupService` only (create, assign, merge, make leader, go-to, convoy follow…), each followed by its mandatory `epilogue`. "Is a leader" = at least one worker, loaded or virtual, escorts it; use `countFollowers()` for player-facing counts, never the loaded-only `getLeaderFollowerCount()`. Busy workers are skipped via `WorkerOrderGuard`.
+
+## Formation Hub map
+- Units are drawn at glided positions (`WorkerMarkerSmoother`, keyed by unit UUID); hit-tests use the drawn position and `hitRadiusPx`, never the raw `pos`, and markers are rebuilt every frame.
+- A grouped follower stands for its group (`followLeaderUuid`) on click; single followers only by shift/rectangle. Every order (map, leader list, action bar) goes through `FormationOrdersMenu`.

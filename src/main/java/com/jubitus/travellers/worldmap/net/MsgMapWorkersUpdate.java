@@ -29,6 +29,8 @@ public class MsgMapWorkersUpdate implements IMessage {
         // name, or empty + followsOwner=true when it follows its owner directly.
         public String statusKey = "";
         public String followName = "";
+        // The worker group (leader) this worker escorts, or null when it follows its owner or nobody.
+        public UUID followLeaderUuid;
         public boolean followsOwner;
         // Duty kind of an on-duty worker (e.g. STABLE_HAND), "" for none: picks its map marker.
         public String role = "";
@@ -70,6 +72,7 @@ public class MsgMapWorkersUpdate implements IMessage {
             e.followName = ByteBufUtils.readUTF8String(buf);
             e.followsOwner = buf.readBoolean();
             e.role = ByteBufUtils.readUTF8String(buf);
+            if (buf.readBoolean()) e.followLeaderUuid = new UUID(buf.readLong(), buf.readLong());
             entries.add(e);
         }
     }
@@ -96,6 +99,11 @@ public class MsgMapWorkersUpdate implements IMessage {
             ByteBufUtils.writeUTF8String(buf, e.followName != null ? e.followName : "");
             buf.writeBoolean(e.followsOwner);
             ByteBufUtils.writeUTF8String(buf, e.role != null ? e.role : "");
+            buf.writeBoolean(e.followLeaderUuid != null);
+            if (e.followLeaderUuid != null) {
+                buf.writeLong(e.followLeaderUuid.getMostSignificantBits());
+                buf.writeLong(e.followLeaderUuid.getLeastSignificantBits());
+            }
         }
     }
 

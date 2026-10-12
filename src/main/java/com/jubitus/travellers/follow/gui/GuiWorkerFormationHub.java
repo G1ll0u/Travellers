@@ -19,6 +19,7 @@ import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worker.net.MsgWorkerRequestGoList;
+import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
 import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
 import com.jubitus.travellers.worldmap.gui.WorldMapController;
@@ -89,6 +90,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     private final FormationLeaderList leaderList;
     private final FormationSettingsCard card;
     private final FormationOrdersMenu orders;
+    private final FormationActionBar actionBar;
     private final FormationHubJournal journal = new FormationHubJournal();
     private WorldMapController mapController;
     private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
@@ -123,6 +125,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         this.leaderList = new FormationLeaderList(leaders);
         this.card = new FormationSettingsCard(settingsByScope);
         this.orders = new FormationOrdersMenu(player, selection, mapData, this);
+        this.actionBar = new FormationActionBar(selection, orders, this::centerOnSelectedGroup);
         for (int i = 0; i < leaders.size(); i++) {
             if (scopeOf(leaders.get(i)).equals(initialScope)) {
                 selection.index = i;
@@ -205,7 +208,8 @@ public class GuiWorkerFormationHub extends GuiScreen
         mapX = mapBoxX + 1;
         mapY = boxTop + 1;
         mapW = mapBoxW - 2;
-        mapH = boxH - 2;
+        mapH = boxH - 2 - FormationActionBar.HEIGHT - 1;
+        actionBar.setBounds(mapX, mapY + mapH + 1, mapW);
         hintY = boxTop + boxH + 3;
 
         leaderList.setBounds(listX, boxTop + HEADER_H + 2, LIST_W, boxTop + boxH - 2);
@@ -311,6 +315,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         mapController.draw();
         orders.drawDestinationCross();
         drawSelectionRectangle();
+        actionBar.draw(fontRenderer, mouseX, mouseY, !orders.isOpen());
         drawHint();
         journal.draw(mouseX, mouseY, !orders.isOpen());
 
@@ -321,7 +326,9 @@ public class GuiWorkerFormationHub extends GuiScreen
             orders.draw(mouseX, mouseY);
             return;
         }
-        if (!mapDragSelecting) mapController.drawTooltip(this, mouseX, mouseY);
+        List<String> barTip = actionBar.tooltipAt(mouseX, mouseY);
+        if (barTip != null) drawHoveringText(barTip, mouseX, mouseY);
+        else if (!mapDragSelecting) mapController.drawTooltip(this, mouseX, mouseY);
         if (TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled) {
             JournalEntry hovered = journal.entryAt(mouseX, mouseY);
             if (hovered != null && hovered.battleSummary != null) {
@@ -407,14 +414,16 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (group != null) {
             MsgMapWorkersUpdate.Entry e = mapData.workerByUuid(group.uuid);
             if (e != null && e.isLeader) {
-                mapController.panel.addMarker(WorldMapMarkerFactory.leaderHighlighted(e.pos, WorldMapContentPopulator.workerLabel(e)));
+                mapController.panel.addMarker(WorldMapMarkerFactory.leaderHighlighted(e.pos, WorldMapContentPopulator.workerLabel(e))
+                        .at(mapData.drawX(e), mapData.drawZ(e)));
             }
         } else if (selection.isFollowers()) {
             Set<UUID> selSet = new HashSet<>(selection.followers);
             for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
                 if (!e.isLeader && e.uuid != null && selSet.contains(e.uuid) && e.pos != null) {
                     mapController.panel.addMarker(WorldMapMarkerFactory.followerHighlighted(
-                            e.pos, WorldMapContentPopulator.workerLabel(e), e.ownerColor));
+                            e.pos, WorldMapContentPopulator.workerLabel(e), e.ownerColor)
+                            .at(mapData.drawX(e), mapData.drawZ(e)));
                 }
             }
         }
@@ -490,6 +499,11 @@ public class GuiWorkerFormationHub extends GuiScreen
             return;
         }
 
+        if (mouseButton == 0 && actionBar.isOver(mouseX, mouseY)) {
+            actionBar.mouseClicked(mouseX, mouseY);
+            return;
+        }
+
         if (mapController.isMouseOver(mouseX, mouseY)) {
             if (mouseButton == 1) {
                 mapController.onMouseClick(mouseX, mouseY, mouseButton); // pans, or opens the menu on a still release
@@ -501,10 +515,11 @@ public class GuiWorkerFormationHub extends GuiScreen
             return;
         }
 
-        if (mouseButton == 0) {
+        if (mouseButton == 0 || mouseButton == 1) {
             int idx = leaderList.rowAt(mouseX, mouseY);
             if (idx >= 0) {
-                selectLeaderByIndex(idx, true);
+                if (mouseButton == 0) selectLeaderByIndex(idx, true);
+                else orders.openForLeaderRow(leaders.get(idx), mouseX, mouseY, width, height);
                 return;
             }
         }
@@ -572,16 +587,7 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     private void handleMapLeftClick(int mouseX, int mouseY) {
         boolean shift = isShiftKeyDown();
-        MsgMapWorkersUpdate.Entry closest = null;
-        float best = FormationOrdersMenu.TARGET_RADIUS_PX * FormationOrdersMenu.TARGET_RADIUS_PX;
-        for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
-            if (e.pos == null || e.uuid == null || WorldMapContentPopulator.isOnDuty(e)) continue;
-            float d = mapController.screenDistSq(e.pos, mouseX, mouseY);
-            if (d <= best) {
-                best = d;
-                closest = e;
-            }
-        }
+        MsgMapWorkersUpdate.Entry closest = orders.selectableWorkerAt(mouseX, mouseY, shift);
 
         if (closest == null) {
             if (!shift) selectPlayerRow(); // empty map: back to the resting state, map left where it is
@@ -597,6 +603,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             }
         } else if (closest.isLeader) {
             selectLeaderByUuid(closest.uuid);
+        } else if (closest.followLeaderUuid != null && selection.indexOf(closest.followLeaderUuid) >= 0) {
+            selectLeaderByUuid(closest.followLeaderUuid); // a member stands for its whole group
         } else {
             selectFollowers(Collections.singletonList(closest.uuid));
         }
@@ -605,13 +613,13 @@ public class GuiWorkerFormationHub extends GuiScreen
     private void computeMapRectangleSelection() {
         int x1 = Math.min(mapDragStartX, mapDragCurrentX), x2 = Math.max(mapDragStartX, mapDragCurrentX);
         int y1 = Math.min(mapDragStartY, mapDragCurrentY), y2 = Math.max(mapDragStartY, mapDragCurrentY);
-        int pad = FormationOrdersMenu.TARGET_RADIUS_PX / 2;
+        int pad = Math.round(mapController.hitRadiusPx(GuiWorldMapPanel.Marker.Size.WORKER) / 2f);
         List<UUID> leaderUuids = new ArrayList<>();
         List<UUID> followerUuids = new ArrayList<>();
         for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
             if (e.pos == null || e.uuid == null || WorldMapContentPopulator.isOnDuty(e)) continue;
-            float sx = mapController.worldToScreenX(e.pos.getX());
-            float sy = mapController.worldToScreenY(e.pos.getZ());
+            float sx = mapController.worldToScreenX(mapData.drawX(e));
+            float sy = mapController.worldToScreenY(mapData.drawZ(e));
             if (sx < x1 - pad || sx > x2 + pad || sy < y1 - pad || sy > y2 + pad) continue;
             (e.isLeader ? leaderUuids : followerUuids).add(e.uuid);
         }
@@ -688,6 +696,11 @@ public class GuiWorkerFormationHub extends GuiScreen
         FormationLeaderInfo info = selection.currentRow();
         if (info == null) return player.getPosition();
         return info.isPlayer ? player.getPosition() : new BlockPos((int) info.posX, 64, (int) info.posZ);
+    }
+
+    private void centerOnSelectedGroup() {
+        FormationLeaderInfo group = selection.group();
+        if (group != null && mapController != null) mapController.setCenter(findCurrentLeaderPos(group));
     }
 
     private void refreshButtons() {

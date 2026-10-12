@@ -17,6 +17,7 @@ public class MsgMapForeignUnitsUpdate implements IMessage {
     public static class Entry {
         public int dim;
         public BlockPos pos;
+        public java.util.UUID uuid; // lets the client glide the marker between updates
         public String name;
         public String entityClass; // "TRAVELLER" | "RAIDER" | "WORKER"
         public boolean hired;
@@ -58,6 +59,8 @@ public class MsgMapForeignUnitsUpdate implements IMessage {
             e.health = buf.readFloat();
             e.maxHealth = buf.readFloat();
             e.inBattle = buf.readBoolean();
+            boolean hasUuid = buf.readBoolean();
+            if (hasUuid) e.uuid = new java.util.UUID(buf.readLong(), buf.readLong());
             entries.add(e);
         }
     }
@@ -79,6 +82,11 @@ public class MsgMapForeignUnitsUpdate implements IMessage {
             buf.writeFloat(e.health);
             buf.writeFloat(e.maxHealth);
             buf.writeBoolean(e.inBattle);
+            buf.writeBoolean(e.uuid != null);
+            if (e.uuid != null) {
+                buf.writeLong(e.uuid.getMostSignificantBits());
+                buf.writeLong(e.uuid.getLeastSignificantBits());
+            }
         }
     }
 

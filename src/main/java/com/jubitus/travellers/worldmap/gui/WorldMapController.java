@@ -147,6 +147,18 @@ public class WorldMapController {
         return dx * dx + dy * dy;
     }
 
+    /** Squared screen distance from the mouse to a point given in (fractional) block coordinates. */
+    public float screenDistSq(float worldX, float worldZ, int mouseX, int mouseY) {
+        float dx = mouseX - worldToScreenX(worldX);
+        float dy = mouseY - worldToScreenY(worldZ);
+        return dx * dx + dy * dy;
+    }
+
+    /** How close (pixels) a click must be to hit a marker of this size class at the current zoom. */
+    public float hitRadiusPx(GuiWorldMapPanel.Marker.Size size) {
+        return panel.hitRadiusPx(size);
+    }
+
     /** One wheel click toward (+1) or away from (-1) the map centre, for the zoom buttons. */
     public void zoomStep(int direction) {
         handleWheel(mapX + mapW / 2, mapY + mapH / 2, direction);

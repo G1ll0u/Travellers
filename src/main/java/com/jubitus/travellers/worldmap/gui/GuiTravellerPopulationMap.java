@@ -244,6 +244,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
+        rebuildMarkers(); // markers glide between updates, so they are re-placed every frame
 
         int wheel = Mouse.getDWheel();
         if (wheel != 0) mapController.handleWheel(mouseX, mouseY, wheel);
@@ -433,6 +434,14 @@ public class GuiTravellerPopulationMap extends GuiScreen
     public void receivePopulation(List<MsgMapPopulationUpdate.Entry> entries) {
         populationEntries.clear();
         if (entries != null) populationEntries.addAll(entries);
+        long now = System.currentTimeMillis();
+        java.util.Set<java.util.UUID> present = new java.util.HashSet<>();
+        for (MsgMapPopulationUpdate.Entry e : populationEntries) {
+            if (e.uuid == null || e.pos == null) continue;
+            smoother.observe(e.uuid, e.pos.getX(), e.pos.getZ(), now);
+            present.add(e.uuid);
+        }
+        smoother.retainOnly(present);
         rebuildMarkers();
     }
 
@@ -450,6 +459,8 @@ public class GuiTravellerPopulationMap extends GuiScreen
         rebuildMarkers();
     }
 
+    private final WorkerMarkerSmoother smoother = new WorkerMarkerSmoother();
+
     private void rebuildMarkers() {
         if (mapController == null) return;
         mapController.panel.clearMarkers();
@@ -457,20 +468,23 @@ public class GuiTravellerPopulationMap extends GuiScreen
         int myDim = Minecraft.getMinecraft().world.provider.getDimension();
         for (MsgMapPopulationUpdate.Entry e : populationEntries) {
             if (e.dim != myDim) continue;
+            GuiWorldMapPanel.Marker m;
             switch (e.kind) {
-                case TRAVELLER:
-                    mapController.panel.addMarker(WorldMapMarkerFactory.populationTraveller(e.pos, e.virtual, e.label));
-                    break;
                 case RAIDER:
-                    mapController.panel.addMarker(WorldMapMarkerFactory.populationRaider(e.pos, e.virtual, e.label));
+                    m = WorldMapMarkerFactory.populationRaider(e.pos, e.virtual, e.label);
                     break;
                 case WORKER:
-                    mapController.panel.addMarker(WorldMapMarkerFactory.populationWorker(e.pos, e.virtual, e.label));
+                    m = WorldMapMarkerFactory.populationWorker(e.pos, e.virtual, e.label);
                     break;
                 case STABLE:
-                    mapController.panel.addMarker(WorldMapMarkerFactory.populationStable(e.pos, e.virtual, e.label));
+                    m = WorldMapMarkerFactory.populationStable(e.pos, e.virtual, e.label);
+                    break;
+                case TRAVELLER:
+                default:
+                    m = WorldMapMarkerFactory.populationTraveller(e.pos, e.virtual, e.label);
                     break;
             }
+            mapController.panel.addMarker(WorldMapContentPopulator.smoothed(m, e.uuid, e.pos, smoother));
         }
 
         for (MsgMapCampUpdate.Entry e : campEntries) {
@@ -487,7 +501,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
             mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
         }
 
-        mapController.panel.addMarker(WorldMapMarkerFactory.player(player.getPosition(), player.getName(), 0xFFFFFF, player.rotationYaw));
+        mapController.panel.addMarker(WorldMapContentPopulator.playerMarker(player, 0xFFFFFF));
     }
 
     @Override

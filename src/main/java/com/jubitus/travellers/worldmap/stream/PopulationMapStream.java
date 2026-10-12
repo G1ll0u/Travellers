@@ -111,7 +111,9 @@ public class PopulationMapStream {
                 } else {
                     kind = MsgMapPopulationUpdate.Kind.TRAVELLER;
                 }
-                out.add(entry(dim, t.getPosition(), kind, false, t.getName()));
+                MsgMapPopulationUpdate.Entry en = entry(dim, t.getPosition(), kind, false, t.getName());
+                en.uuid = t.getUniqueID();
+                out.add(en);
             }
         }
 
@@ -148,7 +150,9 @@ public class PopulationMapStream {
                     default: kind = MsgMapPopulationUpdate.Kind.TRAVELLER; break;
                 }
                 BlockPos pos = new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ);
-                out.add(entry(r.dimension, pos, kind, true, r.name));
+                MsgMapPopulationUpdate.Entry en = entry(r.dimension, pos, kind, true, r.name);
+                en.uuid = r.uuid;
+                out.add(en);
             }
         }
 

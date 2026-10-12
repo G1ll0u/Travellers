@@ -31,6 +31,9 @@ public final class WorkerMapScreenSupport {
     public final List<MsgMapBattleUpdate.Entry> battles = new ArrayList<>();
     public final List<MsgMapForeignUnitsUpdate.Entry> foreignUnits = new ArrayList<>();
 
+    private final WorkerMarkerSmoother smoother = new WorkerMarkerSmoother();
+    private final WorkerMarkerSmoother foreignSmoother = new WorkerMarkerSmoother();
+
     /** Call from initGui: asks for the fog of war and starts the live worker feed. */
     public void subscribe() {
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestMapDiscovery());
@@ -54,6 +57,24 @@ public final class WorkerMapScreenSupport {
         for (MsgMapWorkersUpdate.Entry e : entries) {
             if (e.dim == myDim) workers.add(e);
         }
+        long now = System.currentTimeMillis();
+        Set<java.util.UUID> present = new java.util.HashSet<>();
+        for (MsgMapWorkersUpdate.Entry e : workers) {
+            if (e.uuid == null || e.pos == null) continue;
+            smoother.observe(e.uuid, e.pos.getX(), e.pos.getZ(), now);
+            present.add(e.uuid);
+        }
+        smoother.retainOnly(present);
+    }
+
+    /** Where a worker is drawn right now (block X), glided between server updates. */
+    public float drawX(MsgMapWorkersUpdate.Entry e) {
+        return smoother.x(e.uuid, e.pos.getX());
+    }
+
+    /** Where a worker is drawn right now (block Z). */
+    public float drawZ(MsgMapWorkersUpdate.Entry e) {
+        return smoother.z(e.uuid, e.pos.getZ());
     }
 
     public void setBattles(@Nullable List<MsgMapBattleUpdate.Entry> entries) {
@@ -64,6 +85,14 @@ public final class WorkerMapScreenSupport {
     public void setForeignUnits(@Nullable List<MsgMapForeignUnitsUpdate.Entry> entries) {
         foreignUnits.clear();
         if (entries != null) foreignUnits.addAll(entries);
+        long now = System.currentTimeMillis();
+        Set<java.util.UUID> present = new java.util.HashSet<>();
+        for (MsgMapForeignUnitsUpdate.Entry e : foreignUnits) {
+            if (e.uuid == null || e.pos == null) continue;
+            foreignSmoother.observe(e.uuid, e.pos.getX(), e.pos.getZ(), now);
+            present.add(e.uuid);
+        }
+        foreignSmoother.retainOnly(present);
     }
 
     /** Clears the map, then adds places, workers, the player, foreign units and battles. */
@@ -71,9 +100,9 @@ public final class WorkerMapScreenSupport {
                          @Nullable Set<BlockPos> highlightedVillages) {
         GuiWorldMapPanel panel = map.panel;
         panel.clearMarkers();
-        WorldMapContentPopulator.populate(panel, places, workers, player, ownerColor, highlightedVillages);
+        WorldMapContentPopulator.populate(panel, places, workers, player, ownerColor, highlightedVillages, smoother);
         int myDim = currentDimension();
-        WorldMapContentPopulator.populateForeignUnits(panel, foreignUnits, myDim);
+        WorldMapContentPopulator.populateForeignUnits(panel, foreignUnits, myDim, foreignSmoother);
         for (MsgMapBattleUpdate.Entry e : battles) {
             if (e.dim == myDim) panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
         }

@@ -78,7 +78,7 @@ public class GuiWorldMapPanel {
         }
 
         /** Size class, resolved against the worldmap config at draw time. */
-        enum Size { PLAYER, VILLAGE, WORKER, WORKER_HIGHLIGHTED, ALERT, POPULATION, CAMP }
+        public enum Size { PLAYER, VILLAGE, WORKER, WORKER_HIGHLIGHTED, ALERT, POPULATION, CAMP }
 
         public final BlockPos pos;
         public final int argb;
@@ -86,17 +86,30 @@ public class GuiWorldMapPanel {
         public final String label;
         /** Rotation in degrees, only meaningful for directional marker types (currently PLAYER). */
         public final float angleDeg;
+        /** Where the marker is drawn (block coordinates): its position, or a smoothed one for a moving unit. */
+        public final float drawX, drawZ;
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label) {
             this(pos, argb, type, label, 0f);
         }
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg) {
+            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ());
+        }
+
+        private Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg, float drawX, float drawZ) {
             this.pos = pos;
             this.argb = argb;
             this.type = type;
             this.label = label;
             this.angleDeg = angleDeg;
+            this.drawX = drawX;
+            this.drawZ = drawZ;
+        }
+
+        /** The same marker drawn at another spot; {@link #pos} stays its identity. */
+        public Marker at(float x, float z) {
+            return new Marker(pos, argb, type, label, angleDeg, x, z);
         }
     }
 
@@ -203,9 +216,10 @@ public class GuiWorldMapPanel {
         for (int i = markers.size() - 1; i >= 0; i--) {
             Marker m = markers.get(i);
             if (m.label == null || m.label.isEmpty()) continue;
-            float dx = mouseX - worldToScreenX(m.pos.getX(), mapX);
-            float dy = mouseY - worldToScreenY(m.pos.getZ(), mapY);
-            if (dx * dx + dy * dy <= 25) return m.label;
+            float dx = mouseX - worldToScreenX(m.drawX, mapX);
+            float dy = mouseY - worldToScreenY(m.drawZ, mapY);
+            float r = hitRadiusPx(m.type.size);
+            if (dx * dx + dy * dy <= r * r) return m.label;
         }
         return null;
     }
@@ -325,16 +339,15 @@ public class GuiWorldMapPanel {
     // ── Marker rendering ─────────────────────────────────────────────────────
 
     private void drawMarkers(int mapX, int mapY) {
-        float zoomFloor = Math.max(1f, Math.round(1f / blocksPerPixel));
-        float scale = zoomFloor * (float) TravellersConfig.WORLDMAP.markerScaleGlobal;
+        float scale = markerScale();
         boolean directional = TravellersConfig.WORLDMAP.playerMarkerDirectional;
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         for (Marker.MarkerType pass : Marker.MarkerType.values()) {
             for (Marker m : markers) {
                 if (m.type != pass) continue;
-                float sx = worldToScreenX(m.pos.getX(), mapX);
-                float sy = worldToScreenY(m.pos.getZ(), mapY);
+                float sx = worldToScreenX(m.drawX, mapX);
+                float sy = worldToScreenY(m.drawZ, mapY);
                 boolean hl = highlighted.contains(m.pos);
                 int size = Math.round(baseSize(m.type.size) * scale * (hl ? HIGHLIGHT_SCALE : 1f));
                 int argb = hl ? (m.argb & 0xFF000000) | WorldMapMarkerFactory.lighten(m.argb & 0xFFFFFF, 0.45f) : m.argb;
@@ -352,6 +365,19 @@ public class GuiWorldMapPanel {
     }
 
     private static final float HIGHLIGHT_SCALE = 1.4f;
+    private static final float HIT_MARGIN_PX = 2f;
+    private static final float MIN_HIT_RADIUS_PX = 5f;
+
+    private float markerScale() {
+        float zoomFloor = Math.max(1f, Math.round(1f / blocksPerPixel));
+        return zoomFloor * (float) TravellersConfig.WORLDMAP.markerScaleGlobal;
+    }
+
+    /** Click radius (screen pixels) of a marker of this size class: its drawn half-size plus a small margin. */
+    public float hitRadiusPx(Marker.Size size) {
+        float drawn = Math.round(baseSize(size) * markerScale());
+        return Math.max(MIN_HIT_RADIUS_PX, drawn / 2f + HIT_MARGIN_PX);
+    }
 
     /** Base display size in screen pixels, from config — independent of PNG resolution. */
     private static int baseSize(Marker.Size size) {

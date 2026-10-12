@@ -20,6 +20,7 @@ public class MsgMapPopulationUpdate implements IMessage {
     public static class Entry {
         public int dim;
         public BlockPos pos;
+        public java.util.UUID uuid; // null for stables; lets the client glide the marker
         public Kind kind;
         public boolean virtual;
         public String label;
@@ -49,6 +50,8 @@ public class MsgMapPopulationUpdate implements IMessage {
             e.kind = kinds[buf.readByte()];
             e.virtual = buf.readBoolean();
             e.label = ByteBufUtils.readUTF8String(buf);
+            boolean hasUuid = buf.readBoolean();
+            if (hasUuid) e.uuid = new java.util.UUID(buf.readLong(), buf.readLong());
             entries.add(e);
         }
     }
@@ -65,6 +68,11 @@ public class MsgMapPopulationUpdate implements IMessage {
             buf.writeByte(e.kind.ordinal());
             buf.writeBoolean(e.virtual);
             ByteBufUtils.writeUTF8String(buf, e.label != null ? e.label : "");
+            buf.writeBoolean(e.uuid != null);
+            if (e.uuid != null) {
+                buf.writeLong(e.uuid.getMostSignificantBits());
+                buf.writeLong(e.uuid.getLeastSignificantBits());
+            }
         }
     }
 

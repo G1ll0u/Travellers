@@ -321,6 +321,7 @@ public class WorkerMapStream {
                 en.statusKey = w.statusKey;
                 en.followsOwner = w.followsOwner;
                 en.role = w.role;
+                en.followLeaderUuid = w.followTarget;
                 en.followName = w.followTarget != null ? nameByUuid.getOrDefault(w.followTarget, "") : "";
                 out.add(en);
             }

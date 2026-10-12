@@ -57,6 +57,7 @@ public class ForeignUnitMapStream {
         final int dim;
         final double x, z;
         final BlockPos pos;
+        final UUID uuid;
         final String name;
         final String entityClass;
         final boolean hired;
@@ -67,9 +68,10 @@ public class ForeignUnitMapStream {
         final float maxHealth;
         final boolean inBattle;
 
-        Candidate(int dim, double x, double z, BlockPos pos, String name, String entityClass,
+        Candidate(UUID uuid, int dim, double x, double z, BlockPos pos, String name, String entityClass,
                   boolean hired, UUID ownerUUID, int ownerColor, boolean virtual,
                   float health, float maxHealth, boolean inBattle) {
+            this.uuid = uuid;
             this.dim = dim;
             this.x = x;
             this.z = z;
@@ -97,14 +99,14 @@ public class ForeignUnitMapStream {
                 owner = w.getFollowOwnerId();
                 ownerColor = w.getOwnerMarkColor() & 0xFFFFFF;
             }
-            return new Candidate(dim, e.posX, e.posZ, e.getPosition(), e.getName(), cls,
+            return new Candidate(e.getUniqueID(), dim, e.posX, e.posZ, e.getPosition(), e.getName(), cls,
                     hired, owner, ownerColor, false, e.getHealth(), e.getMaxHealth(),
                     e.combat.isInCombatRaw());
         }
 
         static Candidate fromVirtual(VirtualTravellerRecord vr) {
             boolean hired = "WORKER".equals(vr.entityClass) && vr.isHiredFollower;
-            return new Candidate(vr.dimension, vr.posX, vr.posZ,
+            return new Candidate(vr.uuid, vr.dimension, vr.posX, vr.posZ,
                     new BlockPos(vr.posX, vr.posY, vr.posZ),
                     vr.name != null ? vr.name : "", vr.entityClass,
                     hired, hired ? vr.followOwnerUUID : null, vr.ownerColor, true,
@@ -186,6 +188,7 @@ public class ForeignUnitMapStream {
                 MsgMapForeignUnitsUpdate.Entry en = new MsgMapForeignUnitsUpdate.Entry();
                 en.dim = c.dim;
                 en.pos = c.pos;
+                en.uuid = c.uuid;
                 en.name = c.name;
                 en.entityClass = c.entityClass;
                 en.hired = c.hired;

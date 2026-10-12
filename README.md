@@ -128,6 +128,7 @@ They use the virtualization system to move on unloaded chunks
 * **Be organized into multiple groups** by assigning **leaders**, making large crews manageable.
 Open formations menu with the `H` key (by default)
 * **Use formations** — assign formation styles and tweak spacing via the Formation Hub; a group always keeps a tight formation for its current size, closing ranks automatically when it loses members
+* **Command from the Formation Hub map** — left-click a Henchman to select its whole group (Shift-click or drag a rectangle to pick individual Henchmen), right-click for the orders menu, or right-click a group in the list on the left to order another group toward it (follow, merge). The action bar under the map offers the common orders for the current selection
 * **Set a group's Attitude** — Attack (chase freely), Defend (hold ground, only chase threats that get close) or Hold Position (never move to fight, great for a line of archers), applied instantly to the selected group
 * **Run recruitment missions** to visit villages and bring back additional Henchmen (with configurable costs, distance limits, and spawn ranges)
 * **Sell or donate items to Millénaire villages** as if you did it yourself

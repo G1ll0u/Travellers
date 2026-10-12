@@ -39,7 +39,8 @@ public final class WorldMapContentPopulator {
             List<MsgMapWorkersUpdate.Entry> workers,
             EntityPlayer player,
             int playerOwnerColor,
-            Set<BlockPos> highlightedVillages) {
+            Set<BlockPos> highlightedVillages,
+            @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
 
         panel.setLegendOwnerColor(playerOwnerColor);
 
@@ -76,23 +77,49 @@ public final class WorldMapContentPopulator {
         for (MsgMapWorkersUpdate.Entry e : workers) {
             if (e.pos == null || e.dim != myDim || e.isLeader) continue;
             if (isOnDuty(e)) {
-                panel.addMarker(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role));
+                panel.addMarker(smoothed(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role), e, smoother));
             } else {
-                panel.addMarker(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor));
+                panel.addMarker(smoothed(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor), e, smoother));
             }
         }
 
         // 5 — Leader workers
         for (MsgMapWorkersUpdate.Entry e : workers) {
             if (e.pos == null || e.dim != myDim || !e.isLeader) continue;
-            panel.addMarker(WorldMapMarkerFactory.leader(e.pos, workerLabel(e), e.ownerColor));
+            panel.addMarker(smoothed(WorldMapMarkerFactory.leader(e.pos, workerLabel(e), e.ownerColor), e, smoother));
         }
 
         // 6 — Player (topmost)
         if (player != null) {
-            panel.addMarker(WorldMapMarkerFactory.player(
-                    player.getPosition(), player.getName(), playerOwnerColor, player.rotationYaw));
+            panel.addMarker(playerMarker(player, playerOwnerColor));
         }
+    }
+
+    /** The player's marker, drawn at the exact interpolated position (not the block) so it glides. */
+    public static GuiWorldMapPanel.Marker playerMarker(EntityPlayer player, int ownerColor) {
+        return WorldMapMarkerFactory.player(player.getPosition(), player.getName(), ownerColor, player.rotationYaw)
+                .at(playerDrawX(player), playerDrawZ(player));
+    }
+
+    public static float playerDrawX(EntityPlayer player) {
+        float pt = Minecraft.getMinecraft().getRenderPartialTicks();
+        return (float) (player.lastTickPosX + (player.posX - player.lastTickPosX) * pt);
+    }
+
+    public static float playerDrawZ(EntityPlayer player) {
+        float pt = Minecraft.getMinecraft().getRenderPartialTicks();
+        return (float) (player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * pt);
+    }
+
+    private static GuiWorldMapPanel.Marker smoothed(GuiWorldMapPanel.Marker m, MsgMapWorkersUpdate.Entry e,
+                                                    @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
+        return smoothed(m, e.uuid, e.pos, smoother);
+    }
+
+    static GuiWorldMapPanel.Marker smoothed(GuiWorldMapPanel.Marker m, @javax.annotation.Nullable java.util.UUID id,
+                                            BlockPos pos, @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
+        if (smoother == null || id == null) return m;
+        return m.at(smoother.x(id, pos.getX()), smoother.z(id, pos.getZ()));
     }
 
     /** An on-duty worker (e.g. a palfrenier) takes no player order: drawn with its role marker, never selectable. */
@@ -136,25 +163,25 @@ public final class WorldMapContentPopulator {
     public static void populateForeignUnits(
             GuiWorldMapPanel panel,
             java.util.List<com.jubitus.travellers.worldmap.net.MsgMapForeignUnitsUpdate.Entry> entries,
-            int myDim) {
+            int myDim,
+            @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
         for (com.jubitus.travellers.worldmap.net.MsgMapForeignUnitsUpdate.Entry e : entries) {
             if (e.pos == null || e.dim != myDim) continue;
             String label = foreignUnitLabel(e);
+            GuiWorldMapPanel.Marker m;
             switch (e.entityClass) {
                 case "RAIDER":
-                    panel.addMarker(WorldMapMarkerFactory.populationRaider(e.pos, e.virtual, label));
+                    m = WorldMapMarkerFactory.populationRaider(e.pos, e.virtual, label);
                     break;
                 case "WORKER":
-                    if (e.hired) {
-                        panel.addMarker(WorldMapMarkerFactory.foreignHiredWorker(e.pos, e.virtual, e.ownerColor, label));
-                    } else {
-                        panel.addMarker(WorldMapMarkerFactory.populationWorker(e.pos, e.virtual, label));
-                    }
+                    m = e.hired ? WorldMapMarkerFactory.foreignHiredWorker(e.pos, e.virtual, e.ownerColor, label)
+                            : WorldMapMarkerFactory.populationWorker(e.pos, e.virtual, label);
                     break;
                 default:
-                    panel.addMarker(WorldMapMarkerFactory.populationTraveller(e.pos, e.virtual, label));
+                    m = WorldMapMarkerFactory.populationTraveller(e.pos, e.virtual, label);
                     break;
             }
+            panel.addMarker(smoothed(m, e.uuid, e.pos, smoother));
         }
     }
 
@@ -177,6 +204,6 @@ public final class WorldMapContentPopulator {
             List<MsgMapWorkersUpdate.Entry> workers,
             EntityPlayer player,
             int playerOwnerColor) {
-        populate(panel, pois, workers, player, playerOwnerColor, null);
+        populate(panel, pois, workers, player, playerOwnerColor, null, null);
     }
 }
