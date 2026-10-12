@@ -35,15 +35,17 @@ public final class CultureFlavorDialogueContextProvider implements DialogueConte
         String cultureId = traveller.getCultureId();
         if (cultureId == null || cultureId.isEmpty()) return;
 
-        Culture culture = Culture.getCultureByName(cultureId);
-        if (culture == null) return;
-
-        CultureLanguage english = ((MixinCultureLoadedLanguagesAccessor) culture).travellers$getLoadedLanguages().get(ENGLISH);
-        if (english == null) return;
-
-        String desc = english.strings.get(DESC_KEY);
+        String desc = englishCultureString(cultureId, DESC_KEY);
         if (desc == null || desc.isEmpty()) return;
         if (desc.length() > MAX_CHARS) desc = desc.substring(0, MAX_CHARS) + "...";
         builder.cultureFlavorText(desc);
+    }
+
+    /** A culture string from Millénaire's English files whatever the server language; null when missing (see the class doc trap). */
+    static String englishCultureString(String cultureId, String key) {
+        Culture culture = Culture.getCultureByName(cultureId);
+        if (culture == null) return null;
+        CultureLanguage english = ((MixinCultureLoadedLanguagesAccessor) culture).travellers$getLoadedLanguages().get(ENGLISH);
+        return english == null ? null : english.strings.get(key);
     }
 }

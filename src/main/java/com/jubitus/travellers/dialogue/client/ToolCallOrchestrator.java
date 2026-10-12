@@ -16,11 +16,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Sits between {@code GuiTravellerDialogue} and {@link OllamaClient}: owns the multi-round tool-calling
+ * Sits between {@code GuiTravellerDialogue} and {@link LlmClient}: owns the multi-round tool-calling
  * loop (see {@code docs/npc-dialogue-tools-memory-plan.md} Task G3). A normal, tools-disabled
  * conversation passes straight through - {@link DialogueToolCatalog#currentTools()} is empty, no
- * {@code tools} field is sent, {@link OllamaClient.ChatCallback#onToolCall} never fires, and this class
- * behaves exactly like a direct {@link OllamaClient#chat} call.
+ * {@code tools} field is sent, {@link LlmClient.ChatCallback#onToolCall} never fires, and this class
+ * behaves exactly like a direct {@link LlmClient#chat} call.
  *
  * <p>Tool exchanges are ephemeral: the assistant "I called X" message and the tool's result only live
  * in the working message list for this one player-turn round trip, never in {@link DialogueSession}
@@ -40,7 +40,7 @@ public final class ToolCallOrchestrator {
         void onDone();
 
         /** Already on the client thread. */
-        void onError(OllamaClient.Outcome outcome, String message);
+        void onError(LlmClient.Outcome outcome, String message);
     }
 
     public interface Handle {
@@ -62,19 +62,19 @@ public final class ToolCallOrchestrator {
     public static Handle send(DialogueContext context, DialogueSession session, int entityId,
                                long elapsedTicksSinceLastTurn, Callback callback,
                                @Nullable DialoguePromptDebugDumper debugDumper) {
-        List<OllamaClient.ChatMessage> messages = new ArrayList<>(
+        List<LlmClient.ChatMessage> messages = new ArrayList<>(
                 DialoguePromptBuilder.build(context, session.historySnapshot(), elapsedTicksSinceLastTurn));
-        List<OllamaClient.ToolDefinition> tools = DialogueToolCatalog.currentTools(context);
+        List<LlmClient.ToolDefinition> tools = DialogueToolCatalog.currentTools(context);
         Round round = new Round(entityId, messages, tools, session, callback, debugDumper);
         round.runNext();
         return round;
     }
 
     /** One in-flight multi-round exchange for a single player turn. Mutable, single-use, cancellable. */
-    private static final class Round implements Handle, OllamaClient.ChatCallback {
+    private static final class Round implements Handle, LlmClient.ChatCallback {
         private final int entityId;
-        private final List<OllamaClient.ChatMessage> messages;
-        private final List<OllamaClient.ToolDefinition> tools;
+        private final List<LlmClient.ChatMessage> messages;
+        private final List<LlmClient.ToolDefinition> tools;
         private final DialogueSession session;
         private final Callback callback;
         @Nullable
@@ -86,12 +86,17 @@ public final class ToolCallOrchestrator {
         /** Set by {@link #detach()} — the round keeps running (network calls, tool calls, debug dump),
          * only {@link #callback} delivery is suppressed from here on. */
         private boolean detached = false;
-        private boolean firstSend = true;
         private final StringBuilder accumulated = new StringBuilder();
+        // Per-round debug figures, reset on every send.
+        private final StringBuilder thinking = new StringBuilder();
+        private long sentAtMs;
+        private long firstWordAtMs;
         @Nullable
-        private OllamaClient.ChatHandle activeChat;
+        private LlmClient.ReplyStats stats;
+        @Nullable
+        private LlmClient.ChatHandle activeChat;
 
-        Round(int entityId, List<OllamaClient.ChatMessage> messages, List<OllamaClient.ToolDefinition> tools,
+        Round(int entityId, List<LlmClient.ChatMessage> messages, List<LlmClient.ToolDefinition> tools,
               DialogueSession session, Callback callback, @Nullable DialoguePromptDebugDumper debugDumper) {
             this.entityId = entityId;
             this.messages = messages;
@@ -104,15 +109,12 @@ public final class ToolCallOrchestrator {
         void runNext() {
             if (cancelled) return;
             session.setState(DialogueSession.State.GENERATING);
-            // The GUI's own dump of the *first* send already happened before this Round existed
-            // (it needs the tools list too, see GuiTravellerDialogue) - only log the follow-up
-            // round(s) here, i.e. the ones that include a tool result, or nothing tool-related would
-            // ever show up in the log at all.
-            if (!firstSend && debugDumper != null) {
-                debugDumper.appendPromptSent(DialogueClientSettings.getContextDetailLevel(), messages, tools);
-            }
-            firstSend = false;
-            activeChat = OllamaClient.chat(
+            if (debugDumper != null) debugDumper.appendPromptSent(messages, tools);
+            thinking.setLength(0);
+            sentAtMs = System.currentTimeMillis();
+            firstWordAtMs = -1;
+            stats = null;
+            activeChat = LlmClient.chat(DialogueClientSettings.getServerType(),
                     DialogueClientSettings.getHost(), DialogueClientSettings.getPort(), DialogueClientSettings.getModel(),
                     messages, DialogueClientSettings.currentChatOptions(), tools, this);
         }
@@ -121,6 +123,7 @@ public final class ToolCallOrchestrator {
         public void onToken(String token) {
             if (cancelled) return;
             producedContentThisRound = true;
+            if (firstWordAtMs < 0) firstWordAtMs = System.currentTimeMillis();
             accumulated.append(token);
             if (!detached) callback.onToken(token);
         }
@@ -128,20 +131,23 @@ public final class ToolCallOrchestrator {
         @Override
         public void onDone() {
             if (cancelled) return;
+            logRoundDebug();
             if (debugDumper != null) debugDumper.appendReplyReceived(accumulated.toString());
             if (!detached) callback.onDone();
         }
 
         @Override
-        public void onError(OllamaClient.Outcome outcome, String message) {
+        public void onError(LlmClient.Outcome outcome, String message) {
             if (cancelled) return;
+            logRoundDebug();
             if (debugDumper != null) debugDumper.appendError(outcome, message);
             if (!detached) callback.onError(outcome, message);
         }
 
         @Override
-        public void onToolCall(List<OllamaClient.ToolCallRequest> calls) {
+        public void onToolCall(List<LlmClient.ToolCallRequest> calls) {
             if (cancelled) return;
+            logRoundDebug();
             roundsUsed++;
             if (roundsUsed > Math.max(1, TravellersConfig.DIALOGUE.maxToolRoundsPerTurn)) {
                 // Hit the cap: end the turn with whatever content exists, or a short fallback line if
@@ -158,23 +164,42 @@ public final class ToolCallOrchestrator {
                 return;
             }
             session.setState(DialogueSession.State.AWAITING_TOOL);
-            messages.add(new OllamaClient.ChatMessage("assistant", "", calls));
+            messages.add(new LlmClient.ChatMessage("assistant", "", calls));
             executeCallsSequentially(calls, 0);
         }
 
-        private void executeCallsSequentially(List<OllamaClient.ToolCallRequest> calls, int index) {
+        @Override
+        public void onThinking(String fragment) {
+            thinking.append(fragment);
+        }
+
+        @Override
+        public void onStats(LlmClient.ReplyStats stats) {
+            this.stats = stats;
+        }
+
+        private void logRoundDebug() {
+            if (debugDumper == null) return;
+            if (thinking.length() > 0) {
+                debugDumper.appendThinking(thinking.toString(), DialogueClientSettings.isThink());
+            }
+            long now = System.currentTimeMillis();
+            debugDumper.appendStats(firstWordAtMs < 0 ? -1 : firstWordAtMs - sentAtMs, now - sentAtMs, stats);
+        }
+
+        private void executeCallsSequentially(List<LlmClient.ToolCallRequest> calls, int index) {
             if (cancelled) return;
             if (index >= calls.size()) {
                 runNext();
                 return;
             }
-            OllamaClient.ToolCallRequest call = calls.get(index);
+            LlmClient.ToolCallRequest call = calls.get(index);
             if (debugDumper != null) debugDumper.appendToolCall(call.name, call.arguments);
             DialogueToolQueryDispatcher.query(entityId, call.name, argumentsToNbt(call.arguments),
                     (resultText, error) -> {
                         if (debugDumper != null) debugDumper.appendToolResult(call.name, resultText, error);
                         if (cancelled) return;
-                        messages.add(new OllamaClient.ChatMessage("tool", resultText == null ? "" : resultText));
+                        messages.add(LlmClient.ChatMessage.toolResult(call, resultText == null ? "" : resultText));
                         executeCallsSequentially(calls, index + 1);
                     });
         }
@@ -194,7 +219,7 @@ public final class ToolCallOrchestrator {
         }
     }
 
-    /** v1 tool schemas (village_relation, recall_memory) only ever declare string parameters. */
+    /** v1 tool schemas (village_relation) only ever declare string parameters. */
     private static NBTTagCompound argumentsToNbt(JsonObject arguments) {
         NBTTagCompound tag = new NBTTagCompound();
         if (arguments == null) return tag;

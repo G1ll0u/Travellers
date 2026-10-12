@@ -8,6 +8,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Weather, time of day and biome (E2 of the context-expansion plan). None of these need bucketing
  * against D-8's grounding rule - they're already exactly what a player standing next to the
@@ -84,12 +87,74 @@ public final class WorldStateDialogueContextProvider implements DialogueContextP
     }
 
     /**
-     * e.g. "minecraft:extreme_hills" -> "extreme hills". Never {@code getBiomeName()} - see class doc.
+     * e.g. "minecraft:extreme_hills" -> "high hills". Never {@code getBiomeName()} - see class doc.
      * Package-visible: {@link SurroundingBiomeDialogueContextProvider} reuses it for biomes other than
      * the traveller's own, so both places hit the same crash-avoiding trap exactly once.
      */
     static String biomeDisplayName(Biome biome) {
         if (biome == null || biome.getRegistryName() == null) return "";
-        return biome.getRegistryName().getPath().replace('_', ' ');
+        String path = biome.getRegistryName().getPath();
+        if ("minecraft".equals(biome.getRegistryName().getNamespace())) {
+            String plain = PLAIN_BIOME_NAMES.get(path);
+            if (plain != null) return plain;
+        }
+        return path.replace('_', ' ');
+    }
+
+    /** Vanilla biome ids whose name reads technical ("mutated birch forest", "extreme hills"); the rest read fine as they are. */
+    private static final Map<String, String> PLAIN_BIOME_NAMES = new HashMap<>();
+
+    static {
+        PLAIN_BIOME_NAMES.put("ocean", "sea");
+        PLAIN_BIOME_NAMES.put("deep_ocean", "deep sea");
+        PLAIN_BIOME_NAMES.put("frozen_ocean", "frozen sea");
+        PLAIN_BIOME_NAMES.put("frozen_river", "frozen river");
+        PLAIN_BIOME_NAMES.put("mutated_plains", "flowery meadow");
+        PLAIN_BIOME_NAMES.put("mutated_desert", "desert");
+        PLAIN_BIOME_NAMES.put("extreme_hills", "high hills");
+        PLAIN_BIOME_NAMES.put("smaller_extreme_hills", "rocky hills");
+        PLAIN_BIOME_NAMES.put("extreme_hills_with_trees", "wooded high hills");
+        PLAIN_BIOME_NAMES.put("mutated_extreme_hills", "jagged high hills");
+        PLAIN_BIOME_NAMES.put("mutated_extreme_hills_with_trees", "wooded high hills");
+        PLAIN_BIOME_NAMES.put("forest_hills", "wooded hills");
+        PLAIN_BIOME_NAMES.put("mutated_forest", "flowery forest");
+        PLAIN_BIOME_NAMES.put("birch_forest_hills", "birch-covered hills");
+        PLAIN_BIOME_NAMES.put("mutated_birch_forest", "tall birch forest");
+        PLAIN_BIOME_NAMES.put("mutated_birch_forest_hills", "tall birch hills");
+        PLAIN_BIOME_NAMES.put("roofed_forest", "dark forest");
+        PLAIN_BIOME_NAMES.put("mutated_roofed_forest", "dark forest");
+        PLAIN_BIOME_NAMES.put("taiga", "pine forest");
+        PLAIN_BIOME_NAMES.put("taiga_hills", "pine-covered hills");
+        PLAIN_BIOME_NAMES.put("mutated_taiga", "pine forest");
+        PLAIN_BIOME_NAMES.put("taiga_cold", "snowy pine forest");
+        PLAIN_BIOME_NAMES.put("taiga_cold_hills", "snowy pine hills");
+        PLAIN_BIOME_NAMES.put("mutated_taiga_cold", "snowy pine forest");
+        PLAIN_BIOME_NAMES.put("redwood_taiga", "old spruce forest");
+        PLAIN_BIOME_NAMES.put("redwood_taiga_hills", "old spruce hills");
+        PLAIN_BIOME_NAMES.put("mutated_redwood_taiga", "old spruce forest");
+        PLAIN_BIOME_NAMES.put("mutated_redwood_taiga_hills", "old spruce hills");
+        PLAIN_BIOME_NAMES.put("swampland", "swamp");
+        PLAIN_BIOME_NAMES.put("mutated_swampland", "swamp");
+        PLAIN_BIOME_NAMES.put("ice_flats", "snowy plains");
+        PLAIN_BIOME_NAMES.put("mutated_ice_flats", "field of ice spikes");
+        PLAIN_BIOME_NAMES.put("ice_mountains", "snowy mountains");
+        PLAIN_BIOME_NAMES.put("mushroom_island", "mushroom isle");
+        PLAIN_BIOME_NAMES.put("mushroom_island_shore", "mushroom isle shore");
+        PLAIN_BIOME_NAMES.put("beaches", "beach");
+        PLAIN_BIOME_NAMES.put("stone_beach", "rocky shore");
+        PLAIN_BIOME_NAMES.put("cold_beach", "snowy beach");
+        PLAIN_BIOME_NAMES.put("mutated_jungle", "jungle");
+        PLAIN_BIOME_NAMES.put("mutated_jungle_edge", "jungle edge");
+        PLAIN_BIOME_NAMES.put("savanna_rock", "savanna plateau");
+        PLAIN_BIOME_NAMES.put("mutated_savanna", "broken savanna");
+        PLAIN_BIOME_NAMES.put("mutated_savanna_rock", "broken savanna plateau");
+        PLAIN_BIOME_NAMES.put("mesa", "red badlands");
+        PLAIN_BIOME_NAMES.put("mesa_rock", "red badlands plateau");
+        PLAIN_BIOME_NAMES.put("mesa_clear_rock", "red badlands plateau");
+        PLAIN_BIOME_NAMES.put("mutated_mesa", "eroded red badlands");
+        PLAIN_BIOME_NAMES.put("mutated_mesa_rock", "red badlands plateau");
+        PLAIN_BIOME_NAMES.put("mutated_mesa_clear_rock", "red badlands plateau");
+        PLAIN_BIOME_NAMES.put("hell", "nether");
+        PLAIN_BIOME_NAMES.put("sky", "End");
     }
 }

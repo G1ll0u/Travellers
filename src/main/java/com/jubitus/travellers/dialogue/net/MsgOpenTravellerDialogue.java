@@ -22,7 +22,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
  * already-built {@link DialogueContext} in the same payload — no separate request/response round
  * trip, the server already has everything by the time it decides to send this (see the dialogue
  * plan's D-9). No streaming here: token-by-token generation is a purely client-local concern
- * against Ollama (see {@code OllamaClient}), not a network message.
+ * against Ollama (see {@code LlmClient}), not a network message.
  *
  * <p>The context itself is carried as one {@link DialogueContext#toNbt()} tag (mirrors
  * {@code MsgJournalEntryAdded}'s idiom) rather than fields mirrored by hand here — an earlier version

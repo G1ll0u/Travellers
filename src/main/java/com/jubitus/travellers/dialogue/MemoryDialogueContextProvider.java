@@ -7,8 +7,8 @@ import net.minecraft.entity.player.EntityPlayer;
 /**
  * Index-tier NPC memory about the interacting player specifically (see
  * {@code docs/npc-dialogue-tools-memory-plan.md} Task J1). {@link DialogueContext#memoryEnabled} is
- * always set regardless of the switch's own value, so the client can gate offering the
- * {@code recall_memory} tool without needing its own copy of this server-authoritative config (M-6).
+ * always set regardless of the switch's own value, so the client can gate the end-of-conversation
+ * extraction without needing its own copy of this server-authoritative config (M-6).
  */
 public final class MemoryDialogueContextProvider implements DialogueContextProvider {
 

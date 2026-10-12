@@ -6,7 +6,7 @@ import com.jubitus.travellers.dialogue.client.DialoguePromptBuilder;
 import com.jubitus.travellers.dialogue.client.DialoguePromptDebugDumper;
 import com.jubitus.travellers.dialogue.client.DialogueSession;
 import com.jubitus.travellers.dialogue.client.DialogueTurn;
-import com.jubitus.travellers.dialogue.client.OllamaClient;
+import com.jubitus.travellers.dialogue.client.LlmClient;
 import com.jubitus.travellers.dialogue.client.ToolCallOrchestrator;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
@@ -36,7 +36,7 @@ import org.lwjgl.opengl.GL11;
  *
  * <p>Two rendering states share one layout rectangle (see {@link #initGui}): a ready-to-type
  * transcript + input row when {@link DialogueClientSettings#isConfigured()}, or — for that same
- * "not configured" case, and identically for any {@link OllamaClient} failure mid-conversation
+ * "not configured" case, and identically for any {@link LlmClient} failure mid-conversation
  * (unreachable / timeout / mid-stream drop) — the canned fallback line plus a button into {@link
  * GuiDialogueSetup}. Never a raw error, never a frozen "generating..." state.
  */
@@ -55,7 +55,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
     private GuiTravellersButton sendBtn;
     private GuiTravellersButton configureBtn;
 
-    /** Set once at open (not configured) or the moment an OllamaClient call fails - see the class doc. */
+    /** Set once at open (not configured) or the moment an LlmClient call fails - see the class doc. */
     private boolean showFallback;
     private final String fallbackText;
 
@@ -260,12 +260,6 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
         sendBtn.enabled = false;
         rebuildTranscript();
 
-        if (debugDumper != null) {
-            List<OllamaClient.ChatMessage> messages =
-                    DialoguePromptBuilder.build(context, session.historySnapshot(), elapsedTicks);
-            debugDumper.appendPromptSent(DialogueClientSettings.getContextDetailLevel(), messages,
-                    com.jubitus.travellers.dialogue.client.DialogueToolCatalog.currentTools(context));
-        }
         activeChat = ToolCallOrchestrator.send(context, session,
                 traveller != null ? traveller.getEntityId() : -1, elapsedTicks, new ToolCallOrchestrator.Callback() {
                     @Override
@@ -285,7 +279,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
                     }
 
                     @Override
-                    public void onError(OllamaClient.Outcome outcome, String message) {
+                    public void onError(LlmClient.Outcome outcome, String message) {
                         activeChat = null;
                         enterFallback();
                     }
@@ -528,13 +522,20 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
         StringBuilder systemPrompt = new StringBuilder();
         systemPrompt.append("Below are the exact messages a person named ").append(playerName)
                 .append(" sent you during a conversation you just had, one per line, in the order they "
-                        + "were said - nothing you said back is included, only their own words. Extract "
-                        + "up to ").append(maxFacts).append(" short, concrete fact(s) about ").append(playerName)
-                .append(" from what they actually wrote, one per line, written in the third person using "
-                        + "their real name (for example: \"").append(playerName)
-                .append(" said they are looking for iron\") - never the generic word \"player\", since "
-                        + "other people may read this later. If there is nothing worth remembering in "
-                        + "their messages, extract nothing. Keep each fact general rather than exact "
+                        + "were said - only their own words, nothing you said back. Decide what, if anything, "
+                        + "is worth remembering about ").append(playerName)
+                .append(" the next time you meet: the kind of thing you would still remember about someone "
+                        + "weeks later - who they are (name, where they come from, their trade or rank), "
+                        + "a lasting goal, a striking trait or condition (for example being blind or wounded), "
+                        + "a promise, a deal, a gift, a favour, a threat or an insult between you. Never record "
+                        + "greetings, small talk or passing questions (where am I, which way to a village, what "
+                        + "time it is) - those say nothing about the person. Most ordinary conversations hold "
+                        + "nothing worth remembering; then write no fact at all, which is the normal answer. "
+                        + "At most ").append(maxFacts).append(" fact(s), one per line, each a short statement in "
+                        + "the third person using their real name, never the word \"player\"; you yourself are \"me\". Good: \"")
+                .append(playerName).append(" is blind.\" \"").append(playerName)
+                .append(" promised to bring me iron.\" Bad: \"").append(playerName).append(" said hello.\" \"")
+                .append(playerName).append(" asked where they are.\" Keep each fact general rather than exact "
                         + "numbers or coordinates.");
         if (summaryEnabled) {
             systemPrompt.append(" Here is what you currently remember about your life so far: \"")
@@ -544,21 +545,24 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
                             + "longer relevant.");
         }
         systemPrompt.append(" Reply using exactly this format: a line \"FACTS:\" followed by one fact per line "
-                + "(leave it blank if there is nothing worth remembering)");
+                + "(nothing after it if there is nothing worth remembering)");
         if (summaryEnabled) {
             systemPrompt.append(", then a line \"SUMMARY:\" followed by the updated paragraph");
         }
         systemPrompt.append(". No other text.");
 
-        List<OllamaClient.ChatMessage> messages = new ArrayList<>();
-        messages.add(new OllamaClient.ChatMessage("system", systemPrompt.toString()));
-        messages.add(new OllamaClient.ChatMessage("user", transcript.toString()));
+        List<LlmClient.ChatMessage> messages = new ArrayList<>();
+        messages.add(new LlmClient.ChatMessage("system", systemPrompt.toString()));
+        messages.add(new LlmClient.ChatMessage("user", transcript.toString()));
+        // The GUI is closing, but the dump file stays valid: the extraction result is appended when it arrives.
+        DialoguePromptDebugDumper dumper = debugDumper;
+        if (dumper != null) dumper.appendMemoryExtractionSent(messages);
 
         int entityId = traveller.getEntityId();
         StringBuilder accumulated = new StringBuilder();
-        OllamaClient.chat(DialogueClientSettings.getHost(), DialogueClientSettings.getPort(),
+        LlmClient.chat(DialogueClientSettings.getServerType(), DialogueClientSettings.getHost(), DialogueClientSettings.getPort(),
                 DialogueClientSettings.getModel(), messages, DialogueClientSettings.currentChatOptions(),
-                new OllamaClient.ChatCallback() {
+                new LlmClient.ChatCallback() {
                     @Override
                     public void onToken(String token) {
                         accumulated.append(token);
@@ -567,6 +571,9 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
                     @Override
                     public void onDone() {
                         ParsedMemory parsed = parseFactsAndSummary(accumulated.toString(), maxFacts, summaryEnabled);
+                        if (dumper != null) {
+                            dumper.appendMemoryExtractionResult(accumulated.toString(), parsed.facts, parsed.summary);
+                        }
                         if (!parsed.facts.isEmpty() || !parsed.summary.isEmpty()) {
                             com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendToServer(
                                     new com.jubitus.travellers.dialogue.net.MsgSubmitDialogueMemory(
@@ -575,13 +582,14 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
                     }
 
                     @Override
-                    public void onToolCall(List<OllamaClient.ToolCallRequest> calls) {
+                    public void onToolCall(List<LlmClient.ToolCallRequest> calls) {
                         // Extraction never offers tools - nothing sensible to do if a model calls one anyway.
                     }
 
                     @Override
-                    public void onError(OllamaClient.Outcome outcome, String message) {
+                    public void onError(LlmClient.Outcome outcome, String message) {
                         // No GUI left to report to (this is the whole point) - fail silently, never retry.
+                        if (dumper != null) dumper.appendError(outcome, message);
                     }
                 });
     }
@@ -634,10 +642,17 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
         if (raw == null) return out;
         for (String line : raw.split("\n")) {
             String trimmed = line.trim().replaceFirst("^[-*]\\s+", "").replaceFirst("^\\d+[.)]\\s+", "");
-            if (!trimmed.isEmpty()) out.add(trimmed);
+            if (trimmed.isEmpty() || isNoFactMarker(trimmed)) continue;
+            out.add(trimmed);
             if (out.size() >= maxFacts) break;
         }
         return out;
+    }
+
+    /** A model told to write nothing often writes "None" instead. */
+    private static boolean isNoFactMarker(String line) {
+        String bare = line.replaceAll("[^A-Za-z/ ]", "").trim().toLowerCase(Locale.ROOT);
+        return bare.equals("none") || bare.equals("nothing") || bare.equals("n/a") || bare.equals("no facts");
     }
 
     @Override

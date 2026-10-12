@@ -7,7 +7,11 @@ import net.minecraftforge.common.util.Constants;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Small, immutable, already player-safe snapshot of one {@code EntityTraveller}'s situation, sent
@@ -202,7 +206,7 @@ public final class DialogueContext {
     /** True when at least one raider is standing nearby right now. */
     public final boolean nearbyRaiderPresent;
 
-    /** Server's {@code DIALOGUE.memoryEnabled} switch (Phase 3 memory, M-6) - lets the client gate offering the {@code recall_memory} tool without duplicating server-authoritative config client-side. */
+    /** Server's {@code DIALOGUE.memoryEnabled} switch (Phase 3 memory, M-6) - lets the client gate the end-of-conversation memory extraction without duplicating server-authoritative config client-side. */
     public final boolean memoryEnabled;
     /** Global index-tier memory phrases (identity-memory plan, Part M: no longer scoped to the
      * interacting player) - already short/bucketed text, empty unless {@link #memoryEnabled}. */
@@ -219,6 +223,14 @@ public final class DialogueContext {
     public final NearbySettlementBlurb currentLocationVillage;
     /** Nullable — set only when {@link #currentLocationVillage} is null: a settlement close enough to be "right next to" ({@code DIALOGUE.villageAdjacentRadius}). */
     public final NearbySettlementBlurb adjacentVillage;
+    /** Culture id to its English adjective ("byzantines" to "Byzantine"), for every culture id in this context. */
+    public final Map<String, String> cultureNames;
+
+    /** The English adjective for a culture id, or the id itself when Millénaire has none. */
+    public String cultureName(String cultureId) {
+        String name = cultureNames.get(cultureId);
+        return name != null ? name : cultureId;
+    }
 
     private DialogueContext(Builder b) {
         this.travellerDisplayName = b.travellerDisplayName;
@@ -265,6 +277,7 @@ public final class DialogueContext {
         this.timeSinceLastMetPhrase = b.timeSinceLastMetPhrase;
         this.currentLocationVillage = b.currentLocationVillage;
         this.adjacentVillage = b.adjacentVillage;
+        this.cultureNames = Collections.unmodifiableMap(new HashMap<>(b.cultureNames));
     }
 
     /**
@@ -344,6 +357,9 @@ public final class DialogueContext {
         if (timeSinceLastMetPhrase != null) tag.setString("TimeSinceLastMetPhrase", timeSinceLastMetPhrase);
         if (currentLocationVillage != null) tag.setTag("CurrentLocationVillage", currentLocationVillage.toNbt());
         if (adjacentVillage != null) tag.setTag("AdjacentVillage", adjacentVillage.toNbt());
+        NBTTagCompound cultureNamesTag = new NBTTagCompound();
+        for (Map.Entry<String, String> e : cultureNames.entrySet()) cultureNamesTag.setString(e.getKey(), e.getValue());
+        tag.setTag("CultureNames", cultureNamesTag);
         return tag;
     }
 
@@ -391,6 +407,9 @@ public final class DialogueContext {
         ActivityKind[] kinds = ActivityKind.values();
         int ord = tag.getInteger("ActivityOrdinal");
         b.activity(ord >= 0 && ord < kinds.length ? kinds[ord] : ActivityKind.ROAMING);
+
+        NBTTagCompound cultureNamesTag = tag.getCompoundTag("CultureNames");
+        for (String id : cultureNamesTag.getKeySet()) b.cultureName(id, cultureNamesTag.getString(id));
 
         NBTTagList settlementsTag = tag.getTagList("NearbySettlements", Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < settlementsTag.tagCount(); i++) {
@@ -475,6 +494,7 @@ public final class DialogueContext {
         private String timeSinceLastMetPhrase = null;
         private NearbySettlementBlurb currentLocationVillage = null;
         private NearbySettlementBlurb adjacentVillage = null;
+        private final Map<String, String> cultureNames = new HashMap<>();
 
         public Builder travellerDisplayName(String v) {
             this.travellerDisplayName = v == null ? "" : v;
@@ -689,6 +709,26 @@ public final class DialogueContext {
         public Builder currentLocationVillage(NearbySettlementBlurb v) {
             this.currentLocationVillage = v;
             return this;
+        }
+
+        public Builder cultureName(String cultureId, String name) {
+            if (cultureId != null && !cultureId.isEmpty() && name != null && !name.isEmpty()) {
+                this.cultureNames.put(cultureId, name);
+            }
+            return this;
+        }
+
+        /** Every culture id set so far, so the last provider can name them all. */
+        public Set<String> cultureIdsInUse() {
+            Set<String> ids = new LinkedHashSet<>();
+            ids.add(cultureId);
+            ids.add(activityVillageCultureId);
+            for (NearbySettlementBlurb blurb : nearbySettlements) ids.add(blurb.cultureId);
+            if (currentLocationVillage != null) ids.add(currentLocationVillage.cultureId);
+            if (adjacentVillage != null) ids.add(adjacentVillage.cultureId);
+            ids.remove(null);
+            ids.remove("");
+            return ids;
         }
 
         public Builder adjacentVillage(NearbySettlementBlurb v) {

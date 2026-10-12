@@ -1,10 +1,11 @@
 package com.jubitus.travellers.dialogue.client;
 
-import com.jubitus.travellers.dialogue.client.DialogueClientSettings.ContextDetailLevel;
 import com.jubitus.travellers.dialogue.DialogueContext;
 import net.minecraft.client.Minecraft;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -14,8 +15,11 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -28,14 +32,18 @@ import java.util.UUID;
  *
  * <p>Writes two things, since "why didn't it know X" can fail at either point: the raw
  * {@link DialogueContext} the server actually built (before any client-side tiering — this is what
- * answers "did the server even resolve it"), and then the exact message list handed to Ollama for
- * every send (this is what answers "did tiering/wording drop it").
+ * answers "did the server even resolve it"), and then the exact message list handed to the model for
+ * every send (this is what answers "did tiering/wording drop it"), plus the model's reasoning, tool
+ * round trips, per-reply stats and the end-of-conversation memory extraction.
  */
 public final class DialoguePromptDebugDumper {
 
     private static final Logger LOGGER = LogManager.getLogger("Travellers/Dialogue");
 
     private final File file;
+    /** What the previous send contained, so the next one only logs what is new. */
+    private String lastSystemPrompt;
+    private List<LlmClient.ChatMessage> lastLoggedConversation = new ArrayList<>();
 
     private DialoguePromptDebugDumper(File file) {
         this.file = file;
@@ -57,6 +65,7 @@ public final class DialoguePromptDebugDumper {
             File file = new File(dir, safeName + "_" + shortId + "_" + stamp + ".log");
             DialoguePromptDebugDumper dumper = new DialoguePromptDebugDumper(file);
             dumper.writeRawContext(context);
+            dumper.writeHeader(context);
             LOGGER.info("Dialogue debug dump: {}", file);
             return dumper;
         } catch (IOException ex) {
@@ -67,7 +76,7 @@ public final class DialoguePromptDebugDumper {
 
     private void writeRawContext(DialogueContext c) throws IOException {
         try (Writer w = writer()) {
-            w.write("# travellers-dialogue-debug v1\n");
+            w.write("# travellers-dialogue-debug v2\n");
             w.write("# opened=" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + "\n\n");
             w.write("=== RAW DialogueContext (built server-side, before any client-side tiering) ===\n");
             w.write("travellerDisplayName        = " + c.travellerDisplayName + "\n");
@@ -122,6 +131,7 @@ public final class DialoguePromptDebugDumper {
             w.write("memoryEnabled               = " + c.memoryEnabled + "\n");
             w.write("memoryIndexPhrases          = " + c.memoryIndexPhrases + "\n");
             w.write("lifeSummaryPhrase           = " + c.lifeSummaryPhrase + "\n");
+            w.write("cultureNames                = " + c.cultureNames + "\n");
             w.write("\n");
         }
     }
@@ -132,33 +142,168 @@ public final class DialoguePromptDebugDumper {
                 + "  relation=" + b.relationToHome + "  distance=" + b.distanceTier;
     }
 
-    /** Appends the exact message list about to be sent to Ollama — the "raw, everything sent to the LLM" record. */
-    public void appendPromptSent(ContextDetailLevel tier, List<OllamaClient.ChatMessage> messages,
-                                  List<OllamaClient.ToolDefinition> tools) {
+    /** Once at the top: which server, model and settings are used, and the tools exactly as the model sees them. */
+    private void writeHeader(DialogueContext context) throws IOException {
+        LlmClient.ChatOptions o = DialogueClientSettings.currentChatOptions();
         try (Writer w = writer()) {
-            w.write("=== PROMPT SENT  (tier=" + tier + "  " + new SimpleDateFormat("HH:mm:ss").format(new Date()) + ") ===\n");
+            w.write("=== CONNECTION ===\n");
+            w.write("server   = " + DialogueClientSettings.getServerType().displayName + "  "
+                    + DialogueClientSettings.getHost() + ":" + DialogueClientSettings.getPort() + "\n");
+            w.write("model    = " + DialogueClientSettings.getModel() + "\n");
+            w.write("tier     = " + DialogueClientSettings.getContextDetailLevel() + "\n");
+            w.write("options  = think=" + o.think
+                    + "  num_ctx=" + intOrDefault(o.numCtx) + "  temperature=" + doubleOrDefault(o.temperature)
+                    + "  top_p=" + doubleOrDefault(o.topP) + "  top_k=" + intOrDefault(o.topK)
+                    + "  repeat_penalty=" + doubleOrDefault(o.repeatPenalty)
+                    + "  max_reply=" + intOrDefault(o.numPredict) + "\n");
+            List<LlmClient.ToolDefinition> tools = DialogueToolCatalog.currentTools(context);
+            if (tools.isEmpty()) {
+                w.write("tools    = none\n");
+            } else {
+                w.write("tools (" + tools.size() + "):\n");
+                for (LlmClient.ToolDefinition t : tools) {
+                    w.write("  - " + t.name + ": " + t.description + "\n");
+                    w.write("    parameters: " + t.parameters + "\n");
+                }
+            }
+            w.write("\n");
+        }
+    }
+
+    private static String intOrDefault(int value) {
+        return value == LlmClient.ChatOptions.UNSET_INT ? "default" : String.valueOf(value);
+    }
+
+    private static String doubleOrDefault(double value) {
+        return Double.isNaN(value) ? "default" : String.valueOf(value);
+    }
+
+    /**
+     * Logs a send. The system prompt is written in full the first time, then only the lines that changed;
+     * earlier conversation messages already logged are counted, not repeated.
+     */
+    public void appendPromptSent(List<LlmClient.ChatMessage> messages, List<LlmClient.ToolDefinition> tools) {
+        try (Writer w = writer()) {
+            w.write("=== PROMPT SENT  (" + clock() + ") ===\n");
             if (tools == null || tools.isEmpty()) {
                 w.write("tools offered: none\n");
             } else {
                 StringBuilder names = new StringBuilder();
-                for (OllamaClient.ToolDefinition t : tools) {
+                for (LlmClient.ToolDefinition t : tools) {
                     if (names.length() > 0) names.append(", ");
                     names.append(t.name);
                 }
                 w.write("tools offered: " + names + "\n");
             }
-            for (OllamaClient.ChatMessage m : messages) {
-                w.write("--- " + m.role + " ---\n");
-                w.write(m.content);
-                if (!m.content.endsWith("\n")) w.write("\n");
+
+            int first = 0;
+            if (!messages.isEmpty() && "system".equals(messages.get(0).role)) {
+                writeSystemPrompt(w, messages.get(0).content);
+                first = 1;
             }
+            List<LlmClient.ChatMessage> rest = messages.subList(first, messages.size());
+            int unchanged = 0;
+            while (unchanged < rest.size() && unchanged < lastLoggedConversation.size()
+                    && sameMessage(rest.get(unchanged), lastLoggedConversation.get(unchanged))) {
+                unchanged++;
+            }
+            if (unchanged > 0) w.write("--- (" + unchanged + " earlier message(s), already logged above) ---\n");
+            for (int i = unchanged; i < rest.size(); i++) {
+                writeMessage(w, rest.get(i));
+            }
+            lastLoggedConversation = new ArrayList<>(rest);
             w.write("\n");
         } catch (IOException ex) {
             LOGGER.warn("Could not append to dialogue debug dump file {}", file, ex);
         }
     }
 
-    /** Logged the moment a tool round is actually dispatched to the server (Task G3/G4). */
+    private void writeSystemPrompt(Writer w, String system) throws IOException {
+        if (lastSystemPrompt == null) {
+            w.write("--- system ---\n");
+            w.write(system);
+            if (!system.endsWith("\n")) w.write("\n");
+        } else if (lastSystemPrompt.equals(system)) {
+            w.write("--- system (unchanged) ---\n");
+        } else {
+            // Line-level difference: enough to spot what changed in a prompt built line by line.
+            List<String> oldLines = Arrays.asList(lastSystemPrompt.split("\n"));
+            List<String> newLines = Arrays.asList(system.split("\n"));
+            w.write("--- system (changed lines only) ---\n");
+            for (String line : oldLines) {
+                if (!newLines.contains(line)) w.write("- " + line + "\n");
+            }
+            for (String line : newLines) {
+                if (!oldLines.contains(line)) w.write("+ " + line + "\n");
+            }
+        }
+        lastSystemPrompt = system;
+    }
+
+    private static void writeMessage(Writer w, LlmClient.ChatMessage m) throws IOException {
+        String label = m.role;
+        if (m.toolCallId != null) label += " (answers " + m.toolCallId + ")";
+        w.write("--- " + label + " ---\n");
+        if (m.toolCalls != null) {
+            for (LlmClient.ToolCallRequest call : m.toolCalls) {
+                w.write("[asks for tool] " + call.name + call.arguments + (call.id != null ? "  id=" + call.id : "") + "\n");
+            }
+        }
+        if (!m.content.isEmpty()) {
+            w.write(m.content);
+            if (!m.content.endsWith("\n")) w.write("\n");
+        }
+    }
+
+    private static boolean sameMessage(LlmClient.ChatMessage a, LlmClient.ChatMessage b) {
+        return a.role.equals(b.role) && a.content.equals(b.content) && a.toolCalls == b.toolCalls;
+    }
+
+    /** The model's hidden reasoning for one round; flagged when it reasons although thinking was switched off. */
+    public void appendThinking(String thinking, boolean thinkRequested) {
+        try (Writer w = writer()) {
+            w.write("--- THINKING (" + thinking.length() + " chars) ---\n");
+            if (!thinkRequested) {
+                w.write("WARNING: the model reasoned although Extended thinking is off - its chat template "
+                        + "probably ignores the switch, so every answer pays this delay.\n");
+            }
+            w.write(thinking);
+            if (!thinking.endsWith("\n")) w.write("\n");
+        } catch (IOException ex) {
+            LOGGER.warn("Could not append to dialogue debug dump file {}", file, ex);
+        }
+    }
+
+    /** Timing measured here plus whatever the server reported; {@code firstWordMs} is -1 when no text came. */
+    public void appendStats(long firstWordMs, long totalMs, @Nullable LlmClient.ReplyStats stats) {
+        StringBuilder sb = new StringBuilder("--- STATS: ");
+        sb.append("first word ").append(firstWordMs < 0 ? "none" : seconds(firstWordMs));
+        sb.append(", total ").append(seconds(totalMs));
+        if (stats != null) {
+            if (stats.loadMs > 0) sb.append(", model load ").append(seconds(stats.loadMs));
+            if (stats.promptTokens >= 0) sb.append(", prompt ").append(stats.promptTokens).append(" tok");
+            if (stats.replyTokens >= 0) sb.append(", reply ").append(stats.replyTokens).append(" tok");
+            if (!Double.isNaN(stats.tokensPerSecond)) {
+                sb.append(String.format(Locale.ROOT, ", %.1f tok/s", stats.tokensPerSecond));
+            }
+            if (stats.finishReason != null) sb.append(", finish=").append(stats.finishReason);
+        }
+        sb.append(" ---\n");
+        if (stats != null && "length".equals(stats.finishReason)) {
+            sb.append("WARNING: TRUNCATED - the reply hit the max reply length (or the context size) and was cut off.\n");
+        }
+        try (Writer w = writer()) {
+            w.write(sb.toString());
+        } catch (IOException ex) {
+            LOGGER.warn("Could not append to dialogue debug dump file {}", file, ex);
+        }
+    }
+
+    private static String seconds(long ms) {
+        return String.format(Locale.ROOT, "%.1fs", ms / 1000.0);
+    }
+
+    /** Logged the moment a tool round is actually dispatched to the server. */
     public void appendToolCall(String toolName, com.google.gson.JsonObject arguments) {
         try (Writer w = writer()) {
             w.write("--- TOOL CALL: " + toolName + "(" + arguments + ") ---\n");
@@ -185,12 +330,43 @@ public final class DialoguePromptDebugDumper {
         }
     }
 
-    public void appendError(OllamaClient.Outcome outcome, String message) {
+    public void appendError(LlmClient.Outcome outcome, String message) {
         try (Writer w = writer()) {
             w.write("--- ERROR (" + outcome + "): " + message + "\n\n");
         } catch (IOException ex) {
             LOGGER.warn("Could not append to dialogue debug dump file {}", file, ex);
         }
+    }
+
+    /** The end-of-conversation memory extraction request, written in full (it is a separate, one-off prompt). */
+    public void appendMemoryExtractionSent(List<LlmClient.ChatMessage> messages) {
+        try (Writer w = writer()) {
+            w.write("=== MEMORY EXTRACTION SENT  (" + clock() + ") ===\n");
+            for (LlmClient.ChatMessage m : messages) {
+                writeMessage(w, m);
+            }
+            w.write("\n");
+        } catch (IOException ex) {
+            LOGGER.warn("Could not append to dialogue debug dump file {}", file, ex);
+        }
+    }
+
+    /** What the model answered for the extraction, and what was actually kept from it. */
+    public void appendMemoryExtractionResult(String rawReply, List<String> facts, String summary) {
+        try (Writer w = writer()) {
+            w.write("--- RAW REPLY ---\n" + rawReply + (rawReply.endsWith("\n") ? "" : "\n"));
+            w.write("--- KEPT: " + facts.size() + " fact(s) ---\n");
+            for (String fact : facts) w.write("  - " + fact + "\n");
+            w.write("--- KEPT SUMMARY: " + (summary.isEmpty() ? "(no update)" : summary) + "\n");
+            if (facts.isEmpty() && summary.isEmpty()) w.write("Nothing sent to the server.\n");
+            w.write("\n");
+        } catch (IOException ex) {
+            LOGGER.warn("Could not append to dialogue debug dump file {}", file, ex);
+        }
+    }
+
+    private static String clock() {
+        return new SimpleDateFormat("HH:mm:ss").format(new Date());
     }
 
     private Writer writer() throws IOException {

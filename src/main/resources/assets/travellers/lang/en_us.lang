@@ -427,13 +427,15 @@ travellers.dialogue.gui.looking_up=...(thinking it over)...
 travellers.dialogue.gui.tool_cap_fallback=Let me think on that a little more before I answer.
 travellers.dialogue.gui.error_note=(Something went wrong reaching your local AI.)
 
-# --- Dialogue setup screen (client-local Ollama connection) ---
+# --- Dialogue setup screen (client-local AI server connection) ---
 travellers.dialogue.setup.title=AI Dialogue Setup
-travellers.dialogue.setup.host=Ollama host
+travellers.dialogue.setup.server_type=Server: %s
+travellers.dialogue.setup.host=Server host
 travellers.dialogue.setup.port=Port
 travellers.dialogue.setup.enabled=AI Dialogue:
 travellers.dialogue.setup.preload=Preload model on startup
 travellers.dialogue.setup.preload_help=Warms up your chosen model when the game starts, so the first conversation isn't slow
+travellers.dialogue.setup.preload_not_needed=Not needed: llama.cpp has already loaded its model
 travellers.dialogue.setup.test_connection=Test connection
 travellers.dialogue.setup.testing=Testing...
 travellers.dialogue.setup.test_ok=Connected - %d model(s) found.
@@ -455,6 +457,7 @@ travellers.dialogue.setup.advanced.tools=Let the NPC look things up
 travellers.dialogue.setup.advanced.tools_warning=Not every model supports this - unsupported ones just ignore it.
 travellers.dialogue.setup.advanced.reset=Reset to defaults
 travellers.dialogue.setup.advanced.num_ctx=Context size (memory, num_ctx)
+travellers.dialogue.setup.advanced.num_ctx_fixed=Context size: set when llama.cpp starts
 travellers.dialogue.setup.advanced.temperature=Temperature (creativity)
 travellers.dialogue.setup.advanced.top_p=Top P (word focus)
 travellers.dialogue.setup.advanced.top_k=Top K (word choices)

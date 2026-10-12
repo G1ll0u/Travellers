@@ -45,18 +45,18 @@ public final class DialoguePromptBuilder {
      *                                  is about a pause mid-exchange, closer to "you went quiet for a
      *                                  bit" than "days have passed".
      */
-    public static List<OllamaClient.ChatMessage> build(DialogueContext context, List<DialogueTurn> history,
+    public static List<LlmClient.ChatMessage> build(DialogueContext context, List<DialogueTurn> history,
                                                          long elapsedTicksSinceLastTurn) {
-        List<OllamaClient.ChatMessage> messages = new ArrayList<>();
+        List<LlmClient.ChatMessage> messages = new ArrayList<>();
         // More than just the turn currently being sent means a real prior exchange already happened -
         // gates the note below so a slow first reply (reading the screen before typing) never talks
         // about "since your last exchange" when there wasn't one yet.
         boolean hasPriorTurns = history.size() > 1;
-        messages.add(new OllamaClient.ChatMessage("system",
+        messages.add(new LlmClient.ChatMessage("system",
                 buildSystemPrompt(context, hasPriorTurns, elapsedTicksSinceLastTurn)));
         for (DialogueTurn turn : history) {
             String role = turn.role == DialogueTurn.Role.PLAYER ? "user" : "assistant";
-            messages.add(new OllamaClient.ChatMessage(role, turn.text));
+            messages.add(new LlmClient.ChatMessage(role, turn.text));
         }
         return messages;
     }
@@ -73,7 +73,7 @@ public final class DialoguePromptBuilder {
         // silently gets a different prompt than before this phase existed (validation checklist #2).
         sb.append("You are ").append(name).append(", a traveller");
         if (context.cultureId != null && !context.cultureId.isEmpty()) {
-            sb.append(" of the ").append(context.cultureId).append(" people");
+            sb.append(" of the ").append(context.cultureName(context.cultureId)).append(" people");
         }
         sb.append(" met on the road.\n");
 
@@ -121,7 +121,7 @@ public final class DialoguePromptBuilder {
             sb.append("Settlements you know of nearby: ");
             for (int i = 0; i < context.nearbySettlements.size(); i++) {
                 if (i > 0) sb.append("; ");
-                sb.append(describeSettlement(context.nearbySettlements.get(i), tier));
+                sb.append(describeSettlement(context, context.nearbySettlements.get(i), tier));
             }
             sb.append(".\n");
         }
@@ -167,7 +167,7 @@ public final class DialoguePromptBuilder {
         // note), so every added sentence has a real, observed failure behind it.
         sb.append("How to behave:\n");
         sb.append("You are speaking face to face, right now, with the person in front of you - a live exchange, "
-                + "not a story about them. You are not travelling with him, you just met him and started a conversation.\n");
+                + "not a story about them.\n");
         sb.append("This is a low-technology, medieval-era world, in the spirit of the year 1100. Never speak of "
                 + "games, players, or not being real - you simply live here.\n");
         // Static lifestyle flavor, not tied to any DialogueContext data - cheap and always true, so it
@@ -261,11 +261,11 @@ public final class DialoguePromptBuilder {
         boolean hasCulture = context.activityVillageCultureId != null && !context.activityVillageCultureId.isEmpty();
         if (context.activityVillageIsLoneBuilding) {
             return hasCulture
-                    ? "the " + context.activityVillageCultureId + " building of " + village
+                    ? "the " + context.cultureName(context.activityVillageCultureId) + " building of " + village
                     : "the isolated building of " + village;
         }
         if (hasCulture) {
-            return "the " + context.activityVillageCultureId + " village of " + village;
+            return "the " + context.cultureName(context.activityVillageCultureId) + " village of " + village;
         }
         return village;
     }
@@ -277,7 +277,7 @@ public final class DialoguePromptBuilder {
      * session caught: the destination village's culture worked, a nearby one's didn't. STANDARD/RICH
      * add population and relation on top.
      */
-    private static String describeSettlement(DialogueContext.NearbySettlementBlurb blurb, ContextDetailLevel tier) {
+    private static String describeSettlement(DialogueContext context, DialogueContext.NearbySettlementBlurb blurb, ContextDetailLevel tier) {
         // No populationTier is exactly how AmbientActivityDialogueContextProvider flags a lone
         // building - there's no separate boolean on the wire, so this mirrors that signal.
         boolean isLoneBuilding = blurb.populationTier == null || blurb.populationTier.isEmpty();
@@ -289,7 +289,7 @@ public final class DialoguePromptBuilder {
                 ? blurb.distanceTier : distancePhrase(blurb.relativeDxBucketed, blurb.relativeDzBucketed);
 
         StringBuilder sb = new StringBuilder();
-        sb.append(villageLabel(blurb)).append(" (").append(distance)
+        sb.append(villageLabel(context, blurb)).append(" (").append(distance)
                 .append(" to the ").append(cardinal(blurb.relativeDxBucketed, blurb.relativeDzBucketed));
         if (tier != ContextDetailLevel.MINIMAL) {
             if (!isLoneBuilding) {
@@ -347,7 +347,7 @@ public final class DialoguePromptBuilder {
     }
 
     private static String metBeforePhrase(DialogueContext context) {
-        if (!context.metPlayerBefore) return "";
+        if (!context.metPlayerBefore) return "You have never met this person before.\n";
         if (context.timeSinceLastMetPhrase == null || context.timeSinceLastMetPhrase.isEmpty()) {
             return "You have spoken with this person once before.\n";
         }
@@ -363,19 +363,19 @@ public final class DialoguePromptBuilder {
         if (context.currentLocationVillage != null) {
             // Already said via activityPhrase when idling in this same place - don't repeat it.
             if (context.currentLocationVillage.name.equals(context.activityVillageName)) return "";
-            return "You are currently standing right in " + villageLabel(context.currentLocationVillage) + ".\n";
+            return "You are currently standing right in " + villageLabel(context, context.currentLocationVillage) + ".\n";
         }
         if (context.adjacentVillage != null) {
-            return "You are right next to " + villageLabel(context.adjacentVillage) + ".\n";
+            return "You are right next to " + villageLabel(context, context.adjacentVillage) + ".\n";
         }
         return "";
     }
 
     /** Same "the <culture> village/building of <name>" shape as {@link #describeSettlement}, without the distance/population/relation suffix. */
-    private static String villageLabel(DialogueContext.NearbySettlementBlurb blurb) {
+    private static String villageLabel(DialogueContext context, DialogueContext.NearbySettlementBlurb blurb) {
         boolean isLoneBuilding = blurb.populationTier == null || blurb.populationTier.isEmpty();
         return blurb.cultureId != null && !blurb.cultureId.isEmpty()
-                ? "the " + blurb.cultureId + (isLoneBuilding ? " building of " : " village of ") + blurb.name
+                ? "the " + context.cultureName(blurb.cultureId) + (isLoneBuilding ? " building of " : " village of ") + blurb.name
                 : blurb.name;
     }
 
@@ -401,8 +401,13 @@ public final class DialoguePromptBuilder {
 
     private static String memoryPhrase(DialogueContext context) {
         if (context.memoryIndexPhrases.isEmpty()) return "";
-        return "Things you remember from past conversations: "
-                + String.join("; ", context.memoryIndexPhrases) + ".\n";
+        StringBuilder sb = new StringBuilder("Things you remember from past conversations:");
+        for (String fact : context.memoryIndexPhrases) {
+            String trimmed = fact.trim();
+            sb.append(' ').append(trimmed);
+            if (!trimmed.matches(".*[.!?]$")) sb.append('.');
+        }
+        return sb.append(" Bring a memory up only if it naturally fits what is being said.\n").toString();
     }
 
     /** The rolling narrative summary of the traveller's whole life (Part M, N-4) - global, not scoped

@@ -24,41 +24,16 @@ public final class DialogueToolCatalog {
 
     /**
      * Empty when the player hasn't opted in (see {@link DialogueClientSettings#isToolsEnabled()}) - no
-     * "tools" field is sent at all in that case. {@code recall_memory} is additionally gated on
-     * {@link DialogueContext#memoryEnabled} - the server-authoritative memory switch (M-6) - so a
-     * player never gets offered a tool the server can't actually back.
+     * "tools" field is sent at all in that case.
      */
-    public static List<OllamaClient.ToolDefinition> currentTools(DialogueContext context) {
+    public static List<LlmClient.ToolDefinition> currentTools(DialogueContext context) {
         if (!DialogueClientSettings.isToolsEnabled()) return Collections.emptyList();
-        List<OllamaClient.ToolDefinition> tools = new ArrayList<>();
+        List<LlmClient.ToolDefinition> tools = new ArrayList<>();
         tools.add(villageRelationTool());
-        if (context != null && context.memoryEnabled) tools.add(recallMemoryTool());
         return tools;
     }
 
-    private static OllamaClient.ToolDefinition recallMemoryTool() {
-        JsonObject topic = new JsonObject();
-        topic.addProperty("type", "string");
-        topic.addProperty("description",
-                "The subject to try to recall, as phrased in conversation (e.g. \"the player's family\", \"past visits\")");
-
-        JsonObject properties = new JsonObject();
-        properties.add("topic", topic);
-
-        JsonArray required = new JsonArray();
-        required.add("topic");
-
-        JsonObject parameters = new JsonObject();
-        parameters.addProperty("type", "object");
-        parameters.add("properties", properties);
-        parameters.add("required", required);
-
-        return new OllamaClient.ToolDefinition("recall_memory",
-                "Try to recall an older memory about the person you're talking to, from a past conversation.",
-                parameters);
-    }
-
-    private static OllamaClient.ToolDefinition villageRelationTool() {
+    private static LlmClient.ToolDefinition villageRelationTool() {
         JsonObject villageA = new JsonObject();
         villageA.addProperty("type", "string");
         villageA.addProperty("description", "Name of the first village");
@@ -79,7 +54,7 @@ public final class DialogueToolCatalog {
         parameters.add("properties", properties);
         parameters.add("required", required);
 
-        return new OllamaClient.ToolDefinition("village_relation",
+        return new LlmClient.ToolDefinition("village_relation",
                 "Find out whether two named villages are at war, at peace, or allied with each other.",
                 parameters);
     }

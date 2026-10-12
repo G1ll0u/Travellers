@@ -18,7 +18,6 @@ public final class DialogueToolRegistry {
 
     static {
         HANDLERS.put("village_relation", new VillageRelationToolHandler());
-        HANDLERS.put("recall_memory", new MemoryRecallToolHandler());
     }
 
     private DialogueToolRegistry() {

@@ -36,6 +36,8 @@ public final class DialogueContextBuilder {
         providers.add(new PlayerStateDialogueContextProvider());
         providers.add(new NearbyEntitiesDialogueContextProvider());
         providers.add(new MemoryDialogueContextProvider());
+        // Last: names the culture ids every provider above has set.
+        providers.add(new CultureNameDialogueContextProvider());
         PROVIDERS = Collections.unmodifiableList(providers);
     }
 

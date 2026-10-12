@@ -1,7 +1,8 @@
 package com.jubitus.travellers.dialogue.gui;
 
 import com.jubitus.travellers.dialogue.client.DialogueClientSettings;
-import com.jubitus.travellers.dialogue.client.OllamaClient.ChatOptions;
+import com.jubitus.travellers.dialogue.client.LlmClient.ChatOptions;
+import com.jubitus.travellers.dialogue.client.LlmServerType;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
@@ -14,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Player-facing tuning for the Ollama generation call itself (see {@code OllamaClient.ChatOptions}):
+ * Player-facing tuning for the AI generation call itself (see {@code LlmClient.ChatOptions}):
  * extended thinking, context window size, and the usual sampling knobs. Reached from
  * {@link GuiDialogueSetup}, which stays the simple "connection" screen.
  *
@@ -32,6 +33,8 @@ public class GuiDialogueAdvanced extends GuiScreen implements ITravellersGui {
     private static final int ID_TOOLS = 5;
 
     private final GuiScreen parent;
+    /** The type picked on the setup screen, possibly not saved yet. */
+    private final LlmServerType serverType;
 
     private GuiTravellersButton thinkBtn;
     private boolean thinkLocal;
@@ -50,8 +53,9 @@ public class GuiDialogueAdvanced extends GuiScreen implements ITravellersGui {
     private int panelX, panelY, panelW, panelH;
     private int toolsWarningX, toolsWarningY;
 
-    public GuiDialogueAdvanced(GuiScreen parent) {
+    public GuiDialogueAdvanced(GuiScreen parent, LlmServerType serverType) {
         this.parent = parent;
+        this.serverType = serverType;
     }
 
     @Override
@@ -102,6 +106,7 @@ public class GuiDialogueAdvanced extends GuiScreen implements ITravellersGui {
         cursor += toolsWarningH;
 
         numCtxField = addNumberField(bx, cursor, bw, formatInt(DialogueClientSettings.getNumCtx()));
+        numCtxField.setEnabled(serverType.supportsContextSize());
         cursor += fieldRowH;
         temperatureField = addNumberField(bx, cursor, bw, formatDouble(DialogueClientSettings.getTemperature()));
         cursor += fieldRowH;
@@ -253,7 +258,8 @@ public class GuiDialogueAdvanced extends GuiScreen implements ITravellersGui {
         this.fontRenderer.drawString(I18n.format("travellers.dialogue.setup.advanced.tools_warning"),
                 toolsWarningX, toolsWarningY + 3, TravellersGuiTheme.COL_TEXT_DIM);
 
-        drawLabeledField(numCtxField, "travellers.dialogue.setup.advanced.num_ctx");
+        drawLabeledField(numCtxField, serverType.supportsContextSize()
+                ? "travellers.dialogue.setup.advanced.num_ctx" : "travellers.dialogue.setup.advanced.num_ctx_fixed");
         drawLabeledField(temperatureField, "travellers.dialogue.setup.advanced.temperature");
         drawLabeledField(topPField, "travellers.dialogue.setup.advanced.top_p");
         drawLabeledField(topKField, "travellers.dialogue.setup.advanced.top_k");

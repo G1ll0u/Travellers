@@ -28,7 +28,7 @@ import java.util.UUID;
  *
  * <p>Two-tier, capacity-driven ring buffer (M-2/M-4), now global rather than per-player: the small
  * "index" tier is always folded into {@code DialogueContext} (no tool call needed); the larger
- * "archive" tier is only reachable via the {@code recall_memory} tool call. Inserting into a full index
+ * "archive" tier is stored but nothing reads it at the moment. Inserting into a full index
  * demotes its oldest entry to the archive; inserting into a full archive deletes its oldest entry
  * outright — real, permanent forgetting, no salience scoring, no time-based fading. A rolling narrative
  * {@link #lifeSummary} (N-4) is the second, independently-toggleable content shape, rewritten wholesale
@@ -115,18 +115,6 @@ public final class TravellerMemoryStore {
         List<String> out = new ArrayList<>();
         for (Entry e : index) out.add(e.text);
         return out;
-    }
-
-    /** Best-effort substring match against the global archive tier only ({@code recall_memory} tool). Never null. */
-    public List<String> recall(String topic) {
-        List<String> matches = new ArrayList<>();
-        if (topic == null) return matches;
-        String needle = topic.trim().toLowerCase(Locale.ROOT);
-        if (needle.isEmpty()) return matches;
-        for (Entry e : archive) {
-            if (e.text.toLowerCase(Locale.ROOT).contains(needle)) matches.add(e.text);
-        }
-        return matches;
     }
 
     /** The rolling narrative life summary (N-4), or empty if none has been generated yet. Never null. */

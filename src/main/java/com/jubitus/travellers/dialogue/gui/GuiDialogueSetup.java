@@ -2,7 +2,8 @@ package com.jubitus.travellers.dialogue.gui;
 
 import com.jubitus.travellers.dialogue.client.DialogueClientSettings;
 import com.jubitus.travellers.dialogue.client.DialogueClientSettings.ContextDetailLevel;
-import com.jubitus.travellers.dialogue.client.OllamaClient;
+import com.jubitus.travellers.dialogue.client.LlmClient;
+import com.jubitus.travellers.dialogue.client.LlmServerType;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
@@ -16,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lets a player point the dialogue feature at their own local Ollama instance: host/port, a
+ * Lets a player point the dialogue feature at their own local AI server (Ollama or llama.cpp): type, host/port, a
  * "Test connection" round trip that lists locally pulled models, and a Save that commits through
  * {@link DialogueClientSettings} (client-local, never synced — see that class's doc).
  *
@@ -35,6 +36,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
     private static final int ID_DEBUG_DUMP = 6;
     private static final int ID_ADVANCED = 7;
     private static final int ID_PRELOAD = 8;
+    private static final int ID_SERVER_TYPE = 9;
     private static final int ID_MODEL_BASE = 100;
     private static final int MAX_MODELS_SHOWN = 8;
 
@@ -44,6 +46,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
     private GuiTextField hostField;
     private GuiTextField portField;
 
+    private GuiTravellersButton serverTypeBtn;
     private GuiTravellersButton enabledBtn;
     private GuiTravellersButton testBtn;
     private GuiTravellersButton detailLevelBtn;
@@ -51,6 +54,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
     private GuiTravellersButton preloadBtn;
     private final List<GuiTravellersButton> modelButtons = new ArrayList<>();
 
+    private LlmServerType serverTypeLocal;
     private boolean enabledLocal;
     private ContextDetailLevel detailLevelLocal;
     private String selectedModel;
@@ -73,6 +77,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         super.initGui();
         org.lwjgl.input.Keyboard.enableRepeatEvents(true);
 
+        serverTypeLocal = DialogueClientSettings.getServerType();
         enabledLocal = DialogueClientSettings.isEnabled();
         detailLevelLocal = DialogueClientSettings.getContextDetailLevel();
         selectedModel = DialogueClientSettings.getModel();
@@ -90,6 +95,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         // offsets from a corner are exactly what caused a real overlap bug elsewhere in this mod
         // (see GuiPlayerZonePrompt's class doc); this mirrors its "cursor, never a fixed Y" rule.
         int headerH = 22;
+        int serverTypeRowH = 30; // button + room for the host label above the host field
         int hostRowH = 18;
         int portRowH = 20;
         int enabledRowH = 20;
@@ -102,7 +108,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         int gapBeforeBottom = 10;
         int bottomRowH = 16;
         int bottomMargin = 8;
-        panelH = headerH + hostRowH + portRowH + enabledRowH + preloadRowH + detailLevelRowH + debugDumpRowH
+        panelH = headerH + serverTypeRowH + hostRowH + portRowH + enabledRowH + preloadRowH + detailLevelRowH + debugDumpRowH
                 + advancedRowH + testRowH + modelAreaH + gapBeforeBottom + bottomRowH + bottomMargin;
 
         panelX = (this.width - panelW) / 2;
@@ -112,6 +118,9 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         int bx = panelX + 8;
         int bw = panelW - 16;
         int cursor = panelY + headerH;
+
+        serverTypeBtn = addTravellersButton(ID_SERVER_TYPE, bx, cursor, bw, 16, serverTypeLabel());
+        cursor += serverTypeRowH;
 
         hostField = new GuiTextField(0, this.fontRenderer, bx, cursor, bw - 60, 14);
         hostField.setMaxStringLength(64);
@@ -133,6 +142,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
                 I18n.format("travellers.dialogue.setup.preload"))
                 .style(GuiTravellersButton.Style.TOGGLE)
                 .toggled(DialogueClientSettings.isPreloadOnStartup());
+        preloadBtn.enabled = serverTypeLocal.supportsPreload();
         cursor += preloadRowH;
 
         detailLevelBtn = addTravellersButton(ID_DETAIL_LEVEL, bx, cursor, bw, 16, detailLevelLabel());
@@ -181,7 +191,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         int shown = Math.min(discoveredModels.size(), MAX_MODELS_SHOWN);
         for (int i = 0; i < shown; i++) {
             String name = discoveredModels.get(i);
-            GuiTravellersButton btn = addTravellersButton(ID_MODEL_BASE + i, bx, cursor, bw, 14, name)
+            GuiTravellersButton btn = addTravellersButton(ID_MODEL_BASE + i, bx, cursor, bw, 14, modelLabel(name))
                     .style(GuiTravellersButton.Style.TOGGLE)
                     .toggled(name.equals(selectedModel));
             modelButtons.add(btn);
@@ -191,6 +201,10 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
 
     @Override
     protected void actionPerformed(net.minecraft.client.gui.GuiButton button) {
+        if (button.id == ID_SERVER_TYPE) {
+            switchServerType();
+            return;
+        }
         if (button.id == ID_TOGGLE_ENABLED) {
             enabledLocal = !enabledLocal;
             enabledBtn.toggled(enabledLocal);
@@ -214,7 +228,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
             return;
         }
         if (button.id == ID_ADVANCED) {
-            this.mc.displayGuiScreen(new GuiDialogueAdvanced(this));
+            this.mc.displayGuiScreen(new GuiDialogueAdvanced(this, serverTypeLocal));
             return;
         }
         if (button.id == ID_TEST) {
@@ -223,7 +237,7 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         }
         if (button.id == ID_SAVE) {
             int port = parsePort(portField.getText());
-            DialogueClientSettings.save(hostField.getText(), port, selectedModel, enabledLocal, detailLevelLocal);
+            DialogueClientSettings.save(serverTypeLocal, hostField.getText(), port, selectedModel, enabledLocal, detailLevelLocal);
             goBack();
             return;
         }
@@ -247,8 +261,8 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         statusText = I18n.format("travellers.dialogue.setup.testing");
         statusColor = TravellersGuiTheme.COL_TEXT_DIM;
 
-        // OllamaClient.TagsCallback has two abstract methods, so this can't be a lambda.
-        OllamaClient.listModels(host, port, new OllamaClient.TagsCallback() {
+        // LlmClient.TagsCallback has two abstract methods, so this can't be a lambda.
+        LlmClient.listModels(serverTypeLocal, host, port, new LlmClient.TagsCallback() {
             @Override
             public void onModels(List<String> modelNames) {
                 testing = false;
@@ -267,12 +281,38 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
             }
 
             @Override
-            public void onError(OllamaClient.Outcome outcome, String message) {
+            public void onError(LlmClient.Outcome outcome, String message) {
                 testing = false;
                 statusText = I18n.format("travellers.dialogue.setup.test_failed", message);
                 statusColor = TravellersGuiTheme.COL_CANNOT;
             }
         });
+    }
+
+    private void switchServerType() {
+        LlmServerType previous = serverTypeLocal;
+        serverTypeLocal = serverTypeLocal.next();
+        serverTypeBtn.displayString = serverTypeLabel();
+        preloadBtn.enabled = serverTypeLocal.supportsPreload();
+        // A port the player typed themselves is kept; only the previous type's default follows the switch.
+        if (portField.getText().trim().equals(String.valueOf(previous.defaultPort))) {
+            portField.setText(String.valueOf(serverTypeLocal.defaultPort));
+        }
+        // Models listed by the other server mean nothing here: the player tests again.
+        discoveredModels = new ArrayList<>();
+        selectedModel = "";
+        statusText = "";
+        rebuildModelButtons(panelX + 8, modelAreaY, panelW - 16);
+    }
+
+    private String serverTypeLabel() {
+        return I18n.format("travellers.dialogue.setup.server_type", serverTypeLocal.displayName);
+    }
+
+    /** llama.cpp names its model by the full file path; the file name alone is what the player recognises. */
+    private static String modelLabel(String name) {
+        int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        return slash >= 0 && slash < name.length() - 1 ? name.substring(slash + 1) : name;
     }
 
     private void goBack() {
@@ -296,11 +336,11 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
         return I18n.format("travellers.dialogue.setup.detail_level", levelName);
     }
 
-    private static int parsePort(String text) {
+    private int parsePort(String text) {
         try {
             return Integer.parseInt(text.trim());
         } catch (NumberFormatException ex) {
-            return 11434;
+            return serverTypeLocal.defaultPort;
         }
     }
 
@@ -345,7 +385,8 @@ public class GuiDialogueSetup extends GuiScreen implements ITravellersGui {
                 portField.x, portField.y - 10, TravellersGuiTheme.COL_TEXT_DIM);
         portField.drawTextBox();
 
-        this.fontRenderer.drawString(I18n.format("travellers.dialogue.setup.preload_help"),
+        this.fontRenderer.drawString(I18n.format(serverTypeLocal.supportsPreload()
+                        ? "travellers.dialogue.setup.preload_help" : "travellers.dialogue.setup.preload_not_needed"),
                 preloadBtn.x, preloadBtn.y + preloadBtn.height + 2, TravellersGuiTheme.COL_TEXT_DIM);
 
         this.fontRenderer.drawString(I18n.format("travellers.dialogue.setup.detail_level_help"),

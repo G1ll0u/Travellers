@@ -16,11 +16,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 /**
- * Per-player Ollama connection settings: host, port, chosen model, and whether the player has
+ * Per-player AI server connection settings: server type, host, port, chosen model, and whether the player has
  * opted the dialogue feature in on their own client. Deliberately NOT a {@link
  * com.jubitus.travellers.config.TravellersConfig} field — that system is server-authoritative and
  * synced identically to every client (op-gated {@code /travellersconfig}), which is the wrong shape
- * for "which local Ollama, which model" (see CLAUDE.md's dialogue system section / plan D-7).
+ * for "which local server, which model" (see CLAUDE.md's dialogue system section / plan D-7).
  *
  * <p>A flat {@code Properties} file under the mod's own client config folder, mirroring the general
  * idea in {@link com.jubitus.travellers.gui.hub.WorkerHubShortcutStore} (client-local
@@ -55,27 +55,28 @@ public final class DialogueClientSettings {
      * tuning fields below — distinct from every real value a player could type, including
      * {@code num_predict}'s own legitimate {@code -1} ("no limit").
      */
-    public static final int UNSET_INT = OllamaClient.ChatOptions.UNSET_INT;
+    public static final int UNSET_INT = LlmClient.ChatOptions.UNSET_INT;
     /** Same idea as {@link #UNSET_INT}, for the floating-point tuning fields. */
-    public static final double UNSET_DOUBLE = OllamaClient.ChatOptions.UNSET_DOUBLE;
+    public static final double UNSET_DOUBLE = LlmClient.ChatOptions.UNSET_DOUBLE;
 
     private static final Logger LOGGER = LogManager.getLogger("Travellers/Dialogue");
 
     private static final String DEFAULT_HOST = "127.0.0.1";
-    private static final int DEFAULT_PORT = 11434;
+    private static final LlmServerType DEFAULT_SERVER_TYPE = LlmServerType.OLLAMA;
     private static final ContextDetailLevel DEFAULT_DETAIL_LEVEL = ContextDetailLevel.STANDARD;
 
     private static boolean loaded = false;
+    private static LlmServerType serverType = DEFAULT_SERVER_TYPE;
     private static String host = DEFAULT_HOST;
-    private static int port = DEFAULT_PORT;
+    private static int port = DEFAULT_SERVER_TYPE.defaultPort;
     private static String model = "";
     private static boolean enabled = false;
     private static ContextDetailLevel contextDetailLevel = DEFAULT_DETAIL_LEVEL;
     private static boolean debugDumpPrompt = false;
     private static boolean preloadOnStartup = false;
 
-    // LLM tuning (Ollama /api/chat "options" + "think") - see GuiDialogueAdvanced. Every numeric
-    // field defaults to UNSET_INT/UNSET_DOUBLE, meaning "don't send it, let Ollama decide" - so a
+    // LLM tuning - see GuiDialogueAdvanced. Every numeric field defaults to UNSET_INT/UNSET_DOUBLE,
+    // meaning "don't send it, let the server decide" - so a
     // player who never opens the advanced screen gets exactly the old hardcoded behaviour.
     private static boolean think = false;
     private static int numCtx = UNSET_INT;
@@ -92,6 +93,11 @@ public final class DialogueClientSettings {
     private static boolean toolsEnabled = false;
 
     private DialogueClientSettings() {
+    }
+
+    public static LlmServerType getServerType() {
+        ensureLoaded();
+        return serverType;
     }
 
     public static String getHost() {
@@ -194,18 +200,19 @@ public final class DialogueClientSettings {
         return toolsEnabled;
     }
 
-    /** Builds the {@link OllamaClient.ChatOptions} to send for the next chat request. */
-    public static OllamaClient.ChatOptions currentChatOptions() {
+    /** Builds the {@link LlmClient.ChatOptions} to send for the next chat request. */
+    public static LlmClient.ChatOptions currentChatOptions() {
         ensureLoaded();
-        return new OllamaClient.ChatOptions(think, numCtx, temperature, topP, topK, repeatPenalty, numPredict);
+        return new LlmClient.ChatOptions(think, numCtx, temperature, topP, topK, repeatPenalty, numPredict);
     }
 
     /** Applies every field at once and persists immediately, so a "Save" button is one call. */
-    public static void save(String newHost, int newPort, String newModel, boolean newEnabled,
+    public static void save(LlmServerType newServerType, String newHost, int newPort, String newModel, boolean newEnabled,
                              ContextDetailLevel newDetailLevel) {
         ensureLoaded();
+        serverType = newServerType == null ? DEFAULT_SERVER_TYPE : newServerType;
         host = (newHost == null || newHost.trim().isEmpty()) ? DEFAULT_HOST : newHost.trim();
-        port = newPort > 0 && newPort <= 65535 ? newPort : DEFAULT_PORT;
+        port = newPort > 0 && newPort <= 65535 ? newPort : serverType.defaultPort;
         model = newModel == null ? "" : newModel.trim();
         enabled = newEnabled;
         contextDetailLevel = newDetailLevel == null ? DEFAULT_DETAIL_LEVEL : newDetailLevel;
@@ -252,13 +259,18 @@ public final class DialogueClientSettings {
             LOGGER.warn("Could not load dialogue client settings from {}", file, ex);
             return;
         }
+        try {
+            serverType = LlmServerType.valueOf(props.getProperty("serverType", DEFAULT_SERVER_TYPE.name()));
+        } catch (IllegalArgumentException ex) {
+            serverType = DEFAULT_SERVER_TYPE;
+        }
         host = props.getProperty("host", DEFAULT_HOST);
         model = props.getProperty("model", "");
         enabled = Boolean.parseBoolean(props.getProperty("enabled", "false"));
         try {
-            port = Integer.parseInt(props.getProperty("port", String.valueOf(DEFAULT_PORT)));
+            port = Integer.parseInt(props.getProperty("port", String.valueOf(serverType.defaultPort)));
         } catch (NumberFormatException ex) {
-            port = DEFAULT_PORT;
+            port = serverType.defaultPort;
         }
         try {
             contextDetailLevel = ContextDetailLevel.valueOf(
@@ -304,6 +316,7 @@ public final class DialogueClientSettings {
             return;
         }
         Properties props = new Properties();
+        props.setProperty("serverType", serverType.name());
         props.setProperty("host", host);
         props.setProperty("port", String.valueOf(port));
         props.setProperty("model", model);
@@ -320,7 +333,7 @@ public final class DialogueClientSettings {
         props.setProperty("repeatPenalty", String.valueOf(repeatPenalty));
         props.setProperty("numPredict", String.valueOf(numPredict));
         try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
-            props.store(writer, "Travellers dialogue: client-local Ollama connection. Never synced to the server.");
+            props.store(writer, "Travellers dialogue: client-local AI server connection. Never synced to the server.");
         } catch (IOException ex) {
             LOGGER.warn("Could not save dialogue client settings to {}", file, ex);
         }
