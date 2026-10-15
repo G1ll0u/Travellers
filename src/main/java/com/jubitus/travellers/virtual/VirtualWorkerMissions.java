@@ -1,6 +1,10 @@
 package com.jubitus.travellers.virtual;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.notify.MissionNotifications;
+import com.jubitus.travellers.unit.DeliveryJob;
+import com.jubitus.travellers.zone.ZoneRef;
+import javax.annotation.Nullable;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.village.MillSettlements;
 import net.minecraft.entity.player.EntityPlayer;
@@ -139,6 +143,40 @@ final class VirtualWorkerMissions {
                 world.getMinecraftServer(), r.followOwnerUUID, r.uuid);
     }
 
+    /**
+     * A RETURNING record's goal. Mirrors DeliveryJob's absent-employer rule for a delivered cargo: with
+     * the owner away it heads home (else stays on its last goal), and turns back toward them once they return.
+     */
+    void tickReturnToOwner(WorldServer world, VirtualTravellerRecord r, @Nullable EntityPlayer owner) {
+        NBTTagCompound nbt = r.entityNbt;
+        boolean cargo = nbt != null && nbt.getBoolean("JobDelivered");
+        if (!cargo) {
+            if (owner != null) r.goal = owner.getPosition();
+            return;
+        }
+        boolean absent = nbt.getBoolean(DeliveryJob.EMPLOYER_ABSENT_KEY);
+        if (owner != null) {
+            if (absent) {
+                nbt.setBoolean(DeliveryJob.EMPLOYER_ABSENT_KEY, false);
+                nbt.setBoolean("AwaitingPickup", false);
+                double dx = owner.posX - r.posX;
+                double dz = owner.posZ - r.posZ;
+                if (DeliveryJob.hasWalkBackTo(dx * dx + dz * dz)) {
+                    MissionNotifications.cargoComingBack(world.getMinecraftServer(), r.followOwnerUUID, r.name);
+                }
+                manager.markDirty();
+            }
+            r.goal = owner.getPosition();
+            return;
+        }
+        if (absent) return;
+        nbt.setBoolean(DeliveryJob.EMPLOYER_ABSENT_KEY, true);
+        BlockPos home = DeliveryJob.homeFor(ZoneRef.read(nbt), r.dimension);
+        if (home != null) r.goal = home;
+        MissionNotifications.cargoEmployerAbsent(world.getMinecraftServer(), r.followOwnerUUID, r.name, home != null);
+        manager.markDirty();
+    }
+
     private void tryHiredVirtualDelivery(WorldServer world, VirtualTravellerRecord r) {
         if (r.jobGoal == null) return;
         if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
@@ -244,31 +282,26 @@ final class VirtualWorkerMissions {
                     : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK);
         boolean stay = r.entityNbt.getBoolean("GetEquipStay");
 
+        if (kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE_RETURN) {
+            tryVirtualHorseReturn(world, r, target, stay);
+            return;
+        }
+
         if (kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE) {
             tryVirtualHorsePickup(world, r, target, stay);
             return;
         }
 
-        boolean useWholeVillage = kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.CONTROLLED_VILLAGE;
         if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
 
-        // Load only the chest chunks, just for the swap, and release them right after.
-        java.util.List<net.minecraft.world.chunk.Chunk> loadedChunks =
-                com.jubitus.travellers.unit.equipment.WorkerEquipExchanger.loadChestChunks(world, target, useWholeVillage);
-
-        // Temporary entity (not spawned) carries equipment state for the swap
+        // Temporary entity (not spawned) carries equipment state for the swap; the chest chunks are borrowed inside.
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
         worker.readFromNBT(r.entityNbt);
         worker.setUniqueId(r.uuid);
         worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
 
-        int[] equip;
-        try {
-            equip = com.jubitus.travellers.unit.equipment.WorkerEquipExchanger
-                    .exchangeWithFollowers(worker, world, target, useWholeVillage);
-        } finally {
-            com.jubitus.travellers.ground.chunk.LoadedChunks.release(world, loadedChunks);
-        }
+        int[] equip = com.jubitus.travellers.unit.equipment.WorkerEquipExchanger
+                .exchangeWithFollowers(worker, world, target, kind);
         com.jubitus.travellers.notify.MissionNotifications.equipped(
                 world.getMinecraftServer(), r.followOwnerUUID, equip[0], equip[1]);
 
@@ -282,11 +315,6 @@ final class VirtualWorkerMissions {
      */
     private void tryVirtualHorsePickup(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        if (kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE_RETURN) {
-            tryVirtualHorseReturn(world, r, target, stay);
-            return;
-        }
-
         worker.readFromNBT(r.entityNbt);
         worker.setUniqueId(r.uuid);
         worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
@@ -305,6 +333,24 @@ final class VirtualWorkerMissions {
                     });
         }
 
+        finishVirtualEquip(world, r, worker, target, stay);
+    }
+
+    /** STABLE_RETURN branch of {@link #tryVirtualEquipExchange}: the horses go back to the pool as data. */
+    private void tryVirtualHorseReturn(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
+        com.jubitus.travellers.zone.PlayerZoneRecord zone =
+                com.jubitus.travellers.zone.PlayerZoneManager.get(world)
+                        .getByOwnerAndCenter(r.followOwnerUUID, target);
+        boolean given = zone != null
+                && com.jubitus.travellers.zone.stable.WorkerHorseReturn.returnVirtual(world, zone, r);
+        com.jubitus.travellers.zone.stable.WorkerHorseReturn.finishAtStable(world, zone, r.followOwnerUUID,
+                r.uuid, given);
+
+        // Built after the return, so the temporary entity no longer carries the horse's bond.
+        EntityTravellerWorker worker = new EntityTravellerWorker(world);
+        worker.readFromNBT(r.entityNbt);
+        worker.setUniqueId(r.uuid);
+        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
         finishVirtualEquip(world, r, worker, target, stay);
     }
 
@@ -335,21 +381,3 @@ final class VirtualWorkerMissions {
         manager.markDirty();
     }
 }
-    /** STABLE_RETURN branch of {@link #tryVirtualEquipExchange}: the horses go back to the pool as data. */
-    private void tryVirtualHorseReturn(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
-        com.jubitus.travellers.zone.PlayerZoneRecord zone =
-                com.jubitus.travellers.zone.PlayerZoneManager.get(world)
-                        .getByOwnerAndCenter(r.followOwnerUUID, target);
-        boolean given = zone != null
-                && com.jubitus.travellers.zone.stable.WorkerHorseReturn.returnVirtual(world, zone, r);
-        com.jubitus.travellers.zone.stable.WorkerHorseReturn.finishAtStable(world, zone, r.followOwnerUUID,
-                r.uuid, given);
-
-        // Built after the return, so the temporary entity no longer carries the horse's bond.
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-        finishVirtualEquip(world, r, worker, target, stay);
-    }
-

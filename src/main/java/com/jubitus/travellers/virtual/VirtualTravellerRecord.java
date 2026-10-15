@@ -199,7 +199,6 @@ public class VirtualTravellerRecord {
     // Transient cache derived from entityNbt (never persisted)
     private transient com.jubitus.travellers.battle.VirtualCombatProfile combatProfile;
 
-    // Transient: world-tick when this worker last performed a virtual donation. Not persisted.
     /** Not saved: last world tick the offscreen village stay was advanced (see tickVirtualVisit). */
     public long visitClockTick = -1L;
 

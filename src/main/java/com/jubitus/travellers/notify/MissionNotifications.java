@@ -68,6 +68,20 @@ public final class MissionNotifications {
                 || seconds >= TravellersConfig.WORKER.goNotifyMinSeconds;
     }
 
+    /** A worker back from a sale finds its employer away: home to its Barrack, or waiting where they were last seen. */
+    public static void cargoEmployerAbsent(@Nullable MinecraftServer server, @Nullable UUID ownerId,
+                                           String workerName, boolean goingHome) {
+        if (server == null || ownerId == null) return;
+        NotificationService.notifyOffline(server, ownerId, goingHome
+                ? NotificationDefs.WORKER_CARGO_HEADING_HOME : NotificationDefs.WORKER_CARGO_WAITING, workerName);
+    }
+
+    /** The employer is back: the worker sets off toward them with the cargo. */
+    public static void cargoComingBack(@Nullable MinecraftServer server, @Nullable UUID ownerId, String workerName) {
+        if (server == null || ownerId == null) return;
+        NotificationService.notifyOffline(server, ownerId, NotificationDefs.WORKER_CARGO_COMING_BACK, workerName);
+    }
+
     /** Get-equipment result: how many of the workers (the leader plus its followers) got something. */
     public static void equipped(@Nullable MinecraftServer server, @Nullable UUID ownerId, int equipped, int total) {
         if (server == null || ownerId == null) return;
@@ -78,7 +92,6 @@ public final class MissionNotifications {
                     String.valueOf(equipped), String.valueOf(total));
         }
     }
-}
 
     /** Take-horses result: how many of the workers (the leader plus its followers) took a mount. */
     public static void horsesTaken(@Nullable MinecraftServer server, @Nullable UUID ownerId, int taken,
@@ -99,3 +112,4 @@ public final class MissionNotifications {
                     String.valueOf(returned), String.valueOf(total), stableName);
         }
     }
+}

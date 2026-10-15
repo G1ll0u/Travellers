@@ -727,9 +727,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // (covers both sale missions and recruit return — owner may have moved since mission start)
         if ("RETURNING".equals(r.workerMode) && r.isHiredFollower && r.followOwnerUUID != null) {
             EntityPlayer owner = world.getPlayerEntityByUUID(r.followOwnerUUID);
-            if (owner != null && !owner.isDead) {
-                r.goal = owner.getPosition();
-            }
+            missions.tickReturnToOwner(world, r, owner != null && !owner.isDead ? owner : null);
             return;
         }
         // Personal self-travel (Go Home / Go To Duty): a fixed self-chosen destination that must keep
@@ -907,9 +905,9 @@ public class VirtualTravellerManager extends WorldSavedData {
         return new BlockPos(MathHelper.floor(r.posX), MathHelper.floor(r.posY), MathHelper.floor(r.posZ));
     }
 
-        if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return;
     /** Picks a fresh roam destination and starts a one-stop trip toward it (end-of-trip replan). */
     private void startNewTrip(WorldServer world, VirtualTravellerRecord r, long now) {
+        if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return;
         BlockPos dest = pickRoamDestination(world, r);
         if (dest == null) return;
         r.setTrip(java.util.Collections.singletonList(dest), 0);
@@ -1789,10 +1787,10 @@ public class VirtualTravellerManager extends WorldSavedData {
     public int countByHomeVillage(WorldServer world, BlockPos key, String entityClass) {
         int n = 0;
         for (VirtualTravellerRecord r : records.values()) {
-            // INVARIANT: raid raiders never count toward a village quota (the soft spawner would refill them).
-            if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) continue;
             if (!entityClass.equals(r.entityClass)) continue;
             if (r.homeVillage == null) continue;
+            // INVARIANT: raid raiders never count toward a village quota (the soft spawner would refill them).
+            if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) continue;
             if (r.homeVillage.getX() == key.getX() && r.homeVillage.getZ() == key.getZ()) n++;
         }
         return n;
@@ -1806,6 +1804,8 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
         return n;
     }
+
+    /** Add a pre-built record (used for virtual spawning without world entity). */
     /** Re-aims a raid leader's single-stop trip at {@code goal} (the raid's player moved). */
     public void retargetRaidLeader(UUID uuid, BlockPos goal) {
         VirtualTravellerRecord r = records.get(uuid);
@@ -1816,8 +1816,6 @@ public class VirtualTravellerManager extends WorldSavedData {
         markDirty();
     }
 
-
-    /** Add a pre-built record (used for virtual spawning without world entity). */
     public void addRecord(VirtualTravellerRecord r) {
         records.put(r.uuid, r);
         markDirty();

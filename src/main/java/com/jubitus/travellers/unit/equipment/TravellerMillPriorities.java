@@ -26,7 +26,7 @@ import java.util.Map;
 public final class TravellerMillPriorities {
 
     /** Equipment buckets a priority line can target. */
-    public enum Bucket { MELEE, RANGED, HELMET, CHEST, LEGS, BOOTS }
+    public enum Bucket { MELEE, RANGED, HELMET, CHEST, LEGS, BOOTS, SHIELD }
 
     // config-key prefix -> bucket. Swords double as both a weapon and a "tool" in Millenaire; we take
     // the max of the two so a culture that only lists its sword under toolSwordPriority still ranks it.

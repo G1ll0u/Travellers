@@ -1,7 +1,11 @@
 package com.jubitus.travellers.unit;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.notify.MissionNotifications;
+import com.jubitus.travellers.notify.NotificationDef;
 import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.zone.ZoneRef;
+import net.minecraft.server.MinecraftServer;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.village.MillGoods;
@@ -49,6 +53,10 @@ public final class DeliveryJob {
     private boolean donationJob = false;
     private boolean hasUnsoldGoods = false;
     private boolean pickupNotified = false;
+    // Delivered but the employer is not in this world: heading home (or waiting) until they are back.
+    private boolean employerAbsent = false;
+    /** NBT key of employerAbsent; the offscreen return reads and writes it directly. */
+    public static final String EMPLOYER_ABSENT_KEY = "EmployerAbsent";
     // Cooldown counter for re-pathing
     private int returnRepathCooldown = 0;
     private int farewellTicks = 0;
@@ -188,6 +196,7 @@ public final class DeliveryJob {
         this.hasUnsoldGoods = false;
         this.awaitingPickup = false;
         this.pickupNotified = false;
+        this.employerAbsent = false;
         this.returnRepathCooldown = 0;
     }
 
@@ -213,6 +222,16 @@ public final class DeliveryJob {
                 double dx = worker.posX - employer.posX;
                 double dz = worker.posZ - employer.posZ;
                 double distHsq = dx * dx + dz * dz;
+
+                if (employerAbsent) {
+                    employerAbsent = false;
+                    awaitingPickup = false;
+                    worker.returnUsingFollow = false;
+                    if (hasWalkBackTo(distHsq)) {
+                        MissionNotifications.cargoComingBack(worker.world.getMinecraftServer(), employerId, worker.getName());
+                    }
+                    updateReturnRoute(worker.getApproximateSurfacePosNear(employer));
+                }
 
 // --- Switch from Travel AI -> Follow AI when we can SEE the employer ---
                 if (!awaitingPickup) {
@@ -304,14 +323,8 @@ public final class DeliveryJob {
                     }
                 }
 
-            } else if (employerReturnPos != null && !awaitingPickup) {
-                // Fallback: if we lost the player entity, just go to last known target and wait there
-                int r = tc.arrivalRadiusBlocks(employerReturnPos);
-                if (worker.getDistanceSqToCenter(employerReturnPos) <= (double) (r * r)) {
-                    tc.clearRoute(false);
-                    worker.getNavigator().clearPath();
-                    awaitingPickup = true;
-                }
+            } else {
+                tickEmployerAbsent(tc);
             }
         }
         if (farewellActive) {
@@ -327,6 +340,38 @@ public final class DeliveryJob {
         }
     }
 
+    // Employer not in this world: home to the Barrack (else the last known spot) and wait; notified once.
+    private void tickEmployerAbsent(TravelCommon tc) {
+        BlockPos home = homeFor(worker.zone, worker.dimension);
+        if (!employerAbsent) {
+            employerAbsent = true;
+            awaitingPickup = false;
+            worker.returnUsingFollow = false;
+            MissionNotifications.cargoEmployerAbsent(worker.world.getMinecraftServer(), employerId, worker.getName(), home != null);
+            BlockPos target = home != null ? home : employerReturnPos;
+            if (target != null) routeTo(target);
+        }
+        BlockPos target = home != null ? home : employerReturnPos;
+        if (target == null || awaitingPickup) return;
+        int r = tc.arrivalRadiusBlocks(target);
+        if (worker.getDistanceSqToCenter(target) <= (double) (r * r)) {
+            tc.clearRoute(false);
+            worker.getNavigator().clearPath();
+            awaitingPickup = true;
+        }
+    }
+
+    /** True when a returning worker is far enough from its employer for the "coming back" notice; a nearby one just arrives. */
+    public static boolean hasWalkBackTo(double horizontalDistSq) {
+        return horizontalDistSq > RETURN_FOLLOW_SWITCH_DIST * RETURN_FOLLOW_SWITCH_DIST;
+    }
+
+    /** Where a returning worker waits for an absent employer: its home zone, or null (last known spot). */
+    @Nullable
+    public static BlockPos homeFor(@Nullable ZoneRef zone, int dimension) {
+        return zone != null && zone.dim == dimension ? zone.center : null;
+    }
+
     /**
      * Process cargo inventory as a Millénaire trade or donation with the village.
      * If donationJob is true -> donation (no money, extra reputation).
@@ -334,27 +379,38 @@ public final class DeliveryJob {
      */
     public void deliverCargo(BlockPos villageCenter) {
         if (!(worker.world instanceof WorldServer)) return;
-        EntityPlayer employer = getEmployer();
+        MinecraftServer server = worker.world.getMinecraftServer();
 
         com.jubitus.travellers.debug.MissionDebugLog.loaded(worker, "trade-before");
         MillGoods.Delivery d = MillGoods.deliverCargo((WorldServer) worker.world, villageCenter,
-                worker.getTravelInventory(), employer, this.donationJob);
-        if (!d.reached) return;
+                worker.getTravelInventory(), employerId, this.donationJob);
         com.jubitus.travellers.debug.MissionDebugLog.loaded(worker, "trade-after");
 
+        if (!d.reached) {
+            // The village is gone: the cargo comes back untouched.
+            this.hasUnsoldGoods = true;
+            notifyEmployer(server, NotificationDefs.TRADE_VILLAGE_GONE, worker.getName());
+            onDelivered();
+            return;
+        }
         if (d.unsold) this.hasUnsoldGoods = true;
-        if (d.refused) NotificationService.notify(employer, NotificationDefs.TRADE_REFUSED);
-        if (d.reputation != 0 && employer != null && TravellersConfig.WORKER.workerNotifyOnVillageTrade) {
-            notifyTradeSummary(d.villageName, employer, this.donationJob, d.items, d.money, d.reputation, d.traded);
+        if (d.refused) notifyEmployer(server, NotificationDefs.TRADE_REFUSED);
+        if (d.reputation != 0 && TravellersConfig.WORKER.workerNotifyOnVillageTrade) {
+            notifyTradeSummary(server, d.villageName, this.donationJob, d.items, d.money, d.reputation, d.traded);
         }
         if (!this.donationJob && d.money > 0) addMoneyToCargo(d.money);
         onDelivered();
     }
 
+    // Queued for an offline employer.
+    private void notifyEmployer(@Nullable MinecraftServer server, NotificationDef def, String... args) {
+        if (server != null && employerId != null) NotificationService.notifyOffline(server, employerId, def, args);
+    }
+
     /** One toast per transaction: totals plus the three most valuable items (2nd line), "(+N)" for the rest. */
-    private static void notifyTradeSummary(String villageName, EntityPlayer employer, boolean donateMode,
-                                           int totalItems, int totalMoney, int totalRep,
-                                           Map<String, int[]> tradedByName) {
+    private void notifyTradeSummary(@Nullable MinecraftServer server, String villageName, boolean donateMode,
+                                    int totalItems, int totalMoney, int totalRep,
+                                    Map<String, int[]> tradedByName) {
         List<Map.Entry<String, int[]>> sorted = new ArrayList<>(tradedByName.entrySet());
         sorted.sort((a, b) -> Integer.compare(b.getValue()[1], a.getValue()[1]));
         StringBuilder items = new StringBuilder("\n");
@@ -366,10 +422,10 @@ public final class DeliveryJob {
         if (sorted.size() > shown) items.append(" (+").append(sorted.size() - shown).append(")");
 
         if (donateMode) {
-            NotificationService.notify(employer, NotificationDefs.TRADE_DONATED_SUMMARY, villageName,
+            notifyEmployer(server, NotificationDefs.TRADE_DONATED_SUMMARY, villageName,
                     String.valueOf(totalItems), String.valueOf(totalRep), items.toString());
         } else {
-            NotificationService.notify(employer, NotificationDefs.TRADE_SOLD_SUMMARY, villageName,
+            notifyEmployer(server, NotificationDefs.TRADE_SOLD_SUMMARY, villageName,
                     String.valueOf(totalItems), MillMoney.format(totalMoney),
                     String.valueOf(totalRep), items.toString());
         }
@@ -412,6 +468,8 @@ public final class DeliveryJob {
             amount -= toPlace;
 
             ItemStack remaining = insertStackInHandler(inv, stack);
+            // Overflow goes to the backpack; dropped only if that is full too.
+            if (!remaining.isEmpty()) remaining = insertStackInHandler(worker.inventory, remaining);
             if (!remaining.isEmpty()) {
                 MillLog.major(worker, "[TravellersWorker] Cargo full, dropping "
                         + remaining.getCount() + "x " + remaining.getDisplayName());
@@ -450,7 +508,11 @@ public final class DeliveryJob {
         if (newReturnPos == null) return;
 
         this.employerReturnPos = newReturnPos;
+        routeTo(newReturnPos);
+    }
 
+    // Keeps employerReturnPos (the employer's last known spot) untouched.
+    private void routeTo(BlockPos newReturnPos) {
         TravelCommon tc = worker.getTravelCommon();
         tc.routeTo(newReturnPos);
         tc.setDepartCooldownTicks(0);
@@ -498,6 +560,7 @@ public final class DeliveryJob {
         nbt.setBoolean("DonationJob", donationJob);
         nbt.setBoolean("AwaitingPickup", awaitingPickup);
         nbt.setBoolean("HasUnsoldGoods", hasUnsoldGoods);
+        nbt.setBoolean(EMPLOYER_ABSENT_KEY, employerAbsent);
         nbt.setBoolean("PostJobFarewellActive", farewellActive);
         nbt.setInteger("PostJobFarewellTicks", farewellTicks);
     }
@@ -525,6 +588,7 @@ public final class DeliveryJob {
         donationJob = nbt.getBoolean("DonationJob");
         awaitingPickup = nbt.getBoolean("AwaitingPickup");
         hasUnsoldGoods = nbt.getBoolean("HasUnsoldGoods");
+        employerAbsent = nbt.getBoolean(EMPLOYER_ABSENT_KEY);
         farewellActive = nbt.getBoolean("PostJobFarewellActive");
         farewellTicks = nbt.getInteger("PostJobFarewellTicks");
         // If farewell isn't active, no need to keep a non-zero counter

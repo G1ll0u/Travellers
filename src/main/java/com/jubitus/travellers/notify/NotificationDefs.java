@@ -106,6 +106,9 @@ public final class NotificationDefs {
     public static final NotificationDef WORKER_ARRIVED_HOME = new NotificationDef(EVENT, "travellers.notify.worker.arrived_home", 0);
     public static final NotificationDef WORKER_CARGO_ARRIVED_FULL = new NotificationDef(EVENT, "travellers.notify.worker.cargo_arrived_full", 0);
     public static final NotificationDef WORKER_CARGO_ARRIVED_PARTIAL = new NotificationDef(EVENT, "travellers.notify.worker.cargo_arrived_partial", 0);
+    public static final NotificationDef WORKER_CARGO_HEADING_HOME = new NotificationDef(EVENT, "travellers.notify.worker.cargo_heading_home", 1);
+    public static final NotificationDef WORKER_CARGO_WAITING = new NotificationDef(EVENT, "travellers.notify.worker.cargo_waiting", 1);
+    public static final NotificationDef WORKER_CARGO_COMING_BACK = new NotificationDef(EVENT, "travellers.notify.worker.cargo_coming_back", 1);
     public static final NotificationDef WORKER_ALREADY_ON_JOB = new NotificationDef(INFO, "travellers.notify.worker.already_on_job", 0);
     public static final NotificationDef WORKER_DIED = new NotificationDef(EVENT, "travellers.notify.worker.died", 1);
     public static final NotificationDef WORKER_RESPAWNED = new NotificationDef(EVENT, "travellers.notify.worker.respawned", 1);
@@ -118,6 +121,7 @@ public final class NotificationDefs {
 
     // --- Trade / cargo (EntityTravellerWorker) ---
     public static final NotificationDef TRADE_REFUSED = new NotificationDef(WARNING, "travellers.notify.trade.refused", 0);
+    public static final NotificationDef TRADE_VILLAGE_GONE = new NotificationDef(WARNING, "travellers.notify.trade.village_gone", 1);
     public static final NotificationDef TRADE_SOLD_SUMMARY = new NotificationDef(EVENT, "travellers.notify.trade.sold_summary", 5);
     public static final NotificationDef TRADE_DONATED_SUMMARY = new NotificationDef(EVENT, "travellers.notify.trade.donated_summary", 4);
 

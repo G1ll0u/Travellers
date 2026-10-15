@@ -93,8 +93,7 @@ public final class EquipOrders {
             WorkerHorsePickup.equipAtStable(world, zone, worker.getUniqueID(), worker.getFollowOwnerId(),
                     worker.getMountUUID() == null, horseNbt -> TravellerMountSupport.bondSpecificMount(worker, horseNbt));
         } else {
-            boolean useWholeVillage = kind == EquipTargetKind.CONTROLLED_VILLAGE;
-            int[] equip = WorkerEquipExchanger.exchangeWithFollowers(worker, world, target, useWholeVillage);
+            int[] equip = WorkerEquipExchanger.exchangeWithFollowers(worker, world, target, kind);
             MissionNotifications.equipped(world.getMinecraftServer(), worker.getFollowOwnerId(), equip[0], equip[1]);
         }
     }
@@ -107,8 +106,8 @@ public final class EquipOrders {
             case CONTROLLED_VILLAGE:
                 if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
                 return MillSettlements.controlledBy(player.world, player).contains(pos);
-            case STABLE_RETURN:
             case STABLE:
+            case STABLE_RETURN:
                 return hasZoneAt(player, ownerId, ZoneType.STABLE, pos);
             case LONE_BARRACK:
             default:

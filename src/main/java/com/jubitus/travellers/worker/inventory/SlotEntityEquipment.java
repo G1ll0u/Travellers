@@ -1,5 +1,7 @@
 package com.jubitus.travellers.worker.inventory;
 
+import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.equipment.TravellerEquipmentManager;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.inventory.EntityEquipmentSlot;
 import net.minecraft.inventory.InventoryBasic;
@@ -36,6 +38,9 @@ public class SlotEntityEquipment extends Slot {
         switch (equipmentSlot) {
             case MAINHAND:
                 return true;
+            case OFFHAND: // shields only, and never for a bow user (the bow wins)
+                return TravellerEquipmentManager.isShield(stack)
+                        && !(entity instanceof EntityTraveller && ((EntityTraveller) entity).equipment.hasBowAnywhere());
             case HEAD:
             case CHEST:
             case LEGS:

@@ -11,7 +11,7 @@ import net.minecraftforge.items.SlotItemHandler;
 
 public class ContainerWorkerInventory extends Container {
 
-    public static final int ARMOR_COUNT = 4;
+    public static final int ARMOR_COUNT = 5; // head, chest, legs, feet, shield (offhand)
     static final int BACKPACK_COUNT = 18;
     static final int PLAYER_INV_COUNT = 27;
     static final int HOTBAR_COUNT = 9;
@@ -33,7 +33,8 @@ public class ContainerWorkerInventory extends Container {
         // Slots 0-3: armor (HEAD, CHEST, LEGS, FEET)
         EntityEquipmentSlot[] armorOrder = {
             EntityEquipmentSlot.HEAD, EntityEquipmentSlot.CHEST,
-            EntityEquipmentSlot.LEGS, EntityEquipmentSlot.FEET
+            EntityEquipmentSlot.LEGS, EntityEquipmentSlot.FEET,
+            EntityEquipmentSlot.OFFHAND
         };
         for (int i = 0; i < ARMOR_COUNT; i++) {
             addSlotToContainer(new SlotEntityEquipment(worker, armorOrder[i], 8 + i * 18, 18));

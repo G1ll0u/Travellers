@@ -139,6 +139,11 @@ public class TravellerEquipmentManager {
         return false;
     }
 
+    /** True for any shield item (vanilla or modded, via Forge's {@code isShield}). */
+    public static boolean isShield(ItemStack s) {
+        return !s.isEmpty() && s.getItem().isShield(s, null);
+    }
+
     /** True for any ItemBow. */
     public static boolean isBow(ItemStack s) {
         return !s.isEmpty() && s.getItem() instanceof ItemBow;
@@ -221,6 +226,25 @@ public class TravellerEquipmentManager {
         return best;
     }
 
+    /** Best real (non-ghost) bow the entity holds or has stashed, or EMPTY. */
+    private ItemStack bestOwnedBow() {
+        ItemStack best = ItemStack.EMPTY;
+        double bestRank = Double.NEGATIVE_INFINITY;
+        ItemStack hand = entity.getHeldItemMainhand();
+        if (isBow(hand) && !isGhost(hand)) {
+            best = hand;
+            bestRank = TravellerEquipmentPolicy.weaponRank(hand);
+        }
+        ItemStackHandler inv = entity.inventory;
+        for (int i = 0; i < inv.getSlots(); i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!isBow(s) || isGhost(s)) continue;
+            double r = TravellerEquipmentPolicy.weaponRank(s);
+            if (r > bestRank) { bestRank = r; best = s; }
+        }
+        return best;
+    }
+
     /** Best armor the entity has equipped or stashed for the slot, or EMPTY. */
     private ItemStack bestOwnedArmor(EntityEquipmentSlot slot) {
         ItemStack best = entity.getItemStackFromSlot(slot);
@@ -240,6 +264,13 @@ public class TravellerEquipmentManager {
         if (!isWeapon(candidate) && !isBow(candidate)) return false;
         return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(),
                 bestOwnedWeapon(), candidate, null);
+    }
+
+    /** True if candidate is a bow better than the one in the backpack; false when the entity carries no bow. */
+    public boolean isBowUpgrade(ItemStack candidate) {
+        ItemStack current = findBowInBackpack();
+        if (current == null || !isBow(candidate)) return false;
+        return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(), current, candidate, null);
     }
 
     /** True if candidate is a culture-legal, condition-acceptable upgrade over the best armor for the slot. */
@@ -465,6 +496,8 @@ public class TravellerEquipmentManager {
         }
 
         applyConfiguredDropChances();
+
+        trySpawnShield(r, weightProfile);
     }
 
     /** Ensures a raider's slot holds at least an iron-tier piece (when {@code raiderMinIronArmor}), drawing
@@ -532,6 +565,21 @@ public class TravellerEquipmentManager {
         return true;
     }
 
+    /** Millenaire defines no shields: a vanilla shield by chance per unit type, never for a bow user. */
+    private void trySpawnShield(Random r, CultureDef.WeightProfile profile) {
+        if (hasBowAnywhere()) return;
+        float chance = profile == CultureDef.WeightProfile.RAIDER ? TravellersConfig.EQUIPMENT.shieldChanceRaider
+                : profile == CultureDef.WeightProfile.WORKER ? TravellersConfig.EQUIPMENT.shieldChanceWorker
+                : TravellersConfig.EQUIPMENT.shieldChanceTraveller;
+        for (EntityEquipmentSlot slot : new EntityEquipmentSlot[]{EntityEquipmentSlot.CHEST, EntityEquipmentSlot.HEAD}) {
+            if (TravellerEquipmentPolicy.isAtLeastIronArmor(entity.getItemStackFromSlot(slot))) {
+                chance *= TravellersConfig.EQUIPMENT.shieldIronArmorMultiplier;
+                break;
+            }
+        }
+        if (r.nextFloat() < chance) entity.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
+    }
+
     @Nullable
     private EntityEquipmentSlot armorSlotOf(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemArmor)) return null;
@@ -549,6 +597,7 @@ public class TravellerEquipmentManager {
      */
     public void syncEquipmentFromInventory() {
         if (entity.world.isRemote) return;
+        enforceBowShieldExclusion();
         for (EntityEquipmentSlot slot : new EntityEquipmentSlot[]{
                 EntityEquipmentSlot.HEAD, EntityEquipmentSlot.CHEST,
                 EntityEquipmentSlot.LEGS, EntityEquipmentSlot.FEET}) {
@@ -591,6 +640,7 @@ public class TravellerEquipmentManager {
      */
     public void handleGroundPickup(EntityItem itemEntity) {
         if (tryPickupOne(itemEntity)) {
+            pruneSpareArmor();
             entity.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 1.0F);
         }
     }
@@ -607,6 +657,7 @@ public class TravellerEquipmentManager {
         }
 
         if (picked) {
+            pruneSpareArmor();
             pickupCooldown = 20;
             entity.playSound(SoundEvents.ENTITY_ITEM_PICKUP, 0.2F, 0.9F + entity.getRNG().nextFloat() * 0.2F);
         }
@@ -626,19 +677,32 @@ public class TravellerEquipmentManager {
         boolean gift = ei.getThrower() != null;
 
         if (stack.getItem() instanceof ItemFood) {
-            ItemStack rem = ItemHandlerHelper.insertItemStacked(entity.inventory, stack.copy(), false);
+            ItemStack rem = insertFoodCapped(entity.inventory, stack.copy());
             if (rem.getCount() == stack.getCount()) return false; // nothing fit
             if (rem.isEmpty()) ei.setDead();
             else ei.setItem(rem);
             return true;
         }
 
-        if (isBow(stack) && !hasBowInBackpack()) {
+        if (isBow(stack)) {
+            if (!wantsBow(stack)) return false;
             takeOne(ei, gift);
+            keepOnlyBestBow();
+            enforceBowShieldExclusion();
             return true;
         }
 
-        if ((isWeapon(stack) || isBow(stack)) && isWeaponUpgrade(stack)) {
+        if (isShield(stack)) {
+            if (!wantsShield(stack)) return false;
+            ItemStack one = stack.copy();
+            one.setCount(1);
+            if (gift) markPlayerGift(one);
+            equipShield(one);
+            shrinkOrRemove(ei);
+            return true;
+        }
+
+        if (isWeapon(stack) && isWeaponUpgrade(stack)) {
             takeOne(ei, gift);
             keepOnlyBestWeapon();
             return true;
@@ -654,8 +718,7 @@ public class TravellerEquipmentManager {
                 ItemStack old = entity.getItemStackFromSlot(slot);
                 entity.setItemStackToSlot(slot, one);
                 if (!old.isEmpty()) {
-                    if (isPlayerGift(old)) dropStack(old.copy()); // displaced player item → back to the world now
-                    else ItemHandlerHelper.insertItemStacked(entity.inventory, old, false);
+                    dropStack(old.copy()); // a displaced piece is never stashed: no backpack hoarding
                 }
                 shrinkOrRemove(ei);
                 return true;
@@ -671,6 +734,71 @@ public class TravellerEquipmentManager {
         if (gift) markPlayerGift(one);
         ItemHandlerHelper.insertItemStacked(entity.inventory, one, false);
         shrinkOrRemove(ei);
+    }
+
+    /** True if the entity owns no bow yet, or the candidate is a culture-legal upgrade over its best one. */
+    public boolean wantsBow(ItemStack candidate) {
+        ItemStack owned = bestOwnedBow();
+        if (owned.isEmpty()) return true;
+        return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(), owned, candidate, null);
+    }
+
+    /** True if the entity owns a bow, or has none and no shield yet / the candidate is a better one. */
+    public boolean wantsShield(ItemStack candidate) {
+        if (!isShield(candidate) || hasBowAnywhere()) return false;
+        ItemStack held = entity.getHeldItemOffhand();
+        if (held.isEmpty()) {
+            return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(),
+                    ItemStack.EMPTY, candidate, null);
+        }
+        return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(), held, candidate, null);
+    }
+
+    /** Puts a single shield in the offhand; the shield it replaces goes back to the world. */
+    public void equipShield(ItemStack one) {
+        ItemStack old = entity.getHeldItemOffhand();
+        entity.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, one);
+        if (!old.isEmpty()) dropStack(old.copy());
+    }
+
+    /**
+     * An entity never holds a bow and a shield: the bow wins. A non-hired unit drops the shield; a
+     * hired worker keeps it in the backpack (the player manages it).
+     */
+    public void enforceBowShieldExclusion() {
+        if (entity.world.isRemote) return;
+        ItemStack held = entity.getHeldItemOffhand();
+        if (!isShield(held) || !hasBowAnywhere()) return;
+        ItemStack taken = held.copy();
+        entity.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        boolean hired = entity instanceof EntityTravellerWorker && ((EntityTravellerWorker) entity).isHiredFollower();
+        if (hired) {
+            ItemStack rem = ItemHandlerHelper.insertItemStacked(entity.inventory, taken, false);
+            if (!rem.isEmpty()) dropStack(rem);
+        } else {
+            dropStack(taken);
+        }
+    }
+
+    /**
+     * Inserts food without ever holding more than {@code maxFoodStacks} food stacks: tops up existing
+     * stacks first, then opens a new slot only while under the cap. Returns the remainder.
+     */
+    public static ItemStack insertFoodCapped(ItemStackHandler inv, ItemStack food) {
+        int cap = TravellersConfig.EQUIPMENT.maxFoodStacks;
+        int foodStacks = 0;
+        ItemStack rest = food;
+        for (int i = 0; i < inv.getSlots() && !rest.isEmpty(); i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (s.isEmpty() || !(s.getItem() instanceof ItemFood)) continue;
+            foodStacks++;
+            if (ItemHandlerHelper.canItemStacksStack(s, rest)) rest = inv.insertItem(i, rest, false);
+        }
+        if (rest.isEmpty() || foodStacks >= cap) return rest;
+        for (int i = 0; i < inv.getSlots() && !rest.isEmpty(); i++) {
+            if (inv.getStackInSlot(i).isEmpty()) rest = inv.insertItem(i, rest, false);
+        }
+        return rest;
     }
 
     public void tryScanAndPickupGroundItemsThrottled() {
@@ -829,6 +957,52 @@ public class TravellerEquipmentManager {
             if (!isWeapon(s)) continue;
             ItemStack extracted = inv.extractItem(i, s.getCount(), false);
             if (!extracted.isEmpty()) dropStack(extracted);
+        }
+    }
+
+    /** Keeps the single best real bow (hand or backpack); every other one goes back to the world. */
+    public void keepOnlyBestBow() {
+        if (entity.world.isRemote) return;
+        ItemStackHandler inv = entity.inventory;
+
+        int bestInvIdx = -1;
+        double bestInvScore = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < inv.getSlots(); i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!isBow(s) || isGhost(s)) continue;
+            double sc = TravellerEquipmentPolicy.weaponRank(s);
+            if (sc > bestInvScore) { bestInvScore = sc; bestInvIdx = i; }
+        }
+
+        ItemStack hand = entity.getHeldItemMainhand();
+        boolean handReal = isBow(hand) && !isGhost(hand);
+        if (handReal && bestInvIdx >= 0 && TravellerEquipmentPolicy.weaponRank(hand) < bestInvScore) {
+            dropStack(hand.copy());
+            entity.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
+            handReal = false;
+        }
+
+        for (int i = 0; i < inv.getSlots(); i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (!isBow(s) || isGhost(s)) continue;
+            if (i == bestInvIdx && !handReal) continue;
+            dropStack(inv.extractItem(i, s.getCount(), false));
+        }
+    }
+
+    /**
+     * Equips the best stashed armour, then returns every leftover armour piece to the world, so a
+     * unit never carries spares. Hired workers are skipped: their backpack belongs to the player.
+     */
+    public void pruneSpareArmor() {
+        if (entity.world.isRemote) return;
+        if (entity instanceof EntityTravellerWorker && ((EntityTravellerWorker) entity).isHiredFollower()) return;
+        syncEquipmentFromInventory();
+        ItemStackHandler inv = entity.inventory;
+        for (int i = 0; i < inv.getSlots(); i++) {
+            ItemStack s = inv.getStackInSlot(i);
+            if (s.isEmpty() || !(s.getItem() instanceof ItemArmor) || isGhost(s)) continue;
+            dropStack(inv.extractItem(i, s.getCount(), false));
         }
     }
 

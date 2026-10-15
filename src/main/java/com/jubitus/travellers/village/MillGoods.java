@@ -3,6 +3,10 @@ package com.jubitus.travellers.village;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
+import org.millenaire.common.world.MillWorldData;
+import org.millenaire.common.world.UserProfile;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -26,6 +30,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * The one place items move between the mod and a Millénaire settlement's stores: a hired worker's
@@ -59,37 +65,79 @@ public final class MillGoods {
 
     /**
      * Sells (or donates) the whole cargo to the settlement at {@code villageCenter} as its employer
-     * would at the town hall. Without an online employer the cargo is simply stored, no money or
-     * reputation. Sold items leave {@code cargo}; unsellable ones stay.
+     * would at the town hall, online or not: an offline employer gets the village's base prices, and
+     * money/reputation are credited all the same. Sold items leave {@code cargo}; unsellable ones stay.
      */
     public static Delivery deliverCargo(WorldServer world, BlockPos villageCenter, IItemHandlerModifiable cargo,
-                                        @Nullable EntityPlayer employer, boolean donate) {
+                                        UUID employerId, boolean donate) {
         Delivery out = new Delivery();
         Building th = MillSettlements.townHall(world, villageCenter);
         if (th == null) return out;
         out.reached = true;
         out.villageName = th.getVillageQualifiedName();
 
-        if (employer != null && !canTrade(th, employer)) {
+        UserProfile profile = profileOf(world, employerId);
+        if (profile == null || th.culture == null || !canTrade(th, profile)) {
             out.refused = true;
             out.unsold = true;
             return out;
         }
+        MinecraftServer server = world.getMinecraftServer();
+        EntityPlayerMP online = server == null ? null : server.getPlayerList().getPlayerByUUID(employerId);
 
         List<Chunk> borrowed = borrowChestChunks(world, th);
         try {
-            Culture culture = th.culture;
-            if (employer == null || culture == null) {
-                storeAll(th, cargo);
-            } else {
-                trade(th, culture, cargo, employer, donate, out);
-            }
+            trade(th, cargo, profile, online, donate, out);
             th.invalidateInventoryCache();
-            if (employer != null) th.sendChestPackets(employer);
+            if (online != null) th.sendChestPackets(online);
         } finally {
             LoadedChunks.release(world, borrowed);
         }
         return out;
+    }
+
+    // Millénaire's per-player record (reputation, language), which exists for offline players too.
+    @Nullable
+    private static UserProfile profileOf(WorldServer world, UUID playerId) {
+        MillWorldData wd = MillSettlements.wd(world);
+        if (wd == null) return null;
+        try {
+            return wd.getProfile(playerId);
+        } catch (NullPointerException unknownPlayer) {
+            return null;
+        }
+    }
+
+    /**
+     * Hands every chest of the settlement at {@code center} (all its buildings) to {@code use}, chunks
+     * borrowed for the call and the stock cache refreshed after. Returns false when no settlement stands there.
+     */
+    public static boolean withVillageChests(WorldServer world, BlockPos center, Consumer<List<IInventory>> use) {
+        Building th = MillSettlements.townHall(world, center);
+        if (th == null) return false;
+        List<Building> buildings = th.getBuildings();
+        List<Chunk> borrowed = new ArrayList<>();
+        try {
+            List<IInventory> chests = new ArrayList<>();
+            for (Building b : buildings) {
+                if (b == null) continue;
+                borrowed.addAll(borrowChestChunks(world, b));
+                ResManager res = b.getResManager();
+                if (res == null || res.chests == null) continue;
+                for (Point p : res.chests) {
+                    IInventory chest = p.getMillChest(world);
+                    if (chest != null) chests.add(chest);
+                }
+            }
+            use.accept(chests);
+            for (IInventory chest : chests) chest.markDirty();
+            for (Building b : buildings) {
+                if (b != null) b.invalidateInventoryCache();
+            }
+        } finally {
+            LoadedChunks.release(world, borrowed);
+        }
+        return true;
     }
 
     /**
@@ -183,21 +231,13 @@ public final class MillGoods {
     }
 
     // Millénaire's own seller check: not under attack, chests locked, reputation above the floor.
-    private static boolean canTrade(Building th, EntityPlayer player) {
-        return !th.underAttack && th.chestLocked && th.getReputation(player) >= MIN_REP_TO_TRADE;
+    private static boolean canTrade(Building th, UserProfile profile) {
+        return !th.underAttack && th.chestLocked && profile.getReputation(th) >= MIN_REP_TO_TRADE;
     }
 
-    private static void storeAll(Building th, IItemHandlerModifiable cargo) {
-        for (int slot = 0; slot < cargo.getSlots(); slot++) {
-            ItemStack stack = cargo.getStackInSlot(slot);
-            if (stack.isEmpty()) continue;
-            int stored = storeStack(th, stack);
-            if (stored > 0) cargo.extractItem(slot, stored, false);
-        }
-    }
-
-    private static void trade(Building th, Culture culture, IItemHandlerModifiable cargo, EntityPlayer employer,
-                              boolean donate, Delivery out) {
+    private static void trade(Building th, IItemHandlerModifiable cargo, UserProfile profile,
+                              @Nullable EntityPlayer online, boolean donate, Delivery out) {
+        Culture culture = th.culture;
         for (int slot = 0; slot < cargo.getSlots(); slot++) {
             ItemStack stack = cargo.getStackInSlot(slot);
             if (stack.isEmpty()) continue;
@@ -206,7 +246,7 @@ public final class MillGoods {
             String displayName = stack.getDisplayName();
 
             TradeGood good = culture.getTradeGood(InvItem.createInvItem(item, meta));
-            int unitPrice = good == null ? 0 : buyingPrice(good, th, employer);
+            int unitPrice = good == null ? 0 : buyingPrice(good, th, online);
             if (!donate && unitPrice <= 0) {
                 out.unsold = true;
                 continue;
@@ -218,7 +258,7 @@ public final class MillGoods {
                 continue;
             }
             cargo.extractItem(slot, stored, false);
-            th.adjustLanguage(employer, stored);
+            profile.adjustLanguage(culture.key, stored);
 
             int value = unitPrice * stored;
             int rep = donate ? value * ContainerTrade.DONATION_REP_MULTIPLIER : value;
@@ -232,7 +272,7 @@ public final class MillGoods {
                 agg[1] += Math.max(money, rep);
             }
         }
-        if (out.reputation != 0) th.adjustReputation(employer, out.reputation);
+        if (out.reputation != 0) profile.adjustReputation(th, out.reputation);
     }
 
     // Puts the exact stack (NBT included: book text, enchantments, names, damage) into the building's
@@ -276,13 +316,15 @@ public final class MillGoods {
         return stored;
     }
 
-    // Millénaire's dynamic price, else the village type's base price, else the raw base price.
-    private static int buyingPrice(TradeGood good, Building th, EntityPlayer employer) {
-        int price;
-        try {
-            price = good.getCalculatedBuyingPrice(th, employer);
-        } catch (NullPointerException npe) {
-            price = 0;
+    // Millénaire's dynamic price (online employer only), else the village type's base price, else the raw base price.
+    private static int buyingPrice(TradeGood good, Building th, @Nullable EntityPlayer employer) {
+        int price = 0;
+        if (employer != null) {
+            try {
+                price = good.getCalculatedBuyingPrice(th, employer);
+            } catch (NullPointerException npe) {
+                price = 0;
+            }
         }
         if (price <= 0) price = good.getBasicBuyingPrice(th);
         if (price <= 0) price = good.getBasicBuyingPrice(null);

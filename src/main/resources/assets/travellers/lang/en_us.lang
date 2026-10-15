@@ -390,6 +390,9 @@ travellers.notify.hostile.war_declared_on_you=%s attacked your henchmen - you ar
 travellers.notify.worker.arrived_home=Henchman is now at home.
 travellers.notify.worker.cargo_arrived_full=I'm here with your goods. Check my pack.
 travellers.notify.worker.cargo_arrived_partial=I'm here. I couldn't sell everything, some goods are still in my pack.
+travellers.notify.worker.cargo_heading_home=%s can't find you and is heading back to the Barrack with your cargo.
+travellers.notify.worker.cargo_waiting=%s can't find you and is waiting with your cargo where you were last seen.
+travellers.notify.worker.cargo_coming_back=%s is bringing your cargo back to you.
 travellers.notify.worker.already_on_job=I'm already on a job.
 travellers.notify.worker.died=%s has died.
 travellers.notify.worker.respawn_cancelled=%s will not come back: their bed is gone.
@@ -404,6 +407,7 @@ travellers.notify.mount.led_sidestep_gave_up=%s's horse got stuck and couldn't w
 travellers.notify.mount.led_low_health=%s's horse is too badly hurt to keep riding - leading it on foot instead.
 
 travellers.notify.trade.refused=The village refuses to trade with you (reputation too low or village is not trading right now).
+travellers.notify.trade.village_gone=%s couldn't find the village and is bringing your cargo back.
 travellers.notify.trade.sold_summary=Sale at %s: %s items sold for %s, rep +%s%s
 travellers.notify.trade.donated_summary=Donation to %s: %s items, rep +%s%s
 travellers.notify.goto.arrived=Your henchman has arrived at its destination.

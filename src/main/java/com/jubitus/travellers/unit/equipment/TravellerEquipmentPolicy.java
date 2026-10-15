@@ -85,6 +85,7 @@ public final class TravellerEquipmentPolicy {
                 default: return null;
             }
         }
+        if (TravellerEquipmentManager.isShield(stack)) return Bucket.SHIELD;
         if (TravellerEquipmentManager.isBow(stack)) return Bucket.RANGED;
         if (TravellerEquipmentManager.isWeapon(stack)) return Bucket.MELEE;
         if (stack.getItem() instanceof ItemArmor) {
@@ -110,6 +111,11 @@ public final class TravellerEquipmentPolicy {
         if (stack == null || stack.isEmpty()) return Double.NEGATIVE_INFINITY;
         Bucket b = TravellerEquipmentManager.isBow(stack) ? Bucket.RANGED : Bucket.MELEE;
         return quality(stack, b) + durabilityFraction(stack); // condition as sub-unit tiebreak
+    }
+
+    public static double shieldRank(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return Double.NEGATIVE_INFINITY;
+        return quality(stack, Bucket.SHIELD) + durabilityFraction(stack);
     }
 
     public static double armorRank(ItemStack stack, EntityEquipmentSlot slot) {
@@ -229,6 +235,8 @@ public final class TravellerEquipmentPolicy {
                     ? EnchantmentHelper.getEnchantmentLevel(Enchantments.PROTECTION, stack) : 0;
             return base + prot * 3.0;
         }
+
+        if (bucket == Bucket.SHIELD) return 60.0; // Millenaire lists no shields: every shield ranks alike, condition breaks ties
 
         // Weapon / bow
         double base;
