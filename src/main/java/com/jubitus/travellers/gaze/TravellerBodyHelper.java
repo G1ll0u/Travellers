@@ -47,6 +47,15 @@ public class TravellerBodyHelper extends EntityBodyHelper {
         }
 
         TravellersConfig.Gaze cfg = TravellersConfig.GAZE;
+        // A raised shield is held by the body: it turns toward the threat and the gaze cannot drag it away.
+        float shieldYaw = mob.shield.bodyFocusYaw();
+        if (!Float.isNaN(shieldYaw)) {
+            turning = false;
+            mob.renderYawOffset = EntityTraveller.rotlerp(mob.renderYawOffset, shieldYaw, (float) cfg.bodyTurnSpeed);
+            mob.rotationYawHead = clampAround(mob.renderYawOffset, mob.rotationYawHead);
+            if (!mob.world.isRemote && mob.getNavigator().noPath()) mob.setBodyYaw(mob.renderYawOffset);
+            return;
+        }
         float diff = MathHelper.wrapDegrees(mob.rotationYawHead - mob.renderYawOffset);
         if (Math.abs(diff) > cfg.bodyFollowAngle) turning = true;
         if (turning) {

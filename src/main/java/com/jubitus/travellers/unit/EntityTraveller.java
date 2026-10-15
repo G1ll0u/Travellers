@@ -173,6 +173,7 @@ public class EntityTraveller extends EntityCreature {
     private static final double EMERGENCY_ENGAGE_RANGE_SQ = EMERGENCY_ENGAGE_RANGE * EMERGENCY_ENGAGE_RANGE;
     public final TravellerCombatLogic combat = new TravellerCombatLogic(this);
     public final TravellerEquipmentManager equipment = new TravellerEquipmentManager(this);
+    public final com.jubitus.travellers.combat.ShieldGuard shield = new com.jubitus.travellers.combat.ShieldGuard(this);
     public final ElytraFlightController elytraFlight = new ElytraFlightController(this);
     public final TravellerSleep sleep = new TravellerSleep(this);
     public final TravellerVoice voice = new TravellerVoice(this);
@@ -1006,6 +1007,7 @@ public class EntityTraveller extends EntityCreature {
             return;
         }
         if (id == 9) return;
+        if (id == 29) return; // shield block: the sound is played server side in damageShield
 
         super.handleStatusUpdate(id);
     }
@@ -1253,6 +1255,7 @@ public class EntityTraveller extends EntityCreature {
         }
         if (!world.isRemote) {
             equipment.tickPickupCooldown();
+            shield.tick();
         }
 
         // Pick an initial random target only once
@@ -1314,7 +1317,11 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public void setItemStackToSlot(EntityEquipmentSlot slot, ItemStack stack) {
         if (slot == EntityEquipmentSlot.OFFHAND) {
-            // Real items still go through your backpack handling
+            // A shield lives in the offhand (unless the unit uses a bow); everything else goes to the backpack
+            if (TravellerEquipmentManager.isShield(stack) && !equipment.hasBowAnywhere()) {
+                super.setItemStackToSlot(slot, stack);
+                return;
+            }
             if (!stack.isEmpty()) {
                 ItemStack rem = ItemHandlerHelper.insertItemStacked(inventory, stack, false);
                 if (rem.isEmpty()) {
@@ -1769,6 +1776,27 @@ public class EntityTraveller extends EntityCreature {
         return combat.onAttacked(source, amount);
     }
 
+    // Vanilla leaves damageShield empty for mobs: wear the offhand shield like a player's.
+    @Override
+    protected void damageShield(float damage) {
+        shield.onBlocked();
+        this.playSound(net.minecraft.init.SoundEvents.ITEM_SHIELD_BLOCK, 1.0F, 0.8F + this.world.rand.nextFloat() * 0.4F);
+        if (damage >= 3.0F && this.activeItemStack.getItem().isShield(this.activeItemStack, this)) {
+            this.activeItemStack.damageItem(1 + net.minecraft.util.math.MathHelper.floor(damage), this);
+            if (this.activeItemStack.isEmpty()) {
+                this.setItemStackToSlot(net.minecraft.inventory.EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
+                this.activeItemStack = ItemStack.EMPTY;
+                this.playSound(net.minecraft.init.SoundEvents.ITEM_SHIELD_BREAK, 0.8F, 0.8F + this.world.rand.nextFloat() * 0.4F);
+            }
+        }
+    }
+
+    // A hit absorbed by the shield pushes the unit back half as much.
+    @Override
+    public void knockBack(Entity entityIn, float strength, double xRatio, double zRatio) {
+        super.knockBack(entityIn, shield.blockedThisTick() ? strength * 0.5F : strength, xRatio, zRatio);
+    }
+
     // The vanilla damage path, for TravellerCombatLogic only.
     public boolean vanillaAttackEntityFrom(DamageSource source, float amount) {
         return super.attackEntityFrom(source, amount);
@@ -1925,6 +1953,7 @@ public void fall(float distance, float damageMultiplier) {
     // --- Combat Handling ---
     @Override
     public boolean attackEntityAsMob(Entity target) {
+        if (!shield.mayStrike()) return false; // like a player: no strike with the shield up or just lowered
         boolean hit = combat.performMeleeAttack(target);
         if (hit && !world.isRemote) {
             world.playSound(null, target.posX, target.posY, target.posZ,
@@ -2745,6 +2774,7 @@ public void fall(float distance, float damageMultiplier) {
     @Override
     protected void playHurtSound(DamageSource source) {
         if (world.isRemote) return;
+        if (TravellersConfig.EQUIPMENT.shieldBlockMutesHurtSound && shield.blockedThisTick()) return;
 
         Entity trueSrc = (source == null) ? null : source.getTrueSource();
         Entity immediateSrc = (source == null) ? null : source.getImmediateSource();

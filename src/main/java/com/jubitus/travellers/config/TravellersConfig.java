@@ -776,6 +776,41 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 27)
         public int backpackMaxDrops = 2;
 
+        @Config.Comment("Chance that a raider spawns with a shield (never together with a bow).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public float shieldChanceRaider = 0.25f;
+
+        @Config.Comment("Chance that a worker spawns with a shield (never together with a bow).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public float shieldChanceWorker = 0.15f;
+
+        @Config.Comment("Chance that a traveller spawns with a shield (never together with a bow).")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public float shieldChanceTraveller = 0.10f;
+
+        @Config.Comment("Units wearing an iron or better helmet/chestplate are this many times more likely to spawn with a shield.")
+        @Config.RangeDouble(min = 1.0, max = 10.0)
+        public float shieldIronArmorMultiplier = 2.0f;
+
+        @Config.Comment("How long (seconds) a unit keeps its shield raised before it has to lower it.")
+        @Config.RangeDouble(min = 0.5, max = 10.0)
+        public float shieldRaisedSeconds = 2.0f;
+
+        @Config.Comment("How long (seconds) a unit must wait after lowering its shield before raising it again.")
+        @Config.RangeDouble(min = 0.0, max = 20.0)
+        public float shieldRestSeconds = 3.0f;
+
+        @Config.Comment("Walking speed while the shield is raised, as a fraction of normal speed (1 = no slowdown).")
+        @Config.RangeDouble(min = 0.1, max = 1.0)
+        public float shieldRaisedSpeedFactor = 0.5f;
+
+        @Config.Comment("A unit whose shield absorbs a hit makes no pain sound, only the shield's block sound.")
+        public boolean shieldBlockMutesHurtSound = true;
+
+        @Config.Comment("Most stacks of food a unit keeps in its backpack; further food on the ground is ignored.")
+        @Config.RangeInt(min = 0, max = 18)
+        public int maxFoodStacks = 4;
+
         @Config.Comment("Travellers and non-hired workers only wear their own culture's gear, plus plain vanilla and other-mod items. Turn off to let anyone wear anything. Raiders and hired workers are never filtered.")
         public boolean cultureEquipmentFilterEnabled = true;
 
@@ -817,6 +852,10 @@ public class TravellersConfig {
         @Config.Comment("Ticks each free-hit grace window lasts before resetting.")
         @Config.RangeInt(min = 1, max = 1200)
         public int playerForgiveWindowTicks = 6 * 20;
+
+        @Config.Comment("Days offline after which a player's workers can no longer be attacked by a declared war. 0 = never protected.")
+        @Config.RangeInt(min = 0, max = 365)
+        public int offlineProtectionDays = 0;
     }
 
     public static class WorkerFormation {
@@ -849,10 +888,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.5, max = 4.0)
         public double arriveRadius = 2.3;
 
-
-        @Config.Comment("Days offline after which a player's workers can no longer be attacked by a declared war. 0 = never protected.")
-        @Config.RangeInt(min = 0, max = 365)
-        public int offlineProtectionDays = 0;
         @Config.Comment("How close workers stay behind you.")
         @Config.RangeDouble(min = 1.0, max = 10.0)
         public double leaderDistancePlayer = 1.3;
@@ -3134,38 +3169,6 @@ public class TravellersConfig {
         public boolean debug = false;
     }
 
-    public static class Dialogue {
-        @Config.Comment("Lets players right-click a traveller and have a real AI conversation instead of the canned lines. "
-                + "Each player needs their own Ollama (a free, locally-installed AI program) running on their own computer - "
-                + "the server never contacts any AI service itself. Off by default because it depends on that separate install.")
-        public boolean enabled = false;
-
-        @Config.Comment("How close (in blocks) counts as actually standing inside a village, in conversation.")
-        @Config.RangeInt(min = 20, max = 300)
-        public int villageInsideRadius = 120;
-
-        @Config.Comment("How close (in blocks) counts as actually standing inside a lone building (much smaller than a full village), in conversation.")
-        @Config.RangeInt(min = 10, max = 150)
-        public int loneBuildingInsideRadius = 32;
-
-        @Config.Comment("How close (in blocks) counts as right next to a village without being inside it, in conversation.")
-        @Config.RangeInt(min = 50, max = 800)
-        public int villageAdjacentRadius = 300;
-
-        @Config.Comment("How far around a traveller (in blocks) it looks for other settlements worth mentioning in conversation.")
-        @Config.RangeInt(min = 100, max = 8000)
-        public int nearbySettlementRadius = 1500;
-
-        @Config.Comment("Maximum number of nearby settlements mentioned in one conversation's context, so the AI isn't overloaded with facts.")
-        @Config.RangeInt(min = 0, max = 32)
-        public int nearbySettlementMaxCount = 3;
-
-        @Config.Comment("How far around a traveller (in blocks) it looks at the ground to describe the terrain (flat, hilly, near water...) in conversation. Needs the planned-routes terrain scanner to be on.")
-        @Config.RangeInt(min = 16, max = 256)
-        public int terrainSummaryRadius = 64;
-
-        @Config.Comment("How far away (in blocks) it checks for a different landscape right next door, so a traveller near the edge of two areas can mention it.")
-        @Config.RangeInt(min = 8, max = 128)
     public static class Raids {
         @Config.Comment("Lets raider hordes come for each player from time to time. Off by default.")
         public boolean enabled = false;
@@ -3202,6 +3205,38 @@ public class TravellersConfig {
         public String[] allowedCultures = new String[0];
     }
 
+    public static class Dialogue {
+        @Config.Comment("Lets players right-click a traveller and have a real AI conversation instead of the canned lines. "
+                + "Each player needs their own Ollama (a free, locally-installed AI program) running on their own computer - "
+                + "the server never contacts any AI service itself. Off by default because it depends on that separate install.")
+        public boolean enabled = false;
+
+        @Config.Comment("How close (in blocks) counts as actually standing inside a village, in conversation.")
+        @Config.RangeInt(min = 20, max = 300)
+        public int villageInsideRadius = 120;
+
+        @Config.Comment("How close (in blocks) counts as actually standing inside a lone building (much smaller than a full village), in conversation.")
+        @Config.RangeInt(min = 10, max = 150)
+        public int loneBuildingInsideRadius = 32;
+
+        @Config.Comment("How close (in blocks) counts as right next to a village without being inside it, in conversation.")
+        @Config.RangeInt(min = 50, max = 800)
+        public int villageAdjacentRadius = 300;
+
+        @Config.Comment("How far around a traveller (in blocks) it looks for other settlements worth mentioning in conversation.")
+        @Config.RangeInt(min = 100, max = 8000)
+        public int nearbySettlementRadius = 1500;
+
+        @Config.Comment("Maximum number of nearby settlements mentioned in one conversation's context, so the AI isn't overloaded with facts.")
+        @Config.RangeInt(min = 0, max = 32)
+        public int nearbySettlementMaxCount = 3;
+
+        @Config.Comment("How far around a traveller (in blocks) it looks at the ground to describe the terrain (flat, hilly, near water...) in conversation. Needs the planned-routes terrain scanner to be on.")
+        @Config.RangeInt(min = 16, max = 256)
+        public int terrainSummaryRadius = 64;
+
+        @Config.Comment("How far away (in blocks) it checks for a different landscape right next door, so a traveller near the edge of two areas can mention it.")
+        @Config.RangeInt(min = 8, max = 128)
         public int biomeBorderCheckRadius = 32;
 
         @Config.Comment("How far around a traveller (in blocks) it surveys the land for distant landmarks (mountains, forest, seas, rivers...) worth mentioning in conversation.")
