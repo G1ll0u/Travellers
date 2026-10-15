@@ -20,6 +20,9 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
     // near-certain to fire this tick instead of waiting on chance.
     private static final int RETARGET_BOOST_ATTEMPTS = 20;
 
+    // Candidates are tried nearest-first; this only bounds a raider walled off from its nearest ones.
+    private static final int MAX_RAYS_PER_SCAN = 8;
+
     private final EntityTravellerRaider raider;
 
     public RaiderAttackTargetAI(EntityTravellerRaider raider,
@@ -82,9 +85,12 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
     private EntityLivingBase nearestRaidTarget(java.util.UUID playerId) {
         double range = getTargetDistance();
         net.minecraft.util.math.AxisAlignedBB box = raider.getEntityBoundingBox().grow(range, 4.0D, range);
-        EntityLivingBase best = null;
-        double bestSq = Double.MAX_VALUE;
+        boolean profiling = com.jubitus.travellers.debug.profile.MovementProfiler.isActive();
+        long startNanos = profiling ? System.nanoTime() : 0L;
+        int inBox = 0, rays = 0;
+        java.util.List<EntityLivingBase> candidates = new java.util.ArrayList<>();
         for (EntityLivingBase e : raider.world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
+            inBox++;
             if (!e.isEntityAlive() || e.isInvisible() || raider.isIgnoring(e)) continue;
             boolean preferred;
             if (e instanceof net.minecraft.entity.player.EntityPlayer) {
@@ -96,12 +102,22 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
             } else {
                 preferred = false;
             }
-            if (!preferred || !raider.getEntitySenses().canSee(e)) continue;
-            double d = raider.getDistanceSq(e);
-            if (d < bestSq) {
-                bestSq = d;
+            if (preferred) candidates.add(e);
+        }
+        // Nearest first, stop at the first visible one: far candidates never cost a ray.
+        candidates.sort(java.util.Comparator.comparingDouble(raider::getDistanceSq));
+        EntityLivingBase best = null;
+        for (EntityLivingBase e : candidates) {
+            if (rays >= MAX_RAYS_PER_SCAN) break;
+            rays++;
+            if (raider.getEntitySenses().canSee(e)) {
                 best = e;
+                break;
             }
+        }
+        if (profiling) {
+            com.jubitus.travellers.debug.profile.MovementProfiler.raidScan(
+                    inBox, candidates.size(), rays, best != null, System.nanoTime() - startNanos);
         }
         return best;
     }

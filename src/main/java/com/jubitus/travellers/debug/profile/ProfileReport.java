@@ -71,6 +71,7 @@ final class ProfileReport {
         wedges(sb, s);
         scheduler(sb, s, ticks);
         paths(sb, s, ticks);
+        raidScans(sb, s, ticks);
         boundary(sb, s);
         groups(sb, s);
         hotspots(sb, s);
@@ -280,6 +281,19 @@ final class ProfileReport {
             sb.append("    ").append(pad(e.getKey(), 44)).append(pad(String.valueOf(e.getValue()), 9))
                     .append(pct(e.getValue(), followTotal)).append('\n');
         }
+    }
+
+    private static void raidScans(StringBuilder sb, ProfileSession s, long ticks) {
+        header(sb, "Raid target scans (RaiderAttackTargetAI)");
+        long n = Math.max(1L, s.raidScans);
+        sb.append("  scans ").append(s.raidScans).append(" (").append(f2((double) s.raidScans / ticks))
+                .append(" per tick) | found a target ").append(pct(s.raidScanFound, n)).append('\n');
+        sb.append("  per scan: ").append(f1((double) s.raidScanInBox / n)).append(" entities in box, ")
+                .append(f1((double) s.raidScanPreferred / n)).append(" preferred candidates, ")
+                .append(f1((double) s.raidScanRays / n)).append(" rays\n");
+        sb.append("  cost: ").append(f2(s.raidScanNanos / 1e6 / ticks)).append(" ms per tick, ")
+                .append(f2(s.raidScanNanos / 1e6 / n)).append(" ms per scan, worst ")
+                .append(f2(s.raidScanMaxNanos / 1e6)).append(" ms\n");
     }
 
     private static void paths(StringBuilder sb, ProfileSession s, long ticks) {

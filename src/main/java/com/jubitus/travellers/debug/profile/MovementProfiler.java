@@ -135,6 +135,11 @@ public final class MovementProfiler {
         session.pathSearch(e, nanos, path, tx, ty, tz, probe, now());
     }
 
+    public static void raidScan(int inBox, int preferred, int rays, boolean found, long nanos) {
+        if (session == null) return;
+        session.raidScan(inBox, preferred, rays, found, nanos);
+    }
+
     public static void materialized(UUID id, boolean ok) {
         if (session == null) return;
         session.materialized(id, ok, now());

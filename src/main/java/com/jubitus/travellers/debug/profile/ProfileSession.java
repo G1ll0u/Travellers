@@ -185,6 +185,24 @@ final class ProfileSession {
     long travelFullTicks;
     private long lastTravelFullTick = -1;
 
+    long raidScans;
+    long raidScanFound;
+    long raidScanInBox;
+    long raidScanPreferred;
+    long raidScanRays;
+    long raidScanNanos;
+    long raidScanMaxNanos;
+
+    void raidScan(int inBox, int preferred, int rays, boolean found, long nanos) {
+        raidScans++;
+        if (found) raidScanFound++;
+        raidScanInBox += inBox;
+        raidScanPreferred += preferred;
+        raidScanRays += rays;
+        raidScanNanos += nanos;
+        if (nanos > raidScanMaxNanos) raidScanMaxNanos = nanos;
+    }
+
     final Map<String, Long> followSchedule = new TreeMap<>();
     long followCapTicks;
     private long lastFollowCapTick = -1;
