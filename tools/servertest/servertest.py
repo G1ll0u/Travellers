@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Drives a local copy of the test server for automated tests. One verb per call, a few lines of output each.
-Test verbs (forest, soak, ab) stop the server when they finish (user rule: never leave it running).
+Test verbs (forest, scenarios, soak, ab) stop the server when they finish (user rule: never leave it running).
 
   setup              create the autotest server copy (once)
   deploy [jar]       copy a jar (default: newest production jar in build/libs) into the copy's mods/ (stops the server)
   reset              restore the world from the snapshot (stops the server)
-  start              launch the server in tmux, wait for "Done"
+  start              launch the server detached, wait for "Done"
   cmd "<command>"    send one console command through RCON, print the reply
   wait <seconds>     sleep
   forest [seconds]   mounted forest crossing scenario on each FOREST_ROUTES entry (running server, stopped after)
+  scenarios [name|all]  scripted behaviour checks (PASS/FAIL/SKIP per scenario; running server, stopped after)
+  restart-go         Go order with a save and a server restart mid-walk (running server, stopped after)
   soak [minutes]     zones + movement profile + invariants every minute on a running server (stopped after)
   compare <a> <b>    compare two soak .metrics files (paths or names in .autotest/soaks) against the thresholds
   ab <commitA> <commitB> [minutes]  build both commits, soak each on a fresh world, compare
@@ -29,14 +31,13 @@ import zipfile
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[2]
-SOURCE = Path("/home/user/Desktop/LGV2026_srv")
+SOURCE = "user@192.168.1.88:/home/user/server_grandevadrouille_2026/"
 SERVER = Path("/home/user/Desktop/LGV2026_autotest")
 STATE = SERVER / ".autotest"
 SNAPSHOT = STATE / "snapshot.zip"
 BASELINE = STATE / "baseline.txt"
 DEPLOYED = STATE / "deployed.txt"
 JAR_NAME = "travellers-autotest.jar"
-TMUX = "travellers-autotest"
 
 GAME_PORT = 25566
 RCON_PORT = 25576
@@ -47,21 +48,23 @@ START_TIMEOUT_S = 300
 STOP_TIMEOUT_S = 120
 MAX_SCAN_LINES = 30
 
-# Copying these from the source server is useless or huge (config/flare holds 4 GB of profiler dumps).
-SETUP_SKIP = {"world", "logs", "crash-reports", "flare"}
+# Not copied from the source server (rsync patterns, rooted at its folder): other worlds, backups, logs,
+# installers, the production Travellers jar (the runner deploys its own), 4 GB of profiler dumps, a render cache.
+SETUP_EXCLUDES = ["/ALLEZ_*", "/LaGrandeVadrouille_*", "*.zip", "*.tar", "*.tar.gz", "/jdk-*", "/download?link*",
+                  "/wget-log*", "/hs_err*", "/logs", "/crash-reports", "/config/flare", "/travellers-b0.*.jar",
+                  "/mods/travellers-latest.jar", "DistantHorizons.sqlite*"]
 
-# Soak zones in the snapshot world (x, z, radius in chunks): its 6 villages, the user's base where most
-# hired workers live, and the middle of the Monzon <-> Abaci-Golde trip so units on the move are seen too.
-SOAK_ZONES = [(-1021, -967, 3), (-1325, -251, 3), (-1497, -1417, 3), (-1608, 301, 3), (-1161, -321, 3),
-              (-2080, -554, 3), (-1600, -320, 3), (-1173, -609, 3)]
+# Zones a run forces are chosen by the mod itself (`autotest layout`): the busiest few villages, a small radius,
+# because this world has far too many villages to load. See AutotestLayout.CHUNK_BUDGET.
 SOAK_MINUTES = 10
-# Dense forest crossings for mounted riders (x1, z1, x2, z2), around the woods the mount review found densest.
-# Chosen from the snapshot's region files: no water on the line, ~17 % of columns with wood or leaves 2-3 blocks
-# above the ground.
-FOREST_ROUTES = [(-1928, -152, -1816, -152), (-2200, -520, -2088, -520), (-1832, 296, -1720, 296)]
+# Dense forest crossings for mounted riders (x1, z1, x2, z2). None yet for the current world: forest runs
+# (and the forest step of `ab`) are skipped until some are chosen.
+FOREST_ROUTES = []
 FOREST_SECONDS = 300
 FORESTS = STATE / "forests"
 SOAKS = STATE / "soaks"
+SCENARIO_TIMEOUT_S = 1800
+SCENARIOS = STATE / "scenarios"
 
 # Comparison thresholds, from two soaks of the same jar (same-jar spread: efficiency within 4 %, incident rates
 # up to 3x apart on low counts). Rate keys are per loaded unit-hour.
@@ -134,33 +137,33 @@ def cmd_setup():
     if SERVER.exists():
         die(f"{SERVER} already exists; delete it first to rebuild the copy")
     t0 = time.time()
-
-    def ignore(dirpath, names):
-        if Path(dirpath) == SOURCE:
-            return [n for n in names if n in SETUP_SKIP or n.endswith(".zip")]
-        if Path(dirpath) == SOURCE / "config":
-            return [n for n in names if n in SETUP_SKIP]
-        return []
-
-    shutil.copytree(SOURCE, SERVER, symlinks=True, ignore=ignore)
+    cmd = ["rsync", "-a", "--no-owner", "--no-group"] + ["--exclude=" + e for e in SETUP_EXCLUDES] + [SOURCE, str(SERVER) + "/"]
+    if subprocess.run(cmd).returncode != 0:
+        die("rsync failed; delete " + str(SERVER) + " before retrying")
     STATE.mkdir()
-    (SERVER / "mods" / "travellers-latest.jar").unlink(missing_ok=True)
-    snapshots = sorted(SOURCE.glob("world-*.zip"))
-    if not snapshots:
-        die("no world-*.zip snapshot in " + str(SOURCE))
-    shutil.copy2(snapshots[-1], SNAPSHOT)
     write_props({
         "server-port": str(GAME_PORT),
         "enable-rcon": "true",
         "rcon.port": str(RCON_PORT),
         "rcon.password": secrets.token_hex(12),
         "broadcast-rcon-to-ops": "false",
-        "motd": "Travellers autotest",
+        "motd": "Travellers AUTOTEST",
     })
+    replace_in_file(SERVER / "settings.cfg", r"^JAVA_PATH=.*", f"JAVA_PATH={JDK}/bin/java")
     replace_in_file(SERVER / "config/voicechat/voicechat-server.properties", r"^port=\d+", f"port={VOICECHAT_PORT}")
     replace_in_file(SERVER / "config/groovyscript.cfg", r"languageServerPort=\d+", f"languageServerPort={GROOVY_LSP_PORT}")
-    print(f"Created {SERVER} in {time.time() - t0:.0f}s (snapshot: {snapshots[-1].name})")
+    world = world_dir()
+    # The reference every run starts from; the live world is only ever a scratch copy of it.
+    with zipfile.ZipFile(SNAPSHOT, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(world.rglob("*")):
+            if f.is_file() and f.name != "session.lock":
+                z.write(f, f.relative_to(world))
+    print(f"Created {SERVER} in {time.time() - t0:.0f}s (world {world.name}, snapshot {SNAPSHOT.stat().st_size >> 20} MB)")
     print(f"Ports: game {GAME_PORT}, rcon {RCON_PORT}, voicechat {VOICECHAT_PORT}")
+
+
+def world_dir():
+    return SERVER / read_props()["level-name"]
 
 
 def newest_production_jar():
@@ -205,7 +208,7 @@ def cmd_deploy(args):
 
 def cmd_reset():
     stop_if_running()
-    world = SERVER / "world"
+    world = world_dir()
     if world.exists():
         shutil.rmtree(world)
     world.mkdir()
@@ -252,13 +255,14 @@ def cmd_start():
         log.unlink()
     shell_cmd = "cd " + str(SERVER) + " && exec " + " ".join(java_command()) + " > logs/console.txt 2>&1"
     (SERVER / "logs").mkdir(exist_ok=True)
-    subprocess.run(["tmux", "kill-session", "-t", TMUX], capture_output=True)
-    subprocess.run(["tmux", "new-session", "-d", "-s", TMUX, shell_cmd], check=True)
+    # Detached from this process: the server outlives the runner call and reads no console input.
+    subprocess.Popen(["bash", "-c", shell_cmd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
     t0 = time.time()
     while time.time() - t0 < START_TIMEOUT_S:
         time.sleep(2)
         if log.exists() and "Done (" in log.read_text(errors="replace") and debug_ready():
-            print(f"Server up in {time.time() - t0:.0f}s (tmux session '{TMUX}')")
+            print(f"Server up in {time.time() - t0:.0f}s (console: logs/console.txt)")
             if loaded:
                 print(f"Note: {loaded} other Minecraft process(es) running, timings may be skewed")
             return
@@ -303,7 +307,6 @@ def cmd_stop():
         print(f"Killed after {STOP_TIMEOUT_S}s (save may be incomplete)")
     else:
         print(f"Stopped in {time.time() - t0:.0f}s")
-    subprocess.run(["tmux", "kill-session", "-t", TMUX], capture_output=True)
 
 
 def cmd_status():
@@ -382,6 +385,16 @@ def debug(command):
     return re.sub(r"§.", "", rcon("travellersdebug " + command)).strip()
 
 
+def layout():
+    """(arena, zones) chosen by the mod: each is (x, z, radiusChunks); the arena is the first entry of the reply."""
+    reply = debug("autotest layout")
+    if not reply.startswith("layout:") or "no village" in reply:
+        die("layout: " + reply)
+    entries = [tuple(int(v) for v in m.groups()) for m in re.finditer(r"(-?\d+) (-?\d+) (\d+)", reply.split(" | ", 1)[0])]
+    zones = [tuple(int(v) for v in m.groups()) for m in re.finditer(r"(-?\d+) (-?\d+) (\d+) \(", reply)]
+    return entries[0], zones
+
+
 def cmd_soak(args):
     run_then_stop(soak, args)
 
@@ -390,7 +403,8 @@ def soak(args):
     if not server_pid():
         die("server not running")
     minutes = int(args[0]) if args else SOAK_MINUTES
-    for x, z, r in SOAK_ZONES:
+    _, soak_zones = layout()
+    for x, z, r in soak_zones:
         reply = debug(f"autotest zone add {x} {z} {r}")
         if "zone added" not in reply:
             die("zone add: " + reply)
@@ -425,7 +439,7 @@ def soak(args):
     out = SOAKS / f"soak-{time.strftime('%Y%m%d-%H%M%S')}.metrics"
     deployed = DEPLOYED.read_text().strip() if DEPLOYED.exists() else "?"
     kinds = failure_kinds(SERVER / report) if fails else {}
-    out.write_text(f"# {deployed}\n# {minutes} min, zones {SOAK_ZONES}\n"
+    out.write_text(f"# {deployed}\n# {minutes} min, zones {soak_zones}\n"
                    + f"invariant_fail_passes={len(fails)}\n"
                    + f"player_minutes={player_minutes}\n"
                    + "".join(f"fail_kind:{k}={v}\n" for k, v in kinds.items())
@@ -447,6 +461,9 @@ def forest(args):
     if not server_pid():
         die("server not running")
     seconds = int(args[0]) if args else FOREST_SECONDS
+    if not FOREST_ROUTES:
+        print("forest: no routes defined for this world, skipped")
+        return None
     results = []
     for x1, z1, x2, z2 in FOREST_ROUTES:
         half = max(abs(x2 - x1), abs(z2 - z1)) // 2
@@ -472,6 +489,71 @@ def forest(args):
         print(r)
     print(f"Per rider: logs/travellers-autotest (latest file) | summary: {out}")
     return out
+
+
+def cmd_scenarios(args):
+    return run_then_stop(scenarios, args)
+
+
+def cmd_restart_go(args):
+    """Go order, save and restart the server mid-walk, then check the worker still arrives."""
+    return run_then_stop(restart_go, args)
+
+
+def restart_go(args):
+    if not server_pid():
+        die("server not running")
+    save = run_scenarios("go-restart-save", stop_zones=False)
+    if "FAIL 0" not in save[0] or "SKIP 0" not in save[0]:
+        die("first half: " + " | ".join(save))
+    time.sleep(3)
+    cmd_stop()
+    cmd_start()
+    resume = run_scenarios("go-restart-resume", stop_zones=True)
+    for line in save[:1] + resume:
+        print(line)
+    return resume
+
+
+def scenarios(args):
+    if not server_pid():
+        die("server not running")
+    parts = run_scenarios(args[0] if args else "all", stop_zones=True)
+    SCENARIOS.mkdir(exist_ok=True)
+    out = SCENARIOS / f"scenarios-{time.strftime('%Y%m%d-%H%M%S')}.txt"
+    deployed = DEPLOYED.read_text().strip() if DEPLOYED.exists() else "?"
+    out.write_text(f"# {deployed}\n" + "\n".join(parts) + "\n")
+    for line in parts:
+        print(line)
+    print(f"Details: logs/travellers-autotest (latest file) | summary: {out}")
+    return out
+
+
+def run_scenarios(which, stop_zones):
+    """Runs the scenario selector on the running server; returns the result lines (without the report path)."""
+    arena, villages = layout()
+    x, z, radius = arena
+    # The arena for the open-ground scenarios, plus the busy villages for the ones that look there.
+    for zx, zz, zr in [arena] + villages:
+        reply = debug(f"autotest zone add {zx} {zz} {zr}")
+        if "zone added" not in reply:
+            die("zone add: " + reply)
+    time.sleep(5)
+    reply = debug(f"autotest run {which} {x} {z}")
+    if "scenarios started" not in reply:
+        die("run: " + reply)
+    deadline = time.time() + SCENARIO_TIMEOUT_S
+    while True:
+        time.sleep(10)
+        reply = debug("autotest run status")
+        if reply.startswith("scenarios: done"):
+            break
+        if time.time() > deadline:
+            debug("autotest run stop")
+            die("scenarios: timed out; last status: " + reply)
+    if stop_zones:
+        debug("autotest zone clear")
+    return reply.split(" | ")[1:-1]
 
 
 def mean_tick_ms():
@@ -768,6 +850,8 @@ def main():
         "wait": lambda: time.sleep(float(args[0])),
         "soak": lambda: cmd_soak(args),
         "forest": lambda: cmd_forest(args),
+        "scenarios": lambda: cmd_scenarios(args),
+        "restart-go": lambda: cmd_restart_go(args),
         "compare": lambda: cmd_compare(args),
         "ab": lambda: cmd_ab(args),
         "stop": lambda: cmd_stop(),

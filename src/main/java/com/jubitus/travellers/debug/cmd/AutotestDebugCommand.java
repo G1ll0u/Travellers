@@ -26,17 +26,27 @@ public class AutotestDebugCommand implements DebugSubcommand {
 
     @Override
     public List<String> suggestions(ICommandSender sender, String[] args) {
-        if (args.length == 2) return getListOfStringsMatchingLastWord(args, "zone", "invariants");
+        if (args.length == 2) return getListOfStringsMatchingLastWord(args, "zone", "invariants", "forest", "run");
         return Collections.emptyList();
     }
 
     private void executeAutotest(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         String usage = "Usage: /travellersdebug autotest zone add <x> <z> <radiusChunks>|zone clear|invariants"
-                + "|forest <x1> <z1> <x2> <z2> [solo] [followers] [seconds]|forest status|forest stop";
+                + "|forest <x1> <z1> <x2> <z2> [solo] [followers] [seconds]|forest status|forest stop"
+                + "|run <scenario|all> <x> <z>|run status|run stop|layout";
         String sub = args.length >= 2 ? args[1].toLowerCase() : "";
         String reply;
-        if (sub.equals("invariants")) {
+        if (sub.equals("layout")) {
+            reply = com.jubitus.travellers.debug.autotest.AutotestLayout.compute(server.getWorld(0));
+        } else if (sub.equals("invariants")) {
             reply = "invariants: " + com.jubitus.travellers.debug.autotest.AutotestInvariants.check(server);
+        } else if (sub.equals("run") && args.length >= 3 && args[2].equalsIgnoreCase("status")) {
+            reply = com.jubitus.travellers.debug.autotest.scenario.AutotestScenarios.status(server.getWorld(0));
+        } else if (sub.equals("run") && args.length >= 3 && args[2].equalsIgnoreCase("stop")) {
+            reply = com.jubitus.travellers.debug.autotest.scenario.AutotestScenarios.stop(server.getWorld(0));
+        } else if (sub.equals("run") && args.length >= 5) {
+            reply = com.jubitus.travellers.debug.autotest.scenario.AutotestScenarios.start(server.getWorld(0),
+                    args[2], parseInt(args[3]), parseInt(args[4]));
         } else if (sub.equals("forest") && args.length >= 3 && args[2].equalsIgnoreCase("status")) {
             reply = com.jubitus.travellers.debug.autotest.AutotestForest.status(server.getWorld(0));
         } else if (sub.equals("forest") && args.length >= 3 && args[2].equalsIgnoreCase("stop")) {
@@ -56,7 +66,7 @@ public class AutotestDebugCommand implements DebugSubcommand {
         } else {
             throw new CommandException(usage);
         }
-        if (!sub.equals("invariants") && !sub.equals("forest")) {
+        if (!sub.equals("invariants") && !sub.equals("forest") && !sub.equals("run")) {
             com.jubitus.travellers.debug.autotest.AutotestReport.append(String.join(" ", args), java.util.Collections.singletonList(reply));
         }
         sender.sendMessage(new TextComponentString(reply + " | "

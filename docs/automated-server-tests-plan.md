@@ -1,6 +1,6 @@
     # Automated server tests — Claude builds, runs and reads in-game tests itself
 
-**Status (2026-10-06)**: steps 1-4 done, bugs 1, 2, 4 fixed; step 5 paused (user) while a fresh agent reviews the mount system (`docs/mount-system-review.md`).
+**Status (2026-10-09)**: steps 1-4 done, bugs 1, 2, 4 fixed; step 5 written and compiled, NEVER RUN (the test server copy and snapshot no longer exist; the user will recreate them later, so `setup` + a fresh snapshot + a new log baseline come first, then a first `servertest.py scenarios` to debug the scenarios themselves).
 
 Test world = the user's `LGV2026_srv/world` as of 2026-10-05 (6 villages, 219 hired workers, most at
 (-1600, -320)), zipped as the copy's `.autotest/snapshot.zip`; the 2026-10-02 one is kept beside it.
@@ -172,6 +172,15 @@ Diagnostic audit (user decision 2026-10-06: tools first, horse teleport recalls 
    - Hotspots (64x64 cells): (-1248, -608) mesa_rock 92 REMOUNT, then (-1504, -1440) and (-1504, -1376)
      ~35 each, (-1056, -928) 23. A trace event `recall horse from N blocks (mode=…)` is written on traced
      units; `trace start <name>` works from the console, stalls are auto-traced in tests.
-5. Scenario batch above, one commit per scenario. — todo
+5. Scenario batch above. — written, untested. Engine `debug/autotest/scenario/` (`AutotestScenarios`, one `AutotestScenario`
+   subclass per scenario; a failure is retried once on another line of ground; `autotest run <name|all> <x> <z>`).
+   Runner: `scenarios [name|all]` (arena = `SCENARIO_ARENA` + the soak zones) and `restart-go` (save + restart mid-walk).
+   Scenarios: `go`, `go-virtualized`, `go-restart-save`/`go-restart-resume`, `catchup`, `recruit-spawn` (checks
+   `RecruitMission.findSpawnPos`, not a whole tour), `raider-fight`, `equip-barrack-stay`, `equip-barrack-return`,
+   `equip-stable-return`, `go-home`, `go-duty`, `boat-landing`. Zone scenarios use the first zone of the type in the
+   world and SKIP when there is none; workers are hired by a FakePlayer (the zone's owner for zone scenarios) and the
+   assignment is set directly, bypassing `ZoneAssignments`' packets and beds.
+   Unknowns to check at the first run: FakePlayer as hirer (any code path that needs the owner online), the
+   boat crossing search finding water near the arena, the Stable having a ready horse in the new snapshot.
 6. `debug/CLAUDE.md`: how to run the suite and read its reports (a few lines); the manual checklist shrinks to
    what needs eyes. — todo

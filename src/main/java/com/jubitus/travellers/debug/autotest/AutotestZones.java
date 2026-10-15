@@ -48,6 +48,15 @@ public final class AutotestZones {
         return n;
     }
 
+    /** Number of tickets held now; pass it to {@link #releaseSince} to drop only the zones added after this point. */
+    public static int mark() {
+        return TICKETS.size();
+    }
+
+    public static void releaseSince(int mark) {
+        while (TICKETS.size() > mark) ForgeChunkManager.releaseTicket(TICKETS.remove(TICKETS.size() - 1));
+    }
+
     public static int forcedChunkCount() {
         int n = 0;
         for (ForgeChunkManager.Ticket t : TICKETS) n += t.getChunkList().size();
