@@ -813,6 +813,10 @@ public class TravellerCombatLogic {
             return false;
         }
 
+        entity.shield.consumeBlocked(); // clear a stale flag before this hit
+        if (source.isProjectile() && source.getTrueSource() instanceof EntityLivingBase && !entity.world.isRemote) {
+            entity.shield.onShotAt((EntityLivingBase) source.getTrueSource());
+        }
         boolean tookDamage = entity.vanillaAttackEntityFrom(source, amount);
         if (!tookDamage || entity.world.isRemote) return tookDamage;
 
@@ -822,7 +826,7 @@ public class TravellerCombatLogic {
         // it never copies it. Damaging armor after that point would silently over-wear the item
         // that's already on the ground instead of anything still worn by this entity.
         // INVARIANT: no wear after a possibly lethal hit - the drop shares this ItemStack.
-        if (entity.getHealth() > 0.0F) {
+        if (entity.getHealth() > 0.0F && !entity.shield.consumeBlocked()) {
             TravellerItemDamage.damageArmorOnHit(entity, amount);
         }
 

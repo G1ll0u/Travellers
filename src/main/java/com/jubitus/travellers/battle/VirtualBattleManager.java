@@ -844,6 +844,13 @@ public class VirtualBattleManager extends WorldSavedData {
 
         VirtualCombatProfile prof = victimRec.getCombatProfile();
         float scaled = (float) (rawDamage * TravellersConfig.BATTLE_EVENTS.virtualDamageMultiplier);
+        if (prof.hasShield && world.rand.nextFloat() < virtualBlockChance()) {
+            attacker.noProgressTicks = 0;
+            victim.noProgressTicks = 0;
+            VirtualItemWear.wearShield(victimRec, scaled);
+            VirtualItemWear.markCombat(victimRec, now);
+            return;
+        }
         float dmg = CombatRules.getDamageAfterAbsorb(scaled, prof.armor, prof.toughness);
         victimRec.health = victimRec.getHealthResolved() - dmg;
         attacker.noProgressTicks = 0;
@@ -855,6 +862,13 @@ public class VirtualBattleManager extends WorldSavedData {
             VirtualItemWear.wearArmor(victimRec, scaled);
             VirtualItemWear.markCombat(victimRec, now);
         }
+    }
+
+    /** Parry duty cycle (raised / raised + rest) halved: only attacks from the front are blocked. */
+    private static float virtualBlockChance() {
+        float up = TravellersConfig.EQUIPMENT.shieldRaisedSeconds;
+        float rest = TravellersConfig.EQUIPMENT.shieldRestSeconds;
+        return 0.5f * up / Math.max(0.01f, up + rest);
     }
 
     private void killVirtual(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
@@ -1131,6 +1145,11 @@ public class VirtualBattleManager extends WorldSavedData {
         if (temp.equipment.isWeapon(candidate) && temp.equipment.isWeaponUpgrade(candidate)) {
             ItemStack old = temp.getHeldItemMainhand();
             temp.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND, candidate);
+            return old;
+        }
+        if (TravellerEquipmentManager.isShield(candidate) && temp.equipment.wantsShield(candidate)) {
+            ItemStack old = temp.getHeldItemOffhand();
+            temp.setItemStackToSlot(net.minecraft.inventory.EntityEquipmentSlot.OFFHAND, candidate);
             return old;
         }
         if (candidate.getItem() instanceof net.minecraft.item.ItemArmor) {

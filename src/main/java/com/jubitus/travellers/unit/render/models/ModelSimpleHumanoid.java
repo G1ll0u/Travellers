@@ -93,5 +93,12 @@ public class ModelSimpleHumanoid extends ModelBiped {
                 this.bipedRightArm.rotateAngleX += 1.4F * s1;
             }
         }
+
+        // Raised shield: vanilla's block pose on the left (offhand) arm
+        if (!t.isAimingBow() && t.isHandActive() && t.getActiveHand() == net.minecraft.util.EnumHand.OFF_HAND) {
+            this.leftArmPose = ArmPose.BLOCK;
+            this.bipedLeftArm.rotateAngleX = this.bipedLeftArm.rotateAngleX * 0.5F - 0.9424779F;
+            this.bipedLeftArm.rotateAngleY = 0.5235988F;
+        }
     }
 }

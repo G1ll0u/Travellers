@@ -32,6 +32,18 @@ final class VirtualItemWear {
         }
     }
 
+    /** A parried hit wears the offhand shield like the loaded one (hits under 3 damage do not). */
+    static void wearShield(VirtualTravellerRecord rec, float rawDamage) {
+        if (rawDamage < 3.0F || rec.entityNbt == null) return;
+        NBTTagList hands = rec.entityNbt.getTagList("HandItems", 10);
+        int wear = 1 + (int) Math.floor(rawDamage);
+        for (int i = 0; i < hands.tagCount(); i++) {
+            NBTTagCompound tag = hands.getCompoundTagAt(i);
+            ItemStack s = new ItemStack(tag);
+            if (!s.isEmpty() && s.getItem().isShield(s, null)) wearEntry(rec, tag, wear);
+        }
+    }
+
     /** Same stamp the loaded entity writes, so the post-combat heal delay counts from the last blow. */
     static void markCombat(VirtualTravellerRecord rec, long now) {
         if (rec.entityNbt != null) rec.entityNbt.setInteger("LastCombatTick", (int) now);

@@ -36,11 +36,13 @@ public final class VirtualCombatProfile {
     public final double rangedMaxDist;
     public final float armor;
     public final float toughness;
+    /** A real shield in the offhand and no bow: virtual hits may be parried. */
+    public final boolean hasShield;
 
     private VirtualCombatProfile(float maxHealth, float meleeDamage, int attackCooldownTicks,
                                  boolean isArcher, float rangedDamage, int rangedCooldownTicks,
                                  double rangedMinDist, double rangedMaxDist,
-                                 float armor, float toughness) {
+                                 float armor, float toughness, boolean hasShield) {
         this.maxHealth = maxHealth;
         this.meleeDamage = meleeDamage;
         this.attackCooldownTicks = attackCooldownTicks;
@@ -51,6 +53,7 @@ public final class VirtualCombatProfile {
         this.rangedMaxDist = rangedMaxDist;
         this.armor = armor;
         this.toughness = toughness;
+        this.hasShield = hasShield;
     }
 
     public static VirtualCombatProfile fromEntityNbt(NBTTagCompound nbt, String entityClass) {
@@ -85,7 +88,14 @@ public final class VirtualCombatProfile {
         return new VirtualCombatProfile(maxHealth, meleeDamage, Math.max(1, cooldown),
                 archer, rangedDamage, Math.max(1, TravellersConfig.COMBAT.rangedCooldown),
                 TravellersConfig.COMBAT.rangedMinDist, TravellersConfig.COMBAT.rangedMaxDist,
-                armor, toughness);
+                armor, toughness, !archer && containsShield(hand));
+    }
+
+    private static boolean containsShield(List<ItemStack> stacks) {
+        for (ItemStack s : stacks) {
+            if (!s.isEmpty() && s.getItem().isShield(s, null)) return true;
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------

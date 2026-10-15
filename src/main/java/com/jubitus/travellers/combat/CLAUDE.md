@@ -21,6 +21,11 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 - Mounted fighters dismount to LED on reaching strike range and curve their approach while closing (see `mount/CLAUDE.md`).
 - Never apply durability wear after a call that may have killed the entity (shared `ItemStack` with the drop) — guard on health first.
 
+## Shield
+- `ShieldGuard` is the only place that raises/lowers the offhand shield; the block itself is vanilla's, and `EntityTraveller.damageShield` is overridden because vanilla leaves it empty for mobs.
+- A unit never holds a bow and a shield: `TravellerEquipmentManager.wantsShield` / `enforceBowShieldExclusion` are the only authorities (the bow wins).
+- Strikes go through `ShieldGuard.mayStrike()` (no strike with the shield up or just lowered); an attacker still strikes into a raised shield.
+
 ## Ranged bow (`EntityAIRangedBowTravellerSafe`)
 - Shared by all three types. The bow stays drawn the whole time the task runs, LOS or not (deliberate). Drawn state only through `EntityTraveller.setAimingBow()`.
 - Cooldown ticks regardless of LOS; only firing is LOS-gated. Distance-keeping aims at a preferred band. Repositioning checks are throttled. HOLD attitude disables blind-pursuit repositioning.
