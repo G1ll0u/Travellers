@@ -33,6 +33,10 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private static final int REPATH_INTERVAL_FAR = 4;
     private static final int REPATH_INTERVAL_NEAR = 2;
 
+    // A live path toward a target that has barely moved is kept instead of rebuilt (A* is the cost).
+    private static final double REPATH_TARGET_MOVED_SQ = 2.0D * 2.0D;
+    private static final int REPATH_MAX_AGE_TICKS = 20;
+
     private final double extraReach;
 
     private final double meleeCommitSq;
@@ -40,6 +44,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
     private float aiSpeedNow = -1f;
     private int repathCooldown = 0;
+    private double lastPathTargetX, lastPathTargetZ;
+    private int lastPathTick = Integer.MIN_VALUE / 2;
     private boolean holdingPosition = false;
 
     public EntityAIAttackMeleeCustom(EntityCreature creature, double speedIn, boolean useLongMemory, double extraReach) {
@@ -196,6 +202,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
         aiSpeedNow = (float) base;
         repathCooldown = 0;
+        lastPathTick = Integer.MIN_VALUE / 2;
         this.attacker.setSprinting(false);
         this.attacker.setAIMoveSpeed(aiSpeedNow);
 
@@ -211,6 +218,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         this.attacker.setSprinting(false);
         aiSpeedNow = -1f;
         repathCooldown = 0;
+        lastPathTick = Integer.MIN_VALUE / 2;
         holdingPosition = false;
     }
 
@@ -269,7 +277,11 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             // configured desired speed, not a flat 1.0 (full base speed).
             if (--repathCooldown <= 0) {
                 repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
-                if (PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
+                if (!pathStillGood(tgt)
+                        && PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
+                    lastPathTick = attacker.ticksExisted;
+                    lastPathTargetX = tgt.posX;
+                    lastPathTargetZ = tgt.posZ;
                     double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
                     Vec3d curvedAim = mountedApproachAim(tgt, inReach);
                     if (curvedAim != null) {
@@ -310,7 +322,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         }
 
         // Never actually land a hit on something we can't see (e.g. through a thin wall corner)
-        if (gapXZSq <= reachSq && this.attackTick <= 0 && this.attacker.getEntitySenses().canSee(target)) {
+        boolean shieldUp = this.attacker instanceof EntityTraveller && !((EntityTraveller) this.attacker).shield.mayStrike();
+        if (!shieldUp && gapXZSq <= reachSq && this.attackTick <= 0 && this.attacker.getEntitySenses().canSee(target)) {
             this.attackTick = TravellerItemDamage.computeAttackCooldownTicks(attacker);
             this.attacker.swingArm(EnumHand.MAIN_HAND);
             this.attacker.attackEntityAsMob(target);
@@ -354,6 +367,14 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         double nz = dx / dist;
         double side = (attacker.getEntityId() & 1) == 0 ? 1.0D : -1.0D;
         return new Vec3d(tgt.posX + nx * curve * side, tgt.posY, tgt.posZ + nz * curve * side);
+    }
+
+    private boolean pathStillGood(EntityLivingBase tgt) {
+        if (attacker.getNavigator().noPath()) return false;
+        if (attacker.ticksExisted - lastPathTick >= REPATH_MAX_AGE_TICKS) return false;
+        double dx = tgt.posX - lastPathTargetX;
+        double dz = tgt.posZ - lastPathTargetZ;
+        return dx * dx + dz * dz < REPATH_TARGET_MOVED_SQ;
     }
 
     private static float lerp(float a, float b, float t) {
