@@ -64,12 +64,8 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
             return false;
         }
 
-        if (worker.getAggroBlacklist().matches(target)) return false;
-
-        if (Hostility.isWorkerEnemy(worker, target)) return true;
-        // Players and workers only when they are enemies; anything else the owner hits is a target too.
-        if (target instanceof EntityPlayer || target instanceof EntityTravellerWorker) return false;
-        return super.isSuitableTarget(target, includeInvincibles);
+        // Only enemies and aggressors: a peaceful target the owner strikes first is not our fight.
+        return Hostility.isWorkerEnemy(worker, target);
     }
 
 

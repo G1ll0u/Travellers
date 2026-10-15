@@ -219,10 +219,11 @@ class BattleEncounterScanner {
     private boolean ownersHostile(WorldServer world, @Nullable UUID ownerA, @Nullable UUID ownerB,
                                   @Nullable VirtualTravellerRecord recA, @Nullable VirtualTravellerRecord recB) {
         if (ownerA == null || ownerB == null || ownerA.equals(ownerB)) return false;
+        com.jubitus.travellers.combat.PlayerEnemyRelations rel = com.jubitus.travellers.combat.PlayerEnemyRelations.get(world);
         Set<UUID> da = declarationsFor(world, ownerA, recA);
-        if (da != null && da.contains(ownerB)) return true;
+        if (da != null && da.contains(ownerB) && !rel.isOfflineProtected(world, ownerB)) return true;
         Set<UUID> db = declarationsFor(world, ownerB, recB);
-        return db != null && db.contains(ownerA);
+        return db != null && db.contains(ownerA) && !rel.isOfflineProtected(world, ownerA);
     }
 
     @Nullable

@@ -21,11 +21,20 @@ import java.util.UUID;
  * Overworld-resolved (not per-dimension) since this is an account-wide relationship,
  * same pattern as WorkerOwnerVisualsSavedData/NotificationQueueData.
  */
+@net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = "travellers")
 public class PlayerEnemyRelations extends WorldSavedData {
+
+    @net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+    public static void onLogout(net.minecraftforge.fml.common.gameevent.PlayerEvent.PlayerLoggedOutEvent e) {
+        if (e.player.world.isRemote) return;
+        get(e.player.world).noteLogout(e.player.getUniqueID());
+    }
 
     private static final String DATA_NAME = "travellers_player_enemy_relations";
 
     private final Map<UUID, Set<UUID>> hostilesByPlayer = new HashMap<>();
+    // Wall-clock millis of each player's last logout; online players are never protected.
+    private final Map<UUID, Long> lastSeenMillis = new HashMap<>();
 
     public PlayerEnemyRelations() {
         super(DATA_NAME);
@@ -78,9 +87,32 @@ public class PlayerEnemyRelations extends WorldSavedData {
         return changed;
     }
 
+    public void noteLogout(UUID player) {
+        lastSeenMillis.put(player, System.currentTimeMillis());
+        markDirty();
+    }
+
+    /** True when the player has been offline longer than the configured protection delay. */
+    public boolean isOfflineProtected(World world, UUID player) {
+        int days = com.jubitus.travellers.config.TravellersConfig.PLAYER_AGGRO.offlineProtectionDays;
+        if (days <= 0 || player == null) return false;
+        if (world.getMinecraftServer() == null
+                || world.getMinecraftServer().getPlayerList().getPlayerByUUID(player) != null) return false;
+        Long seen = lastSeenMillis.get(player);
+        return seen != null && System.currentTimeMillis() - seen > days * 86_400_000L;
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
         hostilesByPlayer.clear();
+        lastSeenMillis.clear();
+        if (nbt.hasKey("LastSeen", Constants.NBT.TAG_LIST)) {
+            NBTTagList seen = nbt.getTagList("LastSeen", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < seen.tagCount(); i++) {
+                NBTTagCompound t = seen.getCompoundTagAt(i);
+                if (t.hasUniqueId("Id")) lastSeenMillis.put(t.getUniqueId("Id"), t.getLong("At"));
+            }
+        }
 
         if (!nbt.hasKey("Players", Constants.NBT.TAG_LIST)) return;
         NBTTagList players = nbt.getTagList("Players", Constants.NBT.TAG_COMPOUND);
@@ -125,6 +157,14 @@ public class PlayerEnemyRelations extends WorldSavedData {
         }
 
         nbt.setTag("Players", players);
+        NBTTagList seen = new NBTTagList();
+        for (Map.Entry<UUID, Long> e : lastSeenMillis.entrySet()) {
+            NBTTagCompound t = new NBTTagCompound();
+            t.setUniqueId("Id", e.getKey());
+            t.setLong("At", e.getValue());
+            seen.appendTag(t);
+        }
+        nbt.setTag("LastSeen", seen);
         return nbt;
     }
 }

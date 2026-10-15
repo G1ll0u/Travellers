@@ -53,7 +53,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
         }
 
         if (attacker instanceof EntityTraveller && owner instanceof EntityTraveller) {
-            boolean crossFaction = Hostility.isCrossFaction((EntityTraveller) owner, (EntityTraveller) attacker);
+            boolean crossFaction = Hostility.isAtWar((EntityTraveller) owner, (EntityTraveller) attacker);
             if (!crossFaction) {
                 this.revengeTimerOld = revengeTimer;
                 owner.setRevengeTarget(null);
@@ -94,7 +94,7 @@ public class TravellerHurtByTarget extends EntityAITarget {
             EntityTraveller me = (EntityTraveller) owner;
             EntityTraveller other = (EntityTraveller) attacker;
 
-            boolean crossFaction = Hostility.isCrossFaction(me, other);
+            boolean crossFaction = Hostility.isAtWar(me, other);
             if (!crossFaction) {
                 this.revengeTimerOld = this.owner.getRevengeTimer();
                 owner.setRevengeTarget(null);

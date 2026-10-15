@@ -73,11 +73,8 @@ public final class WorkerTeamPvPHandler {
         boolean notified = false;
 
         for (EntityTravellerWorker w : defenders) {
-            // Only those in the area permanently mark attacker owner as enemy (local list)
-            boolean added = w.playerHostility.addLocalHostile(attackerOwner);
-
-            // Notify owner once per event if anyone added it
-            if (added && !notified) {
+            // Notify owner once per event
+            if (!notified) {
                 notified = true;
 
                 EntityPlayer owner = victim.world.getPlayerEntityByUUID(victimOwner);

@@ -88,15 +88,7 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
             // Is this entity actively threatening the owner or leader? Computed before the
             // cave filter below on purpose - an entity that's already attacking must never be
             // filtered out by it (see that filter's own comment).
-            boolean threateningLeadership = false;
-            if (e instanceof EntityLiving) {
-                EntityLiving el = (EntityLiving) e;
-                threateningLeadership = el.getAttackTarget() == owner
-                        || (leader != null && el.getAttackTarget() == leader);
-            }
-            if (e.getRevengeTarget() == owner || (leader != null && e.getRevengeTarget() == leader)) {
-                threateningLeadership = true;
-            }
+            boolean threateningLeadership = Hostility.isAggressingOurSide(worker, e);
 
             // Skip enemies in caves above/below (adjacent cave problem) - but never an entity
             // that's already actively attacking leadership (e.g. a ranged attacker on a wall or

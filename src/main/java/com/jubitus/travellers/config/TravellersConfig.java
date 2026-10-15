@@ -848,6 +848,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.5, max = 4.0)
         public double arriveRadius = 2.3;
 
+
+        @Config.Comment("Days offline after which a player's workers can no longer be attacked by a declared war. 0 = never protected.")
+        @Config.RangeInt(min = 0, max = 365)
+        public int offlineProtectionDays = 0;
         @Config.Comment("How close workers stay behind you.")
         @Config.RangeDouble(min = 1.0, max = 10.0)
         public double leaderDistancePlayer = 1.3;

@@ -29,7 +29,9 @@ public final class PlayerDefenseHandler {
 
         Entity src = event.getSource().getTrueSource();
         if (!(src instanceof EntityLivingBase)) return;   // ignore non-entity damage
-        if (!(src instanceof IMob)) return;               // don’t aggro on players/pets, only hostiles
+        if (src instanceof EntityPlayer || src instanceof EntityTraveller) return; // players and units are the war/hostility systems' business
+        if (src instanceof net.minecraft.entity.passive.EntityTameable
+                && player.getUniqueID().equals(((net.minecraft.entity.passive.EntityTameable) src).getOwnerId())) return;
 
         EntityLivingBase attacker = (EntityLivingBase) src;
 

@@ -79,20 +79,15 @@ public class MsgSetWorkerHostile implements IMessage {
                     NotificationService.notify(sender, NotificationDefs.HOSTILE_ADDED, gp.getName());
                 } else {
                     NotificationService.notify(sender, NotificationDefs.HOSTILE_REMOVED, gp.getName());
-
-                    // ALSO clear auto-retaliation local enemy from all LOADED workers of this owner
+                    // Peace holds: drop the 2-minute retaliation window of loaded workers too.
                     for (WorldServer ws : server.worlds) {
-                        List<EntityTravellerWorker> mine = ws.getEntities(EntityTravellerWorker.class, ww ->
-                                ww != null
-                                        && ww.isEntityAlive()
-                                        && ww.isHiredFollower()
-                                        && ownerId.equals(ww.getFollowOwnerId())
-                        );
-                        for (EntityTravellerWorker ww : mine) {
-                            ww.playerHostility.removeLocalHostile(targetId);
+                        for (EntityTravellerWorker ww : ws.getEntities(EntityTravellerWorker.class,
+                                e -> e != null && ownerId.equals(e.getFollowOwnerId()))) {
+                            ww.playerHostility.clearEngagement(targetId);
                         }
                     }
                 }
+
 
                 // Refresh client list
                 TravellersNetwork.CHANNEL.sendTo(

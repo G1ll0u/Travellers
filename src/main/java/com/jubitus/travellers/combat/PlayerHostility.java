@@ -19,7 +19,6 @@ import java.util.*;
  * A hired worker's hostility: who its enemies are, when it may retaliate, and its owner's PvP state.
  * The "declared" list is account-wide (see PlayerEnemyRelations) — every worker of the same
  * owner shares it automatically, no per-worker/per-leader mirroring needed.
- * localHostilePlayers stays per-worker: transient auto-retaliation, not the declared-war list.
  */
 public class PlayerHostility {
     public static final int PVP_ENGAGE_TICKS = 20 * 120; // 2 minutes
@@ -29,16 +28,13 @@ public class PlayerHostility {
     // --- retaliation engagement (server-only runtime memory) ---
     private final java.util.Map<UUID, Long> engagedOwnersUntil = new java.util.HashMap<>();
 
-    // Per-worker local hostiles (auto-retaliation); does NOT sync to escorts
-    public final Set<UUID> localHostilePlayers = new HashSet<>();
-
     public PlayerHostility(EntityTravellerWorker worker) {
         this.w = worker;
     }
 
     public boolean isPlayerMarkedHostile(@Nullable EntityPlayer p) {
         if (p == null) return false;
-        return isOwnerEffectivelyHostile(p.getUniqueID());
+        return isOwnerDeclaredHostile(p.getUniqueID());
     }
 
     public void removeHostilePlayer(@Nullable UUID id) {
@@ -52,12 +48,6 @@ public class PlayerHostility {
         if (!(w.world instanceof WorldServer)) return;
 
         PlayerEnemyRelations.get(w.world).setHostile(myOwner, target, hostile);
-    }
-
-    public Set<UUID> getEffectiveHostilePlayers() {
-        Set<UUID> out = new HashSet<>(declaredHostilePlayers());
-        out.addAll(localHostilePlayers);
-        return out;
     }
 
     // ----------------------------------------------------------------
@@ -85,6 +75,10 @@ public class PlayerHostility {
         }
     }
 
+    public void clearEngagement(@Nullable UUID enemyOwner) {
+        if (enemyOwner != null) engagedOwnersUntil.remove(enemyOwner);
+    }
+
     // True while engaged (auto-cleans expired)
     public boolean isEngagedOwner(UUID enemyOwner) {
         if (enemyOwner == null) return false;
@@ -108,26 +102,10 @@ public class PlayerHostility {
         }
     }
 
-    public boolean addLocalHostile(@Nullable UUID id) {
-        if (id == null) return false;
-        return localHostilePlayers.add(id);
-    }
-
-    public boolean removeLocalHostile(@Nullable UUID id) {
-        if (id == null) return false;
-        return localHostilePlayers.remove(id);
-    }
-
     // "Declared war" (account-wide list) — does NOT include localHostilePlayers
     public boolean isOwnerDeclaredHostile(@Nullable UUID ownerId) {
         if (ownerId == null) return false;
         return declaredHostilePlayers().contains(ownerId);
-    }
-
-    // Used for targeting — declared OR local
-    public boolean isOwnerEffectivelyHostile(@Nullable UUID ownerId) {
-        if (ownerId == null) return false;
-        return isOwnerDeclaredHostile(ownerId) || localHostilePlayers.contains(ownerId);
     }
 
     @Nullable
@@ -143,8 +121,11 @@ public class PlayerHostility {
         if (myOwner == null || otherOwner == null) return false;
         if (myOwner.equals(otherOwner)) return false;
 
+        if (w.world instanceof WorldServer
+                && PlayerEnemyRelations.get(w.world).isOfflineProtected(w.world, otherOwner)) return false;
+
         // declared hostility OR currently engaged (retaliation window)
-        return isOwnerEffectivelyHostile(otherOwner)
+        return isOwnerDeclaredHostile(otherOwner)
                 || isEngagedOwner(otherOwner);
 
     }
@@ -212,7 +193,8 @@ public class PlayerHostility {
             return true;
         }
 
-        return false;
+        // Any other creature or unit that hurt us or our owner is fair game, unless it is on the owner's side.
+        return !Hostility.isOwnerSide(w, attacker);
     }
 
     public void engageEnemyOwner(@Nullable UUID enemyOwner) {

@@ -1982,16 +1982,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
         if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
         if (zone != null) zone.write(nbt);
-        // Local hostile players (auto retaliation)
-        if (!playerHostility.localHostilePlayers.isEmpty()) {
-            NBTTagList list = new NBTTagList();
-            for (UUID id : playerHostility.localHostilePlayers) {
-                NBTTagCompound c = new NBTTagCompound();
-                c.setUniqueId("Player", id);
-                list.appendTag(c);
-            }
-            nbt.setTag("LocalHostilePlayers", list);
-        }
     }
 
     @Override
@@ -2057,16 +2047,6 @@ public class EntityTravellerWorker extends EntityTraveller {
             setFollowOrderActive(true);
         }
         trips.readGoOrderNbt(nbt);
-        playerHostility.localHostilePlayers.clear();
-        if (nbt.hasKey("LocalHostilePlayers", Constants.NBT.TAG_LIST)) {
-            NBTTagList list = nbt.getTagList("LocalHostilePlayers", Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < list.tagCount(); i++) {
-                NBTTagCompound c = list.getCompoundTagAt(i);
-                if (c.hasUniqueId("Player")) {
-                    playerHostility.localHostilePlayers.add(c.getUniqueId("Player"));
-                }
-            }
-        }
         if (!world.isRemote) {
             refreshOwnerVisualsFromSavedData();
         }

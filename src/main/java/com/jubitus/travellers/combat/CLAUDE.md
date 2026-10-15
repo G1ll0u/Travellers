@@ -29,3 +29,5 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 ## Hostility rules (`combat/`)
 - Hired-worker hostility toward players: see `PlayerEnemyRelations` (account-wide) vs `PlayerHostility.localHostilePlayers` (per-worker transient).
 - Proactive aggression is suppressed while `campingPassive` (camping, on duty); retaliation is never suppressed.
+- **A worker is enemy to anything actively attacking its side** (`Hostility.isAggressingOurSide`), never to its owner's side (`isOwnerSide`); the player's first hit on a peaceful target does not engage workers.
+- **War between players lives only in `PlayerEnemyRelations`** (no per-worker list); `offlineProtectionDays` suspends it for an absent player.

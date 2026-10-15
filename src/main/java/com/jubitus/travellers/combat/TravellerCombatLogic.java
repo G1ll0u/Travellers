@@ -858,7 +858,7 @@ public class TravellerCombatLogic {
 
         if (src instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) src;
-            if (!com.jubitus.travellers.combat.Hostility.isCrossFaction(entity, other)) {
+            if (!com.jubitus.travellers.combat.Hostility.isAtWar(entity, other)) {
                 // same faction -> no revenge target, no aggro
                 entity.setRevengeTarget(null);
                 return true;
