@@ -171,11 +171,12 @@ public final class WorkerHorsePickup {
         int followerHorses = claimForGroupFollowers(world, zone, workerId);
         if (wantsHorse && !gotHorse) notifyNothingToEquip(world, zone, ownerId);
         int horses = followerHorses + (gotHorse ? 1 : 0);
-        if (horses > 0) {
+        // Silent only when the "no horse spare" notice above already told the owner.
+        if (horses > 0 || !wantsHorse) {
             MinecraftServer srv = world.getMinecraftServer();
             int total = 1 + (srv != null && ownerId != null
                     ? com.jubitus.travellers.follow.group.WorkerGroupService.countFollowers(srv, ownerId, workerId) : 0);
-            com.jubitus.travellers.notify.MissionNotifications.equipped(srv, ownerId, horses, total);
+            com.jubitus.travellers.notify.MissionNotifications.horsesTaken(srv, ownerId, horses, total, stableName(zone));
         }
     }
 
@@ -185,9 +186,13 @@ public final class WorkerHorsePickup {
     public static void notifyNothingToEquip(net.minecraft.world.World world, PlayerZoneRecord zone, UUID ownerUUID) {
         net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
         if (srv == null || ownerUUID == null) return;
-        String name = (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
         com.jubitus.travellers.notify.NotificationService.notifyOffline(srv, ownerUUID,
-                com.jubitus.travellers.notify.NotificationDefs.STABLE_POOL_TOO_SMALL_TO_EQUIP, name);
+                com.jubitus.travellers.notify.NotificationDefs.STABLE_POOL_TOO_SMALL_TO_EQUIP, stableName(zone));
+    }
+
+    /** The Stable's player-given name, or a plain fallback. */
+    public static String stableName(PlayerZoneRecord zone) {
+        return (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
     }
 
     /** Puts a claimed-but-not-actually-bonded horse back into the pool as a fresh dormant entry,

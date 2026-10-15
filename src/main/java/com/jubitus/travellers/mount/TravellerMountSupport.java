@@ -394,6 +394,12 @@ public final class TravellerMountSupport {
         MountLifecycle.dropBondFromHorse(horse);
     }
 
+    /** See {@link MountLifecycle#releaseLiveMount}. */
+    @Nullable
+    public static EntityHorse releaseLiveMount(EntityTraveller rider) {
+        return MountLifecycle.releaseLiveMount(rider);
+    }
+
     /** See {@link MountLifecycle#releaseMountOnRiderDeath}. */
     public static void releaseMountOnRiderDeath(EntityTraveller rider) {
         MountLifecycle.releaseMountOnRiderDeath(rider);

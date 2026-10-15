@@ -109,6 +109,10 @@ public final class WorkerTrips {
         beginGoOrder(pos, dim);
     }
 
+    public EquipTargetKind getEquipTargetKind() {
+        return getEquipTargetKind;
+    }
+
     public void startGetEquip(BlockPos target, boolean stay, @Nullable EquipTargetKind kind) {
         if (worker.world.isRemote || target == null) return;
 

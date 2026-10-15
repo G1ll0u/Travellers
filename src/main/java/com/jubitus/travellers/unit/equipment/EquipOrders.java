@@ -14,6 +14,9 @@ import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.zone.ZoneType;
 import com.jubitus.travellers.zone.stable.WorkerHorsePickup;
+import com.jubitus.travellers.zone.stable.WorkerHorseReturn;
+import com.jubitus.travellers.notify.NotificationDefs;
+import com.jubitus.travellers.notify.NotificationService;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
@@ -35,6 +38,12 @@ public final class EquipOrders {
         if (srv == null || !isValidTarget(player, dest, kind)) return;
         WorkerLookup.Owned owned = WorkerLookup.findOwned(srv, player.getUniqueID(), workerId);
         if (owned == null) return;
+
+        // No trip for nothing: nobody in the group carries a horse.
+        if (kind == EquipTargetKind.STABLE_RETURN && !WorkerHorseReturn.groupHasHorse(srv, workerId)) {
+            NotificationService.notify(player, NotificationDefs.STABLE_NO_HORSE_TO_RETURN);
+            return;
+        }
 
         if (owned.live != null) {
             if (WorkerOrderGuard.isBusy(owned.live)) {
@@ -74,7 +83,11 @@ public final class EquipOrders {
     /** A loaded worker reached its Get Equipment target: it and its group followers are equipped there. */
     public static void onArrived(EntityTravellerWorker worker, BlockPos target, EquipTargetKind kind) {
         WorldServer world = (WorldServer) worker.world;
-        if (kind == EquipTargetKind.STABLE) {
+        if (kind == EquipTargetKind.STABLE_RETURN) {
+            PlayerZoneRecord zone = PlayerZoneManager.get(world).getByOwnerAndCenter(worker.getFollowOwnerId(), target);
+            boolean given = zone != null && WorkerHorseReturn.returnLoaded(world, zone, worker);
+            WorkerHorseReturn.finishAtStable(world, zone, worker.getFollowOwnerId(), worker.getUniqueID(), given);
+        } else if (kind == EquipTargetKind.STABLE) {
             PlayerZoneRecord zone = PlayerZoneManager.get(world).getByOwnerAndCenter(worker.getFollowOwnerId(), target);
             if (zone == null) return;
             WorkerHorsePickup.equipAtStable(world, zone, worker.getUniqueID(), worker.getFollowOwnerId(),
@@ -94,6 +107,7 @@ public final class EquipOrders {
             case CONTROLLED_VILLAGE:
                 if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
                 return MillSettlements.controlledBy(player.world, player).contains(pos);
+            case STABLE_RETURN:
             case STABLE:
                 return hasZoneAt(player, ownerId, ZoneType.STABLE, pos);
             case LONE_BARRACK:

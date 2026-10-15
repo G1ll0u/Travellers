@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.gui;
 
+import com.jubitus.travellers.unit.equipment.EquipTargetKind;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgGroupCreate;
 import com.jubitus.travellers.follow.net.MsgGroupFollow;
@@ -350,8 +351,13 @@ final class FormationOrdersMenu {
             goOffered = true;
             if (place.equip != null) {
                 MsgEquipDestsResponse.EquipDestInfo dest = place.equip;
-                menu.itemUnless(busy, tr("equip_return"), () -> sendEquip(src, dest, false));
-                menu.itemUnless(busy, tr("equip_stay"), () -> sendEquip(src, dest, true));
+                boolean stable = dest.kind == EquipTargetKind.STABLE;
+                menu.itemUnless(busy, tr(stable ? "take_horses_return" : "equip_return"), () -> sendEquip(src, dest, false));
+                menu.itemUnless(busy, tr(stable ? "take_horses_stay" : "equip_stay"), () -> sendEquip(src, dest, true));
+                if (stable) {
+                    menu.itemUnless(busy, tr("return_horses_return"), () -> sendEquip(src, dest, EquipTargetKind.STABLE_RETURN, false));
+                    menu.itemUnless(busy, tr("return_horses_stay"), () -> sendEquip(src, dest, EquipTargetKind.STABLE_RETURN, true));
+                }
             }
             menuTargets.add(place.pos);
         }
@@ -475,7 +481,11 @@ final class FormationOrdersMenu {
     }
 
     private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, boolean stay) {
-        TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGetEquip(leader, dest.pos, dest.kind, stay));
+        sendEquip(leader, dest, dest.kind, stay);
+    }
+
+    private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, EquipTargetKind kind, boolean stay) {
+        TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGetEquip(leader, dest.pos, kind, stay));
         showDestination(dest.pos);
     }
 

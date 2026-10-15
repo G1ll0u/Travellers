@@ -76,6 +76,9 @@ public final class NotificationDefs {
     public static final NotificationDef STABLE_FOAL_BORN = new NotificationDef(EVENT, "travellers.notify.stable.foal_born", 1);
     public static final NotificationDef STABLE_MOUNT_RECOVERED = new NotificationDef(EVENT, "travellers.notify.stable.mount_recovered", 1);
     public static final NotificationDef STABLE_POOL_TOO_SMALL_TO_EQUIP = new NotificationDef(WARNING, "travellers.notify.stable.pool_too_small_to_equip", 1);
+    public static final NotificationDef STABLE_HORSES_RETURNED = new NotificationDef(INFO, "travellers.notify.stable.horses_returned", 3);
+    public static final NotificationDef STABLE_HORSES_TAKEN = new NotificationDef(INFO, "travellers.notify.stable.horses_taken", 3);
+    public static final NotificationDef STABLE_NO_HORSE_TO_RETURN = new NotificationDef(WARNING, "travellers.notify.stable.no_horse_to_return", 0);
 
     // --- Go-to orders (MsgWorkerGoTo, MsgWorkerGoToPos, MsgWorkerSetDestination) ---
     public static final NotificationDef GOTO_GOING_TO = new NotificationDef(INFO, "travellers.notify.goto.going_to", 1);

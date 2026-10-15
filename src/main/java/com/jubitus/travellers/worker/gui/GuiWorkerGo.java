@@ -430,6 +430,25 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                     || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.HOME
                     || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.STABLE);
         if (getEquipButton != null) getEquipButton.enabled = ok;
+        boolean stable = ok && rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.STABLE;
+        if (getEquipButton != null) {
+            getEquipButton.displayString = I18n.format(stable
+                    ? "travellers.worker.barracks.take_horses" : "travellers.worker.barracks.get_equip");
+            tooltips.set(getEquipButton, stable
+                    ? "travellers.worker.barracks.take_horses.tooltip" : "travellers.worker.barracks.get_equip.tooltip");
+        }
+        if (equipStayButton != null) {
+            equipStayButton.displayString = I18n.format(stable
+                    ? "travellers.worker.barracks.take_horses_stay" : "travellers.worker.barracks.equip_stay");
+            tooltips.set(equipStayButton, stable
+                    ? "travellers.worker.barracks.take_horses_stay.tooltip" : "travellers.worker.barracks.equip_stay.tooltip");
+        }
+        if (equipReturnButton != null) {
+            equipReturnButton.displayString = I18n.format(stable
+                    ? "travellers.worker.barracks.take_horses_return" : "travellers.worker.barracks.equip_return");
+            tooltips.set(equipReturnButton, stable
+                    ? "travellers.worker.barracks.take_horses_return.tooltip" : "travellers.worker.barracks.equip_return.tooltip");
+        }
     }
 
     private void sendGetEquipment(boolean stay) {

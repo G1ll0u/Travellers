@@ -85,7 +85,7 @@ public class WorkerMapStream {
             this.health = w.getHealth();
             this.maxHealth = w.getMaxHealth();
             this.inBattle = w.combat.isInCombatRaw();
-            this.statusKey = statusKeyFor(w.getMode().name(), w.isGoingHome(), w.trips.isGoOrderActive());
+            this.statusKey = statusKeyFor(w.getMode().name(), w.isGoingHome(), w.trips.isGoOrderActive(), w.trips.getEquipTargetKind().name());
             this.followTarget = w.getEscortLeaderUUID();
             this.followsOwner = this.followTarget == null && w.isFollowOrderActive();
             this.role = w.getDutyKind() != null ? w.getDutyKind() : "";
@@ -105,7 +105,8 @@ public class WorkerMapStream {
             this.health = vr.getHealthResolved();
             this.maxHealth = vr.getCombatProfile().maxHealth;
             this.inBattle = vr.battleId != null;
-            this.statusKey = statusKeyFor(vr.workerMode, false, vr.goOrderActive);
+            this.statusKey = statusKeyFor(vr.workerMode, false, vr.goOrderActive,
+                    vr.entityNbt != null ? vr.entityNbt.getString("GetEquipTargetKind") : "");
             this.followTarget = vr.escortLeaderUUID;
             this.followsOwner = this.followTarget == null && vr.followOrderActive;
             this.role = vr.dutyKind != null ? vr.dutyKind : "";
@@ -113,13 +114,16 @@ public class WorkerMapStream {
     }
 
     /** Maps a worker's mode/flags to a tooltip i18n key ("" = idle/none, shown as the follow line instead). */
-    private static String statusKeyFor(String mode, boolean goingHome, boolean goOrder) {
+    private static String statusKeyFor(String mode, boolean goingHome, boolean goOrder, String equipKind) {
         if (mode == null) mode = "IDLE";
         switch (mode) {
             case "TO_VILLAGE":    return "travellers.map.worker.status.transport";
             case "RETURNING":     return "travellers.map.worker.status.returning";
             case "RECRUITING":    return "travellers.map.worker.status.recruiting";
-            case "GET_EQUIPMENT": return "travellers.map.worker.status.get_equipment";
+            case "GET_EQUIPMENT":
+                if ("STABLE".equals(equipKind)) return "travellers.map.worker.status.take_horses";
+                if ("STABLE_RETURN".equals(equipKind)) return "travellers.map.worker.status.return_horses";
+                return "travellers.map.worker.status.get_equipment";
             default: // IDLE
                 if (goingHome) return "travellers.map.worker.status.going_home";
                 if (goOrder)   return "travellers.map.worker.status.going_to";

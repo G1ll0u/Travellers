@@ -41,19 +41,28 @@ public final class StableMountRelease {
      */
     public static void surrenderLoadedMount(WorldServer world, EntityTravellerWorker worker,
                                             PlayerZoneRecord zone, StableZoneData data) {
-        NBTTagCompound mountNbt = TravellerMountSupport.captureMount(worker);
-        if (mountNbt == null) mountNbt = worker.mountState.getMountSnapshotNbt();
-        worker.setMountUUID(null);
-        worker.mountState.setMountSnapshotNbt(null);
-        if (mountNbt == null) return;
-
-        data.addCapturedHorse(world, mountNbt, StableHorseEntry.Origin.WORKER_OWN_MOUNT,
-                world.getTotalWorldTime());
-        PlayerZoneManager.get(world).markDirty();
+        if (!handOverLoadedMount(world, worker, data)) return;
         if (TravellersConfig.STABLES.notifyOnMountRecovered && world.getMinecraftServer() != null) {
             NotificationService.notifyOffline(world.getMinecraftServer(), zone.ownerUUID,
                     NotificationDefs.STABLE_MOUNT_RECOVERED, worker.getName());
         }
+    }
+
+    /** Moves a loaded worker's bonded horse (live, snapshot or parked data) into the pool as data and
+     * clears the bond. False when the worker had no horse. */
+    public static boolean handOverLoadedMount(WorldServer world, EntityTravellerWorker worker, StableZoneData data) {
+        NBTTagCompound mountNbt = TravellerMountSupport.captureMount(worker);
+        if (mountNbt == null) mountNbt = worker.mountState.getMountSnapshotNbt();
+        if (mountNbt == null) mountNbt = worker.mountState.getPendingMountNbt();
+        worker.setMountUUID(null);
+        worker.mountState.setMountSnapshotNbt(null);
+        worker.mountState.setParkedMount(null, null);
+        if (mountNbt == null) return false;
+
+        data.addCapturedHorse(world, mountNbt, StableHorseEntry.Origin.WORKER_OWN_MOUNT,
+                world.getTotalWorldTime());
+        PlayerZoneManager.get(world).markDirty();
+        return true;
     }
 
     /** Offscreen counterpart of {@link #surrenderLoadedMount}: the palfrenier reached its Stable

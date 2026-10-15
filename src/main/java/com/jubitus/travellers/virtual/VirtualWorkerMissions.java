@@ -282,6 +282,11 @@ final class VirtualWorkerMissions {
      */
     private void tryVirtualHorsePickup(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
+        if (kind == com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE_RETURN) {
+            tryVirtualHorseReturn(world, r, target, stay);
+            return;
+        }
+
         worker.readFromNBT(r.entityNbt);
         worker.setUniqueId(r.uuid);
         worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
@@ -330,3 +335,21 @@ final class VirtualWorkerMissions {
         manager.markDirty();
     }
 }
+    /** STABLE_RETURN branch of {@link #tryVirtualEquipExchange}: the horses go back to the pool as data. */
+    private void tryVirtualHorseReturn(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
+        com.jubitus.travellers.zone.PlayerZoneRecord zone =
+                com.jubitus.travellers.zone.PlayerZoneManager.get(world)
+                        .getByOwnerAndCenter(r.followOwnerUUID, target);
+        boolean given = zone != null
+                && com.jubitus.travellers.zone.stable.WorkerHorseReturn.returnVirtual(world, zone, r);
+        com.jubitus.travellers.zone.stable.WorkerHorseReturn.finishAtStable(world, zone, r.followOwnerUUID,
+                r.uuid, given);
+
+        // Built after the return, so the temporary entity no longer carries the horse's bond.
+        EntityTravellerWorker worker = new EntityTravellerWorker(world);
+        worker.readFromNBT(r.entityNbt);
+        worker.setUniqueId(r.uuid);
+        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+        finishVirtualEquip(world, r, worker, target, stay);
+    }
+

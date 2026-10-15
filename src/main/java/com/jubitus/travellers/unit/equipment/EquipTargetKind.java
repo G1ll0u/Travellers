@@ -1,14 +1,16 @@
 package com.jubitus.travellers.unit.equipment;
 
 /**
- * What kind of place a Get-Equipment mission is heading to. Was a raw {@code boolean useWholeVillage}
+ * What a Get-Equipment mission is heading to do. Was a raw {@code boolean useWholeVillage}
  * (village vs. lone barrack) before the Stable zone type needed a third kind - a closed enum threaded
  * end-to-end instead of a second boolean, so a plausible fourth kind later is one more constant.
+ * {@link #STABLE_RETURN} goes to the same Stable zones as {@link #STABLE} but hands horses back.
  */
 public enum EquipTargetKind {
     LONE_BARRACK,
     CONTROLLED_VILLAGE,
-    STABLE;
+    STABLE,
+    STABLE_RETURN;
 
     public static EquipTargetKind fromNbt(String name) {
         if (name == null) return LONE_BARRACK;

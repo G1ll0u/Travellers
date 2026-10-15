@@ -12,6 +12,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import javax.annotation.Nullable;
 import java.util.UUID;
 
 /** Ends or releases a bond: rider or horse death, a horse whose chunk unloads, debug wipes. Reached through {@link TravellerMountSupport}. */
@@ -35,6 +36,25 @@ final class MountLifecycle {
             }
         }
         HorseMarkers.clearMountMarkers(horse.getEntityData());
+    }
+
+    /** A rider hands its live bonded horse over alive (a Stable return): dismounted, bond cleared on both
+     * sides, speed back to normal. Null when there is no live, healthy bonded horse to hand over. */
+    @Nullable
+    static EntityHorse releaseLiveMount(EntityTraveller rider) {
+        UUID mountUUID = rider.getMountUUID();
+        if (mountUUID == null || !(rider.world instanceof WorldServer)) return null;
+        Entity mount = ((WorldServer) rider.world).getEntityFromUuid(mountUUID);
+        if (!(mount instanceof EntityHorse) || mount.isDead || ((EntityHorse) mount).getHealth() <= 0.0F) return null;
+        EntityHorse horse = (EntityHorse) mount;
+        if (rider.getRidingEntity() == horse) rider.dismountRidingEntity();
+        TravellerMountSupport.setLeashed(horse, null);
+        rider.setMountUUID(null);
+        rider.mountState.setMountSnapshotNbt(null);
+        dropBondFromHorse(horse);
+        horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(DEFAULT_HORSE_SPEED);
+        HorseAI.restoreVanilla(horse);
+        return horse;
     }
 
     /**

@@ -79,3 +79,23 @@ public final class MissionNotifications {
         }
     }
 }
+
+    /** Take-horses result: how many of the workers (the leader plus its followers) took a mount. */
+    public static void horsesTaken(@Nullable MinecraftServer server, @Nullable UUID ownerId, int taken,
+                                   int total, String stableName) {
+        if (server == null || ownerId == null) return;
+        NotificationService.notifyOffline(server, ownerId, NotificationDefs.STABLE_HORSES_TAKEN,
+                String.valueOf(taken), String.valueOf(total), stableName);
+    }
+
+    /** Return-horses result: how many of the workers (the leader plus its followers) gave a horse back. */
+    public static void horsesReturned(@Nullable MinecraftServer server, @Nullable UUID ownerId, int returned,
+                                      int total, String stableName) {
+        if (server == null || ownerId == null) return;
+        if (returned <= 0) {
+            NotificationService.notifyOffline(server, ownerId, NotificationDefs.STABLE_NO_HORSE_TO_RETURN);
+        } else {
+            NotificationService.notifyOffline(server, ownerId, NotificationDefs.STABLE_HORSES_RETURNED,
+                    String.valueOf(returned), String.valueOf(total), stableName);
+        }
+    }
