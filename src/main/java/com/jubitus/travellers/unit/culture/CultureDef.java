@@ -18,19 +18,8 @@ public final class CultureDef {
     private final java.util.List<TravellerAppearance> travellerLooks = new java.util.ArrayList<>();
     private final java.util.List<TravellerAppearance> raiderLooks = new java.util.ArrayList<>();
 
-    /**
-     * Millenaire pairs first/family names per villager type (e.g. a caste's first name list is only
-     * ever combined with that same caste's family name list). Keeping one pool per distinct
-     * (firstNameListId, familyNameListId) pair - instead of flattening every list from every villager
-     * file into two big culture-wide pools - avoids cross-pairing combinations Millenaire would
-     * never produce (e.g. a low-caste first name with a high-caste family name).
-     */
-    private static final class NamePool {
-        final java.util.List<String> firstNames = new java.util.ArrayList<>();
-        final java.util.List<String> familyNames = new java.util.ArrayList<>();
-    }
-
-    private final java.util.Map<String, NamePool> namePools = new java.util.LinkedHashMap<>();
+    /** Millenaire namelists of this culture (all packs merged, later pack wins), keyed by lowercase file id. */
+    private final java.util.Map<String, java.util.List<String>> nameLists = new java.util.HashMap<>();
     private final java.util.List<TravellerAppearance> workerLooks = new java.util.ArrayList<>();
 
     // SIMPLE: category -> list of ItemStacks
@@ -342,66 +331,48 @@ public final class CultureDef {
     }
     // --- Name list API ---
 
-    /**
-     * Registers/merges a villager type's first+family name lists as one pool, keyed by the
-     * (firstNameListId, familyNameListId) pair so unrelated villager types never get their
-     * names cross-paired (see {@link NamePool}).
-     */
-    public void addNamePool(String firstNameListId, String familyNameListId,
-                             java.util.List<String> firstNames, java.util.List<String> familyNames) {
-        String key = (firstNameListId == null ? "" : firstNameListId) + "|" + (familyNameListId == null ? "" : familyNameListId);
-        NamePool pool = namePools.computeIfAbsent(key, k -> new NamePool());
-        addAllUniqueTrimmed(pool.firstNames, firstNames);
-        addAllUniqueTrimmed(pool.familyNames, familyNames);
-    }
-
-    private static void addAllUniqueTrimmed(java.util.List<String> target, java.util.List<String> src) {
-        if (src == null) return;
-        for (String s : src) {
-            if (s == null) continue;
-            String n = s.trim();
-            if (n.isEmpty()) continue;
-            if (!target.contains(n)) {
-                target.add(n);
-            }
-        }
-    }
-
-    public boolean hasMaleFirstNames() {
-        for (NamePool p : namePools.values()) {
-            if (!p.firstNames.isEmpty()) return true;
-        }
-        return false;
-    }
-
-    public boolean hasFamilyNames() {
-        for (NamePool p : namePools.values()) {
-            if (!p.familyNames.isEmpty()) return true;
-        }
-        return false;
-    }
-
-    public String randomFullName(java.util.Random r) {
-        NamePool pool = randomNonEmptyPool(r);
-        String first = pool != null && !pool.firstNames.isEmpty()
-                ? pool.firstNames.get(r.nextInt(pool.firstNames.size())) : "";
-        String last = pool != null && !pool.familyNames.isEmpty()
-                ? pool.familyNames.get(r.nextInt(pool.familyNames.size())) : "";
-
-        if (first.isEmpty() && last.isEmpty()) return "";
-        if (last.isEmpty()) return first;
-        if (first.isEmpty()) return last;
-        return first + " " + last;
+    public void putNameList(String listId, java.util.List<String> names) {
+        String key = nameListKey(listId);
+        if (key != null) nameLists.put(key, names);
     }
 
     @javax.annotation.Nullable
-    private NamePool randomNonEmptyPool(java.util.Random r) {
-        java.util.List<NamePool> nonEmpty = new java.util.ArrayList<>();
-        for (NamePool p : namePools.values()) {
-            if (!p.firstNames.isEmpty() || !p.familyNames.isEmpty()) nonEmpty.add(p);
+    private static String nameListKey(@javax.annotation.Nullable String listId) {
+        if (listId == null) return null;
+        String k = listId.trim().toLowerCase(java.util.Locale.ROOT);
+        if (k.endsWith(".txt")) k = k.substring(0, k.length() - 4);
+        return k.isEmpty() ? null : k;
+    }
+
+    private java.util.List<String> resolveList(@javax.annotation.Nullable String listId) {
+        String key = nameListKey(listId);
+        java.util.List<String> l = key == null ? null : nameLists.get(key);
+        return l != null ? l : java.util.Collections.emptyList();
+    }
+
+    private boolean hasNames(TravellerAppearance a) {
+        return !resolveList(a.firstNameListId).isEmpty() || !resolveList(a.familyNameListId).isEmpty();
+    }
+
+    /**
+     * Name drawn from the lists of the villager type the appearance was built from, like Millenaire
+     * does for its own villagers. Falls back to another local (non-foreign-merchant) type of the culture.
+     */
+    public String randomFullName(@javax.annotation.Nullable TravellerAppearance appearance, java.util.Random r) {
+        TravellerAppearance source = appearance;
+        if (source == null || !hasNames(source)) {
+            java.util.List<TravellerAppearance> named = new java.util.ArrayList<>();
+            for (TravellerAppearance a : travellerLooks) if (hasNames(a)) named.add(a);
+            if (named.isEmpty()) return "";
+            source = named.get(r.nextInt(named.size()));
         }
-        if (nonEmpty.isEmpty()) return null;
-        return nonEmpty.get(r.nextInt(nonEmpty.size()));
+        java.util.List<String> firsts = resolveList(source.firstNameListId);
+        java.util.List<String> lasts = resolveList(source.familyNameListId);
+        String first = firsts.isEmpty() ? "" : firsts.get(r.nextInt(firsts.size())).trim();
+        String last = lasts.isEmpty() ? "" : lasts.get(r.nextInt(lasts.size())).trim();
+        if (first.isEmpty()) return last;
+        if (last.isEmpty()) return first;
+        return first + " " + last;
     }
 
     public void addWorkerAppearance(TravellerAppearance a) {

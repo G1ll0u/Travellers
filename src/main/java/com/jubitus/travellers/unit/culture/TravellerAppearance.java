@@ -20,6 +20,12 @@ public final class TravellerAppearance {
     @Nullable
     public String jobId;
 
+    /** Millenaire namelist ids of the villager type this appearance comes from (may be null). */
+    @Nullable
+    public String firstNameListId;
+    @Nullable
+    public String familyNameListId;
+
     public TravellerAppearance(ResourceLocation baseTexture) {
         this(baseTexture, 1.0f);
     }

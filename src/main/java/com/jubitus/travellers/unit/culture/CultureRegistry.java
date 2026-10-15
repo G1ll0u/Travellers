@@ -84,6 +84,8 @@ public final class CultureRegistry {
                 CULT.put(cultureId, def);
             }
 
+            loadCultureNameLists(def, new File(cultureDir, "namelists"));
+
             if (villagersDir.isDirectory()) {
                 walkVillagerTxts(def, villagersDir);
             }
@@ -103,6 +105,18 @@ public final class CultureRegistry {
         }
     }
 
+
+    /** Every namelist file of this pack, registered under its file name like Millénaire does. */
+    private static void loadCultureNameLists(CultureDef def, File nameDir) {
+        File[] files = nameDir.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            String n = f.getName();
+            if (!f.isFile() || !n.toLowerCase(Locale.ROOT).endsWith(".txt")) continue;
+            List<String> names = readNameList(f);
+            if (!names.isEmpty()) def.putNameList(n.substring(0, n.length() - 4), names);
+        }
+    }
 
     private static void walkVillageTxts(String cultureId, File dir) {
         File[] children = dir.listFiles();
@@ -306,6 +320,9 @@ public final class CultureRegistry {
             return;
         }
 
+        // Foreign merchants carry another culture's look and names: never a unit of this culture.
+        if (tagsInFile.contains("foreignmerchant")) return;
+
         boolean travellerAllowed = VillagerFilterRules.TRAVELLER.isAllowed(tagsInFile, villagerBaseName);
         boolean raiderAllowed = VillagerFilterRules.RAIDER.isAllowed(tagsInFile, villagerBaseName);
         boolean workerAllowed = VillagerFilterRules.WORKER.isAllowed(tagsInFile, villagerBaseName);
@@ -328,6 +345,8 @@ public final class CultureRegistry {
             TravellerAppearance app = new TravellerAppearance(base, baseHeight);
             if (!equipmentProfile.isEmpty()) app.equipmentProfile = equipmentProfile;
             app.jobId = villagerBaseName;
+            app.firstNameListId = firstNameListId;
+            app.familyNameListId = familyNameListId;
 
             for (String c : clothesTextures) {
                 ResourceLocation cl = normalizeMillenaireTexture(c);
@@ -369,37 +388,6 @@ public final class CultureRegistry {
         } else {
             System.out.println("[Travellers] Skipping worker appearance (not whitelisted) file=" + txt.getName());
         }
-
-        // === Name lists: firstNameList / familyNameList -> /cultures/<culture>/namelists/*.txt ===
-        // Paired per villager type (see CultureDef.addNamePool) so names never cross-combine
-        // between unrelated lists (e.g. different castes) the way Millenaire itself never would.
-        if (firstNameListId != null || familyNameListId != null) {
-            File cultureDir = findCultureDirForVillagerFile(txt);
-            if (cultureDir != null) {
-                List<String> firstNames = firstNameListId != null
-                        ? loadNameList(cultureDir, firstNameListId) : Collections.emptyList();
-                List<String> familyNames = familyNameListId != null
-                        ? loadNameList(cultureDir, familyNameListId) : Collections.emptyList();
-                if (!firstNames.isEmpty() || !familyNames.isEmpty()) {
-                    culture.addNamePool(firstNameListId, familyNameListId, firstNames, familyNames);
-                }
-            }
-        }
-    }
-
-    /**
-     * Given something like .../cultures/norman/villagers/farmer.txt,
-     * walk up to the "villagers" folder, then return its parent
-     * (the culture root: .../cultures/norman).
-     */
-    private static File findCultureDirForVillagerFile(File txt) {
-        if (txt == null) return null;
-        File cur = txt.getParentFile();
-        while (cur != null && !cur.getName().equalsIgnoreCase("villagers")) {
-            cur = cur.getParentFile();
-        }
-        if (cur == null) return null;
-        return cur.getParentFile(); // this should be the culture folder
     }
 
     /**
@@ -407,26 +395,8 @@ public final class CultureRegistry {
      * /cultures/<cultureId>/namelists/<listId>.txt
      * One name per non-empty, non-comment line.
      */
-    private static List<String> loadNameList(File cultureDir, String listId) {
+    private static List<String> readNameList(File f) {
         List<String> result = new ArrayList<>();
-        if (cultureDir == null || listId == null) return result;
-
-        String fileName = listId.trim();
-        if (fileName.isEmpty()) return result;
-
-        if (!fileName.toLowerCase(Locale.ROOT).endsWith(".txt")) {
-            fileName = fileName + ".txt";
-        }
-
-        File nameDir = new File(cultureDir, "namelists");
-        File f = new File(nameDir, fileName);
-        if (!f.isFile()) {
-            System.out.println("[Travellers] Name list not found: " + f.getAbsolutePath());
-            return result;
-        }
-
-        System.out.println("[Travellers] Loading namelist " + f.getAbsolutePath());
-
         try (BufferedReader br = new BufferedReader(
                 new InputStreamReader(
                         new FileInputStream(f),
@@ -446,13 +416,6 @@ public final class CultureRegistry {
 
         return result;
     }
-
-    public static String makeTravellerNameForCulture(String cultureId, Random r) {
-        CultureDef def = CULT.get(cultureId);
-        if (def == null) return "";
-        return def.randomFullName(r);
-    }
-
 
     private static ResourceLocation normalizeMillenaireTexture(String path) {
         path = path.replace('\\', '/');

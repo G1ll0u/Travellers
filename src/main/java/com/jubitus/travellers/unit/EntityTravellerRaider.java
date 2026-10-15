@@ -276,12 +276,7 @@ public class EntityTravellerRaider extends EntityTraveller {
             if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
                 scheduleNextTravelAmbient();
             }
-            // 4) Assign culture-based name from Millénaire namelists
-            String fullName = CultureRegistry.makeTravellerNameForCulture(cid, this.rand);
-            if (fullName != null && !fullName.isEmpty()) {
-                this.setCustomNameTag(fullName);
-                this.setAlwaysRenderNameTag(false);
-            }
+            assignCultureName();
         }
 
         // Personality seeds

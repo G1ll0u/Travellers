@@ -1393,22 +1393,12 @@ public class EntityTraveller extends EntityCreature {
             // equipment tied to the wrong (pre-reroll) appearance and be immediately redone anyway.
             if (!rerollsAppearanceAtSpawn()) {
                 equipment.initSpawnEquipment(c, this.rand);
+                assignCultureName();
             }
 
             // 3) Seed ambient window if needed
             if (nextTravelAmbientTick <= 0 || nextTravelAmbientTick == Integer.MAX_VALUE) {
                 scheduleNextTravelAmbient();
-            }
-            // 4) Assign culture-based name from Millénaire namelists.
-            // Raiders re-pick their own (possibly different) culture right after this method
-            // returns and re-name themselves from it — naming here first would leave a stale
-            // name if the raider's final culture has no usable name pool of its own.
-            if (!(this instanceof EntityTravellerRaider)) {
-                String fullName = CultureRegistry.makeTravellerNameForCulture(cid, this.rand);
-                if (fullName != null && !fullName.isEmpty()) {
-                    this.setCustomNameTag(fullName);
-                    this.setAlwaysRenderNameTag(false);
-                }
             }
         }
 
@@ -1539,6 +1529,17 @@ public class EntityTraveller extends EntityCreature {
     public void rollRenderScale(TravellerAppearance appearance) {
         float baseHeight = appearance != null ? appearance.baseHeight : 1.0f;
         setRenderScale(baseHeight * (0.80f + this.rand.nextInt(10) / 100f));
+    }
+
+    /** Names the unit from the lists of the villager type behind its current appearance. */
+    protected final void assignCultureName() {
+        CultureDef c = CultureRegistry.get(getCultureId());
+        if (c == null) return;
+        String fullName = c.randomFullName(getActiveAppearance(), this.rand);
+        if (!fullName.isEmpty()) {
+            this.setCustomNameTag(fullName);
+            this.setAlwaysRenderNameTag(false);
+        }
     }
 
     public void setCultureId(String id) {

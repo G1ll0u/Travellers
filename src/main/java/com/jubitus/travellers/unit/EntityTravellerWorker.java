@@ -909,6 +909,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // own appearance pool/texture index above, not the plain-traveller one rolled by super.onInitialSpawn.
         if (!world.isRemote) {
             equipment.initSpawnEquipment(c, this.rand);
+            assignCultureName();
         }
 
         // Move spawn weapon from MAINHAND into inventory so the GUI shows it and the ghost system manages display
