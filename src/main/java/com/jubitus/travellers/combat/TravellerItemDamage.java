@@ -34,13 +34,26 @@ public final class TravellerItemDamage {
         if (!TravellersConfig.COMBAT.weaponDurabilityEnabled) return;
         if (entity.world.isRemote) return;
         ItemStack weapon = entity.getHeldItemMainhand();
-        if (weapon.isEmpty() || !weapon.isItemStackDamageable() || isUnbreakable(weapon)) return;
-        int actual = applyUnbreaking(weapon, 1);
-        if (actual <= 0) return;
-        weapon.setItemDamage(weapon.getItemDamage() + actual);
-        if (weapon.getItemDamage() > weapon.getMaxDamage()) {
+        if (wearStack(weapon, 1)) {
             entity.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
         }
+    }
+
+    /**
+     * Wears one stack (Unbreaking and the Unbreakable tag respected); true when it broke and must
+     * be removed by the caller. Shared by the loaded hit hooks and the virtual battle sim.
+     */
+    public static boolean wearStack(ItemStack stack, int damage) {
+        if (stack.isEmpty() || !stack.isItemStackDamageable() || isUnbreakable(stack)) return false;
+        int actual = applyUnbreaking(stack, damage);
+        if (actual <= 0) return false;
+        stack.setItemDamage(stack.getItemDamage() + actual);
+        return stack.getItemDamage() > stack.getMaxDamage();
+    }
+
+    /** Armor wear per hit taken, from the raw (pre-reduction) damage. */
+    public static int armorWearFor(float rawDamage) {
+        return Math.max(1, (int) (rawDamage / 4.0F));
     }
 
     /**
@@ -50,15 +63,11 @@ public final class TravellerItemDamage {
     public static void damageArmorOnHit(EntityLivingBase entity, float rawDamage) {
         if (!TravellersConfig.COMBAT.armorDurabilityEnabled) return;
         if (entity.world.isRemote) return;
-        int dmg = Math.max(1, (int) (rawDamage / 4.0F));
+        int dmg = armorWearFor(rawDamage);
         for (EntityEquipmentSlot slot : ARMOR_SLOTS) {
             ItemStack armor = entity.getItemStackFromSlot(slot);
-            if (armor.isEmpty() || !(armor.getItem() instanceof ItemArmor)
-                    || !armor.isItemStackDamageable() || isUnbreakable(armor)) continue;
-            int actual = applyUnbreaking(armor, dmg);
-            if (actual <= 0) continue;
-            armor.setItemDamage(armor.getItemDamage() + actual);
-            if (armor.getItemDamage() > armor.getMaxDamage()) {
+            if (!(armor.getItem() instanceof ItemArmor)) continue;
+            if (wearStack(armor, dmg)) {
                 entity.setItemStackToSlot(slot, ItemStack.EMPTY);
             }
         }

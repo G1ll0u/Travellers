@@ -30,6 +30,12 @@ public class BattleParticipant {
      *  its battle instead of waiting for the whole fight to resolve. Not persisted, like `loaded`. */
     public transient int tetherStuckTicks;
 
+    /** Transient: elapsed sim ticks without a blow given or taken, a target closed in on, or (loaded) a target held.
+     *  Past the threshold the pawn leaves the battle so no fight can pin a unit indefinitely. */
+    public transient int noProgressTicks;
+    /** Transient: distance to the current target at the previous sim step (-1 = none), to detect closing in. */
+    public transient double lastTargetDist = -1;
+
     public BattleParticipant(UUID uuid) {
         this.uuid = uuid;
     }

@@ -17,7 +17,11 @@ import com.jubitus.travellers.camp.CampsiteManager;
 import com.jubitus.travellers.virtual.VirtualFormationSimulator;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
+import com.jubitus.travellers.combat.TravellerCombatLogic;
+import com.jubitus.travellers.combat.TravellerItemDamage;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.SharedMonsterAttributes;
+import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -73,7 +77,18 @@ public class VirtualBattleManager extends WorldSavedData {
     // and leaves its battle individually. Mirrors EntityTraveller's stuckTargetTicks threshold (80).
     private static final int TETHER_DISENGAGE_TICKS = 80;
 
+    // Elapsed sim ticks a pawn may go without any progress before it leaves its battle (30 s).
+    private static final int NO_PROGRESS_DISENGAGE_TICKS = 600;
+    // After leaving a battle without a result, a pawn cannot be pulled into a new one for this long (60 s).
+    private static final int REJOIN_COOLDOWN_TICKS = 1200;
+    private static final int ORPHAN_SWEEP_INTERVAL = 200;
+    // A loaded fighter strikes a virtual foe within meleeReach plus this (its body is wider than a point).
+    private static final double LOADED_REACH_BONUS = 1.0;
+
     private final Map<UUID, BattleRecord> battles = new LinkedHashMap<>();
+    // Transient: pawn uuid -> world tick before which it may not be (re)added to a battle
+    private final Map<UUID, Long> rejoinBlockedUntil = new HashMap<>();
+    private long lastOrphanSweepTick = -1;
     private final List<PendingLootDrop> pendingLoot = new ArrayList<>();
 
     // Transient: pawn uuid -> battle id (rebuilt on load)
@@ -123,6 +138,11 @@ public class VirtualBattleManager extends WorldSavedData {
                 lastSimPassTick = now;
                 simPass(world, now);
             }
+        }
+
+        if (now - lastOrphanSweepTick >= ORPHAN_SWEEP_INTERVAL) {
+            lastOrphanSweepTick = now;
+            sweepOrphanBattleIds(world, now);
         }
 
         if (now - lastLootTick >= LOOT_RECONCILE_INTERVAL) {
@@ -228,6 +248,43 @@ public class VirtualBattleManager extends WorldSavedData {
     // Battle membership (called by the scanner)
     // -------------------------------------------------------------------------
 
+    /** False while the pawn is cooling down after leaving a battle without a result. */
+    boolean mayJoin(UUID uuid, long now) {
+        Long until = rejoinBlockedUntil.get(uuid);
+        if (until == null) return true;
+        if (now >= until) {
+            rejoinBlockedUntil.remove(uuid);
+            return true;
+        }
+        return false;
+    }
+
+    private void blockRejoin(UUID uuid, long now) {
+        rejoinBlockedUntil.put(uuid, now + REJOIN_COOLDOWN_TICKS);
+    }
+
+    /** Safety net: a record whose battle (or membership in it) no longer exists must not stay frozen. */
+    private void sweepOrphanBattleIds(WorldServer world, long now) {
+        VirtualTravellerManager vtm = VirtualTravellerManager.get(world);
+        int dim = world.provider.getDimension();
+        List<VirtualTravellerRecord> orphans = null;
+        for (VirtualTravellerRecord r : vtm.getAllRecords()) {
+            if (r.battleId == null || r.dimension != dim) continue;
+            BattleRecord b = battles.get(r.battleId);
+            BattleParticipant p = b != null ? b.participants.get(r.uuid) : null;
+            if (p != null && p.alive) continue;
+            if (orphans == null) orphans = new ArrayList<>();
+            orphans.add(r);
+        }
+        if (orphans == null) return;
+        for (VirtualTravellerRecord r : orphans) {
+            r.battleId = null;
+            participantIndex.remove(r.uuid);
+            vtm.forceRefreshGoal(world, r, now);
+        }
+        markDirty();
+    }
+
     BattleRecord createBattle(WorldServer world, BlockPos center, long now, @Nullable UUID campAnchorId) {
         BattleRecord b = new BattleRecord(UUID.randomUUID(), world.provider.getDimension(), center, now);
         b.campAnchorId = campAnchorId;
@@ -238,7 +295,7 @@ public class VirtualBattleManager extends WorldSavedData {
 
     void addToBattle(WorldServer world, BattleRecord b, VirtualTravellerRecord rec, int side,
                      String groupKey, boolean isGroupLeader, long now) {
-        if (rec.battleId != null || b.participants.containsKey(rec.uuid)) return;
+        if (rec.battleId != null || b.participants.containsKey(rec.uuid) || !mayJoin(rec.uuid, now)) return;
         BattleParticipant p = new BattleParticipant(rec.uuid);
         p.side = side;
         p.groupKey = groupKey;
@@ -476,43 +533,58 @@ public class VirtualBattleManager extends WorldSavedData {
             if (!p.alive || p.loaded) continue;
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             if (rec == null) continue;
+            p.noProgressTicks += elapsed;
 
-            BattleParticipant target = resolveTarget(vtm, b, p, meleePerTarget);
+            BattleParticipant target = resolveTarget(world, vtm, b, p, meleePerTarget);
             if (target == null) {
-                // No virtual enemy reachable (all loaded or none left): drift toward the fight
+                // No reachable enemy: drift toward the fight
                 moveToward(rec, b.center.getX() + 0.5, b.center.getZ() + 0.5, elapsed, 2.0);
                 p.tetherStuckTicks = 0;
+                p.lastTargetDist = -1;
+                if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
+                    if (toDisengage == null) toDisengage = new ArrayList<>();
+                    toDisengage.add(p);
+                }
                 continue;
             }
             VirtualTravellerRecord trec = vtm.getRecord(target.uuid);
-            if (trec == null) continue;
+            EntityTraveller foe = trec == null ? loadedFoe(world, target.uuid) : null;
+            if (trec == null && foe == null) {
+                p.targetUuid = null;
+                continue;
+            }
 
             VirtualCombatProfile prof = rec.getCombatProfile();
-            double dx = trec.posX - rec.posX;
-            double dz = trec.posZ - rec.posZ;
+            double tx = trec != null ? trec.posX : foe.posX;
+            double tz = trec != null ? trec.posZ : foe.posZ;
+            double dx = tx - rec.posX;
+            double dz = tz - rec.posZ;
             double dist = Math.sqrt(dx * dx + dz * dz);
             rec.rotYaw = (float) (MathHelper.atan2(dz, dx) * 180.0 / Math.PI) - 90.0f;
+            if (p.lastTargetDist >= 0 && dist < p.lastTargetDist - 0.01) p.noProgressTicks = 0;
+            p.lastTargetDist = dist;
 
             if (prof.isArcher && dist >= prof.rangedMinDist && dist <= prof.rangedMaxDist) {
-                fireAttacks(world, vtm, b, p, target, trec,
-                        prof.rangedDamage, prof.rangedCooldownTicks, elapsed, now);
+                strike(world, vtm, b, p, rec, target, trec, foe, prof.rangedDamage, prof.rangedCooldownTicks,
+                        false, elapsed, now);
                 p.tetherStuckTicks = 0;
             } else if (dist <= meleeReach) {
-                fireAttacks(world, vtm, b, p, target, trec,
-                        prof.meleeDamage, prof.attackCooldownTicks, elapsed, now);
+                strike(world, vtm, b, p, rec, target, trec, foe, prof.meleeDamage, prof.attackCooldownTicks,
+                        true, elapsed, now);
                 p.tetherStuckTicks = 0;
-            } else if (VirtualFormationSimulator.withinTether(world, vtm, rec, trec.posX, trec.posZ, now)) {
-                double stopAt = prof.isArcher ? Math.max(prof.rangedMinDist,
-                        prof.rangedMaxDist * 0.8) : meleeReach * 0.75;
-                moveToward(rec, trec.posX, trec.posZ, elapsed, stopAt);
+            } else if (VirtualFormationSimulator.withinTether(world, vtm, rec, tx, tz, now)) {
+                // An archer only keeps its distance while the target is beyond bow range; closer than the
+                // bow's minimum it closes in and fights in melee, so two archers can never freeze apart.
+                double stopAt = prof.isArcher && dist > prof.rangedMaxDist
+                        ? Math.max(prof.rangedMinDist, prof.rangedMaxDist * 0.8) : meleeReach * 0.75;
+                moveToward(rec, tx, tz, elapsed, stopAt);
                 p.tetherStuckTicks = 0;
             } else {
                 // DEFEND/HOLD: this target strayed outside the leash - fall back to the anchor
                 // (formation slot / leader position) instead of chasing, mirroring
                 // EntityAIAttackMeleeCustom's chase abort. Long enough stuck like this and the pawn
                 // leaves the fight individually, the offscreen counterpart of EntityTraveller's
-                // generic stuck-target self-clear (there is no per-unit "abandon this battle" path
-                // otherwise - only the whole BattleRecord ending via wipe/timeout).
+                // generic stuck-target self-clear.
                 if (rec.goal != null) {
                     moveToward(rec, rec.goal.getX() + 0.5, rec.goal.getZ() + 0.5, elapsed, 0.5);
                 }
@@ -520,7 +592,39 @@ public class VirtualBattleManager extends WorldSavedData {
                 if (p.tetherStuckTicks > TETHER_DISENGAGE_TICKS) {
                     if (toDisengage == null) toDisengage = new ArrayList<>();
                     toDisengage.add(p);
+                    continue;
                 }
+            }
+            if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
+                if (toDisengage == null) toDisengage = new ArrayList<>();
+                toDisengage.add(p);
+            }
+        }
+
+        // Loaded fighters: hold their place only while they actually have a target; they hit back at
+        // virtual foes that reached them (those foes cannot be seen by their AI).
+        List<BattleParticipant> toRelease = null;
+        for (BattleParticipant p : b.participants.values()) {
+            if (!p.alive || !p.loaded) continue;
+            Entity e = world.getEntityFromUuid(p.uuid);
+            if (!(e instanceof EntityTraveller) || e.isDead) continue;
+            EntityTraveller le = (EntityTraveller) e;
+            if (le.getAttackTarget() != null && !le.getAttackTarget().isDead) {
+                p.noProgressTicks = 0;
+            } else {
+                p.noProgressTicks += elapsed;
+            }
+            if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
+                if (toRelease == null) toRelease = new ArrayList<>();
+                toRelease.add(p);
+            } else {
+                loadedStrikeBack(world, vtm, b, p, le, elapsed, now);
+            }
+        }
+        if (toRelease != null) {
+            for (BattleParticipant p : toRelease) {
+                b.participants.remove(p.uuid);
+                participantIndex.remove(p.uuid);
             }
         }
         if (toDisengage != null) {
@@ -554,6 +658,7 @@ public class VirtualBattleManager extends WorldSavedData {
     private void disengage(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, BattleParticipant p, long now) {
         b.participants.remove(p.uuid);
         participantIndex.remove(p.uuid);
+        blockRejoin(p.uuid, now);
         VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
         if (rec != null) {
             rec.battleId = null;
@@ -562,13 +667,30 @@ public class VirtualBattleManager extends WorldSavedData {
         markDirty();
     }
 
-    /** Current target if still valid (alive, enemy, virtual), else a fresh pick. */
+    /** A loaded enemy a virtual pawn can still strike, or null. */
     @Nullable
-    private BattleParticipant resolveTarget(VirtualTravellerManager vtm, BattleRecord b,
+    private static EntityTraveller loadedFoe(WorldServer world, UUID uuid) {
+        Entity e = world.getEntityFromUuid(uuid);
+        if (!(e instanceof EntityTraveller) || e.isDead) return null;
+        return ((EntityTraveller) e).getHealth() > 0f ? (EntityTraveller) e : null;
+    }
+
+    /** XZ position of an enemy, virtual or loaded; null when it is neither. */
+    @Nullable
+    private static double[] foePosition(WorldServer world, VirtualTravellerManager vtm, UUID uuid) {
+        VirtualTravellerRecord rec = vtm.getRecord(uuid);
+        if (rec != null) return new double[]{rec.posX, rec.posZ};
+        EntityTraveller le = loadedFoe(world, uuid);
+        return le != null ? new double[]{le.posX, le.posZ} : null;
+    }
+
+    /** Current target if still valid (alive, enemy, virtual or loaded), else a fresh pick. */
+    @Nullable
+    private BattleParticipant resolveTarget(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
                                             BattleParticipant p, Map<UUID, Integer> meleePerTarget) {
         if (p.targetUuid != null) {
             BattleParticipant t = b.participants.get(p.targetUuid);
-            if (t != null && t.alive && t.side != p.side && vtm.getRecord(t.uuid) != null) return t;
+            if (t != null && t.alive && t.side != p.side && foePosition(world, vtm, t.uuid) != null) return t;
             p.targetUuid = null;
         }
 
@@ -582,10 +704,10 @@ public class VirtualBattleManager extends WorldSavedData {
         long bestScore = Long.MAX_VALUE;
         for (BattleParticipant t : b.participants.values()) {
             if (!t.alive || t.side == p.side) continue;
-            VirtualTravellerRecord trec = vtm.getRecord(t.uuid);
-            if (trec == null) continue;
-            double dx = trec.posX - rec.posX;
-            double dz = trec.posZ - rec.posZ;
+            double[] pos = foePosition(world, vtm, t.uuid);
+            if (pos == null) continue;
+            double dx = pos[0] - rec.posX;
+            double dz = pos[1] - rec.posZ;
             long distSq = (long) (dx * dx + dz * dz);
             boolean full = !archer && meleePerTarget.getOrDefault(t.uuid, 0) >= meleeCap;
             boolean shielded = leaderBias && t.isGroupLeader;
@@ -602,17 +724,66 @@ public class VirtualBattleManager extends WorldSavedData {
         return best;
     }
 
-    private void fireAttacks(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
-                             BattleParticipant attacker, BattleParticipant victim,
-                             VirtualTravellerRecord victimRec, float rawDamage, int cooldown,
-                             int elapsed, long now) {
+    /** One virtual pawn's attacks over the elapsed ticks, against a virtual record or a loaded entity. */
+    private void strike(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, BattleParticipant attacker,
+                        VirtualTravellerRecord attackerRec, BattleParticipant victim,
+                        @Nullable VirtualTravellerRecord victimRec, @Nullable EntityTraveller foe,
+                        float rawDamage, int cooldown, boolean melee, int elapsed, long now) {
         attacker.attackTimer -= elapsed;
         int guard = 0;
+        float scaled = (float) (rawDamage * TravellersConfig.BATTLE_EVENTS.virtualDamageMultiplier);
         while (attacker.attackTimer <= 0 && victim.alive && guard++ < 8) {
             attacker.attackTimer += Math.max(1, cooldown);
-            applyDamage(world, vtm, b, attacker, victim, victimRec, rawDamage, now);
+            if (victimRec != null) {
+                applyDamage(world, vtm, b, attacker, victim, victimRec, rawDamage, now);
+            } else {
+                if (foe.isDead || foe.getHealth() <= 0f) break;
+                // The sim's own cooldown governs; vanilla's invulnerability window would swallow hits.
+                foe.hurtResistantTime = 0;
+                foe.attackEntityFrom(DamageSource.GENERIC, scaled);
+                attacker.noProgressTicks = 0;
+                victim.noProgressTicks = 0;
+            }
+            if (melee) VirtualItemWear.wearWeapon(attackerRec);
+            VirtualItemWear.markCombat(attackerRec, now);
         }
         if (attacker.attackTimer < 0) attacker.attackTimer = 0;
+    }
+
+    /** A loaded fighter hits the nearest virtual enemy within reach, which its own AI cannot see. */
+    private void loadedStrikeBack(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
+                                  BattleParticipant p, EntityTraveller le, int elapsed, long now) {
+        double reach = TravellersConfig.BATTLE_EVENTS.meleeReach + LOADED_REACH_BONUS;
+        BattleParticipant best = null;
+        VirtualTravellerRecord bestRec = null;
+        double bestSq = reach * reach;
+        for (BattleParticipant t : b.participants.values()) {
+            if (!t.alive || t.side == p.side) continue;
+            VirtualTravellerRecord trec = vtm.getRecord(t.uuid);
+            if (trec == null) continue;
+            double dx = trec.posX - le.posX;
+            double dz = trec.posZ - le.posZ;
+            double d = dx * dx + dz * dz;
+            if (d < bestSq) {
+                bestSq = d;
+                best = t;
+                bestRec = trec;
+            }
+        }
+        if (best == null) return;
+        IAttributeInstance attr = le.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
+        if (attr == null) return;
+        float raw = TravellerCombatLogic.computeMeleeDamage(
+                (float) attr.getAttributeValue(), le.getHeldItemMainhand(), null);
+        int cooldown = Math.max(1, TravellerItemDamage.computeAttackCooldownTicks(le));
+        p.attackTimer -= elapsed;
+        int guard = 0;
+        while (p.attackTimer <= 0 && best.alive && guard++ < 8) {
+            p.attackTimer += cooldown;
+            applyDamage(world, vtm, b, p, best, bestRec, raw, now);
+            TravellerItemDamage.damageWeaponOnHit(le);
+        }
+        if (p.attackTimer < 0) p.attackTimer = 0;
     }
 
     private void applyDamage(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
@@ -647,8 +818,14 @@ public class VirtualBattleManager extends WorldSavedData {
         float scaled = (float) (rawDamage * TravellersConfig.BATTLE_EVENTS.virtualDamageMultiplier);
         float dmg = CombatRules.getDamageAfterAbsorb(scaled, prof.armor, prof.toughness);
         victimRec.health = victimRec.getHealthResolved() - dmg;
+        attacker.noProgressTicks = 0;
+        victim.noProgressTicks = 0;
         if (victimRec.health <= 0f) {
             killVirtual(world, vtm, b, attacker, victim, victimRec, now);
+        } else {
+            // INVARIANT: no wear after a possibly lethal hit - the dropped loot is read from this NBT.
+            VirtualItemWear.wearArmor(victimRec, scaled);
+            VirtualItemWear.markCombat(victimRec, now);
         }
     }
 
@@ -786,7 +963,7 @@ public class VirtualBattleManager extends WorldSavedData {
         }
     }
 
-    private static boolean isGhostStack(NBTTagCompound stackNbt) {
+    static boolean isGhostStack(NBTTagCompound stackNbt) {
         if (!stackNbt.hasKey("tag", 10)) return false;
         NBTTagCompound tag = stackNbt.getCompoundTag("tag");
         return tag.getBoolean(TravellerEquipmentManager.GHOST_SWORD_TAG)
@@ -822,6 +999,8 @@ public class VirtualBattleManager extends WorldSavedData {
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             if (rec == null) continue;
             rec.battleId = null;
+            // A fight that ended without a winner must not restart on the very next detection pass.
+            if (!allowPillage) blockRejoin(p.uuid, now);
             // Dead leader: unlink so survivors resume travel instead of standing forever
             if (rec.groupLeaderUUID != null && vtm.getRecord(rec.groupLeaderUUID) == null
                     && world.getEntityFromUuid(rec.groupLeaderUUID) == null) {

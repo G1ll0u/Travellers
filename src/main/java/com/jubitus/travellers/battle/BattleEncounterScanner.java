@@ -88,6 +88,7 @@ class BattleEncounterScanner {
                         for (VirtualTravellerRecord s : others) {
                             if (s.battleId != null || r.battleId != null) continue;
                             if (r.uuid.compareTo(s.uuid) >= 0) continue;
+                            if (!mgr.mayJoin(r.uuid, now) || !mgr.mayJoin(s.uuid, now)) continue;
                             double dx = r.posX - s.posX;
                             double dz = r.posZ - s.posZ;
                             if (dx * dx + dz * dz > engageSq) continue;
