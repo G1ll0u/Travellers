@@ -34,7 +34,8 @@ import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public class GuiPlayerWorldMap extends GuiScreen
-        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui {
+        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui,
+        com.jubitus.travellers.worldmap.gui.receiver.IStrikeMapReceiver {
 
     private GuiButton backButton;
     private WorldMapNavButtons navButtons;
@@ -180,4 +181,9 @@ public class GuiPlayerWorldMap extends GuiScreen
 
     @Override
     public boolean doesGuiPauseGame() { return false; }
+
+    @Override
+    public void receiveStrikes(int dim, java.util.List<com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry> strikes) {
+        if (mapController != null) mapController.panel.receiveStrikes(dim, strikes);
+    }
 }

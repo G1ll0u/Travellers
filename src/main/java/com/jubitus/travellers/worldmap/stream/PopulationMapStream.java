@@ -43,12 +43,27 @@ public class PopulationMapStream {
     private static final int MAX_ENTRIES_PER_PACKET = 20000;
     private static final int DEFAULT_RANGE_BLOCKS = 4096;
 
+    public static boolean isSubscribed(UUID playerId) {
+        return playerId != null && SUBSCRIBERS.contains(playerId);
+    }
+
+    public static boolean hasSubscribers() {
+        return !SUBSCRIBERS.isEmpty();
+    }
+
+    // Per viewer: what the client already holds; a fresh one on every subscribe makes the next packet full.
+    private static final java.util.Map<UUID, PopulationSync> SYNC = new ConcurrentHashMap<>();
+
     public static void subscribe(UUID playerId) {
-        if (playerId != null) SUBSCRIBERS.add(playerId);
+        if (playerId == null) return;
+        SYNC.put(playerId, new PopulationSync());
+        SUBSCRIBERS.add(playerId);
     }
 
     public static void unsubscribe(UUID playerId) {
-        if (playerId != null) SUBSCRIBERS.remove(playerId);
+        if (playerId == null) return;
+        SUBSCRIBERS.remove(playerId);
+        SYNC.remove(playerId);
     }
 
     @SubscribeEvent
@@ -68,6 +83,15 @@ public class PopulationMapStream {
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (server == null) return;
 
+        long t0 = MapStreamStats.begin();
+        try {
+            publish(server);
+        } finally {
+            MapStreamStats.end(MapStreamStats.Stream.POPULATION, t0);
+        }
+    }
+
+    private static void publish(MinecraftServer server) {
         List<MsgMapPopulationUpdate.Entry> all = collectAll(server);
 
         for (UUID playerId : new ArrayList<>(SUBSCRIBERS)) {
@@ -84,13 +108,8 @@ public class PopulationMapStream {
             List<MsgMapPopulationUpdate.Entry> visible = MapStreamUtil.nearestWithinRange(
                     all, viewDim, en -> en.dim, en -> en.pos, cx, cz, rangeSq, MAX_ENTRIES_PER_PACKET);
 
-            if (visible.isEmpty()) {
-                com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
-                        new MsgMapPopulationUpdate(Collections.emptyList()));
-            } else {
-                com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
-                        new MsgMapPopulationUpdate(visible));
-            }
+            PopulationSync sync = SYNC.computeIfAbsent(playerId, k -> new PopulationSync());
+            MapStreamStats.send(MapStreamStats.Stream.POPULATION, player, sync.encode(viewDim, visible));
         }
     }
 

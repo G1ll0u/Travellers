@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat;
 
+import com.jubitus.travellers.worldmap.stream.MapStrikeLog;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
@@ -425,6 +426,8 @@ public class TravellerCombatLogic {
         }
 
         if (!entity.world.isRemote) {
+            MapStrikeLog.record(MapStrikeLog.MELEE, entity.dimension, entity.world.getTotalWorldTime(),
+                    entity.getUniqueID(), entity.posX, entity.posZ, target.posX, target.posZ);
             entity.world.setEntityState(entity, (byte) 4);
         }
 

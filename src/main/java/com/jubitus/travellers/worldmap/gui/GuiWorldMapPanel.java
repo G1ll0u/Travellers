@@ -88,16 +88,19 @@ public class GuiWorldMapPanel {
         public final float angleDeg;
         /** Where the marker is drawn (block coordinates): its position, or a smoothed one for a moving unit. */
         public final float drawX, drawZ;
+        /** The unit this marker stands for, when it is one (lets the strike animation find it). */
+        public final java.util.UUID unitId;
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label) {
             this(pos, argb, type, label, 0f);
         }
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg) {
-            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ());
+            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null);
         }
 
-        private Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg, float drawX, float drawZ) {
+        private Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg, float drawX, float drawZ,
+                       java.util.UUID unitId) {
             this.pos = pos;
             this.argb = argb;
             this.type = type;
@@ -105,11 +108,16 @@ public class GuiWorldMapPanel {
             this.angleDeg = angleDeg;
             this.drawX = drawX;
             this.drawZ = drawZ;
+            this.unitId = unitId;
         }
 
         /** The same marker drawn at another spot; {@link #pos} stays its identity. */
         public Marker at(float x, float z) {
-            return new Marker(pos, argb, type, label, angleDeg, x, z);
+            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId);
+        }
+
+        public Marker forUnit(java.util.UUID id) {
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id);
         }
     }
 
@@ -130,6 +138,11 @@ public class GuiWorldMapPanel {
     private int legendOwnerColor = 0xFFFFFF;
 
     private final List<Marker> markers = new ArrayList<>();
+    private final BattleStrikeAnimator strikes = new BattleStrikeAnimator();
+    private static final int STRIKE_FALLBACK_ARGB = 0xFFCCCCCC;
+    // Arrows would be sub-pixel specks beyond this zoom-out.
+    private static final float ARROW_MAX_BLOCKS_PER_PIXEL = 4f;
+    private static final float LUNGE_PX = 2f;
     // Markers standing here are drawn larger and brighter (hover / menu target).
     private java.util.Set<BlockPos> highlighted = java.util.Collections.emptySet();
 
@@ -171,6 +184,32 @@ public class GuiWorldMapPanel {
 
     public void clearMarkers() { markers.clear(); }
     public void addMarker(Marker m) { markers.add(m); }
+
+    /** Starts the animation of the strikes the server reported for this map's dimension. */
+    public void receiveStrikes(int dim, List<com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry> entries) {
+        if (mc.world == null || mc.world.provider.getDimension() != dim || entries == null || entries.isEmpty()) return;
+        java.util.Set<java.util.UUID> archers = new java.util.HashSet<>();
+        for (com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry e : entries) {
+            if (e.kind == com.jubitus.travellers.worldmap.stream.MapStrikeLog.ARROW) archers.add(e.attacker);
+        }
+        java.util.Map<java.util.UUID, Integer> colours = new java.util.HashMap<>();
+        if (!archers.isEmpty()) {
+            for (Marker m : markers) {
+                if (m.unitId != null && archers.contains(m.unitId)) colours.put(m.unitId, m.argb);
+            }
+        }
+        long now = System.currentTimeMillis();
+        for (com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry e : entries) {
+            // Same delay as the markers, so a shot leaves from where its archer is drawn.
+            long start = now + Math.max(0L, WorkerMarkerSmoother.RENDER_DELAY_MS - e.ageTicks * 50L);
+            if (e.kind == com.jubitus.travellers.worldmap.stream.MapStrikeLog.ARROW) {
+                int argb = 0xFF000000 | colours.getOrDefault(e.attacker, STRIKE_FALLBACK_ARGB);
+                strikes.addArrow(e.attackerX, e.attackerZ, e.victimX, e.victimZ, argb, start);
+            } else {
+                strikes.addLunge(e.attacker, e.attackerX, e.attackerZ, e.victimX, e.victimZ, start);
+            }
+        }
+    }
 
     public void setSelectedPos(BlockPos pos) { this.selectedPos = pos; }
 
@@ -341,6 +380,8 @@ public class GuiWorldMapPanel {
     private void drawMarkers(int mapX, int mapY) {
         float scale = markerScale();
         boolean directional = TravellersConfig.WORLDMAP.playerMarkerDirectional;
+        long now = System.currentTimeMillis();
+        float[] lungeBuf = new float[3];
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         for (Marker.MarkerType pass : Marker.MarkerType.values()) {
@@ -348,6 +389,11 @@ public class GuiWorldMapPanel {
                 if (m.type != pass) continue;
                 float sx = worldToScreenX(m.drawX, mapX);
                 float sy = worldToScreenY(m.drawZ, mapY);
+                if (m.unitId != null && strikes.lunge(m.unitId, now, lungeBuf)) {
+                    float reach = lungeBuf[2] * LUNGE_PX * scale;
+                    sx += lungeBuf[0] * reach;
+                    sy += lungeBuf[1] * reach;
+                }
                 boolean hl = highlighted.contains(m.pos);
                 int size = Math.round(baseSize(m.type.size) * scale * (hl ? HIGHLIGHT_SCALE : 1f));
                 int argb = hl ? (m.argb & 0xFF000000) | WorldMapMarkerFactory.lighten(m.argb & 0xFFFFFF, 0.45f) : m.argb;
@@ -362,6 +408,28 @@ public class GuiWorldMapPanel {
             }
         }
         GlStateManager.color(1f, 1f, 1f, 1f);
+        drawArrows(mapX, mapY, now);
+    }
+
+    private void drawArrows(int mapX, int mapY, long now) {
+        if (strikes.isIdle()) return;
+        if (blocksPerPixel > ARROW_MAX_BLOCKS_PER_PIXEL) {
+            strikes.forEachArrow(now, (argb, hx, hz, tx, tz) -> { }); // keep expiring
+            return;
+        }
+        strikes.forEachArrow(now, (argb, hx, hz, tx, tz) -> {
+            float hsx = worldToScreenX(hx, mapX), hsy = worldToScreenY(hz, mapY);
+            float tsx = worldToScreenX(tx, mapX), tsy = worldToScreenY(tz, mapY);
+            // Trail: three fading dots from the tail toward the head, then the head itself.
+            for (int i = 0; i < 3; i++) {
+                float t = i / 3f;
+                int a = 0x30 + i * 0x30;
+                int x = Math.round(tsx + (hsx - tsx) * t), y = Math.round(tsy + (hsy - tsy) * t);
+                Gui.drawRect(x, y, x + 1, y + 1, (a << 24) | (argb & 0xFFFFFF));
+            }
+            int x = Math.round(hsx), y = Math.round(hsy);
+            Gui.drawRect(x - 1, y - 1, x + 1, y + 1, 0xFF000000 | (argb & 0xFFFFFF));
+        });
     }
 
     private static final float HIGHLIGHT_SCALE = 1.4f;

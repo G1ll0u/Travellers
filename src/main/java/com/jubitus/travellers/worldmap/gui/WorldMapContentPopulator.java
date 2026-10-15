@@ -118,8 +118,9 @@ public final class WorldMapContentPopulator {
 
     static GuiWorldMapPanel.Marker smoothed(GuiWorldMapPanel.Marker m, @javax.annotation.Nullable java.util.UUID id,
                                             BlockPos pos, @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
-        if (smoother == null || id == null) return m;
-        return m.at(smoother.x(id, pos.getX()), smoother.z(id, pos.getZ()));
+        if (id == null) return m;
+        if (smoother == null) return m.forUnit(id);
+        return m.at(smoother.x(id, pos.getX()), smoother.z(id, pos.getZ())).forUnit(id);
     }
 
     /** An on-duty worker (e.g. a palfrenier) takes no player order: drawn with its role marker, never selectable. */

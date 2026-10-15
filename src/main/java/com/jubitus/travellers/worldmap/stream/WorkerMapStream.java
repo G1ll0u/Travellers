@@ -137,6 +137,10 @@ public class WorkerMapStream {
         }
     }
 
+    public static boolean hasSubscribers() {
+        return !SUBSCRIBERS.isEmpty();
+    }
+
     public static void subscribe(UUID playerId) {
         if (playerId != null) SUBSCRIBERS.add(playerId);
     }
@@ -194,6 +198,16 @@ public class WorkerMapStream {
         // Snapshot subscribers
         List<UUID> targets = new ArrayList<>(SUBSCRIBERS);
         if (targets.isEmpty()) return;
+
+        long t0 = MapStreamStats.begin();
+        try {
+            publish(server, targets);
+        } finally {
+            MapStreamStats.end(MapStreamStats.Stream.WORKER, t0);
+        }
+    }
+
+    private static void publish(MinecraftServer server, List<UUID> targets) {
 
         // Build owner -> workers index ONCE per tick (cheap enough, avoids O(subscribers * workers))
         Map<UUID, List<WorkerInfo>> byOwner = new HashMap<>();
@@ -260,7 +274,7 @@ public class WorkerMapStream {
 
             List<WorkerInfo> mine = byOwner.get(playerId);
             if (mine == null || mine.isEmpty()) {
-                TravellersNetwork.sendToPlayer(player, new MsgMapWorkersUpdate(Collections.emptyList()));
+                MapStreamStats.send(MapStreamStats.Stream.WORKER, player, new MsgMapWorkersUpdate(Collections.emptyList()));
                 continue;
             }
 
@@ -288,7 +302,7 @@ public class WorkerMapStream {
             }
 
             if (visible.isEmpty()) {
-                TravellersNetwork.sendToPlayer(player, new MsgMapWorkersUpdate(Collections.emptyList()));
+                MapStreamStats.send(MapStreamStats.Stream.WORKER, player, new MsgMapWorkersUpdate(Collections.emptyList()));
                 continue;
             }
 
@@ -326,7 +340,7 @@ public class WorkerMapStream {
                 out.add(en);
             }
 
-            TravellersNetwork.sendToPlayer(player, new MsgMapWorkersUpdate(out));
+            MapStreamStats.send(MapStreamStats.Stream.WORKER, player, new MsgMapWorkersUpdate(out));
         }
     }
 }

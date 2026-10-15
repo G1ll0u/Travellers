@@ -12,3 +12,4 @@ Slippy-map tile pyramid: level 0 is 256×256 px at 1 block/px sampled from the w
 - Unit fog: `ForeignUnitMapStream`/`BattleMapStream` only send what a vision source sees; `GuiTravellerPopulationMap` is exhaustive by design.
 - Markers: `GuiWorldMapPanel.Marker.MarkerType` (declaration order = draw order); a new kind = one enum constant + one `WorldMapMarkerFactory` method.
 - `/travellersdebug map resweep` loads chunks on purpose, budgeted, and unloads them. `/travellersdebug map stats`.
+- Fight animation: strikes are recorded in `MapStrikeLog` only while a map is open; markers are drawn `WorkerMarkerSmoother.RENDER_DELAY_MS` late and strikes replay with the same delay, so a shot leaves from where its archer is drawn.

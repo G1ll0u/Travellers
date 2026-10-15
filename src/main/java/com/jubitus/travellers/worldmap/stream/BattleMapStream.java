@@ -64,6 +64,15 @@ public class BattleMapStream {
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (server == null) return;
 
+        long t0 = MapStreamStats.begin();
+        try {
+            publish(server);
+        } finally {
+            MapStreamStats.end(MapStreamStats.Stream.BATTLE, t0);
+        }
+    }
+
+    private static void publish(MinecraftServer server) {
         List<MsgMapBattleUpdate.Entry> all = collectAll(server);
         boolean visionGated = TravellersConfig.WORLDMAP.foreignUnitVisionEnabled;
         Map<UUID, List<PlayerUnitVisionSource.Pos>> ownUnits = visionGated
@@ -96,7 +105,7 @@ public class BattleMapStream {
                 visible.add(en);
             }
 
-            com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
+            MapStreamStats.send(MapStreamStats.Stream.BATTLE, player,
                     new MsgMapBattleUpdate(visible.isEmpty() ? Collections.emptyList() : visible));
         }
     }

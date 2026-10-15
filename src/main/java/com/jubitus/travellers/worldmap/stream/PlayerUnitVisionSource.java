@@ -32,6 +32,15 @@ final class PlayerUnitVisionSource {
     }
 
     static Map<UUID, List<Pos>> computeOwnUnitPositions(MinecraftServer server) {
+        long t0 = MapStreamStats.begin();
+        try {
+            return scan(server);
+        } finally {
+            MapStreamStats.end(MapStreamStats.Stream.VISION, t0);
+        }
+    }
+
+    private static Map<UUID, List<Pos>> scan(MinecraftServer server) {
         Map<UUID, List<Pos>> out = new HashMap<>();
 
         if (TravellersConfig.WORLDMAP.playerIsVisionSource) {

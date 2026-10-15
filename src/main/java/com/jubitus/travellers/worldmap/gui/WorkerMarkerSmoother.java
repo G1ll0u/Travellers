@@ -7,73 +7,90 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Client-side smoothing of worker markers: the server sends positions about once a second, so each
- * marker glides in a straight line from where it is drawn to the newly received spot, over the time
- * the last update took to arrive. Pure logic; the clock is passed in.
+ * Client-side smoothing of unit markers. The server sends positions about once a second; a marker
+ * is drawn {@link #RENDER_DELAY_MS} in the past, on a smooth curve through the last received
+ * samples (cubic Hermite, velocity continuous at every sample), so direction and speed never break
+ * at an update. Pure logic; the clock is passed in.
  */
 public final class WorkerMarkerSmoother {
 
-    private static final long DEFAULT_INTERVAL_MS = 1000L;
-    private static final long MIN_INTERVAL_MS = 400L;
-    private static final long MAX_INTERVAL_MS = 2000L;
+    /** How far behind the newest data markers (and strike animations) are shown: a bit over one update. */
+    public static final long RENDER_DELAY_MS = 1100L;
     /** A jump longer than this (teleport, dimension hop, long gap) is shown at once, not glided. */
     private static final float SNAP_BLOCKS = 48f;
+    private static final int KEEP = 4;
+    /** Past the newest sample (late update) a marker keeps its last velocity for this long, then stops. */
+    private static final long MAX_EXTRAPOLATE_MS = 500L;
 
     private static final class Track {
-        float fromX, fromZ, toX, toZ;
-        long startMs;
-        long durationMs = DEFAULT_INTERVAL_MS;
-        long lastUpdateMs;
+        final float[] x = new float[KEEP];
+        final float[] z = new float[KEEP];
+        final long[] t = new long[KEEP];
+        int n;
 
-        float x(long nowMs) {
-            return fromX + (toX - fromX) * progress(nowMs);
+        void add(float px, float pz, long time) {
+            if (n == KEEP) {
+                System.arraycopy(x, 1, x, 0, KEEP - 1);
+                System.arraycopy(z, 1, z, 0, KEEP - 1);
+                System.arraycopy(t, 1, t, 0, KEEP - 1);
+                n--;
+            }
+            x[n] = px;
+            z[n] = pz;
+            t[n] = time;
+            n++;
         }
 
-        float z(long nowMs) {
-            return fromZ + (toZ - fromZ) * progress(nowMs);
+        void reset(float px, float pz, long time) {
+            n = 0;
+            add(px, pz, time);
         }
 
-        private float progress(long nowMs) {
-            if (durationMs <= 0) return 1f;
-            float t = (nowMs - startMs) / (float) durationMs;
-            return t < 0f ? 0f : Math.min(t, 1f);
+        /** Position on the curve at {@code at}; axis 0 = x, 1 = z. */
+        float value(int axis, long at) {
+            float[] v = axis == 0 ? x : z;
+            if (n == 1 || at <= t[0]) return v[0];
+            int last = n - 1;
+            if (at >= t[last]) {
+                float slope = (v[last] - v[last - 1]) / (t[last] - t[last - 1]);
+                return v[last] + slope * Math.min(at - t[last], MAX_EXTRAPOLATE_MS);
+            }
+            int i = last - 1;
+            while (i > 0 && t[i] > at) i--;
+            float dt = t[i + 1] - t[i];
+            float u = (at - t[i]) / dt;
+            float segment = v[i + 1] - v[i];
+            // Tangents (scaled by dt): the previous segment's slope at the start, this one's at the end.
+            float m0 = i > 0 ? (v[i] - v[i - 1]) / (t[i] - t[i - 1]) * dt : segment;
+            float m1 = segment;
+            float u2 = u * u, u3 = u2 * u;
+            return (2 * u3 - 3 * u2 + 1) * v[i] + (u3 - 2 * u2 + u) * m0
+                    + (-2 * u3 + 3 * u2) * v[i + 1] + (u3 - u2) * m1;
         }
     }
 
     private final Map<UUID, Track> tracks = new HashMap<>();
 
-    /** Records a freshly received position for a worker. */
+    /** Records a freshly received position for a unit. */
     public void observe(UUID id, float x, float z, long nowMs) {
         Track t = tracks.get(id);
         if (t == null) {
             t = new Track();
-            t.fromX = t.toX = x;
-            t.fromZ = t.toZ = z;
-            t.startMs = t.lastUpdateMs = nowMs;
+            t.reset(x, z, nowMs);
             tracks.put(id, t);
             return;
         }
-        float curX = t.x(nowMs);
-        float curZ = t.z(nowMs);
-        float dx = x - curX;
-        float dz = z - curZ;
-        long interval = nowMs - t.lastUpdateMs;
-        t.lastUpdateMs = nowMs;
-        t.startMs = nowMs;
-        t.toX = x;
-        t.toZ = z;
+        float dx = x - t.x[t.n - 1];
+        float dz = z - t.z[t.n - 1];
         if (dx * dx + dz * dz > SNAP_BLOCKS * SNAP_BLOCKS) {
-            t.fromX = x;
-            t.fromZ = z;
-            t.durationMs = DEFAULT_INTERVAL_MS;
+            t.reset(x, z, nowMs);
             return;
         }
-        t.fromX = curX;
-        t.fromZ = curZ;
-        t.durationMs = Math.max(MIN_INTERVAL_MS, Math.min(MAX_INTERVAL_MS, interval));
+        if (nowMs <= t.t[t.n - 1]) return; // same instant: keep the earlier sample
+        t.add(x, z, nowMs);
     }
 
-    /** Forgets every worker that is no longer reported. */
+    /** Forgets every unit that is no longer reported. */
     public void retainOnly(Set<UUID> present) {
         Iterator<UUID> it = tracks.keySet().iterator();
         while (it.hasNext()) {
@@ -83,12 +100,12 @@ public final class WorkerMarkerSmoother {
 
     public float x(UUID id, float fallback, long nowMs) {
         Track t = id == null ? null : tracks.get(id);
-        return t == null ? fallback : t.x(nowMs);
+        return t == null ? fallback : t.value(0, nowMs - RENDER_DELAY_MS);
     }
 
     public float z(UUID id, float fallback, long nowMs) {
         Track t = id == null ? null : tracks.get(id);
-        return t == null ? fallback : t.z(nowMs);
+        return t == null ? fallback : t.value(1, nowMs - RENDER_DELAY_MS);
     }
 
     public float x(UUID id, float fallback) {

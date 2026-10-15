@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat.ai;
 
+import com.jubitus.travellers.worldmap.stream.MapStrikeLog;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
@@ -314,6 +315,8 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         w.playSound(null, mob.posX, mob.posY, mob.posZ, SoundEvents.ENTITY_SKELETON_SHOOT,
                 SoundCategory.HOSTILE, 1.0F, 1.0F / (mob.getRNG().nextFloat() * 0.4F + 0.8F));
         w.spawnEntity(arrow);
+        MapStrikeLog.record(MapStrikeLog.ARROW, mob.dimension, w.getTotalWorldTime(), mob.getUniqueID(),
+                mob.posX, mob.posZ, target.posX, target.posZ);
         mob.swingArm(EnumHand.MAIN_HAND);
     }
 

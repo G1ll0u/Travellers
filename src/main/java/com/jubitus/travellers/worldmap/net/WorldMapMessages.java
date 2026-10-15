@@ -23,6 +23,7 @@ public final class WorldMapMessages {
         toServer(MsgSubscribeCampMap.class, MsgSubscribeCampMap.Handler.class);
         toClient(MsgMapCampUpdate.class, () -> new MsgMapCampUpdate.ClientHandler());
         toClient(MsgMapBattleUpdate.class, () -> new MsgMapBattleUpdate.ClientHandler());
+        toClient(MsgMapBattleStrikes.class, () -> new MsgMapBattleStrikes.ClientHandler());
         toClient(MsgMapForeignUnitsUpdate.class, () -> new MsgMapForeignUnitsUpdate.ClientHandler());
     }
 }

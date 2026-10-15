@@ -89,11 +89,11 @@ The hand-off in both directions is all-or-nothing: if the game refuses to place 
 ### Raiders
 
 The mod also adds a hostile variant:
-* **Raider** (`travellers:traveller_raider`) travels like a Traveller, but **attacks players and Millénaire villagers**.
+* **Raider** (`travellers:traveller_raider`) travels like a Traveller, but **attacks players and Millénaire villagers**. Like travellers, they eat to heal, even while offscreen.
 
 ### Virtual battles
 
-The simulated world isn't peaceful. When hostile parties cross paths **anywhere in the world — even thousands of blocks away, in unloaded chunks** — a real battle breaks out and plays out blow by blow: every fighter is positioned individually, closes on its target, and attacks at the speed of its actual weapon. Armor absorbs damage, archers stand off and shoot, and passing groups can pile into an ongoing fight as reinforcements. Battles show up live on the world map (red cross markers with fighter counts), and camps can be assaulted too — a wiped-out camp is left as a ruin with a dying fire.
+The simulated world isn't peaceful. When hostile parties cross paths **anywhere in the world — even thousands of blocks away, in unloaded chunks** — a real battle breaks out and plays out blow by blow: every fighter is positioned individually, closes on its target, and attacks at the speed of its actual weapon. Armor absorbs damage, archers stand off and shoot, and passing groups can pile into an ongoing fight as reinforcements. Battles show up live on the world map (red cross markers with fighter counts, arrows flying and fighters lunging — this animation can be turned off in the config), and camps can be assaulted too — a wiped-out camp is left as a ruin with a dying fire.
 
 The fallen's gear and cargo go into that fight's loot pool (per-type toggles let you decide who drops anything at all — hired henchmen do by default, everyone else doesn't). On a clean victory, the winning side's surviving henchmen/travellers/raiders get first pick and upgrade their own equipment from the pool before anything hits the ground; whatever's left (or the whole pool, on a draw/timeout) appears on the ground when you travel there. If your hired henchmen get attacked, you're **notified in chat with coordinates** (even offline — the message waits for your next login) so you can send reinforcements Age-of-Empires style, watch the fight progress on the map, and hover your workers to see their live HP. Raiders won't jump your henchmen instantly: a group just passing through is left alone, only sustained contact turns into a fight. And if you declare another player hostile, your henchman armies will fight each other wherever they meet.
 

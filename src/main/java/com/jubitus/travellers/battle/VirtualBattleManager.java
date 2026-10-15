@@ -1,5 +1,6 @@
 package com.jubitus.travellers.battle;
 
+import com.jubitus.travellers.worldmap.stream.MapStrikeLog;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
@@ -733,7 +734,15 @@ public class VirtualBattleManager extends WorldSavedData {
         int guard = 0;
         float scaled = (float) (rawDamage * TravellersConfig.BATTLE_EVENTS.virtualDamageMultiplier);
         while (attacker.attackTimer <= 0 && victim.alive && guard++ < 8) {
+            // The timer is <= 0 here: it says how long ago inside this step the strike really fell.
+            long struck = Math.max(now - elapsed, now + attacker.attackTimer);
             attacker.attackTimer += Math.max(1, cooldown);
+            if (MapStrikeLog.isActive()) {
+                double vx = victimRec != null ? victimRec.posX : foe.posX;
+                double vz = victimRec != null ? victimRec.posZ : foe.posZ;
+                MapStrikeLog.record(melee ? MapStrikeLog.MELEE : MapStrikeLog.ARROW, attackerRec.dimension, struck,
+                        attackerRec.uuid, attackerRec.posX, attackerRec.posZ, vx, vz);
+            }
             if (victimRec != null) {
                 applyDamage(world, vtm, b, attacker, victim, victimRec, rawDamage, now);
             } else {
@@ -779,7 +788,10 @@ public class VirtualBattleManager extends WorldSavedData {
         p.attackTimer -= elapsed;
         int guard = 0;
         while (p.attackTimer <= 0 && best.alive && guard++ < 8) {
+            long struck = Math.max(now - elapsed, now + p.attackTimer);
             p.attackTimer += cooldown;
+            MapStrikeLog.record(MapStrikeLog.MELEE, le.dimension, struck, le.getUniqueID(),
+                    le.posX, le.posZ, bestRec.posX, bestRec.posZ);
             applyDamage(world, vtm, b, p, best, bestRec, raw, now);
             TravellerItemDamage.damageWeaponOnHit(le);
         }

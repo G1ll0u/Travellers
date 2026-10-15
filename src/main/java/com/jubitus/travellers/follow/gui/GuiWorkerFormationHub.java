@@ -55,7 +55,7 @@ import java.util.*;
 @SideOnly(Side.CLIENT)
 public class GuiWorkerFormationHub extends GuiScreen
         implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui,
-        FormationOrdersMenu.Host {
+        FormationOrdersMenu.Host, com.jubitus.travellers.worldmap.gui.receiver.IStrikeMapReceiver {
 
     // ── Layout ────────────────────────────────────────────────────────────────
     // Three boxes (leaders | map | card) share one top and one bottom edge; inside each box the
@@ -714,5 +714,10 @@ public class GuiWorkerFormationHub extends GuiScreen
     @Override
     public boolean doesGuiPauseGame() {
         return false;
+    }
+
+    @Override
+    public void receiveStrikes(int dim, java.util.List<com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry> strikes) {
+        if (mapController != null) mapController.panel.receiveStrikes(dim, strikes);
     }
 }

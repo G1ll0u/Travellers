@@ -131,6 +131,15 @@ public class ForeignUnitMapStream {
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (server == null) return;
 
+        long t0 = MapStreamStats.begin();
+        try {
+            publish(server);
+        } finally {
+            MapStreamStats.end(MapStreamStats.Stream.FOREIGN, t0);
+        }
+    }
+
+    private static void publish(MinecraftServer server) {
         // Build the full candidate pool + spatial hash once per tick
         List<Candidate> all = new ArrayList<>();
         for (WorldServer ws : server.worlds) {
@@ -180,6 +189,11 @@ public class ForeignUnitMapStream {
 
             List<Candidate> visible = new ArrayList<>(visibleSet.keySet());
             if (visible.size() > MAX_ENTRIES_PER_PACKET) {
+                // Nearest to what the player looks at, never an arbitrary prefix (that made units flicker).
+                int[] view = WorkerMapStream.getView(playerId);
+                double vx = view != null ? view[1] : player.posX;
+                double vz = view != null ? view[2] : player.posZ;
+                visible.sort(Comparator.comparingDouble(c -> (c.x - vx) * (c.x - vx) + (c.z - vz) * (c.z - vz)));
                 visible.subList(MAX_ENTRIES_PER_PACKET, visible.size()).clear();
             }
 
@@ -204,7 +218,7 @@ public class ForeignUnitMapStream {
     }
 
     private static void sendForeignUnits(EntityPlayerMP player, List<MsgMapForeignUnitsUpdate.Entry> out) {
-        com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player, new MsgMapForeignUnitsUpdate(out));
+        MapStreamStats.send(MapStreamStats.Stream.FOREIGN, player, new MsgMapForeignUnitsUpdate(out));
     }
 
     private static List<Candidate> nearbyCandidates(Map<Long, List<Candidate>> cells, int dim,

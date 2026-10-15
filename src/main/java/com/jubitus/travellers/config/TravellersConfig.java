@@ -200,6 +200,9 @@ public class TravellersConfig {
         @Config.Comment("Show active virtual battles as markers on the worldmap.")
         public boolean battleMarkersOnMap = true;
 
+        @Config.Comment("Animate fights on the maps: arrows fly from archers to their targets and melee fighters lunge at their opponent. Costs a little network traffic while a map is open.")
+        public boolean animateFightsOnMap = true;
+
         @Config.Comment("Initial zoom for the worldmap in the formation hub (blocks per pixel). Smaller = more zoomed in. 0.5 means 1 block per 2 pixels.")
         @Config.RangeDouble(min = 0.0625, max = 8.0)
         public double formationHubMapInitialBpp = 0.5;

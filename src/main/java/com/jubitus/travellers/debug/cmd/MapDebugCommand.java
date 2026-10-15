@@ -33,6 +33,10 @@ public class MapDebugCommand implements DebugSubcommand {
             executeMapStats(sender, args.length >= 3 && args[2].equalsIgnoreCase("reset"));
             return true;
         }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("streams")) {
+            executeMapStreams(sender, args.length >= 3 ? args[2] : "report");
+            return true;
+        }
         if (args.length >= 3 && args[1].equalsIgnoreCase("resweep") && args[2].equalsIgnoreCase("cancel")) {
             executeMapResweepCancel(server, sender);
             return true;
@@ -47,8 +51,9 @@ public class MapDebugCommand implements DebugSubcommand {
 
     @Override
     public List<String> suggestions(ICommandSender sender, String[] args) {
-        if (args.length == 2) return getListOfStringsMatchingLastWord(args, "resweep", "stats");
+        if (args.length == 2) return getListOfStringsMatchingLastWord(args, "resweep", "stats", "streams");
         if (args.length == 3 && args[1].equalsIgnoreCase("resweep")) return getListOfStringsMatchingLastWord(args, "all", "cancel");
+        if (args.length == 3 && args[1].equalsIgnoreCase("streams")) return getListOfStringsMatchingLastWord(args, "start", "stop", "report");
         if (args.length == 3 && args[1].equalsIgnoreCase("stats")) return getListOfStringsMatchingLastWord(args, "reset");
         return Collections.emptyList();
     }
@@ -142,6 +147,22 @@ public class MapDebugCommand implements DebugSubcommand {
                 "  full %d  empty %d  PARTIAL %d (edge-line only %d, %d missing pixels)",
                 total.fullChunks, total.emptyChunks, total.partialChunks,
                 total.edgeOnlyPartialChunks, total.missingPixelsInPartial));
+    }
+
+    // Cost of the unit streams sent to map viewers: start a session, let players use the map, then report.
+    private void executeMapStreams(ICommandSender sender, String action) {
+        if (action.equalsIgnoreCase("start")) {
+            com.jubitus.travellers.worldmap.stream.MapStreamStats.start();
+            msg(sender, TextFormatting.GREEN + "Map stream measuring started. Open a map, then 'map streams report'.");
+            return;
+        }
+        if (action.equalsIgnoreCase("stop")) {
+            com.jubitus.travellers.worldmap.stream.MapStreamStats.stop();
+            msg(sender, TextFormatting.GREEN + "Map stream measuring stopped (report still available).");
+        }
+        for (String line : com.jubitus.travellers.worldmap.stream.MapStreamStats.report()) {
+            msg(sender, TextFormatting.GRAY + line);
+        }
     }
 
     private static void msg(ICommandSender sender, String text) {
