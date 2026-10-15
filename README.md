@@ -24,7 +24,7 @@ It can even be simply be a new voice personality to a culture that already has v
 
 ### Songs ?!
 Travellers also are singers !
-They can eventually sing in **chorus** when you ask them or when they walk together (only for 1 norman personality at the moment)
+They can eventually sing in **chorus** when you ask them or when they walk together (still in development: only a few songs are available at the moment)
 
 They also sing alone when they walk.
 
@@ -34,7 +34,7 @@ Travellers look around like real people: on the road they watch the way ahead an
 They also **say hello**: to you when they pass you or stop for you, and to other travellers and groups they meet on the road. One hello per group, not a chorus — the other members just nod along, and someone from the group being greeted answers (one of your own Henchmen answers for you). Once a traveller has greeted you, right-clicking it gets you its chatter rather than a second hello. In villages they only greet you, raiders greet nobody, and it can all be tuned or turned off in the `Gaze` config.
 
 ### Dialogue feature
-Right-click a traveller that isn't hired and isn't hostile, and instead of a scripted line you get a real conversation: type whatever you want, and it answers in character. This runs entirely on your own computer through **Ollama** (a free, separate program you install yourself) — the server never contacts any AI service on your behalf, so this only works for players who set it up. It's off by default; ask whoever runs your server to turn it on in the `Dialogue` config (in singleplayer, that's you).
+Right-click a traveller that isn't hired and isn't hostile, and instead of a scripted line you get a real conversation: type whatever you want, and it answers in character. This runs entirely on your own computer through **Ollama** or an OpenAI-compatible local server such as **llama.cpp** (free, separate programs you install yourself) — the server never contacts any AI service on your behalf, so this only works for players who set it up. It's off by default; ask whoever runs your server to turn it on in the `Dialogue` config (in singleplayer, that's you).
 
 They stay grounded in the actual world instead of making things up: their own personality, trade, culture and home village, why they're actually on the road, roughly how far away things are (in vague words — "a good walk south", never exact coordinates), what's going on around them, and whether they've met you before. Turn on tool use in the Advanced settings screen and, if your own model supports it, they can also look a few things up mid-conversation instead of only working from what they already know. You can also let them remember things across separate conversations later (off by default too) — a traveller remembers its own life, not just what you personally told it, so it can recall something a different player once said to it too.
 
@@ -111,6 +111,17 @@ Walk into a battle and it seamlessly turns physical around you — same fighters
 Your worldmap and formation hub also have a fog of war: foreign travellers, raiders, other players' henchmen, and battles only show up once one of your own henchmen gets close enough (a configurable vision radius) — no more seeing every fight on the server from your armchair. Other players' hired henchmen show up tinted in their owner's color, and their HP stays hidden unless you turn that on in the config.
 
 
+### Notifications
+
+You're kept informed of what happens to your Henchmen, even when they're far away:
+
+* A Henchman dies (and whether it will come back beside its bed, and when) or is back
+* A Go order arrives, after a long trip
+* A sale or donation to a village is completed, or equipment was collected
+* A Henchman's horse can't get through and is led on foot instead
+* One of your Stables tames a horse, saddles one or has a foal
+* Your Henchmen are attacked (with coordinates)
+
 ### Camps (WIP)
 
 Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild.
@@ -124,7 +135,7 @@ This all keeps happening even when you're not there to watch — camps quietly p
 
 ## Henchmen
 
-This mod also adds **Henchmen**: recruitable NPCs that turn travel into gameplay. They spawn in established villages (population threshold configurable) and behave like autonomous couriers when not hired, travelling to villages bringing a small portion of needed goods for building and wall constructions (even for unloaded villages).
+This mod also adds **Henchmen**: recruitable NPCs that turn travel into gameplay. They spawn in established villages (how many depends on the village's population) and behave like autonomous couriers when not hired, travelling to villages bringing a small portion of needed goods for building and wall constructions (even for unloaded villages).
 Henchmen travel from villages to villages **even virtually**, they travel even when the entity is unloaded and use the "virtualization mode" that simulates its movement and behavior on unloaded chunks.
 That means every henchman is unique and really moves from villages to villages even when unloaded.
 
@@ -137,7 +148,7 @@ They use the virtualization system to move on unloaded chunks
 * **Be organized into multiple groups** by assigning **leaders**, making large crews manageable.
 Open formations menu with the `H` key (by default)
 * **Use formations** — assign formation styles and tweak spacing via the Formation Hub; a group always keeps a tight formation for its current size, closing ranks automatically when it loses members
-* **Command from the Formation Hub map** — left-click a Henchman to select its whole group (Shift-click or drag a rectangle to pick individual Henchmen), right-click for the orders menu, or right-click a group in the list on the left to order another group toward it (follow, merge). The action bar under the map offers the common orders for the current selection
+* **Command from the Formation Hub map** — select a group or Henchmen on the map and right-click to give orders (details below)
 * **Set a group's Attitude** — Attack (chase freely), Defend (hold ground, only chase threats that get close) or Hold Position (never move to fight, great for a line of archers), applied instantly to the selected group
 * **Run recruitment missions** to visit villages and bring back additional Henchmen (with configurable costs, distance limits, and spawn ranges)
 * **Sell or donate items to Millénaire villages** as if you did it yourself
@@ -185,7 +196,7 @@ branches open at once, turn on `Keep several menu branches open at the same time
 
 **Send them somewhere**
 * Right-click a hired Henchman
-* Go to **Orders > Go... > Travel** and select a position
+* Go to **Orders > Missions > Travel** and select a position
 * The Henchman (and their followers if they are a leader) will travel to that position
 
 > A Henchman already busy on a task (transporting goods, recruiting, or fetching equipment) won't accept a new order — Go, Get Equipment, or being grouped/regrouped — until it finishes. You'll get a short notice, and if you were grouping several at once the busy ones are simply left on their task while the rest are grouped.
@@ -199,7 +210,7 @@ branches open at once, turn on `Keep several menu branches open at the same time
 
 **Transport goods**
 * Right-click a hired Henchman
-* Go to **Orders > Transport**
+* Go to **Orders > Missions > Transport**
 * Give items → select a village → click Validate → click Sell or Donate
 
 The Henchman will travel to the village, complete the transaction, and return to you.
@@ -221,6 +232,8 @@ The Henchman will travel to the village, complete the transaction, and return to
 
 **World map**
 * A standalone world map (showing your Henchmen) can be opened with a key you assign yourself in **Options > Controls** under the Travellers category — no key is bound by default.
+* The map starts out hidden under fog: the terrain is revealed chunk by chunk as you walk into it, separately for each player.
+* The map only shows the Overworld.
 
 
 ### Potential incompatibilities
@@ -240,7 +253,7 @@ This mod is very configurable. You can customize way too much things, so much th
 All mod values are configurable without restarting:
 
 * **In-game GUI**: run `/travellersconfig` or use the Forge **Mod Options** button.
-* Changes apply live; saving writes to `config/travellers/travellers_overrides.properties`
+* Changes apply live
 * Changes done on this GUI affect server or client
 * A client-side **entity render LOD** option skips cosmetic overlays (clothes/backpack/armband) and the held-item render for distant Henchmen/Travellers/Raiders, to keep frame rate up with many on screen at once — configurable distances, can be disabled
 
