@@ -32,7 +32,7 @@ final class VirtualVillageVisits {
 
     /** Starts a stay once the record is inside the stop's arrival radius, like the loaded arrival. */
     boolean tryStart(WorldServer world, VirtualTravellerRecord r, BlockPos stop, long now) {
-        if (!visitsEnabledFor(r)) return false;
+        if (!visitsEnabledFor(r) || com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return false;
         TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
         double dx = stop.getX() + 0.5 - r.posX;
         double dz = stop.getZ() + 0.5 - r.posZ;
@@ -270,7 +270,8 @@ final class VirtualVillageVisits {
 
     /** A group follower record inside the village its leader stays in visits on its own until the leader leaves. */
     boolean tryStartFollower(WorldServer world, VirtualTravellerRecord r, long now) {
-        if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !visitsEnabledFor(r)) return false;
+        if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !visitsEnabledFor(r)
+                || com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return false;
         BlockPos stop = leaderVisitStop(world, r.groupLeaderUUID);
         if (stop == null) return false;
         com.jubitus.travellers.village.VillageVisitIndex.Settlement s =

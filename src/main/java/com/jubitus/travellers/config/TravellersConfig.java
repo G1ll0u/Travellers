@@ -50,6 +50,7 @@ public class TravellersConfig {
     public static final Trace TRACE = new Trace();
     public static final Routing ROUTING = new Routing();
     public static final Dialogue DIALOGUE = new Dialogue();
+    public static final Raids RAIDS = new Raids();
 
     public static class Trace {
         @Config.Comment("Record what an individual traveller is doing, tick by tick, into its own file under logs/travellers-trace. Use /travellersdebug trace to pick one.")
@@ -3165,6 +3166,42 @@ public class TravellersConfig {
 
         @Config.Comment("How far away (in blocks) it checks for a different landscape right next door, so a traveller near the edge of two areas can mention it.")
         @Config.RangeInt(min = 8, max = 128)
+    public static class Raids {
+        @Config.Comment("Lets raider hordes come for each player from time to time. Off by default.")
+        public boolean enabled = false;
+
+        @Config.Comment("Average number of in-game days between two raids on the same player. Each raid is a bit earlier or later than this.")
+        @Config.RangeDouble(min = 0.5, max = 60.0)
+        public float averageIntervalDays = 5.0f;
+
+        @Config.Comment("How likely a raid is to come at night, compared with the day weight. Example: 80 and 20 means four raids out of five come at night.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int nightWeight = 80;
+
+        @Config.Comment("How likely a raid is to come during the day, compared with the night weight.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int dayWeight = 20;
+
+        @Config.Comment("No raid on a player during this many in-game days after they were first seen by the raid system.")
+        @Config.RangeDouble(min = 0.0, max = 60.0)
+        public float graceDays = 3.0f;
+
+        @Config.Comment("How hard raids hit. 1.0 is the normal size for your workers; 2.0 sends twice as many raiders, 0.5 half as many.")
+        @Config.RangeDouble(min = 0.1, max = 5.0)
+        public float difficultyScale = 1.0f;
+
+        @Config.Comment("The most raiders a single raid will ever bring, however many workers you have.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int maxRaiders = 40;
+
+        @Config.Comment("How far from you (in blocks) the raiders appear. They walk the rest of the way, so this is also your warning time.")
+        @Config.RangeInt(min = 80, max = 500)
+        public int spawnDistance = 180;
+
+        @Config.Comment("Cultures allowed to raid you, by their Millenaire culture name (for example: norman, japanese, byzantines, hindi, inuits, mayan, seljuk). Leave empty to allow every culture present in the world.")
+        public String[] allowedCultures = new String[0];
+    }
+
         public int biomeBorderCheckRadius = 32;
 
         @Config.Comment("How far around a traveller (in blocks) it surveys the land for distant landmarks (mountains, forest, seas, rivers...) worth mentioning in conversation.")

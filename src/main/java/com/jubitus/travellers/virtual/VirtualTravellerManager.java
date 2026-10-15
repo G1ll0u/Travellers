@@ -658,8 +658,11 @@ public class VirtualTravellerManager extends WorldSavedData {
     private void refreshGoal(WorldServer world, VirtualTravellerRecord r, long now) {
         // Non-worker travellers/raiders: advance through route, replan at end
         if (!"WORKER".equals(r.entityClass)) {
+            // A raider on a raid never camps; its single-stop trip is re-aimed by the raid scheduler.
+            boolean raiding = "RAIDER".equals(r.entityClass)
+                    && com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid);
             // Camp lifecycle takes priority: halt at the slot while camping, or claim a passing campsite.
-            if (r.visit == null && handleCamp(world, r)) return;
+            if (!raiding && r.visit == null && handleCamp(world, r)) return;
             // Group follower: track leader's position (virtual or, once it has materialized, loaded),
             // offset by the same deterministic ring the materializer uses, so the group marches as a
             // loose pack (not a stack) regardless of which side of the group has materialized.
@@ -904,6 +907,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         return new BlockPos(MathHelper.floor(r.posX), MathHelper.floor(r.posY), MathHelper.floor(r.posZ));
     }
 
+        if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return;
     /** Picks a fresh roam destination and starts a one-stop trip toward it (end-of-trip replan). */
     private void startNewTrip(WorldServer world, VirtualTravellerRecord r, long now) {
         BlockPos dest = pickRoamDestination(world, r);
@@ -1782,9 +1786,11 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     /** Number of virtual entities of a given entityClass whose home village matches the key (Y ignored). */
-    public int countByHomeVillage(BlockPos key, String entityClass) {
+    public int countByHomeVillage(WorldServer world, BlockPos key, String entityClass) {
         int n = 0;
         for (VirtualTravellerRecord r : records.values()) {
+            // INVARIANT: raid raiders never count toward a village quota (the soft spawner would refill them).
+            if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) continue;
             if (!entityClass.equals(r.entityClass)) continue;
             if (r.homeVillage == null) continue;
             if (r.homeVillage.getX() == key.getX() && r.homeVillage.getZ() == key.getZ()) n++;
@@ -1800,6 +1806,16 @@ public class VirtualTravellerManager extends WorldSavedData {
         }
         return n;
     }
+    /** Re-aims a raid leader's single-stop trip at {@code goal} (the raid's player moved). */
+    public void retargetRaidLeader(UUID uuid, BlockPos goal) {
+        VirtualTravellerRecord r = records.get(uuid);
+        if (r == null || r.groupLeaderUUID != null) return;
+        r.setTrip(java.util.Collections.singletonList(goal), 0);
+        r.itinerary.clear();
+        r.goal = goal;
+        markDirty();
+    }
+
 
     /** Add a pre-built record (used for virtual spawning without world entity). */
     public void addRecord(VirtualTravellerRecord r) {

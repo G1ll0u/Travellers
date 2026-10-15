@@ -176,6 +176,12 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.POP_RAIDER, label);
     }
 
+    /** A raider of a running raid: the raider icon in a colour no other marker uses. */
+    public static GuiWorldMapPanel.Marker populationRaidRaider(BlockPos pos, boolean virtual, String label) {
+        return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | 0xFF00FF,
+                GuiWorldMapPanel.Marker.MarkerType.POP_RAIDER, label);
+    }
+
     public static GuiWorldMapPanel.Marker populationWorker(BlockPos pos, boolean virtual, String label) {
         return new GuiWorldMapPanel.Marker(pos, (virtual ? VIRTUAL_ALPHA : LOADED_ALPHA) | COLOR_POP_WORKER,
                 GuiWorldMapPanel.Marker.MarkerType.POP_WORKER, label);

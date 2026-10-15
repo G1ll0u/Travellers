@@ -133,7 +133,7 @@ public final class TravellerSoftSpawner {
         Map<BlockPos, Integer> loadedRaidersByVillage = new java.util.HashMap<>();
         for (EntityTravellerRaider r0 : loadedRaiderList) {
             BlockPos home = r0.getHomeVillage();
-            if (home == null) continue;
+            if (home == null || com.jubitus.travellers.raid.RaidWorldData.isRaider(ws, r0.getUniqueID())) continue;
             loadedRaidersByVillage.merge(new BlockPos(home.getX(), 0, home.getZ()), 1, Integer::sum);
         }
 
@@ -160,11 +160,11 @@ public final class TravellerSoftSpawner {
                 int targetTravellers = PopulationQuota.travellers(pop);
                 int targetRaiders = PopulationQuota.raiders(pop);
 
-                int virtualTravellers = mgr.countByHomeVillage(villageCenter, "TRAVELLER");
+                int virtualTravellers = mgr.countByHomeVillage(ws, villageCenter, "TRAVELLER");
                 int loadedTravellers = loadedTravellersByVillage.getOrDefault(villageKey, 0);
                 int needTravellers = targetTravellers - virtualTravellers - loadedTravellers;
 
-                int virtualRaiders = mgr.countByHomeVillage(villageCenter, "RAIDER");
+                int virtualRaiders = mgr.countByHomeVillage(ws, villageCenter, "RAIDER");
                 int loadedRaiders = loadedRaidersByVillage.getOrDefault(villageKey, 0);
                 int needRaiders = targetRaiders - virtualRaiders - loadedRaiders;
 
@@ -217,7 +217,7 @@ public final class TravellerSoftSpawner {
                 if (workerMinDist <= 0 || !withinXZOfAny(workerKey, workerAnchors, workerMinDist)) {
                     int targetWorkers = PopulationQuota.workers(pop);
                     int haveLoaded = loadedWorkersByVillage.getOrDefault(workerKey, 0);
-                    int haveVirtual = mgr.countByHomeVillage(workerKey, "WORKER");
+                    int haveVirtual = mgr.countByHomeVillage(ws, workerKey, "WORKER");
                     int haveWorkers = haveLoaded + haveVirtual;
                     if (haveWorkers > 0) workerAnchors.add(workerKey);
 
@@ -255,7 +255,7 @@ public final class TravellerSoftSpawner {
                 String loneCulture = lone.cultureKey.isEmpty() ? null : lone.cultureKey;
 
                 if (totalVirtual + totalLoaded < globalCap) {
-                    int need = travellerPerLone - mgr.countByHomeVillage(loneCenter, "TRAVELLER")
+                    int need = travellerPerLone - mgr.countByHomeVillage(ws, loneCenter, "TRAVELLER")
                             - loadedTravellersByVillage.getOrDefault(loneKey, 0);
                     int spawnedLoneTravellers = 0;
                     int loneTravellerAttempts = 0;
@@ -271,7 +271,7 @@ public final class TravellerSoftSpawner {
                         totalVirtual += added;
                     }
 
-                    int needR = raiderPerLone - mgr.countByHomeVillage(loneCenter, "RAIDER")
+                    int needR = raiderPerLone - mgr.countByHomeVillage(ws, loneCenter, "RAIDER")
                             - loadedRaidersByVillage.getOrDefault(loneKey, 0);
                     int spawnedLoneRaiders = 0;
                     int loneRaiderAttempts = 0;
@@ -289,7 +289,7 @@ public final class TravellerSoftSpawner {
                 }
 
                 if (workerPerLone > 0 && (workerCap <= 0 || totalWorkers < workerCap)) {
-                    int needW = workerPerLone - mgr.countByHomeVillage(loneCenter, "WORKER");
+                    int needW = workerPerLone - mgr.countByHomeVillage(ws, loneCenter, "WORKER");
                     int spawnedLoneWorkers = 0;
                     int loneWorkerAttempts = 0;
                     int maxLoneWorkerAttempts = attemptBudget(needW);
@@ -481,7 +481,7 @@ public final class TravellerSoftSpawner {
         return min + rand.nextInt(max - min + 1);
     }
 
-    private static void spawnVirtualFollower(WorldServer ws, VirtualTravellerManager mgr,
+    private static UUID spawnVirtualFollower(WorldServer ws, VirtualTravellerManager mgr,
                                              VirtualTravellerRecord leader, String entityClass,
                                              @Nullable String cultureId, BlockPos spawnPos) {
         EntityTraveller tempEntity = "RAIDER".equals(entityClass)
@@ -515,6 +515,52 @@ public final class TravellerSoftSpawner {
         r.mounted = leader.mounted;
         r.groupFormationStyle = leader.groupFormationStyle;
         mgr.addRecord(r);
+        return r.uuid;
+    }
+
+    /**
+     * Creates one raid warband as virtual records walking straight to {@code goal}: a leader and
+     * {@code size - 1} followers, all of one culture.
+     *
+     * @return the unit ids created, empty when the point is vetoed (near a settlement or a player)
+     */
+    public static java.util.List<UUID> spawnRaidGroup(WorldServer ws, VirtualTravellerManager mgr,
+                                                      BlockPos ringPoint, @Nullable String cultureId,
+                                                      BlockPos homeVillage, BlockPos goal, int size) {
+        java.util.List<UUID> ids = new java.util.ArrayList<>();
+        BlockPos spawnPos = resolveVirtualSpawnY(ws, ringPoint);
+        if (MillSettlements.isNear(ws, spawnPos, TravellersConfig.SPAWN.spawnSettlementAvoidanceRadius)
+                || isNearAnyPlayer(ws, spawnPos)) {
+            return ids;
+        }
+        BlockPos homeKey = new BlockPos(homeVillage.getX(), 0, homeVillage.getZ());
+        EntityTravellerRaider temp = new EntityTravellerRaider(ws);
+        temp.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+        temp.setHomeVillage(homeKey);
+        net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
+                ? new EntityTraveller.SpawnData(cultureId) : null;
+        temp.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+        net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
+        temp.writeToNBT(entityNbt);
+
+        VirtualTravellerRecord r = new VirtualTravellerRecord(temp.getUniqueID(),
+                spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+                ws.rand.nextFloat() * 360f, ws.provider.getDimension(), entityNbt);
+        r.entityClass = "RAIDER";
+        r.homeVillage = homeKey;
+        r.captureIdentityFromNbt();
+        r.setTrip(java.util.Collections.singletonList(goal), 0);
+        r.goal = goal;
+        r.virtualizedTick = ws.getTotalWorldTime();
+        r.mounted = TravellerMountSupport.rollGroupMount(ws.rand, "RAIDER");
+        r.groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle
+                .randomGroupStyle(ws.rand).name();
+        mgr.addRecord(r);
+        ids.add(r.uuid);
+        for (int i = 1; i < size; i++) {
+            ids.add(spawnVirtualFollower(ws, mgr, r, "RAIDER", cultureId, spawnPos));
+        }
+        return ids;
     }
 
     /**

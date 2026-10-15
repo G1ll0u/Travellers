@@ -26,7 +26,8 @@ import java.util.UUID;
  */
 public class MsgMapPopulationUpdate implements IMessage {
 
-    public enum Kind { TRAVELLER, RAIDER, WORKER, STABLE }
+    /** RAID_RAIDER is a raider of a running raid, drawn in its own colour; it counts as a raider everywhere else. */
+    public enum Kind { TRAVELLER, RAIDER, WORKER, STABLE, RAID_RAIDER }
 
     public static class Entry {
         public int dim;

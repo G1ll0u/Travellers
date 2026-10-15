@@ -126,7 +126,8 @@ public class PopulationMapStream {
                 if (t instanceof EntityTravellerWorker) {
                     kind = MsgMapPopulationUpdate.Kind.WORKER;
                 } else if (t instanceof EntityTravellerRaider) {
-                    kind = MsgMapPopulationUpdate.Kind.RAIDER;
+                    kind = com.jubitus.travellers.raid.RaidWorldData.isRaider(ws, t.getUniqueID())
+                            ? MsgMapPopulationUpdate.Kind.RAID_RAIDER : MsgMapPopulationUpdate.Kind.RAIDER;
                 } else {
                     kind = MsgMapPopulationUpdate.Kind.TRAVELLER;
                 }
@@ -165,7 +166,10 @@ public class PopulationMapStream {
                 MsgMapPopulationUpdate.Kind kind;
                 switch (r.entityClass) {
                     case "WORKER": kind = MsgMapPopulationUpdate.Kind.WORKER; break;
-                    case "RAIDER": kind = MsgMapPopulationUpdate.Kind.RAIDER; break;
+                    case "RAIDER":
+                        kind = com.jubitus.travellers.raid.RaidWorldData.isRaider(overworld, r.uuid)
+                                ? MsgMapPopulationUpdate.Kind.RAID_RAIDER : MsgMapPopulationUpdate.Kind.RAIDER;
+                        break;
                     default: kind = MsgMapPopulationUpdate.Kind.TRAVELLER; break;
                 }
                 BlockPos pos = new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ);

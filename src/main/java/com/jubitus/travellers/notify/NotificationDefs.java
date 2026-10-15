@@ -15,6 +15,9 @@ public final class NotificationDefs {
     private NotificationDefs() {
     }
 
+    // --- Raids ---
+    public static final NotificationDef RAID_INCOMING = new NotificationDef(ERROR, "travellers.notify.raid.incoming", 0);
+
     // --- Worker hiring (MsgHireWorker) ---
     public static final NotificationDef HIRE_SUCCESS = new NotificationDef(INFO, "travellers.notify.hire.success", 0);
     public static final NotificationDef HIRE_ALREADY_HIRED_BY_OTHER = new NotificationDef(ERROR, "travellers.notify.hire.already_hired_by_other", 0);

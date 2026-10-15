@@ -138,6 +138,7 @@ public class EntityAICampStay extends EntityAIBase {
     @Override
     public boolean shouldExecute() {
         if (!TravellersConfig.CAMP_EVENTS.enabled) return false;
+        if (com.jubitus.travellers.raid.RaidWorldData.isRaider(mob.world, mob.getUniqueID())) return false;
         if (mob instanceof EntityTravellerWorker) {
             if (!TravellersConfig.CAMP_EVENTS.workersCanCamp) return false;
             EntityTravellerWorker w = (EntityTravellerWorker) mob;

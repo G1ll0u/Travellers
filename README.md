@@ -91,6 +91,15 @@ The hand-off in both directions is all-or-nothing: if the game refuses to place 
 The mod also adds a hostile variant:
 * **Raider** (`travellers:traveller_raider`) travels like a Traveller, but **attacks players and Millénaire villagers**. Like travellers, they eat to heal, even while offscreen.
 
+### Raids
+
+From time to time a **raid** comes for you: several warbands of raiders appear far away, walk toward you and attack you and your henchmen first, fighting whatever else they meet as usual. A red notice tells you which direction they come from.
+
+* Raids are sized on **your henchmen** (their number and their gear) and grow slower and slower the more you have, so a huge army does not mean an endless horde.
+* You choose how often they come, whether they come by night or by day, how hard they hit, how many raiders at most, how far away they appear, and **which cultures may raid you** (one, a few, or all).
+* A new player gets a few days of peace first. A raid never catches you "on login", and it ends when the raiders are all dead or after twenty minutes.
+* Off by default; turn it on in the config (`RAIDS`). Server admins can start one at once with `/travellersdebug raid now`.
+
 ### Virtual battles
 
 The simulated world isn't peaceful. When hostile parties cross paths **anywhere in the world — even thousands of blocks away, in unloaded chunks** — a real battle breaks out and plays out blow by blow: every fighter is positioned individually, closes on its target, and attacks at the speed of its actual weapon. Armor absorbs damage, archers stand off and shoot, and passing groups can pile into an ongoing fight as reinforcements. Battles show up live on the world map (red cross markers with fighter counts, arrows flying and fighters lunging — this animation can be turned off in the config), and camps can be assaulted too — a wiped-out camp is left as a ruin with a dying fire.

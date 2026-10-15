@@ -56,6 +56,19 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         int scanPriority = raider.isRetargetBoosted() ? 2 : 0;
         if (!PathBudget.tryAcquire(raider.world, PathBudget.Client.COMBAT_SCAN, raider.getEntityId(), scanPriority)) return false;
 
+        // A raider on a raid goes for the raid's player and that player's hired workers first.
+        java.util.UUID raidPlayer = com.jubitus.travellers.raid.RaidWorldData
+                .targetPlayer(raider.world, raider.getUniqueID());
+        if (raidPlayer != null) {
+            EntityLivingBase preferred = nearestRaidTarget(raidPlayer);
+            if (preferred != null) {
+                @SuppressWarnings("unchecked")
+                T picked = (T) preferred;
+                this.targetEntity = picked;
+                return true;
+            }
+        }
+
         if (raider.isRetargetBoosted()) {
             for (int i = 0; i < RETARGET_BOOST_ATTEMPTS; i++) {
                 if (super.shouldExecute()) return true;
@@ -64,5 +77,32 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         }
 
         return super.shouldExecute();
+    }
+
+    private EntityLivingBase nearestRaidTarget(java.util.UUID playerId) {
+        double range = getTargetDistance();
+        net.minecraft.util.math.AxisAlignedBB box = raider.getEntityBoundingBox().grow(range, 4.0D, range);
+        EntityLivingBase best = null;
+        double bestSq = Double.MAX_VALUE;
+        for (EntityLivingBase e : raider.world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
+            if (!e.isEntityAlive() || e.isInvisible() || raider.isIgnoring(e)) continue;
+            boolean preferred;
+            if (e instanceof net.minecraft.entity.player.EntityPlayer) {
+                net.minecraft.entity.player.EntityPlayer p = (net.minecraft.entity.player.EntityPlayer) e;
+                preferred = p.getUniqueID().equals(playerId) && !p.isCreative() && !p.isSpectator();
+            } else if (e instanceof com.jubitus.travellers.unit.EntityTravellerWorker) {
+                com.jubitus.travellers.unit.EntityTravellerWorker w = (com.jubitus.travellers.unit.EntityTravellerWorker) e;
+                preferred = w.isHiredFollower() && playerId.equals(w.getFollowOwnerId());
+            } else {
+                preferred = false;
+            }
+            if (!preferred || !raider.getEntitySenses().canSee(e)) continue;
+            double d = raider.getDistanceSq(e);
+            if (d < bestSq) {
+                bestSq = d;
+                best = e;
+            }
+        }
+        return best;
     }
 }

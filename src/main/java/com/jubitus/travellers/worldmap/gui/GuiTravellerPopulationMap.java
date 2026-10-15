@@ -288,6 +288,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
                 case TRAVELLER:
                     if (e.virtual) travellerVirtual++; else travellerLoaded++;
                     break;
+                case RAID_RAIDER:
                 case RAIDER:
                     if (e.virtual) raiderVirtual++; else raiderLoaded++;
                     break;
@@ -471,6 +472,9 @@ public class GuiTravellerPopulationMap extends GuiScreen
             if (e.dim != myDim) continue;
             GuiWorldMapPanel.Marker m;
             switch (e.kind) {
+                case RAID_RAIDER:
+                    m = WorldMapMarkerFactory.populationRaidRaider(e.pos, e.virtual, e.label);
+                    break;
                 case RAIDER:
                     m = WorldMapMarkerFactory.populationRaider(e.pos, e.virtual, e.label);
                     break;

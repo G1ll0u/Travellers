@@ -176,6 +176,8 @@ public class TravelCommon {
         if (routeIndex >= 0 && routeIndex < route.size()) {
             return; // already have an active route
         }
+        // A raid raider's route is only ever set by the raid scheduler.
+        if (com.jubitus.travellers.raid.RaidWorldData.isRaider(owner.world, owner.getUniqueID())) return;
 
         // --- 1) Choose origin anchor ---
         BlockPos origin = owner.getPosition();
@@ -493,7 +495,13 @@ public class TravelCommon {
         return stopKind;
     }
 
+    /** A raider on a raid walks right up to its player; the combat AI takes over well before that. */
+    private static final int RAID_ARRIVAL_BLOCKS = 4;
+
     public int arrivalRadiusBlocks(BlockPos target) {
+        if (com.jubitus.travellers.raid.RaidWorldData.isRaider(owner.world, owner.getUniqueID())) {
+            return RAID_ARRIVAL_BLOCKS;
+        }
         switch (stopKindFor(target)) {
             case VILLAGE:
                 return TravellersConfig.VILLAGE_VISIT.arrivalRadius;

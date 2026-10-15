@@ -421,7 +421,8 @@ public class EntityTravellerRaider extends EntityTraveller {
 
     @Override
     public boolean usesVillageVisit() {
-        return TravellersConfig.VILLAGE_VISIT.enabledRaiders;
+        return TravellersConfig.VILLAGE_VISIT.enabledRaiders
+                && !com.jubitus.travellers.raid.RaidWorldData.isRaider(world, getUniqueID());
     }
 
     @Override

@@ -147,6 +147,7 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(TravellerOffscreenHandler.class);
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
+        MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.raid.RaidScheduler.class);
         // Virtualizes travellers/raiders/workers the instant their chunk unloads (the mirror of
         // VirtualTravellerManager materializing them when a chunk loads).
         MinecraftForge.EVENT_BUS.register(
