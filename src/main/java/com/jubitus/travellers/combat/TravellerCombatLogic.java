@@ -60,6 +60,8 @@ public class TravellerCombatLogic {
     // --- Per-tick upkeep state ---
     private boolean wasInCombatPrev = false;
     private int silenceUntilTick = 0;
+    private static final int RECENT_HIT_TICKS = 40;
+    private int targetAdoptedTick = 0;
     private int stuckTargetTicks = 0;
     private double lastTargetDistSq = -1.0D;
     // Last dead attack target a retarget boost was armed for: cleanup is deferred while boosted, so the
@@ -106,6 +108,7 @@ public class TravellerCombatLogic {
         disengageIfTooFar();
         abandonUnreachableTarget();
         reengageRevengeTarget();
+        adoptRevengeTargetAfterLock();
     }
 
     private void disengageIfTooFar() {
@@ -175,6 +178,18 @@ public class TravellerCombatLogic {
                 entity.trySetAttackTargetLimited(rev);
             }
         }
+    }
+
+    /** A hit never forces a switch; once the lock has expired, a nearer aggressor that hit us recently is taken over. */
+    private void adoptRevengeTargetAfterLock() {
+        EntityLivingBase cur = entity.getAttackTarget();
+        if (cur == null || !cur.isEntityAlive()) return;
+        if (((entity.ticksExisted + entity.getEntityId()) % 20) != 0) return;
+        EntityLivingBase rev = entity.getRevengeTarget();
+        if (rev == null || rev == cur || !rev.isEntityAlive() || entity.isIgnoring(rev)) return;
+        if (rev instanceof EntityTraveller && !entity.isHostileUnit((EntityTraveller) rev)) return;
+        if (entity.getDistanceSq(rev) >= entity.getDistanceSq(cur)) return;
+        if (mayReplaceTarget(rev)) entity.trySetAttackTargetLimited(rev, 0);
     }
 
     /** Dead or vanished target: arm the retarget boost once, then clean up unless a revenge target or the boost holds. */
@@ -606,6 +621,10 @@ public class TravellerCombatLogic {
      */
     public void setAttackTarget(@Nullable EntityLivingBase target) {
         EntityLivingBase prev = entity.getAttackTarget();
+        // A live, still-useful target is kept against any switch request (see TargetLockPolicy).
+        if (!entity.world.isRemote && target != null && prev != null && prev != target && !mayReplaceTarget(target)) {
+            return;
+        }
         if (!entity.world.isRemote && prev != null && prev != target) {
             AttackTargetLimiter.leave(entity, prev);
         }
@@ -645,27 +664,6 @@ public class TravellerCombatLogic {
             }
         }
         if (target != null) {
-            double r = TravellersConfig.COMBAT.attackTriggerRange;
-            if (entity.getDistanceSq(target) > r * r) {
-                // hard reject: never keep far targets
-                entity.vanillaSetAttackTarget(null);
-                if (!entity.world.isRemote) {
-                    entity.setInCombat(false);
-                    entity.setRevengeTarget(null);
-                    entity.getNavigator().clearPath();
-                    entity.setSprinting(false);
-
-                    // also cancel ranged pose if it was left on
-                    if (entity.isAimingBow()) {
-                        entity.setAimingBow(false);
-                        entity.resetActiveHand();
-                    }
-                }
-                return;
-            }
-        }
-
-        if (target != null) {
             EntityRuleList blacklist = entity.getAggroBlacklist();
             if (blacklist.matches(target)) {
                 entity.ignoreTarget(target, 20 * 60);
@@ -682,18 +680,10 @@ public class TravellerCombatLogic {
             return;
         }
 
+        // Off-screen: no combat targets at all (a player target is only kept on the client side, which never decides)
         if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
                 && !entity.isInPlayerViewDistance()
-                && !(target instanceof EntityPlayer)) {
-            rejectTarget();
-
-            return;
-        }
-
-        if (!entity.world.isRemote
-                && TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
-                && !entity.isInPlayerViewDistance()) {
-            // Completely ignore combat targets while off-screen
+                && (!entity.world.isRemote || !(target instanceof EntityPlayer))) {
             rejectTarget();
             return;
         }
@@ -764,6 +754,7 @@ public class TravellerCombatLogic {
         entity.vanillaSetAttackTarget(target);
 
         if (!entity.world.isRemote) {
+            if (target != prev) targetAdoptedTick = entity.ticksExisted;
             if (target != null) entity.setInCombat(true);
             if (target instanceof EntityPlayer) {
                 chasingPlayerId = target.getUniqueID();
@@ -784,6 +775,35 @@ public class TravellerCombatLogic {
                         .onLoadedEngagement((net.minecraft.world.WorldServer) entity.world, entity, (EntityTraveller) target);
             }
         }
+    }
+
+    /** False when the current target is locked and {@code candidate} has no right to replace it. */
+    public boolean mayReplaceTarget(EntityLivingBase candidate) {
+        EntityLivingBase cur = entity.getAttackTarget();
+        if (cur == null || cur == candidate) return true;
+
+        TargetLockPolicy.Situation s = new TargetLockPolicy.Situation();
+        s.currentUseless = !cur.isEntityAlive() || entity.isIgnoring(cur);
+        s.currentAgeTicks = entity.ticksExisted - targetAdoptedTick;
+        s.recentThreats = countRecentThreats();
+
+        EntityLivingBase leader = entity.getEffectiveFollowTarget();
+        if (leader != null && candidate instanceof EntityLiving) {
+            s.candidateAttacksLeader = ((EntityLiving) candidate).getAttackTarget() == leader
+                    || candidate.getRevengeTarget() == leader;
+        }
+        s.candidateHitsMeClose = entity.getRevengeTarget() == candidate
+                && entity.ticksExisted - entity.getRevengeTimer() <= RECENT_HIT_TICKS
+                && entity.getDistanceSq(candidate) <= TargetLockPolicy.CLOSE_HIT_DIST_SQ;
+        return TargetLockPolicy.mayReplace(s);
+    }
+
+    private int countRecentThreats() {
+        int n = 0;
+        for (Threat t : threatMap.values()) {
+            if (entity.ticksExisted - t.lastSeenTick <= RECENT_HIT_TICKS * 2) n++;
+        }
+        return n;
     }
 
     /** The entity's attackEntityFrom: vanilla damage, then armor wear, choir mute and retaliation. */
@@ -863,34 +883,24 @@ public class TravellerCombatLogic {
             // Always remember threats – we saw them / they hit us
             rememberThreat(le, TravellerCombatLogic.THREAT_FOR_HIT);
 
+            // Already fighting it, or locked on another target: nothing to decide, so no path or LOS work
+            // per hit (the aggressor stays the revenge target; adoptRevengeTargetAfterLock may take it later).
+            if (entity.getAttackTarget() == le || !mayReplaceTarget(le)) return true;
+
             boolean canSee = entity.getEntitySenses().canSee(le);
-            double d2 = entity.getDistanceSq(le);
-            boolean near = d2 <= 9.0D; // 3 blocks radius; tweak as you like
+            boolean near = entity.getDistanceSq(le) <= 9.0D;
 
-            // **Key: require a path before we actually mark them as attack target**
-            boolean hasPath = (le != null) && entity.hasPathToThrottled(le, 2); // urgent
+            // Only an actual switch pays for a path check: the target must be reachable
+            boolean hasPath = entity.hasPathToThrottled(le, 2); // urgent
 
-
-            // Special rules for players:
-            if (le instanceof EntityPlayer) {
-                EntityPlayer p = (EntityPlayer) le;
-
-                // Only aggro on player if seen OR nearby AND pathable
-                if ((canSee || near) && hasPath) {
-                    entity.setInCombat(true);
-                    entity.setAttackTarget(le);
-                } else {
-                    // Take the hit and remember threat, but don't start active combat
-                    entity.setInCombat(false);
-                }
-            } else {
-                // Non-player: must be pathable to become an active target
-                if (hasPath) {
-                    entity.setInCombat(true);
-                    entity.setAttackTarget(le);
-                } else {
-                    entity.setInCombat(false);
-                }
+            // Players are only taken on when seen or nearby
+            boolean aggro = hasPath && (!(le instanceof EntityPlayer) || canSee || near);
+            if (aggro) {
+                entity.setInCombat(true);
+                entity.setAttackTarget(le);
+            } else if (entity.getAttackTarget() == null) {
+                // Take the hit and remember the threat, but don't start active combat
+                entity.setInCombat(false);
             }
         }
 

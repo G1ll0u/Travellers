@@ -36,6 +36,9 @@ public class BattleParticipant {
     /** Transient: distance to the current target at the previous sim step (-1 = none), to detect closing in. */
     public transient double lastTargetDist = -1;
 
+    /** Transient: world tick the current target was adopted (0 after a reload: the lock is simply already over). */
+    public transient long targetSinceTick;
+
     public BattleParticipant(UUID uuid) {
         this.uuid = uuid;
     }

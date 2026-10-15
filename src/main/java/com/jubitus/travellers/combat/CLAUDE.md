@@ -13,6 +13,7 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 - Workers prefer a target near their owner/leader (`COMBAT.escortOwnerPriorityRadius`).
 
 ## Retarget and attacker cap
+- **Target switch**: `TargetLockPolicy` (via `TravellerCombatLogic.mayReplaceTarget`) is the only rule allowing a live target to be replaced; never call `vanillaSetAttackTarget` around it. Virtual battles (`VirtualBattleManager.resolveTarget`) use the same lock and `AttackTargetLimiter.capFor`.
 - `EntityTraveller.requestImmediateRetarget()` after a kill is a hold-off window; it fires **once per death** (`lastHandledDeadTarget`) or the unit stays "in combat" forever.
 - The melee-attacker cap uses `computeEffectiveAttackerCap()` at both call sites (join and per-tick refresh).
 
@@ -23,6 +24,7 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 ## Ranged bow (`EntityAIRangedBowTravellerSafe`)
 - Shared by all three types. The bow stays drawn the whole time the task runs, LOS or not (deliberate). Drawn state only through `EntityTraveller.setAimingBow()`.
 - Cooldown ticks regardless of LOS; only firing is LOS-gated. Distance-keeping aims at a preferred band. Repositioning checks are throttled. HOLD attitude disables blind-pursuit repositioning.
+- **No shot for 3 s** (no LOS, or a shot line that cannot be cleared): the archer ignores the target and lets the normal scan pick a visible one.
 
 ## Hostility rules (`combat/`)
 - Hired-worker hostility toward players: see `PlayerEnemyRelations` (account-wide) vs `PlayerHostility.localHostilePlayers` (per-worker transient).

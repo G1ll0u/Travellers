@@ -2468,10 +2468,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 1.0, max = 5.0)
         public double meleeReach = 1.0;
 
-        @Config.Comment("Max simultaneous melee attackers per target (mirrors the loaded AttackTargetLimiter). Archers are exempt.")
-        @Config.RangeInt(min = 1, max = 16)
-        public int maxMeleePerTarget = 4;
-
         @Config.Comment("Max battles advanced per simulation pass (round-robin across passes).")
         @Config.RangeInt(min = 1, max = 64)
         public int maxBattlesSimPerTick = 4;

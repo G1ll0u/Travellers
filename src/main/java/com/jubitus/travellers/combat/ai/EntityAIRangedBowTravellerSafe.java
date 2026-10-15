@@ -54,6 +54,9 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     // shot (like a skeleton) instead of staying frozen at full draw for the whole engagement. Short
     // enough that it's always well clear of shootIntervalTicks (min 10) before the next shot is due.
     private static final int BOW_RELAX_TICKS = 8;
+    // An archer that cannot hit its target for this long drops it and lets the normal scan pick a visible one.
+    private static final int NO_SHOT_SWITCH_TICKS = 3 * 20;
+    private static final int UNHITTABLE_IGNORE_TICKS = 4 * 20;
     private final EntityTraveller mob;
     private final double minDist;
     private final double maxDist;
@@ -69,6 +72,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     private int aimWarmup;
     private int steadyTicksLeft = 0;
     private int noLOSTicks = 0;
+    private int unableToHitTicks = 0; // consecutive ticks without LOS or with a shot line that cannot be cleared
     private boolean wasSeeing = false;
     private int bowRelaxTicksLeft = 0; // >0 while the bow is deliberately let down after a shot
 
@@ -126,6 +130,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         aimWarmup = ArcherMovement.randBetween(mob, AIM_SETTLE_MIN_TICKS, AIM_SETTLE_MAX_TICKS);
         movement.start();
         noLOSTicks = 0;
+        unableToHitTicks = 0;
         shotLine.reset();
         bowRelaxTicksLeft = 0;
         wasSeeing = false;
@@ -189,6 +194,11 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             // rank at all). Only fall back to physically sidestepping when no arc can clear it.
             boolean lofted = blocked && shotLine.canLoftOverBlocker(tgt);
             boolean needsClearing = blocked && !lofted;
+            if (needsClearing) {
+                if (++unableToHitTicks >= NO_SHOT_SWITCH_TICKS && giveUpUnhittableTarget(tgt)) return;
+            } else {
+                unableToHitTicks = 0;
+            }
 
             // Face the actual angle we're about to shoot at - flat at the target normally, tilted up
             // to match the arc when lofting, so the pose never disagrees with the arrow's path.
@@ -242,6 +252,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // --- NO LOS ---
         wasSeeing = false;
         noLOSTicks++;
+        if (++unableToHitTicks >= NO_SHOT_SWITCH_TICKS && giveUpUnhittableTarget(tgt)) return;
         movement.hardFaceTarget(tgt, 32.0F, 22.0F, 75.0F, null);
 
         // HOLD attitude: never actually walk to chase LOS back (see class javadoc for what does
@@ -255,6 +266,15 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         }
 
         movement.repositionForLOS(tgt, d);
+    }
+
+    /** Drops a target that cannot be hit; the boosted scan then prefers one that can (LOS is part of its filter). */
+    private boolean giveUpUnhittableTarget(EntityLivingBase tgt) {
+        mob.ignoreTarget(tgt, UNHITTABLE_IGNORE_TICKS);
+        mob.setAttackTarget(null);
+        mob.requestImmediateRetarget();
+        unableToHitTicks = 0;
+        return true;
     }
 
     private void performShot(EntityLivingBase target, double distance, boolean lofted) {

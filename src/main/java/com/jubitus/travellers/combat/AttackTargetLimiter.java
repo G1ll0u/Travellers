@@ -54,11 +54,15 @@ public final class AttackTargetLimiter {
         if (target == null) return maxAttackersPerTarget();
         TargetBucket b = buckets.get(target.getUniqueID());
         if (b == null) return maxAttackersPerTarget();
+        return capFor(now - b.firstEngagedTick, b.attackerDeaths);
+    }
+
+    /** The cap formula itself, shared with virtual battles: base + fight-duration bonus + attacker-death bonus. */
+    public static int capFor(long ageTicks, int attackerDeaths) {
         int cap = maxAttackersPerTarget();
-        long age = now - b.firstEngagedTick;
-        if (age >= AGE_BONUS_2_TICKS) cap += 4;
-        else if (age >= AGE_BONUS_1_TICKS) cap += 4;
-        cap += Math.min(MAX_DEATH_BONUS, b.attackerDeaths);
+        if (ageTicks >= AGE_BONUS_2_TICKS) cap += 2;
+        else if (ageTicks >= AGE_BONUS_1_TICKS) cap += 1;
+        cap += Math.min(MAX_DEATH_BONUS, attackerDeaths);
         return cap;
     }
 

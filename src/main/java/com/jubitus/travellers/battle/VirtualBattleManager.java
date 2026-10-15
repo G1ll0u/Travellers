@@ -2,6 +2,8 @@ package com.jubitus.travellers.battle;
 
 import com.jubitus.travellers.worldmap.stream.MapStrikeLog;
 import com.jubitus.travellers.ground.ColumnGround;
+import com.jubitus.travellers.combat.AttackTargetLimiter;
+import com.jubitus.travellers.combat.TargetLockPolicy;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.unit.equipment.TravellerEquipmentManager;
@@ -536,7 +538,7 @@ public class VirtualBattleManager extends WorldSavedData {
             if (rec == null) continue;
             p.noProgressTicks += elapsed;
 
-            BattleParticipant target = resolveTarget(world, vtm, b, p, meleePerTarget);
+            BattleParticipant target = resolveTarget(world, vtm, b, p, meleePerTarget, now);
             if (target == null) {
                 // No reachable enemy: drift toward the fight
                 moveToward(rec, b.center.getX() + 0.5, b.center.getZ() + 0.5, elapsed, 2.0);
@@ -685,24 +687,31 @@ public class VirtualBattleManager extends WorldSavedData {
         return le != null ? new double[]{le.posX, le.posZ} : null;
     }
 
-    /** Current target if still valid (alive, enemy, virtual or loaded), else a fresh pick. */
+    /**
+     * Same rules as loaded combat: a valid target is kept for the lock duration (TargetLockPolicy), after
+     * which a strictly better-scored one (nearer, less contested) may take over; the melee cap is the
+     * loaded AttackTargetLimiter formula, with the battle's age as the fight duration.
+     */
     @Nullable
     private BattleParticipant resolveTarget(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
-                                            BattleParticipant p, Map<UUID, Integer> meleePerTarget) {
+                                            BattleParticipant p, Map<UUID, Integer> meleePerTarget, long now) {
+        BattleParticipant current = null;
         if (p.targetUuid != null) {
             BattleParticipant t = b.participants.get(p.targetUuid);
-            if (t != null && t.alive && t.side != p.side && foePosition(world, vtm, t.uuid) != null) return t;
-            p.targetUuid = null;
+            if (t != null && t.alive && t.side != p.side && foePosition(world, vtm, t.uuid) != null) current = t;
+            else p.targetUuid = null;
         }
+        if (current != null && now - p.targetSinceTick < TargetLockPolicy.LOCK_TICKS) return current;
 
         VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
-        if (rec == null) return null;
+        if (rec == null) return current;
         boolean archer = rec.getCombatProfile().isArcher;
         boolean leaderBias = TravellersConfig.BATTLE_EVENTS.leaderSurvivalBias;
-        int meleeCap = TravellersConfig.BATTLE_EVENTS.maxMeleePerTarget;
+        int meleeCap = AttackTargetLimiter.capFor(now - b.startTick, 0);
 
         BattleParticipant best = null;
         long bestScore = Long.MAX_VALUE;
+        long currentScore = Long.MAX_VALUE;
         for (BattleParticipant t : b.participants.values()) {
             if (!t.alive || t.side == p.side) continue;
             double[] pos = foePosition(world, vtm, t.uuid);
@@ -710,18 +719,25 @@ public class VirtualBattleManager extends WorldSavedData {
             double dx = pos[0] - rec.posX;
             double dz = pos[1] - rec.posZ;
             long distSq = (long) (dx * dx + dz * dz);
-            boolean full = !archer && meleePerTarget.getOrDefault(t.uuid, 0) >= meleeCap;
+            // The current target already counts in meleePerTarget: it is not "full" for its own attacker.
+            int others = meleePerTarget.getOrDefault(t.uuid, 0) - (t == current ? 1 : 0);
+            boolean full = !archer && others >= meleeCap;
             boolean shielded = leaderBias && t.isGroupLeader;
             long score = distSq + (full ? 1_000_000L : 0) + (shielded ? 4_000_000L : 0);
+            if (t == current) currentScore = score;
             if (score < bestScore) {
                 bestScore = score;
                 best = t;
             }
         }
-        if (best != null) {
-            p.targetUuid = best.uuid;
-            if (!archer) meleePerTarget.merge(best.uuid, 1, Integer::sum);
+        if (best == null || best == current || (current != null && bestScore >= currentScore)) {
+            if (current != null) p.targetSinceTick = now; // re-evaluated and kept: next look in a full lock
+            return current;
         }
+        if (current != null && !archer) meleePerTarget.merge(current.uuid, -1, Integer::sum);
+        p.targetUuid = best.uuid;
+        p.targetSinceTick = now;
+        if (!archer) meleePerTarget.merge(best.uuid, 1, Integer::sum);
         return best;
     }
 

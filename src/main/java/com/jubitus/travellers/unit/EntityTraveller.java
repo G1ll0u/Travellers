@@ -2807,6 +2807,9 @@ public void fall(float distance, float damageMultiplier) {
     public boolean trySetAttackTargetLimited(@javax.annotation.Nullable EntityLivingBase target, int priority) {
         if (target == null || !target.isEntityAlive()) return false;
 
+        // Locked on a useful target: refuse before a limiter slot gets reserved on the new one.
+        if (!combat.mayReplaceTarget(target)) return false;
+
         // Emergency / urgent priority bypasses limiter
         if (priority >= 2 || shouldBypassAttackTargetLimiter(target)) {
             this.setAttackTarget(target);
