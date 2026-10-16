@@ -21,7 +21,7 @@ Every `EntityTraveller` subclass is virtualized instead of despawning: `setDead(
 ## Offscreen movement
 - Route-driven records glide along their itinerary (`advanceVirtual`, allocation-free); `refreshGoal`/`tickRoamRoute`/`tickPersonalTravelRoute` own leg-level decisions. `routeDrivenMovement(r)` must mirror the loaded `isItineraryDriven()`.
 - Personal self-travel (Go Home, duty) is handled in `refreshGoal` above the `workerMode != IDLE` guard.
-- Group follower records track the leader offset by `MaterializePositionResolver.followerSpreadOffset()` in both leader branches; orphans clear `groupLeaderUUID` once the leader is gone.
+- Group follower records track the leader offset by `MaterializePositionResolver.followerSpreadOffset()` in both leader branches; a leader gone without a death hook triggers `GroupSuccession.onLeaderMissing`.
 
 ## Where a record reappears (`MaterializePositionResolver`)
 - Far-travelled records are surface-clamped; others keep their frozen Y (indoors, underground). Liquid/hazard floors rejected, tree canopies descended (`BlockRules.isTreePart`/`isCanopy`), Millénaire footprints pushed out (`MillFootprints`), mounted records resolved horse-sized.

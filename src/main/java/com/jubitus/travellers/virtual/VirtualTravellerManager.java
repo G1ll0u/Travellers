@@ -685,9 +685,11 @@ public class VirtualTravellerManager extends WorldSavedData {
                             liveLeader.posZ + off[1]);
                     return;
                 }
-                // Leader is gone entirely (dead, not virtual, not loaded): stop chasing a ghost and
-                // resume independent travel toward the group's last shared destination.
-                r.groupLeaderUUID = null;
+                // Leader gone without a death hook (not virtual, not loaded): elect a successor. A follower
+                // tracks the new leader from the next refresh; the successor travels on below.
+                r.groupLeaderUUID = com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(world,
+                        r.groupLeaderUUID, r.uuid);
+                if (r.groupLeaderUUID != null) return;
             }
             // Leader or solo: movement along the itinerary happens in advanceVirtual; here we keep
             // the itinerary current and move on to the next trip stop at the end of each leg.
@@ -808,9 +810,14 @@ public class VirtualTravellerManager extends WorldSavedData {
                         leader.posX, leader.posY, leader.posZ, leader.rotationYaw, true, mounted, now);
                 return;
             }
-            // Leader is neither a virtual record nor loaded in this dimension (truly gone): clear the
-            // escort link and fall through to owner-follow below.
-            r.escortLeaderUUID = null;
+            // Leader is neither a virtual record nor loaded in this dimension (gone without a death hook):
+            // elect a successor. A follower tracks it from the next refresh; the successor (or a follower
+            // left without one) falls through to owner-follow below.
+            UUID goneLeader = r.escortLeaderUUID;
+            r.escortLeaderUUID = world.getMinecraftServer() == null ? null
+                    : com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderMissing(
+                            world.getMinecraftServer(), r.followOwnerUUID, goneLeader, r.uuid);
+            if (r.escortLeaderUUID != null) return;
         }
 
         // Hired follower with no active mission and follow ON: hold a live formation slot

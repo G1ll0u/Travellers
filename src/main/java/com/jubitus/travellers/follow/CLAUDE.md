@@ -15,7 +15,7 @@
 ## Catch-up and the movement hand-off
 - `FollowModeSelector` (always constructed; CAVE transition worker-only) enters CATCHUP with a debounce. Catchup runs `EntityAITravel`; the two tasks hand the movement mutex over purely on `isCatchupTravel()`.
 - Catchup must not end on distance while the stuck ladder escalates (`StuckRecord.isEscalating`).
-- A loaded follower whose leader is offscreen is driven by catchup travel toward a slot beside the leader's virtual position — never a private navigator. **The group version must clear `groupLeaderUUID` once the leader is confirmed gone**, or the follower idles forever.
+- A loaded follower whose leader is offscreen is driven by catchup travel toward a slot beside the leader's virtual position — never a private navigator. **The group version must call `GroupSuccession.onLeaderMissing` once the leader is confirmed gone**, or the follower idles forever.
 - An escort's virtual goal is re-derived from the leader on every refresh; `refreshGoal` precedence: catchup → mission → go-order → escort slot → follow-owner.
 
 ## Stuck followers
@@ -31,6 +31,7 @@
 - `FollowRouteCache` is world-wide (spatial buckets + bearing filter); `MIN_SNAP_DISTANCE` keeps a cached waypoint from landing under the follower's feet.
 
 ## Other
+- Every way a leader can die must call `GroupSuccession.onLeaderDied` (traveller/raider groups) or `WorkerGroupService.onLeaderDied` (hired workers), or its group dissolves.
 - `FollowBoatController` / `FollowFlightController` are the shared boat/elytra halves.
 - A transport worker returning to its owner takes the pickup-escort slot until loot is collected.
 - Group operations for hired workers: `follow/group/WorkerGroupService` only (create, assign, merge, make leader, go-to, convoy follow…), each followed by its mandatory `epilogue`. "Is a leader" = at least one worker, loaded or virtual, escorts it; use `countFollowers()` for player-facing counts, never the loaded-only `getLeaderFollowerCount()`. Busy workers are skipped via `WorkerOrderGuard`.

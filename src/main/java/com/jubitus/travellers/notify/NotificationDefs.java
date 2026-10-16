@@ -54,6 +54,7 @@ public final class NotificationDefs {
     public static final NotificationDef LEADER_RELEASED_FOLLOWERS = new NotificationDef(INFO, "travellers.notify.leader.released_followers", 1);
     public static final NotificationDef LEADER_NOW_LEADING = new NotificationDef(INFO, "travellers.notify.leader.now_leading", 1);
     public static final NotificationDef LEADER_NO_FREE_FOLLOWERS = new NotificationDef(INFO, "travellers.notify.leader.no_free_followers", 0);
+    public static final NotificationDef GROUP_NEW_LEADER = new NotificationDef(EVENT, "travellers.notify.leader.succession", 1);
 
 
     // --- Home / barracks (MsgWorkerGoHome, MsgAssignWorkerBarrack) ---

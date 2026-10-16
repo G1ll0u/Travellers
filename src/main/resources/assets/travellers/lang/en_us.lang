@@ -371,6 +371,7 @@ travellers.notify.worker.not_hired_village_relations=You can only manage village
 travellers.notify.leader.released_followers=Released %s followers back to you.
 travellers.notify.leader.now_leading=This henchman is now leading %s followers.
 travellers.notify.leader.no_free_followers=No free direct followers to assign.
+travellers.notify.leader.succession=%s has taken command of the group.
 
 
 travellers.notify.home.not_your_worker=Not your henchman.

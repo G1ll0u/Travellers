@@ -1,6 +1,9 @@
 package com.jubitus.travellers.follow.group;
 
 import com.jubitus.travellers.unit.WorkerLookup;
+import com.jubitus.travellers.debug.trace.TravellerTracer;
+import com.jubitus.travellers.follow.GroupSuccession;
+import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeResolver;
@@ -451,6 +454,134 @@ public final class WorkerGroupService {
     }
 
     // -------------------------------------------------------------------------
+    // Leader succession
+    // -------------------------------------------------------------------------
+
+    /** What a dead leader was doing, handed to its successor. A mission is never inherited. */
+    public static final class LeaderOrder {
+        static final LeaderOrder UNKNOWN = new LeaderOrder(null, true, null);
+
+        @Nullable final UUID convoyLeader;
+        final boolean follow;
+        @Nullable final BlockPos goTarget;
+
+        private LeaderOrder(@Nullable UUID convoyLeader, boolean follow, @Nullable BlockPos goTarget) {
+            this.convoyLeader = convoyLeader;
+            this.follow = follow;
+            this.goTarget = goTarget;
+        }
+    }
+
+    /** Read before the death code resets the leader's flags. */
+    public static LeaderOrder captureOrder(EntityTravellerWorker leader) {
+        if (WorkerOrderGuard.isBusy(leader)) return LeaderOrder.UNKNOWN;
+        BlockPos go = leader.trips.isGoOrderActive() ? leader.trips.getGoOrderTargetPos() : null;
+        return new LeaderOrder(leader.getEscortLeaderUUID(), leader.isFollowOrderActive(), go);
+    }
+
+    public static LeaderOrder captureOrder(VirtualTravellerRecord leader) {
+        if (WorkerOrderGuard.isBusy(leader)) return LeaderOrder.UNKNOWN;
+        return new LeaderOrder(leader.escortLeaderUUID, leader.followOrderActive,
+                leader.goOrderActive ? leader.goal : null);
+    }
+
+    /**
+     * A hired leader died: its best-equipped follower (armour + weapon) takes over the group, the leader's order
+     * and its formation settings, and the owner is told. Members on a mission or leading a group of their own are
+     * never elected; with no candidate every follower goes back to the owner.
+     */
+    public static void onLeaderDied(MinecraftServer server, @Nullable UUID owner, UUID leaderId, LeaderOrder order) {
+        if (owner != null) elect(server, owner, leaderId, order);
+    }
+
+    /**
+     * Fallback for a follower whose leader is gone without a death hook (record removed by a command): same
+     * election, the successor follows the owner. Returns the caller's escort leader afterwards (null = none).
+     */
+    @Nullable
+    public static UUID onLeaderMissing(MinecraftServer server, @Nullable UUID owner, UUID leaderId, UUID callerId) {
+        // Alive elsewhere (another dimension): not gone, the caller just unlinks as before.
+        if (owner == null || WorkerLookup.findLoaded(server, leaderId) != null || vwm(server).isVirtual(leaderId)) return null;
+        UUID successor = elect(server, owner, leaderId, LeaderOrder.UNKNOWN);
+        return successor == null || successor.equals(callerId) ? null : successor;
+    }
+
+    @Nullable
+    private static UUID elect(MinecraftServer server, UUID owner, UUID leaderId, LeaderOrder order) {
+        Map<UUID, EntityTravellerWorker> loaded = collectLoaded(server, owner, w -> leaderId.equals(w.getEscortLeaderUUID()));
+        Map<UUID, VirtualTravellerRecord> virtual = collectVirtual(server, owner, r -> leaderId.equals(r.escortLeaderUUID));
+        if (loaded.isEmpty() && virtual.isEmpty()) return null;
+
+        Set<UUID> leadingOthers = new HashSet<>();
+        collectLoaded(server, owner, w -> true).values().forEach(w -> addIfPresent(leadingOthers, w.getEscortLeaderUUID()));
+        collectVirtual(server, owner, r -> true).values().forEach(r -> addIfPresent(leadingOthers, r.escortLeaderUUID));
+        Map<UUID, EntityTravellerWorker> loadedCandidates = new HashMap<>();
+        Map<UUID, VirtualTravellerRecord> virtualCandidates = new HashMap<>();
+        loaded.forEach((id, w) -> {
+            if (!WorkerOrderGuard.isBusy(w) && !leadingOthers.contains(id)) loadedCandidates.put(id, w);
+        });
+        virtual.forEach((id, r) -> {
+            if (!WorkerOrderGuard.isBusy(r) && !leadingOthers.contains(id)) virtualCandidates.put(id, r);
+        });
+        UUID successor = pickBestEquipped(loadedCandidates, virtualCandidates);
+
+        if (successor == null) {
+            for (EntityTravellerWorker w : loaded.values()) backToOwnerLoaded(w);
+            for (VirtualTravellerRecord r : virtual.values()) backToOwnerVirtual(r);
+            epilogue(server, owner, new HashSet<>());
+            return null;
+        }
+
+        UUID convoy = successor.equals(order.convoyLeader) ? null : order.convoyLeader;
+        EntityTravellerWorker newLeader = loaded.get(successor);
+        String name;
+        NoticePlace place;
+        if (newLeader != null) {
+            newLeader.catchup.stop();
+            newLeader.getNavigator().clearPath();
+            if (convoy != null) newLeader.setEscortLeaderUUID(convoy);
+            else newLeader.clearEscortLeader();
+            if (order.goTarget != null) {
+                newLeader.setFollowOrderActive(false);
+                newLeader.trips.startGoTo(order.goTarget, newLeader.dimension);
+            } else {
+                newLeader.setFollowOrderActive(order.follow);
+            }
+            TravellerTracer.event(newLeader, "follow", "group succession: now leads the group of " + leaderId);
+            name = newLeader.getName();
+            place = NoticePlace.of(newLeader);
+        } else {
+            VirtualTravellerRecord r = virtual.get(successor);
+            r.escortLeaderUUID = convoy;
+            r.formationOrdinal = -1;
+            clearVirtualCatchup(r);
+            r.goOrderActive = order.goTarget != null;
+            r.followOrderActive = order.goTarget == null && order.follow;
+            r.goal = order.goTarget != null ? order.goTarget
+                    : order.follow ? null : new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ);
+            name = r.name;
+            place = new NoticePlace(new BlockPos((int) r.posX, (int) r.posY, (int) r.posZ), r.dimension, r.uuid);
+        }
+        for (EntityTravellerWorker w : loaded.values()) {
+            if (w != newLeader) assignToLeaderLoaded(w, successor);
+        }
+        for (VirtualTravellerRecord r : virtual.values()) {
+            if (!r.uuid.equals(successor)) assignToLeaderVirtual(r, successor);
+        }
+
+        WorkerFormationSavedData formations = WorkerFormationSavedData.get(server.worlds[0]);
+        formations.setSettings(new WorkerFormationScopeKey(WorkerFormationScopeKey.Type.WORKER, successor),
+                formations.getSettings(new WorkerFormationScopeKey(WorkerFormationScopeKey.Type.WORKER, leaderId)));
+
+        Set<UUID> affected = setOf(successor);
+        addIfPresent(affected, convoy);
+        epilogue(server, owner, affected);
+        NotificationService.notifyOfflineAt(server, owner, NotificationDefs.GROUP_NEW_LEADER, place, null,
+                name == null || name.isEmpty() ? "?" : name);
+        return successor;
+    }
+
+    // -------------------------------------------------------------------------
     // Mutation primitives (loaded / virtual)
     // -------------------------------------------------------------------------
 
@@ -527,7 +658,26 @@ public final class WorkerGroupService {
     // -------------------------------------------------------------------------
 
     private static void epilogue(EntityPlayerMP player, MinecraftServer server, Set<UUID> affectedLeaders) {
-        UUID owner = player.getUniqueID();
+        refreshOwnerWorkers(server, player.getUniqueID(), affectedLeaders);
+
+        // Push the authoritative (loaded + virtual) follower count too, for GuiWorkerHub's "Lead"
+        // button — see MsgSyncLeaderFollowerCount's doc for why the DataParameter above isn't enough.
+        for (UUID leaderId : affectedLeaders) {
+            syncLeaderFollowerCount(player, leaderId);
+        }
+
+        // Push the authoritative Hub leader list; updates in place if the Hub is open, ignored if not.
+        sendHub(player, true);
+    }
+
+    /** Epilogue of a change no player ordered (a leader's death): the player half only while the owner is online. */
+    private static void epilogue(MinecraftServer server, UUID owner, Set<UUID> affectedLeaders) {
+        EntityPlayerMP player = server.getPlayerList().getPlayerByUUID(owner);
+        if (player != null) epilogue(player, server, affectedLeaders);
+        else refreshOwnerWorkers(server, owner, affectedLeaders);
+    }
+
+    private static void refreshOwnerWorkers(MinecraftServer server, UUID owner, Set<UUID> affectedLeaders) {
         VirtualTravellerManager vwm = vwm(server);
         vwm.markDirty();
 
@@ -550,15 +700,6 @@ public final class WorkerGroupService {
             EntityTravellerWorker e = WorkerLookup.findLoadedOwned(server, owner, leaderId);
             if (e != null) e.forceRefreshLeaderCount();
         }
-
-        // Push the authoritative (loaded + virtual) follower count too, for GuiWorkerHub's "Lead"
-        // button — see MsgSyncLeaderFollowerCount's doc for why the DataParameter above isn't enough.
-        for (UUID leaderId : affectedLeaders) {
-            syncLeaderFollowerCount(player, leaderId);
-        }
-
-        // Push the authoritative Hub leader list; updates in place if the Hub is open, ignored if not.
-        sendHub(player, true);
     }
 
     // -------------------------------------------------------------------------
@@ -823,36 +964,14 @@ public final class WorkerGroupService {
         return r != null && owner.equals(r.followOwnerUUID) && WorkerOrderGuard.isBusy(r);
     }
 
+    /** Best armour + weapon (the same score as traveller-group succession); null when both maps are empty. */
+    @Nullable
     private static UUID pickBestEquipped(Map<UUID, EntityTravellerWorker> loaded,
                                          Map<UUID, VirtualTravellerRecord> virtual) {
-        UUID best = null;
-        int bestScore = -1;
-        for (Map.Entry<UUID, EntityTravellerWorker> e : loaded.entrySet()) {
-            int score = e.getValue().getTotalArmorValue();
-            if (score > bestScore) { bestScore = score; best = e.getKey(); }
-        }
-        for (Map.Entry<UUID, VirtualTravellerRecord> e : virtual.entrySet()) {
-            int score = armorScoreFromNbt(e.getValue());
-            if (score > bestScore) { bestScore = score; best = e.getKey(); }
-        }
-        if (best == null) {
-            if (!loaded.isEmpty()) return loaded.keySet().iterator().next();
-            if (!virtual.isEmpty()) return virtual.keySet().iterator().next();
-        }
-        return best;
-    }
-
-    private static int armorScoreFromNbt(VirtualTravellerRecord vr) {
-        if (vr.entityNbt == null || !vr.entityNbt.hasKey("ArmorItems")) return 0;
-        NBTTagList armorList = vr.entityNbt.getTagList("ArmorItems", 10);
-        int score = 0;
-        for (int i = 0; i < armorList.tagCount(); i++) {
-            ItemStack s = new ItemStack(armorList.getCompoundTagAt(i));
-            if (!s.isEmpty() && s.getItem() instanceof ItemArmor) {
-                score += ((ItemArmor) s.getItem()).damageReduceAmount;
-            }
-        }
-        return score;
+        Map<UUID, Double> scores = new HashMap<>();
+        loaded.forEach((id, w) -> scores.put(id, GroupSuccession.gearScore(w)));
+        virtual.forEach((id, r) -> scores.put(id, GroupSuccession.gearScore(r)));
+        return scores.isEmpty() ? null : GroupSuccession.pickSuccessor(scores);
     }
 
     private static Set<UUID> setOf(UUID a) {

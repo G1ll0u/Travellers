@@ -907,6 +907,11 @@ public class VirtualBattleManager extends WorldSavedData {
         // chunk to spawn a loose horse into without force-loading it) - its NBT is simply dropped with
         // the record, same as a loaded rider's mount is left as an ordinary loose horse where it died.
 
+        com.jubitus.travellers.follow.GroupSuccession.onLeaderDied(world, rec);
+        if (rec.isHiredFollower && world.getMinecraftServer() != null) {
+            com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderDied(world.getMinecraftServer(),
+                    rec.followOwnerUUID, rec.uuid, com.jubitus.travellers.follow.group.WorkerGroupService.captureOrder(rec));
+        }
         com.jubitus.travellers.debug.autotest.AutotestInvariants.onVirtualDeath(rec.uuid);
         vtm.removeRecord(world, rec.uuid);
         markDirty();
@@ -1025,15 +1030,17 @@ public class VirtualBattleManager extends WorldSavedData {
             rec.battleId = null;
             // A fight that ended without a winner must not restart on the very next detection pass.
             if (!allowPillage) blockRejoin(p.uuid, now);
-            // Dead leader: unlink so survivors resume travel instead of standing forever
+            // Leader gone without a death hook: elect a successor so survivors don't stand forever
             if (rec.groupLeaderUUID != null && vtm.getRecord(rec.groupLeaderUUID) == null
                     && world.getEntityFromUuid(rec.groupLeaderUUID) == null) {
-                rec.groupLeaderUUID = null;
-                rec.itinerary.clear(); // forces a fresh itinerary
+                rec.groupLeaderUUID = com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(world,
+                        rec.groupLeaderUUID, rec.uuid);
             }
             if (rec.escortLeaderUUID != null && vtm.getRecord(rec.escortLeaderUUID) == null
-                    && world.getEntityFromUuid(rec.escortLeaderUUID) == null) {
-                rec.escortLeaderUUID = null; // falls back to owner-follow
+                    && world.getEntityFromUuid(rec.escortLeaderUUID) == null && world.getMinecraftServer() != null) {
+                // null afterwards = this survivor now leads, or follows its owner
+                rec.escortLeaderUUID = com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderMissing(
+                        world.getMinecraftServer(), rec.followOwnerUUID, rec.escortLeaderUUID, rec.uuid);
             }
             // Recompute the formation goal right away instead of leaving it stale (frozen since the
             // battle started, per refreshAllGoals' battleId gate) for up to a full goal-refresh cycle

@@ -965,7 +965,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
-            clearLeaderFromLoadedEscortsOnDeath();
+            com.jubitus.travellers.follow.group.WorkerGroupService.LeaderOrder leaderOrder =
+                    com.jubitus.travellers.follow.group.WorkerGroupService.captureOrder(this);
             setFollowOrderActive(false);
 
             if (getHomeVillage() != null && world instanceof WorldServer) {
@@ -995,6 +996,12 @@ public class EntityTravellerWorker extends EntityTraveller {
                         followOwnerId, getUniqueID(), getName(),
                         com.jubitus.travellers.notify.NoticePlace.of(this),
                         com.jubitus.travellers.notify.VanillaDeathMessage.from(this, cause), null);
+            }
+
+            // After the death notice, so the owner reads "X died" before "Y has taken command".
+            if (hiredFollower && world.getMinecraftServer() != null) {
+                com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderDied(world.getMinecraftServer(),
+                        followOwnerId, getUniqueID(), leaderOrder);
             }
         }
 
@@ -1380,8 +1387,12 @@ public class EntityTravellerWorker extends EntityTraveller {
                 // Leader is loaded but invalid (bad state, wrong owner, etc.): clear
                 if (leader != null) {
                     clearEscortLeader();
+                } else if (world.getMinecraftServer() != null) {
+                    // Gone without a death hook: elect a successor (re-links this worker); the new link
+                    // is followed from next tick, the owner meanwhile.
+                    com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderMissing(
+                            world.getMinecraftServer(), getFollowOwnerId(), leaderId, getUniqueID());
                 }
-                // Leader not in world and not virtual: truly gone -> fall through to player
             }
         }
         return getFollowOwner();
@@ -2034,36 +2045,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
     }
 
-    private void clearLeaderFromLoadedEscortsOnDeath() {
-        if (world.isRemote) return;
-        if (!(world instanceof WorldServer)) return;
-
-        MinecraftServer server = ((WorldServer) world).getMinecraftServer();
-        if (server == null) return;
-
-        UUID ownerId = this.getFollowOwnerId();
-        if (ownerId == null) return;
-
-        UUID leaderId = this.getUniqueID();
-
-        for (WorldServer ws : server.worlds) {
-            List<EntityTravellerWorker> escorts = ws.getEntities(EntityTravellerWorker.class, other ->
-                    other != null
-                            && other.isEntityAlive()
-                            && other.isHiredFollower()
-                            && Objects.equals(other.getFollowOwnerId(), ownerId)
-                            && leaderId.equals(other.getEscortLeaderUUID())
-            );
-
-            for (EntityTravellerWorker other : escorts) {
-                // CLEAR the leader UUID so they can be assigned a new leader
-                other.clearEscortLeader();
-
-                // Optional but usually desired: make them follow the owner again
-                other.setFollowOrderActive(true);
-            }
-        }
-    }
     /**
      * Called by EntityAIFollowLeader to tell this worker what its current formation/idle slot is.
      * Server-side only in practice (AI runs on server), but safe if called elsewhere.

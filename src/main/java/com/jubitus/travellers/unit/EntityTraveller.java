@@ -1835,6 +1835,7 @@ public void fall(float distance, float damageMultiplier) {
             // Virtual battles: mark this pawn dead so the offscreen sim stays consistent.
             com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
                     .onParticipantDeath((net.minecraft.world.WorldServer) world, this, cause);
+            com.jubitus.travellers.follow.GroupSuccession.onLeaderDied((net.minecraft.world.WorldServer) world, this);
         }
         voice.tryPlayDeath();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
@@ -2353,9 +2354,11 @@ public void fall(float distance, float damageMultiplier) {
         com.jubitus.travellers.virtual.VirtualTravellerManager vwm =
                 com.jubitus.travellers.virtual.VirtualTravellerManager.get(serverWorld);
         if (!vwm.isVirtual(leaderId)) {
-            // Leader neither loaded nor virtual: gone for good. Clear the link or this follower idles
-            // forever (EntityAITravel refuses to run while groupLeaderUUID is set).
-            groupLeaderUUID = null;
+            // Leader neither loaded nor virtual: gone without a death hook. Elect a successor (possibly
+            // this unit) or this follower idles forever (EntityAITravel refuses to run while
+            // groupLeaderUUID is set).
+            groupLeaderUUID = com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(serverWorld, leaderId,
+                    getUniqueID());
             virtualLeaderSlot = null;
             return;
         }
