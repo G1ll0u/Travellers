@@ -159,7 +159,14 @@ public class EntityAIFollowLeader extends EntityAIBase {
             return FollowFormationCoordinator.getPickupEscortSlot(w, target,
                     TravellersConfig.WORKER.pickupEscortDistance);
         }
-        return FollowFormationCoordinator.getSlot(w, target, mode, cfg, desiredDist);
+        FollowFormationCoordinator.SlotAssignment slot = FollowFormationCoordinator.getSlot(w, target, mode, cfg, desiredDist);
+        if (target instanceof EntityTravellerWorker && mode == FollowMode.SURFACE) {
+            // A leader on a Go order: road file / waiting at the route anchor, else the formation as is.
+            FollowFormationCoordinator.SlotAssignment route = GroupFormationTracker.routeSlotForEscort(w,
+                    (EntityTravellerWorker) target, slot, desiredDist, follower.world.getTotalWorldTime());
+            if (route != null) return route;
+        }
+        return slot;
     }
 
     /**
@@ -381,6 +388,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // settle/re-path servo below for the tick - see MountedFollowPacer. SURFACE only: cave
         // follow is single-file geometry, and an airborne leader belongs to the flight controller.
         if (mode == FollowMode.SURFACE && !airborneLeader
+                && !GroupFormationTracker.isWaitingForLeader(target.getUniqueID())
                 && mountedPacer.tick(target.posX, target.posZ,
                         target.posX - target.prevPosX, target.posZ - target.prevPosZ,
                         slot.idealX, slot.idealZ, horizontalDistanceTo(target),

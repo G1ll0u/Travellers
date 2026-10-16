@@ -60,6 +60,20 @@ public final class FollowFormationCoordinator {
                 false, off.dx, off.dz);
     }
 
+    /** A slot placed directly (a road file, or a group waiting for its leader) instead of offset from the leader's live position. */
+    public static SlotAssignment buildPinnedSlot(int groupSize, double idealX, double idealY, double idealZ,
+                                                 FormationGeometry.SlotOffset off, double dirX, double dirZ,
+                                                 double leaderSpeed, boolean leaderActuallyMoving) {
+        return new SlotAssignment(FollowMode.SURFACE, 0, groupSize,
+                0.5D, 0.5D, dirX, dirZ,
+                leaderSpeed, leaderActuallyMoving,
+                idealX, idealY, idealZ,
+                off.preferredRadius, off.arriveRadius, off.frontPenaltyStrength,
+                false, 0.0D, 0.0D,
+                true, true, 1,
+                false, 0.0D, 0.0D);
+    }
+
     public static SlotAssignment getSlot(EntityTravellerWorker follower,
                                          EntityLivingBase leader,
                                          FollowMode mode,

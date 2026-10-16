@@ -43,6 +43,15 @@ public final class AutotestScenarios {
                 new ZoneTripScenario(false),
                 new ZoneTripScenario(true),
                 new BoatLandingScenario(),
+                new GroupSuccessionScenario(GroupSuccessionScenario.Mode.LOADED),
+                new GroupSuccessionScenario(GroupSuccessionScenario.Mode.VIRTUAL),
+                new GroupSuccessionScenario(GroupSuccessionScenario.Mode.VANISHED),
+                new WorkerSuccessionScenario(false),
+                new WorkerSuccessionScenario(true),
+                new GroupAnchorScenario(),
+                new GroupRoadFileScenario(GroupRoadFileScenario.Mode.TRAVELLERS),
+                new GroupRoadFileScenario(GroupRoadFileScenario.Mode.WORKERS),
+                new GroupRoadFileScenario(GroupRoadFileScenario.Mode.REAPPEAR),
                 new GoOrderScenario(GoOrderScenario.Mode.RESTART_SAVE),
                 new GoOrderScenario(GoOrderScenario.Mode.RESTART_RESUME));
     }

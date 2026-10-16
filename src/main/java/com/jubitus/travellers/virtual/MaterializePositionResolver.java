@@ -148,7 +148,16 @@ public final class MaterializePositionResolver {
         // Must be checked before escortLeaderUUID (workers use that field, not this one).
         if (r.groupLeaderUUID != null) {
             double[] leaderPos = findLeaderPosition(world, r.groupLeaderUUID, allRecords);
-            if (leaderPos != null) {
+            double[] file = leaderPos == null ? null
+                    : com.jubitus.travellers.follow.GroupRoadFile.materializePlace(world, r, r.groupLeaderUUID, false, allRecords);
+            if (file != null && LoadedChunks.isLoaded(world, file[0], file[1])) {
+                // On a road: in file behind the leader, the way the loaded group walks it.
+                via += ">groupFile";
+                baseX = Math.floor(file[0]) + 0.5;
+                baseZ = Math.floor(file[1]) + 0.5;
+                referenceY = leaderPos[1];
+                preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize;
+            } else if (leaderPos != null) {
                 int[] off = followerSpreadOffset(r.uuid);
                 via += ">groupRing";
                 double cx = Math.floor(leaderPos[0] + off[0]) + 0.5;
@@ -174,7 +183,16 @@ public final class MaterializePositionResolver {
 
         if (r.escortLeaderUUID != null) {
             double[] leaderPos = findLeaderPosition(world, r.escortLeaderUUID, allRecords);
-            if (leaderPos != null) {
+            double[] file = leaderPos == null ? null
+                    : com.jubitus.travellers.follow.GroupRoadFile.materializePlace(world, r, r.escortLeaderUUID, true, allRecords);
+            if (file != null && LoadedChunks.isLoaded(world, file[0], file[1])) {
+                // Leader on a road (a Go order): in file behind it, the way the loaded escort walks it.
+                via += ">escortFile";
+                baseX = Math.floor(file[0]) + 0.5;
+                baseZ = Math.floor(file[1]) + 0.5;
+                referenceY = leaderPos[1];
+                preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize;
+            } else if (leaderPos != null) {
                 // Normally VirtualFormationSimulator has already steered the follower's simulated
                 // position to (or close to) its live formation slot by materialization time, so using
                 // the raw r.posX/r.posZ is fine. But a follower can also materialize while still

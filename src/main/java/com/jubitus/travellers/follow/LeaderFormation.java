@@ -93,6 +93,8 @@ final class LeaderFormation {
     /** Eligible member count at last heading-update tick. -1 = never computed. */
     int lastEligibleCount = -1;
 
+    private static final double[] ROUTE_HEADING = new double[2];
+
     LeaderFormation(FollowFormationCoordinator.LeaderKey key) {
         this.key = key;
     }
@@ -158,6 +160,10 @@ final class LeaderFormation {
         if (lastHeadingTick != now) {
             lastHeadingTick = now;
             heading.update(leader, formationSettings);
+            if (leader instanceof EntityTravellerWorker
+                    && GroupFormationTracker.escortRouteHeading((EntityTravellerWorker) leader, ROUTE_HEADING)) {
+                heading.steerToward(ROUTE_HEADING[0], ROUTE_HEADING[1]);
+            }
             int eligible = countEligible(ownerId, leader, now);
             if (lastEligibleCount >= 0 && eligible != lastEligibleCount) {
                 nextRefreshTick = Math.min(nextRefreshTick, now);

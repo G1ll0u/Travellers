@@ -107,6 +107,23 @@ public final class FormationGeometry {
         return new SlotOffset(dx, dz, radius, FollowRuntimeConfig.get().surface.arriveRadius, 0.0D);
     }
 
+    /** How far behind the leader the escorts' first row stands. */
+    public static final double ESCORT_BACK = 2.5D;
+
+    public static double escortRowGap(double bodyScale) {
+        return 2.0D * bodyScale;
+    }
+
+    /** Distance from the leader to the first non-escort row: exactly what the GUI says, whatever the group size. */
+    public static double baseDistance(double baseFollowDistance, WorkerFormationSettings settings) {
+        return Math.max(baseFollowDistance, settings.followDistance);
+    }
+
+    /** Distance between two non-escort rows. */
+    public static double rowSpacing(WorkerFormationSettings settings, double bodyScale) {
+        return Math.max(1.15D, FollowRuntimeConfig.get().surface.rowSpacing * settings.spacing * bodyScale);
+    }
+
     public static SlotOffset computeEscortOffset(int escortIndex, int numEscorts, double forwardX, double forwardZ,
                                                  double bodyScale) {
         double rx = -forwardZ;
@@ -114,7 +131,7 @@ public final class FormationGeometry {
 
         double laneGap = 1.4D * bodyScale;
         double side;
-        double back = 2.5D;
+        double back = ESCORT_BACK;
         if (numEscorts == 1) {
             side = 0.0D;
         } else if (numEscorts == 2) {
@@ -125,7 +142,7 @@ public final class FormationGeometry {
             int col = escortIndex % perRow;
             int rowSize = row == 0 ? Math.min(numEscorts, perRow) : (numEscorts - perRow);
             side = rowSize <= 1 ? 0.0D : (col - (rowSize - 1) * 0.5D) * laneGap;
-            back = 2.5D + row * 2.0D * bodyScale;
+            back = ESCORT_BACK + row * escortRowGap(bodyScale);
         }
 
         return new SlotOffset(
@@ -154,12 +171,10 @@ public final class FormationGeometry {
 
         double spacingMul = settings.spacing * bodyScale;
 
-        // No group-size back-off: the formation distance is exactly what the GUI says,
-        // regardless of how many followers there are.
-        double baseDist = Math.max(baseFollowDistance, settings.followDistance);
+        double baseDist = baseDistance(baseFollowDistance, settings);
 
         double ringSpacing = Math.max(1.00D, cfg.surface.ringSpacing * spacingMul);
-        double rowSpacing = Math.max(1.15D, cfg.surface.rowSpacing * spacingMul);
+        double rowSpacing = rowSpacing(settings, bodyScale);
         double laneSpacing = Math.max(1.05D, cfg.surface.laneSpacing * spacingMul);
         double stagger = cfg.surface.staggerOffset * Math.min(1.65D, 0.70D + settings.width * 0.18D) * bodyScale;
 

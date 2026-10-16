@@ -35,6 +35,12 @@ final class HeadingTracker {
     private double headingAnchorZ = Double.NaN;
     private int headingAccumTicks = 0;
 
+    /** Makes {@code (x, z)} the heading to turn toward (a route direction), still slewed smoothly by {@link #update}. */
+    void steerToward(double x, double z) {
+        targetDirX = x;
+        targetDirZ = z;
+    }
+
     void update(EntityLivingBase leader, WorkerFormationSettings formationSettings) {
         boolean workerLeader = leader instanceof EntityTravellerWorker;
 

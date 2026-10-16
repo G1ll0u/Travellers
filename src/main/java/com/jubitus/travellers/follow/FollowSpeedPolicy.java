@@ -38,6 +38,10 @@ final class FollowSpeedPolicy {
         if (slot.leaderActuallyMoving) {
             percent = Math.max(MIN_FOLLOW_PERCENT, UnitSpeed.percentOfBlocksPerTick(slot.leaderSpeed));
         }
+        // A leader slowing for its group: matching its pace would never close the gap it is waiting on.
+        if (GroupFormationTracker.isLeaderPacing(target.getUniqueID(), follower.world.getTotalWorldTime())) {
+            percent = Math.max(percent, mounted ? TravellersConfig.SPEED.mountedPercent : UnitSpeed.travelPercent());
+        }
 
         // Horseback naturally runs farther behind its leader/slot between checks than walking does -
         // without widening these, a mounted follower reads its own larger cruising gap as "falling

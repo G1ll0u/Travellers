@@ -56,6 +56,8 @@ import java.util.Random;
 public class EntityAITravel extends EntityAIBase {
 
     private static final double CATCHUP_SPEED_MULT = 1.35;  // 35% faster in catchup
+    // Last group pace applied (GroupFormationTracker.leaderPace), 1 when not leading a lagging group.
+    private double groupPace = 1.0D;
     // Blocks the remaining distance must shrink by to count as headway
     static final double PROGRESS_IMPROVE_BLOCKS = 1.5;
     private final EntityTraveller mob;
@@ -111,6 +113,9 @@ public class EntityAITravel extends EntityAIBase {
         // isn't dragging it. No-op while swimming or not leading - see MountedLeadController, applied
         // identically by the follow AIs.
         s *= MountedLeadController.ledRiderPaceMultiplier(mob);
+
+        // A group leader slows (never stops) while its group lags; nav speed is the root of ground pace.
+        s *= Math.sqrt(groupPace);
 
         return s;
     }
@@ -297,6 +302,13 @@ public class EntityAITravel extends EntityAIBase {
         // -----------------------------------------
         if (mob.elytraFlight.isActive()) {
             return;
+        }
+
+        double pace = mob.isItineraryDriven()
+                ? com.jubitus.travellers.follow.GroupFormationTracker.leaderPace(mob) : 1.0D;
+        if (pace != groupPace) {
+            groupPace = pace;
+            if (!mob.getNavigator().noPath()) mob.getNavigator().setSpeed(getActiveSpeed());
         }
 
         // -----------------------------------------
