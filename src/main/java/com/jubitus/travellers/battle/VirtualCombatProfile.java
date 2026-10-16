@@ -181,11 +181,7 @@ public final class VirtualCombatProfile {
     }
 
     private static boolean isGhost(ItemStack s) {
-        if (!s.hasTagCompound()) return false;
-        NBTTagCompound tag = s.getTagCompound();
-        return tag.getBoolean("MillmixGhostSword") || tag.getBoolean("TravellerGhostBow")
-                || tag.getBoolean("TravellerGhostTorch") || tag.getBoolean("TravellerGhostBlock")
-                || tag.getBoolean("TravellerGhostRod");
+        return com.jubitus.travellers.unit.equipment.TravellerEquipmentManager.isGhostItem(s);
     }
 
     @Override

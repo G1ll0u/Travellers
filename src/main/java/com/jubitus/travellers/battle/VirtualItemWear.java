@@ -55,7 +55,7 @@ final class VirtualItemWear {
 
     private static void wearEntry(VirtualTravellerRecord rec, NBTTagCompound tag, int wear) {
         ItemStack stack = new ItemStack(tag);
-        if (stack.isEmpty() || VirtualBattleManager.isGhostStack(tag)) return;
+        if (stack.isEmpty() || com.jubitus.travellers.unit.equipment.TravellerEquipmentManager.isGhostItem(stack)) return;
         boolean broke = TravellerItemDamage.wearStack(stack, wear);
         // Rewrite in place: the list entry keeps its slot (an emptied slot is an empty compound).
         for (String key : new java.util.ArrayList<>(tag.getKeySet())) tag.removeTag(key);

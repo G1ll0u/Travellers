@@ -966,7 +966,7 @@ public class VirtualBattleManager extends WorldSavedData {
         for (int i = 0; i < src.tagCount(); i++) {
             NBTTagCompound tag = src.getCompoundTagAt(i);
             ItemStack s = new ItemStack(tag);
-            if (s.isEmpty() || isGhostStack(tag)) continue;
+            if (s.isEmpty() || TravellerEquipmentManager.isGhostItem(s)) continue;
             // Player-gifted gear is always returned, mirroring TravellerEquipmentManager.dropPlayerGiftEquipment.
             if (guaranteedFull || isPlayerGiftStack(tag) || rand.nextFloat() < chance) out.appendTag(tag.copy());
         }
@@ -984,7 +984,7 @@ public class VirtualBattleManager extends WorldSavedData {
         for (int idx : order) {
             NBTTagCompound tag = src.getCompoundTagAt(idx);
             ItemStack s = new ItemStack(tag);
-            if (s.isEmpty() || isGhostStack(tag)) continue;
+            if (s.isEmpty() || TravellerEquipmentManager.isGhostItem(s)) continue;
             if (isPlayerGiftStack(tag)) {           // always returned, doesn't count against the cap
                 out.appendTag(tag.copy());
                 continue;
@@ -995,16 +995,6 @@ public class VirtualBattleManager extends WorldSavedData {
                 dropped++;
             }
         }
-    }
-
-    static boolean isGhostStack(NBTTagCompound stackNbt) {
-        if (!stackNbt.hasKey("tag", 10)) return false;
-        NBTTagCompound tag = stackNbt.getCompoundTag("tag");
-        return tag.getBoolean(TravellerEquipmentManager.GHOST_SWORD_TAG)
-                || tag.getBoolean(TravellerEquipmentManager.GHOST_BOW_TAG)
-                || tag.getBoolean(TravellerEquipmentManager.GHOST_TORCH_TAG)
-                || tag.getBoolean(TravellerEquipmentManager.GHOST_BLOCK_TAG)
-                || tag.getBoolean(TravellerEquipmentManager.GHOST_ROD_TAG);
     }
 
     private static boolean isPlayerGiftStack(NBTTagCompound stackNbt) {

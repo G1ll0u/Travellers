@@ -358,7 +358,15 @@ public class TravellerEquipmentManager {
 
     /** True for any of the 5 ghost-tagged visual copies (sword, bow, torch, block, fishing rod). */
     public boolean isGhost(ItemStack s) {
-        return isGhostWeapon(s) || isGhostBow(s) || isGhostTorch(s) || isGhostBlock(s) || isGhostRod(s);
+        return isGhostItem(s);
+    }
+
+    /** Same check with no unit at hand (frozen NBT of a virtual record, loot rolls). */
+    public static boolean isGhostItem(ItemStack s) {
+        if (s.isEmpty() || !s.hasTagCompound()) return false;
+        NBTTagCompound tag = s.getTagCompound();
+        return tag.getBoolean(GHOST_SWORD_TAG) || tag.getBoolean(GHOST_BOW_TAG) || tag.getBoolean(GHOST_TORCH_TAG)
+                || tag.getBoolean(GHOST_BLOCK_TAG) || tag.getBoolean(GHOST_ROD_TAG);
     }
 
     /**
