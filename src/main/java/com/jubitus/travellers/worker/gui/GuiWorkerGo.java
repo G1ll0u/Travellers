@@ -50,7 +50,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private GuiButton backButton;
     private WorldMapNavButtons navButtons;
     private GuiButton goButton;
-    private GuiButton getEquipButton;
+    private GuiButton getEquipButton, dumpButton;
+    // True while the Stay/Return dialog belongs to Dump Items rather than Get Equipment.
+    private boolean dumpMission = false;
 
     private boolean showEquipDialog = false;
     private GuiButton equipStayButton, equipReturnButton, equipCancelButton;
@@ -152,9 +154,13 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
         // Second row under the list: Get Equipment (only for controlled villages / lone barracks)
         int buttonsTop2 = buttonsTop + bh + gap;
-        this.getEquipButton = this.addButton(new GuiTravellersButton(10, listX, buttonsTop2, listW, bh,
+        int halfW = (listW - gap) / 2;
+        this.getEquipButton = this.addButton(new GuiTravellersButton(10, listX, buttonsTop2, halfW, bh,
                 I18n.format("travellers.worker.barracks.get_equip", "Get Equipment")));
         this.getEquipButton.enabled = false;
+        this.dumpButton = this.addButton(new GuiTravellersButton(14, listX + halfW + gap, buttonsTop2, listW - halfW - gap, bh,
+                I18n.format("travellers.worker.barracks.dump", "Dump Items")));
+        this.dumpButton.enabled = false;
 
         // Inline equip dialog buttons (over the list), hidden until opened
         int dlgY = listY + 4;
@@ -168,6 +174,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         applyEquipDialogVisibility();
 
         tooltips.set(getEquipButton, "travellers.worker.barracks.get_equip.tooltip");
+        tooltips.set(dumpButton, "travellers.worker.barracks.dump.tooltip");
         tooltips.set(equipStayButton, "travellers.worker.barracks.equip_stay.tooltip");
         tooltips.set(equipReturnButton, "travellers.worker.barracks.equip_return.tooltip");
 
@@ -362,7 +369,9 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             return;
         }
 
-        if (button == getEquipButton) {
+        if (button == getEquipButton || button == dumpButton) {
+            dumpMission = button == dumpButton;
+            updateGetEquipEnabled();
             showEquipDialog = true;
             applyEquipDialogVisibility();
             return;
@@ -419,6 +428,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
 
         goButton.visible = !d;
         getEquipButton.visible = !d;
+        dumpButton.visible = !d;
         backButton.visible = !d;
         navButtons.setVisible(!d);
     }
@@ -431,23 +441,22 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                     || rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.STABLE);
         if (getEquipButton != null) getEquipButton.enabled = ok;
         boolean stable = ok && rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.STABLE;
+        if (dumpButton != null) dumpButton.enabled = ok && !stable;
+        boolean dump = dumpMission && !stable;
         if (getEquipButton != null) {
             getEquipButton.displayString = I18n.format(stable
                     ? "travellers.worker.barracks.take_horses" : "travellers.worker.barracks.get_equip");
             tooltips.set(getEquipButton, stable
                     ? "travellers.worker.barracks.take_horses.tooltip" : "travellers.worker.barracks.get_equip.tooltip");
         }
+        String missionKey = stable ? "take_horses" : dump ? "dump" : "equip";
         if (equipStayButton != null) {
-            equipStayButton.displayString = I18n.format(stable
-                    ? "travellers.worker.barracks.take_horses_stay" : "travellers.worker.barracks.equip_stay");
-            tooltips.set(equipStayButton, stable
-                    ? "travellers.worker.barracks.take_horses_stay.tooltip" : "travellers.worker.barracks.equip_stay.tooltip");
+            equipStayButton.displayString = I18n.format("travellers.worker.barracks." + missionKey + "_stay");
+            tooltips.set(equipStayButton, "travellers.worker.barracks." + missionKey + "_stay.tooltip");
         }
         if (equipReturnButton != null) {
-            equipReturnButton.displayString = I18n.format(stable
-                    ? "travellers.worker.barracks.take_horses_return" : "travellers.worker.barracks.equip_return");
-            tooltips.set(equipReturnButton, stable
-                    ? "travellers.worker.barracks.take_horses_return.tooltip" : "travellers.worker.barracks.equip_return.tooltip");
+            equipReturnButton.displayString = I18n.format("travellers.worker.barracks." + missionKey + "_return");
+            tooltips.set(equipReturnButton, "travellers.worker.barracks." + missionKey + "_return.tooltip");
         }
     }
 
@@ -460,6 +469,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                         : r.kind == MsgWorkerGoList.Kind.STABLE
                         ? com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE
                         : com.jubitus.travellers.unit.equipment.EquipTargetKind.LONE_BARRACK;
+        if (dumpMission && kind != com.jubitus.travellers.unit.equipment.EquipTargetKind.STABLE) kind = kind.toDump();
         UUID targetUUID = leaderMode ? leaderUUID : (worker != null ? worker.getUniqueID() : null);
         if (targetUUID == null || r.pos == null) return;
         TravellersNetwork.CHANNEL.sendToServer(

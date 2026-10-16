@@ -55,6 +55,7 @@ public final class NotificationDefs {
     public static final NotificationDef LEADER_NOW_LEADING = new NotificationDef(INFO, "travellers.notify.leader.now_leading", 1);
     public static final NotificationDef LEADER_NO_FREE_FOLLOWERS = new NotificationDef(INFO, "travellers.notify.leader.no_free_followers", 0);
 
+
     // --- Home / barracks (MsgWorkerGoHome, MsgAssignWorkerBarrack) ---
     public static final NotificationDef HOME_NOT_YOUR_WORKER = new NotificationDef(ERROR, "travellers.notify.home.not_your_worker", 0);
     public static final NotificationDef HOME_NONE_ASSIGNED = new NotificationDef(ERROR, "travellers.notify.home.none_assigned", 0);
@@ -94,6 +95,9 @@ public final class NotificationDefs {
     public static final NotificationDef GOTO_GROUP_ARRIVED = new NotificationDef(INFO, "travellers.notify.goto.group_arrived", 1);
     public static final NotificationDef EQUIP_DONE = new NotificationDef(INFO, "travellers.notify.equip.done", 2);
     public static final NotificationDef EQUIP_NOTHING = new NotificationDef(INFO, "travellers.notify.equip.nothing", 0);
+    public static final NotificationDef DUMP_DONE = new NotificationDef(INFO, "travellers.notify.dump.done", 2);
+    public static final NotificationDef DUMP_FULL = new NotificationDef(WARNING, "travellers.notify.dump.full", 2);
+    public static final NotificationDef DUMP_NOTHING = new NotificationDef(INFO, "travellers.notify.dump.nothing", 0);
 
     // --- Hostility toggle (MsgSetWorkerHostile) ---
     public static final NotificationDef HOSTILE_NOT_OWNER = new NotificationDef(ERROR, "travellers.notify.hostile.not_owner", 0);

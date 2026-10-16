@@ -93,6 +93,20 @@ public final class MissionNotifications {
         }
     }
 
+    /** Dump-items result: items stored, items that did not fit, workers who dropped something. */
+    public static void dumped(@Nullable MinecraftServer server, @Nullable UUID ownerId, int stored, int left, int workers) {
+        if (server == null || ownerId == null) return;
+        if (left > 0) {
+            NotificationService.notifyOffline(server, ownerId, NotificationDefs.DUMP_FULL,
+                    String.valueOf(stored), String.valueOf(left));
+        } else if (stored > 0) {
+            NotificationService.notifyOffline(server, ownerId, NotificationDefs.DUMP_DONE,
+                    String.valueOf(stored), String.valueOf(workers));
+        } else {
+            NotificationService.notifyOffline(server, ownerId, NotificationDefs.DUMP_NOTHING);
+        }
+    }
+
     /** Take-horses result: how many of the workers (the leader plus its followers) took a mount. */
     public static void horsesTaken(@Nullable MinecraftServer server, @Nullable UUID ownerId, int taken,
                                    int total, String stableName) {

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.unit.equipment;
 
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
+import com.jubitus.travellers.notify.MissionNotifications;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.village.MillGoods;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
@@ -26,6 +27,8 @@ import net.minecraftforge.items.ItemStackHandler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Get Equipment at a Barrack or a controlled village: the leader and its followers swap their gear for
@@ -47,17 +50,52 @@ public final class WorkerEquipExchanger {
     public static int[] exchangeWithFollowers(EntityTravellerWorker leader, WorldServer world,
                                               BlockPos target, EquipTargetKind kind) {
         int[] result = {0, 1};
-        if (kind == EquipTargetKind.CONTROLLED_VILLAGE) {
-            MillGoods.withVillageChests(world, target, chests -> equipGroup(leader, world, chests, result));
-        } else {
-            withBarrackChests(world, leader.getFollowOwnerId(), target, chests -> equipGroup(leader, world, chests, result));
-        }
+        withChests(world, leader, target, kind, chests -> {
+            if (!chests.isEmpty()) applyToGroup(leader, world, w -> equipFromChests(w, chests), result);
+        });
         return result;
     }
 
-    private static void equipGroup(EntityTravellerWorker leader, WorldServer world, List<IInventory> chests, int[] result) {
-        if (chests.isEmpty()) return;
-        if (equipFromChests(leader, chests)) result[0]++;
+    /** Drops the group's backpack surplus into the chests; returns {workers who dropped, workers considered, items stored, items left}. */
+    public static int[] dumpWithFollowers(EntityTravellerWorker leader, WorldServer world,
+                                          BlockPos target, EquipTargetKind kind) {
+        int[] result = {0, 1, 0, 0};
+        withChests(world, leader, target, kind, chests -> {
+            if (chests.isEmpty()) return;
+            applyToGroup(leader, world, w -> {
+                int[] d = WorkerItemDumper.dump(w, chests);
+                result[2] += d[0];
+                result[3] += d[1];
+                return d[0] > 0;
+            }, result);
+        });
+        return result;
+    }
+
+    /** Runs the chest mission {@code kind} for the leader's group and tells the owner the outcome. */
+    public static void run(EntityTravellerWorker leader, WorldServer world, BlockPos target, EquipTargetKind kind) {
+        if (kind.isDump()) {
+            int[] r = dumpWithFollowers(leader, world, target, kind);
+            MissionNotifications.dumped(world.getMinecraftServer(), leader.getFollowOwnerId(), r[2], r[3], r[0]);
+        } else {
+            int[] r = exchangeWithFollowers(leader, world, target, kind);
+            MissionNotifications.equipped(world.getMinecraftServer(), leader.getFollowOwnerId(), r[0], r[1]);
+        }
+    }
+
+    private static void withChests(WorldServer world, EntityTravellerWorker leader, BlockPos target,
+                                   EquipTargetKind kind, Consumer<List<IInventory>> use) {
+        if (kind.chestKind() == EquipTargetKind.CONTROLLED_VILLAGE) {
+            MillGoods.withVillageChests(world, target, use);
+        } else {
+            withBarrackChests(world, leader.getFollowOwnerId(), target, use);
+        }
+    }
+
+    /** Applies {@code action} (true = changed something) to the leader, then to every follower, loaded or virtual. */
+    private static void applyToGroup(EntityTravellerWorker leader, WorldServer world,
+                                     Predicate<EntityTravellerWorker> action, int[] result) {
+        if (action.test(leader)) result[0]++;
 
         UUID leaderUUID = leader.getUniqueID();
         MinecraftServer srv = world.getMinecraftServer();
@@ -68,7 +106,7 @@ public final class WorkerEquipExchanger {
                     EntityTravellerWorker follower = (EntityTravellerWorker) e;
                     if (!leaderUUID.equals(follower.getEscortLeaderUUID())) continue;
                     result[1]++;
-                    if (equipFromChests(follower, chests)) result[0]++;
+                    if (action.test(follower)) result[0]++;
                 }
             }
         }
@@ -81,7 +119,7 @@ public final class WorkerEquipExchanger {
             temp.readFromNBT(r.entityNbt);
             temp.setUniqueId(r.uuid);
             result[1]++;
-            if (!equipFromChests(temp, chests)) continue;
+            if (!action.test(temp)) continue;
             result[0]++;
             NBTTagCompound updatedNbt = new NBTTagCompound();
             temp.writeToNBT(updatedNbt);
@@ -94,7 +132,7 @@ public final class WorkerEquipExchanger {
 
     /** Hands the owner's Barrack chests to {@code use}, the Barrack's chunks borrowed for the call. */
     private static void withBarrackChests(WorldServer world, UUID ownerId, BlockPos center,
-                                          java.util.function.Consumer<List<IInventory>> use) {
+                                          Consumer<List<IInventory>> use) {
         PlayerZoneRecord rec = ownerId == null ? null : PlayerZoneManager.get(world).getByOwnerAndCenter(ownerId, center);
         if (rec == null || rec.type != ZoneType.BARRACK) return;
 

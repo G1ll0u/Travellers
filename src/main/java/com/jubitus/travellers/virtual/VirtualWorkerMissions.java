@@ -300,10 +300,7 @@ final class VirtualWorkerMissions {
         worker.setUniqueId(r.uuid);
         worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
 
-        int[] equip = com.jubitus.travellers.unit.equipment.WorkerEquipExchanger
-                .exchangeWithFollowers(worker, world, target, kind);
-        com.jubitus.travellers.notify.MissionNotifications.equipped(
-                world.getMinecraftServer(), r.followOwnerUUID, equip[0], equip[1]);
+        com.jubitus.travellers.unit.equipment.WorkerEquipExchanger.run(worker, world, target, kind);
 
         finishVirtualEquip(world, r, worker, target, stay);
     }

@@ -89,6 +89,9 @@ final class FormationOrdersMenu {
     private WorldMapController map;
     private List<MsgEquipDestsResponse.EquipDestInfo> equipDests = Collections.emptyList();
 
+    // Where the last click landed: a menu step that opens the next one puts it there.
+    private int clickX, clickY;
+
     private BlockPos destinationCrossPos = null;
     private long destinationCrossExpireMs = 0L;
 
@@ -123,6 +126,8 @@ final class FormationOrdersMenu {
 
     /** While open, every click is consumed: an item runs, anything else only closes the menu. */
     void mouseClicked(int mouseX, int mouseY) {
+        clickX = mouseX;
+        clickY = mouseY;
         menu.mouseClicked(mouseX, mouseY);
         if (!menu.isOpen()) menuTargets.clear();
     }
@@ -351,12 +356,12 @@ final class FormationOrdersMenu {
             goOffered = true;
             if (place.equip != null) {
                 MsgEquipDestsResponse.EquipDestInfo dest = place.equip;
-                boolean stable = dest.kind == EquipTargetKind.STABLE;
-                menu.itemUnless(busy, tr(stable ? "take_horses_return" : "equip_return"), () -> sendEquip(src, dest, false));
-                menu.itemUnless(busy, tr(stable ? "take_horses_stay" : "equip_stay"), () -> sendEquip(src, dest, true));
-                if (stable) {
-                    menu.itemUnless(busy, tr("return_horses_return"), () -> sendEquip(src, dest, EquipTargetKind.STABLE_RETURN, false));
-                    menu.itemUnless(busy, tr("return_horses_stay"), () -> sendEquip(src, dest, EquipTargetKind.STABLE_RETURN, true));
+                if (dest.kind == EquipTargetKind.STABLE) {
+                    addStayChoice(src, dest, EquipTargetKind.STABLE, "take_horses", busy);
+                    addStayChoice(src, dest, EquipTargetKind.STABLE_RETURN, "return_horses", busy);
+                } else {
+                    addStayChoice(src, dest, dest.kind, "equip", busy);
+                    addStayChoice(src, dest, dest.kind.toDump(), "dump", busy);
                 }
             }
             menuTargets.add(place.pos);
@@ -473,15 +478,22 @@ final class FormationOrdersMenu {
         return new net.minecraft.client.gui.ScaledResolution(Minecraft.getMinecraft()).getScaledHeight();
     }
 
+    /** One chest/stable order as a single line; clicking it asks whether the group stays there or comes back. */
+    private void addStayChoice(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, EquipTargetKind kind,
+                               String key, @Nullable String busy) {
+        menu.itemUnless(busy, tr(key), () -> {
+            menu.header(tr("after_mission"));
+            menu.item(tr("stay_there"), () -> sendEquip(leader, dest, kind, true));
+            menu.item(tr("come_back"), () -> sendEquip(leader, dest, kind, false));
+            menu.open(clickX, clickY, screenW(), screenH());
+        });
+    }
+
     private void addGo(UUID leader, BlockPos pos, @Nullable String busy) {
         menu.itemUnless(busy, tr("go"), () -> {
             TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGoTo(leader, pos));
             showDestination(pos);
         });
-    }
-
-    private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, boolean stay) {
-        sendEquip(leader, dest, dest.kind, stay);
     }
 
     private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, EquipTargetKind kind, boolean stay) {

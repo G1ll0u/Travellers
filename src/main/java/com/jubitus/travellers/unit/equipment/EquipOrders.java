@@ -80,7 +80,7 @@ public final class EquipOrders {
         VirtualTravellerManager.get(overworld).markDirty();
     }
 
-    /** A loaded worker reached its Get Equipment target: it and its group followers are equipped there. */
+    /** A loaded worker reached its Get Equipment / Dump Items target: it and its group followers are served there. */
     public static void onArrived(EntityTravellerWorker worker, BlockPos target, EquipTargetKind kind) {
         WorldServer world = (WorldServer) worker.world;
         if (kind == EquipTargetKind.STABLE_RETURN) {
@@ -93,8 +93,7 @@ public final class EquipOrders {
             WorkerHorsePickup.equipAtStable(world, zone, worker.getUniqueID(), worker.getFollowOwnerId(),
                     worker.getMountUUID() == null, horseNbt -> TravellerMountSupport.bondSpecificMount(worker, horseNbt));
         } else {
-            int[] equip = WorkerEquipExchanger.exchangeWithFollowers(worker, world, target, kind);
-            MissionNotifications.equipped(world.getMinecraftServer(), worker.getFollowOwnerId(), equip[0], equip[1]);
+            WorkerEquipExchanger.run(worker, world, target, kind);
         }
     }
 
@@ -104,12 +103,14 @@ public final class EquipOrders {
         UUID ownerId = player.getUniqueID();
         switch (kind) {
             case CONTROLLED_VILLAGE:
+            case DUMP_VILLAGE:
                 if (!TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled) return false;
                 return MillSettlements.controlledBy(player.world, player).contains(pos);
             case STABLE:
             case STABLE_RETURN:
                 return hasZoneAt(player, ownerId, ZoneType.STABLE, pos);
             case LONE_BARRACK:
+            case DUMP_BARRACK:
             default:
                 return hasZoneAt(player, ownerId, ZoneType.BARRACK, pos);
         }

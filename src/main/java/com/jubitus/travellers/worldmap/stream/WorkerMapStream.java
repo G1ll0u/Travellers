@@ -123,6 +123,7 @@ public class WorkerMapStream {
             case "GET_EQUIPMENT":
                 if ("STABLE".equals(equipKind)) return "travellers.map.worker.status.take_horses";
                 if ("STABLE_RETURN".equals(equipKind)) return "travellers.map.worker.status.return_horses";
+                if ("DUMP_BARRACK".equals(equipKind) || "DUMP_VILLAGE".equals(equipKind)) return "travellers.map.worker.status.dump_items";
                 return "travellers.map.worker.status.get_equipment";
             default: // IDLE
                 if (goingHome) return "travellers.map.worker.status.going_home";
