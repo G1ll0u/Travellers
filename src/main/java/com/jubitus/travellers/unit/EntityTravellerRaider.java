@@ -135,15 +135,14 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.tasks.addTask(2, aiRanged);
 
         // Melee combat
-        double meleeSpeed = com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking;
-        aiMelee = new EntityAIAttackMeleeCustom(this, meleeSpeed, true, TravellersConfig.COMBAT.raiderExtraMeleeReach);
+        aiMelee = new EntityAIAttackMeleeCustom(this, true, TravellersConfig.COMBAT.raiderExtraMeleeReach);
         this.tasks.addTask(5, aiMelee);
 
         // Follow a group leader (raider groups, same mechanism as travellers - see EntityTraveller).
         // Must run before EntityAICampStay below so its "yield while leader camps" check actually
         // takes effect (see EntityAIFollowLeader's own shouldExecute comment).
         aiFollowGroupLeader = new com.jubitus.travellers.follow.EntityAIFollowLeader(
-                this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 1.0F, 1.0F);
+                this, 1.0F, 1.0F);
         this.tasks.addTask(4, aiFollowGroupLeader);
 
         // === CAMP / GROUP BEHAVIOR ===========================================================
@@ -159,7 +158,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // General travel route behavior. Keep the reference: getTravelAI()/offscreenHopTowardPos
         // (stuck-rescue step-teleport) are null-checked against it and were silently disabled for
         // raiders while it wasn't stored.
-        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersConfig.ATTRIBUTES.stepBlocks);
+        aiTravel = new EntityAITravel(this, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(12, aiTravel);
 
         // Village visit (streets only for raiders, see EntityAIVillageVisit)
@@ -264,7 +263,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (attr != null) {
-            attr.setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
+            attr.setBaseValue(UnitSpeed.ATTRIBUTE);
             AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
             if (m != null) attr.removeModifier(m);
         }

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.horse.HorseAI;
 import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -248,7 +249,7 @@ final class MountBonding {
      * what a led or hitched horse runs on, where there is no rider speed to mirror.
      */
     static void applyMountedGroundSpeed(EntityHorse horse) {
-        horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(TravellersConfig.SPEED.movementSpeed);
+        horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(UnitSpeed.ATTRIBUTE);
     }
 
     /**

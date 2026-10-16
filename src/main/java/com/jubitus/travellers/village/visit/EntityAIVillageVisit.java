@@ -1,5 +1,6 @@
 package com.jubitus.travellers.village.visit;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.unit.Relocate;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -752,7 +753,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             }
             // Outdoors, a partial path is fine: walk it and ask again from where it ends.
         }
-        if (path != null) mob.getNavigator().setPath(path, TravellersConfig.VILLAGE_VISIT.walkSpeed);
+        if (path != null) mob.getNavigator().setPath(path, UnitSpeed.nav(TravellersConfig.VILLAGE_VISIT.walkPercent));
         moving = true;
         bestDist = Math.sqrt(mob.getDistanceSqToCenter(target));
         noProgressTicks = 0;
@@ -814,7 +815,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         BlockPos target = legTarget;
         if (target == null || !moving) return;
         mob.getNavigator().tryMoveToXYZ(target.getX() + 0.5D, target.getY(), target.getZ() + 0.5D,
-                TravellersConfig.VILLAGE_VISIT.walkSpeed);
+                UnitSpeed.nav(TravellersConfig.VILLAGE_VISIT.walkPercent));
     }
 
     private void onStuck() {
@@ -888,7 +889,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (avoidTicks > 0) {
             avoidTicks--;
             if (sidestep != null) {
-                mob.getMoveHelper().setMoveTo(sidestep.x, sidestep.y, sidestep.z, TravellersConfig.VILLAGE_VISIT.walkSpeed);
+                mob.getMoveHelper().setMoveTo(sidestep.x, sidestep.y, sidestep.z, UnitSpeed.nav(TravellersConfig.VILLAGE_VISIT.walkPercent));
             }
             if (avoidTicks == 0) {
                 sidestep = null;
@@ -1101,7 +1102,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             if (dx * dx + dz * dz > 0.5D * 0.5D) {
                 talkWalkTicks--;
                 if (mob.getNavigator().noPath() || talkWalkTicks % 20 == 0) {
-                    mob.getNavigator().tryMoveToXYZ(slot.x, slot.y, slot.z, TravellersConfig.VILLAGE_VISIT.walkSpeed * 0.8D);
+                    mob.getNavigator().tryMoveToXYZ(slot.x, slot.y, slot.z, UnitSpeed.nav(TravellersConfig.VILLAGE_VISIT.walkPercent) * 0.8D);
                 }
             } else {
                 talkWalkTicks = 0;

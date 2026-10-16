@@ -41,7 +41,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     private final int cooldownTicks;
     private final float startChancePerTick;
     private final EntityTraveller mob;
-    private final double approachSpeed;
     private BlockPos shoreSpot;     // where we stand to fish
     private int castTimer;
     private int fishTimer;
@@ -59,7 +58,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     public EntityAIFishWhileTravel(EntityTraveller mob) {
         this(
                 mob,
-                com.jubitus.travellers.config.TravellersConfig.SPEED.fishApproachSpeed,
                 TravellersConfig.FISHING.fishWaterScanRadius,
                 TravellersConfig.FISHING.fishMinTimeTicks,
                 TravellersConfig.FISHING.fishMaxTimeTicks,
@@ -71,7 +69,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
     }
 
     public EntityAIFishWhileTravel(EntityTraveller mob,
-                                   double approachSpeed,
                                    int waterScanRadius,
                                    int minFishTime,
                                    int maxFishTime,
@@ -80,7 +77,6 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                                    int cooldownTicks,
                                    float startChancePerTick) {
         this.mob = mob;
-        this.approachSpeed = approachSpeed;
         this.waterScanRadius = waterScanRadius;
         this.minFishTime = minFishTime;
         this.maxFishTime = maxFishTime;
@@ -246,7 +242,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
                     shoreSpot.getX() + 0.5,
                     shoreSpot.getY(),
                     shoreSpot.getZ() + 0.5,
-                    approachSpeed
+                    com.jubitus.travellers.unit.UnitSpeed.nav(TravellersConfig.SPEED.fishApproachPercent)
             );
 
             // If no path found, don't keep hammering pathfinder

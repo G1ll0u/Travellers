@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -501,24 +502,11 @@ final class MountRiding {
      * multiplier the current AI task happened to use.
      *
      * <p>Mirroring the rider's own current AI move speed makes the two products identical, so a
-     * mounted traveller moves at exactly its on-foot speed for every task, and the multiplier
-     * becomes the single honest knob on top of that. Two knobs, by context: a rider crossing the
-     * world alone ({@code EntityTraveller.mountState.isTravelSpeedContext()}, maintained by EntityAITravel)
-     * rides at the open-road pace, everything else (formation follow, combat, idle) at the follow
-     * pace - one shared multiplier made followers speed up whenever the travel pace was raised.
+     * mounted traveller moves at exactly its on-foot speed for every task, and
+     * {@link UnitSpeed#mountedFactor()} is the single boost on top of that.
      */
     static void applyMountedSpeed(EntityTraveller rider, EntityHorse horse) {
-        // Workers answer "am I travelling" through their own per-tick flag rather than the travel
-        // task's lifecycle: shouldBeUsingTravelAI() reasserts it every tick across missions, go
-        // orders and jobs, including the documented worker trap where the travel TASK itself is
-        // yanked on/off tick to tick while the mission continues - a lifecycle-only flag left
-        // mission-riding workers at the follow pace.
-        boolean travelling = rider.mountState.isTravelSpeedContext()
-                || (rider instanceof EntityTravellerWorker && ((EntityTravellerWorker) rider).isUsingTravelAI());
-        double mult = travelling
-                ? TravellersConfig.MOUNTS.mountedTravelSpeedMultiplier
-                : TravellersConfig.MOUNTS.mountedFollowSpeedMultiplier;
-        double target = Math.max(MIN_MOUNTED_SPEED, rider.getAIMoveSpeed() * mult);
+        double target = Math.max(MIN_MOUNTED_SPEED, rider.getAIMoveSpeed() * UnitSpeed.mountedFactor());
         net.minecraft.entity.ai.attributes.IAttributeInstance attr =
                 horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         // Only write on a real change: setBaseValue flags the attribute for a client resync, and

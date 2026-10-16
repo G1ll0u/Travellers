@@ -1,5 +1,6 @@
 package com.jubitus.travellers.battle;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.worldmap.stream.MapStrikeLog;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
@@ -61,15 +62,6 @@ public class VirtualBattleManager extends WorldSavedData {
 
     private static final String DATA_NAME = "TravellersVirtualBattles";
 
-    // Same walking speed as VirtualTravellerManager's travel sim, scaled live off the
-    // current TravellersConfig.SPEED.movementSpeed the same way (see currentSimStepBpt()).
-    private static final double VIRTUAL_SPEED_BPT_BASELINE = 4.3 / 20.0;
-    private static final double MOVEMENT_SPEED_BASELINE = 0.52;
-
-    private static double currentVirtualSpeedBpt() {
-        return VIRTUAL_SPEED_BPT_BASELINE
-                * (TravellersConfig.SPEED.movementSpeed / MOVEMENT_SPEED_BASELINE);
-    }
     private static final int LOOT_RECONCILE_INTERVAL = 20;
     private static final int MAX_LOOT_DEPOSITS_PER_PASS = 4;
     private static final int MAX_PENDING_LOOT = 512;
@@ -541,7 +533,7 @@ public class VirtualBattleManager extends WorldSavedData {
             BattleParticipant target = resolveTarget(world, vtm, b, p, meleePerTarget, now);
             if (target == null) {
                 // No reachable enemy: drift toward the fight
-                moveToward(rec, b.center.getX() + 0.5, b.center.getZ() + 0.5, elapsed, 2.0);
+                moveToward(rec, b.center.getX() + 0.5, b.center.getZ() + 0.5, elapsed, 2.0, UnitSpeed.travelPercent());
                 p.tetherStuckTicks = 0;
                 p.lastTargetDist = -1;
                 if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
@@ -580,7 +572,7 @@ public class VirtualBattleManager extends WorldSavedData {
                 // bow's minimum it closes in and fights in melee, so two archers can never freeze apart.
                 double stopAt = prof.isArcher && dist > prof.rangedMaxDist
                         ? Math.max(prof.rangedMinDist, prof.rangedMaxDist * 0.8) : meleeReach * 0.75;
-                moveToward(rec, tx, tz, elapsed, stopAt);
+                moveToward(rec, tx, tz, elapsed, stopAt, UnitSpeed.attackPercent());
                 p.tetherStuckTicks = 0;
             } else {
                 // DEFEND/HOLD: this target strayed outside the leash - fall back to the anchor
@@ -589,7 +581,7 @@ public class VirtualBattleManager extends WorldSavedData {
                 // leaves the fight individually, the offscreen counterpart of EntityTraveller's
                 // generic stuck-target self-clear.
                 if (rec.goal != null) {
-                    moveToward(rec, rec.goal.getX() + 0.5, rec.goal.getZ() + 0.5, elapsed, 0.5);
+                    moveToward(rec, rec.goal.getX() + 0.5, rec.goal.getZ() + 0.5, elapsed, 0.5, UnitSpeed.travelPercent());
                 }
                 p.tetherStuckTicks += elapsed;
                 if (p.tetherStuckTicks > TETHER_DISENGAGE_TICKS) {
@@ -1175,12 +1167,12 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     private static void moveToward(VirtualTravellerRecord rec, double tx, double tz,
-                                   int elapsedTicks, double stopAt) {
+                                   int elapsedTicks, double stopAt, double percent) {
         double dx = tx - rec.posX;
         double dz = tz - rec.posZ;
         double dist = Math.sqrt(dx * dx + dz * dz);
         if (dist <= stopAt || dist < 0.01) return;
-        double step = Math.min(currentVirtualSpeedBpt() * elapsedTicks, dist - stopAt);
+        double step = Math.min(UnitSpeed.blocksPerTick(percent) * elapsedTicks, dist - stopAt);
         rec.posX += (dx / dist) * step;
         rec.posZ += (dz / dist) * step;
     }

@@ -37,7 +37,7 @@ final class StableAmbience {
             st.breakNextMoveTick = now + iv + worker.getRNG().nextInt(Math.max(1, iv));
             BlockPos spot = randomStandableInZone(world, zone, worker);
             if (spot != null) {
-                worker.getNavigator().tryMoveToXYZ(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, 0.7D);
+                worker.getNavigator().tryMoveToXYZ(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, com.jubitus.travellers.unit.UnitSpeed.nav(com.jubitus.travellers.unit.UnitSpeed.STROLL_PERCENT));
             }
             double angle = (Math.PI * 2D) * worker.getRNG().nextDouble();
             st.idleLookX = Math.cos(angle);
@@ -113,7 +113,7 @@ final class StableAmbience {
             return;
         }
         if (worker.getNavigator().noPath()) {
-            worker.getNavigator().tryMoveToXYZ(bed.getX() + 0.5D, bed.getY(), bed.getZ() + 0.5D, 1.0D);
+            worker.getNavigator().tryMoveToXYZ(bed.getX() + 0.5D, bed.getY(), bed.getZ() + 0.5D, com.jubitus.travellers.unit.UnitSpeed.travelNav());
         }
     }
 

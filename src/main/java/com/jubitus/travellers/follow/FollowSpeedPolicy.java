@@ -2,7 +2,7 @@ package com.jubitus.travellers.follow;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
-import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.UnitSpeed;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.MathHelper;
 
@@ -11,6 +11,9 @@ final class FollowSpeedPolicy {
 
     private final EntityAIFollowLeader ai;
     private final EntityTraveller follower;
+
+    /** A follower never crawls, however slowly its leader dawdles. */
+    private static final double MIN_FOLLOW_PERCENT = 35.0D;
 
     double smoothedMoveSpeed;
 
@@ -27,45 +30,43 @@ final class FollowSpeedPolicy {
                                     boolean airborneLeader) {
         TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
         double catchUp = wf.catchUpSpeedBoost;
+        boolean mounted = ai.isMounted();
 
-        double targetMove = slot.leaderSpeed;
-        double speed = ai.baseSpeed;
-
-        if (target.isSneaking()) speed *= 0.88D;
-        if (target.isSprinting()) speed *= wf.sprintSpeedBoost;
-
-        if (slot.isEscort && slot.leaderActuallyMoving) speed *= 1.0D + 0.10D * catchUp;
-
-        if (targetMove > 0.08D) speed *= 1.0D + 0.08D * catchUp;
-        if (targetMove > 0.14D) speed *= 1.0D + 0.10D * catchUp;
+        // Adapt to the leader: walk at the leader's measured pace (travel pace when it is standing),
+        // and only use the margin up to followMaxPercent to close a gap.
+        double percent = UnitSpeed.travelPercent();
+        if (slot.leaderActuallyMoving) {
+            percent = Math.max(MIN_FOLLOW_PERCENT, UnitSpeed.percentOfBlocksPerTick(slot.leaderSpeed));
+        }
 
         // Horseback naturally runs farther behind its leader/slot between checks than walking does -
         // without widening these, a mounted follower reads its own larger cruising gap as "falling
-        // behind" almost continuously and stays boosted toward maxSpeedMultiplier nearly all the
-        // time, which is what "they go way too fast" actually was.
-        boolean mounted = ai.isMounted();
+        // behind" almost continuously and stays boosted nearly all the time.
         double mountScale = mounted ? wf.mountedCatchUpDistanceScale : 1.0D;
 
-        if (distToGoal > 3.5D * mountScale) speed *= 1.0D + 0.08D * catchUp;
-        if (distToGoal > 6.0D * mountScale) speed *= 1.0D + 0.12D * catchUp;
-        if (distToGoal > 9.0D * mountScale) speed *= 1.0D + 0.15D * catchUp;
+        if (distToGoal > 3.5D * mountScale) percent *= 1.0D + 0.08D * catchUp;
+        if (distToGoal > 6.0D * mountScale) percent *= 1.0D + 0.12D * catchUp;
+        if (distToGoal > 9.0D * mountScale) percent *= 1.0D + 0.15D * catchUp;
 
-        if (distToLeader > 14.0D * mountScale) speed *= 1.0D + 0.10D * catchUp;
-        if (distToLeader > 24.0D * mountScale) speed *= 1.0D + 0.15D * catchUp;
+        if (distToLeader > 14.0D * mountScale) percent *= 1.0D + 0.10D * catchUp;
+        if (distToLeader > 24.0D * mountScale) percent *= 1.0D + 0.15D * catchUp;
 
-        if (mode == FollowMode.CAVE) speed *= 1.03D;
-        if (airborneLeader) speed *= 1.04D;
-        if (ai.followTarget instanceof EntityTravellerWorker) speed *= 1.02D;
+        if (mode == FollowMode.CAVE) percent *= 1.03D;
+        if (airborneLeader) percent *= 1.04D;
 
         // Taper toward the slot instead of riding in at full speed and skidding past it - a horse's
         // momentum doesn't cancel the instant the follower settles (closeEnoughToSlot clears the path
         // outright), so without this a mounted follower visibly overshoots and snaps back on arrival.
         if (mounted && distToGoal < wf.mountedArrivalDecelRadius) {
-            speed *= MathHelper.clamp(distToGoal / wf.mountedArrivalDecelRadius, 0.35D, 1.0D);
+            percent *= MathHelper.clamp(distToGoal / wf.mountedArrivalDecelRadius, 0.35D, 1.0D);
         }
 
-        speed = MathHelper.clamp(speed, wf.minSpeedMultiplier, wf.maxSpeedMultiplier);
+        percent = MathHelper.clamp(percent, MIN_FOLLOW_PERCENT, TravellersConfig.SPEED.followMaxPercent);
+        // The horse multiplies the rider's own pace: ask the rider for the share it does not provide.
+        if (mounted) percent /= UnitSpeed.mountedFactor();
+
+        double speed = UnitSpeed.nav(percent);
         smoothedMoveSpeed = smoothedMoveSpeed * 0.76D + speed * 0.24D;
-        return MathHelper.clamp(smoothedMoveSpeed, wf.minSpeedMultiplier, wf.maxSpeedMultiplier);
+        return smoothedMoveSpeed;
     }
 }

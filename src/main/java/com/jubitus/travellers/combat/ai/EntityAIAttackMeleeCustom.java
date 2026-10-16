@@ -4,6 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import net.minecraft.entity.Entity;
@@ -22,7 +23,6 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
 
     // Chase speed (closing distance) scales above the configured in-reach fight speed by this ratio,
     // preserving the original 1.28/1.08 relationship between pursuit and fighting.
-    private static final float CHASE_RATIO = 1.28f / 1.08f;
     private static final float LERP = 0.55f;
 
     // "Still engaged" proximity band — within this range, LOS memory refreshes even without a raytrace hit
@@ -48,8 +48,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private int lastPathTick = Integer.MIN_VALUE / 2;
     private boolean holdingPosition = false;
 
-    public EntityAIAttackMeleeCustom(EntityCreature creature, double speedIn, boolean useLongMemory, double extraReach) {
-        super(creature, speedIn, useLongMemory);
+    public EntityAIAttackMeleeCustom(EntityCreature creature, boolean useLongMemory, double extraReach) {
+        super(creature, UnitSpeed.travelNav(), useLongMemory);
         this.setMutexBits(1 | 2);
         this.extraReach = Math.max(0.0, extraReach);
 
@@ -266,9 +266,8 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         } else {
             holdingPosition = false;
 
-            float fightSpeed = TravellersConfig.SPEED.movementSpeedWhileAttacking;
-            float chaseSpeed = fightSpeed * CHASE_RATIO;
-            float desired = inReach ? fightSpeed : chaseSpeed;
+            float chaseSpeed = (float) UnitSpeed.aiSpeed(UnitSpeed.attackPercent());
+            float desired = inReach ? (float) UnitSpeed.aiSpeed(UnitSpeed.attackPercent() * UnitSpeed.FIGHT_RATIO) : chaseSpeed;
 
             // Closing in or ready to strike — approach target.
             // The multiplier passed here is re-applied every tick by EntityMoveHelper

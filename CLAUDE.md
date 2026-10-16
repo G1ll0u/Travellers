@@ -114,6 +114,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Budget an expensive search (A*, route job, scan) | `pathing/PathBudget` |
 | Are two units on opposite sides | `combat/Hostility` |
 | Find a worker by id, loaded or virtual | `unit/WorkerLookup` |
+| How fast a unit moves (percent of a walking player, ceilings, mounted factor, offscreen pace) | `unit/UnitSpeed` |
 | Any marker on a vanilla horse / a horse joining or dying | `horse/HorseMarkers`, `horse/HorseEvents` |
 
 ## Cross-cutting invariants

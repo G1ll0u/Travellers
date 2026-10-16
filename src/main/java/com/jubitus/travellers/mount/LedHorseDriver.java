@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.SharedMonsterAttributes;
@@ -47,7 +48,7 @@ final class LedHorseDriver {
 
         net.minecraft.entity.ai.attributes.IAttributeInstance attr =
                 horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
-        double base = TravellersConfig.SPEED.movementSpeed;
+        double base = UnitSpeed.ATTRIBUTE;
         if (Math.abs(attr.getBaseValue() - base) > 1.0E-4D) attr.setBaseValue(base);
         double attrVal = Math.max(attr.getAttributeValue(), 1.0E-3D);
 

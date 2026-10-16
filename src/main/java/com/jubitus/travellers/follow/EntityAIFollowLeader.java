@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.BlockRules;
 import com.jubitus.travellers.ground.Footing;
@@ -125,13 +126,13 @@ public class EntityAIFollowLeader extends EntityAIBase {
      */
     private UUID lastFollowTargetUUID;
 
-    public EntityAIFollowLeader(EntityTraveller follower, double speed, float startDist, float stopDist) {
+    public EntityAIFollowLeader(EntityTraveller follower, float startDist, float stopDist) {
         this.follower = follower;
-        this.baseSpeed = speed;
+        this.baseSpeed = UnitSpeed.travelNav();
         this.startDist = startDist;
         this.stopDist = stopDist;
         this.modeSelector = new FollowModeSelector(follower, follower instanceof EntityTravellerWorker);
-        this.boatController = new FollowBoatController(follower, speed);
+        this.boatController = new FollowBoatController(follower);
         this.flightController = new FollowFlightController(follower);
         this.mountedPacer = new MountedFollowPacer(follower);
         this.goals = new FollowGoalResolver(this, follower);
@@ -181,12 +182,6 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
     EntityTravellerWorker requireWorker() {
         return (EntityTravellerWorker) follower;
-    }
-
-    /** Live config-reload hook - mirrors {@code EntityAITravel.setSpeed}, which every group-leader
-     *  follower already gets refreshed through on {@code /travellersconfigreload}. */
-    public void setSpeed(double speed) {
-        this.baseSpeed = speed;
     }
 
     @Override
@@ -287,6 +282,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
 
     @Override
     public void updateTask() {
+        baseSpeed = UnitSpeed.travelNav();
         // Don't interfere with an active gap jump - let physics carry the entity, same guard
         // EntityAITravel uses. Without this, applyNonPathSteering's per-tick moveHelper.setMoveTo
         // toward the (different) formation goal fights the ballistic motionX/Z the jump set up,
@@ -388,7 +384,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
                 && mountedPacer.tick(target.posX, target.posZ,
                         target.posX - target.prevPosX, target.posZ - target.prevPosZ,
                         slot.idealX, slot.idealZ, horizontalDistanceTo(target),
-                        baseSpeed * (target.isSprinting() ? TravellersConfig.WORKER_FORMATION.sprintSpeedBoost : 1.0D),
+                        baseSpeed,
                         isMounted() ? TravellersConfig.WORKER_FORMATION.mountedCatchUpDistanceScale : 1.0D,
                         target)) {
             follower.notifyFollowerSlotGoal(slot.idealX, slot.idealY, slot.idealZ);

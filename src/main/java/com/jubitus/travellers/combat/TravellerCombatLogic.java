@@ -469,20 +469,6 @@ public class TravellerCombatLogic {
     }
 
     // -------------------------------------------------------------------------
-    // Move speed cap
-    // -------------------------------------------------------------------------
-
-    /**
-     * Returns the appropriate AI movement speed cap for the current combat state.
-     * Override  in entity subclasses to customise.
-     */
-    public float computeMoveSpeedCap(double base) {
-        if (entity.isAimingBow()) return (float) Math.min(base * 0.98D, 0.30D);
-        if (entity.getAttackTarget() != null) return (float) Math.min(base * 1.22D, 0.38D);
-        return (float) Math.min(base * 1.02D, 0.32D);
-    }
-
-    // -------------------------------------------------------------------------
     // Threat memory
     // -------------------------------------------------------------------------
 

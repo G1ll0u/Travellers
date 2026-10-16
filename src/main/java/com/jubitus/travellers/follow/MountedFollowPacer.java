@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -253,7 +254,7 @@ final class MountedFollowPacer {
         // happened to balance it, chronically behind a fast non-player leader.
         double riderAttr = follower.getEntityAttribute(
                 net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-        double followMult = TravellersConfig.MOUNTS.mountedFollowSpeedMultiplier;
+        double followMult = UnitSpeed.mountedFactor();
         double matchFactor = 0.0D;
         if (riderAttr > 1.0E-4D && baseSpeed > 1.0E-4D) {
             double needAIMove = Math.sqrt(HORSE_FRICTION * smoothedLeaderSpeed / followMult);

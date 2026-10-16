@@ -150,7 +150,7 @@ final class StableHandSupport {
             return true;
         }
         if (st.approachStartTick < 0L) st.approachStartTick = now;
-        worker.getNavigator().tryMoveToXYZ(tx, ty, tz, 1.0D);
+        worker.getNavigator().tryMoveToXYZ(tx, ty, tz, com.jubitus.travellers.unit.UnitSpeed.travelNav());
         if (now - st.approachStartTick > APPROACH_TIMEOUT && dsq <= APPROACH_HOP_MAX_SQ
                 && worker.world instanceof WorldServer) {
             BlockPos spot = ZonePlacement.findHitboxStandableNear((WorldServer) worker.world, tx, ty, tz, worker);

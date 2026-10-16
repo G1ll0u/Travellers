@@ -1,5 +1,6 @@
 package com.jubitus.travellers.travel;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -71,14 +72,13 @@ public class EntityAITravel extends EntityAIBase {
     // water entry trigger for boats
     boolean wasInWater = false;
     int stepBlocks;
-    private double speed;
     BlockPos currentWaypoint;
     BlockPos targetVillage;
     private boolean arriveInside = false;
     // near-radius cache for the current target
     int targetNearSq = 0;
 
-    public EntityAITravel(EntityTraveller mob, double speed, int stepBlocks) {
+    public EntityAITravel(EntityTraveller mob, int stepBlocks) {
         this.mob = mob;
         this.terrain = new TravelTerrain(mob);
         this.rescue = new TravelRescue(this, mob, terrain);
@@ -88,7 +88,6 @@ public class EntityAITravel extends EntityAIBase {
         this.itinerary = new TravelItineraryFollower(this, mob);
         this.waypoints = new TravelWaypointPicker(this, mob);
         this.stuckActions = new TravelStuckActions(this, mob);
-        this.speed = speed;
         this.stepBlocks = Math.max(8, stepBlocks);
         this.reachDistSq = 3.0 * 3.0;
         this.recalcTicks = 12;
@@ -98,7 +97,7 @@ public class EntityAITravel extends EntityAIBase {
     // ---- helpers ----
 
     double getActiveSpeed() {
-        double s = this.speed;
+        double s = UnitSpeed.travelNav();
 
         if (mob.isCatchupTravel()) {
             s *= CATCHUP_SPEED_MULT;
@@ -114,10 +113,6 @@ public class EntityAITravel extends EntityAIBase {
         s *= MountedLeadController.ledRiderPaceMultiplier(mob);
 
         return s;
-    }
-
-    public void setSpeed(double s) {
-        this.speed = s;
     }
 
     public void setStepBlocks(int stepBlocks) {

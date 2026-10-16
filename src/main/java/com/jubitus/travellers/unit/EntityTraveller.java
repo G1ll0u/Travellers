@@ -880,11 +880,11 @@ public class EntityTraveller extends EntityCreature {
         this.tasks.addTask(3, aiRanged);
 
 
-        aiMelee = new EntityAIAttackMeleeCustom(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileAttacking, true, 0.00);
+        aiMelee = new EntityAIAttackMeleeCustom(this, true, 0.00);
         this.tasks.addTask(4, aiMelee);
 
         aiFollowGroupLeader = new com.jubitus.travellers.follow.EntityAIFollowLeader(
-                this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, 1.0F, 1.0F);
+                this, 1.0F, 1.0F);
         this.tasks.addTask(5, aiFollowGroupLeader);
 
         aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.attackTriggerRange, true);
@@ -911,7 +911,7 @@ public class EntityTraveller extends EntityCreature {
         villageVisitAI = new EntityAIVillageVisit(this);
         this.tasks.addTask(25, villageVisitAI);
 
-        aiTravel = new EntityAITravel(this, com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel, TravellersConfig.ATTRIBUTES.stepBlocks);
+        aiTravel = new EntityAITravel(this, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(27, aiTravel);
     }
 
@@ -925,7 +925,7 @@ public class EntityTraveller extends EntityCreature {
     // INVARIANT: the only place unit attributes come from config; subclasses override the configured* values, never this.
     private void applyConfiguredAttributes() {
         getEntityAttribute(SharedMonsterAttributes.MAX_HEALTH).setBaseValue(configuredMaxHealth());
-        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(TravellersConfig.SPEED.movementSpeed);
+        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(UnitSpeed.ATTRIBUTE);
         getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE).setBaseValue(configuredFollowRange());
         if (getAttributeMap().getAttributeInstance(SharedMonsterAttributes.ATTACK_DAMAGE) == null) {
             getAttributeMap().registerAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
@@ -1103,6 +1103,8 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public void readEntityFromNBT(NBTTagCompound compound) {
         super.readEntityFromNBT(compound);
+        // The saved attribute may predate the fixed speed scale.
+        getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(UnitSpeed.ATTRIBUTE);
         // Vanilla persists the elytra-flying flag ("FallFlying"), but the flight controller's state is
         // purely in memory - anything restored from NBT (chunk load, and every materialize, whose NBT
         // was frozen at virtualize time while the record kept moving) would otherwise come back
@@ -1188,8 +1190,7 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     public void setAIMoveSpeed(float speed) {
-        double base = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue();
-        super.setAIMoveSpeed(Math.min(speed, computeMoveSpeedCap(base)));
+        super.setAIMoveSpeed(Math.min(speed, UnitSpeed.maxAiSpeed(this)));
     }
 
     @Override
@@ -1388,7 +1389,7 @@ public class EntityTraveller extends EntityCreature {
         // Reset move attr base and make sure no swim boost lingers
         IAttributeInstance attr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (attr != null) {
-            attr.setBaseValue(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeed);
+            attr.setBaseValue(UnitSpeed.ATTRIBUTE);
             AttributeModifier m = attr.getModifier(SWIM_BOOST_UUID);
             if (m != null) attr.removeModifier(m);
         }
@@ -2162,8 +2163,6 @@ public void fall(float distance, float damageMultiplier) {
 
         // 2) AI tunables
         if (aiDefendIfClose != null) aiDefendIfClose.setAssistRadius(TravellersConfig.COMBAT.helpRange);
-        if (aiTravel != null) aiTravel.setSpeed(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
-        if (aiFollowGroupLeader != null) aiFollowGroupLeader.setSpeed(com.jubitus.travellers.config.TravellersConfig.SPEED.movementSpeedWhileTravel);
 
     }
 
@@ -2533,10 +2532,6 @@ public void fall(float distance, float damageMultiplier) {
         if (!world.isRemote) {
             this.dataManager.set(LAST_COMBAT_TICK, (int) world.getTotalWorldTime());
         }
-    }
-
-    protected float computeMoveSpeedCap(double base) {
-        return combat.computeMoveSpeedCap(base);
     }
 
     public boolean isAutoEating() {

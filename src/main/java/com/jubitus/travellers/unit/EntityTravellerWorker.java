@@ -239,7 +239,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Worker travel AI (for jobs)
         this.aiTravel = new EntityAITravel(
                 this,
-                TravellersConfig.SPEED.movementSpeedWhileTravel,
                 TravellersConfig.ATTRIBUTES.workerStepBlocks
         );
         this.tasks.addTask(11, aiTravel);
@@ -251,7 +250,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         // EntityAIFollowLeader's own class doc.
         this.tasks.addTask(9, new EntityAIFollowLeader(
                 this,
-                TravellersConfig.SPEED.movementSpeedWhileFollowingPlayer,
                 1.0F,
                 1.0F
         ));
@@ -703,22 +701,6 @@ public class EntityTravellerWorker extends EntityTraveller {
         equipment.dropInventoryFull(travelInventory);
     }
 
-    @Override
-    protected float computeMoveSpeedCap(double base) {
-        if (this.isAimingBow()) return (float) Math.min(base * 0.98D, 0.30D);
-        if (this.getAttackTarget() != null) {
-            double mult = isGuardingAnchor() ? 1.18D : 1.12D;
-            double max = isGuardingAnchor() ? 0.36D : 0.34D;
-            return (float) Math.min(base * mult, max);
-        }
-        if (this.isHiredFollower() && !this.isJobActive()) {
-            EntityLivingBase t = this.getEffectiveFollowTarget();
-            double d = (t != null) ? this.getDistance(t) : 0.0D;
-            double mult = d > 128.0D ? 1.80D : d > 64.0D ? 1.60D : d > 32.0D ? 1.40D : 1.35D;
-            return (float) Math.min(base * mult, 0.46D);
-        }
-        return (float) (base * 0.7D);
-    }
 
     @Override
     public void onLivingUpdate() {
@@ -902,7 +884,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         IAttributeInstance moveAttr = this.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED);
         if (moveAttr != null) {
-            moveAttr.setBaseValue(TravellersConfig.SPEED.movementSpeed);
+            moveAttr.setBaseValue(UnitSpeed.ATTRIBUTE);
         }
 
         // Equipment is initialised here (rather than by the base class) so it reads the worker's
@@ -1458,7 +1440,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                         idleAnchorPos.getX() + 0.5D,
                         idleAnchorPos.getY(),
                         idleAnchorPos.getZ() + 0.5D,
-                        TravellersConfig.SPEED.movementSpeedWhileFollowing * 0.85D  // was 0.4
+                        UnitSpeed.nav(UnitSpeed.STROLL_PERCENT)
                 );
             }
         } else {

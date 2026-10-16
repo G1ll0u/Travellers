@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.unit.LandingSpots;
 import com.jubitus.travellers.ground.BlockRules;
@@ -50,7 +51,6 @@ final class FollowBoatController {
     private static final int NO_TARGET_SHORE_SEARCH_RADIUS = 10;
 
     private final EntityTraveller follower;
-    private final double baseSpeed;
 
     private int boatSpawnCooldown;
     private int boatRepathCooldown;
@@ -61,9 +61,12 @@ final class FollowBoatController {
     private int strandedTicks;
     private double lastBoatX, lastBoatZ;
 
-    FollowBoatController(EntityTraveller follower, double baseSpeed) {
+    FollowBoatController(EntityTraveller follower) {
         this.follower = follower;
-        this.baseSpeed = baseSpeed;
+    }
+
+    private double baseSpeed() {
+        return UnitSpeed.travelNav();
     }
 
     void reset() {
@@ -260,7 +263,7 @@ final class FollowBoatController {
     private boolean boardOrCreateBoatImmediately(EntityLivingBase target, EntityBoat targetBoat) {
         EntityBoat nearbyBoat = findNearbyFreeBoat();
         if (nearbyBoat != null) {
-            moveToBoatAndBoard(nearbyBoat, baseSpeed);
+            moveToBoatAndBoard(nearbyBoat, baseSpeed());
             boatRepathCooldown = 25;
             return true;
         }
@@ -272,7 +275,7 @@ final class FollowBoatController {
                         waterEntry.getX() + 0.5D,
                         waterEntry.getY(),
                         waterEntry.getZ() + 0.5D,
-                        Math.max(baseSpeed, 0.55D)
+                        Math.max(baseSpeed(), 0.55D)
                 );
                 boatRepathCooldown = 30;
                 return true;
@@ -288,12 +291,12 @@ final class FollowBoatController {
         double distSqToTargetBoat = follower.getDistanceSq(targetBoat);
         if (distSqToTargetBoat <= OWN_BOAT_PREFER_DIST * OWN_BOAT_PREFER_DIST
                 && targetBoat.getPassengers().size() < BOAT_MAX_PASSENGERS) {
-            moveToBoatAndBoard(targetBoat, baseSpeed);
+            moveToBoatAndBoard(targetBoat, baseSpeed());
             boatRepathCooldown = 25;
             return true;
         }
 
-        follower.getNavigator().tryMoveToXYZ(targetBoat.posX, targetBoat.posY, targetBoat.posZ, Math.max(baseSpeed, 0.55D));
+        follower.getNavigator().tryMoveToXYZ(targetBoat.posX, targetBoat.posY, targetBoat.posZ, Math.max(baseSpeed(), 0.55D));
         boatRepathCooldown = 30;
         return true;
     }
@@ -371,7 +374,7 @@ final class FollowBoatController {
             return true;
         }
 
-        double speed = MathHelper.clamp(baseSpeed * com.jubitus.travellers.config.TravellersConfig.SPEED.followerBoatConvoySpeed, 0.25D, 0.9D);
+        double speed = MathHelper.clamp(baseSpeed() * com.jubitus.travellers.config.TravellersConfig.SPEED.followerBoatConvoySpeed, 0.25D, 0.9D);
         steerBoatTowards(myBoat, slotX, slotZ, speed);
         follower.getNavigator().clearPath();
 

@@ -417,9 +417,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 2.0, max = 32.0)
         public double catchUpTriggerDistance = 8.0;
 
-        @Config.Comment("How much faster (multiplier) a follower moves at maximum catch-up speed. 1.0 = no speed boost.")
-        @Config.RangeDouble(min = 1.0, max = 3.0)
-        public double catchUpSpeedMultiplier = 1.18;
     }
 
 
@@ -482,33 +479,29 @@ public class TravellersConfig {
     }
 
     public static class Speed {
-        @Config.Comment("Base movement speed multiplier.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeed = 0.52f;
+        @Config.Comment("Walking pace of travellers, raiders and workers on the road, in % of a walking player (100 = same speed, a sprinting player is 130).")
+        @Config.RangeDouble(min = 20, max = 200)
+        public double travelPercent = 92;
 
-        @Config.Comment("Movement speed multiplier while following.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeedWhileFollowing = 0.55f;
+        @Config.Comment("Running pace of units in a fight, in % of a walking player. Keep it under 130 so a sprinting player can always run away.")
+        @Config.RangeDouble(min = 20, max = 300)
+        public double attackPercent = 115;
 
-        @Config.Comment("Movement speed multiplier while following.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public double movementSpeedWhileFollowingPlayer = 0.57;
+        @Config.Comment("Pace of a rider travelling on a horse, in % of a walking player. Keep it under your own horse's speed so you can catch them (the slowest vanilla horse is about 113).")
+        @Config.RangeDouble(min = 20, max = 400)
+        public double mountedPercent = 110;
 
-        @Config.Comment("Movement speed multiplier during travel task.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeedWhileTravel = 0.52f;
-
-        @Config.Comment("AI move speed while fighting in melee reach. Chase speed (closing distance before reach) scales proportionally above this value.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public float movementSpeedWhileAttacking = 0.56f;
+        @Config.Comment("Fastest pace a follower or a unit catching up may reach, in % of a walking player. Followers match their leader's pace and only use this margin to close a gap.")
+        @Config.RangeDouble(min = 20, max = 300)
+        public double followMaxPercent = 125;
 
         @Config.Comment("Boat speed multiplier for anyone convoying alongside someone else's boat (hired workers following their owner, and travellers/raiders following their group leader).")
         @Config.RangeDouble(min = 0.1, max = 10.0)
         public double followerBoatConvoySpeed = 1.0;
 
-        @Config.Comment("Approach speed while a traveller fishes during travel.")
-        @Config.RangeDouble(min = 0.05, max = 2.0)
-        public double fishApproachSpeed = 0.45;
+        @Config.Comment("Pace while a traveller walks up to a fishing spot, in % of a walking player.")
+        @Config.RangeDouble(min = 10, max = 150)
+        public double fishApproachPercent = 55;
 
     }
 
@@ -912,17 +905,8 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 30)
         public int followStuckCatchupSeconds = 4;
 
-        @Config.Comment("Slowest movement speed for workers trying to catch up (1.0 = normal walking speed).")
-        @Config.RangeDouble(min = 0.05, max = 1.0)
-        public double minSpeedMultiplier = 0.20;
 
-        @Config.Comment("Fastest movement speed for workers trying to catch up (1.0 = normal walking speed).")
-        @Config.RangeDouble(min = 0.5, max = 2.0)
-        public double maxSpeedMultiplier = 0.92;
 
-        @Config.Comment("How much faster workers move when you sprint.")
-        @Config.RangeDouble(min = 1.0, max = 2.0)
-        public double sprintSpeedBoost = 1.12;
 
         @Config.Comment("How much faster workers move when they've fallen behind and need to catch up.")
         @Config.RangeDouble(min = 0.0, max = 2.0)
@@ -959,9 +943,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 2.0, max = 32.0)
         public double virtualRegroupTriggerDistance = 4.0;
 
-        @Config.Comment("How much faster an offscreen worker walks back to its formation spot once it's far enough away to trigger the speed-up above.")
-        @Config.RangeDouble(min = 1.0, max = 4.0)
-        public double virtualRegroupSpeedMultiplier = 1.25;
 
         @Config.Comment("How long (in ticks, 20 = 1 second) a group leader must stand still before its offscreen followers stop shuffling into formation and just stay where you left them. This is what keeps a group parked inside a house from spreading out through the walls while you are away.")
         @Config.RangeInt(min = 0, max = 1200)
@@ -1217,9 +1198,9 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 32)
         public int strollSpreadBlocks = 6;
 
-        @Config.Comment("Walking speed while visiting a village, compared to the normal speed.")
-        @Config.RangeDouble(min = 0.1, max = 2.0)
-        public double walkSpeed = 0.38;
+        @Config.Comment("Walking pace while visiting a village, in % of a walking player.")
+        @Config.RangeDouble(min = 10, max = 150)
+        public double walkPercent = 40;
 
         @Config.Comment("How long a traveller keeps trying to reach a spot in a village without getting any closer before it gives up and does something else (seconds).")
         @Config.RangeInt(min = 2, max = 120)
@@ -1667,17 +1648,8 @@ public class TravellersConfig {
         @Config.Comment("Log every mounted jump decision to the server log. Very spammy - only for diagnosing mounted pathfinding problems.")
         public boolean debugMounts = false;
 
-        @Config.Comment("How much faster a mounted traveller/raider/worker covers ground while offscreen (simulated, not actually loaded), compared to walking. Keep it matched to mountedTravelSpeedMultiplier so riders cover ground at the same pace whether you are watching them or not.")
-        @Config.RangeDouble(min = 1.0, max = 3.0)
-        public double mountedVirtualSpeedMultiplier = 2.0;
 
-        @Config.Comment("How much faster a rider travelling on its own (village to village, go orders, catch-up) moves compared to walking on foot. This is the open-road pace. Set to 1.0 to make a horse go exactly walking speed.")
-        @Config.RangeDouble(min = 1.0, max = 3.0)
-        public double mountedTravelSpeedMultiplier = 2.0;
 
-        @Config.Comment("How much faster a mounted follower keeping formation behind a leader may go, compared to walking on foot. This is headroom, not a cruising pace - a follower matches its leader's actual speed and only uses this margin to close a gap. Applies to mounted followers only; group members on foot follow at their normal walking rules.")
-        @Config.RangeDouble(min = 1.0, max = 3.0)
-        public double mountedFollowSpeedMultiplier = 1.6;
 
         @Config.Comment("Followers on horseback ride along continuously behind a moving leader, matching its pace, instead of stopping on their formation spot and catching up in bursts. Only affects mounted followers; turn off to go back to the stop-and-catch-up behavior.")
         public boolean mountedPaceFollowEnabled = true;

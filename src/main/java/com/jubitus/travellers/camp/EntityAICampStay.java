@@ -49,7 +49,7 @@ import java.util.UUID;
  */
 public class EntityAICampStay extends EntityAIBase {
 
-    private static final double SPEED = 0.5D;
+    private static final double SPEED = com.jubitus.travellers.unit.UnitSpeed.nav(com.jubitus.travellers.unit.UnitSpeed.STROLL_PERCENT);
     private static final double WORK_POS_ARRIVE_SQ = 2.25; // 1.5 blocks
     private static final int STEERING_TIMEOUT_TICKS = 20; // ~2s of light steering before falling back to real pathfinding
     private static final int WANDER_INTERVAL_MIN = 160;

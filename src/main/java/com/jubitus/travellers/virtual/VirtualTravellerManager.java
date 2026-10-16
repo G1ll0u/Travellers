@@ -1,5 +1,6 @@
 package com.jubitus.travellers.virtual;
 
+import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.ambient.EntityAIAutoEat;
@@ -46,22 +47,12 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private static final String DATA_NAME = "TravellersVirtualWorkers";
 
-    // Walking speed: blocks/second * seconds/tick, tuned against the default
-    // TravellersConfig.SPEED.movementSpeed (0.52) baseline below.
-    private static final double VIRTUAL_SPEED_BPT_BASELINE = 4.3 / 20.0;
-    private static final double MOVEMENT_SPEED_BASELINE = 0.52;
-
     // Ticks to advance per simulation step (run every N ticks)
     private static final int SIM_INTERVAL = 20;
 
-    /**
-     * Live virtual-sim step distance, scaled to the current TravellersConfig.SPEED.movementSpeed
-     * so a config change affects offscreen (virtual) travellers the same tick it affects loaded
-     * ones, instead of a value frozen at startup.
-     */
+    /** Live virtual-sim step distance: the same travel pace as a loaded unit, so a config change applies at once. */
     private static double currentSimStep() {
-        double ratio = TravellersConfig.SPEED.movementSpeed / MOVEMENT_SPEED_BASELINE;
-        return VIRTUAL_SPEED_BPT_BASELINE * SIM_INTERVAL * ratio;
+        return UnitSpeed.blocksPerTick(UnitSpeed.travelPercent()) * SIM_INTERVAL;
     }
 
     // After player-triggered materialization, block re-virtualization for this many ticks
@@ -242,7 +233,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 c.advance(it, r.posX, r.posZ);
                 double stepCap = c.kind(it) == Itinerary.BOAT
                         ? simStep * TravellersConfig.ROUTING.boatVirtualSpeedMultiplier
-                        : mountedPace ? simStep * TravellersConfig.MOUNTS.mountedVirtualSpeedMultiplier : simStep;
+                        : mountedPace ? simStep * UnitSpeed.mountedFactor() : simStep;
                 c.computeCarrot(it, stepCap);
                 moveToward(r, c.carrotX, c.carrotZ, stepCap, now);
                 continue;
@@ -258,17 +249,17 @@ public class VirtualTravellerManager extends WorldSavedData {
             // pace they'd use for routine formation adjustments.
             double stepCap;
             if (r.escortLeaderUUID != null && dist > TravellersConfig.WORKER_FORMATION.virtualRegroupTriggerDistance) {
-                stepCap = simStep * TravellersConfig.WORKER_FORMATION.virtualRegroupSpeedMultiplier;
+                stepCap = simStep * UnitSpeed.followCatchUpFactor();
             } else if (r.groupLeaderUUID != null && dist > TravellersConfig.GROUP_FOLLOW.catchUpTriggerDistance) {
                 // Traveller/raider group follower falling behind: mirrors the loaded follow AI's
                 // catch-up boost so "falls behind -> speeds up" holds whether loaded or virtual.
-                stepCap = simStep * TravellersConfig.GROUP_FOLLOW.catchUpSpeedMultiplier;
+                stepCap = simStep * UnitSpeed.followCatchUpFactor();
             } else {
                 stepCap = simStep;
             }
             // Mounted records cover ground faster offscreen too, mirroring the horse's real speed
             // bonus. A rider that went virtual leading or hitching its horse is walking.
-            if (mountedPace) stepCap *= TravellersConfig.MOUNTS.mountedVirtualSpeedMultiplier;
+            if (mountedPace) stepCap *= UnitSpeed.mountedFactor();
             // A follower whose leader is crossing by boat keeps up with the boat.
             if (leaderAfloat(r)) stepCap = Math.max(stepCap, simStep * TravellersConfig.ROUTING.boatVirtualSpeedMultiplier);
             moveToward(r, r.goal.getX() + 0.5, r.goal.getZ() + 0.5, stepCap, now);
