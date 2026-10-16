@@ -56,7 +56,7 @@ final class FollowPathRequester {
                 ai.stuck.recentPathSuccessTicks = RECENT_PATH_SUCCESS_BLOCK_TELEPORT_TICKS;
                 ai.stuck.failedAllowedPathTicks = 0;
                 ai.stuck.pathFailTicks = 0;
-                ai.steering.steeringBlockedTicks = 0;
+                ai.steering.direct.steeringBlockedTicks = 0;
                 markActivePathGoal(goal);
 
                 if (TravellersConfig.WORKER_FORMATION.sharedRouteCorridorEnabled) {
@@ -90,7 +90,7 @@ final class FollowPathRequester {
                 // pit-rescue nor (for workers) FollowModeSelector's near-slot CATCHUP escalation - both
                 // gated on them - can ever trigger, regardless of how long it waits. Treating a
                 // steering-also-failing denial like a failed search closes that gap.
-                if (ai.steering.steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks) {
+                if (ai.steering.direct.steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks) {
                     ai.stuck.failedAllowedPathTicks += 4;
                     ai.stuck.pathFailTicks++;
                 }
@@ -121,7 +121,7 @@ final class FollowPathRequester {
 
         TravellersConfig.WorkerFormation wf = TravellersConfig.WORKER_FORMATION;
         if (wf.steeringBlockedFastEscalationEnabled
-                && ai.steering.steeringBlockedTicks >= wf.steeringBlockedEscalationGraceTicks) {
+                && ai.steering.direct.steeringBlockedTicks >= wf.steeringBlockedEscalationGraceTicks) {
             return 2;
         }
 

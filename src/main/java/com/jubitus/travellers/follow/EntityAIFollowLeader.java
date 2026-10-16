@@ -62,7 +62,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
      * for a real path. Without it a trace cannot tell "steering thinks it is fine" from "steering is
      * about to escalate", which are very different failures. */
     public int getSteeringBlockedTicks() {
-        return steering.steeringBlockedTicks;
+        return steering.direct.steeringBlockedTicks;
     }
 
     /** Horizontal distance from the follower to its current formation goal, or -1 without one. */
@@ -330,7 +330,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (selected == FollowMode.SURFACE
                 && stuck.stagnationTicks() >= TravellersConfig.WORKER_FORMATION.followStuckCatchupSeconds * 20
                 && (stuck.pathFailTicks >= 3
-                || steering.steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks)) {
+                || steering.direct.steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks)) {
             selected = FollowMode.CATCHUP;
         }
 
@@ -400,7 +400,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
             currentGoal = null;
             hasGoal = false;
             stuck.hasProgressAnchor = false;
-            steering.steeringBlockedTicks = 0;
+            steering.direct.steeringBlockedTicks = 0;
             return;
         }
 
@@ -659,7 +659,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // falls through to the existing cooldown/reuse logic below instead, so a path already in
         // progress is followed through to completion - crossing whatever obstacle needed it in
         // the first place never stops or stutters mid-way.
-        if (noPath && steering.steeringBlockedTicks < TravellersConfig.WORKER_FORMATION.steeringStuckTicksBeforePathfind) {
+        if (noPath && steering.direct.steeringBlockedTicks < TravellersConfig.WORKER_FORMATION.steeringStuckTicksBeforePathfind) {
             steering.applyNonPathSteering(goal, target, moveSpeed, airborneLeader, mode);
             follower.setSprinting(false);
             return;

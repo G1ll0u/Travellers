@@ -17,6 +17,8 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.Vec3d;
 import com.jubitus.travellers.combat.TravellerItemDamage;
+import com.jubitus.travellers.follow.DirectSteering;
+import com.jubitus.travellers.pathing.PathBody;
 import com.jubitus.travellers.pathing.PathBudget;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
@@ -37,6 +39,12 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private static final double REPATH_TARGET_MOVED_SQ = 2.0D * 2.0D;
     private static final int REPATH_MAX_AGE_TICKS = 20;
 
+    // Steered fighters walk straight at the target; a real path is a rare fallback after being blocked this long.
+    private static final int STEER_BLOCKED_TICKS_BEFORE_PATH = 10;
+    private static final int STEER_PATH_RETRY_BACKOFF_TICKS = 40;
+    private static final int CHASE_PATH_MAX_AGE_TICKS = 60;
+    private static final double CHASE_PATH_TARGET_MOVED_SQ = 4.0D * 4.0D;
+
     private final double extraReach;
 
     private final double meleeCommitSq;
@@ -47,11 +55,14 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private double lastPathTargetX, lastPathTargetZ;
     private int lastPathTick = Integer.MIN_VALUE / 2;
     private boolean holdingPosition = false;
+    private final DirectSteering steer;
+    private int pathRetryTick = Integer.MIN_VALUE / 2;
 
     public EntityAIAttackMeleeCustom(EntityCreature creature, boolean useLongMemory, double extraReach) {
         super(creature, UnitSpeed.travelNav(), useLongMemory);
         this.setMutexBits(1 | 2);
         this.extraReach = Math.max(0.0, extraReach);
+        this.steer = creature instanceof EntityTraveller ? new DirectSteering((EntityTraveller) creature) : null;
 
         double min = Math.max(0.0, TravellersConfig.COMBAT.rangedMinDist);
         double commit = Math.max(0.0, min - 0.75);
@@ -203,6 +214,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         aiSpeedNow = (float) base;
         repathCooldown = 0;
         lastPathTick = Integer.MIN_VALUE / 2;
+        resetSteering();
         this.attacker.setSprinting(false);
         this.attacker.setAIMoveSpeed(aiSpeedNow);
 
@@ -220,6 +232,12 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         repathCooldown = 0;
         lastPathTick = Integer.MIN_VALUE / 2;
         holdingPosition = false;
+        resetSteering();
+    }
+
+    private void resetSteering() {
+        pathRetryTick = Integer.MIN_VALUE / 2;
+        if (steer != null) steer.reset();
     }
 
     @Override
@@ -274,14 +292,16 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             // (speed × MOVEMENT_SPEED attribute) for as long as this path stays active,
             // silently overriding any setAIMoveSpeed() call below — it must reflect our
             // configured desired speed, not a flat 1.0 (full base speed).
-            if (--repathCooldown <= 0) {
+            double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
+            if (steer != null && !PathBody.isMounted(attacker)) {
+                chaseBySteering(tgt, navMultiplier);
+            } else if (--repathCooldown <= 0) {
                 repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
                 if (!pathStillGood(tgt)
                         && PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
                     lastPathTick = attacker.ticksExisted;
                     lastPathTargetX = tgt.posX;
                     lastPathTargetZ = tgt.posZ;
-                    double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
                     Vec3d curvedAim = mountedApproachAim(tgt, inReach);
                     if (curvedAim != null) {
                         attacker.getNavigator().tryMoveToXYZ(curvedAim.x, curvedAim.y, curvedAim.z, navMultiplier);
@@ -290,6 +310,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
                     }
                 }
             }
+
 
             if (aiSpeedNow < 0f) aiSpeedNow = (float) base;
             aiSpeedNow = lerp(aiSpeedNow, desired, LERP);
@@ -366,6 +387,36 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         double nz = dx / dist;
         double side = (attacker.getEntityId() & 1) == 0 ? 1.0D : -1.0D;
         return new Vec3d(tgt.posX + nx * curve * side, tgt.posY, tgt.posZ + nz * curve * side);
+    }
+
+    /** Steer straight at the target; ask for a path only after being blocked a while, and keep steering while denied. */
+    private void chaseBySteering(EntityLivingBase tgt, double speed) {
+        if (!attacker.getNavigator().noPath()) {
+            if (chasePathStillUseful(tgt)) {
+                steer.steeringBlockedTicks = 0;
+                return;
+            }
+            attacker.getNavigator().clearPath();
+        }
+        if (steer.steeringBlockedTicks >= STEER_BLOCKED_TICKS_BEFORE_PATH
+                && attacker.ticksExisted >= pathRetryTick
+                && PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
+            steer.steeringBlockedTicks = 0;
+            lastPathTick = attacker.ticksExisted;
+            lastPathTargetX = tgt.posX;
+            lastPathTargetZ = tgt.posZ;
+            attacker.getNavigator().tryMoveToEntityLiving(tgt, speed);
+            if (!attacker.getNavigator().noPath()) return;
+            pathRetryTick = attacker.ticksExisted + STEER_PATH_RETRY_BACKOFF_TICKS;
+        }
+        steer.steerToward(tgt.posX, tgt.posY, tgt.posZ, speed);
+    }
+
+    private boolean chasePathStillUseful(EntityLivingBase tgt) {
+        if (attacker.ticksExisted - lastPathTick >= CHASE_PATH_MAX_AGE_TICKS) return false;
+        double dx = tgt.posX - lastPathTargetX;
+        double dz = tgt.posZ - lastPathTargetZ;
+        return dx * dx + dz * dz < CHASE_PATH_TARGET_MOVED_SQ;
     }
 
     private boolean pathStillGood(EntityLivingBase tgt) {
