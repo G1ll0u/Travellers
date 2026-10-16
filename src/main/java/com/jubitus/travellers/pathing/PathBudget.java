@@ -17,7 +17,7 @@ public final class PathBudget {
     private static final int TRAVEL_STAGGER_TICKS = 10;
     private static final int TRAVEL_MAX_PER_TICK = 128;
     private static final int TRAVEL_URGENT_MAX_PER_TICK = 256;
-    private static final int COMBAT_MAX_PER_TICK = 24;
+    private static final int COMBAT_MAX_PER_TICK = 8;
 
     public enum Client {
         /** Travel waypoint paths; urgent requests are counted apart. */

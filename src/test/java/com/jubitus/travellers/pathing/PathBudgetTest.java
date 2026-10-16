@@ -41,9 +41,9 @@ class PathBudgetTest {
     void combatUrgentGetsTwoMore() {
         int granted = 0;
         for (int i = 0; i < 40; i++) if (PathBudget.acquire(5L, PathBudget.Client.COMBAT, i, 1) == PathBudget.Result.GRANTED) granted++;
-        assertEquals(24, granted);
+        assertEquals(8, granted);
         for (int i = 0; i < 40; i++) if (PathBudget.acquire(5L, PathBudget.Client.COMBAT, i, 2) == PathBudget.Result.GRANTED) granted++;
-        assertEquals(26, granted);
+        assertEquals(10, granted);
     }
 
     @Test
