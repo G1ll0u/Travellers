@@ -145,32 +145,65 @@ final class FormationHubJournal {
         return null;
     }
 
+    /** Headcounts, not names: a big battle reads in a few lines. Old rows (no headcounts) keep their foe names, capped. */
     static List<String> battleTooltip(BattleSummary bs) {
         List<String> lines = new ArrayList<>();
+        BattleSummary.Counts c = bs.counts;
+        if (c != null) lines.add(battleTitle(bs, c));
         String location = LocationFormat.describe(bs.location, bs.dimension);
         if (location != null) lines.add(location);
-        for (BattleSummary.CasualtyEntry c : bs.ownWorkerCasualties) {
-            lines.add(c.died ? casualtyLine(c)
-                    : I18n.format("travellers.gui.history.battle_tooltip.casualty_hurt", c.name, (int) c.healthAfter));
+        if (c != null) {
+            lines.add(tip("your_side", c.ownStanding, c.ownFallen));
+            lines.add(tip("enemies", foeKinds(c), c.foeStanding, c.foeFallen));
         }
-        if (!bs.attackerDescriptions.isEmpty()) {
-            lines.add(I18n.format("travellers.gui.history.battle_tooltip.attackers"));
-            for (String desc : bs.attackerDescriptions) lines.add("- " + desc);
+
+        List<String> dead = new ArrayList<>();
+        int tomorrow = 0, later = 0, noBed = 0, never = 0;
+        for (BattleSummary.CasualtyEntry k : bs.ownWorkerCasualties) {
+            if (!k.died) continue;
+            dead.add(k.name);
+            if (k.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_BED) noBed++;
+            else if (k.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_RESPAWN) never++;
+            else if (k.respawnOutlook <= 1) tomorrow++;
+            else later++;
+        }
+        if (!dead.isEmpty()) {
+            String shown = String.join(", ", dead.subList(0, Math.min(NAMES_SHOWN, dead.size())));
+            lines.add(dead.size() > NAMES_SHOWN ? tip("losses_more", shown, dead.size() - NAMES_SHOWN) : tip("losses", shown));
+            List<String> outlook = new ArrayList<>();
+            if (tomorrow > 0) outlook.add(tip("outlook.tomorrow", tomorrow));
+            if (later > 0) outlook.add(tip("outlook.later", later));
+            if (noBed > 0) outlook.add(tip("outlook.no_bed", noBed));
+            if (never > 0) outlook.add(tip("outlook.never", never));
+            lines.add("  " + String.join(", ", outlook));
+        }
+
+        if (!bs.legacyAttackers.isEmpty()) {
+            int n = bs.legacyAttackers.size();
+            String shown = String.join(", ", bs.legacyAttackers.subList(0, Math.min(NAMES_SHOWN, n)));
+            lines.add(n > NAMES_SHOWN ? tip("attackers_more", shown, n - NAMES_SHOWN) : tip("attackers", shown));
         }
         return lines;
     }
 
-    private static String casualtyLine(BattleSummary.CasualtyEntry c) {
-        if (c.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_BED) {
-            return I18n.format("travellers.gui.history.battle_tooltip.casualty_gone", c.name);
-        }
-        if (c.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_RESPAWN) {
-            return I18n.format("travellers.gui.history.battle_tooltip.casualty_died", c.name);
-        }
-        if (c.respawnOutlook <= 1) {
-            return I18n.format("travellers.gui.history.battle_tooltip.casualty_back_tomorrow", c.name);
-        }
-        return I18n.format("travellers.gui.history.battle_tooltip.casualty_back_days", c.name, c.respawnOutlook);
+    private static final int NAMES_SHOWN = 3;
+
+    private static String battleTitle(BattleSummary bs, BattleSummary.Counts c) {
+        String time = (c.seconds / 60) + ":" + String.format("%02d", c.seconds % 60);
+        return tip("title." + bs.state.name().toLowerCase(java.util.Locale.ROOT), foeKinds(c), time);
+    }
+
+    /** "80 raiders, 5 travellers". */
+    private static String foeKinds(BattleSummary.Counts c) {
+        List<String> parts = new ArrayList<>();
+        if (c.foeRaiders > 0) parts.add(tip("kind.raiders", c.foeRaiders));
+        if (c.foeTravellers > 0) parts.add(tip("kind.travellers", c.foeTravellers));
+        if (c.foeHenchmen > 0) parts.add(tip("kind.henchmen", c.foeHenchmen));
+        return parts.isEmpty() ? "?" : String.join(", ", parts);
+    }
+
+    private static String tip(String key, Object... args) {
+        return I18n.format("travellers.gui.history.battle_tooltip." + key, args);
     }
 
     /** Entry text split on '\n' (only the first line carries the time-ago prefix). */

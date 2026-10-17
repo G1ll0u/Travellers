@@ -69,6 +69,7 @@ public class WorkerMapStream {
         final UUID followTarget; // escort leader UUID, or null
         final boolean followsOwner;
         final String role;
+        final BlockPos dutyZone;
 
         WorkerInfo(EntityTravellerWorker w, int dim) {
             this.entityId = w.getEntityId();
@@ -89,6 +90,7 @@ public class WorkerMapStream {
             this.followTarget = w.getEscortLeaderUUID();
             this.followsOwner = this.followTarget == null && w.isFollowOrderActive();
             this.role = w.getDutyKind() != null ? w.getDutyKind() : "";
+            this.dutyZone = w.getDutyZoneCenter();
         }
 
         WorkerInfo(VirtualTravellerRecord vr, boolean isLeader) {
@@ -110,6 +112,7 @@ public class WorkerMapStream {
             this.followTarget = vr.escortLeaderUUID;
             this.followsOwner = this.followTarget == null && vr.followOrderActive;
             this.role = vr.dutyKind != null ? vr.dutyKind : "";
+            this.dutyZone = vr.dutyKind != null ? vr.dutyZoneCenter : null;
         }
     }
 
@@ -340,6 +343,7 @@ public class WorkerMapStream {
                 en.statusKey = w.statusKey;
                 en.followsOwner = w.followsOwner;
                 en.role = w.role;
+                en.dutyZone = w.dutyZone;
                 en.followLeaderUuid = w.followTarget;
                 en.followName = w.followTarget != null ? nameByUuid.getOrDefault(w.followTarget, "") : "";
                 out.add(en);

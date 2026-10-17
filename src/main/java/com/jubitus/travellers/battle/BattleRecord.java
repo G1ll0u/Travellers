@@ -6,7 +6,11 @@ import net.minecraft.util.math.BlockPos;
 
 import net.minecraft.nbt.NBTTagString;
 
+import com.jubitus.travellers.notify.BattleSummary;
+
 import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.List;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -21,8 +25,27 @@ public class BattleRecord {
 
     public final UUID id;
     public final int dimension;
-    /** Recomputed centroid of alive virtual pawns; battles anchored at a camp keep the camp center. */
+    /** Recomputed centroid of alive pawns (where stragglers drift); battles anchored at a camp keep the camp center. */
     public BlockPos center;
+    /** Where the battle is shown: the first blow, moved only once the blows have clearly drifted away. */
+    public BlockPos anchor;
+    /** Distance from {@link #center} to its farthest alive pawn: the battle's zone, for merging and reopening. */
+    public int zoneRadius = MIN_ZONE_RADIUS;
+    /** World tick of the first blow, -1 before: until then the battle is not shown to players. */
+    public long firstBlowTick = -1;
+    /** World tick of the latest blow, -1 before the first. */
+    public long lastBlowTick = -1;
+    /** Transient: running average of recent blow positions, which the anchor follows past a drift distance. */
+    public transient double blowX, blowZ;
+
+    /** Transient: per owner, henchmen fallen since that owner's last battle beat (big battles update the toast now and then). */
+    public final transient Map<UUID, List<BattleSummary.CasualtyEntry>> pendingFallen = new HashMap<>();
+    /** Transient: per owner, world tick of the last fallen beat. */
+    public final transient Map<UUID, Long> lastFallenBeat = new HashMap<>();
+
+    public static final int MIN_ZONE_RADIUS = 16;
+    // Share of a new blow's position taken into the running blow position.
+    private static final double BLOW_SMOOTHING = 0.1;
     public long startTick;
     /** Non-null when the battle is an assault on an occupied camp (anchors the center). */
     @Nullable public UUID campAnchorId;
@@ -42,6 +65,9 @@ public class BattleRecord {
         this.id = id;
         this.dimension = dimension;
         this.center = center;
+        this.anchor = center;
+        this.blowX = center.getX() + 0.5;
+        this.blowZ = center.getZ() + 0.5;
         this.startTick = startTick;
         this.lastSimTick = startTick;
     }
@@ -52,6 +78,20 @@ public class BattleRecord {
             if (p.alive && p.side == side) n++;
         }
         return n;
+    }
+
+    /** A blow landed (or was parried) at this spot: the battle becomes visible and stays alive. */
+    public void recordBlow(double x, double z, long now) {
+        if (firstBlowTick < 0) {
+            firstBlowTick = now;
+            blowX = x;
+            blowZ = z;
+            anchor = new BlockPos(Math.floor(x), center.getY(), Math.floor(z));
+        } else {
+            blowX += (x - blowX) * BLOW_SMOOTHING;
+            blowZ += (z - blowZ) * BLOW_SMOOTHING;
+        }
+        lastBlowTick = now;
     }
 
     public boolean containsGroupKey(String key) {
@@ -77,6 +117,10 @@ public class BattleRecord {
         tag.setInteger("CY", center.getY());
         tag.setInteger("CZ", center.getZ());
         tag.setLong("Start", startTick);
+        tag.setLong("Anchor", anchor.toLong());
+        tag.setInteger("Zone", zoneRadius);
+        tag.setLong("FirstBlow", firstBlowTick);
+        tag.setLong("LastBlow", lastBlowTick);
         tag.setLong("LastSim", lastSimTick);
         if (campAnchorId != null) tag.setString("CampAnchor", campAnchorId.toString());
         NBTTagList list = new NBTTagList();
@@ -100,6 +144,15 @@ public class BattleRecord {
                 new BlockPos(tag.getInteger("CX"), tag.getInteger("CY"), tag.getInteger("CZ")),
                 tag.getLong("Start"));
         r.lastSimTick = tag.hasKey("LastSim") ? tag.getLong("LastSim") : r.startTick;
+        if (tag.hasKey("Anchor")) {
+            r.anchor = BlockPos.fromLong(tag.getLong("Anchor"));
+            r.blowX = r.anchor.getX() + 0.5;
+            r.blowZ = r.anchor.getZ() + 0.5;
+        }
+        if (tag.hasKey("Zone")) r.zoneRadius = tag.getInteger("Zone");
+        // A battle saved before blows were tracked was already under way: treat it as visible.
+        r.firstBlowTick = tag.hasKey("FirstBlow") ? tag.getLong("FirstBlow") : r.startTick;
+        r.lastBlowTick = tag.hasKey("LastBlow") ? tag.getLong("LastBlow") : r.lastSimTick;
         if (tag.hasKey("CampAnchor")) r.campAnchorId = UUID.fromString(tag.getString("CampAnchor"));
         NBTTagList list = tag.getTagList("Parts", 10);
         for (int i = 0; i < list.tagCount(); i++) {

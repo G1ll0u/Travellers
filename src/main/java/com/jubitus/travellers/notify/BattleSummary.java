@@ -2,30 +2,76 @@ package com.jubitus.travellers.notify;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.nbt.NBTTagString;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.Constants;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Structured summary of a battle told to one owner, for the journal row's tooltip.
+ * Structured summary of a battle told to one owner, for the journal row's tooltip: headcounts, not names.
  * Kept as typed fields (not a pre-formatted string) so the client renders it in its own language.
  */
 public final class BattleSummary {
+
+    public enum State { RUNNING, WON, LOST, BROKEN_OFF }
+
+    /** Headcounts seen from the owner's side, at the time of the beat. */
+    public static final class Counts {
+        public final int ownStanding, ownFallen;
+        public final int foeStanding, foeFallen;
+        /** Enemies by kind, fallen included. */
+        public final int foeRaiders, foeTravellers, foeHenchmen;
+        /** Seconds since the first blow. */
+        public final int seconds;
+
+        public Counts(int ownStanding, int ownFallen, int foeStanding, int foeFallen,
+                      int foeRaiders, int foeTravellers, int foeHenchmen, int seconds) {
+            this.ownStanding = ownStanding;
+            this.ownFallen = ownFallen;
+            this.foeStanding = foeStanding;
+            this.foeFallen = foeFallen;
+            this.foeRaiders = foeRaiders;
+            this.foeTravellers = foeTravellers;
+            this.foeHenchmen = foeHenchmen;
+            this.seconds = seconds;
+        }
+
+        void write(NBTTagCompound tag) {
+            tag.setIntArray("Counts", new int[]{ownStanding, ownFallen, foeStanding, foeFallen,
+                    foeRaiders, foeTravellers, foeHenchmen, seconds});
+        }
+
+        @Nullable
+        static Counts read(NBTTagCompound tag) {
+            int[] c = tag.getIntArray("Counts");
+            return c.length < 8 ? null : new Counts(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+        }
+    }
+
     public final BlockPos location;
     public final int dimension;
     public final List<CasualtyEntry> ownWorkerCasualties;
-    public final List<String> attackerDescriptions;
+    /** Null on a journal row written before headcounts were kept. */
+    @Nullable public final Counts counts;
+    public final State state;
+    /** Foe names of a journal row written before headcounts were kept; empty otherwise. */
+    public final List<String> legacyAttackers;
 
-    public BattleSummary(BlockPos location, int dimension,
-                          List<CasualtyEntry> ownWorkerCasualties,
-                          List<String> attackerDescriptions) {
+    public BattleSummary(BlockPos location, int dimension, List<CasualtyEntry> ownWorkerCasualties,
+                         @Nullable Counts counts, State state) {
+        this(location, dimension, ownWorkerCasualties, counts, state, new ArrayList<>());
+    }
+
+    private BattleSummary(BlockPos location, int dimension, List<CasualtyEntry> ownWorkerCasualties,
+                          @Nullable Counts counts, State state, List<String> legacyAttackers) {
         this.location = location;
         this.dimension = dimension;
         this.ownWorkerCasualties = ownWorkerCasualties;
-        this.attackerDescriptions = attackerDescriptions;
+        this.counts = counts;
+        this.state = state;
+        this.legacyAttackers = legacyAttackers;
     }
 
     public static final class CasualtyEntry {
@@ -60,13 +106,8 @@ public final class BattleSummary {
             casualties.appendTag(cTag);
         }
         tag.setTag("Casualties", casualties);
-
-        NBTTagList attackers = new NBTTagList();
-        for (String desc : attackerDescriptions) {
-            attackers.appendTag(new NBTTagString(desc));
-        }
-        tag.setTag("Attackers", attackers);
-
+        if (counts != null) counts.write(tag);
+        tag.setByte("State", (byte) state.ordinal());
         return tag;
     }
 
@@ -88,7 +129,9 @@ public final class BattleSummary {
         for (int i = 0; i < attackersTag.tagCount(); i++) {
             attackers.add(attackersTag.getStringTagAt(i));
         }
-
-        return new BattleSummary(location, dimension, casualties, attackers);
+        State[] states = State.values();
+        int s = tag.getByte("State");
+        return new BattleSummary(location, dimension, casualties, Counts.read(tag),
+                s >= 0 && s < states.length ? states[s] : State.RUNNING, attackers);
     }
 }

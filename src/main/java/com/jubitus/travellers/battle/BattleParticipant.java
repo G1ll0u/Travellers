@@ -23,6 +23,8 @@ public class BattleParticipant {
     public boolean alive = true;
     /** Hired-worker group leader — targeted last and shielded by followers (survival bias). */
     public boolean isGroupLeader;
+    /** A player fighting beside their workers: counted, never simulated nor targeted by virtual pawns. */
+    public boolean isPlayer;
     /** Transient: true while the pawn is materialized (physical AI owns it). Revalidated each pass. */
     public transient boolean loaded;
     /** Transient: elapsed sim ticks spent unable to close on a target outside DEFEND/HOLD tether.
@@ -52,6 +54,7 @@ public class BattleParticipant {
         tag.setInteger("Timer", attackTimer);
         tag.setBoolean("Alive", alive);
         if (isGroupLeader) tag.setBoolean("Leader", true);
+        if (isPlayer) tag.setBoolean("Player", true);
         return tag;
     }
 
@@ -63,6 +66,7 @@ public class BattleParticipant {
         p.attackTimer = tag.getInteger("Timer");
         p.alive = !tag.hasKey("Alive") || tag.getBoolean("Alive");
         p.isGroupLeader = tag.getBoolean("Leader");
+        p.isPlayer = tag.getBoolean("Player");
         return p;
     }
 }

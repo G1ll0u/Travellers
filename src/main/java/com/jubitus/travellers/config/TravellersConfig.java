@@ -2476,10 +2476,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 8, max = 256)
         public int battleJoinRadius = 64;
 
-        @Config.Comment("Two battles whose centers drift closer than this are merged (when their sides are compatible).")
-        @Config.RangeInt(min = 8, max = 128)
-        public int mergeBattleDistance = 32;
-
         @Config.Comment("Melee reach (blocks) for virtual pawns.")
         @Config.RangeDouble(min = 1.0, max = 5.0)
         public double meleeReach = 1.0;

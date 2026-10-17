@@ -137,7 +137,18 @@ final class FormationOrdersMenu {
         if (menu.isOpen()) return new HashSet<>(menuTargets);
         if (dragSelecting || !map.isMouseOver(mouseX, mouseY)) return Collections.emptySet();
         List<Target> hits = findTargets(mouseX, mouseY);
-        return hits.isEmpty() ? Collections.emptySet() : Collections.singleton(hits.get(0).pos);
+        if (hits.isEmpty()) return Collections.emptySet();
+        // A place is drawn over the units: it is what the right click aims at first.
+        Target place = firstPlace(hits);
+        return Collections.singleton(place != null ? place.pos : hits.get(0).pos);
+    }
+
+    @Nullable
+    private static Target firstPlace(List<Target> hits) {
+        for (Target t : hits) {
+            if (t.kind == TargetKind.PLACE) return t;
+        }
+        return null;
     }
 
     /**
@@ -148,18 +159,54 @@ final class FormationOrdersMenu {
         close();
         List<Target> hits = findTargets(mouseX, mouseY);
         Target unit = !hits.isEmpty() && hits.get(0).kind != TargetKind.PLACE ? hits.get(0) : null;
-        Target place = null;
-        for (Target t : hits) {
-            if (t.kind == TargetKind.PLACE) {
-                place = t;
-                break;
-            }
-        }
+        Target place = firstPlace(hits);
         unit = asGroupLeader(unit);
         BlockPos ground = map.screenToWorld(mouseX, mouseY);
 
-        buildFor(unit, place, ground);
+        if (place != null && unit != null) buildPlaceOverUnit(place, unit);
+        else buildFor(unit, place, ground);
         menu.open(mouseX, mouseY, screenW, screenH);
+    }
+
+    /**
+     * A place drawn over a unit: the place's section first, then the unit's, without changing the selection
+     * (the place orders are for what the player already selected); "Select" switches to the unit's own menu.
+     */
+    private void buildPlaceOverUnit(Target place, Target unit) {
+        FormationLeaderInfo group = selection.group();
+        boolean followers = selection.isFollowers() && !selection.followers.isEmpty();
+        boolean unitSelected = (group != null && unit.uuid != null && unit.uuid.equals(group.uuid))
+                || (followers && selection.followers.contains(unit.uuid));
+
+        if (group != null) {
+            buildGroupMenu(group, null, place, null);
+        } else if (followers) {
+            buildFollowersMenu(null, place, null);
+        } else {
+            menu.header(place.name).disabled(tr("no_orders"), tr("reason.select_first"));
+            menuTargets.add(place.pos);
+        }
+
+        int before = menu.rowCount();
+        if (unit.kind == TargetKind.ON_DUTY) {
+            menu.header(unit.name).disabled(tr("no_orders"), tr("reason.on_duty"));
+            menuTargets.add(unit.pos);
+            return;
+        }
+        if (group != null && unit.kind != TargetKind.FOLLOWER) {
+            buildGroupMenu(group, unit, null, null);
+        } else if (followers && (unit.kind != TargetKind.FOLLOWER || unitSelected)) {
+            buildFollowersMenu(unit, null, null);
+        }
+        if (unit.kind == TargetKind.PLAYER || unitSelected) return;
+        if (menu.rowCount() == before) menu.header(unit.name);
+        menu.item(tr("select"), () -> {
+            if (unit.kind == TargetKind.LEADER) host.selectLeaderByUuid(unit.uuid);
+            else host.selectFollowers(Collections.singletonList(unit.uuid));
+            buildFor(unit, null, null);
+            menu.open(clickX, clickY, screenW(), screenH());
+        });
+        menuTargets.add(unit.pos);
     }
 
     /** Picks the menu for the current selection and the unit / place / ground it is aimed at. */

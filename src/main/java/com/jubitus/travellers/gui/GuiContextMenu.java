@@ -68,6 +68,10 @@ public final class GuiContextMenu {
         return rows.isEmpty();
     }
 
+    public int rowCount() {
+        return rows.size();
+    }
+
     /** Opens at the cursor, kept fully on screen. Rows added since the last close are shown. */
     public void open(int mouseX, int mouseY, int screenW, int screenH) {
         if (rows.isEmpty()) return;

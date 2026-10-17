@@ -117,8 +117,13 @@ public class BattleMapStream {
         for (WorldServer ws : server.worlds) {
             long now = ws.getTotalWorldTime();
             VirtualBattleManager mgr = VirtualBattleManager.get(ws);
-            for (BattleRecord b : mgr.getBattlesView()) out.add(new Tally(b, now));
-            for (BattleRecord b : mgr.getRecentlyEnded(now)) out.add(new Tally(b, now));
+            // A battle is shown from its first blow: groups merely closing in, or passing by, show nothing.
+            for (BattleRecord b : mgr.getBattlesView()) {
+                if (b.firstBlowTick >= 0) out.add(new Tally(b, now));
+            }
+            for (BattleRecord b : mgr.getRecentlyEnded(now)) {
+                if (b.firstBlowTick >= 0) out.add(new Tally(b, now));
+            }
         }
         return out;
     }
@@ -139,11 +144,11 @@ public class BattleMapStream {
 
         Tally(BattleRecord b, long now) {
             dim = b.dimension;
-            pos = b.center;
+            pos = b.anchor;
             campAssault = b.campAnchorId != null;
             running = b.endTick < 0;
             winnerSide = b.winnerSide;
-            seconds = (int) (Math.max(0, now - (running ? b.startTick : b.endTick)) / 20);
+            seconds = (int) (Math.max(0, now - (running ? b.firstBlowTick : b.endTick)) / 20);
             for (BattleParticipant p : b.participants.values()) {
                 int side = p.side == 1 ? 1 : 0;
                 if (p.alive) standing[side]++;

@@ -12,6 +12,7 @@ import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.notify.BattleNotifications;
+import com.jubitus.travellers.notify.BattleSummary;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.notify.VanillaDeathMessage;
@@ -27,6 +28,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
@@ -80,6 +82,16 @@ public class VirtualBattleManager extends WorldSavedData {
     private static final int ORPHAN_SWEEP_INTERVAL = 200;
     // How long an ended battle keeps its map marker, showing the result (60 s).
     private static final int ENDED_MARKER_TICKS = 1200;
+    /** A shown battle ends after this long without any blow. */
+    private static final int LULL_END_TICKS = 600;
+    /** A battle with no blow yet (sides still closing in) ends after this long. */
+    private static final int APPROACH_END_TICKS = 1200;
+    /** A fight starting this soon after a battle ended at the same place continues that battle. */
+    private static final int REOPEN_TICKS = 1200;
+    /** The shown position follows the blows only once they drift this far from it. */
+    private static final double ANCHOR_DRIFT = 48.0;
+    /** An owner's "henchmen fallen" toast is updated at most this often during a battle. */
+    private static final int FALLEN_BEAT_TICKS = 200;
 
     private final Map<UUID, BattleRecord> battles = new LinkedHashMap<>();
     // Transient: battles that just ended, kept for their map marker only
@@ -238,7 +250,7 @@ public class VirtualBattleManager extends WorldSavedData {
                     (EntityTravellerWorker) entity;
             UUID owner = w.getFollowOwnerUUID();
             if (p != null && w.isHiredFollower() && owner != null && shouldNotifyDeath(b, owner)) {
-                notifyFallen(world, VirtualTravellerManager.get(world), b, p, owner, entity.getName());
+                notifyFallen(world, b, p, owner, entity.getName());
             }
         }
         markDirty();
@@ -286,11 +298,39 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     BattleRecord createBattle(WorldServer world, BlockPos center, long now, @Nullable UUID campAnchorId) {
+        BattleRecord reopened = reopenAt(world, center, now);
+        if (reopened != null) return reopened;
         BattleRecord b = new BattleRecord(UUID.randomUUID(), world.provider.getDimension(), center, now);
         b.campAnchorId = campAnchorId;
         battles.put(b.id, b);
         markDirty();
         return b;
+    }
+
+    /**
+     * A fight breaking out where a battle ended less than a minute ago continues it: same id (so the same
+     * map marker and journal row), its fallen kept, its survivors enrolled afresh as they come back.
+     */
+    @Nullable
+    private BattleRecord reopenAt(WorldServer world, BlockPos center, long now) {
+        int dim = world.provider.getDimension();
+        for (BattleRecord b : new ArrayList<>(recentlyEnded)) {
+            if (b.dimension != dim || now - b.endTick > REOPEN_TICKS) continue;
+            double dx = b.center.getX() - center.getX();
+            double dz = b.center.getZ() - center.getZ();
+            if (dx * dx + dz * dz > (double) b.zoneRadius * b.zoneRadius) continue;
+            recentlyEnded.remove(b);
+            b.participants.values().removeIf(p -> p.alive);
+            b.endTick = -1;
+            b.winnerSide = -1;
+            b.lastBlowTick = now;
+            b.lastSimTick = now;
+            b.notifiedOwners.clear();
+            battles.put(b.id, b);
+            markDirty();
+            return b;
+        }
+        return null;
     }
 
     void addToBattle(WorldServer world, BattleRecord b, VirtualTravellerRecord rec, int side,
@@ -310,7 +350,7 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /** Loaded-only pawn joining/starting a battle: no VirtualTravellerRecord backs it, just a UUID. */
-    private void addLoadedParticipant(BattleRecord b, EntityTraveller entity, int side, String groupKey) {
+    void addLoadedParticipant(BattleRecord b, EntityTraveller entity, int side, String groupKey) {
         if (b.participants.containsKey(entity.getUniqueID())) return;
         BattleParticipant p = new BattleParticipant(entity.getUniqueID());
         p.side = side;
@@ -359,9 +399,51 @@ public class VirtualBattleManager extends WorldSavedData {
         markDirty();
     }
 
+    /**
+     * A loaded blow between two fighters (units or players). It keeps their battle alive and shown; a player
+     * striking or struck by a battle participant joins their workers' side.
+     */
+    public void onLoadedBlow(WorldServer world, Entity attacker, Entity victim) {
+        BattleRecord b = battleOf(attacker.getUniqueID());
+        if (b == null) b = battleOf(victim.getUniqueID());
+        if (b == null) return;
+        long now = world.getTotalWorldTime();
+        b.recordBlow((attacker.posX + victim.posX) / 2, (attacker.posZ + victim.posZ) / 2, now);
+        if (attacker instanceof EntityPlayer) joinPlayer(b, (EntityPlayer) attacker, victim.getUniqueID());
+        if (victim instanceof EntityPlayer) joinPlayer(b, (EntityPlayer) victim, attacker.getUniqueID());
+        checkNotifyOwners(world, b);
+        markDirty();
+    }
+
+    private void joinPlayer(BattleRecord b, EntityPlayer player, UUID foeId) {
+        if (player.isCreative() || player.isSpectator() || b.participants.containsKey(player.getUniqueID())) return;
+        BattleParticipant foe = b.participants.get(foeId);
+        if (foe == null || !foe.alive) return;
+        String key = BattleParticipant.OWNER_KEY_PREFIX + player.getUniqueID();
+        int side = b.sideOfGroup(key);
+        if (side < 0) side = 1 - foe.side;
+        if (side == foe.side) return;
+        BattleParticipant p = new BattleParticipant(player.getUniqueID());
+        p.side = side;
+        p.groupKey = key;
+        p.loaded = true;
+        p.isPlayer = true;
+        b.participants.put(p.uuid, p);
+        participantIndex.put(p.uuid, b.id);
+    }
+
+    /** A player who fell in a battle counts among its fallen. */
+    public void onPlayerDeath(EntityPlayer player) {
+        UUID id = participantIndex.remove(player.getUniqueID());
+        BattleRecord b = id != null ? battles.get(id) : null;
+        BattleParticipant p = b != null ? b.participants.get(player.getUniqueID()) : null;
+        if (p != null) p.alive = false;
+        markDirty();
+    }
+
     /** Mirrors BattleEncounterScanner.groupKey for VirtualTravellerRecords, kept in sync so the two
      *  detection paths (offscreen scan / loaded engagement) never disagree on faction identity. */
-    private static String loadedGroupKey(EntityTraveller e) {
+    static String loadedGroupKey(EntityTraveller e) {
         if (e instanceof EntityTravellerRaider) return "RAIDER";
         if (e instanceof EntityTravellerWorker) {
             EntityTravellerWorker w =
@@ -380,8 +462,7 @@ public class VirtualBattleManager extends WorldSavedData {
      * the bar). Idempotent via {@link BattleRecord#notifiedOwners}.
      */
     private void checkNotifyOwners(WorldServer world, BattleRecord b) {
-        if (!TravellersConfig.BATTLE_EVENTS.notifyOwnerOnBattleStart) return;
-        VirtualTravellerManager vtm = VirtualTravellerManager.get(world);
+        if (!TravellersConfig.BATTLE_EVENTS.notifyOwnerOnBattleStart || b.firstBlowTick < 0) return;
         Set<UUID> owners = new HashSet<>();
         for (BattleParticipant p : b.participants.values()) {
             if (p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) {
@@ -392,7 +473,7 @@ public class VirtualBattleManager extends WorldSavedData {
             if (b.notifiedOwners.contains(owner) || !meetsNotifySignificance(b, owner)) continue;
             if (!b.notifiedOwners.add(owner)) continue;
             BattleNotifications.started(world.getMinecraftServer(), owner, b.id, battlePlace(b),
-                    foeNames(world, vtm, b, b.sideOfGroup(BattleParticipant.OWNER_KEY_PREFIX + owner)));
+                    countsFor(b, owner, world.getTotalWorldTime()));
         }
     }
 
@@ -418,25 +499,55 @@ public class VirtualBattleManager extends WorldSavedData {
         return cfg.notifyDeathAlwaysNotifies || meetsNotifySignificance(b, owner);
     }
 
-    private List<String> foeNames(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, int ownSide) {
-        List<String> foes = new ArrayList<>();
+    /** Headcounts of the battle seen from this owner's side, for the journal row. */
+    private static BattleSummary.Counts countsFor(BattleRecord b, UUID owner, long now) {
+        int ownSide = b.sideOfGroup(BattleParticipant.OWNER_KEY_PREFIX + owner);
+        int[] standing = new int[2], fallen = new int[2];
+        int raiders = 0, travellers = 0, henchmen = 0;
         for (BattleParticipant p : b.participants.values()) {
-            if (!p.alive || p.side == ownSide) continue;
-            foes.add(resolveParticipantName(world, vtm, p.uuid));
+            int side = p.side == 1 ? 1 : 0;
+            if (p.alive) standing[side]++;
+            else fallen[side]++;
+            if (p.side == ownSide) continue;
+            if ("RAIDER".equals(p.groupKey)) raiders++;
+            else if (p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) henchmen++;
+            else travellers++;
         }
-        return foes;
+        int own = ownSide == 1 ? 1 : 0;
+        int seconds = b.firstBlowTick < 0 ? 0 : (int) (Math.max(0, now - b.firstBlowTick) / 20);
+        return new BattleSummary.Counts(standing[own], fallen[own], standing[1 - own], fallen[1 - own],
+                raiders, travellers, henchmen, seconds);
     }
 
     private static NoticePlace battlePlace(BattleRecord b) {
-        return new NoticePlace(b.center, b.dimension, null);
+        return new NoticePlace(b.anchor, b.dimension, null);
     }
 
-    /** A hired worker fell: its owner's battle story gets the casualty, and the owner will hear the result. */
-    private void notifyFallen(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, BattleParticipant victim,
-                              UUID owner, String name) {
+    /**
+     * A hired worker fell: its owner's battle story gets the casualty and the owner will hear the result.
+     * Call after {@code ZoneAssignments.onWorkerDied}, which decides whether it comes back.
+     */
+    private void notifyFallen(WorldServer world, BattleRecord b, BattleParticipant victim, UUID owner, String name) {
         b.notifiedOwners.add(owner);
-        BattleNotifications.workerFell(world.getMinecraftServer(), owner, b.id, battlePlace(b), victim.uuid, name,
-                foeNames(world, vtm, b, victim.side));
+        if (world.getMinecraftServer() == null) return;
+        b.pendingFallen.computeIfAbsent(owner, k -> new ArrayList<>()).add(new BattleSummary.CasualtyEntry(name, true, 0f,
+                WorkerLifecycleNotifications.respawnOutlook(world.getMinecraftServer(), victim.uuid)));
+        flushFallen(world, b, false);
+    }
+
+    /** Sends each owner's gathered casualties, at most once per {@link #FALLEN_BEAT_TICKS} unless forced. */
+    private void flushFallen(WorldServer world, BattleRecord b, boolean force) {
+        if (b.pendingFallen.isEmpty()) return;
+        long now = world.getTotalWorldTime();
+        for (java.util.Iterator<Map.Entry<UUID, List<BattleSummary.CasualtyEntry>>> it = b.pendingFallen.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<UUID, List<BattleSummary.CasualtyEntry>> e = it.next();
+            Long last = b.lastFallenBeat.get(e.getKey());
+            if (!force && last != null && now - last < FALLEN_BEAT_TICKS) continue;
+            BattleNotifications.workersFell(world.getMinecraftServer(), e.getKey(), b.id, battlePlace(b), e.getValue(),
+                    countsFor(b, e.getKey(), now));
+            b.lastFallenBeat.put(e.getKey(), now);
+            it.remove();
+        }
     }
 
     /** One result per owner told about this battle: won (no foe left), lost (all of the owner's side fell), else broken off. */
@@ -455,7 +566,8 @@ public class VirtualBattleManager extends WorldSavedData {
                 if (foes == 0 && own > 0) outcome = BattleNotifications.Outcome.WON;
                 else if (own == 0 && foes > 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST;
             }
-            BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen);
+            BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen,
+                    countsFor(b, owner, world.getTotalWorldTime()));
         }
     }
 
@@ -481,6 +593,7 @@ public class VirtualBattleManager extends WorldSavedData {
     /** Moves every participant of {@code src} into {@code dst} (side mapping decided by caller). */
     void mergeBattles(WorldServer world, BattleRecord dst, BattleRecord src, Map<UUID, Integer> sideMapping,
                       VirtualTravellerManager vtm) {
+        flushFallen(world, src, true);
         for (BattleParticipant p : src.participants.values()) {
             Integer side = sideMapping.get(p.uuid);
             if (side == null) continue;
@@ -494,6 +607,12 @@ public class VirtualBattleManager extends WorldSavedData {
             BattleNotifications.merged(world.getMinecraftServer(), owner, src.id, dst.id);
         }
         dst.notifiedOwners.addAll(src.notifiedOwners);
+        dst.startTick = Math.min(dst.startTick, src.startTick);
+        if (dst.firstBlowTick < 0 || (src.firstBlowTick >= 0 && src.firstBlowTick < dst.firstBlowTick)) {
+            dst.firstBlowTick = src.firstBlowTick;
+            if (dst.lastBlowTick < 0) dst.anchor = src.anchor;
+        }
+        dst.lastBlowTick = Math.max(dst.lastBlowTick, src.lastBlowTick);
         for (int i = 0; i < src.lootPool.tagCount(); i++) {
             dst.lootPool.appendTag(src.lootPool.getCompoundTagAt(i));
         }
@@ -531,12 +650,27 @@ public class VirtualBattleManager extends WorldSavedData {
         if (elapsed <= 0) return;
 
         // Refresh loaded flags; drop pawns that vanished entirely (debug clears etc.)
+        List<BattleParticipant> gone = null;
         for (BattleParticipant p : b.participants.values()) {
             if (!p.alive) continue;
+            if (p.isPlayer) {
+                // A player who logged out or changed dimension leaves the battle; they did not fall.
+                if (world.getPlayerEntityByUUID(p.uuid) == null) {
+                    if (gone == null) gone = new ArrayList<>();
+                    gone.add(p);
+                }
+                continue;
+            }
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             p.loaded = rec == null;
             if (rec == null && world.getEntityFromUuid(p.uuid) == null) {
                 p.alive = false;
+                participantIndex.remove(p.uuid);
+            }
+        }
+        if (gone != null) {
+            for (BattleParticipant p : gone) {
+                b.participants.remove(p.uuid);
                 participantIndex.remove(p.uuid);
             }
         }
@@ -627,19 +761,19 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
 
-        // Loaded fighters: hold their place only while they actually have a target.
+        // Loaded fighters stay counted while the battle lasts; one with no target that has walked far off leaves it.
+        double leaveDistSq = (double) TravellersConfig.BATTLE_EVENTS.engagementRadius
+                * TravellersConfig.BATTLE_EVENTS.engagementRadius;
         List<BattleParticipant> toRelease = null;
         for (BattleParticipant p : b.participants.values()) {
-            if (!p.alive || !p.loaded) continue;
+            if (!p.alive || !p.loaded || p.isPlayer) continue;
             Entity e = world.getEntityFromUuid(p.uuid);
             if (!(e instanceof EntityTraveller) || e.isDead) continue;
             EntityTraveller le = (EntityTraveller) e;
-            if (le.getAttackTarget() != null && !le.getAttackTarget().isDead) {
-                p.noProgressTicks = 0;
-            } else {
-                p.noProgressTicks += elapsed;
-            }
-            if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
+            if (le.getAttackTarget() != null && !le.getAttackTarget().isDead) continue;
+            double dx = le.posX - (b.center.getX() + 0.5);
+            double dz = le.posZ - (b.center.getZ() + 0.5);
+            if (dx * dx + dz * dz > leaveDistSq) {
                 if (toRelease == null) toRelease = new ArrayList<>();
                 toRelease.add(p);
             }
@@ -655,21 +789,53 @@ public class VirtualBattleManager extends WorldSavedData {
                 disengage(world, vtm, b, p, now);
             }
         }
+        updateZone(world, vtm, b);
+        flushFallen(world, b, false);
+        checkNotifyOwners(world, b);
+    }
 
-        // Keep the marker centered on the actual fight, loaded fighters included (camp assaults stay camp-anchored)
+    /** Recentres the battle on its pawns (camp assaults stay on the camp), sizes its zone, moves the anchor if the blows drifted. */
+    private void updateZone(WorldServer world, VirtualTravellerManager vtm, BattleRecord b) {
+        List<double[]> positions = new ArrayList<>();
+        for (BattleParticipant p : b.participants.values()) {
+            if (!p.alive) continue;
+            double[] pos = p.isPlayer ? playerPosition(world, p.uuid) : foePosition(world, vtm, p.uuid);
+            if (pos != null) positions.add(pos);
+        }
+        if (positions.isEmpty()) return;
         if (b.campAnchorId == null) {
             double sx = 0, sz = 0;
-            int n = 0;
-            for (BattleParticipant p : b.participants.values()) {
-                if (!p.alive) continue;
-                double[] pos = foePosition(world, vtm, p.uuid);
-                if (pos == null) continue;
+            for (double[] pos : positions) {
                 sx += pos[0];
                 sz += pos[1];
-                n++;
             }
-            if (n > 0) b.center = new BlockPos((int) Math.floor(sx / n), b.center.getY(), (int) Math.floor(sz / n));
+            b.center = new BlockPos((int) Math.floor(sx / positions.size()), b.center.getY(),
+                    (int) Math.floor(sz / positions.size()));
         }
+        double far = 0;
+        for (double[] pos : positions) {
+            double dx = pos[0] - (b.center.getX() + 0.5);
+            double dz = pos[1] - (b.center.getZ() + 0.5);
+            far = Math.max(far, dx * dx + dz * dz);
+        }
+        b.zoneRadius = Math.max(BattleRecord.MIN_ZONE_RADIUS, (int) Math.ceil(Math.sqrt(far)));
+        if (b.campAnchorId != null) {
+            b.anchor = b.center;
+        } else if (b.firstBlowTick < 0) {
+            b.anchor = b.center;
+        } else {
+            double dx = b.blowX - (b.anchor.getX() + 0.5);
+            double dz = b.blowZ - (b.anchor.getZ() + 0.5);
+            if (dx * dx + dz * dz > ANCHOR_DRIFT * ANCHOR_DRIFT) {
+                b.anchor = new BlockPos(Math.floor(b.blowX), b.center.getY(), Math.floor(b.blowZ));
+            }
+        }
+    }
+
+    @Nullable
+    private static double[] playerPosition(WorldServer world, UUID uuid) {
+        EntityPlayer pl = world.getPlayerEntityByUUID(uuid);
+        return pl != null ? new double[]{pl.posX, pl.posZ} : null;
     }
 
     /**
@@ -733,7 +899,7 @@ public class VirtualBattleManager extends WorldSavedData {
         long bestScore = Long.MAX_VALUE;
         long currentScore = Long.MAX_VALUE;
         for (BattleParticipant t : b.participants.values()) {
-            if (!t.alive || t.side == p.side) continue;
+            if (!t.alive || t.side == p.side || t.isPlayer) continue;
             double[] pos = foePosition(world, vtm, t.uuid);
             if (pos == null) continue;
             double dx = pos[0] - rec.posX;
@@ -785,6 +951,10 @@ public class VirtualBattleManager extends WorldSavedData {
     private void applyDamage(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
                              BattleParticipant attacker, BattleParticipant victim, VirtualTravellerRecord victimRec,
                              float rawDamage, long now) {
+        VirtualTravellerRecord attackerRec = vtm.getRecord(attacker.uuid);
+        double ax = attackerRec != null ? attackerRec.posX : victimRec.posX;
+        double az = attackerRec != null ? attackerRec.posZ : victimRec.posZ;
+        b.recordBlow((ax + victimRec.posX) / 2, (az + victimRec.posZ) / 2, now);
         // Leader survival bias: a shielding follower nearby takes the hit instead
         if (victim.isGroupLeader && TravellersConfig.BATTLE_EVENTS.leaderSurvivalBias) {
             BattleParticipant shield = null;
@@ -870,7 +1040,7 @@ public class VirtualBattleManager extends WorldSavedData {
 
         // After the bed rule, so the notice can say whether the worker comes back.
         if (rec.isHiredFollower && rec.followOwnerUUID != null && shouldNotifyDeath(b, rec.followOwnerUUID)) {
-            notifyFallen(world, vtm, b, victim, rec.followOwnerUUID, rec.name == null ? "" : rec.name);
+            notifyFallen(world, b, victim, rec.followOwnerUUID, rec.name == null ? "" : rec.name);
         }
 
         // A virtually-dying rider's mount has no physical presence to leave abandoned offscreen (no
@@ -966,9 +1136,13 @@ public class VirtualBattleManager extends WorldSavedData {
     private boolean checkBattleEnd(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, long now) {
         int aliveA = b.countAlive(0);
         int aliveB = b.countAlive(1);
+        boolean cleared = aliveA == 0 || aliveB == 0;
+        boolean quiet = b.firstBlowTick < 0
+                ? now - b.startTick > APPROACH_END_TICKS
+                : now - b.lastBlowTick > LULL_END_TICKS;
         boolean timeout = now - b.startTick > TravellersConfig.BATTLE_EVENTS.maxBattleDurationTicks;
-        if (aliveA > 0 && aliveB > 0 && !timeout) return false;
-        endBattle(world, vtm, b, !timeout);
+        if (!cleared && !quiet && !timeout) return false;
+        endBattle(world, vtm, b, cleared);
         return true;
     }
 
@@ -1003,6 +1177,7 @@ public class VirtualBattleManager extends WorldSavedData {
             // - a scattered survivor's return-to-formation starts the instant the fight ends.
             vtm.forceRefreshGoal(world, rec, now);
         }
+        flushFallen(world, b, true);
         notifyOutcomes(world, b);
         distributeLootPool(world, vtm, b, allowPillage);
         battles.remove(b.id);

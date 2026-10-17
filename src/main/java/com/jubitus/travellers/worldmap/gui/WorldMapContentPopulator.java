@@ -13,8 +13,7 @@ import java.util.Set;
 /**
  * Adds the standard set of map markers to a panel in the correct draw order.
  *
- * Draw order (lowest = drawn first, highest = drawn on top):
- *   regular villages → controlled villages → homes → followers → leaders → player
+ * Draw order is {@link GuiWorldMapPanel.Marker.MarkerType}'s declaration order, not the order markers are added.
  *
  * This method does NOT call clearMarkers(). The caller must do that first,
  * allowing extra markers to be added before or after this call.
@@ -40,7 +39,8 @@ public final class WorldMapContentPopulator {
             EntityPlayer player,
             int playerOwnerColor,
             Set<BlockPos> highlightedVillages,
-            @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
+            @javax.annotation.Nullable WorkerMarkerSmoother smoother,
+            DutyRing dutyRing) {
 
         panel.setLegendOwnerColor(playerOwnerColor);
 
@@ -76,7 +76,11 @@ public final class WorldMapContentPopulator {
         // 4 — Follower workers, or the role marker of an on-duty worker
         for (MsgMapWorkersUpdate.Entry e : workers) {
             if (e.pos == null || e.dim != myDim || e.isLeader) continue;
-            if (isOnDuty(e)) {
+            if (isOnDuty(e) && dutyRing.covers(e.uuid)) {
+                float[] at = dutyRing.position(e.uuid);
+                panel.addMarker(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role)
+                        .at(at[0], at[1]).forUnit(e.uuid));
+            } else if (isOnDuty(e)) {
                 panel.addMarker(smoothed(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role), e, smoother));
             } else {
                 panel.addMarker(smoothed(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor), e, smoother));
@@ -196,15 +200,5 @@ public final class WorldMapContentPopulator {
         }
         if (e.inBattle) sb.append('\n').append("§c").append(I18n.format("travellers.map.worker.in_battle"));
         return sb.toString();
-    }
-
-    /** Convenience overload with no highlighted villages. */
-    public static void populate(
-            GuiWorldMapPanel panel,
-            List<MsgWorkerGoList.Entry> pois,
-            List<MsgMapWorkersUpdate.Entry> workers,
-            EntityPlayer player,
-            int playerOwnerColor) {
-        populate(panel, pois, workers, player, playerOwnerColor, null, null);
     }
 }

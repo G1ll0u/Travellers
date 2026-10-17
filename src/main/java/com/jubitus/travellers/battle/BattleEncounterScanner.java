@@ -4,7 +4,9 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.camp.CampsiteRecord;
 import com.jubitus.travellers.camp.CampsiteManager;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 
@@ -20,8 +22,8 @@ import java.util.UUID;
 
 /**
  * Periodic encounter detection over virtual records: coarse spatial hash, hostility rules
- * (cross-faction, declared owner hostility, raider-vs-hired engagement delay), group pull-in,
- * reinforcement joins for ongoing battles, and battle merging.
+ * (cross-faction, declared owner hostility, raider-vs-hired engagement delay), whole-group pull-in
+ * (loaded and virtual members alike), reinforcement joins for ongoing battles, and battle merging.
  * Transient — all persisted state lives in VirtualBattleManager.
  */
 class BattleEncounterScanner {
@@ -61,17 +63,22 @@ class BattleEncounterScanner {
             }
         }
         pruneProximity(now, cfg);
-        if (cells.isEmpty()) return;
+        List<EntityTraveller> loadedFree = mgr.getBattleCount() > 0 || !cells.isEmpty()
+                ? freeLoadedUnits(world, mgr) : new ArrayList<>();
 
-        // Reinforcements: pull nearby compatible/hostile groups into ongoing battles
+        // Reinforcements: nearby compatible/hostile bystanders, then the rest of every group already fighting
         for (BattleRecord b : iterableToList(mgr.getBattlesView())) {
             if (b.dimension != dim) continue;
             for (VirtualTravellerRecord rec : recordsNear(cells, b.center.getX(), b.center.getZ(), cfg.battleJoinRadius)) {
                 tryJoin(world, mgr, b, rec, now, cfg);
             }
+            pullInGroups(world, vtm, mgr, b, cells, loadedFree, now, cfg);
         }
 
-        if (!anyRaider && !anyHostileOwner) return;
+        if (!anyRaider && !anyHostileOwner) {
+            mergeBattles(world, vtm, mgr);
+            return;
+        }
 
         // New encounters: scan 3x3 neighborhoods for hostile pairs
         double engageSq = (double) cfg.engagementRadius * cfg.engagementRadius;
@@ -93,14 +100,14 @@ class BattleEncounterScanner {
                             double dz = r.posZ - s.posZ;
                             if (dx * dx + dz * dz > engageSq) continue;
                             if (!isHostilePair(world, r, s, now, cfg)) continue;
-                            startBattle(world, vtm, mgr, cells, r, s, now, cfg);
+                            startBattle(world, vtm, mgr, cells, loadedFree, r, s, now, cfg);
                         }
                     }
                 }
             }
         }
 
-        mergeCloseBattles(world, vtm, mgr, cfg);
+        mergeBattles(world, vtm, mgr);
     }
 
     // -------------------------------------------------------------------------
@@ -108,7 +115,7 @@ class BattleEncounterScanner {
     // -------------------------------------------------------------------------
 
     private void startBattle(WorldServer world, VirtualTravellerManager vtm, VirtualBattleManager mgr,
-                             Map<Long, List<VirtualTravellerRecord>> cells,
+                             Map<Long, List<VirtualTravellerRecord>> cells, List<EntityTraveller> loadedFree,
                              VirtualTravellerRecord a, VirtualTravellerRecord b, long now,
                              TravellersConfig.BattleEvents cfg) {
         // Camp assault: anchor the battle at the defender's camp
@@ -129,6 +136,114 @@ class BattleEncounterScanner {
         // Pull in both parties' groups (and any other bystanders resolvable by hostility)
         for (VirtualTravellerRecord rec : recordsNear(cells, center.getX(), center.getZ(), cfg.battleJoinRadius)) {
             tryJoin(world, mgr, battle, rec, now, cfg);
+        }
+        pullInGroups(world, vtm, mgr, battle, cells, loadedFree, now, cfg);
+    }
+
+    // -------------------------------------------------------------------------
+    // Whole-group pull-in
+    // -------------------------------------------------------------------------
+
+    /** One alive battle pawn (or candidate) with its group identity and position. */
+    private static final class Member {
+        final BattleGroupLink link;
+        final double x, z;
+        final int side;
+
+        Member(BattleGroupLink link, double x, double z, int side) {
+            this.link = link;
+            this.x = x;
+            this.z = z;
+            this.side = side;
+        }
+    }
+
+    /** Loaded units in this world that are in no battle yet. */
+    private static List<EntityTraveller> freeLoadedUnits(WorldServer world, VirtualBattleManager mgr) {
+        List<EntityTraveller> out = new ArrayList<>();
+        for (Entity e : world.loadedEntityList) {
+            if (e instanceof EntityTraveller && !e.isDead && !mgr.isParticipant(e.getUniqueID())) {
+                out.add((EntityTraveller) e);
+            }
+        }
+        return out;
+    }
+
+    /** The battle's alive unit pawns (players excluded: they belong to no marching group). */
+    private static List<Member> membersOf(WorldServer world, VirtualTravellerManager vtm, BattleRecord b) {
+        List<Member> out = new ArrayList<>();
+        for (BattleParticipant p : b.participants.values()) {
+            if (!p.alive || p.isPlayer) continue;
+            VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
+            if (rec != null) {
+                out.add(new Member(BattleGroupLink.of(rec), rec.posX, rec.posZ, p.side));
+                continue;
+            }
+            Entity e = world.getEntityFromUuid(p.uuid);
+            if (e instanceof EntityTraveller && !e.isDead) {
+                out.add(new Member(BattleGroupLink.of((EntityTraveller) e), e.posX, e.posZ, p.side));
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Enrols, on its group's side, every unit of a group already fighting here that stands within the join
+     * radius of a fellow member (chained, so a column is pulled in whole). Members farther away stay out until
+     * they come close.
+     */
+    private void pullInGroups(WorldServer world, VirtualTravellerManager vtm, VirtualBattleManager mgr, BattleRecord b,
+                              Map<Long, List<VirtualTravellerRecord>> cells, List<EntityTraveller> loadedFree,
+                              long now, TravellersConfig.BattleEvents cfg) {
+        List<Member> members = membersOf(world, vtm, b);
+        if (members.isEmpty()) return;
+        int reach = b.zoneRadius + cfg.battleJoinRadius;
+        double joinSq = (double) cfg.battleJoinRadius * cfg.battleJoinRadius;
+
+        List<Object> candidates = new ArrayList<>();
+        for (VirtualTravellerRecord rec : recordsNear(cells, b.center.getX(), b.center.getZ(), reach)) {
+            if (rec.battleId != null || !mgr.mayJoin(rec.uuid, now)) continue;
+            if (rec.campSiteId != null && !cfg.campAssaults && !rec.campSiteId.equals(b.campAnchorId)) continue;
+            candidates.add(rec);
+        }
+        double reachSq = (double) reach * reach;
+        for (EntityTraveller e : loadedFree) {
+            double dx = e.posX - b.center.getX();
+            double dz = e.posZ - b.center.getZ();
+            if (dx * dx + dz * dz > reachSq || mgr.isParticipant(e.getUniqueID()) || !mgr.mayJoin(e.getUniqueID(), now)) continue;
+            candidates.add(e);
+        }
+
+        boolean grew = true;
+        while (grew && !candidates.isEmpty()) {
+            grew = false;
+            for (Iterator<Object> it = candidates.iterator(); it.hasNext(); ) {
+                Object c = it.next();
+                VirtualTravellerRecord rec = c instanceof VirtualTravellerRecord ? (VirtualTravellerRecord) c : null;
+                EntityTraveller ent = rec == null ? (EntityTraveller) c : null;
+                BattleGroupLink link = rec != null ? BattleGroupLink.of(rec) : BattleGroupLink.of(ent);
+                double cx = rec != null ? rec.posX : ent.posX;
+                double cz = rec != null ? rec.posZ : ent.posZ;
+                Member mate = null;
+                for (Member m : members) {
+                    if (!link.linkedTo(m.link)) continue;
+                    double dx = cx - m.x;
+                    double dz = cz - m.z;
+                    if (dx * dx + dz * dz <= joinSq) {
+                        mate = m;
+                        break;
+                    }
+                }
+                if (mate == null) continue;
+                it.remove();
+                String key = rec != null ? groupKey(rec) : VirtualBattleManager.loadedGroupKey(ent);
+                int keySide = b.sideOfGroup(key);
+                if (keySide >= 0 && keySide != mate.side) continue; // its faction already fights on the other side
+                if (rec != null) mgr.addToBattle(world, b, rec, mate.side, key, isWorkerGroupLeader(rec), now);
+                else mgr.addLoadedParticipant(b, ent, mate.side, key);
+                members.add(new Member(link, cx, cz, mate.side));
+                grew = true;
+            }
         }
     }
 
@@ -318,19 +433,24 @@ class BattleEncounterScanner {
     // Merging
     // -------------------------------------------------------------------------
 
-    private void mergeCloseBattles(WorldServer world, VirtualTravellerManager vtm,
-                                   VirtualBattleManager mgr, TravellersConfig.BattleEvents cfg) {
-        List<BattleRecord> list = iterableToList(mgr.getBattlesView());
+    /** Two battles become one when their zones overlap or a group fights in both (and their sides line up). */
+    private void mergeBattles(WorldServer world, VirtualTravellerManager vtm, VirtualBattleManager mgr) {
+        int dim = world.provider.getDimension();
+        List<BattleRecord> list = new ArrayList<>();
+        for (BattleRecord b : mgr.getBattlesView()) {
+            if (b.dimension == dim) list.add(b);
+        }
         if (list.size() < 2) return;
-        double mergeSq = (double) cfg.mergeBattleDistance * cfg.mergeBattleDistance;
+        List<List<Member>> members = new ArrayList<>();
+        for (BattleRecord b : list) members.add(membersOf(world, vtm, b));
         for (int i = 0; i < list.size(); i++) {
             BattleRecord a = list.get(i);
             for (int j = i + 1; j < list.size(); j++) {
                 BattleRecord b = list.get(j);
-                if (a.dimension != b.dimension) continue;
                 double dx = a.center.getX() - b.center.getX();
                 double dz = a.center.getZ() - b.center.getZ();
-                if (dx * dx + dz * dz > mergeSq) continue;
+                double touch = a.zoneRadius + b.zoneRadius;
+                if (dx * dx + dz * dz > touch * touch && !shareGroup(members.get(i), members.get(j))) continue;
                 BattleRecord dst = a.participants.size() >= b.participants.size() ? a : b;
                 BattleRecord src = dst == a ? b : a;
                 Map<UUID, Integer> mapping = alignSides(dst, src);
@@ -340,6 +460,15 @@ class BattleEncounterScanner {
                 }
             }
         }
+    }
+
+    private static boolean shareGroup(List<Member> a, List<Member> b) {
+        for (Member x : a) {
+            for (Member y : b) {
+                if (x.link.linkedTo(y.link)) return true;
+            }
+        }
+        return false;
     }
 
     /** Maps every src participant to a dst side via shared group keys, or null if unresolvable. */

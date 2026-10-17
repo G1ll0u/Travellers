@@ -39,22 +39,23 @@ public class GuiWorldMapPanel {
          * the legend lists the kinds that have a legend key, topmost first.
          */
         public enum MarkerType {
+            POP_TRAVELLER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
+            POP_RAIDER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
+            POP_WORKER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
             FOLLOWER("marker_follower", Size.WORKER, "follower", LegendTint.OWNER_DARK, 0),
             FOLLOWER_HIGHLIGHTED("marker_follower", Size.WORKER_HIGHLIGHTED, null, LegendTint.OWNER, 0),
             PALFRENIER("marker_palfrenier", Size.WORKER, "palfrenier", LegendTint.OWNER, 0),
             LEADER("marker_leader", Size.WORKER, "leader", LegendTint.OWNER, 0),
+            CAMP_SLOT("marker_camp_slot", Size.CAMP, "camp_slot", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT),
+            CAMP_FIREPIT("marker_camp_firepit", Size.CAMP, "camp_firepit", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT),
             HOME("marker_home", Size.WORKER, "home", LegendTint.OWNER, 0),
             STABLE("marker_stable", Size.WORKER, "stable", LegendTint.OWNER, 0),
             VILLAGE("marker_village", Size.VILLAGE, "village", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_VILLAGE),
             CONTROLLED_VILLAGE("marker_controlled_village", Size.VILLAGE, "controlled_village", LegendTint.OWNER, 0),
-            CAMP_SLOT("marker_camp_slot", Size.CAMP, "camp_slot", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT),
-            CAMP_FIREPIT("marker_camp_firepit", Size.CAMP, "camp_firepit", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT),
-            POP_TRAVELLER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
-            POP_RAIDER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
-            POP_WORKER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
+            BATTLE_SKIRMISH("marker_destination_cross", Size.SKIRMISH, null, LegendTint.FIXED, 0),
             BATTLE("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0),
-            PLAYER("marker_player", Size.PLAYER, "player", LegendTint.OWNER, 0),
-            DESTINATION_CROSS("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0);
+            DESTINATION_CROSS("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0),
+            PLAYER("marker_player", Size.PLAYER, "player", LegendTint.OWNER, 0);
 
             public final ResourceLocation texture;
             final Size size;
@@ -78,7 +79,7 @@ public class GuiWorldMapPanel {
         }
 
         /** Size class, resolved against the worldmap config at draw time. */
-        public enum Size { PLAYER, VILLAGE, WORKER, WORKER_HIGHLIGHTED, ALERT, POPULATION, CAMP }
+        public enum Size { PLAYER, VILLAGE, WORKER, WORKER_HIGHLIGHTED, ALERT, SKIRMISH, POPULATION, CAMP }
 
         public final BlockPos pos;
         public final int argb;
@@ -259,16 +260,19 @@ public class GuiWorldMapPanel {
 
     // ── Tooltip ──────────────────────────────────────────────────────────────
 
-    /** Returns the label of the marker under the mouse, or null. */
+    /** Returns the label of the marker drawn on top under the mouse, or null. */
     public String getTooltipAt(int mouseX, int mouseY, int mapX, int mapY) {
         if (!isMappedDimension()) return null;
-        for (int i = markers.size() - 1; i >= 0; i--) {
-            Marker m = markers.get(i);
-            if (m.label == null || m.label.isEmpty()) continue;
-            float dx = mouseX - worldToScreenX(m.drawX, mapX);
-            float dy = mouseY - worldToScreenY(m.drawZ, mapY);
-            float r = hitRadiusPx(m.type.size);
-            if (dx * dx + dy * dy <= r * r) return m.label;
+        Marker.MarkerType[] types = Marker.MarkerType.values();
+        for (int t = types.length - 1; t >= 0; t--) {
+            for (int i = markers.size() - 1; i >= 0; i--) {
+                Marker m = markers.get(i);
+                if (m.type != types[t] || m.label == null || m.label.isEmpty()) continue;
+                float dx = mouseX - worldToScreenX(m.drawX, mapX);
+                float dy = mouseY - worldToScreenY(m.drawZ, mapY);
+                float r = hitRadiusPx(m.type.size);
+                if (dx * dx + dy * dy <= r * r) return m.label;
+            }
         }
         return null;
     }
@@ -456,6 +460,8 @@ public class GuiWorldMapPanel {
     }
 
     private static final float HIGHLIGHT_SCALE = 1.4f;
+    // A skirmish's marker is this share of a battle's.
+    private static final float SKIRMISH_SIZE_SHARE = 0.65f;
     private static final float HIT_MARGIN_PX = 2f;
     private static final float MIN_HIT_RADIUS_PX = 5f;
 
@@ -478,6 +484,7 @@ public class GuiWorldMapPanel {
             case VILLAGE:            return cfg.villageMarkerSize;
             case WORKER_HIGHLIGHTED: return cfg.workerMarkerSize + cfg.followerHighlightedSizeBonus;
             case ALERT:              return cfg.alertMarkerSize;
+            case SKIRMISH:           return Math.max(4, Math.round(cfg.alertMarkerSize * SKIRMISH_SIZE_SHARE));
             case POPULATION:         return cfg.populationMarkerSize;
             case CAMP:               return cfg.campMarkerSize;
             case WORKER:

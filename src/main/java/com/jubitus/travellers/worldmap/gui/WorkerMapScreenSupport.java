@@ -33,6 +33,7 @@ public final class WorkerMapScreenSupport {
 
     private final WorkerMarkerSmoother smoother = new WorkerMarkerSmoother();
     private final WorkerMarkerSmoother foreignSmoother = new WorkerMarkerSmoother();
+    private final DutyRing dutyRing = new DutyRing();
 
     /** Call from initGui: asks for the fog of war and starts the live worker feed. */
     public void subscribe() {
@@ -60,22 +61,29 @@ public final class WorkerMapScreenSupport {
         long now = workers.isEmpty() ? 0L
                 : smoother.sampleTime(workers.get(0).sampleTick, System.currentTimeMillis());
         Set<java.util.UUID> present = new java.util.HashSet<>();
+        dutyRing.clear();
         for (MsgMapWorkersUpdate.Entry e : workers) {
             if (e.uuid == null || e.pos == null) continue;
             smoother.observe(e.uuid, e.pos.getX(), e.pos.getZ(), now);
             present.add(e.uuid);
+            if (e.dutyZone != null && WorldMapContentPopulator.isOnDuty(e)
+                    && e.pos.distanceSq(e.dutyZone.getX(), e.pos.getY(), e.dutyZone.getZ())
+                    <= DutyRing.AT_ZONE_BLOCKS * DutyRing.AT_ZONE_BLOCKS) {
+                dutyRing.add(e.uuid, e.dutyZone.getX(), e.dutyZone.getZ());
+            }
         }
+        dutyRing.layout();
         smoother.retainOnly(present);
     }
 
-    /** Where a worker is drawn right now (block X), glided between server updates. */
+    /** Where a worker is drawn right now (block X): on its zone's ring, or glided between server updates. */
     public float drawX(MsgMapWorkersUpdate.Entry e) {
-        return smoother.x(e.uuid, e.pos.getX());
+        return dutyRing.covers(e.uuid) ? dutyRing.position(e.uuid)[0] : smoother.x(e.uuid, e.pos.getX());
     }
 
     /** Where a worker is drawn right now (block Z). */
     public float drawZ(MsgMapWorkersUpdate.Entry e) {
-        return smoother.z(e.uuid, e.pos.getZ());
+        return dutyRing.covers(e.uuid) ? dutyRing.position(e.uuid)[1] : smoother.z(e.uuid, e.pos.getZ());
     }
 
     public void setBattles(@Nullable List<MsgMapBattleUpdate.Entry> entries) {
@@ -102,7 +110,8 @@ public final class WorkerMapScreenSupport {
                          @Nullable Set<BlockPos> highlightedVillages) {
         GuiWorldMapPanel panel = map.panel;
         panel.clearMarkers();
-        WorldMapContentPopulator.populate(panel, places, workers, player, ownerColor, highlightedVillages, smoother);
+        dutyRing.setScale(panel.hitRadiusPx(GuiWorldMapPanel.Marker.Size.WORKER), panel.getZoomBlocksPerPixel());
+        WorldMapContentPopulator.populate(panel, places, workers, player, ownerColor, highlightedVillages, smoother, dutyRing);
         int myDim = currentDimension();
         WorldMapContentPopulator.populateForeignUnits(panel, foreignUnits, myDim, foreignSmoother);
         for (MsgMapBattleUpdate.Entry e : battles) {

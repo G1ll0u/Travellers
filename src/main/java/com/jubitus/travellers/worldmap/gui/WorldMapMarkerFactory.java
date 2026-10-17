@@ -246,11 +246,16 @@ public final class WorldMapMarkerFactory {
      * Battle: red when the viewer's units fight in it, orange otherwise, grey once ended (result in the tooltip).
      * The bar underneath shows who is still standing: the viewer's side green against red, else light against dark.
      */
+    /** A fight with this many fighters or fewer (both sides, fallen included) is a skirmish: smaller marker. */
+    private static final int SKIRMISH_MAX_FIGHTERS = 6;
+
     public static GuiWorldMapPanel.Marker battle(com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate.Entry e) {
         boolean running = e.result == com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate.Result.RUNNING;
         int argb = !running ? COLOR_BATTLE_ENDED : e.involved ? COLOR_BATTLE_MINE : COLOR_BATTLE_OTHERS;
+        int fighters = e.first.standing + e.first.fallen + e.second.standing + e.second.fallen;
         GuiWorldMapPanel.Marker m = new GuiWorldMapPanel.Marker(e.pos, argb,
-                GuiWorldMapPanel.Marker.MarkerType.BATTLE, BattleMarkerLabel.describe(e));
+                fighters <= SKIRMISH_MAX_FIGHTERS ? GuiWorldMapPanel.Marker.MarkerType.BATTLE_SKIRMISH
+                        : GuiWorldMapPanel.Marker.MarkerType.BATTLE, BattleMarkerLabel.describe(e));
         if (!running) return m;
         return e.involved ? m.withBalance(BattleMarkerLabel.firstShare(e), 0x55CC55, 0xDD3333)
                 : m.withBalance(BattleMarkerLabel.firstShare(e), 0xE0E0E0, 0x707070);
