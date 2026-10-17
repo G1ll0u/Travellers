@@ -176,7 +176,9 @@ public final class WorkerHorsePickup {
             MinecraftServer srv = world.getMinecraftServer();
             int total = 1 + (srv != null && ownerId != null
                     ? com.jubitus.travellers.follow.group.WorkerGroupService.countFollowers(srv, ownerId, workerId) : 0);
-            com.jubitus.travellers.notify.MissionNotifications.horsesTaken(srv, ownerId, horses, total, stableName(zone));
+            com.jubitus.travellers.notify.MissionNotifications.horsesTaken(srv, ownerId,
+                    new com.jubitus.travellers.notify.NoticePlace(zone.center, world.provider.getDimension(), workerId),
+                    horses, total, stableName(zone));
         }
     }
 
@@ -186,8 +188,10 @@ public final class WorkerHorsePickup {
     public static void notifyNothingToEquip(net.minecraft.world.World world, PlayerZoneRecord zone, UUID ownerUUID) {
         net.minecraft.server.MinecraftServer srv = world.getMinecraftServer();
         if (srv == null || ownerUUID == null) return;
-        com.jubitus.travellers.notify.NotificationService.notifyOffline(srv, ownerUUID,
-                com.jubitus.travellers.notify.NotificationDefs.STABLE_POOL_TOO_SMALL_TO_EQUIP, stableName(zone));
+        com.jubitus.travellers.notify.NotificationService.notifyOfflineAt(srv, ownerUUID,
+                com.jubitus.travellers.notify.NotificationDefs.STABLE_POOL_TOO_SMALL_TO_EQUIP,
+                new com.jubitus.travellers.notify.NoticePlace(zone.center, world.provider.getDimension(), null), null,
+                stableName(zone));
     }
 
     /** The Stable's player-given name, or a plain fallback. */

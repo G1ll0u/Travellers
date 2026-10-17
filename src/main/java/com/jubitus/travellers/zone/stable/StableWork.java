@@ -327,6 +327,7 @@ public final class StableWork {
     private static void notify(WorldServer world, PlayerZoneRecord zone, NotificationDef def, boolean enabled) {
         if (!enabled || world.getMinecraftServer() == null) return;
         String name = (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
-        NotificationService.notifyOffline(world.getMinecraftServer(), zone.ownerUUID, def, name);
+        NotificationService.notifyOfflineAt(world.getMinecraftServer(), zone.ownerUUID, def,
+                new com.jubitus.travellers.notify.NoticePlace(zone.center, world.provider.getDimension(), null), null, name);
     }
 }

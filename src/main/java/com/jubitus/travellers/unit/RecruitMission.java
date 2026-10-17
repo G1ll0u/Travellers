@@ -286,7 +286,8 @@ public final class RecruitMission {
         }
 
         String villageName = resolveVillageName(villageCenter);
-        NotificationService.notify(owner, NotificationDefs.RECRUIT_WORKERS_RECRUITED,
+        NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_WORKERS_RECRUITED,
+                new com.jubitus.travellers.notify.NoticePlace(villageCenter, ws.provider.getDimension(), worker.getUniqueID()),
                 String.valueOf(count), villageName);
     }
 
@@ -318,7 +319,8 @@ public final class RecruitMission {
         worker.setFollowOrderActive(true);
 
         if (owner != null) {
-            NotificationService.notify(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED);
+            NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED,
+                    com.jubitus.travellers.notify.NoticePlace.of(worker));
         }
     }
 

@@ -48,10 +48,4 @@ public final class VanillaDeathMessage {
             return null;
         }
     }
-
-    /** Vanilla's generic mob-kill wording ("%1$s was slain by %2$s"), for offscreen battle-sim
-     *  kills where no real DamageSource ever existed. */
-    public static Resolved genericSlainBy(String victimName, String attackerName) {
-        return new Resolved("death.attack.mob", new String[]{victimName, attackerName});
-    }
 }

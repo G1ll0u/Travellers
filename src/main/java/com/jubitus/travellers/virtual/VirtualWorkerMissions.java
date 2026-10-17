@@ -125,6 +125,10 @@ final class VirtualWorkerMissions {
 
     }
 
+    private static com.jubitus.travellers.notify.NoticePlace placeOf(VirtualTravellerRecord r) {
+        return new com.jubitus.travellers.notify.NoticePlace(new BlockPos(r.posX, r.posY, r.posZ), r.dimension, r.uuid);
+    }
+
     private void finishVirtualGoOrder(WorldServer world, VirtualTravellerRecord r) {
         EntityTravellerWorker worker = new EntityTravellerWorker(world);
         worker.readFromNBT(r.entityNbt);
@@ -140,7 +144,7 @@ final class VirtualWorkerMissions {
         manager.markDirty();
 
         com.jubitus.travellers.notify.MissionNotifications.arrived(
-                world.getMinecraftServer(), r.followOwnerUUID, r.uuid);
+                world.getMinecraftServer(), r.followOwnerUUID, r.uuid, placeOf(r));
     }
 
     /**
@@ -162,7 +166,7 @@ final class VirtualWorkerMissions {
                 double dx = owner.posX - r.posX;
                 double dz = owner.posZ - r.posZ;
                 if (DeliveryJob.hasWalkBackTo(dx * dx + dz * dz)) {
-                    MissionNotifications.cargoComingBack(world.getMinecraftServer(), r.followOwnerUUID, r.name);
+                    MissionNotifications.cargoComingBack(world.getMinecraftServer(), r.followOwnerUUID, r.name, placeOf(r));
                 }
                 manager.markDirty();
             }
@@ -173,7 +177,8 @@ final class VirtualWorkerMissions {
         nbt.setBoolean(DeliveryJob.EMPLOYER_ABSENT_KEY, true);
         BlockPos home = DeliveryJob.homeFor(ZoneRef.read(nbt), r.dimension);
         if (home != null) r.goal = home;
-        MissionNotifications.cargoEmployerAbsent(world.getMinecraftServer(), r.followOwnerUUID, r.name, home != null);
+        MissionNotifications.cargoEmployerAbsent(world.getMinecraftServer(), r.followOwnerUUID, r.name, home != null,
+                placeOf(r));
         manager.markDirty();
     }
 
@@ -252,9 +257,9 @@ final class VirtualWorkerMissions {
 
             org.millenaire.common.village.Building recruitTh = MillSettlements.townHall(world, stop);
             String villageName = recruitTh != null ? recruitTh.getVillageQualifiedName() : "a village";
-            com.jubitus.travellers.notify.NotificationService.notify(owner,
+            com.jubitus.travellers.notify.NotificationService.notifyAt(owner,
                     com.jubitus.travellers.notify.NotificationDefs.RECRUIT_WORKERS_RECRUITED,
-                    String.valueOf(recruitCount), villageName);
+                    new com.jubitus.travellers.notify.NoticePlace(stop, r.dimension, r.uuid), String.valueOf(recruitCount), villageName);
         }
 
         // Save recruiter updated state

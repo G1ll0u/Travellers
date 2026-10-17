@@ -22,5 +22,10 @@ public final class FollowMessages {
         toServer(MsgUpdateFormationByScope.class, MsgUpdateFormationByScope.Handler.class);
         toClient(MsgOpenFormationHubGui.class, () -> new MsgOpenFormationHubGui.Handler());
         toServer(MsgRequestFormationHub.class, MsgRequestFormationHub.Handler.class);
+        toServer(MsgStartPlayerFollow.class, MsgStartPlayerFollow.Handler.class);
+        toClient(MsgOpenFollowChoice.class, () -> new MsgOpenFollowChoice.Handler());
+        toServer(MsgTalkToTraveller.class, MsgTalkToTraveller.Handler.class);
+        toServer(MsgStopPlayerFollow.class, MsgStopPlayerFollow.Handler.class);
+        toClient(MsgPlayerFollowState.class, () -> new MsgPlayerFollowState.Handler());
     }
 }

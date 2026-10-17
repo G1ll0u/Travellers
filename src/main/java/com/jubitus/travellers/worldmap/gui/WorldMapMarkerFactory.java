@@ -6,6 +6,9 @@ public final class WorldMapMarkerFactory {
 
     /** Near-white beige for uncontrolled villages. */
     public static final int COLOR_VILLAGE = 0xFFF0E8D0;
+    public static final int COLOR_BATTLE_MINE = 0xFFFF3030;
+    public static final int COLOR_BATTLE_OTHERS = 0xFFFF9A30;
+    public static final int COLOR_BATTLE_ENDED = 0xFFA0A0A0;
     public static final int COLOR_HOME    = 0xFFE8D5A3;
 
     private WorldMapMarkerFactory() {}
@@ -239,10 +242,18 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.CAMP_SLOT, label);
     }
 
-    /** Active virtual battle: pulsing-red cross, always opaque (battles are always "live"). */
-    public static GuiWorldMapPanel.Marker battle(BlockPos pos, String label) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFF3030,
-                GuiWorldMapPanel.Marker.MarkerType.BATTLE, label);
+    /**
+     * Battle: red when the viewer's units fight in it, orange otherwise, grey once ended (result in the tooltip).
+     * The bar underneath shows who is still standing: the viewer's side green against red, else light against dark.
+     */
+    public static GuiWorldMapPanel.Marker battle(com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate.Entry e) {
+        boolean running = e.result == com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate.Result.RUNNING;
+        int argb = !running ? COLOR_BATTLE_ENDED : e.involved ? COLOR_BATTLE_MINE : COLOR_BATTLE_OTHERS;
+        GuiWorldMapPanel.Marker m = new GuiWorldMapPanel.Marker(e.pos, argb,
+                GuiWorldMapPanel.Marker.MarkerType.BATTLE, BattleMarkerLabel.describe(e));
+        if (!running) return m;
+        return e.involved ? m.withBalance(BattleMarkerLabel.firstShare(e), 0x55CC55, 0xDD3333)
+                : m.withBalance(BattleMarkerLabel.firstShare(e), 0xE0E0E0, 0x707070);
     }
 
     private static int argb(int rgb) { return 0xFF000000 | (rgb & 0xFFFFFF); }

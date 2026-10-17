@@ -25,6 +25,7 @@ public class NotificationOverlayRenderer {
 
     private static final int PADDING = 4;
     private static final int GAP = 3;
+    private static final int SEVERITY_BAR_W = 2;
 
     // Above vanilla/Forge tooltips, which draw at z 300.
     private static final float OVERLAY_Z = 400F;
@@ -58,7 +59,7 @@ public class NotificationOverlayRenderer {
         for (int i = notifications.size() - 1; i >= 0; i--) {
             ActiveNotification n = notifications.get(i);
             int lineHeight = (int) (fr.FONT_HEIGHT * fontScale);
-            int boxW = (int) (TravellersConfig.NOTIFICATIONS.widthPixels * fontScale) + PADDING * 2;
+            int boxW = (int) (TravellersConfig.NOTIFICATIONS.widthPixels * fontScale) + PADDING * 2 + SEVERITY_BAR_W;
             int boxH = n.wrappedLines.size() * lineHeight + PADDING * 2;
 
             int boxX = left ? marginX : screenW - marginX - boxW;
@@ -91,6 +92,8 @@ public class NotificationOverlayRenderer {
         TravellersGuiTheme.drawBorder(x, y, w, h, border);
 
         int textColor = (n.type.color & 0x00FFFFFF) | (alphaByte << 24);
+        // Severity strip on the inner left edge, readable at a glance.
+        net.minecraft.client.gui.Gui.drawRect(x + 1, y + 1, x + 1 + SEVERITY_BAR_W, y + h - 1, textColor);
 
         // Gui.drawRect leaves blending disabled when it returns, so the text's alpha channel
         // would otherwise be ignored and glyphs would pop in/out instead of fading with the box.
@@ -100,7 +103,7 @@ public class NotificationOverlayRenderer {
                 GlStateManager.DestFactor.ZERO);
 
         GlStateManager.pushMatrix();
-        GlStateManager.translate(x + PADDING, y + PADDING, 0.0F);
+        GlStateManager.translate(x + PADDING + SEVERITY_BAR_W, y + PADDING, 0.0F);
         GlStateManager.scale(fontScale, fontScale, 1.0F);
         for (int i = 0; i < n.wrappedLines.size(); i++) {
             fr.drawString(n.wrappedLines.get(i), 0, i * fr.FONT_HEIGHT, textColor);

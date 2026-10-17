@@ -4,6 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.notify.BattleSummary;
 import com.jubitus.travellers.notify.JournalEntry;
+import com.jubitus.travellers.notify.WorkerLifecycleNotifications;
 import com.jubitus.travellers.notify.client.ClientJournalCache;
 import com.jubitus.travellers.notify.client.LocationFormat;
 import com.jubitus.travellers.notify.client.NoticeText;
@@ -149,8 +150,7 @@ final class FormationHubJournal {
         String location = LocationFormat.describe(bs.location, bs.dimension);
         if (location != null) lines.add(location);
         for (BattleSummary.CasualtyEntry c : bs.ownWorkerCasualties) {
-            lines.add(c.died
-                    ? I18n.format("travellers.gui.history.battle_tooltip.casualty_died", c.name)
+            lines.add(c.died ? casualtyLine(c)
                     : I18n.format("travellers.gui.history.battle_tooltip.casualty_hurt", c.name, (int) c.healthAfter));
         }
         if (!bs.attackerDescriptions.isEmpty()) {
@@ -158,6 +158,19 @@ final class FormationHubJournal {
             for (String desc : bs.attackerDescriptions) lines.add("- " + desc);
         }
         return lines;
+    }
+
+    private static String casualtyLine(BattleSummary.CasualtyEntry c) {
+        if (c.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_BED) {
+            return I18n.format("travellers.gui.history.battle_tooltip.casualty_gone", c.name);
+        }
+        if (c.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_RESPAWN) {
+            return I18n.format("travellers.gui.history.battle_tooltip.casualty_died", c.name);
+        }
+        if (c.respawnOutlook <= 1) {
+            return I18n.format("travellers.gui.history.battle_tooltip.casualty_back_tomorrow", c.name);
+        }
+        return I18n.format("travellers.gui.history.battle_tooltip.casualty_back_days", c.name, c.respawnOutlook);
     }
 
     /** Entry text split on '\n' (only the first line carries the time-ago prefix). */

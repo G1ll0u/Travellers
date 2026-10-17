@@ -43,8 +43,9 @@ public final class StableMountRelease {
                                             PlayerZoneRecord zone, StableZoneData data) {
         if (!handOverLoadedMount(world, worker, data)) return;
         if (TravellersConfig.STABLES.notifyOnMountRecovered && world.getMinecraftServer() != null) {
-            NotificationService.notifyOffline(world.getMinecraftServer(), zone.ownerUUID,
-                    NotificationDefs.STABLE_MOUNT_RECOVERED, worker.getName());
+            NotificationService.notifyOfflineAt(world.getMinecraftServer(), zone.ownerUUID,
+                    NotificationDefs.STABLE_MOUNT_RECOVERED, com.jubitus.travellers.notify.NoticePlace.of(worker), null,
+                    worker.getName());
         }
     }
 

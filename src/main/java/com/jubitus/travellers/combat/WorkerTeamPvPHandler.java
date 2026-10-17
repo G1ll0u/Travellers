@@ -59,8 +59,8 @@ public final class WorkerTeamPvPHandler {
         if (victimNowAtWar) {
             MinecraftServer srv = ws.getMinecraftServer();
             if (srv != null) {
-                NotificationService.notifyEventOffline(srv, victimOwner, NotificationDefs.WAR_DECLARED_ON_YOU,
-                        null, resolveName(ws, attackerOwner));
+                NotificationService.notifyOfflineAt(srv, victimOwner, NotificationDefs.WAR_DECLARED_ON_YOU,
+                        com.jubitus.travellers.notify.NoticePlace.of(victim), null, resolveName(ws, attackerOwner));
             }
         }
 
@@ -79,7 +79,8 @@ public final class WorkerTeamPvPHandler {
 
                 EntityPlayer owner = victim.world.getPlayerEntityByUUID(victimOwner);
                 if (owner != null) {
-                    NotificationService.notify(owner, NotificationDefs.WORKER_RETALIATION_TARGET, resolveName(ws, attackerOwner));
+                    NotificationService.notifyAt(owner, NotificationDefs.WORKER_RETALIATION_TARGET,
+                            com.jubitus.travellers.notify.NoticePlace.of(victim), resolveName(ws, attackerOwner));
                 }
             }
 

@@ -9,6 +9,7 @@ import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 import net.minecraftforge.common.util.Constants;
 
+import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -18,8 +19,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Global (not per-dimension) per-player history of Event-type notifications, feeding a future
- * journal GUI. One instance world-wide, always backed by the overworld.
+ * Global (not per-dimension) per-player history of journaled notifications, shown by the
+ * Formation Hub journal. One instance world-wide, always backed by the overworld.
  */
 public class NotificationJournalData extends WorldSavedData {
 
@@ -54,6 +55,7 @@ public class NotificationJournalData extends WorldSavedData {
 
     public void append(UUID owner, JournalEntry entry) {
         Deque<JournalEntry> deque = journals.computeIfAbsent(owner, k -> new ArrayDeque<>());
+        if (entry.storyKey != null) deque.removeIf(e -> entry.storyKey.equals(e.storyKey));
         deque.addLast(entry);
 
         int cap = TravellersConfig.NOTIFICATIONS.journalRetentionPerPlayer;
@@ -62,6 +64,27 @@ public class NotificationJournalData extends WorldSavedData {
         }
 
         markDirty();
+    }
+
+    /** Removes a story's row and returns it, or null. */
+    @Nullable
+    public JournalEntry removeStory(UUID owner, String storyKey) {
+        JournalEntry found = findStory(owner, storyKey);
+        if (found != null) {
+            journals.get(owner).remove(found);
+            markDirty();
+        }
+        return found;
+    }
+
+    @Nullable
+    public JournalEntry findStory(UUID owner, String storyKey) {
+        Deque<JournalEntry> deque = journals.get(owner);
+        if (deque == null) return null;
+        for (JournalEntry e : deque) {
+            if (storyKey.equals(e.storyKey)) return e;
+        }
+        return null;
     }
 
     public List<JournalEntry> getFor(UUID owner) {

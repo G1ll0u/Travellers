@@ -76,10 +76,12 @@ public final class WorkerEquipExchanger {
     public static void run(EntityTravellerWorker leader, WorldServer world, BlockPos target, EquipTargetKind kind) {
         if (kind.isDump()) {
             int[] r = dumpWithFollowers(leader, world, target, kind);
-            MissionNotifications.dumped(world.getMinecraftServer(), leader.getFollowOwnerId(), r[2], r[3], r[0]);
+            MissionNotifications.dumped(world.getMinecraftServer(), leader.getFollowOwnerId(),
+                    com.jubitus.travellers.notify.NoticePlace.of(leader), r[2], r[3], r[0]);
         } else {
             int[] r = exchangeWithFollowers(leader, world, target, kind);
-            MissionNotifications.equipped(world.getMinecraftServer(), leader.getFollowOwnerId(), r[0], r[1]);
+            MissionNotifications.equipped(world.getMinecraftServer(), leader.getFollowOwnerId(),
+                    com.jubitus.travellers.notify.NoticePlace.of(leader), r[0], r[1]);
         }
     }
 

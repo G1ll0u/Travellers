@@ -26,13 +26,16 @@ public class MsgShowNotification implements IMessage {
     public int locX, locY, locZ, locDim;
     @Nullable
     public NoticeLine detail;
+    @Nullable
+    public String storyKey;
 
     public MsgShowNotification() {
     }
 
     public MsgShowNotification(NotificationType type, String i18nKey, String[] args, long worldTime,
-                                @Nullable NoticePlace place, @Nullable NoticeLine detail) {
+                                @Nullable NoticePlace place, @Nullable NoticeLine detail, @Nullable String storyKey) {
         this.detail = detail;
+        this.storyKey = storyKey;
         this.typeOrdinal = type.ordinal();
         this.i18nKey = i18nKey;
         this.args = args;
@@ -64,6 +67,7 @@ public class MsgShowNotification implements IMessage {
             args[i] = ByteBufUtils.readUTF8String(buf);
         }
         detail = buf.readBoolean() ? NoticeLine.read(buf) : null;
+        storyKey = buf.readBoolean() ? ByteBufUtils.readUTF8String(buf) : null;
     }
 
     @Override
@@ -84,17 +88,21 @@ public class MsgShowNotification implements IMessage {
         }
         buf.writeBoolean(detail != null);
         if (detail != null) detail.write(buf);
+        buf.writeBoolean(storyKey != null);
+        if (storyKey != null) ByteBufUtils.writeUTF8String(buf, storyKey);
     }
 
     public static class Handler implements IMessageHandler<MsgShowNotification, IMessage> {
         @Override
         public IMessage onMessage(MsgShowNotification msg, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
-                NotificationType type = NotificationType.values()[msg.typeOrdinal];
+                NotificationType[] types = NotificationType.values();
+                NotificationType type = msg.typeOrdinal >= 0 && msg.typeOrdinal < types.length
+                        ? types[msg.typeOrdinal] : NotificationType.INFO;
                 NoticePlace place = msg.hasLocation
                         ? new NoticePlace(new BlockPos(msg.locX, msg.locY, msg.locZ), msg.locDim, null) : null;
                 String text = NoticeText.format(msg.i18nKey, msg.args, place, msg.detail);
-                ClientNotificationCache.push(type, text, msg.worldTime);
+                ClientNotificationCache.push(type, text, msg.storyKey);
             });
             return null;
         }

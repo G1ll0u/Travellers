@@ -106,6 +106,8 @@ public final class WorkerHorseReturn {
         }
         int total = 1 + (ownerId != null ? WorkerGroupService.countFollowers(srv, ownerId, leaderId) : 0);
         String name = zone == null ? "Stable" : WorkerHorsePickup.stableName(zone);
-        MissionNotifications.horsesReturned(srv, ownerId, returned, total, name);
+        com.jubitus.travellers.notify.NoticePlace place = zone == null ? null
+                : new com.jubitus.travellers.notify.NoticePlace(zone.center, world.provider.getDimension(), leaderId);
+        MissionNotifications.horsesReturned(srv, ownerId, place, returned, total, name);
     }
 }

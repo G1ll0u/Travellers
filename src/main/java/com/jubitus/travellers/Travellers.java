@@ -19,7 +19,6 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 import com.jubitus.travellers.worker.net.MsgSyncServerCosts;
 import com.jubitus.travellers.command.CommandDumpCultureItems;
-import com.jubitus.travellers.command.CommandFollowTraveller;
 import com.jubitus.travellers.command.CommandGlowTravellers;
 import com.jubitus.travellers.command.CommandMountTraveller;
 import com.jubitus.travellers.command.CommandSummonRaiders;
@@ -101,7 +100,6 @@ public class Travellers {
     public void serverLoad(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandGlowTravellers());
         event.registerServerCommand(new CommandTravellerReload());
-        event.registerServerCommand(new CommandFollowTraveller());
         event.registerServerCommand(new CommandTravellerCount());
         event.registerServerCommand(new CommandMountTraveller());
         event.registerServerCommand(new CommandTravellerDebug());

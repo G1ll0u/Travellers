@@ -25,6 +25,7 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 - `ShieldGuard` is the only place that raises/lowers the offhand shield; the block itself is vanilla's, and `EntityTraveller.damageShield` is overridden because vanilla leaves it empty for mobs.
 - A unit never holds a bow and a shield: `TravellerEquipmentManager.wantsShield` / `enforceBowShieldExclusion` are the only authorities (the bow wins).
 - Strikes go through `ShieldGuard.mayStrike()` (no strike with the shield up or just lowered); an attacker still strikes into a raised shield.
+- An absorbed hit (`ShieldGuard.blockedThisTick()`) halves the knockback and mutes the hurt sound; with the shield up the body holds the threat and the gaze cannot drag it (`TravellerBodyHelper`).
 
 ## Ranged bow (`EntityAIRangedBowTravellerSafe`)
 - Shared by all three types. The bow stays drawn the whole time the task runs, LOS or not (deliberate). Drawn state only through `EntityTraveller.setAimingBow()`.

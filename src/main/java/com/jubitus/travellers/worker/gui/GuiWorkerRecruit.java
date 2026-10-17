@@ -225,9 +225,8 @@ public class GuiWorkerRecruit extends GuiScreen implements IWorkerGoListReceiver
         int dist = villages.get(idx).distance;
         if (dist < minD) {
             com.jubitus.travellers.notify.client.ClientNotificationCache.push(
-                    com.jubitus.travellers.notify.NotificationType.ERROR,
-                    I18n.format("travellers.worker.recruit.too_close", minD),
-                    Minecraft.getMinecraft().world != null ? Minecraft.getMinecraft().world.getTotalWorldTime() : 0L);
+                    com.jubitus.travellers.notify.NotificationDefs.RECRUIT_TOO_CLOSE.type,
+                    I18n.format(com.jubitus.travellers.notify.NotificationDefs.RECRUIT_TOO_CLOSE.i18nKey, minD), null);
             return;
         }
 

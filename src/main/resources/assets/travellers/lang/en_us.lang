@@ -53,7 +53,6 @@ travellers.worker.zones.selected_duty=On Duty Here
 travellers.worker.zones.list_zones=Barracks & Stables
 travellers.worker.zones.unassigned_any=Unassigned Henchmen
 travellers.worker.zones.assigned_here=Assigned Here
-travellers.notify.duty.worker_grouped=This worker leads a group - it must have no followers before it can be assigned duty.
 travellers.notify.duty.assigned=Assigned to duty at %s.
 travellers.notify.duty.no_bed=%s has no free bed - place another bed in the Stable before assigning a palfrenier there.
 travellers.notify.stable.horse_tamed=A horse was tamed at %s.
@@ -316,6 +315,22 @@ travellers.map.legend.leader=Leader
 travellers.map.legend.player=You
 travellers.map.legend.camp_firepit=Camp firepit
 travellers.map.legend.camp_slot=Camp shelter
+travellers.map.battle.title=Battle - %s
+travellers.map.battle.title_camp=Camp assault - %s
+travellers.map.battle.won=Victory (%2$s ago)
+travellers.map.battle.lost=Defeat (%2$s ago)
+travellers.map.battle.over_winner=Battle over: %1$s won (%2$s ago)
+travellers.map.battle.broken_off=Battle broken off (%s ago)
+travellers.map.battle.your_side=Your side
+travellers.map.battle.enemies=Enemies
+travellers.map.battle.side_line=%s: %s standing, %s fallen
+travellers.map.battle.kind.yours=Your henchmen
+travellers.map.battle.kind.hired=Henchmen
+travellers.map.battle.kind.travellers=Travellers
+travellers.map.battle.kind.raiders=Raiders
+travellers.map.battle.trend.good=Going your way
+travellers.map.battle.trend.bad=Going badly
+travellers.map.battle.trend.even=Undecided
 
 # Population map
 travellers.map.population.traveller=Travellers: %d (%d loaded, %d virtual)
@@ -340,7 +355,6 @@ travellers.map.worker.status.going_home=Going home
 travellers.map.worker.status.going_to=Heading to a destination
 
 # On-screen notifications
-travellers.notify.hire.success=Hired!
 travellers.notify.hire.already_hired_by_other=This travellers is already hired by someone else.
 travellers.notify.hire.needs_village_chief=You must be chief of a Millenaire village to hire henchmen.
 travellers.notify.hire.not_enough_money=You don't have enough money (%s needed).
@@ -373,11 +387,16 @@ travellers.notify.leader.now_leading=This henchman is now leading %s followers.
 travellers.notify.leader.no_free_followers=No free direct followers to assign.
 travellers.notify.leader.succession=%s has taken command of the group.
 
+travellers.follow.choice.talk=Talk
+travellers.follow.choice.follow=Follow him
+travellers.dialogue.gui.follow=Follow him
+travellers.notify.follow.stopped_hurt=You took damage: you stopped following.
+travellers.notify.follow.stopped_combat=A fight broke out: you stopped following.
+travellers.notify.follow.stopped_hungry=You are too hungry to keep up: you stopped following.
+travellers.notify.follow.target_lost=You lost sight of who you were following.
 
 travellers.notify.home.not_your_worker=Not your henchman.
 travellers.notify.home.none_assigned=No home assigned.
-travellers.notify.home.lone_barrack_not_found=Lone barrack not found.
-travellers.notify.home.lone_barrack_assigned=Lone Barrack assigned: %s
 travellers.notify.home.lone_barrack_bed_destroyed=%s lost their bed at "%s" and no other bed is free there: they left the zone and are coming back to you.
 
 travellers.notify.order.worker_busy=This henchman is on a task and can't take new orders right now.
@@ -429,7 +448,12 @@ travellers.notify.dump.full=No more room: %s items stored, %s stayed in the back
 travellers.notify.dump.nothing=Nothing was dropped off.
 
 travellers.notify.battle.under_attack=Your henchmen are under attack
-travellers.notify.battle.worker_killed=%s was killed in battle
+travellers.notify.battle.fallen=Battle: %s of your henchmen fallen (%s)
+travellers.notify.battle.fallen_more=Battle: %s of your henchmen fallen (%s and %s more)
+travellers.notify.battle.won=Battle won - %s of your henchmen fell
+travellers.notify.battle.lost=Battle lost - %s of your henchmen fell
+travellers.notify.battle.broken_off=Battle broken off - %s of your henchmen fell
+travellers.notify.overflow=+%s more notices
 travellers.notify.location_suffix=%sm to the %s
 
 travellers.gui.history.loading=Loading history...
@@ -439,6 +463,9 @@ travellers.gui.history.time.minutes_ago=%sm ago
 travellers.gui.history.time.hours_ago=%sh ago
 travellers.gui.history.time.days_ago=%sd ago
 travellers.gui.history.battle_tooltip.casualty_died=%s died
+travellers.gui.history.battle_tooltip.casualty_gone=%s died - had no bed, will not come back
+travellers.gui.history.battle_tooltip.casualty_back_tomorrow=%s died - back at their bed tomorrow morning
+travellers.gui.history.battle_tooltip.casualty_back_days=%s died - back at their bed in about %s days
 travellers.gui.history.battle_tooltip.casualty_hurt=%s survived (%s HP left)
 travellers.gui.history.battle_tooltip.attackers=Attackers:
 
@@ -500,6 +527,8 @@ travellers.dialogue.setup.advanced.num_predict=Max reply length (-1 = no limit)
 travellers.worker.hub.node.orders=Orders
 travellers.worker.hub.node.follow=Follow
 travellers.worker.hub.node.follow_player=Follow me
+travellers.worker.hub.node.follow_him=Follow him
+travellers.worker.hub.node.follow_him.tooltip=Walk behind this henchman hands-off. Press any movement key to stop.
 travellers.worker.hub.node.leader=Lead
 travellers.worker.hub.node.go=Missions
 travellers.worker.hub.node.travel=Travel

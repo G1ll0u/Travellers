@@ -509,6 +509,10 @@ public class TravellersConfig {
         @Config.Comment("If true, travellers/raiders/workers fight normally even on Peaceful difficulty, instead of disengaging and refusing to attack.")
         public boolean ignorePeaceful = false;
 
+        @Config.Comment("How long (in ticks, 20 = 1 second) a traveller, raider or worker ignores further hits after being hit. 0 = every arrow and blow lands in full, 10 = Minecraft's normal protection. Fire, lava and other environmental damage always keep the normal protection.")
+        @Config.RangeInt(min = 0, max = 10)
+        public int hitProtectionTicks = 0;
+
         @Config.Comment("If true, travellers call nearby allies for help when attacked.")
         public boolean callForHelp = true;
 
@@ -2544,7 +2548,7 @@ public class TravellersConfig {
         @Config.Comment("If on, a worker's death always notifies you, ignoring the enemy-count/ratio thresholds above. If off, deaths use the same thresholds as the battle-start notice.")
         public boolean notifyDeathAlwaysNotifies = true;
 
-        @Config.Comment("Also detect and notify about fights between hired workers, raiders and other players' workers while everyone involved is in a loaded area (not just offscreen virtual battles).")
+        @Config.Comment("Also follow fights happening near players (not just offscreen ones), so they get a map marker and owners hear about them.")
         public boolean detectLoadedEncounters = true;
 
         @Config.Comment("Units out of sight slowly heal after a fight, like they do by eating when you can see them.")
@@ -2882,19 +2886,22 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 30)
         public int maxVisible = 8;
 
-        @Config.Comment("Show Information notifications (general non-critical updates).")
+        @Config.Comment("Show red Danger notifications on screen (deaths, raids, battles, war). They are always kept in your history.")
+        public boolean showDanger = true;
+
+        @Config.Comment("Show orange Alert notifications on screen (something went wrong and may need you: a lost bed, a refused sale).")
+        public boolean showAlert = true;
+
+        @Config.Comment("Show green Success notifications on screen (recruits, sales, missions done, foals born).")
+        public boolean showSuccess = true;
+
+        @Config.Comment("Show white Information notifications on screen (orders sent, arrivals, group changes).")
         public boolean showInfo = true;
 
-        @Config.Comment("Show Warning notifications (things that need your attention).")
-        public boolean showWarning = true;
+        @Config.Comment("Show the muted notifications that explain why something you clicked could not be done.")
+        public boolean showRefusal = true;
 
-        @Config.Comment("Show Event notifications (battles, deliveries, recruitment results). These are also saved to your notification history.")
-        public boolean showEvent = true;
-
-        @Config.Comment("Show Error notifications (things that failed).")
-        public boolean showError = true;
-
-        @Config.Comment("Maximum number of Event notifications kept in your notification history (oldest are dropped first). Used by the notification journal screen.")
+        @Config.Comment("Maximum number of past events kept in your notification history (oldest are dropped first).")
         @Config.RangeInt(min = 10, max = 2000)
         public int journalRetentionPerPlayer = 200;
 

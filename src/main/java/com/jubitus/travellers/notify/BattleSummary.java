@@ -10,9 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Structured summary of a virtual battle outcome, for the notification journal.
- * Kept as typed fields (not a pre-formatted string) so a future journal GUI can
- * filter/render it richly instead of re-parsing text.
+ * Structured summary of a battle told to one owner, for the journal row's tooltip.
+ * Kept as typed fields (not a pre-formatted string) so the client renders it in its own language.
  */
 public final class BattleSummary {
     public final BlockPos location;
@@ -33,11 +32,14 @@ public final class BattleSummary {
         public final String name;
         public final boolean died;
         public final float healthAfter;
+        /** See {@link WorkerLifecycleNotifications#respawnOutlook}. */
+        public final int respawnOutlook;
 
-        public CasualtyEntry(String name, boolean died, float healthAfter) {
+        public CasualtyEntry(String name, boolean died, float healthAfter, int respawnOutlook) {
             this.name = name;
             this.died = died;
             this.healthAfter = healthAfter;
+            this.respawnOutlook = respawnOutlook;
         }
     }
 
@@ -54,6 +56,7 @@ public final class BattleSummary {
             cTag.setString("Name", c.name);
             cTag.setBoolean("Died", c.died);
             cTag.setFloat("HealthAfter", c.healthAfter);
+            cTag.setInteger("Respawn", c.respawnOutlook);
             casualties.appendTag(cTag);
         }
         tag.setTag("Casualties", casualties);
@@ -76,7 +79,8 @@ public final class BattleSummary {
         for (int i = 0; i < casualtiesTag.tagCount(); i++) {
             NBTTagCompound cTag = casualtiesTag.getCompoundTagAt(i);
             casualties.add(new CasualtyEntry(
-                    cTag.getString("Name"), cTag.getBoolean("Died"), cTag.getFloat("HealthAfter")));
+                    cTag.getString("Name"), cTag.getBoolean("Died"), cTag.getFloat("HealthAfter"),
+                    cTag.getInteger("Respawn")));
         }
 
         List<String> attackers = new ArrayList<>();

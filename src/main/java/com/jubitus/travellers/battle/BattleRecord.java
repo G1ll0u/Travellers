@@ -33,6 +33,10 @@ public class BattleRecord {
     public long lastSimTick;
     /** Accumulated equipment/inventory of virtual pawns killed in this battle, distributed on endBattle. */
     public NBTTagList lootPool = new NBTTagList();
+    /** Transient: world tick the battle ended, -1 while it runs (an ended battle is kept briefly for its map marker). */
+    public long endTick = -1;
+    /** Transient: the side left standing alone at the end, or -1 (still running, timeout, or nobody left). */
+    public int winnerSide = -1;
 
     public BattleRecord(UUID id, int dimension, BlockPos center, long startTick) {
         this.id = id;

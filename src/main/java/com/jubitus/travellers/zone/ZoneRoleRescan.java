@@ -110,8 +110,9 @@ public final class ZoneRoleRescan {
             }
             if (server == null) continue;
             String zoneName = zone.name == null || zone.name.isEmpty() ? "?" : zone.name;
-            NotificationService.notifyOffline(server, zone.ownerUUID, NotificationDefs.ZONE_BED_LOST,
-                    resolveWorkerName(world, workerUUID), zoneName);
+            NotificationService.notifyOfflineAt(server, zone.ownerUUID, NotificationDefs.ZONE_BED_LOST,
+                    new com.jubitus.travellers.notify.NoticePlace(zone.center, world.provider.getDimension(), workerUUID),
+                    null, resolveWorkerName(world, workerUUID), zoneName);
             ZoneAssignments.release(server, workerUUID, zone);
         }
         return true;

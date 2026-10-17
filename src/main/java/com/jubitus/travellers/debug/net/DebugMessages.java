@@ -9,7 +9,6 @@ public final class DebugMessages {
     }
 
     public static void register() {
-        toClient(MsgToggleFollow.class, () -> new MsgToggleFollow.Handler());
         toClient(MsgTraceHud.class, () -> new MsgTraceHud.Handler());
         toServer(MsgTerrainDebugRequest.class, MsgTerrainDebugRequest.Handler.class);
         toClient(MsgTerrainDebugMap.class, () -> new MsgTerrainDebugMap.ClientHandler());

@@ -188,7 +188,10 @@ public final class WorkerTrips {
             goingHome = false;
             anchorAt(zone.center);
             EntityPlayer owner = worker.getFollowOwner();
-            if (owner != null) NotificationService.notify(owner, NotificationDefs.WORKER_ARRIVED_HOME);
+            if (owner != null) {
+                NotificationService.notifyAt(owner, NotificationDefs.WORKER_ARRIVED_HOME,
+                        com.jubitus.travellers.notify.NoticePlace.of(worker));
+            }
         }
 
         // Unlike home, mode stays ON_DUTY: the duty is the ongoing state once arrived.
@@ -213,7 +216,8 @@ public final class WorkerTrips {
                     worker.followOrderActive = false;
                     worker.idleAnchorPos = goOrderTargetPos;
                     MissionNotifications.arrived(worker.world.getMinecraftServer(),
-                            worker.getFollowOwnerId(), worker.getUniqueID());
+                            worker.getFollowOwnerId(), worker.getUniqueID(),
+                            com.jubitus.travellers.notify.NoticePlace.of(worker));
                 }
             }
         }

@@ -106,7 +106,7 @@ public final class WorkerMapScreenSupport {
         int myDim = currentDimension();
         WorldMapContentPopulator.populateForeignUnits(panel, foreignUnits, myDim, foreignSmoother);
         for (MsgMapBattleUpdate.Entry e : battles) {
-            if (e.dim == myDim) panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
+            if (e.dim == myDim) panel.addMarker(WorldMapMarkerFactory.battle(e));
         }
     }
 

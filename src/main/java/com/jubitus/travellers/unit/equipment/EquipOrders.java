@@ -41,7 +41,7 @@ public final class EquipOrders {
 
         // No trip for nothing: nobody in the group carries a horse.
         if (kind == EquipTargetKind.STABLE_RETURN && !WorkerHorseReturn.groupHasHorse(srv, workerId)) {
-            NotificationService.notify(player, NotificationDefs.STABLE_NO_HORSE_TO_RETURN);
+            NotificationService.notify(player, NotificationDefs.STABLE_RETURN_REFUSED_NO_HORSE);
             return;
         }
 

@@ -394,13 +394,16 @@ public class GuiWorkerFormationHub extends GuiScreen
         TravellersGuiTheme.drawBorder(x1, y1, x2 - x1, y2 - y1, 0xFF00AAFF);
     }
 
-    /** Centers the map on the unit an entry is about when it is on the map, else on where it happened. */
+    /** Centers the map on the unit an entry is about and selects it when it is on the map, else centers on where it happened. */
     private void handleJournalClick(int mouseX, int mouseY) {
         JournalEntry entry = journal.entryAt(mouseX, mouseY);
         if (entry == null || entry.place == null) return;
         BlockPos target = entry.place.pos;
         MsgMapWorkersUpdate.Entry live = mapData.workerByUuid(entry.place.subject);
-        if (live != null) target = live.pos;
+        if (live != null) {
+            target = live.pos;
+            if (!WorldMapContentPopulator.isOnDuty(live)) selectWorker(live);
+        }
         mapController.setCenter(target);
     }
 
@@ -601,12 +604,18 @@ public class GuiWorkerFormationHub extends GuiScreen
                 combined.add(closest.uuid);
                 selectFollowers(new ArrayList<>(combined));
             }
-        } else if (closest.isLeader) {
-            selectLeaderByUuid(closest.uuid);
-        } else if (closest.followLeaderUuid != null && selection.indexOf(closest.followLeaderUuid) >= 0) {
-            selectLeaderByUuid(closest.followLeaderUuid); // a member stands for its whole group
         } else {
-            selectFollowers(Collections.singletonList(closest.uuid));
+            selectWorker(closest);
+        }
+    }
+
+    private void selectWorker(MsgMapWorkersUpdate.Entry worker) {
+        if (worker.isLeader) {
+            selectLeaderByUuid(worker.uuid);
+        } else if (worker.followLeaderUuid != null && selection.indexOf(worker.followLeaderUuid) >= 0) {
+            selectLeaderByUuid(worker.followLeaderUuid); // a member stands for its whole group
+        } else {
+            selectFollowers(Collections.singletonList(worker.uuid));
         }
     }
 

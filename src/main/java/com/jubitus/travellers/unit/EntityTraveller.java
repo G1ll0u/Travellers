@@ -1428,6 +1428,18 @@ public class EntityTraveller extends EntityCreature {
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
         if (world.isRemote) return true;
+        if (this.isInCombat() || !(player instanceof net.minecraft.entity.player.EntityPlayerMP)) {
+            return talkTo(player, hand);
+        }
+        // Talk or follow: the choice screen's "Talk" comes back through MsgTalkToTraveller -> talkTo.
+        com.jubitus.travellers.net.TravellersNetwork.sendToPlayer(player,
+                new com.jubitus.travellers.follow.net.MsgOpenFollowChoice(this.getEntityId()));
+        return true;
+    }
+
+    /** The plain "talk to" interaction: greeting voice, then dialogue screen or canned heading message. */
+    public boolean talkTo(EntityPlayer player, EnumHand hand) {
+        if (world.isRemote) return true;
         if (speakCooldown > 0) return true;
 
         speakCooldown = 20; // ~1s between barks
@@ -1800,6 +1812,10 @@ public class EntityTraveller extends EntityCreature {
 
     // The vanilla damage path, for TravellerCombatLogic only.
     public boolean vanillaAttackEntityFrom(DamageSource source, float amount) {
+        // Entity hits (arrows, melee) use the configured protection (vanilla = 10, its window is the top half of the 20-tick timer); environmental damage keeps vanilla's.
+        if (source.getTrueSource() != null && this.maxHurtResistantTime - this.hurtResistantTime >= TravellersConfig.COMBAT.hitProtectionTicks) {
+            this.hurtResistantTime = 0;
+        }
         return super.attackEntityFrom(source, amount);
     }
 

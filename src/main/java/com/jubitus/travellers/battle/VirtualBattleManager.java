@@ -11,7 +11,7 @@ import com.jubitus.travellers.unit.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.notify.BattleSummary;
+import com.jubitus.travellers.notify.BattleNotifications;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.notify.VanillaDeathMessage;
@@ -78,8 +78,12 @@ public class VirtualBattleManager extends WorldSavedData {
     // After leaving a battle without a result, a pawn cannot be pulled into a new one for this long (60 s).
     private static final int REJOIN_COOLDOWN_TICKS = 1200;
     private static final int ORPHAN_SWEEP_INTERVAL = 200;
+    // How long an ended battle keeps its map marker, showing the result (60 s).
+    private static final int ENDED_MARKER_TICKS = 1200;
 
     private final Map<UUID, BattleRecord> battles = new LinkedHashMap<>();
+    // Transient: battles that just ended, kept for their map marker only
+    private final List<BattleRecord> recentlyEnded = new ArrayList<>();
     // Transient: pawn uuid -> world tick before which it may not be (re)added to a battle
     private final Map<UUID, Long> rejoinBlockedUntil = new HashMap<>();
     private long lastOrphanSweepTick = -1;
@@ -163,6 +167,12 @@ public class VirtualBattleManager extends WorldSavedData {
         return battles.values();
     }
 
+    /** Battles that ended less than a minute ago, for the map's result markers. */
+    public List<BattleRecord> getRecentlyEnded(long now) {
+        recentlyEnded.removeIf(b -> now - b.endTick > ENDED_MARKER_TICKS);
+        return recentlyEnded;
+    }
+
     public int getBattleCount() {
         return battles.size();
     }
@@ -228,11 +238,7 @@ public class VirtualBattleManager extends WorldSavedData {
                     (EntityTravellerWorker) entity;
             UUID owner = w.getFollowOwnerUUID();
             if (p != null && w.isHiredFollower() && owner != null && shouldNotifyDeath(b, owner)) {
-                String name = entity.getName();
-                VirtualTravellerManager vtm = VirtualTravellerManager.get(world);
-                WorkerLifecycleNotifications.died(world.getMinecraftServer(), owner, uuid, name,
-                        NoticePlace.of(entity), VanillaDeathMessage.from(entity, cause),
-                        buildDeathSummary(world, vtm, b, p, name, entity.getPosition()));
+                notifyFallen(world, VirtualTravellerManager.get(world), b, p, owner, entity.getName());
             }
         }
         markDirty();
@@ -319,12 +325,11 @@ public class VirtualBattleManager extends WorldSavedData {
      * Entry point for a fight that starts (and may stay) entirely in loaded chunks — the offscreen
      * {@link BattleEncounterScanner} can never see it since it only scans {@link VirtualTravellerRecord}s.
      * Called from {@code EntityTraveller.setAttackTarget} once a hostile target is actually accepted.
-     * Only tracked when a hired worker is on one side — that's the only case anyone needs notifying about.
+     * Every such fight is tracked, hired workers or not, so the map shows the same battles near the player as offscreen.
      */
     public void onLoadedEngagement(WorldServer world, EntityTraveller attacker, EntityTraveller target) {
         TravellersConfig.BattleEvents cfg = TravellersConfig.BATTLE_EVENTS;
         if (!cfg.enableVirtualBattles || !cfg.detectLoadedEncounters) return;
-        if (!involvesHiredWorker(attacker, target)) return;
 
         BattleRecord b = battleOf(attacker.getUniqueID());
         if (b == null) b = battleOf(target.getUniqueID());
@@ -352,13 +357,6 @@ public class VirtualBattleManager extends WorldSavedData {
 
         checkNotifyOwners(world, b);
         markDirty();
-    }
-
-    private static boolean involvesHiredWorker(EntityTraveller a, EntityTraveller b) {
-        return (a instanceof EntityTravellerWorker
-                        && ((EntityTravellerWorker) a).isHiredFollower())
-                || (b instanceof EntityTravellerWorker
-                        && ((EntityTravellerWorker) b).isHiredFollower());
     }
 
     /** Mirrors BattleEncounterScanner.groupKey for VirtualTravellerRecords, kept in sync so the two
@@ -393,8 +391,8 @@ public class VirtualBattleManager extends WorldSavedData {
         for (UUID owner : owners) {
             if (b.notifiedOwners.contains(owner) || !meetsNotifySignificance(b, owner)) continue;
             if (!b.notifiedOwners.add(owner)) continue;
-            NotificationService.notifyEventOffline(world.getMinecraftServer(), owner,
-                    NotificationDefs.BATTLE_UNDER_ATTACK, buildStartSummary(world, vtm, b, owner));
+            BattleNotifications.started(world.getMinecraftServer(), owner, b.id, battlePlace(b),
+                    foeNames(world, vtm, b, b.sideOfGroup(BattleParticipant.OWNER_KEY_PREFIX + owner)));
         }
     }
 
@@ -420,15 +418,45 @@ public class VirtualBattleManager extends WorldSavedData {
         return cfg.notifyDeathAlwaysNotifies || meetsNotifySignificance(b, owner);
     }
 
-    private BattleSummary buildStartSummary(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, UUID owner) {
-        String key = BattleParticipant.OWNER_KEY_PREFIX + owner;
-        int ownSide = b.sideOfGroup(key);
-        List<String> attackers = new ArrayList<>();
+    private List<String> foeNames(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, int ownSide) {
+        List<String> foes = new ArrayList<>();
         for (BattleParticipant p : b.participants.values()) {
             if (!p.alive || p.side == ownSide) continue;
-            attackers.add(resolveParticipantName(world, vtm, p.uuid));
+            foes.add(resolveParticipantName(world, vtm, p.uuid));
         }
-        return new BattleSummary(b.center, b.dimension, Collections.emptyList(), attackers);
+        return foes;
+    }
+
+    private static NoticePlace battlePlace(BattleRecord b) {
+        return new NoticePlace(b.center, b.dimension, null);
+    }
+
+    /** A hired worker fell: its owner's battle story gets the casualty, and the owner will hear the result. */
+    private void notifyFallen(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, BattleParticipant victim,
+                              UUID owner, String name) {
+        b.notifiedOwners.add(owner);
+        BattleNotifications.workerFell(world.getMinecraftServer(), owner, b.id, battlePlace(b), victim.uuid, name,
+                foeNames(world, vtm, b, victim.side));
+    }
+
+    /** One result per owner told about this battle: won (no foe left), lost (all of the owner's side fell), else broken off. */
+    private void notifyOutcomes(WorldServer world, BattleRecord b) {
+        for (UUID owner : b.notifiedOwners) {
+            String key = BattleParticipant.OWNER_KEY_PREFIX + owner;
+            int side = b.sideOfGroup(key);
+            int fallen = 0;
+            for (BattleParticipant p : b.participants.values()) {
+                if (!p.alive && p.groupKey.equals(key)) fallen++;
+            }
+            BattleNotifications.Outcome outcome = BattleNotifications.Outcome.BROKEN_OFF;
+            if (side >= 0) {
+                int own = b.countAlive(side);
+                int foes = b.countAlive(1 - side);
+                if (foes == 0 && own > 0) outcome = BattleNotifications.Outcome.WON;
+                else if (own == 0 && foes > 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST;
+            }
+            BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen);
+        }
     }
 
     private static String resolveParticipantName(WorldServer world, VirtualTravellerManager vtm, UUID uuid) {
@@ -451,7 +479,7 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /** Moves every participant of {@code src} into {@code dst} (side mapping decided by caller). */
-    void mergeBattles(BattleRecord dst, BattleRecord src, Map<UUID, Integer> sideMapping,
+    void mergeBattles(WorldServer world, BattleRecord dst, BattleRecord src, Map<UUID, Integer> sideMapping,
                       VirtualTravellerManager vtm) {
         for (BattleParticipant p : src.participants.values()) {
             Integer side = sideMapping.get(p.uuid);
@@ -461,6 +489,9 @@ public class VirtualBattleManager extends WorldSavedData {
             participantIndex.put(p.uuid, dst.id);
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             if (rec != null) rec.battleId = dst.id;
+        }
+        for (UUID owner : src.notifiedOwners) {
+            BattleNotifications.merged(world.getMinecraftServer(), owner, src.id, dst.id);
         }
         dst.notifiedOwners.addAll(src.notifiedOwners);
         for (int i = 0; i < src.lootPool.tagCount(); i++) {
@@ -625,19 +656,19 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
 
-        // Keep the marker centered on the actual fight (camp assaults stay camp-anchored)
+        // Keep the marker centered on the actual fight, loaded fighters included (camp assaults stay camp-anchored)
         if (b.campAnchorId == null) {
             double sx = 0, sz = 0;
             int n = 0;
             for (BattleParticipant p : b.participants.values()) {
-                if (!p.alive || p.loaded) continue;
-                VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
-                if (rec == null) continue;
-                sx += rec.posX;
-                sz += rec.posZ;
+                if (!p.alive) continue;
+                double[] pos = foePosition(world, vtm, p.uuid);
+                if (pos == null) continue;
+                sx += pos[0];
+                sz += pos[1];
                 n++;
             }
-            if (n > 0) b.center = new BlockPos((int) (sx / n), b.center.getY(), (int) (sz / n));
+            if (n > 0) b.center = new BlockPos((int) Math.floor(sx / n), b.center.getY(), (int) Math.floor(sz / n));
         }
     }
 
@@ -839,13 +870,7 @@ public class VirtualBattleManager extends WorldSavedData {
 
         // After the bed rule, so the notice can say whether the worker comes back.
         if (rec.isHiredFollower && rec.followOwnerUUID != null && shouldNotifyDeath(b, rec.followOwnerUUID)) {
-            String name = rec.name == null ? "" : rec.name;
-            String attackerName = resolveParticipantName(world, vtm, attacker.uuid);
-            BlockPos pos = new BlockPos((int) rec.posX, (int) rec.posY, (int) rec.posZ);
-            WorkerLifecycleNotifications.died(world.getMinecraftServer(), rec.followOwnerUUID, rec.uuid, name,
-                    new NoticePlace(pos, rec.dimension, rec.uuid),
-                    VanillaDeathMessage.genericSlainBy(name, attackerName),
-                    buildDeathSummary(world, vtm, b, victim, name, pos));
+            notifyFallen(world, vtm, b, victim, rec.followOwnerUUID, rec.name == null ? "" : rec.name);
         }
 
         // A virtually-dying rider's mount has no physical presence to leave abandoned offscreen (no
@@ -860,20 +885,6 @@ public class VirtualBattleManager extends WorldSavedData {
         com.jubitus.travellers.debug.autotest.AutotestInvariants.onVirtualDeath(rec.uuid);
         vtm.removeRecord(world, rec.uuid);
         markDirty();
-    }
-
-    private BattleSummary buildDeathSummary(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
-                                             BattleParticipant victim, String name, BlockPos pos) {
-        List<BattleSummary.CasualtyEntry> casualties = new ArrayList<>();
-        casualties.add(new BattleSummary.CasualtyEntry(name, true, 0f));
-
-        List<String> attackers = new ArrayList<>();
-        for (BattleParticipant p : b.participants.values()) {
-            if (p.side == victim.side || !p.alive) continue;
-            attackers.add(resolveParticipantName(world, vtm, p.uuid));
-        }
-
-        return new BattleSummary(pos, b.dimension, casualties, attackers);
     }
 
     /** Which per-type loot toggle gates a victim's gear entering the battle's loot pool. */
@@ -992,8 +1003,15 @@ public class VirtualBattleManager extends WorldSavedData {
             // - a scattered survivor's return-to-formation starts the instant the fight ends.
             vtm.forceRefreshGoal(world, rec, now);
         }
+        notifyOutcomes(world, b);
         distributeLootPool(world, vtm, b, allowPillage);
         battles.remove(b.id);
+        int aliveA = b.countAlive(0);
+        int aliveB = b.countAlive(1);
+        b.winnerSide = aliveA > 0 && aliveB == 0 ? 0 : aliveB > 0 && aliveA == 0 ? 1 : -1;
+        b.endTick = now;
+        getRecentlyEnded(now);
+        recentlyEnded.add(b);
         markDirty();
     }
 

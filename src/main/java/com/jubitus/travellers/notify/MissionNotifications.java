@@ -49,16 +49,16 @@ public final class MissionNotifications {
     }
 
     /** Go-to arrival: solo message, or one group message when the worker leads followers. */
-    public static void arrived(@Nullable MinecraftServer server, @Nullable UUID ownerId, UUID workerId) {
+    public static void arrived(@Nullable MinecraftServer server, @Nullable UUID ownerId, UUID workerId, NoticePlace place) {
         if (server == null || ownerId == null) return;
         Trip trip = TRIPS.remove(workerId);
         if (trip != null && !worthTelling(server, trip)) return;
         int followers = WorkerGroupService.countFollowers(server, ownerId, workerId);
         if (followers > 0) {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.GOTO_GROUP_ARRIVED,
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.GOTO_GROUP_ARRIVED, place, null,
                     String.valueOf(followers + 1));
         } else {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.GOTO_ARRIVED);
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.GOTO_ARRIVED, place, null);
         }
     }
 
@@ -70,59 +70,62 @@ public final class MissionNotifications {
 
     /** A worker back from a sale finds its employer away: home to its Barrack, or waiting where they were last seen. */
     public static void cargoEmployerAbsent(@Nullable MinecraftServer server, @Nullable UUID ownerId,
-                                           String workerName, boolean goingHome) {
+                                           String workerName, boolean goingHome, NoticePlace place) {
         if (server == null || ownerId == null) return;
-        NotificationService.notifyOffline(server, ownerId, goingHome
-                ? NotificationDefs.WORKER_CARGO_HEADING_HOME : NotificationDefs.WORKER_CARGO_WAITING, workerName);
+        NotificationService.notifyOfflineAt(server, ownerId, goingHome
+                ? NotificationDefs.WORKER_CARGO_HEADING_HOME : NotificationDefs.WORKER_CARGO_WAITING, place, null, workerName);
     }
 
     /** The employer is back: the worker sets off toward them with the cargo. */
-    public static void cargoComingBack(@Nullable MinecraftServer server, @Nullable UUID ownerId, String workerName) {
+    public static void cargoComingBack(@Nullable MinecraftServer server, @Nullable UUID ownerId, String workerName,
+                                       NoticePlace place) {
         if (server == null || ownerId == null) return;
-        NotificationService.notifyOffline(server, ownerId, NotificationDefs.WORKER_CARGO_COMING_BACK, workerName);
+        NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.WORKER_CARGO_COMING_BACK, place, null, workerName);
     }
 
     /** Get-equipment result: how many of the workers (the leader plus its followers) got something. */
-    public static void equipped(@Nullable MinecraftServer server, @Nullable UUID ownerId, int equipped, int total) {
+    public static void equipped(@Nullable MinecraftServer server, @Nullable UUID ownerId, NoticePlace place,
+                                int equipped, int total) {
         if (server == null || ownerId == null) return;
         if (equipped <= 0) {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.EQUIP_NOTHING);
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.EQUIP_NOTHING, place, null);
         } else {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.EQUIP_DONE,
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.EQUIP_DONE, place, null,
                     String.valueOf(equipped), String.valueOf(total));
         }
     }
 
     /** Dump-items result: items stored, items that did not fit, workers who dropped something. */
-    public static void dumped(@Nullable MinecraftServer server, @Nullable UUID ownerId, int stored, int left, int workers) {
+    public static void dumped(@Nullable MinecraftServer server, @Nullable UUID ownerId, NoticePlace place,
+                              int stored, int left, int workers) {
         if (server == null || ownerId == null) return;
         if (left > 0) {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.DUMP_FULL,
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.DUMP_FULL, place, null,
                     String.valueOf(stored), String.valueOf(left));
         } else if (stored > 0) {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.DUMP_DONE,
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.DUMP_DONE, place, null,
                     String.valueOf(stored), String.valueOf(workers));
         } else {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.DUMP_NOTHING);
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.DUMP_NOTHING, place, null);
         }
     }
 
     /** Take-horses result: how many of the workers (the leader plus its followers) took a mount. */
-    public static void horsesTaken(@Nullable MinecraftServer server, @Nullable UUID ownerId, int taken,
-                                   int total, String stableName) {
+    public static void horsesTaken(@Nullable MinecraftServer server, @Nullable UUID ownerId, NoticePlace place,
+                                   int taken, int total, String stableName) {
         if (server == null || ownerId == null) return;
-        NotificationService.notifyOffline(server, ownerId, NotificationDefs.STABLE_HORSES_TAKEN,
+        NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.STABLE_HORSES_TAKEN, place, null,
                 String.valueOf(taken), String.valueOf(total), stableName);
     }
 
     /** Return-horses result: how many of the workers (the leader plus its followers) gave a horse back. */
-    public static void horsesReturned(@Nullable MinecraftServer server, @Nullable UUID ownerId, int returned,
-                                      int total, String stableName) {
+    public static void horsesReturned(@Nullable MinecraftServer server, @Nullable UUID ownerId, NoticePlace place,
+                                      int returned, int total, String stableName) {
         if (server == null || ownerId == null) return;
         if (returned <= 0) {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.STABLE_NO_HORSE_TO_RETURN);
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.STABLE_NO_HORSE_TO_RETURN, place, null);
         } else {
-            NotificationService.notifyOffline(server, ownerId, NotificationDefs.STABLE_HORSES_RETURNED,
+            NotificationService.notifyOfflineAt(server, ownerId, NotificationDefs.STABLE_HORSES_RETURNED, place, null,
                     String.valueOf(returned), String.valueOf(total), stableName);
         }
     }

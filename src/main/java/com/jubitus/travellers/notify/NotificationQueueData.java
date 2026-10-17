@@ -54,9 +54,11 @@ public class NotificationQueueData extends WorldSavedData {
     }
 
     public void enqueue(UUID owner, NotificationType type, String i18nKey, String[] args, long worldTime,
-                        @Nullable NoticePlace place, @Nullable NoticeLine detail) {
+                        @Nullable NoticePlace place, @Nullable NoticeLine detail, @Nullable String storyKey) {
         List<QueuedNotice> list = pending.computeIfAbsent(owner, k -> new ArrayList<>());
-        list.add(new QueuedNotice(type, i18nKey, args, worldTime, place, detail));
+        // A story waiting offline only needs its latest beat.
+        if (storyKey != null) list.removeIf(n -> storyKey.equals(n.storyKey));
+        list.add(new QueuedNotice(type, i18nKey, args, worldTime, place, detail, storyKey));
 
         int cap = TravellersConfig.NOTIFICATIONS.offlineQueueCapPerPlayer;
         while (list.size() > cap) {
@@ -97,8 +99,8 @@ public class NotificationQueueData extends WorldSavedData {
                 NBTTagList notices = playerTag.getTagList("Notices", Constants.NBT.TAG_COMPOUND);
                 for (int j = 0; j < notices.tagCount(); j++) {
                     NBTTagCompound noticeTag = notices.getCompoundTagAt(j);
-                    NotificationType type = NotificationType.values()[noticeTag.getInteger("TypeOrdinal")];
                     String i18nKey = noticeTag.getString("I18nKey");
+                    NotificationType type = NotificationType.fromNbt(noticeTag, i18nKey);
                     long worldTime = noticeTag.getLong("WorldTime");
 
                     NBTTagList argsTag = noticeTag.getTagList("Args", Constants.NBT.TAG_STRING);
@@ -119,7 +121,8 @@ public class NotificationQueueData extends WorldSavedData {
                     NoticeLine detail = noticeTag.hasKey("Detail", Constants.NBT.TAG_COMPOUND)
                             ? NoticeLine.fromNbt(noticeTag.getCompoundTag("Detail")) : null;
 
-                    list.add(new QueuedNotice(type, i18nKey, args, worldTime, place, detail));
+                    String storyKey = noticeTag.hasKey("Story", Constants.NBT.TAG_STRING) ? noticeTag.getString("Story") : null;
+                    list.add(new QueuedNotice(type, i18nKey, args, worldTime, place, detail, storyKey));
                 }
 
                 pending.put(owner, list);
@@ -139,7 +142,7 @@ public class NotificationQueueData extends WorldSavedData {
             NBTTagList notices = new NBTTagList();
             for (QueuedNotice n : e.getValue()) {
                 NBTTagCompound noticeTag = new NBTTagCompound();
-                noticeTag.setInteger("TypeOrdinal", n.type.ordinal());
+                noticeTag.setString("Severity", n.type.name());
                 noticeTag.setString("I18nKey", n.i18nKey);
                 noticeTag.setLong("WorldTime", n.worldTime);
 
@@ -154,6 +157,9 @@ public class NotificationQueueData extends WorldSavedData {
                 }
                 if (n.detail != null) {
                     noticeTag.setTag("Detail", n.detail.toNbt());
+                }
+                if (n.storyKey != null) {
+                    noticeTag.setString("Story", n.storyKey);
                 }
 
                 notices.appendTag(noticeTag);

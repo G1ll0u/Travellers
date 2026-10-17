@@ -6,6 +6,7 @@ import com.jubitus.travellers.notify.NotificationDef;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.zone.ZoneRef;
 import net.minecraft.server.MinecraftServer;
+import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.village.MillGoods;
@@ -228,7 +229,8 @@ public final class DeliveryJob {
                     awaitingPickup = false;
                     worker.returnUsingFollow = false;
                     if (hasWalkBackTo(distHsq)) {
-                        MissionNotifications.cargoComingBack(worker.world.getMinecraftServer(), employerId, worker.getName());
+                        MissionNotifications.cargoComingBack(worker.world.getMinecraftServer(), employerId, worker.getName(),
+                                NoticePlace.of(worker));
                     }
                     updateReturnRoute(worker.getApproximateSurfacePosNear(employer));
                 }
@@ -317,9 +319,9 @@ public final class DeliveryJob {
                     if (!pickupNotified) {
                         pickupNotified = true;
                         worker.voice.playHello();
-                        NotificationService.notify(employer, this.hasUnsoldGoods
+                        NotificationService.notifyAt(employer, this.hasUnsoldGoods
                                 ? NotificationDefs.WORKER_CARGO_ARRIVED_PARTIAL
-                                : NotificationDefs.WORKER_CARGO_ARRIVED_FULL);
+                                : NotificationDefs.WORKER_CARGO_ARRIVED_FULL, NoticePlace.of(worker));
                     }
                 }
 
@@ -347,7 +349,8 @@ public final class DeliveryJob {
             employerAbsent = true;
             awaitingPickup = false;
             worker.returnUsingFollow = false;
-            MissionNotifications.cargoEmployerAbsent(worker.world.getMinecraftServer(), employerId, worker.getName(), home != null);
+            MissionNotifications.cargoEmployerAbsent(worker.world.getMinecraftServer(), employerId, worker.getName(), home != null,
+                    NoticePlace.of(worker));
             BlockPos target = home != null ? home : employerReturnPos;
             if (target != null) routeTo(target);
         }
@@ -404,7 +407,9 @@ public final class DeliveryJob {
 
     // Queued for an offline employer.
     private void notifyEmployer(@Nullable MinecraftServer server, NotificationDef def, String... args) {
-        if (server != null && employerId != null) NotificationService.notifyOffline(server, employerId, def, args);
+        if (server != null && employerId != null) {
+            NotificationService.notifyOfflineAt(server, employerId, def, NoticePlace.of(worker), null, args);
+        }
     }
 
     /** One toast per transaction: totals plus the three most valuable items (2nd line), "(+N)" for the rest. */

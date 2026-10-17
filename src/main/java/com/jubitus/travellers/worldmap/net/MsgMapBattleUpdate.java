@@ -5,7 +5,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.util.math.BlockPos;
-import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -13,16 +12,45 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import java.util.ArrayList;
 import java.util.List;
 
-/** One entry per active virtual battle; the tooltip label is composed server-side. */
+/** One entry per battle the viewer can see, running or just ended, seen from the viewer's side; the client writes the text. */
 public class MsgMapBattleUpdate implements IMessage {
+
+    /** Who fights on a side, as {@link Side#kinds} bits. */
+    public static final int KIND_YOURS = 1, KIND_HIRED = 2, KIND_TRAVELLERS = 4, KIND_RAIDERS = 8;
+
+    public enum Result { RUNNING, FIRST_WON, SECOND_WON, NO_WINNER }
+
+    public static class Side {
+        public int standing;
+        public int fallen;
+        public int kinds;
+
+        void write(ByteBuf buf) {
+            buf.writeInt(standing);
+            buf.writeInt(fallen);
+            buf.writeByte(kinds);
+        }
+
+        static Side read(ByteBuf buf) {
+            Side s = new Side();
+            s.standing = buf.readInt();
+            s.fallen = buf.readInt();
+            s.kinds = buf.readByte();
+            return s;
+        }
+    }
 
     public static class Entry {
         public int dim;
         public BlockPos pos;
-        public int aliveA;
-        public int aliveB;
         public boolean campAssault;
-        public String label;
+        /** The viewer has units in this battle; they are always on {@link #first}. */
+        public boolean involved;
+        public Side first = new Side();
+        public Side second = new Side();
+        public Result result = Result.RUNNING;
+        /** Seconds since the battle started (running) or since it ended. */
+        public int seconds;
     }
 
     private List<Entry> entries = new ArrayList<>();
@@ -41,14 +69,18 @@ public class MsgMapBattleUpdate implements IMessage {
     public void fromBytes(ByteBuf buf) {
         int n = buf.readInt();
         entries = new ArrayList<>(n);
+        Result[] results = Result.values();
         for (int i = 0; i < n; i++) {
             Entry e = new Entry();
             e.dim = buf.readInt();
             e.pos = new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
-            e.aliveA = buf.readInt();
-            e.aliveB = buf.readInt();
             e.campAssault = buf.readBoolean();
-            e.label = ByteBufUtils.readUTF8String(buf);
+            e.involved = buf.readBoolean();
+            e.first = Side.read(buf);
+            e.second = Side.read(buf);
+            int r = buf.readByte();
+            e.result = r >= 0 && r < results.length ? results[r] : Result.RUNNING;
+            e.seconds = buf.readInt();
             entries.add(e);
         }
     }
@@ -62,10 +94,12 @@ public class MsgMapBattleUpdate implements IMessage {
             buf.writeInt(e.pos.getX());
             buf.writeInt(e.pos.getY());
             buf.writeInt(e.pos.getZ());
-            buf.writeInt(e.aliveA);
-            buf.writeInt(e.aliveB);
             buf.writeBoolean(e.campAssault);
-            ByteBufUtils.writeUTF8String(buf, e.label != null ? e.label : "");
+            buf.writeBoolean(e.involved);
+            e.first.write(buf);
+            e.second.write(buf);
+            buf.writeByte(e.result.ordinal());
+            buf.writeInt(e.seconds);
         }
     }
 

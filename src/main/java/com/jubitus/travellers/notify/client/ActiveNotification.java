@@ -4,6 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.notify.NotificationType;
 import net.minecraft.client.Minecraft;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -15,13 +16,30 @@ public class ActiveNotification {
         FADE_IN, HOLD, FADE_OUT
     }
 
-    public final NotificationType type;
-    public final List<String> wrappedLines;
+    public NotificationType type;
+    public List<String> wrappedLines;
+    /** Non-null for a story toast (a battle): later beats update this toast instead of stacking. */
+    @Nullable
+    public final String storyKey;
 
     public FadeState state = FadeState.FADE_IN;
     public int ticksInState = 0;
 
-    public ActiveNotification(NotificationType type, String text) {
+    public ActiveNotification(NotificationType type, String text, @Nullable String storyKey) {
+        this.storyKey = storyKey;
+        setContent(type, text);
+    }
+
+    /** A newer beat of the same story: new text, and it stays on screen for a full hold again. */
+    public void update(NotificationType type, String text) {
+        setContent(type, text);
+        if (state != FadeState.FADE_IN) {
+            state = FadeState.HOLD;
+            ticksInState = 0;
+        }
+    }
+
+    private void setContent(NotificationType type, String text) {
         this.type = type;
         int width = TravellersConfig.NOTIFICATIONS.widthPixels;
         this.wrappedLines = Minecraft.getMinecraft().fontRenderer.listFormattedStringToWidth(text, width);

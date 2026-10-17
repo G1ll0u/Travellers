@@ -335,7 +335,7 @@ class BattleEncounterScanner {
                 BattleRecord src = dst == a ? b : a;
                 Map<UUID, Integer> mapping = alignSides(dst, src);
                 if (mapping != null) {
-                    mgr.mergeBattles(dst, src, mapping, vtm);
+                    mgr.mergeBattles(world, dst, src, mapping, vtm);
                     return; // list is stale after a merge; next pass handles the rest
                 }
             }

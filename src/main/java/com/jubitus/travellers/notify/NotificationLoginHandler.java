@@ -25,7 +25,7 @@ public final class NotificationLoginHandler {
         List<QueuedNotice> queued = NotificationQueueData.get(player.world).take(player.getUniqueID());
         for (QueuedNotice n : queued) {
             TravellersNetwork.sendToPlayer(player,
-                    new MsgShowNotification(n.type, n.i18nKey, n.args, n.worldTime, n.place, n.detail));
+                    new MsgShowNotification(n.type, n.i18nKey, n.args, n.worldTime, n.place, n.detail, n.storyKey));
         }
     }
 }

@@ -90,17 +90,20 @@ public class GuiWorldMapPanel {
         public final float drawX, drawZ;
         /** The unit this marker stands for, when it is one (lets the strike animation find it). */
         public final java.util.UUID unitId;
+        /** Force-balance bar under the marker: share of the left colour (0..1), or negative for no bar. */
+        public final float balance;
+        public final int balanceLeftRgb, balanceRightRgb;
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label) {
             this(pos, argb, type, label, 0f);
         }
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg) {
-            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null);
+            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null, -1f, 0, 0);
         }
 
         private Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg, float drawX, float drawZ,
-                       java.util.UUID unitId) {
+                       java.util.UUID unitId, float balance, int balanceLeftRgb, int balanceRightRgb) {
             this.pos = pos;
             this.argb = argb;
             this.type = type;
@@ -109,15 +112,22 @@ public class GuiWorldMapPanel {
             this.drawX = drawX;
             this.drawZ = drawZ;
             this.unitId = unitId;
+            this.balance = balance;
+            this.balanceLeftRgb = balanceLeftRgb;
+            this.balanceRightRgb = balanceRightRgb;
         }
 
         /** The same marker drawn at another spot; {@link #pos} stays its identity. */
         public Marker at(float x, float z) {
-            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId);
+            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId, balance, balanceLeftRgb, balanceRightRgb);
         }
 
         public Marker forUnit(java.util.UUID id) {
-            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id);
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id, balance, balanceLeftRgb, balanceRightRgb);
+        }
+
+        public Marker withBalance(float share, int leftRgb, int rightRgb) {
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, share, leftRgb, rightRgb);
         }
     }
 
@@ -404,11 +414,24 @@ public class GuiWorldMapPanel {
                     GlStateManager.rotate(m.angleDeg + 180f, 0f, 0f, 1f);
                 }
                 drawMarkerPng(m.type.texture, 0, 0, argb, size);
+                if (m.balance >= 0f) drawBalanceBar(m, size);
                 GlStateManager.popMatrix();
             }
         }
         GlStateManager.color(1f, 1f, 1f, 1f);
         drawArrows(mapX, mapY, now);
+    }
+
+    /** Two-colour bar just under a marker (already translated to its centre). */
+    private static void drawBalanceBar(Marker m, int size) {
+        int w = Math.max(8, size);
+        int x0 = -w / 2, y0 = size / 2 + 1;
+        int split = x0 + Math.round(w * Math.min(1f, m.balance));
+        Gui.drawRect(x0 - 1, y0 - 1, x0 + w + 1, y0 + 3, 0xC0000000);
+        if (split > x0) Gui.drawRect(x0, y0, split, y0 + 2, 0xFF000000 | m.balanceLeftRgb);
+        if (split < x0 + w) Gui.drawRect(split, y0, x0 + w, y0 + 2, 0xFF000000 | m.balanceRightRgb);
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
     }
 
     private void drawArrows(int mapX, int mapY, long now) {

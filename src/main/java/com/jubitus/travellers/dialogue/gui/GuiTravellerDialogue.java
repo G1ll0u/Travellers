@@ -44,6 +44,7 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
 
     private static final int ID_SEND = 1;
     private static final int ID_CONFIGURE = 2;
+    private static final int ID_FOLLOW = 3;
 
     private final EntityPlayer player;
     @Nullable
@@ -213,6 +214,14 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
                 transcriptW, 16, I18n.format("travellers.dialogue.gui.configure")).style(GuiTravellersButton.Style.SCREEN);
         this.buttonList.add(configureBtn);
 
+        if (traveller != null) {
+            int followY = transcriptY + portraitSize + NAME_LABEL_GAP + lineHeight() + 4;
+            GuiTravellersButton followBtn = new GuiTravellersButton(ID_FOLLOW, contentX, followY, portraitSize, 16,
+                    I18n.format("travellers.dialogue.gui.follow"));
+            followBtn.visible = followY + 16 <= inputRowY - 4;
+            this.buttonList.add(followBtn);
+        }
+
         rebuildTranscript();
         updateVisibility();
     }
@@ -235,7 +244,11 @@ public class GuiTravellerDialogue extends GuiScreen implements ITravellersGui {
 
     @Override
     protected void actionPerformed(GuiButton button) {
-        if (button.id == ID_SEND) {
+        if (button.id == ID_FOLLOW && traveller != null) {
+            com.jubitus.travellers.net.TravellersNetwork.CHANNEL.sendToServer(
+                    new com.jubitus.travellers.follow.net.MsgStartPlayerFollow(traveller.getEntityId()));
+            this.mc.displayGuiScreen(null);
+        } else if (button.id == ID_SEND) {
             trySend();
         } else if (button.id == ID_CONFIGURE) {
             navigatingToSubScreen = true;

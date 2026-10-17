@@ -7,6 +7,7 @@
             "default",
             "gilles",
             "gilles_fou",
+            "low",
             "silva"
         ],
         "fr": [
@@ -260,6 +261,111 @@
                     "entity.travellers.en.afraid.death.__6",
                     "entity.travellers.en.afraid.death.__7",
                     "entity.travellers.en.afraid.death.__8"
+                ]
+            },
+            "low": {
+                "talk": [
+                    "entity.travellers.en.low.talk.__0",
+                    "entity.travellers.en.low.talk.__1",
+                    "entity.travellers.en.low.talk.__2",
+                    "entity.travellers.en.low.talk.__3",
+                    "entity.travellers.en.low.talk.__4",
+                    "entity.travellers.en.low.talk.__5",
+                    "entity.travellers.en.low.talk.__6",
+                    "entity.travellers.en.low.talk.__7",
+                    "entity.travellers.en.low.talk.__8",
+                    "entity.travellers.en.low.talk.__9",
+                    "entity.travellers.en.low.talk.__10",
+                    "entity.travellers.en.low.talk.__11",
+                    "entity.travellers.en.low.talk.__12",
+                    "entity.travellers.en.low.talk.__13",
+                    "entity.travellers.en.low.talk.__14",
+                    "entity.travellers.en.low.talk.__15",
+                    "entity.travellers.en.low.talk.__16",
+                    "entity.travellers.en.low.talk.__17",
+                    "entity.travellers.en.low.talk.__18",
+                    "entity.travellers.en.low.talk.__19"
+                ],
+                "hurt": [
+                    "entity.travellers.en.low.hurt.__0",
+                    "entity.travellers.en.low.hurt.__1",
+                    "entity.travellers.en.low.hurt.__2",
+                    "entity.travellers.en.low.hurt.__3",
+                    "entity.travellers.en.low.hurt.__4",
+                    "entity.travellers.en.low.hurt.__5",
+                    "entity.travellers.en.low.hurt.__6",
+                    "entity.travellers.en.low.hurt.__7",
+                    "entity.travellers.en.low.hurt.__8",
+                    "entity.travellers.en.low.hurt.__9",
+                    "entity.travellers.en.low.hurt.__10",
+                    "entity.travellers.en.low.hurt.__11",
+                    "entity.travellers.en.low.hurt.__12",
+                    "entity.travellers.en.low.hurt.__13"
+                ],
+                "hello": [
+                    "entity.travellers.en.low.hello.__0",
+                    "entity.travellers.en.low.hello.__1",
+                    "entity.travellers.en.low.hello.__2",
+                    "entity.travellers.en.low.hello.__3",
+                    "entity.travellers.en.low.hello.__4",
+                    "entity.travellers.en.low.hello.__5",
+                    "entity.travellers.en.low.hello.__6",
+                    "entity.travellers.en.low.hello.__7",
+                    "entity.travellers.en.low.hello.__8",
+                    "entity.travellers.en.low.hello.__9",
+                    "entity.travellers.en.low.hello.__10",
+                    "entity.travellers.en.low.hello.__11"
+                ],
+                "ambient": [
+                    
+                ],
+                "attack": [
+                    "entity.travellers.en.low.attack.__0",
+                    "entity.travellers.en.low.attack.__1",
+                    "entity.travellers.en.low.attack.__2",
+                    "entity.travellers.en.low.attack.__3",
+                    "entity.travellers.en.low.attack.__4",
+                    "entity.travellers.en.low.attack.__5",
+                    "entity.travellers.en.low.attack.__6",
+                    "entity.travellers.en.low.attack.__7",
+                    "entity.travellers.en.low.attack.__8",
+                    "entity.travellers.en.low.attack.__9",
+                    "entity.travellers.en.low.attack.__10",
+                    "entity.travellers.en.low.attack.__11",
+                    "entity.travellers.en.low.attack.__12"
+                ],
+                "creeper": [
+                    "entity.travellers.en.low.creeper.__0",
+                    "entity.travellers.en.low.creeper.__1",
+                    "entity.travellers.en.low.creeper.__2",
+                    "entity.travellers.en.low.creeper.__3",
+                    "entity.travellers.en.low.creeper.__4",
+                    "entity.travellers.en.low.creeper.__5",
+                    "entity.travellers.en.low.creeper.__6"
+                ],
+                "kill": [
+                    "entity.travellers.en.low.kill.__0",
+                    "entity.travellers.en.low.kill.__1",
+                    "entity.travellers.en.low.kill.__2",
+                    "entity.travellers.en.low.kill.__3",
+                    "entity.travellers.en.low.kill.__4",
+                    "entity.travellers.en.low.kill.__5",
+                    "entity.travellers.en.low.kill.__6",
+                    "entity.travellers.en.low.kill.__7",
+                    "entity.travellers.en.low.kill.__8",
+                    "entity.travellers.en.low.kill.__9",
+                    "entity.travellers.en.low.kill.__10",
+                    "entity.travellers.en.low.kill.__11",
+                    "entity.travellers.en.low.kill.__12",
+                    "entity.travellers.en.low.kill.__13",
+                    "entity.travellers.en.low.kill.__14"
+                ],
+                "death": [
+                    "entity.travellers.en.low.death.__0",
+                    "entity.travellers.en.low.death.__1",
+                    "entity.travellers.en.low.death.__2",
+                    "entity.travellers.en.low.death.__3",
+                    "entity.travellers.en.low.death.__4"
                 ]
             },
             "gilles": {

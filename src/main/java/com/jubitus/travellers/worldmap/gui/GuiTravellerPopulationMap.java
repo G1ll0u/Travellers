@@ -504,7 +504,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
 
         for (com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate.Entry e : battleEntries) {
             if (e.dim != myDim) continue;
-            mapController.panel.addMarker(WorldMapMarkerFactory.battle(e.pos, e.label));
+            mapController.panel.addMarker(WorldMapMarkerFactory.battle(e));
         }
 
         mapController.panel.addMarker(WorldMapContentPopulator.playerMarker(player, 0xFFFFFF));

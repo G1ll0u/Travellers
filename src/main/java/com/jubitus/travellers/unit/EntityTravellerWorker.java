@@ -995,7 +995,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 com.jubitus.travellers.notify.WorkerLifecycleNotifications.died(world.getMinecraftServer(),
                         followOwnerId, getUniqueID(), getName(),
                         com.jubitus.travellers.notify.NoticePlace.of(this),
-                        com.jubitus.travellers.notify.VanillaDeathMessage.from(this, cause), null);
+                        com.jubitus.travellers.notify.VanillaDeathMessage.from(this, cause));
             }
 
             // After the death notice, so the owner reads "X died" before "Y has taken command".

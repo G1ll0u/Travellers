@@ -211,8 +211,9 @@ final class MountModes {
         if (!(rider instanceof EntityTravellerWorker) || !(rider.world instanceof WorldServer)) return;
         UUID ownerId = ((EntityTravellerWorker) rider).getFollowOwnerId();
         if (ownerId == null) return;
-        com.jubitus.travellers.notify.NotificationService.notifyOffline(
-                ((WorldServer) rider.world).getMinecraftServer(), ownerId, def, rider.getName());
+        com.jubitus.travellers.notify.NotificationService.notifyOfflineAt(
+                ((WorldServer) rider.world).getMinecraftServer(), ownerId, def,
+                com.jubitus.travellers.notify.NoticePlace.of(rider), null, rider.getName());
     }
 
     /**

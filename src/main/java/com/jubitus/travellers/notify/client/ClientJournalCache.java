@@ -28,6 +28,7 @@ public final class ClientJournalCache {
     }
 
     public static void append(JournalEntry entry) {
+        if (entry.storyKey != null) ENTRIES.removeIf(e -> entry.storyKey.equals(e.storyKey));
         ENTRIES.add(entry);
         trim();
     }
