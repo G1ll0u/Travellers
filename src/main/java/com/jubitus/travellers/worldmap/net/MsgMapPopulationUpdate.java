@@ -36,6 +36,8 @@ public class MsgMapPopulationUpdate implements IMessage {
         public Kind kind;
         public boolean virtual;
         public String label;
+        /** Server tick the position was measured at (client side, copied from the message). */
+        public long sampleTick;
     }
 
     /** A unit's fixed facts, sent when the viewer first sees it or when its label changes. */
@@ -73,6 +75,7 @@ public class MsgMapPopulationUpdate implements IMessage {
     private List<Dyn> dyns = new ArrayList<>();
     /** Entries without a uuid (stables), sent whole every time. */
     private List<Entry> extras = new ArrayList<>();
+    private long serverTick;
 
     public MsgMapPopulationUpdate() {}
 
@@ -84,10 +87,17 @@ public class MsgMapPopulationUpdate implements IMessage {
         this.extras = extras;
     }
 
+    /** Server tick the positions were measured at, so the client spaces them by real game time. */
+    public MsgMapPopulationUpdate withServerTick(long tick) {
+        this.serverTick = tick;
+        return this;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
         dim = buf.readInt();
         full = buf.readBoolean();
+        serverTick = buf.readLong();
         Kind[] kinds = Kind.values();
         int nDefs = ByteBufUtils.readVarInt(buf, 5);
         defs = new ArrayList<>(nDefs);
@@ -123,6 +133,7 @@ public class MsgMapPopulationUpdate implements IMessage {
     public void toBytes(ByteBuf buf) {
         buf.writeInt(dim);
         buf.writeBoolean(full);
+        buf.writeLong(serverTick);
         ByteBufUtils.writeVarInt(buf, defs.size(), 5);
         for (Def d : defs) {
             ByteBufUtils.writeVarInt(buf, d.id, 5);
@@ -183,9 +194,11 @@ public class MsgMapPopulationUpdate implements IMessage {
                 e.kind = d.kind;
                 e.virtual = dyn.virtual;
                 e.label = d.label;
+                e.sampleTick = msg.serverTick;
                 out.add(e);
             }
             TABLE.keySet().retainAll(present);
+            for (Entry e : msg.extras) e.sampleTick = msg.serverTick;
             out.addAll(msg.extras);
             return out;
         }

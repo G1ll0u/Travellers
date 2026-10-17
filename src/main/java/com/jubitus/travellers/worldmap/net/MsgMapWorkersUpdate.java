@@ -34,9 +34,12 @@ public class MsgMapWorkersUpdate implements IMessage {
         public boolean followsOwner;
         // Duty kind of an on-duty worker (e.g. STABLE_HAND), "" for none: picks its map marker.
         public String role = "";
+        /** Server tick the position was measured at (client side, copied from the message). */
+        public long sampleTick;
     }
 
     private List<Entry> entries = new ArrayList<>();
+    private long serverTick;
 
     public MsgMapWorkersUpdate() {}
 
@@ -48,12 +51,20 @@ public class MsgMapWorkersUpdate implements IMessage {
         return entries;
     }
 
+    /** Server tick the positions were measured at, so the client spaces them by real game time. */
+    public MsgMapWorkersUpdate withServerTick(long tick) {
+        this.serverTick = tick;
+        return this;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
+        serverTick = buf.readLong();
         int n = buf.readInt();
         entries = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             Entry e = new Entry();
+            e.sampleTick = serverTick;
             e.entityId = buf.readInt();
             e.dim = buf.readInt();
             int x = buf.readInt();
@@ -79,6 +90,7 @@ public class MsgMapWorkersUpdate implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
+        buf.writeLong(serverTick);
         buf.writeInt(entries != null ? entries.size() : 0);
         if (entries == null) return;
         for (Entry e : entries) {

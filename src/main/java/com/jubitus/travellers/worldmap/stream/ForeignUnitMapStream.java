@@ -218,7 +218,7 @@ public class ForeignUnitMapStream {
     }
 
     private static void sendForeignUnits(EntityPlayerMP player, List<MsgMapForeignUnitsUpdate.Entry> out) {
-        MapStreamStats.send(MapStreamStats.Stream.FOREIGN, player, new MsgMapForeignUnitsUpdate(out));
+        MapStreamStats.send(MapStreamStats.Stream.FOREIGN, player, new MsgMapForeignUnitsUpdate(out).withServerTick(player.server.getTickCounter()));
     }
 
     private static List<Candidate> nearbyCandidates(Map<Long, List<Candidate>> cells, int dim,

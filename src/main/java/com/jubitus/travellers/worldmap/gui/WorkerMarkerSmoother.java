@@ -21,6 +21,12 @@ public final class WorkerMarkerSmoother {
     private static final int KEEP = 4;
     /** Past the newest sample (late update) a marker keeps its last velocity for this long, then stops. */
     private static final long MAX_EXTRAPOLATE_MS = 500L;
+    /** How far before its arrival a sample may be dated: well under the render delay, so it is never already drawn past. */
+    private static final long MAX_BEHIND_MS = 400L;
+    /** How far after its arrival a sample may be dated (after a late update); the lead then shrinks slowly. */
+    private static final long MAX_AHEAD_MS = RENDER_DELAY_MS;
+    /** Share of the time between two updates by which a lead shrinks: the marker runs at most this much faster. */
+    private static final float CATCH_UP_SHARE = 0.1f;
 
     private static final class Track {
         final float[] x = new float[KEEP];
@@ -70,6 +76,27 @@ public final class WorkerMarkerSmoother {
     }
 
     private final Map<UUID, Track> tracks = new HashMap<>();
+    private long lastServerTick = -1L;
+    private long lastSampleMs;
+
+    /**
+     * Time to give the samples of an update measured at {@code serverTick} and received at {@code arrivalMs}:
+     * spaced by real game time since the previous update, so late or bunched packets never squeeze a move.
+     */
+    public long sampleTime(long serverTick, long arrivalMs) {
+        long ms;
+        if (lastServerTick < 0 || serverTick < lastServerTick) {
+            ms = arrivalMs;
+        } else {
+            long gap = (serverTick - lastServerTick) * 50L;
+            ms = lastSampleMs + gap;
+            if (ms > arrivalMs) ms -= Math.min(ms - arrivalMs, (long) (gap * CATCH_UP_SHARE));
+            ms = Math.max(arrivalMs - MAX_BEHIND_MS, Math.min(arrivalMs + MAX_AHEAD_MS, ms));
+        }
+        lastServerTick = serverTick;
+        lastSampleMs = ms;
+        return ms;
+    }
 
     /** Records a freshly received position for a unit. */
     public void observe(UUID id, float x, float z, long nowMs) {

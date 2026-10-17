@@ -71,4 +71,32 @@ class WorkerMarkerSmootherTest {
         s.retainOnly(Collections.emptySet());
         assertEquals(7f, s.x(id, 7, 0));
     }
+
+    @Test
+    void jitteredArrivalsKeepTheRealSpeed() {
+        WorkerMarkerSmoother s = new WorkerMarkerSmoother();
+        // 4 blocks every 20 ticks; the third update arrives late, the fourth on time.
+        long[] arrivals = {0, 1000, 1950, 2000, 3000};
+        for (int i = 0; i < arrivals.length; i++) {
+            long t = s.sampleTime(i * 20L, arrivals[i]);
+            s.observe(id, i * 4, 0, t);
+        }
+        float maxStep = 0f;
+        for (long at = D; at < 3000 + D; at += 10) {
+            maxStep = Math.max(maxStep, Math.abs(s.x(id, 0, at + 10) - s.x(id, 0, at)));
+        }
+        // 4 blocks/s = 0.04 per 10 ms; arrival-time stamping would show 4 blocks in 50 ms (0.8 per 10 ms).
+        assertTrue(maxStep < 0.08f, "drawn speed stays near the real one: " + maxStep);
+    }
+
+    @Test
+    void sampleTimeStaysNearArrival() {
+        WorkerMarkerSmoother s = new WorkerMarkerSmoother();
+        assertEquals(0L, s.sampleTime(0, 0));
+        assertEquals(1000L, s.sampleTime(20, 1000));
+        assertEquals(2000L, s.sampleTime(40, 2300)); // late packet: game time wins
+        assertEquals(3600L, s.sampleTime(60, 4000)); // long stall: never dated far before arrival
+        assertEquals(4500L, s.sampleTime(80, 4100)); // early packet: ahead by game time, the lead shrinking slowly
+        assertEquals(9000L, s.sampleTime(5, 9000));  // tick counter went back: restart from arrival
+    }
 }

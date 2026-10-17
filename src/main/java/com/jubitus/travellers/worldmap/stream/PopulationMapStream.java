@@ -109,7 +109,7 @@ public class PopulationMapStream {
                     all, viewDim, en -> en.dim, en -> en.pos, cx, cz, rangeSq, MAX_ENTRIES_PER_PACKET);
 
             PopulationSync sync = SYNC.computeIfAbsent(playerId, k -> new PopulationSync());
-            MapStreamStats.send(MapStreamStats.Stream.POPULATION, player, sync.encode(viewDim, visible));
+            MapStreamStats.send(MapStreamStats.Stream.POPULATION, player, sync.encode(viewDim, visible).withServerTick(server.getTickCounter()));
         }
     }
 

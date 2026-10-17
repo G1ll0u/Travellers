@@ -345,7 +345,7 @@ public class WorkerMapStream {
                 out.add(en);
             }
 
-            MapStreamStats.send(MapStreamStats.Stream.WORKER, player, new MsgMapWorkersUpdate(out));
+            MapStreamStats.send(MapStreamStats.Stream.WORKER, player, new MsgMapWorkersUpdate(out).withServerTick(server.getTickCounter()));
         }
     }
 }

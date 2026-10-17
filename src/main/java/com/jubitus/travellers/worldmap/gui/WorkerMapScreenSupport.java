@@ -57,7 +57,8 @@ public final class WorkerMapScreenSupport {
         for (MsgMapWorkersUpdate.Entry e : entries) {
             if (e.dim == myDim) workers.add(e);
         }
-        long now = System.currentTimeMillis();
+        long now = workers.isEmpty() ? 0L
+                : smoother.sampleTime(workers.get(0).sampleTick, System.currentTimeMillis());
         Set<java.util.UUID> present = new java.util.HashSet<>();
         for (MsgMapWorkersUpdate.Entry e : workers) {
             if (e.uuid == null || e.pos == null) continue;
@@ -85,7 +86,8 @@ public final class WorkerMapScreenSupport {
     public void setForeignUnits(@Nullable List<MsgMapForeignUnitsUpdate.Entry> entries) {
         foreignUnits.clear();
         if (entries != null) foreignUnits.addAll(entries);
-        long now = System.currentTimeMillis();
+        long now = foreignUnits.isEmpty() ? 0L
+                : foreignSmoother.sampleTime(foreignUnits.get(0).sampleTick, System.currentTimeMillis());
         Set<java.util.UUID> present = new java.util.HashSet<>();
         for (MsgMapForeignUnitsUpdate.Entry e : foreignUnits) {
             if (e.uuid == null || e.pos == null) continue;
