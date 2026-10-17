@@ -56,7 +56,8 @@ import java.util.UUID;
  * Per-dimension catalog and simulator of virtual battles. Follows the camp-manager pattern:
  * logical state is the source of truth, persisted in NBT, ticked from TravellerChunkManager.
  * The sim only resolves virtual-vs-virtual damage; materialized participants fight via the
- * normal loaded AI and are tracked here by UUID only.
+ * normal loaded AI and are tracked here by UUID only. A virtual pawn chasing a loaded foe walks
+ * up to it until it materializes, so no blow ever crosses the loaded/virtual line.
  */
 public class VirtualBattleManager extends WorldSavedData {
 
@@ -77,8 +78,6 @@ public class VirtualBattleManager extends WorldSavedData {
     // After leaving a battle without a result, a pawn cannot be pulled into a new one for this long (60 s).
     private static final int REJOIN_COOLDOWN_TICKS = 1200;
     private static final int ORPHAN_SWEEP_INTERVAL = 200;
-    // A loaded fighter strikes a virtual foe within meleeReach plus this (its body is wider than a point).
-    private static final double LOADED_REACH_BONUS = 1.0;
 
     private final Map<UUID, BattleRecord> battles = new LinkedHashMap<>();
     // Transient: pawn uuid -> world tick before which it may not be (re)added to a battle
@@ -559,18 +558,19 @@ public class VirtualBattleManager extends WorldSavedData {
             if (p.lastTargetDist >= 0 && dist < p.lastTargetDist - 0.01) p.noProgressTicks = 0;
             p.lastTargetDist = dist;
 
-            if (prof.isArcher && dist >= prof.rangedMinDist && dist <= prof.rangedMaxDist) {
-                strike(world, vtm, b, p, rec, target, trec, foe, prof.rangedDamage, prof.rangedCooldownTicks,
+            // INVARIANT: a virtual pawn never strikes a loaded foe (an invisible blow); it walks up to it and materializes.
+            if (trec != null && prof.isArcher && dist >= prof.rangedMinDist && dist <= prof.rangedMaxDist) {
+                strike(world, vtm, b, p, rec, target, trec, prof.rangedDamage, prof.rangedCooldownTicks,
                         false, elapsed, now);
                 p.tetherStuckTicks = 0;
-            } else if (dist <= meleeReach) {
-                strike(world, vtm, b, p, rec, target, trec, foe, prof.meleeDamage, prof.attackCooldownTicks,
+            } else if (trec != null && dist <= meleeReach) {
+                strike(world, vtm, b, p, rec, target, trec, prof.meleeDamage, prof.attackCooldownTicks,
                         true, elapsed, now);
                 p.tetherStuckTicks = 0;
             } else if (VirtualFormationSimulator.withinTether(world, vtm, rec, tx, tz, now)) {
                 // An archer only keeps its distance while the target is beyond bow range; closer than the
                 // bow's minimum it closes in and fights in melee, so two archers can never freeze apart.
-                double stopAt = prof.isArcher && dist > prof.rangedMaxDist
+                double stopAt = trec != null && prof.isArcher && dist > prof.rangedMaxDist
                         ? Math.max(prof.rangedMinDist, prof.rangedMaxDist * 0.8) : meleeReach * 0.75;
                 moveToward(rec, tx, tz, elapsed, stopAt, UnitSpeed.attackPercent());
                 p.tetherStuckTicks = 0;
@@ -596,8 +596,7 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
 
-        // Loaded fighters: hold their place only while they actually have a target; they hit back at
-        // virtual foes that reached them (those foes cannot be seen by their AI).
+        // Loaded fighters: hold their place only while they actually have a target.
         List<BattleParticipant> toRelease = null;
         for (BattleParticipant p : b.participants.values()) {
             if (!p.alive || !p.loaded) continue;
@@ -612,8 +611,6 @@ public class VirtualBattleManager extends WorldSavedData {
             if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
                 if (toRelease == null) toRelease = new ArrayList<>();
                 toRelease.add(p);
-            } else {
-                loadedStrikeBack(world, vtm, b, p, le, elapsed, now);
             }
         }
         if (toRelease != null) {
@@ -733,77 +730,25 @@ public class VirtualBattleManager extends WorldSavedData {
         return best;
     }
 
-    /** One virtual pawn's attacks over the elapsed ticks, against a virtual record or a loaded entity. */
+    /** One virtual pawn's attacks over the elapsed ticks against a virtual record. */
     private void strike(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, BattleParticipant attacker,
-                        VirtualTravellerRecord attackerRec, BattleParticipant victim,
-                        @Nullable VirtualTravellerRecord victimRec, @Nullable EntityTraveller foe,
+                        VirtualTravellerRecord attackerRec, BattleParticipant victim, VirtualTravellerRecord victimRec,
                         float rawDamage, int cooldown, boolean melee, int elapsed, long now) {
         attacker.attackTimer -= elapsed;
         int guard = 0;
-        float scaled = (float) (rawDamage * TravellersConfig.BATTLE_EVENTS.virtualDamageMultiplier);
         while (attacker.attackTimer <= 0 && victim.alive && guard++ < 8) {
             // The timer is <= 0 here: it says how long ago inside this step the strike really fell.
             long struck = Math.max(now - elapsed, now + attacker.attackTimer);
             attacker.attackTimer += Math.max(1, cooldown);
             if (MapStrikeLog.isActive()) {
-                double vx = victimRec != null ? victimRec.posX : foe.posX;
-                double vz = victimRec != null ? victimRec.posZ : foe.posZ;
                 MapStrikeLog.record(melee ? MapStrikeLog.MELEE : MapStrikeLog.ARROW, attackerRec.dimension, struck,
-                        attackerRec.uuid, attackerRec.posX, attackerRec.posZ, vx, vz);
+                        attackerRec.uuid, attackerRec.posX, attackerRec.posZ, victimRec.posX, victimRec.posZ);
             }
-            if (victimRec != null) {
-                applyDamage(world, vtm, b, attacker, victim, victimRec, rawDamage, now);
-            } else {
-                if (foe.isDead || foe.getHealth() <= 0f) break;
-                // The sim's own cooldown governs; vanilla's invulnerability window would swallow hits.
-                foe.hurtResistantTime = 0;
-                foe.attackEntityFrom(DamageSource.GENERIC, scaled);
-                attacker.noProgressTicks = 0;
-                victim.noProgressTicks = 0;
-            }
+            applyDamage(world, vtm, b, attacker, victim, victimRec, rawDamage, now);
             if (melee) VirtualItemWear.wearWeapon(attackerRec);
             VirtualItemWear.markCombat(attackerRec, now);
         }
         if (attacker.attackTimer < 0) attacker.attackTimer = 0;
-    }
-
-    /** A loaded fighter hits the nearest virtual enemy within reach, which its own AI cannot see. */
-    private void loadedStrikeBack(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
-                                  BattleParticipant p, EntityTraveller le, int elapsed, long now) {
-        double reach = TravellersConfig.BATTLE_EVENTS.meleeReach + LOADED_REACH_BONUS;
-        BattleParticipant best = null;
-        VirtualTravellerRecord bestRec = null;
-        double bestSq = reach * reach;
-        for (BattleParticipant t : b.participants.values()) {
-            if (!t.alive || t.side == p.side) continue;
-            VirtualTravellerRecord trec = vtm.getRecord(t.uuid);
-            if (trec == null) continue;
-            double dx = trec.posX - le.posX;
-            double dz = trec.posZ - le.posZ;
-            double d = dx * dx + dz * dz;
-            if (d < bestSq) {
-                bestSq = d;
-                best = t;
-                bestRec = trec;
-            }
-        }
-        if (best == null) return;
-        IAttributeInstance attr = le.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
-        if (attr == null) return;
-        float raw = TravellerCombatLogic.computeMeleeDamage(
-                (float) attr.getAttributeValue(), le.getHeldItemMainhand(), null);
-        int cooldown = Math.max(1, TravellerItemDamage.computeAttackCooldownTicks(le));
-        p.attackTimer -= elapsed;
-        int guard = 0;
-        while (p.attackTimer <= 0 && best.alive && guard++ < 8) {
-            long struck = Math.max(now - elapsed, now + p.attackTimer);
-            p.attackTimer += cooldown;
-            MapStrikeLog.record(MapStrikeLog.MELEE, le.dimension, struck, le.getUniqueID(),
-                    le.posX, le.posZ, bestRec.posX, bestRec.posZ);
-            applyDamage(world, vtm, b, p, best, bestRec, raw, now);
-            TravellerItemDamage.damageWeaponOnHit(le);
-        }
-        if (p.attackTimer < 0) p.attackTimer = 0;
     }
 
     private void applyDamage(WorldServer world, VirtualTravellerManager vtm, BattleRecord b,
