@@ -29,7 +29,7 @@ public class BattleRecord {
     public BlockPos center;
     /** Where the battle is shown: the first blow, moved only once the blows have clearly drifted away. */
     public BlockPos anchor;
-    /** Distance from {@link #center} to its farthest alive pawn: the battle's zone, for merging and reopening. */
+    /** Reach of the battle around {@link #anchor} (capped): for merging, reopening and pulling groups in. */
     public int zoneRadius = MIN_ZONE_RADIUS;
     /** World tick of the first blow, -1 before: until then the battle is not shown to players. */
     public long firstBlowTick = -1;
@@ -92,6 +92,17 @@ public class BattleRecord {
             blowZ += (z - blowZ) * BLOW_SMOOTHING;
         }
         lastBlowTick = now;
+    }
+
+    /** Distance from (x, z) to the farthest of {@code positions}, kept within [{@link #MIN_ZONE_RADIUS}, cap]. */
+    static int zoneRadiusAround(double x, double z, List<double[]> positions, int cap) {
+        double far = 0;
+        for (double[] pos : positions) {
+            double dx = pos[0] - x;
+            double dz = pos[1] - z;
+            far = Math.max(far, dx * dx + dz * dz);
+        }
+        return Math.max(MIN_ZONE_RADIUS, Math.min(Math.max(MIN_ZONE_RADIUS, cap), (int) Math.ceil(Math.sqrt(far))));
     }
 
     public boolean containsGroupKey(String key) {

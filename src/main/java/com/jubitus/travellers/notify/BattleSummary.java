@@ -19,15 +19,19 @@ public final class BattleSummary {
 
     /** Headcounts seen from the owner's side, at the time of the beat. */
     public static final class Counts {
+        /** The owner's own henchmen (and the owner, when fighting). */
         public final int ownStanding, ownFallen;
         public final int foeStanding, foeFallen;
         /** Enemies by kind, fallen included. */
         public final int foeRaiders, foeTravellers, foeHenchmen;
         /** Seconds since the first blow. */
         public final int seconds;
+        /** Others fighting on the owner's side, by kind, fallen included. */
+        public final int allyRaiders, allyTravellers, allyHenchmen;
 
         public Counts(int ownStanding, int ownFallen, int foeStanding, int foeFallen,
-                      int foeRaiders, int foeTravellers, int foeHenchmen, int seconds) {
+                      int foeRaiders, int foeTravellers, int foeHenchmen, int seconds,
+                      int allyRaiders, int allyTravellers, int allyHenchmen) {
             this.ownStanding = ownStanding;
             this.ownFallen = ownFallen;
             this.foeStanding = foeStanding;
@@ -36,17 +40,22 @@ public final class BattleSummary {
             this.foeTravellers = foeTravellers;
             this.foeHenchmen = foeHenchmen;
             this.seconds = seconds;
+            this.allyRaiders = allyRaiders;
+            this.allyTravellers = allyTravellers;
+            this.allyHenchmen = allyHenchmen;
         }
 
         void write(NBTTagCompound tag) {
             tag.setIntArray("Counts", new int[]{ownStanding, ownFallen, foeStanding, foeFallen,
-                    foeRaiders, foeTravellers, foeHenchmen, seconds});
+                    foeRaiders, foeTravellers, foeHenchmen, seconds, allyRaiders, allyTravellers, allyHenchmen});
         }
 
         @Nullable
         static Counts read(NBTTagCompound tag) {
             int[] c = tag.getIntArray("Counts");
-            return c.length < 8 ? null : new Counts(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+            if (c.length < 8) return null;
+            return new Counts(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7],
+                    c.length > 8 ? c[8] : 0, c.length > 9 ? c[9] : 0, c.length > 10 ? c[10] : 0);
         }
     }
 

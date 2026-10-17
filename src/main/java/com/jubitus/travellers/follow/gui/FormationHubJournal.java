@@ -154,6 +154,8 @@ final class FormationHubJournal {
         if (location != null) lines.add(location);
         if (c != null) {
             lines.add(tip("your_side", c.ownStanding, c.ownFallen));
+            String allies = kinds(c.allyRaiders, c.allyTravellers, c.allyHenchmen);
+            if (allies != null) lines.add(tip("allies", allies));
             lines.add(tip("enemies", foeKinds(c), c.foeStanding, c.foeFallen));
         }
 
@@ -193,13 +195,19 @@ final class FormationHubJournal {
         return tip("title." + bs.state.name().toLowerCase(java.util.Locale.ROOT), foeKinds(c), time);
     }
 
-    /** "80 raiders, 5 travellers". */
     private static String foeKinds(BattleSummary.Counts c) {
+        String foes = kinds(c.foeRaiders, c.foeTravellers, c.foeHenchmen);
+        return foes != null ? foes : "?";
+    }
+
+    /** "80 raiders, 5 travellers", or null when all are zero. */
+    @Nullable
+    private static String kinds(int raiders, int travellers, int henchmen) {
         List<String> parts = new ArrayList<>();
-        if (c.foeRaiders > 0) parts.add(tip("kind.raiders", c.foeRaiders));
-        if (c.foeTravellers > 0) parts.add(tip("kind.travellers", c.foeTravellers));
-        if (c.foeHenchmen > 0) parts.add(tip("kind.henchmen", c.foeHenchmen));
-        return parts.isEmpty() ? "?" : String.join(", ", parts);
+        if (raiders > 0) parts.add(tip("kind.raiders", raiders));
+        if (travellers > 0) parts.add(tip("kind.travellers", travellers));
+        if (henchmen > 0) parts.add(tip("kind.henchmen", henchmen));
+        return parts.isEmpty() ? null : String.join(", ", parts);
     }
 
     private static String tip(String key, Object... args) {

@@ -24,11 +24,15 @@ public class MsgMapBattleUpdate implements IMessage {
         public int standing;
         public int fallen;
         public int kinds;
+        /** The viewer's own henchmen (and the viewer) among these, when this is the viewer's side. */
+        public int yoursStanding, yoursFallen;
 
         void write(ByteBuf buf) {
             buf.writeInt(standing);
             buf.writeInt(fallen);
             buf.writeByte(kinds);
+            buf.writeInt(yoursStanding);
+            buf.writeInt(yoursFallen);
         }
 
         static Side read(ByteBuf buf) {
@@ -36,6 +40,8 @@ public class MsgMapBattleUpdate implements IMessage {
             s.standing = buf.readInt();
             s.fallen = buf.readInt();
             s.kinds = buf.readByte();
+            s.yoursStanding = buf.readInt();
+            s.yoursFallen = buf.readInt();
             return s;
         }
     }

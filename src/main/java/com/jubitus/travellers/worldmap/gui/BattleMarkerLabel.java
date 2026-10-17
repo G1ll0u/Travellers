@@ -18,7 +18,21 @@ final class BattleMarkerLabel {
     static String describe(MsgMapBattleUpdate.Entry e) {
         List<String> lines = new ArrayList<>();
         lines.add(title(e));
-        lines.add(sideLine(e.involved ? I18n.format("travellers.map.battle.your_side") : names(e.first.kinds), e.first));
+        if (e.involved) {
+            // Your henchmen never mixed with the others fighting on your side.
+            MsgMapBattleUpdate.Side s = e.first;
+            lines.add(I18n.format("travellers.map.battle.side_line", I18n.format("travellers.map.battle.your_side"),
+                    s.yoursStanding, s.yoursFallen));
+            int allyStanding = s.standing - s.yoursStanding;
+            int allyFallen = s.fallen - s.yoursFallen;
+            int allyKinds = s.kinds & ~MsgMapBattleUpdate.KIND_YOURS;
+            if (allyStanding + allyFallen > 0) {
+                lines.add(I18n.format("travellers.map.battle.side_line",
+                        I18n.format("travellers.map.battle.allies", names(allyKinds)), allyStanding, allyFallen));
+            }
+        } else {
+            lines.add(sideLine(names(e.first.kinds), e.first));
+        }
         lines.add(sideLine(e.involved ? I18n.format("travellers.map.battle.enemies") : names(e.second.kinds), e.second));
         if (e.involved && e.result == MsgMapBattleUpdate.Result.RUNNING) {
             float share = firstShare(e);

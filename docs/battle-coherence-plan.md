@@ -30,6 +30,10 @@ Battles shown to players (map marker, journal row, toasts) match what really hap
 - `mergeBattleDistance` is removed (zones replace it). Advise the user to raise the server's `battleJoinRadius` to at least 64.
 - A battle closed after the 30 s lull announces "broken off" at once; if it reopens within 60 s, the same journal row goes back to "under attack".
 
+## Fix after first server run (decided with the user)
+- A camp battle's zone grew to 2000 blocks and chained merges into one 2,358-pawn battle with raiders on both sides. Now: zone measured around the anchor and capped at `engagementRadius`; a merge is refused if any faction would fight on both sides; a pawn farther than `engagementRadius` from the anchor with no target (or only a target that far too) leaves the battle.
+- Tooltips (journal and map) show your own henchmen apart from allies on your side.
+
 ## Steps
 
 ### A. Battle tracking (`battle/`) — status: done

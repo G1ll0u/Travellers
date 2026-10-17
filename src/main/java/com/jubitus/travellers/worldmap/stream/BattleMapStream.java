@@ -18,6 +18,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -141,6 +142,8 @@ public class BattleMapStream {
         /** KIND_TRAVELLERS / KIND_RAIDERS bits per side (hired workers are told apart per viewer). */
         final int[] kinds = new int[2];
         final List<Set<UUID>> owners = Arrays.asList(new HashSet<>(), new HashSet<>());
+        /** Per owner: {standing, fallen} of their own henchmen. */
+        final Map<UUID, int[]> perOwner = new HashMap<>();
 
         Tally(BattleRecord b, long now) {
             dim = b.dimension;
@@ -157,7 +160,9 @@ public class BattleMapStream {
                     kinds[side] |= MsgMapBattleUpdate.KIND_RAIDERS;
                 } else if (p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) {
                     try {
-                        owners.get(side).add(UUID.fromString(p.groupKey.substring(BattleParticipant.OWNER_KEY_PREFIX.length())));
+                        UUID owner = UUID.fromString(p.groupKey.substring(BattleParticipant.OWNER_KEY_PREFIX.length()));
+                        owners.get(side).add(owner);
+                        perOwner.computeIfAbsent(owner, k -> new int[2])[p.alive ? 0 : 1]++;
                     } catch (IllegalArgumentException ignored) {
                     }
                 } else {
@@ -190,6 +195,11 @@ public class BattleMapStream {
             s.kinds = kinds[side];
             for (UUID owner : owners.get(side)) {
                 s.kinds |= owner.equals(viewer) ? MsgMapBattleUpdate.KIND_YOURS : MsgMapBattleUpdate.KIND_HIRED;
+            }
+            if (owners.get(side).contains(viewer)) {
+                int[] mine = perOwner.get(viewer);
+                s.yoursStanding = mine[0];
+                s.yoursFallen = mine[1];
             }
             return s;
         }

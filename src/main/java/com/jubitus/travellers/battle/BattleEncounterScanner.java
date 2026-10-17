@@ -69,7 +69,7 @@ class BattleEncounterScanner {
         // Reinforcements: nearby compatible/hostile bystanders, then the rest of every group already fighting
         for (BattleRecord b : iterableToList(mgr.getBattlesView())) {
             if (b.dimension != dim) continue;
-            for (VirtualTravellerRecord rec : recordsNear(cells, b.center.getX(), b.center.getZ(), cfg.battleJoinRadius)) {
+            for (VirtualTravellerRecord rec : recordsNear(cells, b.anchor.getX(), b.anchor.getZ(), cfg.battleJoinRadius)) {
                 tryJoin(world, mgr, b, rec, now, cfg);
             }
             pullInGroups(world, vtm, mgr, b, cells, loadedFree, now, cfg);
@@ -201,15 +201,15 @@ class BattleEncounterScanner {
         double joinSq = (double) cfg.battleJoinRadius * cfg.battleJoinRadius;
 
         List<Object> candidates = new ArrayList<>();
-        for (VirtualTravellerRecord rec : recordsNear(cells, b.center.getX(), b.center.getZ(), reach)) {
+        for (VirtualTravellerRecord rec : recordsNear(cells, b.anchor.getX(), b.anchor.getZ(), reach)) {
             if (rec.battleId != null || !mgr.mayJoin(rec.uuid, now)) continue;
             if (rec.campSiteId != null && !cfg.campAssaults && !rec.campSiteId.equals(b.campAnchorId)) continue;
             candidates.add(rec);
         }
         double reachSq = (double) reach * reach;
         for (EntityTraveller e : loadedFree) {
-            double dx = e.posX - b.center.getX();
-            double dz = e.posZ - b.center.getZ();
+            double dx = e.posX - b.anchor.getX();
+            double dz = e.posZ - b.anchor.getZ();
             if (dx * dx + dz * dz > reachSq || mgr.isParticipant(e.getUniqueID()) || !mgr.mayJoin(e.getUniqueID(), now)) continue;
             candidates.add(e);
         }
@@ -447,8 +447,8 @@ class BattleEncounterScanner {
             BattleRecord a = list.get(i);
             for (int j = i + 1; j < list.size(); j++) {
                 BattleRecord b = list.get(j);
-                double dx = a.center.getX() - b.center.getX();
-                double dz = a.center.getZ() - b.center.getZ();
+                double dx = a.anchor.getX() - b.anchor.getX();
+                double dz = a.anchor.getZ() - b.anchor.getZ();
                 double touch = a.zoneRadius + b.zoneRadius;
                 if (dx * dx + dz * dz > touch * touch && !shareGroup(members.get(i), members.get(j))) continue;
                 BattleRecord dst = a.participants.size() >= b.participants.size() ? a : b;
@@ -471,9 +471,12 @@ class BattleEncounterScanner {
         return false;
     }
 
-    /** Maps every src participant to a dst side via shared group keys, or null if unresolvable. */
+    /**
+     * Maps every src participant to a dst side via shared group keys, or null if unresolvable or if any
+     * faction would end up fighting on both sides.
+     */
     @Nullable
-    private Map<UUID, Integer> alignSides(BattleRecord dst, BattleRecord src) {
+    static Map<UUID, Integer> alignSides(BattleRecord dst, BattleRecord src) {
         Map<String, Integer> keySides = new HashMap<>();
         for (BattleParticipant p : dst.participants.values()) {
             keySides.putIfAbsent(p.groupKey, p.side);
@@ -496,7 +499,10 @@ class BattleEncounterScanner {
         }
         Map<UUID, Integer> mapping = new HashMap<>();
         for (BattleParticipant p : src.participants.values()) {
-            mapping.put(p.uuid, p.side == srcSideForDst0 ? 0 : 1);
+            int side = p.side == srcSideForDst0 ? 0 : 1;
+            Integer known = keySides.putIfAbsent(p.groupKey, side);
+            if (known != null && known != side) return null;
+            mapping.put(p.uuid, side);
         }
         return mapping;
     }
