@@ -13,6 +13,7 @@ Permanent 1:1 bond between an `EntityTraveller` subclass and a vanilla `EntityHo
 ## Movement
 - Steering stays vanilla (`AbstractHorse.travel()` reads the rider's inputs); the horse never gets its own navigator while ridden. `TravellerMoveHelper` caps turn rate and pivots in place on sharp turns.
 - Mounted speed: the horse's MOVEMENT_SPEED is re-mirrored every tick to `rider.getAIMoveSpeed() × UnitSpeed.mountedFactor()` — never copy a flat base speed onto the horse. Offscreen pace uses the same factor.
+- The speed ceiling (`UnitSpeed.maxAiSpeed`) holds on horseback in every situation, combat included: a mounted fighter never outruns `attackPercent`.
 - **One clearance model**: `PathBody` (which body must fit) + `MountTerrainProfile` (does it fit). Never add a second. The only exception is the static full-AABB sweep in `MaterializePositionResolver` (`findFootprint`), used before the bond exists.
 - Mounted travel is direct-ride-first (`EntityAITravel.tryMountedDirectRide`, legs proved by `corridorClear`); A* is the fallback.
 

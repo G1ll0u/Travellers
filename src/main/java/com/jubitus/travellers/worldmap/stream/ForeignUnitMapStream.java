@@ -40,6 +40,10 @@ public class ForeignUnitMapStream {
 
     private static int tickCounter = 0;
 
+    public static boolean hasSubscribers() {
+        return !SUBSCRIBERS.isEmpty();
+    }
+
     public static void subscribe(UUID playerId) {
         if (playerId != null) SUBSCRIBERS.add(playerId);
     }

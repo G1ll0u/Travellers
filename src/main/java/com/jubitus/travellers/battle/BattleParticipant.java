@@ -41,6 +41,19 @@ public class BattleParticipant {
     /** Transient: world tick the current target was adopted (0 after a reload: the lock is simply already over). */
     public transient long targetSinceTick;
 
+    /** Transient: how the pawn moves between sim steps; set by each step, applied by every movement pass. */
+    public transient MoveIntent move = MoveIntent.STAND;
+    /** Transient: the point a {@link MoveIntent#TO_POINT} pawn walks to. */
+    public transient double moveX, moveZ;
+    /** Transient: how close the pawn stops to its target or point. */
+    public transient double moveStopAt;
+    /** Transient: its pace, in percent of a walking player. */
+    public transient double movePercent;
+    /** Transient: world tick its battle movement starts at: the offscreen step it made before joining already covers the ticks before. */
+    public transient long movesFromTick;
+
+    public enum MoveIntent { STAND, TO_TARGET, TO_POINT }
+
     public BattleParticipant(UUID uuid) {
         this.uuid = uuid;
     }

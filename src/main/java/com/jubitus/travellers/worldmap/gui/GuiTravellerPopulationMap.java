@@ -437,7 +437,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         populationEntries.clear();
         if (entries != null) populationEntries.addAll(entries);
         long now = populationEntries.isEmpty() ? 0L
-                : smoother.sampleTime(populationEntries.get(0).sampleTick, System.currentTimeMillis());
+                : MapPlaybackClock.CLIENT.onUpdate(populationEntries.get(0).sampleTick, System.currentTimeMillis());
         java.util.Set<java.util.UUID> present = new java.util.HashSet<>();
         for (MsgMapPopulationUpdate.Entry e : populationEntries) {
             if (e.uuid == null || e.pos == null) continue;

@@ -47,8 +47,8 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private static final String DATA_NAME = "TravellersVirtualWorkers";
 
-    // Ticks to advance per simulation step (run every N ticks)
-    private static final int SIM_INTERVAL = 20;
+    /** Ticks each offscreen step covers (one step every N ticks): a step moves a record that far ahead at once. */
+    public static final int SIM_INTERVAL = 20;
 
     /** Live virtual-sim step distance: the same travel pace as a loaded unit, so a config change applies at once. */
     private static double currentSimStep() {
@@ -57,6 +57,8 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     // After player-triggered materialization, block re-virtualization for this many ticks
     private static final int MATERIALIZE_GRACE_TICKS = 60;
+    /** A camping record this close to its slot counts as standing in it. */
+    private static final double CAMP_SLOT_REACHED_BLOCKS = 2.0;
 
     /** A tied horse farther than this from its rider going offscreen is left standing at its post. */
 
@@ -577,10 +579,9 @@ public class VirtualTravellerManager extends WorldSavedData {
             }
             BlockPos sp = cm.slotStandPos(r.campSiteId, r.campSlotIndex);
             if (sp != null) {
-                r.posX = sp.getX() + 0.5;
-                r.posY = sp.getY();
-                r.posZ = sp.getZ() + 0.5;
+                // It walks to its slot (advanceVirtual); only once there does it take the slot's height.
                 r.goal = sp;
+                if (isAtCampSlot(r, sp)) r.posY = sp.getY();
             }
             return true;
         }
@@ -625,13 +626,14 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.campSiteId = camp.id;
         r.campSlotIndex = slot;
         BlockPos sp = cm.slotStandPos(camp.id, slot);
-        if (sp != null) {
-            r.posX = sp.getX() + 0.5;
-            r.posY = sp.getY();
-            r.posZ = sp.getZ() + 0.5;
-            r.goal = sp;
-        }
+        if (sp != null) r.goal = sp; // walked to by advanceVirtual, never placed there
         return true;
+    }
+
+    private static boolean isAtCampSlot(VirtualTravellerRecord r, BlockPos slot) {
+        double dx = slot.getX() + 0.5 - r.posX;
+        double dz = slot.getZ() + 0.5 - r.posZ;
+        return dx * dx + dz * dz <= CAMP_SLOT_REACHED_BLOCKS * CAMP_SLOT_REACHED_BLOCKS;
     }
 
     /**
@@ -1487,6 +1489,8 @@ public class VirtualTravellerManager extends WorldSavedData {
         CampsiteManager campMgr = CampsiteManager.get(world);
         BlockPos campStand = campMgr.slotStandPos(r.campSiteId, r.campSlotIndex);
         if (campStand == null) return new CampSpawnResult(null, fallback);
+        // Still on its way to the slot: it appears where it is and its camp AI walks the rest.
+        if (!isAtCampSlot(r, campStand)) return new CampSpawnResult(campStand, fallback);
 
         CampsiteRecord campRec = campMgr.getById(r.campSiteId);
         CampOccupant occ = campRec != null ? campRec.occupants.get(r.campSlotIndex) : null;
@@ -1597,6 +1601,8 @@ public class VirtualTravellerManager extends WorldSavedData {
                     * 180.0 / Math.PI) - 90.0F;
         }
         entity.setPositionAndRotation(pos.x, pos.y, pos.z, r.rotYaw, 0.0f);
+        com.jubitus.travellers.debug.MapJumpLog.materialized(r.uuid, world.getMinecraftServer().getTickCounter(),
+                r.posX, r.posZ, pos.x, pos.z, pos.via);
         entity.motionX = 0;
         entity.motionY = 0;
         entity.motionZ = 0;

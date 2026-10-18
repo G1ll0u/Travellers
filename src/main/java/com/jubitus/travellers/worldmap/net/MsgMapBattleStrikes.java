@@ -21,15 +21,19 @@ public class MsgMapBattleStrikes implements IMessage {
         public UUID attacker;
         public int attackerX, attackerZ;
         public int victimX, victimZ;
+        /** Server tick the strike fell at (client side, from the message tick and the age). */
+        public long tick;
     }
 
     private int dim;
+    private long serverTick;
     private List<Entry> entries = new ArrayList<>();
 
     public MsgMapBattleStrikes() {}
 
-    public MsgMapBattleStrikes(int dim, List<Entry> entries) {
+    public MsgMapBattleStrikes(int dim, long serverTick, List<Entry> entries) {
         this.dim = dim;
+        this.serverTick = serverTick;
         this.entries = entries;
     }
 
@@ -44,12 +48,14 @@ public class MsgMapBattleStrikes implements IMessage {
     @Override
     public void fromBytes(ByteBuf buf) {
         dim = buf.readInt();
+        serverTick = buf.readLong();
         int n = buf.readUnsignedShort();
         entries = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             Entry e = new Entry();
             e.kind = buf.readByte();
             e.ageTicks = buf.readByte();
+            e.tick = serverTick - e.ageTicks;
             e.attacker = new UUID(buf.readLong(), buf.readLong());
             e.attackerX = buf.readInt();
             e.attackerZ = buf.readInt();
@@ -62,6 +68,7 @@ public class MsgMapBattleStrikes implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(dim);
+        buf.writeLong(serverTick);
         buf.writeShort(entries.size());
         for (Entry e : entries) {
             buf.writeByte(e.kind);

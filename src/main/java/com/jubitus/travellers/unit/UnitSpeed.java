@@ -80,10 +80,13 @@ public final class UnitSpeed {
         return unit.isMountedOnBondedMount() ? TravellersConfig.SPEED.mountedPercent : travelPercent();
     }
 
-    /** Highest {@code setAIMoveSpeed} value allowed now. A mounted rider asks less: its horse multiplies the pace. */
+    /**
+     * Highest {@code setAIMoveSpeed} value allowed now. A mounted rider asks less: its horse multiplies the
+     * pace, so the ceiling holds on horseback too (a mounted fighter is no faster than one on foot).
+     */
     public static float maxAiSpeed(EntityTraveller unit) {
         double percent = ceilingPercent(unit);
-        if (unit.isMountedOnBondedMount() && unit.getAttackTarget() == null) percent /= mountedFactor();
+        if (unit.isMountedOnBondedMount()) percent /= mountedFactor();
         // Slowdowns applied as attribute modifiers (raised shield) lower the ceiling with the attribute.
         double attrRatio = MathHelper.clamp(
                 unit.getEntityAttribute(net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED).getAttributeValue()

@@ -342,6 +342,9 @@ public class VirtualBattleManager extends WorldSavedData {
         p.groupKey = groupKey;
         p.isGroupLeader = isGroupLeader;
         p.attackTimer = (rec.uuid.hashCode() & 7); // small stagger so hits don't sync up
+        if (rec.lastVirtualMoveTick != Long.MIN_VALUE) {
+            p.movesFromTick = rec.lastVirtualMoveTick + VirtualTravellerManager.SIM_INTERVAL;
+        }
         b.participants.put(p.uuid, p);
         rec.battleId = b.id;
         participantIndex.put(rec.uuid, b.id);
@@ -643,6 +646,9 @@ public class VirtualBattleManager extends WorldSavedData {
         if (list.isEmpty()) return;
 
         VirtualTravellerManager vtm = VirtualTravellerManager.get(world);
+        // Movement is cheap and runs for every battle each pass, so pawns run smoothly however many
+        // battles share the round-robin below; targeting and blows stay budgeted.
+        for (BattleRecord b : list) moveBattle(world, vtm, b, now);
         int budget = Math.min(TravellersConfig.BATTLE_EVENTS.maxBattlesSimPerTick, list.size());
         for (int i = 0; i < budget; i++) {
             BattleRecord b = list.get((simCursor + i) % list.size());
@@ -711,7 +717,7 @@ public class VirtualBattleManager extends WorldSavedData {
                     continue;
                 }
                 // No reachable enemy: drift toward the fight
-                moveToward(rec, b.anchor.getX() + 0.5, b.anchor.getZ() + 0.5, elapsed, 2.0, UnitSpeed.travelPercent());
+                walkTo(p, b.anchor.getX() + 0.5, b.anchor.getZ() + 0.5, 2.0, UnitSpeed.travelPercent());
                 p.tetherStuckTicks = 0;
                 p.lastTargetDist = -1;
                 if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
@@ -724,6 +730,7 @@ public class VirtualBattleManager extends WorldSavedData {
             EntityTraveller foe = trec == null ? loadedFoe(world, target.uuid) : null;
             if (trec == null && foe == null) {
                 p.targetUuid = null;
+                p.move = BattleParticipant.MoveIntent.STAND;
                 continue;
             }
 
@@ -739,10 +746,12 @@ public class VirtualBattleManager extends WorldSavedData {
 
             // INVARIANT: a virtual pawn never strikes a loaded foe (an invisible blow); it walks up to it and materializes.
             if (trec != null && prof.isArcher && dist >= prof.rangedMinDist && dist <= prof.rangedMaxDist) {
+                p.move = BattleParticipant.MoveIntent.STAND;
                 strike(world, vtm, b, p, rec, target, trec, prof.rangedDamage, prof.rangedCooldownTicks,
                         false, elapsed, now);
                 p.tetherStuckTicks = 0;
             } else if (trec != null && dist <= meleeReach) {
+                p.move = BattleParticipant.MoveIntent.STAND;
                 strike(world, vtm, b, p, rec, target, trec, prof.meleeDamage, prof.attackCooldownTicks,
                         true, elapsed, now);
                 p.tetherStuckTicks = 0;
@@ -751,7 +760,9 @@ public class VirtualBattleManager extends WorldSavedData {
                 // bow's minimum it closes in and fights in melee, so two archers can never freeze apart.
                 double stopAt = trec != null && prof.isArcher && dist > prof.rangedMaxDist
                         ? Math.max(prof.rangedMinDist, prof.rangedMaxDist * 0.8) : meleeReach * 0.75;
-                moveToward(rec, tx, tz, elapsed, stopAt, UnitSpeed.attackPercent());
+                p.move = BattleParticipant.MoveIntent.TO_TARGET;
+                p.moveStopAt = stopAt;
+                p.movePercent = UnitSpeed.attackPercent();
                 p.tetherStuckTicks = 0;
             } else {
                 // DEFEND/HOLD: this target strayed outside the leash - fall back to the anchor
@@ -760,7 +771,9 @@ public class VirtualBattleManager extends WorldSavedData {
                 // leaves the fight individually, the offscreen counterpart of EntityTraveller's
                 // generic stuck-target self-clear.
                 if (rec.goal != null) {
-                    moveToward(rec, rec.goal.getX() + 0.5, rec.goal.getZ() + 0.5, elapsed, 0.5, UnitSpeed.travelPercent());
+                    walkTo(p, rec.goal.getX() + 0.5, rec.goal.getZ() + 0.5, 0.5, UnitSpeed.travelPercent());
+                } else {
+                    p.move = BattleParticipant.MoveIntent.STAND;
                 }
                 p.tetherStuckTicks += elapsed;
                 if (p.tetherStuckTicks > TETHER_DISENGAGE_TICKS) {
@@ -1319,6 +1332,41 @@ public class VirtualBattleManager extends WorldSavedData {
             return new EntityTravellerRaider(world);
         }
         return new EntityTraveller(world);
+    }
+
+    private static void walkTo(BattleParticipant p, double x, double z, double stopAt, double percent) {
+        p.move = BattleParticipant.MoveIntent.TO_POINT;
+        p.moveX = x;
+        p.moveZ = z;
+        p.moveStopAt = stopAt;
+        p.movePercent = percent;
+    }
+
+    /** Moves every virtual pawn of the battle along the intent its last sim step gave it. */
+    private static void moveBattle(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, long now) {
+        // INVARIANT: never more than two passes of movement at once - a battle back from the ended list
+        // (reopen, merge) has a stale tick, and catching it up would throw its pawns tens of blocks.
+        int maxElapsed = 2 * TravellersConfig.BATTLE_EVENTS.battleSimIntervalTicks;
+        int elapsed = b.lastMoveTick < 0 ? 0 : (int) Math.min(Math.max(0, now - b.lastMoveTick), maxElapsed);
+        b.lastMoveTick = now;
+        if (elapsed <= 0) return;
+        for (BattleParticipant p : b.participants.values()) {
+            if (!p.alive || p.loaded || p.isPlayer || p.move == BattleParticipant.MoveIntent.STAND) continue;
+            VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
+            if (rec == null) continue;
+            int ticks = (int) Math.min(elapsed, now - p.movesFromTick);
+            if (ticks <= 0) continue;
+            if (p.move == BattleParticipant.MoveIntent.TO_POINT) {
+                moveToward(rec, p.moveX, p.moveZ, ticks, p.moveStopAt, p.movePercent);
+                continue;
+            }
+            double[] pos = p.targetUuid == null ? null : foePosition(world, vtm, p.targetUuid);
+            if (pos == null) {
+                p.move = BattleParticipant.MoveIntent.STAND;
+                continue;
+            }
+            moveToward(rec, pos[0], pos[1], ticks, p.moveStopAt, p.movePercent);
+        }
     }
 
     private static void moveToward(VirtualTravellerRecord rec, double tx, double tz,

@@ -32,7 +32,13 @@ public class TravellerMoveHelper extends EntityMoveHelper {
     @Override
     public void onUpdateMoveHelper() {
         float before = this.entity.rotationYaw;
+        boolean strafing = this.action == Action.STRAFE;
         super.onUpdateMoveHelper();
+        // Vanilla's strafe, blocked by an unwalkable cell, falls back to moveForward = 1 at full speed: that
+        // push is several times a normal walk (and a horse multiplies it). Walk forward at the normal pace.
+        if (strafing && this.entity.moveForward == 1.0F && this.entity.moveStrafing == 0.0F) {
+            this.entity.setMoveForward(this.entity.getAIMoveSpeed());
+        }
         if (!this.rider.isMountedOnBondedMount()) {
             // Strolling in a village: round, calm turns instead of vanilla's quarter turn per tick.
             if (this.rider.isVisitingVillage()) {

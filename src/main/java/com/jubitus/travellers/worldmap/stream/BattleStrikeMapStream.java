@@ -97,7 +97,7 @@ public class BattleStrikeMapStream {
                 out.sort(Comparator.comparingLong(en -> distSq(en.victimX, en.victimZ, cx, cz)));
                 out.subList(MAX_STRIKES_PER_PACKET, out.size()).clear();
             }
-            MapStreamStats.send(MapStreamStats.Stream.STRIKES, player, new MsgMapBattleStrikes(viewDim, out));
+            MapStreamStats.send(MapStreamStats.Stream.STRIKES, player, new MsgMapBattleStrikes(viewDim, server.getTickCounter(), out));
         }
     }
 

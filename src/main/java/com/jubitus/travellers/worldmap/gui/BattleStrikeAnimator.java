@@ -21,6 +21,7 @@ public final class BattleStrikeAnimator {
     private static final int MAX_ARROWS = 64;
     private static final int MAX_LUNGES = 256;
     private static final float MIN_LUNGE_BLOCKS = 0.5f;
+    private static final long MAX_SCHEDULE_AHEAD_MS = 10_000L;
 
     private static final class Arrow {
         float sx, sz, tx, tz;
@@ -74,6 +75,10 @@ public final class BattleStrikeAnimator {
             float p = (nowMs - a.startMs) / (float) ARROW_FLIGHT_MS;
             if (p >= 1f) {
                 it.remove();
+                continue;
+            }
+            if (a.startMs - nowMs > MAX_SCHEDULE_AHEAD_MS) {
+                it.remove(); // the map clock was reset behind it
                 continue;
             }
             if (p < 0f) continue; // scheduled, not flying yet

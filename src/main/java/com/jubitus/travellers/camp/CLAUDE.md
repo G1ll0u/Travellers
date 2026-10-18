@@ -10,4 +10,5 @@ Travellers, raiders and non-hired idle workers occasionally camp away from villa
 - Builder never refuses a block forever (yield, then place anyway). Movement distances are XZ-only.
 - `CampTerrainValidator` accepts only air or natural, non-liquid, non-hazard cells: failure means "no camp here", never a damaged structure.
 - Sleep is a cosmetic loaded-only pose. `campingPassive` suppresses proactive aggression only.
+- A virtual record walks to its camp slot (the slot is its goal), never placed on it; it materializes where it is unless already at the slot.
 - Death mid-build leaves a ruin (`orphans`). `/travellersdebug camp reset [all]` restores terrain without a player nearby, never on an occupied campsite.

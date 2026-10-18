@@ -54,6 +54,8 @@ public class BattleRecord {
     public final Set<UUID> notifiedOwners = new HashSet<>();
     /** Sim round-robin bookkeeping: world tick of the last sim step applied to this battle. */
     public long lastSimTick;
+    /** World tick of the last movement pass over this battle (-1 = none yet). Not saved. */
+    public transient long lastMoveTick = -1;
     /** Accumulated equipment/inventory of virtual pawns killed in this battle, distributed on endBattle. */
     public NBTTagList lootPool = new NBTTagList();
     /** Transient: world tick the battle ended, -1 while it runs (an ended battle is kept briefly for its map marker). */

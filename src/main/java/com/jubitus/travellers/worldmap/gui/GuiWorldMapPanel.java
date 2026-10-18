@@ -209,10 +209,10 @@ public class GuiWorldMapPanel {
                 if (m.unitId != null && archers.contains(m.unitId)) colours.put(m.unitId, m.argb);
             }
         }
-        long now = System.currentTimeMillis();
+        if (!MapPlaybackClock.CLIENT.isRunning()) return;
         for (com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry e : entries) {
-            // Same delay as the markers, so a shot leaves from where its archer is drawn.
-            long start = now + Math.max(0L, WorkerMarkerSmoother.RENDER_DELAY_MS - e.ageTicks * 50L);
+            // On the markers' clock, so a shot leaves from where its archer is drawn.
+            long start = e.tick * 50L;
             if (e.kind == com.jubitus.travellers.worldmap.stream.MapStrikeLog.ARROW) {
                 int argb = 0xFF000000 | colours.getOrDefault(e.attacker, STRIKE_FALLBACK_ARGB);
                 strikes.addArrow(e.attackerX, e.attackerZ, e.victimX, e.victimZ, argb, start);
@@ -394,7 +394,7 @@ public class GuiWorldMapPanel {
     private void drawMarkers(int mapX, int mapY) {
         float scale = markerScale();
         boolean directional = TravellersConfig.WORLDMAP.playerMarkerDirectional;
-        long now = System.currentTimeMillis();
+        long now = MapPlaybackClock.CLIENT.now();
         float[] lungeBuf = new float[3];
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);

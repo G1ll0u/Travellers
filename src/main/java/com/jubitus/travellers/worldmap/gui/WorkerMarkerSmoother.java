@@ -7,26 +7,18 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Client-side smoothing of unit markers. The server sends positions about once a second; a marker
- * is drawn {@link #RENDER_DELAY_MS} in the past, on a smooth curve through the last received
- * samples (cubic Hermite, velocity continuous at every sample), so direction and speed never break
- * at an update. Pure logic; the clock is passed in.
+ * Client-side smoothing of unit markers. The server sends positions once every 20 ticks; samples are
+ * timed in server time and a marker is drawn at {@link MapPlaybackClock} time, on a smooth curve through
+ * the last received samples (cubic Hermite, velocity continuous at every sample), so direction and
+ * speed never break at an update. Pure logic; the time is passed in.
  */
 public final class WorkerMarkerSmoother {
 
-    /** How far behind the newest data markers (and strike animations) are shown: a bit over one update. */
-    public static final long RENDER_DELAY_MS = 1100L;
     /** A jump longer than this (teleport, dimension hop, long gap) is shown at once, not glided. */
     private static final float SNAP_BLOCKS = 48f;
     private static final int KEEP = 4;
-    /** Past the newest sample (late update) a marker keeps its last velocity for this long, then stops. */
+    /** Past the newest sample a marker keeps its last velocity for this long, then stops. */
     private static final long MAX_EXTRAPOLATE_MS = 500L;
-    /** How far before its arrival a sample may be dated: well under the render delay, so it is never already drawn past. */
-    private static final long MAX_BEHIND_MS = 400L;
-    /** How far after its arrival a sample may be dated (after a late update); the lead then shrinks slowly. */
-    private static final long MAX_AHEAD_MS = RENDER_DELAY_MS;
-    /** Share of the time between two updates by which a lead shrinks: the marker runs at most this much faster. */
-    private static final float CATCH_UP_SHARE = 0.1f;
 
     private static final class Track {
         final float[] x = new float[KEEP];
@@ -76,45 +68,24 @@ public final class WorkerMarkerSmoother {
     }
 
     private final Map<UUID, Track> tracks = new HashMap<>();
-    private long lastServerTick = -1L;
-    private long lastSampleMs;
 
-    /**
-     * Time to give the samples of an update measured at {@code serverTick} and received at {@code arrivalMs}:
-     * spaced by real game time since the previous update, so late or bunched packets never squeeze a move.
-     */
-    public long sampleTime(long serverTick, long arrivalMs) {
-        long ms;
-        if (lastServerTick < 0 || serverTick < lastServerTick) {
-            ms = arrivalMs;
-        } else {
-            long gap = (serverTick - lastServerTick) * 50L;
-            ms = lastSampleMs + gap;
-            if (ms > arrivalMs) ms -= Math.min(ms - arrivalMs, (long) (gap * CATCH_UP_SHARE));
-            ms = Math.max(arrivalMs - MAX_BEHIND_MS, Math.min(arrivalMs + MAX_AHEAD_MS, ms));
-        }
-        lastServerTick = serverTick;
-        lastSampleMs = ms;
-        return ms;
-    }
-
-    /** Records a freshly received position for a unit. */
-    public void observe(UUID id, float x, float z, long nowMs) {
+    /** Records a position measured at {@code serverMs} (see {@link MapPlaybackClock#onUpdate}). */
+    public void observe(UUID id, float x, float z, long serverMs) {
         Track t = tracks.get(id);
         if (t == null) {
             t = new Track();
-            t.reset(x, z, nowMs);
+            t.reset(x, z, serverMs);
             tracks.put(id, t);
             return;
         }
         float dx = x - t.x[t.n - 1];
         float dz = z - t.z[t.n - 1];
         if (dx * dx + dz * dz > SNAP_BLOCKS * SNAP_BLOCKS) {
-            t.reset(x, z, nowMs);
+            t.reset(x, z, serverMs);
             return;
         }
-        if (nowMs <= t.t[t.n - 1]) return; // same instant: keep the earlier sample
-        t.add(x, z, nowMs);
+        if (serverMs <= t.t[t.n - 1]) return; // same instant: keep the earlier sample
+        t.add(x, z, serverMs);
     }
 
     /** Forgets every unit that is no longer reported. */
@@ -125,21 +96,23 @@ public final class WorkerMarkerSmoother {
         }
     }
 
-    public float x(UUID id, float fallback, long nowMs) {
+    /** Drawn X at playback time {@code playMs}. */
+    public float x(UUID id, float fallback, long playMs) {
         Track t = id == null ? null : tracks.get(id);
-        return t == null ? fallback : t.value(0, nowMs - RENDER_DELAY_MS);
+        return t == null ? fallback : t.value(0, playMs);
     }
 
-    public float z(UUID id, float fallback, long nowMs) {
+    /** Drawn Z at playback time {@code playMs}. */
+    public float z(UUID id, float fallback, long playMs) {
         Track t = id == null ? null : tracks.get(id);
-        return t == null ? fallback : t.value(1, nowMs - RENDER_DELAY_MS);
+        return t == null ? fallback : t.value(1, playMs);
     }
 
     public float x(UUID id, float fallback) {
-        return x(id, fallback, System.currentTimeMillis());
+        return x(id, fallback, MapPlaybackClock.CLIENT.now());
     }
 
     public float z(UUID id, float fallback) {
-        return z(id, fallback, System.currentTimeMillis());
+        return z(id, fallback, MapPlaybackClock.CLIENT.now());
     }
 }

@@ -22,3 +22,4 @@ All under `/travellersdebug`: one class per subcommand in `debug/cmd/`, register
 
 ## Others
 `destination report|log`, `relations`, `village …`, `stable …`, `map …`, `camp reset`, `battle`, `mount`, `elytra`, `terrain region`, `dialogue memory dump`, `reset [workers]`.
+- `MapJumpLog` writes every too-fast unit move to `logs/travellers-mapjumps.log` while any map is open, with the loaded/virtual hand-off and the materialize placement.
