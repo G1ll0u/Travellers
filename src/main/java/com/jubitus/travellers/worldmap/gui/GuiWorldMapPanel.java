@@ -1,6 +1,8 @@
 package com.jubitus.travellers.worldmap.gui;
 
+import com.jubitus.travellers.worldmap.client.ClientMapRoads;
 import com.jubitus.travellers.worldmap.client.ClientTileTextures;
+import com.jubitus.travellers.worldmap.client.MapRoadPainter;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.gui.GuiClip;
 import com.jubitus.travellers.worldmap.pyramid.MapPyramidStore;
@@ -518,9 +520,13 @@ public class GuiWorldMapPanel {
         for (Marker m : markers) {
             if (m.type.legendType().legendKey != null) present.add(m.type.legendType());
         }
-        if (present.isEmpty()) return;
+        List<RoadLegend> roadRows = new ArrayList<>();
+        if (ClientMapRoads.hasVillageRoads()) roadRows.add(RoadLegend.ROAD);
+        if (ClientMapRoads.hasLoneTrails()) roadRows.add(RoadLegend.TRAIL);
+        if (ClientMapRoads.hasBridges()) roadRows.add(RoadLegend.BRIDGE);
+        if (present.isEmpty() && roadRows.isEmpty()) return;
 
-        // Topmost kind first.
+        // Topmost kind first, roads last.
         List<Marker.MarkerType> rows = new ArrayList<>(present);
         java.util.Collections.reverse(rows);
 
@@ -530,14 +536,15 @@ public class GuiWorldMapPanel {
         int padX = 4, padY = 3;
 
         int maxTextW = 0;
-        String[] labels = new String[rows.size()];
-        for (int i = 0; i < rows.size(); i++) {
-            labels[i] = I18n.format(rows.get(i).legendKey);
+        int rowCount = rows.size() + roadRows.size();
+        String[] labels = new String[rowCount];
+        for (int i = 0; i < rowCount; i++) {
+            labels[i] = I18n.format(i < rows.size() ? rows.get(i).legendKey : roadRows.get(i - rows.size()).langKey);
             maxTextW = Math.max(maxTextW, fr.getStringWidth(labels[i]));
         }
 
         int legendW = padX + shapeArea + shapeGap + maxTextW + padX;
-        int legendH = padY + rows.size() * entryH + padY;
+        int legendH = padY + rowCount * entryH + padY;
         int lx = mapX + 3;
         int ly = mapY + h - legendH - 3;
 
@@ -553,6 +560,42 @@ public class GuiWorldMapPanel {
             GlStateManager.color(1f, 1f, 1f, 1f);
             fr.drawString(labels[i], lx + padX + shapeArea + shapeGap, ey + (entryH - 8) / 2, 0xEEDDBB);
         }
+        for (int i = 0; i < roadRows.size(); i++) {
+            int ey = ly + padY + (rows.size() + i) * entryH;
+            drawRoadSwatch(roadRows.get(i), lx + padX, ey + entryH / 2);
+            fr.drawString(labels[rows.size() + i], lx + padX + shapeArea + shapeGap, ey + (entryH - 8) / 2, 0xEEDDBB);
+        }
+    }
+
+    private enum RoadLegend {
+        ROAD("travellers.map.legend.road"), TRAIL("travellers.map.legend.trail"), BRIDGE("travellers.map.legend.bridge");
+
+        final String langKey;
+
+        RoadLegend(String langKey) { this.langKey = langKey; }
+    }
+
+    // A 12x7 scrap of map with the road drawn on it, so dark ink stays readable on the legend's dark ground.
+    private static void drawRoadSwatch(RoadLegend kind, int x, int cy) {
+        int ink = 0xFF000000 | MapRoadPainter.INK;
+        Gui.drawRect(x, cy - 3, x + 12, cy + 4, kind == RoadLegend.BRIDGE ? 0xFF6E6A5E : 0xFFCDB993);
+        switch (kind) {
+            case ROAD:
+                Gui.drawRect(x + 1, cy - 1, x + 11, cy + 2, ink);
+                Gui.drawRect(x + 1, cy, x + 11, cy + 1, 0xFF000000 | MapRoadPainter.PALE);
+                break;
+            case TRAIL:
+                for (int dx = 1; dx < 11; dx += 3) Gui.drawRect(x + dx, cy, x + dx + 2, cy + 1, ink);
+                break;
+            case BRIDGE:
+                Gui.drawRect(x + 3, cy - 1, x + 9, cy + 2, ink);
+                Gui.drawRect(x + 3, cy, x + 9, cy + 1, 0xFF000000 | MapRoadPainter.DECK);
+                Gui.drawRect(x + 2, cy - 2, x + 3, cy + 3, ink);
+                Gui.drawRect(x + 9, cy - 2, x + 10, cy + 3, ink);
+                break;
+        }
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
     }
 
     private int legendColor(Marker.MarkerType t) {

@@ -152,10 +152,9 @@ public final class ClientTileTextures {
 
     private static void build(int level, int tileX, int tileZ, byte[] tones) {
         int[] lut = lut();
-        if (ClientMapDiscovery.isFullMap()) {
-            for (int i = 0; i < PIXELS.length; i++) PIXELS[i] = lut[tones[i] & 0xFF];
-            return;
-        }
+        for (int i = 0; i < PIXELS.length; i++) PIXELS[i] = lut[tones[i] & 0xFF];
+        MapRoadPainter.paint(PIXELS, tones, level, tileX, tileZ);
+        if (ClientMapDiscovery.isFullMap()) return;
         int pb = 1 << level;
         int tileBlocks = PX * pb;
         int x0 = tileX * tileBlocks;
@@ -187,7 +186,7 @@ public final class ClientTileTextures {
                 float fx = gx - ix;
                 int o = iz * stride + ix;
                 int a00 = LATTICE[o], a10 = LATTICE[o + 1], a01 = LATTICE[o + stride], a11 = LATTICE[o + stride + 1];
-                int terrain = lut[tones[pz * PX + px] & 0xFF];
+                int terrain = PIXELS[pz * PX + px];
                 int sum = a00 + a10 + a01 + a11;
                 if (sum == 4) {
                     PIXELS[pz * PX + px] = terrain;

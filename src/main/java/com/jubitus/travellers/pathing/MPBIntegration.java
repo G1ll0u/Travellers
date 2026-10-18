@@ -21,6 +21,8 @@ public final class MPBIntegration {
     private static Method methodFindRoadRouteLegs;
     private static Method methodGetConnectedVillages;
     private static Method methodGetRoadPolylinesInBox;
+    private static Method methodGetRoadNetworkRevision;
+    private static Method methodGetRoadSegmentsForMap;
 
     /** Fallback leg split: consecutive waypoints farther apart than this are a village crossing. */
     private static final int LEG_GAP_THRESHOLD_SQ = 40 * 40;
@@ -51,6 +53,14 @@ public final class MPBIntegration {
                         WorldServer.class, int.class, int.class, int.class, int.class);
             } catch (NoSuchMethodException e) {
                 methodGetRoadPolylinesInBox = null;
+            }
+            // Optional (newer Ultreia only): the whole network with road kinds, for the worldmap.
+            try {
+                methodGetRoadNetworkRevision = apiClass.getMethod("getRoadNetworkRevision", WorldServer.class);
+                methodGetRoadSegmentsForMap = apiClass.getMethod("getRoadSegmentsForMap", WorldServer.class);
+            } catch (NoSuchMethodException e) {
+                methodGetRoadNetworkRevision = null;
+                methodGetRoadSegmentsForMap = null;
             }
             return true;
         } catch (ClassNotFoundException | NoSuchMethodException e) {
@@ -164,6 +174,33 @@ public final class MPBIntegration {
         try {
             List<List<BlockPos>> result = (List<List<BlockPos>>)
                     methodGetRoadPolylinesInBox.invoke(null, world, minX, minZ, maxX, maxZ);
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    /** True when the installed Ultreia can hand the whole road network to the worldmap. */
+    public static boolean hasMapRoads() {
+        return PRESENT && methodGetRoadSegmentsForMap != null;
+    }
+
+    /** Changes whenever the road network changes; -1 when unavailable. */
+    public static long getRoadNetworkRevision(WorldServer world) {
+        if (!hasMapRoads()) return -1L;
+        try {
+            return (Long) methodGetRoadNetworkRevision.invoke(null, world);
+        } catch (Exception e) {
+            return -1L;
+        }
+    }
+
+    /** Every segment as [kind (0 village road, 1 lone trail), widthBlocks, isBridge, x0, z0, x1, z1, ...]. */
+    @SuppressWarnings("unchecked")
+    public static List<int[]> getRoadSegmentsForMap(WorldServer world) {
+        if (!hasMapRoads()) return Collections.emptyList();
+        try {
+            List<int[]> result = (List<int[]>) methodGetRoadSegmentsForMap.invoke(null, world);
             return result != null ? result : Collections.emptyList();
         } catch (Exception e) {
             return Collections.emptyList();

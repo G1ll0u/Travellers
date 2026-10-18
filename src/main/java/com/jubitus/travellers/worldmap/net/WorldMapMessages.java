@@ -25,5 +25,6 @@ public final class WorldMapMessages {
         toClient(MsgMapBattleUpdate.class, () -> new MsgMapBattleUpdate.ClientHandler());
         toClient(MsgMapBattleStrikes.class, () -> new MsgMapBattleStrikes.ClientHandler());
         toClient(MsgMapForeignUnitsUpdate.class, () -> new MsgMapForeignUnitsUpdate.ClientHandler());
+        toClient(MsgMapRoads.class, () -> new MsgMapRoads.ClientHandler());
     }
 }

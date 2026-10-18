@@ -234,6 +234,7 @@ The Henchman will travel to the village, complete the transaction, and return to
 * A standalone world map (showing your Henchmen) can be opened with a key you assign yourself in **Options > Controls** under the Travellers category — no key is bound by default.
 * The map starts out hidden under fog: the terrain is revealed chunk by chunk as you walk into it, separately for each player.
 * The map only shows the Overworld.
+* With **Ultreïa** installed, its roads, trails and bridges are drawn on the map, only where you have explored.
 
 
 ### Potential incompatibilities

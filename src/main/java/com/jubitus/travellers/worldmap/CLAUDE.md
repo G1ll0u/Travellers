@@ -8,6 +8,7 @@ Slippy-map tile pyramid: level 0 is 256×256 px at 1 block/px sampled from the w
 - Tile compression is lazy (at save on the IO thread, or on first send). Persistence bypasses `WorldSavedData` (plain binary files on a background thread).
 - Tile requests only serve the store, never sample the world. Networking: pull unseen tiles, push fresh bytes for held ones (never invalidate-then-repull).
 - Client: one GPU texture per tile (`ClientTileTextures`), fog baked in, rebuilt lazily under a per-frame budget, LRU-capped.
+- Ultreïa roads are painted into tile pixels on the client (`MapRoadPainter`, before fog), never drawn as an overlay; the network is sent on map open only when its revision changed (`RoadMapSync`).
 - Fog of war is per chunk per player (`MapDiscoverySavedData`), revealed on entering a new chunk; distance phrases are computed client-side.
 - Unit fog: `ForeignUnitMapStream`/`BattleMapStream` only send what a vision source sees; `GuiTravellerPopulationMap` is exhaustive by design.
 - Markers: `GuiWorldMapPanel.Marker.MarkerType` (declaration order = draw order); a new kind = one enum constant + one `WorldMapMarkerFactory` method.

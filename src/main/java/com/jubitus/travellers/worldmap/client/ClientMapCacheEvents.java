@@ -27,5 +27,6 @@ public class ClientMapCacheEvents {
         ClientMapDiscovery.clear();
         ClientTileCache.clear();
         ClientTileTextures.clear();
+        ClientMapRoads.clear();
     }
 }
