@@ -52,10 +52,7 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
 
         renderer.bindTexture(style.getTexture(worker.isVisualLeader()));
 
-        // Disable lighting so the marker color is uniform regardless of face normals
-        // or camera angle. Avoids the angle-dependent brightness flicker.
-        GlStateManager.disableLighting();
-
+        // Lit like the body it sits on, so it matches the baked skin's shading.
         // Explicit blend func — robust against other mods that may have changed the state.
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(
@@ -78,7 +75,6 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
         GlStateManager.disablePolygonOffset();
         GlStateManager.disableBlend();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
-        GlStateManager.enableLighting();
     }
 
     @Override
