@@ -288,6 +288,10 @@ public class TravellersConfig {
         @Config.Comment("Beyond this distance (blocks), weapons and tools held by travellers, raiders and workers are drawn as a flat picture instead of a full 3D item. Much faster for big groups; loses the enchantment shine. Shields and 3D items are unchanged.")
         @Config.RangeInt(min = 4, max = 128)
         public int heldItemIconMinDistance = 16;
+
+        @Config.Comment("Beyond this distance (blocks), horses ridden by travellers, raiders and workers are drawn in one go and lose their tiny harness details (ropes, buckles, reins). Much faster for big cavalry groups.")
+        @Config.RangeInt(min = 4, max = 128)
+        public int mountLodMinDistance = 24;
     }
 
     public static class Spawn {

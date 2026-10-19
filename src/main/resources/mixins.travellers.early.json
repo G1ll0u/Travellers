@@ -13,7 +13,9 @@
     "MixinChunk"
   ],
   "client": [
-    "MixinLayerHeldItem"
+    "MixinLayerHeldItem",
+    "MixinModelHorse",
+    "MixinModelBoxAccessor"
   ],
   "server": []
 }
