@@ -142,6 +142,9 @@ public class EntityTraveller extends EntityCreature {
     // ---- GAP / CLIFF handling ----
     private static final DataParameter<Boolean> AIMING_BOW =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
+    // Mirrors isInCombat() so the client refuses right-clicks itself (the player's item use, e.g. a shield, then goes through).
+    private static final DataParameter<Boolean> IN_COMBAT =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.BOOLEAN);
     // --- Camp sleep pose (synced for render only, never persisted to NBT: virtualization must
     // never rematerialize an entity mid-sleep, see EntityAICampStay) ---
     static final DataParameter<Boolean> SLEEPING =
@@ -970,6 +973,7 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(TEXTURE_INDEX, 0);
         this.dataManager.register(RENDER_SCALE, 1.0F);
         this.dataManager.register(AIMING_BOW, Boolean.FALSE); // NEW
+        this.dataManager.register(IN_COMBAT, Boolean.FALSE);
         this.dataManager.register(SLEEPING, Boolean.FALSE);
         this.dataManager.register(SLEEPING_BED_POS, BlockPos.ORIGIN);
         this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
@@ -1247,6 +1251,7 @@ public class EntityTraveller extends EntityCreature {
         if (inCombat) {
             markCombatNow();
         }
+        if (!world.isRemote) this.dataManager.set(IN_COMBAT, isInCombat());
 
         if (world.isRemote) tickElytraBank();
         if (world.isRemote && hurtAnimCooldown > 0) hurtAnimCooldown--;
@@ -1427,8 +1432,9 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        if (world.isRemote) return true;
-        if (this.isInCombat() || !(player instanceof net.minecraft.entity.player.EntityPlayerMP)) {
+        if (world.isRemote) return !isInCombatSynced();
+        if (this.isInCombat()) return false;
+        if (!(player instanceof net.minecraft.entity.player.EntityPlayerMP)) {
             return talkTo(player, hand);
         }
         // Talk or follow: the choice screen's "Talk" comes back through MsgTalkToTraveller -> talkTo.
@@ -1440,21 +1446,17 @@ public class EntityTraveller extends EntityCreature {
     /** The plain "talk to" interaction: greeting voice, then dialogue screen or canned heading message. */
     public boolean talkTo(EntityPlayer player, EnumHand hand) {
         if (world.isRemote) return true;
+        if (this.isInCombat()) return false;
         if (speakCooldown > 0) return true;
 
         speakCooldown = 20; // ~1s between barks
         doInteractSwing(hand);
-        if (this.isInCombat()) {
-            return false;
-        }
-        if (!this.isInCombat()) {
-            // Choose hello vs talk
-            if (voice.shouldHelloFor(player)) {
-                voice.playHello();         // one hello variation
-                voice.markHello(player);        // start the 5-minute window for THIS player
-            } else {
-                voice.playTalk();          // normal chatter
-            }
+        // Choose hello vs talk
+        if (voice.shouldHelloFor(player)) {
+            voice.playHello();         // one hello variation
+            voice.markHello(player);        // start the 5-minute window for THIS player
+        } else {
+            voice.playTalk();          // normal chatter
         }
         // Dialogue master switch (server-side, off by default - see TravellersConfig.DIALOGUE and
         // the dialogue system's D-9): on, this replaces every canned message below with the real
@@ -2534,6 +2536,11 @@ public void fall(float distance, float damageMultiplier) {
 
     public boolean isInCombat() {
         return combat.isInCombat();
+    }
+
+    /** Client-readable combat state (server value, synced). */
+    public boolean isInCombatSynced() {
+        return this.dataManager.get(IN_COMBAT);
     }
 
     public boolean isInPostCombatSilence() {

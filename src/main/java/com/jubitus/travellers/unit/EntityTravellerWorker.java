@@ -908,7 +908,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Override
     public boolean processInteract(EntityPlayer player, EnumHand hand) {
-        if (world.isRemote) return true;
+        if (world.isRemote) return !isInCombatSynced();
         if (this.isInCombat()) {
             return false;
         }
