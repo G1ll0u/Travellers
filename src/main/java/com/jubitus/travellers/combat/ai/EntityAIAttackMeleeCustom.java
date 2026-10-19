@@ -295,19 +295,30 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
             if (steer != null && !PathBody.isMounted(attacker)) {
                 chaseBySteering(tgt, navMultiplier);
-            } else if (--repathCooldown <= 0) {
-                repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
-                if (!pathStillGood(tgt)
-                        && PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
-                    lastPathTick = attacker.ticksExisted;
-                    lastPathTargetX = tgt.posX;
-                    lastPathTargetZ = tgt.posZ;
-                    Vec3d curvedAim = mountedApproachAim(tgt, inReach);
-                    if (curvedAim != null) {
-                        attacker.getNavigator().tryMoveToXYZ(curvedAim.x, curvedAim.y, curvedAim.z, navMultiplier);
-                    } else {
-                        attacker.getNavigator().tryMoveToEntityLiving(tgt, navMultiplier);
+            } else {
+                if (--repathCooldown <= 0) {
+                    repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
+                    if (!pathStillGood(tgt)
+                            && attacker.ticksExisted >= pathRetryTick
+                            && PathBudget.tryAcquire(attacker.world, PathBudget.Client.COMBAT, attacker.getEntityId(), 1)) {
+                        lastPathTick = attacker.ticksExisted;
+                        lastPathTargetX = tgt.posX;
+                        lastPathTargetZ = tgt.posZ;
+                        Vec3d curvedAim = mountedApproachAim(tgt, inReach);
+                        if (curvedAim != null) {
+                            attacker.getNavigator().tryMoveToXYZ(curvedAim.x, curvedAim.y, curvedAim.z, navMultiplier);
+                        } else {
+                            attacker.getNavigator().tryMoveToEntityLiving(tgt, navMultiplier);
+                        }
+                        // A failed mounted search is the costliest A*; back off like the on-foot chase does.
+                        if (attacker.getNavigator().noPath()) {
+                            pathRetryTick = attacker.ticksExisted + STEER_PATH_RETRY_BACKOFF_TICKS;
+                        }
                     }
+                }
+                // No path while backing off: ride straight at the target if the corridor allows.
+                if (steer != null && attacker.getNavigator().noPath() && attacker.ticksExisted < pathRetryTick) {
+                    steer.steerToward(tgt.posX, tgt.posY, tgt.posZ, navMultiplier);
                 }
             }
 

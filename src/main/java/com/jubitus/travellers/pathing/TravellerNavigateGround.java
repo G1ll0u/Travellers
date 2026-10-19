@@ -636,16 +636,25 @@ public class TravellerNavigateGround extends PathNavigateGround {
         // acting on one), but the corridor behind it does not have to be re-proven every tick - it is
         // a few hundred block reads over a long probe. Re-check on a short cooldown, or immediately
         // if the destination changed, and coast on the last verdict in between.
-        boolean sameTarget = Math.abs(x - lastDirectSteerX) < 1.0D && Math.abs(z - lastDirectSteerZ) < 1.0D;
-        if (!sameTarget || directSteerRecheck <= 0) {
-            directSteerApproved = isBodyCorridorClear(from, new Vec3d(x, ground, z));
-            directSteerRecheck = DIRECT_STEER_RECHECK_TICKS;
-            lastDirectSteerX = x;
-            lastDirectSteerZ = z;
-        } else {
-            directSteerRecheck--;
+        // Two slots: a follower alternates its slot leg with the leader-trail leg, and one slot made
+        // each evict the other every tick.
+        long now = this.world.getTotalWorldTime();
+        int slot = -1;
+        for (int i = 0; i < 2; i++) {
+            if (now - directSteerTick[i] < DIRECT_STEER_RECHECK_TICKS
+                    && Math.abs(x - directSteerX[i]) < 1.0D && Math.abs(z - directSteerZ[i]) < 1.0D) {
+                slot = i;
+                break;
+            }
         }
-        if (!directSteerApproved) {
+        if (slot < 0) {
+            slot = directSteerTick[0] <= directSteerTick[1] ? 0 : 1;
+            directSteerApproved[slot] = isBodyCorridorClear(from, new Vec3d(x, ground, z));
+            directSteerTick[slot] = now;
+            directSteerX[slot] = x;
+            directSteerZ[slot] = z;
+        }
+        if (!directSteerApproved[slot]) {
             haltStaleDirectSteer();
             return false;
         }
@@ -664,10 +673,10 @@ public class TravellerNavigateGround extends PathNavigateGround {
      * a mob wandering into the way is noticed within a fifth of a second. */
     private static final int DIRECT_STEER_RECHECK_TICKS = 4;
 
-    private int directSteerRecheck = 0;
-    private boolean directSteerApproved = false;
-    private double lastDirectSteerX = Double.NaN;
-    private double lastDirectSteerZ = Double.NaN;
+    private final long[] directSteerTick = {Long.MIN_VALUE / 2, Long.MIN_VALUE / 2};
+    private final boolean[] directSteerApproved = new boolean[2];
+    private final double[] directSteerX = {Double.NaN, Double.NaN};
+    private final double[] directSteerZ = {Double.NaN, Double.NaN};
 
     /**
      * Shared probe behind {@link #canReachOnFootSized} and {@link #isReachable}: does a real A*

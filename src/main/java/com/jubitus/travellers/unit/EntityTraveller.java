@@ -1958,6 +1958,8 @@ public void fall(float distance, float damageMultiplier) {
         // heading survives into the same tick's physics.
         if (!this.world.isRemote) {
             this.elytraFlight.tick();
+            // A passenger is placed by its mount right after; its own physics pass is a wasted collision query.
+            if (this.isRiding()) return;
         }
 
         if (this.isInWater()) {

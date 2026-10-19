@@ -22,6 +22,12 @@ final class FollowPathRequester {
     private static final int RECENT_PATH_SUCCESS_BLOCK_TELEPORT_TICKS = 80;
     int repathCooldown;
 
+    private static final int FAILED_SEARCH_MEMORY_TICKS = 40;
+    private static final double FAILED_SEARCH_SAME_FROM_SQ = 2.0D * 2.0D;
+    private static final double FAILED_SEARCH_SAME_GOAL_SQ = 3.0D * 3.0D;
+    private long failTick = Long.MIN_VALUE / 2;
+    private double failFromX, failFromZ, failGoalX, failGoalZ;
+
     FollowPathRequester(EntityAIFollowLeader ai, EntityTraveller follower) {
         this.ai = ai;
         this.follower = follower;
@@ -32,6 +38,19 @@ final class FollowPathRequester {
                      FollowMode mode, boolean noPath, double distToGoal, double distToLeader, double moveSpeed,
                      boolean airborneLeader) {
         int priority = getPathPriority(noPath, distToGoal, distToLeader, mode, slot);
+
+        if (failedHereRecently(goal)) {
+            // Same handling as a scheduler denial: steer, and count it as failure only while steering fails too.
+            if (ai.steering.direct.steeringBlockedTicks >= TravellersConfig.WORKER_FORMATION.steeringBlockedEscalationGraceTicks) {
+                ai.stuck.failedAllowedPathTicks += 4;
+                ai.stuck.pathFailTicks++;
+            }
+            hasActivePathGoal = false;
+            ai.steering.applyNonPathSteering(goal, target, moveSpeed, airborneLeader, mode);
+            repathCooldown = getRepathInterval(slot, priority, false, mode);
+            follower.setSprinting(false);
+            return;
+        }
 
         PathScheduler.AcquireResult acquire =
                 PathScheduler.tryAcquireDetailed(follower.world, target, follower.getEntityId(), priority,
@@ -66,6 +85,7 @@ final class FollowPathRequester {
                 ai.stuck.failedAllowedPathTicks += 4;
                 ai.stuck.pathFailTicks++;
                 hasActivePathGoal = false;
+                rememberFailure(goal);
                 // The A* search itself found no route this tick (e.g. this follower's own lateral
                 // offset doesn't line up with a valid crossing, or the search budget ran out on a
                 // detour) - fall back to direct steering instead of leaving the entity with no
@@ -236,6 +256,21 @@ final class FollowPathRequester {
         double dz = end.z + 0.5D - goal.z;
         return dx * dx + dz * dz <= TravellerNavigateGround.PARTIAL_PATH_TOLERANCE * TravellerNavigateGround.PARTIAL_PATH_TOLERANCE
                 && Math.abs(end.y - goal.y) <= TravellerNavigateGround.PARTIAL_PATH_TOLERANCE;
+    }
+
+    private void rememberFailure(GoalCandidate goal) {
+        failTick = follower.world.getTotalWorldTime();
+        failFromX = follower.posX;
+        failFromZ = follower.posZ;
+        failGoalX = goal.x;
+        failGoalZ = goal.z;
+    }
+
+    /** A search from about here to about this goal found nothing moments ago; it would find nothing again. */
+    private boolean failedHereRecently(GoalCandidate goal) {
+        if (follower.world.getTotalWorldTime() - failTick >= FAILED_SEARCH_MEMORY_TICKS) return false;
+        return FollowMath.distanceSq2D(follower.posX, follower.posZ, failFromX, failFromZ) <= FAILED_SEARCH_SAME_FROM_SQ
+                && FollowMath.distanceSq2D(goal.x, goal.z, failGoalX, failGoalZ) <= FAILED_SEARCH_SAME_GOAL_SQ;
     }
 
     private void markActivePathGoal(GoalCandidate goal) {

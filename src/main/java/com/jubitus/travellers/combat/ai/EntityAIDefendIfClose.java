@@ -1,6 +1,7 @@
 package com.jubitus.travellers.combat.ai;
 
 import com.jubitus.travellers.combat.Hostility;
+import com.jubitus.travellers.combat.SharedThreatScan;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
@@ -125,67 +126,47 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         EntityLivingBase current = mob.getAttackTarget();
         if (current != null && current.isEntityAlive()) return false;
 
-        // Budget the expensive AABB scan below world-wide so mass battles can't spike CPU.
         // Boosted (just lost a target) scans get slight priority so post-kill retargeting
         // doesn't starve behind idle scans.
         int scanPriority = mob.isRetargetBoosted() ? 2 : 0;
-        if (!PathBudget.tryAcquire(mob.world, PathBudget.Client.COMBAT_SCAN, mob.getEntityId(), scanPriority)) return false;
 
         double effRangeSq = currentTriggerRangeSq();
         double effRange = Math.sqrt(effRangeSq);
+        AxisAlignedBB localBox = mob.getEntityBoundingBox().grow(effRange, 1.5D, effRange);
 
-        AxisAlignedBB aabb;
         // Only set for a hired follower with a live owner - used below to widen the vertical
         // cave filter for anything already actively attacking that owner (e.g. an archer on a
-        // wall/tower well above ground, common around AW2 towns - a tight vertical band is
-        // right for filtering out unrelated stuff in an adjacent cave, wrong for an attacker
-        // that's already engaged).
+        // wall/tower well above ground, common around AW2 towns).
         EntityPlayer scanOwner = null;
+        List<EntityLivingBase> nearby;
 
         if (mob instanceof EntityTravellerWorker) {
             EntityTravellerWorker w = (EntityTravellerWorker) mob;
-            if (w.isHiredFollower()) {
-                EntityPlayer owner = w.getFollowOwner();
-                if (owner != null && owner.isEntityAlive()) {
-                    scanOwner = owner;
-                    // Union of a box around the owner AND a box around this worker's own
-                    // position - the owner-only box used to be the whole thing, which meant a
-                    // worker standing far from the owner (routine in a large spread-out
-                    // formation) had zero defensive awareness of its own surroundings: a threat
-                    // attacking that worker directly, or standing right next to it, was only
-                    // ever noticed once it also got within range of the owner. Only the one
-                    // worker actually hit (via its own hurt-by-target reaction) would react;
-                    // every other nearby worker in the same formation stayed idle.
-                    AxisAlignedBB obb = owner.getEntityBoundingBox();
-                    AxisAlignedBB ownerBox = new AxisAlignedBB(
-                            obb.minX - effRange, obb.minY - effRange, obb.minZ - effRange,
-                            obb.maxX + effRange, obb.maxY + effRange, obb.maxZ + effRange
-                    );
-                    AxisAlignedBB selfBox = mob.getEntityBoundingBox().grow(effRange, effRange, effRange);
-                    aabb = ownerBox.union(selfBox);
-                } else {
-                    // fallback: use the worker
-                    AxisAlignedBB bb = mob.getEntityBoundingBox();
-                    aabb = new AxisAlignedBB(
-                            bb.minX - effRange, bb.minY - 1.5, bb.minZ - effRange,
-                            bb.maxX + effRange, bb.maxY + 1.5, bb.maxZ + effRange
-                    );
+            EntityPlayer owner = w.isHiredFollower() ? w.getFollowOwner() : null;
+            if (owner != null && owner.isEntityAlive()) {
+                scanOwner = owner;
+                // A box around the owner AND one around this worker: a worker far out in a large
+                // formation must still notice a threat standing next to it, not only near the owner.
+                UUID scope = owner.getUniqueID();
+                List<EntityLivingBase> nearOwner = SharedThreatScan.scan(mob, scope, owner,
+                        owner.getEntityBoundingBox().grow(effRange), effRange, scanPriority);
+                if (nearOwner == null) return false;
+                List<EntityLivingBase> nearSelf = SharedThreatScan.scan(mob, scope, owner,
+                        mob.getEntityBoundingBox().grow(effRange), effRange, scanPriority);
+                if (nearSelf == null) return false;
+                nearby = nearOwner;
+                for (EntityLivingBase e : nearSelf) {
+                    if (!nearby.contains(e)) nearby.add(e);
                 }
             } else {
-                // normal, non-follower behaviour
-                AxisAlignedBB bb = mob.getEntityBoundingBox();
-                aabb = new AxisAlignedBB(
-                        bb.minX - effRange, bb.minY - 1.5, bb.minZ - effRange,
-                        bb.maxX + effRange, bb.maxY + 1.5, bb.maxZ + effRange
-                );
+                nearby = SharedThreatScan.scan(mob, null, null, localBox, effRange, scanPriority);
             }
         } else {
-            AxisAlignedBB bb = mob.getEntityBoundingBox();
-            aabb = new AxisAlignedBB(
-                    bb.minX - effRange, bb.minY - 1.5, bb.minZ - effRange,
-                    bb.maxX + effRange, bb.maxY + 1.5, bb.maxZ + effRange
-            );
+            // A plain traveller/raider group shares its leader's scan.
+            nearby = SharedThreatScan.scan(mob, mob.getGroupLeaderUUID(), mob.getEffectiveFollowTarget(),
+                    localBox, effRange, scanPriority);
         }
+        if (nearby == null) return false;
 
         // Players a nearby faction-ally is already actively fighting - the only way this
         // proactive scan may ever pick up a player, since an unprovoked player standing nearby
@@ -200,9 +181,10 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         // workers have their own dedicated, owner-aware group escalation (PlayerHostility.rallyGroupAgainst).
         java.util.Set<UUID> hostilePlayers = null;
         if (!(mob instanceof EntityTravellerWorker)) {
-            for (EntityTraveller a : mob.world.getEntitiesWithinAABB(EntityTraveller.class, aabb,
-                    a -> a != null && a.isEntityAlive() && a != mob && !(a instanceof EntityTravellerWorker)
-                            && !Hostility.isCrossFaction(a, mob))) {
+            for (EntityLivingBase e : nearby) {
+                if (!(e instanceof EntityTraveller) || e == mob || e instanceof EntityTravellerWorker) continue;
+                EntityTraveller a = (EntityTraveller) e;
+                if (Hostility.isCrossFaction(a, mob)) continue;
                 EntityLivingBase t = a.getAttackTarget();
                 if (t instanceof EntityPlayer) {
                     if (hostilePlayers == null) hostilePlayers = new java.util.HashSet<>();
@@ -212,29 +194,26 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         }
         final java.util.Set<UUID> alliesFighting = hostilePlayers;
 
-        List<EntityLivingBase> list = mob.world.getEntitiesWithinAABB(
-                EntityLivingBase.class, aabb,
-                e -> {
-                    if (e == null || !e.isEntityAlive()) return false;
-                    boolean included = e instanceof net.minecraft.entity.monster.IMob
-                            // NEW: LavaCow IAggressive via reflection
-                            || TravellerHostilityHelper.isLavaCowAggressive(e)
-                            // cross-faction travellers
-                            || (e instanceof EntityTraveller
-                            && Hostility.isCrossFaction((EntityTraveller) e, mob))
-                            // a player a faction-ally is already fighting
-                            || (e instanceof EntityPlayer && alliesFighting != null && alliesFighting.contains(e.getUniqueID()))
-                            // your custom extra config
-                            || mob.shouldAttackExtraEntity(e);
-                    if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
-                            && com.jubitus.travellers.combat.compat.AncientWarfare2Compat.isFactionNpc(e)) {
-                        net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
-                                "[Travellers/AW2] %s AABB predicate for %s#%s = %b (in scan box)",
-                                mob.getName(), e.getName(), e.getUniqueID(), included);
-                    }
-                    return included;
-                }
-        );
+        List<EntityLivingBase> list = new java.util.ArrayList<>();
+        for (EntityLivingBase e : nearby) {
+            boolean included = e instanceof net.minecraft.entity.monster.IMob
+                    // NEW: LavaCow IAggressive via reflection
+                    || TravellerHostilityHelper.isLavaCowAggressive(e)
+                    // cross-faction travellers
+                    || (e instanceof EntityTraveller
+                    && Hostility.isCrossFaction((EntityTraveller) e, mob))
+                    // a player a faction-ally is already fighting
+                    || (e instanceof EntityPlayer && alliesFighting != null && alliesFighting.contains(e.getUniqueID()))
+                    // your custom extra config
+                    || mob.shouldAttackExtraEntity(e);
+            if (TravellersConfig.COMPAT.ancientWarfare2DebugLog
+                    && com.jubitus.travellers.combat.compat.AncientWarfare2Compat.isFactionNpc(e)) {
+                net.minecraftforge.fml.common.FMLLog.log(org.apache.logging.log4j.Level.INFO,
+                        "[Travellers/AW2] %s AABB predicate for %s#%s = %b (in scan box)",
+                        mob.getName(), e.getName(), e.getUniqueID(), included);
+            }
+            if (included) list.add(e);
+        }
         if (list.isEmpty()) return false;
 
         // In mass combat the list can contain hundreds of entities. Sort by distance (cheap)

@@ -244,9 +244,9 @@ public final class MountTerrainProfile {
             AxisAlignedBB sweep = new AxisAlignedBB(
                     cx - halfWidth, fit.surface + 1.0E-3D, cz - halfWidth,
                     cx + halfWidth, fit.surface + bodyHeight - 1.0E-3D, cz + halfWidth);
-            if (world.collidesWithAnyBlock(sweep)) return false;
+            if (collidesWithBlocks(world, sweep)) return false;
             // A step up: the body first rises in place at the previous sample (vanilla step-up).
-            if (fit.surface > surf + 1.0E-3D && world.collidesWithAnyBlock(new AxisAlignedBB(
+            if (fit.surface > surf + 1.0E-3D && collidesWithBlocks(world, new AxisAlignedBB(
                     prevX - halfWidth, surf + bodyHeight + 1.0E-3D, prevZ - halfWidth,
                     prevX + halfWidth, fit.surface + bodyHeight - 1.0E-3D, prevZ + halfWidth))) {
                 return false;
@@ -271,6 +271,36 @@ public final class MountTerrainProfile {
             prevZ = cz;
         }
         return true;
+    }
+
+    /**
+     * {@code World.collidesWithAnyBlock} without its per-block Forge collision event: same cells
+     * (one-block margin for fences and walls, unloaded columns skipped), same block boxes.
+     */
+    private static boolean collidesWithBlocks(World world, AxisAlignedBB box) {
+        int minX = MathHelper.floor(box.minX) - 1;
+        int maxX = MathHelper.ceil(box.maxX) + 1;
+        int minY = MathHelper.floor(box.minY) - 1;
+        int maxY = MathHelper.ceil(box.maxY) + 1;
+        int minZ = MathHelper.floor(box.minZ) - 1;
+        int maxZ = MathHelper.ceil(box.maxZ) + 1;
+        java.util.List<AxisAlignedBB> hits = new java.util.ArrayList<>(2);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int x = minX; x < maxX; x++) {
+            for (int z = minZ; z < maxZ; z++) {
+                boolean edgeX = x == minX || x == maxX - 1;
+                boolean edgeZ = z == minZ || z == maxZ - 1;
+                if (edgeX && edgeZ) continue;
+                if (!world.isBlockLoaded(pos.setPos(x, 64, z))) continue;
+                for (int y = minY; y < maxY; y++) {
+                    if ((edgeX || edgeZ) && y == maxY - 1) continue;
+                    pos.setPos(x, y, z);
+                    world.getBlockState(pos).addCollisionBoxToList(world, pos, box, hits, null, false);
+                    if (!hits.isEmpty()) return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
