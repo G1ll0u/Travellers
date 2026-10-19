@@ -66,16 +66,21 @@ public final class UnitSpeed {
         return Math.max(1.0D, TravellersConfig.SPEED.mountedPercent / Math.max(1.0D, travelPercent()));
     }
 
+    /** Fastest pace (percent) a follower or catching-up unit may reach. */
+    public static double followMaxPercent(boolean mounted) {
+        return mounted ? TravellersConfig.SPEED.mountedFollowMaxPercent : TravellersConfig.SPEED.followMaxPercent;
+    }
+
     /** How much faster than travel pace a follower may go to close a gap. */
-    public static double followCatchUpFactor() {
-        return Math.max(1.0D, TravellersConfig.SPEED.followMaxPercent / Math.max(1.0D, travelPercent()));
+    public static double followCatchUpFactor(boolean mounted) {
+        return Math.max(1.0D, followMaxPercent(mounted) / Math.max(1.0D, travelPercent()));
     }
 
     /** Speed (percent) a unit never exceeds in its current situation, as it moves on the ground. */
     public static double ceilingPercent(EntityTraveller unit) {
         if (unit.getAttackTarget() != null) return attackPercent();
         if (unit.isRouteLocked() || (unit.isHiredFollower() && !unit.isJobActive())) {
-            return TravellersConfig.SPEED.followMaxPercent;
+            return followMaxPercent(unit.isMountedOnBondedMount());
         }
         return unit.isMountedOnBondedMount() ? TravellersConfig.SPEED.mountedPercent : travelPercent();
     }

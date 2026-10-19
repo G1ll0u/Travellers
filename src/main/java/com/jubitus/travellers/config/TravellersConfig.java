@@ -495,6 +495,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 20, max = 300)
         public double followMaxPercent = 125;
 
+        @Config.Comment("Fastest pace a rider following or catching up may reach, in % of a walking player. Riders keep their leader's pace and only use this to close a gap, so it is what makes them catch up faster than walkers.")
+        @Config.RangeDouble(min = 20, max = 400)
+        public double mountedFollowMaxPercent = 150;
+
         @Config.Comment("Boat speed multiplier for anyone convoying alongside someone else's boat (hired workers following their owner, and travellers/raiders following their group leader).")
         @Config.RangeDouble(min = 0.1, max = 10.0)
         public double followerBoatConvoySpeed = 1.0;

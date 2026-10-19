@@ -65,7 +65,7 @@ final class FollowSpeedPolicy {
             percent *= MathHelper.clamp(distToGoal / wf.mountedArrivalDecelRadius, 0.35D, 1.0D);
         }
 
-        percent = MathHelper.clamp(percent, MIN_FOLLOW_PERCENT, TravellersConfig.SPEED.followMaxPercent);
+        percent = MathHelper.clamp(percent, MIN_FOLLOW_PERCENT, UnitSpeed.followMaxPercent(mounted));
         // The horse multiplies the rider's own pace: ask the rider for the share it does not provide.
         if (mounted) percent /= UnitSpeed.mountedFactor();
 

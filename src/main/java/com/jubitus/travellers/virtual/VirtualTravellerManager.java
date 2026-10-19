@@ -250,18 +250,21 @@ public class VirtualTravellerManager extends WorldSavedData {
             // close the gap faster than the normal walk speed instead of trudging back at the same
             // pace they'd use for routine formation adjustments.
             double stepCap;
+            boolean followBoosted = false;
             if (r.escortLeaderUUID != null && dist > TravellersConfig.WORKER_FORMATION.virtualRegroupTriggerDistance) {
-                stepCap = simStep * UnitSpeed.followCatchUpFactor();
+                stepCap = simStep * UnitSpeed.followCatchUpFactor(mountedPace);
+                followBoosted = true;
             } else if (r.groupLeaderUUID != null && dist > TravellersConfig.GROUP_FOLLOW.catchUpTriggerDistance) {
                 // Traveller/raider group follower falling behind: mirrors the loaded follow AI's
                 // catch-up boost so "falls behind -> speeds up" holds whether loaded or virtual.
-                stepCap = simStep * UnitSpeed.followCatchUpFactor();
+                stepCap = simStep * UnitSpeed.followCatchUpFactor(mountedPace);
+                followBoosted = true;
             } else {
                 stepCap = simStep;
             }
             // Mounted records cover ground faster offscreen too, mirroring the horse's real speed
             // bonus. A rider that went virtual leading or hitching its horse is walking.
-            if (mountedPace) stepCap *= UnitSpeed.mountedFactor();
+            if (mountedPace && !followBoosted) stepCap *= UnitSpeed.mountedFactor();
             // A follower whose leader is crossing by boat keeps up with the boat.
             if (leaderAfloat(r)) stepCap = Math.max(stepCap, simStep * TravellersConfig.ROUTING.boatVirtualSpeedMultiplier);
             moveToward(r, r.goal.getX() + 0.5, r.goal.getZ() + 0.5, stepCap, now);
