@@ -146,6 +146,7 @@ public class Travellers {
         MinecraftForge.EVENT_BUS.register(ModSounds.class);
         MinecraftForge.EVENT_BUS.register(TravellerSoftSpawner.class);
         MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.raid.RaidScheduler.class);
+        MinecraftForge.EVENT_BUS.register(com.jubitus.travellers.debug.freeze.FreezeWatchdog.class);
         // Virtualizes travellers/raiders/workers the instant their chunk unloads (the mirror of
         // VirtualTravellerManager materializing them when a chunk loads).
         MinecraftForge.EVENT_BUS.register(
@@ -248,6 +249,7 @@ public class Travellers {
         // Every open trace has to be closed here, or it never gets its summary written.
         com.jubitus.travellers.debug.trace.TravellerTracer.shutdown(server);
         com.jubitus.travellers.debug.profile.MovementProfiler.shutdown();
+        com.jubitus.travellers.debug.freeze.FreezeWatchdog.reset();
 
         // Static per-dimension caches keyed by dimension id alone would otherwise bleed into the next
         // world loaded in this same client session (two different save files can both use dimension 0).
