@@ -284,6 +284,10 @@ public class TravellersConfig {
         @Config.Comment("Beyond this distance (blocks) from the camera, skip rendering the held item (weapon/tool in hand) for travellers/raiders/workers. Highest-impact option since vanilla's 3D item rendering is the single most expensive part of entity rendering.")
         @Config.RangeInt(min = 4, max = 128)
         public int heldItemMaxDistance = 32;
+
+        @Config.Comment("Beyond this distance (blocks), weapons and tools held by travellers, raiders and workers are drawn as a flat picture instead of a full 3D item. Much faster for big groups; loses the enchantment shine. Shields and 3D items are unchanged.")
+        @Config.RangeInt(min = 4, max = 128)
+        public int heldItemIconMinDistance = 16;
     }
 
     public static class Spawn {
