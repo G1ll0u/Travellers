@@ -36,6 +36,8 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
         EntityTravellerWorker worker = (EntityTravellerWorker) entity;
         if (!worker.shouldRenderOwnerMark()) return;
 
+        if (renderer.isRenderingBaked()) return;
+
         if (RenderLodHelper.isBeyond(entity, TravellersConfig.ENTITY_RENDER_LOD.armbandLayerMaxDistance)) return;
 
         WorkerMarkStyle style = worker.getOwnerMarkStyle();

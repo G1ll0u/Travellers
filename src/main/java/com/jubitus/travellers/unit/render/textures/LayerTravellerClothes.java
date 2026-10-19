@@ -24,13 +24,9 @@ public class LayerTravellerClothes implements net.minecraft.client.renderer.enti
 
         if (RenderLodHelper.isBeyond(entity, TravellersConfig.ENTITY_RENDER_LOD.clothesLayerMaxDistance)) return;
 
-        TravellerAppearance app = entity.getActiveAppearance();
+        if (renderer.isRenderingBaked()) return;
 
-        // pick one clothes texture at random *per entity* or based on some saved choice
-        // simplest: deterministic by entity UUID so it stays stable
-        java.util.Random r = new java.util.Random(entity.getUniqueID().getMostSignificantBits()
-                ^ entity.getUniqueID().getLeastSignificantBits());
-        ResourceLocation clothes = app.pickRandomClothes(r);
+        ResourceLocation clothes = clothesFor(entity);
         if (clothes == null) return;
 
         renderer.bindTexture(clothes);
@@ -45,6 +41,14 @@ public class LayerTravellerClothes implements net.minecraft.client.renderer.enti
                 netHeadYaw, headPitch, scale);
 
         net.minecraft.client.renderer.GlStateManager.disableBlend();
+    }
+
+    /** The unit's clothes overlay, stable per UUID; shared with the baked skin. */
+    public static ResourceLocation clothesFor(EntityTraveller entity) {
+        TravellerAppearance app = entity.getActiveAppearance();
+        java.util.Random r = new java.util.Random(entity.getUniqueID().getMostSignificantBits()
+                ^ entity.getUniqueID().getLeastSignificantBits());
+        return app.pickRandomClothes(r);
     }
 
     @Override

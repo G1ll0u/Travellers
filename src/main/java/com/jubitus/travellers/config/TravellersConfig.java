@@ -265,6 +265,10 @@ public class TravellersConfig {
         @Config.Comment("Master switch for distance-based LOD on traveller/raider/worker entity rendering (cosmetic overlay layers + held item). Reduces GPU/CPU cost when many are visible at once. Purely cosmetic beyond the configured distances.")
         public boolean enabled = false;
 
+        @Config.Comment("Beyond this distance (blocks), travellers, raiders and workers are drawn in a single pass, with clothes, armour and owner mark painted onto their skin. Much faster for big groups; armour looks flatter and loses its enchantment shine.")
+        @Config.RangeInt(min = 4, max = 128)
+        public int bakedSkinMinDistance = 16;
+
         @Config.Comment("Beyond this distance (blocks) from the camera, skip the clothes overlay layer. This layer re-renders the full biped model a second time, so it's the most expensive of the three and invisible at range anyway.")
         @Config.RangeInt(min = 4, max = 128)
         public int clothesLayerMaxDistance = 96;

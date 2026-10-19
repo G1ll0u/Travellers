@@ -134,7 +134,7 @@ One question, one answer. Never add a second helper for a question listed here.
 - **Culture**: `CultureRegistry` parses Millénaire's villager files so units look like real villagers of their culture. `EntityTraveller.getActiveAppearance()` is the one appearance resolver (texture and scale must agree). Hitbox width must stay under 1.0 (vanilla's node processor would demand 2-block corridors). First/family names never cross-paired across castes.
 - **Spawn**: `TravellerSoftSpawner.runVirtualPopulationTopUp()` only ever creates virtual records; real entities appear by materializing. A village's population is its Millénaire villager records (`MillSettlements`), never loaded `MillVillager` entities. `PopulationQuota` is the one quota formula.
 - **Player hostility**: `PlayerEnemyRelations` is account-wide per owner (one-sided until the declarer's workers land a hit, then mutual); `PlayerHostility.localHostilePlayers` is a separate per-worker transient retaliation list.
-- **Render LOD** (`unit/render/RenderLodHelper`): cosmetic layers are distance-culled; never in a portrait (`isRenderingPortrait`).
+- **Render LOD** (`unit/render/RenderLodHelper`): cosmetic layers are distance-culled; never in a portrait (`isRenderingPortrait`). Beyond `bakedSkinMinDistance` a unit is drawn from a baked skin: any new layer that draws on the body must return early when `RenderTraveller.isRenderingBaked()` and, if it adds colour, be folded into `BakedSkinKey`/`BakedSkins`.
 
 ## Mixins
 

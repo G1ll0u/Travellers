@@ -8,6 +8,7 @@ import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
+import com.jubitus.travellers.unit.render.baked.BakedSkins;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.RenderBiped;
@@ -15,24 +16,40 @@ import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.entity.layers.LayerBipedArmor;
 import net.minecraft.client.renderer.entity.layers.LayerCustomHead;
 import net.minecraft.client.renderer.entity.layers.LayerHeldItem;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
+import javax.annotation.Nullable;
+
 public class RenderTraveller extends RenderBiped<EntityTraveller> {
+
+    private final LayerBipedArmor armorLayer;
+    // Set for the duration of one doRender when this unit is drawn from its baked skin.
+    @Nullable
+    private ResourceLocation bakedTexture;
 
     public RenderTraveller(RenderManager renderManagerIn) {
         super(renderManagerIn, new ModelSimpleHumanoid(), 0.5F);
 
         this.addLayer(new LayerHeldItem(this));
 
-        this.addLayer(new LayerBipedArmor(this) {
+        this.armorLayer = new LayerBipedArmor(this) {
             @Override
             protected void initArmor() {
                 this.modelLeggings = new ModelSimpleHumanoid(0.15F, 64, 32);
                 this.modelArmor = new ModelSimpleHumanoid(0.55F, 64, 32);
             }
-        });
+
+            @Override
+            public void doRenderLayer(EntityLivingBase entity, float limbSwing, float limbSwingAmount, float partialTicks,
+                                      float ageInTicks, float netHeadYaw, float headPitch, float scale) {
+                if (isRenderingBaked()) return;
+                super.doRenderLayer(entity, limbSwing, limbSwingAmount, partialTicks, ageInTicks, netHeadYaw, headPitch, scale);
+            }
+        };
+        this.addLayer(armorLayer);
 
         this.addLayer(new LayerCustomHead(((ModelBiped) this.getMainModel()).bipedHead));
         this.addLayer(new LayerTravellerClothes(this));
@@ -41,7 +58,23 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
     }
 
     @Override
+    public void doRender(EntityTraveller entity, double x, double y, double z, float entityYaw, float partialTicks) {
+        bakedTexture = BakedSkins.textureFor(entity, armorLayer);
+        try {
+            super.doRender(entity, x, y, z, entityYaw, partialTicks);
+        } finally {
+            bakedTexture = null;
+        }
+    }
+
+    /** True while the current unit's clothes, armour and mark are already in its baked skin. */
+    public boolean isRenderingBaked() {
+        return bakedTexture != null;
+    }
+
+    @Override
     protected ResourceLocation getEntityTexture(EntityTraveller e) {
+        if (bakedTexture != null) return bakedTexture;
         // base nude or "underwear + hair" layer from Millénaire
         return e.getActiveAppearance().baseTexture;
     }
