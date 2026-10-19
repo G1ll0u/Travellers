@@ -1614,15 +1614,15 @@ public class TravellersConfig {
         @Config.Comment("Travellers, raiders and workers can ride a horse for their travels. Master switch for the whole feature.")
         public boolean enabled = true;
 
-        @Config.Comment("Chance (%) that a traveller bonds with a horse companion. Interim mechanic - a GUI to hand-assign mounts to hired workers is planned for later.")
+        @Config.Comment("Chance (%) that a group of travellers rides horses. The whole group rides or the whole group walks.")
         @Config.RangeInt(min = 0, max = 100)
         public int travellerMountChancePercent = 12;
 
-        @Config.Comment("Chance (%) that a raider bonds with a horse companion.")
+        @Config.Comment("Chance (%) that a group of raiders rides horses. The whole group rides or the whole group walks.")
         @Config.RangeInt(min = 0, max = 100)
         public int raiderMountChancePercent = 10;
 
-        @Config.Comment("Chance (%) that a hired worker bonds with a horse companion.")
+        @Config.Comment("Chance (%) that a worker appears at its village with its own horse, before anyone hires it.")
         @Config.RangeInt(min = 0, max = 100)
         public int workerMountChancePercent = 8;
 
