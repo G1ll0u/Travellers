@@ -725,18 +725,41 @@ public class EntityAIFollowLeader extends EntityAIBase {
     }
 
     private boolean canUseFollow() {
-        if (follower.getAttackTarget() != null || follower.isInCombat()) return false;
-        if (hasValidCombatTarget()) return false;
-        if (follower.isCatchupTravel()) return false;
+        return followBlocker() == null;
+    }
+
+    /** The first gate that keeps this unit from following, or null when none does. */
+    @Nullable
+    private String followBlocker() {
+        EntityLivingBase atk = follower.getAttackTarget();
+        if (atk != null) return "attackTarget=" + describe(atk);
+        if (follower.isInCombat()) return "inCombat";
+        EntityLivingBase rev = follower.getRevengeTarget();
+        if (rev != null && !rev.isDead) return "revengeTarget=" + describe(rev);
+        if (follower.isCatchupTravel()) return "catchup";
         // Dispersed in the village its leader is visiting (EntityAIVillageVisit), until it leaves.
-        if (follower.isDispersedInVillage()) return false;
+        if (follower.isDispersedInVillage()) return "dispersedInVillage";
         // "Hired" is a worker-only precondition (guards against stale follow state on a non-hired
         // worker) - a plain traveller/raider group follower has no hire concept at all, and its
         // only gate on "am I allowed to follow" is isFollowOrderActive() below.
-        if (follower instanceof EntityTravellerWorker && !follower.isHiredFollower()) return false;
-        if (!follower.isFollowOrderActive()) return false;
-        if (follower.isJobActive() && !follower.isReturnUsingFollow()) return false;
-        return true;
+        if (follower instanceof EntityTravellerWorker && !follower.isHiredFollower()) return "notHired";
+        if (!follower.isFollowOrderActive()) return "noFollowOrder";
+        if (follower.isJobActive() && !follower.isReturnUsingFollow()) return "jobActive";
+        return null;
+    }
+
+    /** Why this task is not running, for the trace: a gate, no target, or already close enough. */
+    public String whyNotRunning() {
+        String gate = followBlocker();
+        if (gate != null) return gate;
+        EntityLivingBase target = follower.getEffectiveFollowTarget();
+        if (!isValidTarget(target)) return "noTarget";
+        return String.format(java.util.Locale.ROOT, "close(%.1f<=%.1f)", horizontalDistanceTo(target), startDist);
+    }
+
+    private String describe(EntityLivingBase e) {
+        return String.format(java.util.Locale.ROOT, "%s%s@%.1f", e.getClass().getSimpleName(),
+                e.isDead ? "(dead)" : "", Math.sqrt(follower.getDistanceSq(e)));
     }
 
     private boolean isValidTarget(@Nullable EntityLivingBase target) {

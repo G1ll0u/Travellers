@@ -58,6 +58,8 @@ public final class TraceSample {
     // AI / FOLLOW
     public String runningTasks = "";
     public int steeringBlockedTicks = -1;
+    /** Why the follow task is not running, or null when it runs or the unit has none. */
+    public String followOff = null;
 
     /**
      * Fills this sample from the entity's current state. Cheap getters only - runs every few ticks
@@ -142,8 +144,13 @@ public final class TraceSample {
     private void captureTasks(EntityTraveller entity) {
         StringBuilder sb = new StringBuilder();
         this.steeringBlockedTicks = -1;
+        this.followOff = null;
+        EntityAIFollowLeader idleFollow = null;
         for (EntityAITasks.EntityAITaskEntry entry : entity.tasks.taskEntries) {
-            if (!entry.using) continue;
+            if (!entry.using) {
+                if (entry.action instanceof EntityAIFollowLeader) idleFollow = (EntityAIFollowLeader) entry.action;
+                continue;
+            }
             if (sb.length() > 0) sb.append('+');
             sb.append(entry.action.getClass().getSimpleName());
             if (entry.action instanceof EntityAIFollowLeader) {
@@ -151,6 +158,13 @@ public final class TraceSample {
             }
         }
         this.runningTasks = sb.length() == 0 ? "idle" : sb.toString();
+        StringBuilder tgt = new StringBuilder();
+        for (EntityAITasks.EntityAITaskEntry entry : entity.targetTasks.taskEntries) {
+            if (!entry.using) continue;
+            tgt.append(tgt.length() == 0 ? " tgt=" : "+").append(entry.action.getClass().getSimpleName());
+        }
+        if (tgt.length() > 0) this.runningTasks += tgt;
+        if (idleFollow != null) this.followOff = idleFollow.whyNotRunning();
     }
 
     /**
@@ -206,6 +220,8 @@ public final class TraceSample {
         }
         if (channels.contains(TraceChannel.FOLLOW) && steeringBlockedTicks >= 0) {
             sb.append(" | follow:blocked=").append(steeringBlockedTicks);
+        } else if (channels.contains(TraceChannel.FOLLOW) && followOff != null) {
+            sb.append(" | follow:off=").append(followOff);
         }
         return sb.toString();
     }
@@ -223,7 +239,7 @@ public final class TraceSample {
         mounted = o.mounted; mountMode = o.mountMode;
         horseAttr = o.horseAttr; horseDxz = o.horseDxz;
         horseCollided = o.horseCollided; horseOnGround = o.horseOnGround; mountWedged = o.mountWedged;
-        runningTasks = o.runningTasks; steeringBlockedTicks = o.steeringBlockedTicks;
+        runningTasks = o.runningTasks; steeringBlockedTicks = o.steeringBlockedTicks; followOff = o.followOff;
     }
 
     /** True when the entity is asking to move and getting nowhere - the shape of every stuck report. */
