@@ -60,10 +60,13 @@ public class RenderTraveller extends RenderBiped<EntityTraveller> {
     @Override
     public void doRender(EntityTraveller entity, double x, double y, double z, float entityYaw, float partialTicks) {
         bakedTexture = BakedSkins.textureFor(entity, armorLayer);
+        ModelSimpleHumanoid model = (ModelSimpleHumanoid) this.getMainModel();
+        model.flattened = bakedTexture != null;
         try {
             super.doRender(entity, x, y, z, entityYaw, partialTicks);
         } finally {
             bakedTexture = null;
+            model.flattened = false;
         }
     }
 

@@ -1,12 +1,18 @@
 package com.jubitus.travellers.unit.render.models;
 
 import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.render.ModelFlattener;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelRenderer;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
 
 public class ModelSimpleHumanoid extends ModelBiped {
+
+    // Set by RenderTraveller while the unit is drawn from its baked skin: one buffer instead of one call per part.
+    public boolean flattened;
+    private ModelRenderer[] flatParts;
 
     public ModelSimpleHumanoid() {
         this(0.0F, 64, 32); // your entity’s main skin: 64×64
@@ -49,6 +55,27 @@ public class ModelSimpleHumanoid extends ModelBiped {
 
     public ModelSimpleHumanoid(float modelSize) {
         this(modelSize, 64, 64);
+    }
+
+    @Override
+    public void render(Entity entityIn, float limbSwing, float limbSwingAmount, float ageInTicks,
+                       float netHeadYaw, float headPitch, float scale) {
+        if (!flattened || isChild) {
+            super.render(entityIn, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale);
+            return;
+        }
+        // Mirrors ModelBiped.render's adult branch.
+        setRotationAngles(limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch, scale, entityIn);
+        if (flatParts == null) {
+            flatParts = new ModelRenderer[]{bipedHead, bipedBody, bipedRightArm, bipedLeftArm,
+                    bipedRightLeg, bipedLeftLeg, bipedHeadwear};
+        }
+        GlStateManager.pushMatrix();
+        if (entityIn.isSneaking()) {
+            GlStateManager.translate(0.0F, 0.2F, 0.0F);
+        }
+        ModelFlattener.draw(flatParts, scale);
+        GlStateManager.popMatrix();
     }
 
     @Override
