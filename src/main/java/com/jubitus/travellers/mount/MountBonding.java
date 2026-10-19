@@ -36,8 +36,8 @@ final class MountBonding {
 
     /**
      * Spawns a fresh horse next to the traveller and bonds it, ignoring the config chance roll -
-     * used by the debug command. Returns false if mounts are disabled or the traveller already has
-     * one.
+     * used when a record that rolled mounted materializes, and by {@code /summonworkers}. Returns
+     * false if mounts are disabled or the traveller already has one.
      */
     static boolean bondNewMount(EntityTraveller traveller) {
         if (!TravellersConfig.MOUNTS.enabled) return false;

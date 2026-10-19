@@ -60,60 +60,6 @@ public class TravellerEquipmentManager {
     }
 
     // -------------------------------------------------------------------------
-    // Item scoring — edit these to change how equipment is valued
-    // -------------------------------------------------------------------------
-
-    /**
-     * Scores a melee weapon. Higher = better.
-     * Accounts for base damage, material tier, Sharpness enchant, and remaining durability.
-     */
-    public static double scoreWeapon(ItemStack s) {
-        if (s.isEmpty()) return Double.NEGATIVE_INFINITY;
-
-        double baseDmg;
-        int materialRank;
-        if (s.getItem() instanceof ItemSword) {
-            ItemSword sw = (ItemSword) s.getItem();
-            baseDmg = sw.getAttackDamage();
-            String mat = sw.getToolMaterialName();
-            materialRank = "DIAMOND".equals(mat) ? 5
-                    : "IRON".equals(mat) ? 4
-                    : "STONE".equals(mat) ? 3
-                    : "GOLD".equals(mat) ? 3
-                    : "WOOD".equals(mat) ? 2 : 1;
-        } else {
-            baseDmg = getMainHandAttackDamage(s);
-            materialRank = 3;
-        }
-
-        int sharp = Enchantments.SHARPNESS != null
-                ? EnchantmentHelper.getEnchantmentLevel(Enchantments.SHARPNESS, s) : 0;
-        double ench = sharp > 0 ? (0.51 * sharp + 0.5) : 0.0;
-
-        return baseDmg + ench + durabilityBias(s) + (materialRank * 0.1);
-    }
-
-    /**
-     * Scores an armor piece for the given slot. Higher = better.
-     * Accounts for armor value, toughness, Protection enchant, and remaining durability.
-     */
-    public static double scoreArmor(ItemStack s, EntityEquipmentSlot slot) {
-        if (s.isEmpty()) return Double.NEGATIVE_INFINITY;
-
-        Multimap<String, AttributeModifier> a = s.getAttributeModifiers(slot);
-        double armor = sumAttr(a, SharedMonsterAttributes.ARMOR.getName());
-        double tough = sumAttr(a, SharedMonsterAttributes.ARMOR_TOUGHNESS.getName());
-        int prot = Enchantments.PROTECTION != null
-                ? EnchantmentHelper.getEnchantmentLevel(Enchantments.PROTECTION, s) : 0;
-        double ench = prot * 0.4;
-        // Chest > legs > boots/helm
-        int slotWeight = (slot == EntityEquipmentSlot.CHEST) ? 3
-                : (slot == EntityEquipmentSlot.LEGS) ? 2 : 1;
-
-        return (armor + 0.5 * tough) * slotWeight + ench + durabilityBias(s);
-    }
-
-    // -------------------------------------------------------------------------
     // Item classification
     // -------------------------------------------------------------------------
 
@@ -574,7 +520,7 @@ public class TravellerEquipmentManager {
     }
 
     /** Millenaire defines no shields: a vanilla shield by chance per unit type, never for a bow user. */
-    private void trySpawnShield(Random r, CultureDef.WeightProfile profile) {
+    void trySpawnShield(Random r, CultureDef.WeightProfile profile) {
         if (hasBowAnywhere()) return;
         float chance = profile == CultureDef.WeightProfile.RAIDER ? TravellersConfig.EQUIPMENT.shieldChanceRaider
                 : profile == CultureDef.WeightProfile.WORKER ? TravellersConfig.EQUIPMENT.shieldChanceWorker
@@ -1082,14 +1028,7 @@ public class TravellerEquipmentManager {
         return !s.isEmpty() && s.hasTagCompound() && s.getTagCompound().getBoolean(tag);
     }
 
-    private static double durabilityBias(ItemStack s) {
-        if (!s.isItemStackDamageable()) return 0.0;
-        int max = s.getMaxDamage();
-        int left = Math.max(0, max - s.getItemDamage());
-        return Math.min(0.9, (left / (double) max) * 0.5);
-    }
-
-    private static double getMainHandAttackDamage(ItemStack s) {
+    public static double getMainHandAttackDamage(ItemStack s) {
         Multimap<String, AttributeModifier> map = s.getAttributeModifiers(EntityEquipmentSlot.MAINHAND);
         double sum = 0.0;
         for (AttributeModifier m : map.get(SharedMonsterAttributes.ATTACK_DAMAGE.getName())) {

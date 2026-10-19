@@ -193,6 +193,11 @@ public final class CultureDef {
 
     // --- PUBLIC: culture-aware equipment picks ---
 
+    /** Every item of this culture's spawn pool accepted by {@code pred}, culture-filtered like the random picks. Shared stacks: copy before use. */
+    public java.util.List<ItemStack> spawnPool(WeightProfile profile, java.util.function.Predicate<ItemStack> pred) {
+        return collectItems(s -> spawnAllowed(s, null, profile) && pred.test(s));
+    }
+
     private ItemStack pickRandom(java.util.List<ItemStack> list, java.util.Random r) {
         if (list == null || list.isEmpty()) return ItemStack.EMPTY;
         return list.get(r.nextInt(list.size())).copy();

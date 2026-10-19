@@ -567,3 +567,13 @@ travellers.worker.hub.node.formation=Formation
 travellers.worker.hub.info.health=Health %s/%s
 travellers.worker.hub.info.village=From %s
 travellers.notify.raid.incoming=A raid is coming for you!
+
+# /summonworkers
+commands.travellers.summonworkers.usage=/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]
+commands.travellers.summonworkers.success=Spawned %s hired workers (%s on horseback) for %s.
+commands.travellers.summonworkers.partial=%s workers found no safe spot nearby and were not spawned.
+commands.travellers.summonworkers.none=No safe spot found around %s.
+commands.travellers.summonworkers.bowShield=A worker can't carry a bow and a shield together.
+commands.travellers.summonworkers.badOption=Unknown option: %s
+commands.travellers.summonworkers.badCulture=Unknown culture: %s
+commands.travellers.summonworkers.mountsDisabled=Horse mounts are disabled in the config: no horses will be given.
