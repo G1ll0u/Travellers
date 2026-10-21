@@ -1,5 +1,309 @@
-// You may write any gradle buildscript component in this file
-// This file is automatically applied after build.gradle + dependencies.gradle is ran
+// This mod's own build logic, applied after build.gradle + dependencies.gradle.
 
-// If you wish to use the gilles helper methods, uncomment the line below
-// apply from: 'gradle/scripts/helpers.gradle'
+import groovy.json.JsonOutput
+
+def MODID = "travellers"
+def SOUND_ROOT_TRAV = "travellers"              // sounds/travellers/<lang>/<personality>/<kind>/*.ogg
+def SOUND_ROOT_RAID = "travellers/raiders"      // sounds/travellers/raiders/<lang>/<personality>/<kind>/*.ogg
+
+tasks.register('generateDynamicSounds') {
+    group = "build setup"
+    description = "Generates sounds.json + voices/index.json + voices/raiders_index.json from assets sounds folder structure with per-clip events"
+
+    doLast {
+        def soundsBase = file("$projectDir/src/main/resources/assets/${MODID}/sounds")
+        if (!soundsBase.exists()) {
+            println "[generateDynamicSounds] No sounds folder: ${soundsBase}"
+            return
+        }
+
+        def travBase = new File(soundsBase, SOUND_ROOT_TRAV)
+        def raidBase = new File(soundsBase, SOUND_ROOT_RAID)
+
+        def soundsJsonOut = file("$projectDir/src/main/resources/assets/${MODID}/sounds.json")
+
+        def voicesDir = file("$projectDir/src/main/resources/assets/${MODID}/voices")
+        voicesDir.mkdirs()
+
+        def travIndexOut = file("$voicesDir/index.json")
+        def raidIndexOut = file("$voicesDir/raiders_index.json")
+
+        def kinds = ["talk", "hurt", "hello", "ambient", "attack", "creeper", "kill", "death"]
+        def soundsMap = [:]
+
+        def mkIndex = { String defLang, String defPers ->
+            return [
+                    defaultLang       : defLang,
+                    defaultPersonality: defPers,
+                    langs             : [:],   // lang -> [personality1, personality2...]
+                    clips             : [:]    // lang -> personality -> kind -> [eventKey1, eventKey2...]
+            ]
+        }
+
+        def travIndex = mkIndex("en", "default")
+        def raidIndex = mkIndex("en", "default")
+
+        def dirChildren = { File f ->
+            def kids = f.listFiles()
+            if (kids == null) return []
+            return kids.findAll { it.isDirectory() }
+        }
+
+        def oggsIn = { File f ->
+            def kids = f.listFiles()
+            if (kids == null) return []
+            def files = kids.findAll { it.isFile() && it.name.toLowerCase().endsWith(".ogg") }
+            def withSpaces = files.findAll { it.name.contains(" ") }
+            if (!withSpaces.isEmpty()) {
+                throw new GradleException("[generateDynamicSounds] OGG filenames must not contain spaces:\n" +
+                    withSpaces.collect { "  " + it.absolutePath }.join("\n"))
+            }
+            return files.sort { a, b -> a.name <=> b.name }
+        }
+
+        // Parse OGG Vorbis file and return duration in ticks (20 ticks/s). Returns 0 on error.
+        def readOggDurationTicks = { File oggFile ->
+            try {
+                RandomAccessFile raf = new RandomAccessFile(oggFile, "r")
+                long fileLen = raf.length()
+                if (fileLen < 27) { raf.close(); return 0 }
+
+                int sampleRate = 44100
+                int headerSize = (int) Math.min(256L, fileLen)
+                byte[] header = new byte[headerSize]
+                raf.read(header)
+                for (int i = 0; i < headerSize - 15; i++) {
+                    if (header[i] == (byte)1 && header[i+1] == (byte)'v' && header[i+2] == (byte)'o' &&
+                        header[i+3] == (byte)'r' && header[i+4] == (byte)'b' &&
+                        header[i+5] == (byte)'i' && header[i+6] == (byte)'s') {
+                        sampleRate = ((header[i+12] & 0xFF)) | ((header[i+13] & 0xFF) << 8) |
+                                     ((header[i+14] & 0xFF) << 16) | ((header[i+15] & 0xFF) << 24)
+                        break
+                    }
+                }
+
+                int scanSize = (int) Math.min(65536L, fileLen)
+                byte[] tail = new byte[scanSize]
+                raf.seek(fileLen - scanSize)
+                raf.read(tail)
+                raf.close()
+
+                long granule = 0L
+                for (int i = tail.length - 27; i >= 0; i--) {
+                    if (tail[i] == (byte)'O' && tail[i+1] == (byte)'g' &&
+                        tail[i+2] == (byte)'g' && tail[i+3] == (byte)'S') {
+                        long g = 0L
+                        for (int b = 0; b < 8; b++) {
+                            g |= ((long)(tail[i + 6 + b] & 0xFF)) << (b * 8)
+                        }
+                        if (g > 0L && g != -1L) { granule = g; break }
+                    }
+                }
+
+                if (sampleRate <= 0 || granule <= 0L) return 0
+                return (int) Math.ceil((double) granule / sampleRate * 20.0)
+            } catch (Exception ignored) { return 0 }
+        }
+
+        def emitCategory = { File baseDir, String eventPrefix, String soundNamePrefix, def indexObj ->
+            if (!baseDir.exists() || !baseDir.isDirectory()) {
+                println "[generateDynamicSounds] Missing folder: ${baseDir}"
+                return
+            }
+
+            dirChildren(baseDir).each { File langDir ->
+                def lang = langDir.name.toLowerCase()
+                if (baseDir.name == "travellers" && lang == "raiders") {
+                    return
+                }
+
+                def personalities = dirChildren(langDir).collect { it.name.toLowerCase() }.sort()
+                indexObj.langs[lang] = personalities
+                indexObj.clips[lang] = indexObj.clips[lang] ?: [:]
+
+                dirChildren(langDir).each { File persDir ->
+                    def personality = persDir.name.toLowerCase()
+                    indexObj.clips[lang][personality] = indexObj.clips[lang][personality] ?: [:]
+
+                    kinds.each { String kind ->
+                        def kindDir = new File(persDir, kind)
+                        if (!kindDir.exists() || !kindDir.isDirectory()) {
+                            indexObj.clips[lang][personality][kind] = []
+                            return
+                        }
+
+                        def files = oggsIn(kindDir)
+                        if (files.isEmpty()) {
+                            indexObj.clips[lang][personality][kind] = []
+                            return
+                        }
+
+                        def aggregateEventKey = "${eventPrefix}.${lang}.${personality}.${kind}"
+                        def aggregateEntries = []
+                        def exactEventKeys = []
+                        boolean anyNeedsStream = false
+
+                        files.eachWithIndex { File ogg, int i ->
+                            def baseName = ogg.name.substring(0, ogg.name.length() - 4)
+
+                            def soundPath = "${MODID}:${soundNamePrefix}/${lang}/${personality}/${kind}/${baseName}"
+
+                            def exactEventKey = "${eventPrefix}.${lang}.${personality}.${kind}.__${i}"
+                            exactEventKeys << exactEventKey
+
+                            boolean shouldStream = (readOggDurationTicks(ogg) > 60)
+                            if (shouldStream) anyNeedsStream = true
+                            aggregateEntries << [name: soundPath, stream: shouldStream]
+                            soundsMap[exactEventKey] = [
+                                    category: "voice",
+                                    sounds  : [[name: soundPath, stream: shouldStream]]
+                            ]
+                            if (kind == "talk" || kind == "hello") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.talk"
+                            if (kind == "hurt") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.hurt"
+                            if (kind == "attack") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.attack"
+                            if (kind == "creeper") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.creeper"
+                            if (kind == "kill") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.kill"
+                            if (kind == "death") soundsMap[exactEventKey].subtitle = "subtitles.entity.travellers.death"
+                        }
+
+                        soundsMap[aggregateEventKey] = [
+                                category: "voice",
+                                sounds  : aggregateEntries
+                        ]
+                        if (kind == "talk" || kind == "hello") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.talk"
+                        if (kind == "hurt") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.hurt"
+                        if (kind == "attack") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.attack"
+                        if (kind == "creeper") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.creeper"
+                        if (kind == "kill") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.kill"
+                        if (kind == "death") soundsMap[aggregateEventKey].subtitle = "subtitles.entity.travellers.death"
+
+                        indexObj.clips[lang][personality][kind] = exactEventKeys
+                    }
+                }
+            }
+        }
+
+        emitCategory(
+                travBase,
+                "entity.travellers",
+                SOUND_ROOT_TRAV,
+                travIndex
+        )
+
+        emitCategory(
+                raidBase,
+                "entity.travellers.raiders",
+                SOUND_ROOT_RAID,
+                raidIndex
+        )
+
+        // ---- Dialogue-only personalities: character sheets with no sound folder at all ----
+        // A personality can exist purely as assets/travellers/personalities/<lang>/<id>.md (see
+        // PersonalityProfileLoader) with no matching sounds/travellers/<lang>/<id>/ folder. It still
+        // has to appear in travIndex.langs so CultureRegistry.pickRandomTravellerPersonalityId can
+        // actually assign it at spawn; it carries no clips (CultureRegistry falls back to the
+        // culture's default voice set for a personality whose VoiceSet is entirely empty). Raiders
+        // are out of scope - they have no friendly dialogue to begin with.
+        def personalitiesBase = file("$projectDir/src/main/resources/assets/${MODID}/personalities")
+        if (personalitiesBase.exists()) {
+            dirChildren(personalitiesBase).each { File langDir ->
+                def lang = langDir.name.toLowerCase()
+                def mdFiles = langDir.listFiles()?.findAll { it.isFile() && it.name.toLowerCase().endsWith(".md") } ?: []
+                if (mdFiles.isEmpty()) return
+
+                def existing = (travIndex.langs[lang] ?: []) as Set
+                def soundless = mdFiles.collect { it.name.substring(0, it.name.length() - 3).toLowerCase() }
+                        .findAll { !existing.contains(it) }
+                if (soundless.isEmpty()) return
+
+                travIndex.langs[lang] = ((travIndex.langs[lang] ?: []) + soundless).sort()
+                travIndex.clips[lang] = travIndex.clips[lang] ?: [:]
+                soundless.each { String personality ->
+                    travIndex.clips[lang][personality] = [:]
+                    kinds.each { String kind -> travIndex.clips[lang][personality][kind] = [] }
+                }
+                println "[generateDynamicSounds] Sound-less personalities for ${lang}: ${soundless.join(', ')}"
+            }
+        }
+
+        // ---- Choir songs ----
+        // Structure: sounds/travellers/<lang>/<personality>/choir/<songName>/<stem_N>.ogg
+        // choir_index.json: { songs: {...}, aliases: {...}, durationTicks per song }
+        def choirIndex = [:]   // lang -> personality -> [{ name, stems, durationTicks }]
+
+        def emitChoir = { File baseDir, String eventPrefix, String soundNamePrefix ->
+            if (!baseDir.exists() || !baseDir.isDirectory()) return
+            dirChildren(baseDir).each { File langDir ->
+                def lang = langDir.name.toLowerCase()
+                if (baseDir.name == "travellers" && lang == "raiders") return
+
+                dirChildren(langDir).each { File persDir ->
+                    def personality = persDir.name.toLowerCase()
+                    def choirDir = new File(persDir, "choir")
+                    if (!choirDir.exists() || !choirDir.isDirectory()) return
+
+                    choirIndex[lang] = choirIndex[lang] ?: [:]
+                    choirIndex[lang][personality] = choirIndex[lang][personality] ?: []
+
+                    dirChildren(choirDir).sort { a, b -> a.name <=> b.name }.each { File songDir ->
+                        def songName = songDir.name.toLowerCase()
+                        def stemFiles = oggsIn(songDir)
+                        if (stemFiles.isEmpty()) return
+
+                        def stemKeys = []
+                        int maxDurationTicks = 0
+                        stemFiles.eachWithIndex { File ogg, int i ->
+                            def baseName = ogg.name.substring(0, ogg.name.length() - 4)
+                            def soundPath = "${MODID}:${soundNamePrefix}/${lang}/${personality}/choir/${songName}/${baseName}"
+                            def eventKey = "${eventPrefix}.${lang}.${personality}.choir.${songName}.__${i}"
+                            stemKeys << eventKey
+                            soundsMap[eventKey] = [
+                                    category: "voice",
+                                    sounds  : [[name: soundPath, stream: true]]
+                            ]
+                            int dur = readOggDurationTicks(ogg)
+                            if (dur > maxDurationTicks) maxDurationTicks = dur
+                        }
+                        choirIndex[lang][personality] << [name: songName, stems: stemKeys, durationTicks: maxDurationTicks]
+                    }
+                }
+            }
+        }
+
+        emitChoir(travBase, "entity.travellers", SOUND_ROOT_TRAV)
+
+        def choirIndexOut = file("$voicesDir/choir_index.json")
+        // Preserve manually-edited aliases from the existing choir_index.json
+        def existingAliases = [:]
+        if (choirIndexOut.exists()) {
+            try {
+                def parsed = new groovy.json.JsonSlurper().parse(choirIndexOut)
+                if (parsed?.aliases) existingAliases = parsed.aliases
+            } catch (Exception ignored) {}
+        }
+        def choirIndexData = [songs: choirIndex]
+        if (!existingAliases.isEmpty()) choirIndexData.aliases = existingAliases
+        choirIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(choirIndexData)) + "\n"
+        println "[generateDynamicSounds] Wrote ${choirIndexOut} (${choirIndex.size()} langs)"
+
+        soundsJsonOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(soundsMap)) + "\n"
+        println "[generateDynamicSounds] Wrote ${soundsJsonOut} with ${soundsMap.size()} events"
+
+        travIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(travIndex)) + "\n"
+        println "[generateDynamicSounds] Wrote ${travIndexOut}"
+
+        raidIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(raidIndex)) + "\n"
+        println "[generateDynamicSounds] Wrote ${raidIndexOut}"
+    }
+}
+
+processResources.dependsOn(generateDynamicSounds)
+
+tasks.register('deployToServer', Exec) {
+    group = 'deployment'
+    description = 'Copies production jar to travellers-latest.jar and deploys to server'
+    mustRunAfter 'build'
+    commandLine 'bash', "${projectDir}/deploy.sh"
+}
+
+tasks.named('build').configure { finalizedBy 'deployToServer' }

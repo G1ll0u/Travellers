@@ -133,7 +133,7 @@ One question, one answer. Never add a second helper for a question listed here.
 
 ## Mixins
 
-- `mixins.travellers.json` (normal, registered via the manifest) vs `mixins.travellers.early.json` (registered by `TravellersCoremodPlugin` through MixinBooter). **A mixin targeting a vanilla class loaded during Minecraft's early bootstrap (entities, AI, pathfinding) must go in the early config**, or it silently never applies.
+- `mixins.travellers.json` (late, registered by `village/TravellersLateLoader`) vs `mixins.travellers.early.json` (early, registered by `TravellersCoremodPlugin`). Both are registered in code: keep `mixin_configs` empty in `gradle.properties`, or the config also lands in the jar manifest and loads twice. **A mixin targeting a vanilla class loaded during Minecraft's early bootstrap (entities, AI, pathfinding) must go in the early config**, or it silently never applies.
 - Mount/AI mixins belong in the common lists, never `client` only (would be missing on a dedicated server).
 - Millénaire targets: `remap = false`; vanilla targets: `remap = true`.
 - Prefer a mixin over duplicating Millénaire logic, and no mixin at all when vanilla already exposes the behaviour.
