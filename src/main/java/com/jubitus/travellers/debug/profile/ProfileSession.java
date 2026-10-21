@@ -213,6 +213,11 @@ final class ProfileSession {
     }
 
     final Map<String, Long> targetDrops = new TreeMap<>();
+    final Map<String, Long> foreignTargetTasks = new TreeMap<>();
+
+    void foreignTargetTask(String className) {
+        foreignTargetTasks.merge(className, 1L, Long::sum);
+    }
 
     void targetDrop(String reason) {
         targetDrops.merge(reason, 1L, Long::sum);

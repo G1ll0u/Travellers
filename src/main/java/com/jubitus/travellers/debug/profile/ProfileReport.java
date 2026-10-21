@@ -313,6 +313,12 @@ final class ProfileReport {
             sb.append("    ").append(pad(e.getKey(), 40)).append(pad(String.valueOf(e.getValue()), 9))
                     .append(pct(e.getValue(), Math.max(1L, drops))).append('\n');
         }
+        if (!s.foreignTargetTasks.isEmpty()) {
+            sb.append("  target tasks injected by other mods, removed\n");
+            for (Map.Entry<String, Long> e : s.foreignTargetTasks.entrySet()) {
+                sb.append("    ").append(pad(e.getKey(), 60)).append(e.getValue()).append('\n');
+            }
+        }
         sb.append("  help calls (allies pulled in per call)\n");
         for (Map.Entry<String, ProfileSession.Tally> e : s.helpCalls.entrySet()) {
             ProfileSession.Tally t = e.getValue();

@@ -64,6 +64,8 @@ minimal server cost.
    `TargetLockPolicy` gains contact (target within 4 blocks and a blow exchanged in the last 3 s: only leader
    attacked / hit close move it, no lock expiry) and CLOSE_THREAT (within reach and coming at me, or at most half the
    current distance). Re-asserting the current target is a no-op (it used to re-run the checks and drop it).
+3b. **Foreign target tasks** — `done, to confirm`. Removed every tick without vanilla's resetTask (which cleared our
+   target on removal and whenever one of our tasks started); the report lists which classes were removed.
 4. **Archers** — `done`. Same rule with the 8-block distance; the bow task follows the new target each tick and the
    melee hand-off is distance-based.
 5. **Escort leash** — `todo`. Target pick, reassessment and disengage refuse targets beyond the leash for escort-slot

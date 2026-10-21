@@ -152,6 +152,12 @@ public final class MovementProfiler {
         session.targetDrop(reason);
     }
 
+    /** A target task another mod injected into one of our units, removed by ForeignTargetTaskScrubber. */
+    public static void foreignTargetTask(String className) {
+        if (session == null) return;
+        session.foreignTargetTask(className);
+    }
+
     /** One help call (call for help, worker rally) and how many idle allies it pulled in. */
     public static void helpCall(String kind, int recruited) {
         if (session == null) return;
