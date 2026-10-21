@@ -24,6 +24,9 @@ public final class SummonLoadout {
 
     public enum Weapon { NATURAL, MELEE, BOW }
 
+    /** Melee weapon tier; NATURAL keeps the culture's own weapon. */
+    public enum Blade { NATURAL, STONE, IRON, DIAMOND }
+
     public enum Choice { NATURAL, YES, NO }
 
     private static final EntityEquipmentSlot[] ARMOR_SLOTS = {
@@ -36,21 +39,30 @@ public final class SummonLoadout {
     private SummonLoadout() {
     }
 
+    /** The melee tier follows the armour: stone up to chainmail, then iron and diamond. */
     public static void apply(EntityTraveller w, @Nullable CultureDef c, Random r, CultureDef.WeightProfile profile,
                              Gear gear, Weapon weapon, Choice shield) {
+        Blade blade = gear == Gear.NATURAL ? Blade.NATURAL
+                : gear == Gear.DIAMOND ? Blade.DIAMOND : gear == Gear.IRON ? Blade.IRON : Blade.STONE;
+        apply(w, c, r, profile, gear, weapon, blade, shield);
+    }
+
+    public static void apply(EntityTraveller w, @Nullable CultureDef c, Random r, CultureDef.WeightProfile profile,
+                             Gear gear, Weapon weapon, Blade blade, Choice shield) {
         if (gear != Gear.NATURAL) {
             for (EntityEquipmentSlot slot : ARMOR_SLOTS) {
-                w.setItemStackToSlot(slot, gear == Gear.NONE ? ItemStack.EMPTY : armorPiece(c, r, profile, slot, gear));
+                if (gear == Gear.NONE) w.setItemStackToSlot(slot, ItemStack.EMPTY);
+                else wear(w, c, r, profile, slot, gear);
             }
         }
 
         boolean hasBow = w.equipment.hasBowAnywhere();
         boolean wantBow = weapon == Weapon.BOW || (weapon == Weapon.NATURAL && hasBow && shield != Choice.YES);
         boolean keep = wantBow ? hasBow
-                : !hasBow && gear == Gear.NATURAL && (weapon == Weapon.NATURAL || hasMelee(w.inventory));
+                : !hasBow && blade == Blade.NATURAL && (weapon == Weapon.NATURAL || hasMelee(w.inventory));
         if (!keep) {
             removeWeapons(w.inventory);
-            ItemStack chosen = wantBow ? bow(c, r, profile) : melee(c, r, profile, gear);
+            ItemStack chosen = wantBow ? bow(c, r, profile) : melee(c, r, profile, blade);
             ItemHandlerHelper.insertItemStacked(w.inventory, chosen, false);
         }
 
@@ -63,6 +75,12 @@ public final class SummonLoadout {
         } else if (shield == Choice.NATURAL) {
             w.equipment.trySpawnShield(r, profile);
         }
+    }
+
+    /** Puts one armour piece of the given tier (LEATHER or better) on the slot, culture item first. */
+    public static void wear(EntityTraveller w, @Nullable CultureDef c, Random r, CultureDef.WeightProfile profile,
+                            EntityEquipmentSlot slot, Gear gear) {
+        w.setItemStackToSlot(slot, armorPiece(c, r, profile, slot, gear));
     }
 
     private static ItemStack armorPiece(@Nullable CultureDef c, Random r, CultureDef.WeightProfile profile,
@@ -110,13 +128,12 @@ public final class SummonLoadout {
         }
     }
 
-    private static ItemStack melee(@Nullable CultureDef c, Random r, CultureDef.WeightProfile profile, Gear gear) {
-        if (gear == Gear.NATURAL) {
+    private static ItemStack melee(@Nullable CultureDef c, Random r, CultureDef.WeightProfile profile, Blade blade) {
+        if (blade == Blade.NATURAL) {
             ItemStack natural = c != null ? c.randomMeleeOrTool(r, profile) : ItemStack.EMPTY;
             return natural.isEmpty() ? new ItemStack(Items.STONE_SWORD) : natural;
         }
-        // Stone up to chainmail, then iron and diamond.
-        Item wanted = gear == Gear.DIAMOND ? Items.DIAMOND_SWORD : gear == Gear.IRON ? Items.IRON_SWORD : Items.STONE_SWORD;
+        Item wanted = SWORD_TIERS[blade.ordinal() - Blade.STONE.ordinal()];
         if (c != null) {
             List<ItemStack> pool = c.spawnPool(profile, s ->
                     TravellerEquipmentManager.isWeapon(s)

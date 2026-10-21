@@ -88,7 +88,7 @@ class RaidPlanTest {
         Random rng = new Random(8);
         for (int i = 0; i < 50; i++) {
             RaidPlan.Settings s = new RaidPlan.Settings();
-            s.kindWeights = new int[]{0, 0, 0, 0};
+            s.kindWeights = new int[]{0, 0, 0};
             s.approachWeights = new int[]{0, 0, 0};
             s.cavalryAllowed = false;
             RaidPlan plan = RaidPlan.build(30, "norman", Collections.emptyList(), s, rng);

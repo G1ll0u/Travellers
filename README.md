@@ -96,10 +96,10 @@ The mod also adds a hostile variant:
 From time to time a **raid** comes for you: raiders appear far away, walk toward you and attack you and your henchmen first, fighting whatever else they meet as usual.
 
 * A raid comes in **waves**. The next wave sets out when the current one is nearly beaten, or after a few minutes anyway, and each wave is a bit stronger than the last.
-* No two raids are alike: a raid may come from **one side, two sides, or surround you**; each wave may be a **horde** (many, lightly armed), **elite** (few, in heavy armour), **cavalry** (all on horseback) or **archers**; and a later wave may come from **another culture** that joined in.
+* No two raids are alike: a raid may come from **one side, two sides, or surround you**; each wave may be a **horde** (many, lightly armed), **elite** (few, in heavy armour) or **cavalry** (all on horseback), with some archers among them; and a later wave may come from **another culture** that joined in.
 * You can't miss it: a red notice says where each wave comes from, a **bar at the top of the screen** shows the wave and how many of its raiders still stand, and a notice tells you when the raid is **repelled** or when the raiders give up and scatter.
 * Raids are sized on **your henchmen near you** (their number and their gear) and grow slower and slower the more you have, so a huge army does not mean an endless horde, and a lone trip far from your army brings a small raid.
-* You choose how often they come, by night or by day, how hard they hit, how many raiders at most, how many waves, how often each approach and each kind of wave comes, how far away they appear, and **which cultures may raid you** (one, a few, or all).
+* You choose how often they come, by night or by day, how hard they hit, how many raiders at most, how many waves, how often each approach and each kind of wave comes, the armour, weapons, archers and shields of each kind of wave, how far away they appear, and **which cultures may raid you** (one, a few, or all).
 * A new player gets a few days of peace first. A raid never catches you "on login". If a wave is not beaten after twenty minutes, the raiders give up.
 * Off by default; turn it on in the config (`RAIDS`). Server admins can start one at once with `/travellersdebug raid now`.
 

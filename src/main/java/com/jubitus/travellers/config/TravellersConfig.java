@@ -3239,9 +3239,47 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 100)
         public int cavalryWeight = 20;
 
-        @Config.Comment("How often a wave is archers: every raider with a bow.")
+        @Config.Comment("Armour of horde raiders: one tier (NONE, LEATHER, CHAIN, IRON, DIAMOND), a range like LEATHER-CHAIN drawn again for each raider, or NATURAL for the usual gear of their culture.")
+        public String hordeArmor = "LEATHER-CHAIN";
+
+        @Config.Comment("Melee weapon of horde raiders: one tier (STONE, IRON, DIAMOND), a range like STONE-IRON drawn again for each raider, or NATURAL for the usual weapons of their culture.")
+        public String hordeWeapon = "STONE";
+
+        @Config.Comment("Share (percent) of horde raiders who carry a bow instead of a melee weapon.")
         @Config.RangeInt(min = 0, max = 100)
-        public int archersWeight = 20;
+        public int hordeArcherPercent = 25;
+
+        @Config.Comment("Chance (percent) that a horde raider carries a shield. Archers never do.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int hordeShieldPercent = 10;
+
+        @Config.Comment("Armour of elite raiders, written like the horde armour.")
+        public String eliteArmor = "IRON-DIAMOND";
+
+        @Config.Comment("Melee weapon of elite raiders, written like the horde weapon.")
+        public String eliteWeapon = "IRON-DIAMOND";
+
+        @Config.Comment("Share (percent) of elite raiders who carry a bow instead of a melee weapon.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int eliteArcherPercent = 15;
+
+        @Config.Comment("Chance (percent) that an elite raider carries a shield. Archers never do.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int eliteShieldPercent = 100;
+
+        @Config.Comment("Armour of cavalry raiders, written like the horde armour.")
+        public String cavalryArmor = "CHAIN-IRON";
+
+        @Config.Comment("Melee weapon of cavalry raiders, written like the horde weapon.")
+        public String cavalryWeapon = "STONE-IRON";
+
+        @Config.Comment("Share (percent) of cavalry raiders who carry a bow instead of a melee weapon.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int cavalryArcherPercent = 0;
+
+        @Config.Comment("Chance (percent) that a cavalry raider carries a shield. Archers never do.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int cavalryShieldPercent = 25;
 
         @Config.Comment("Chance (percent) that a wave after the first comes from another culture allowed to raid you.")
         @Config.RangeInt(min = 0, max = 100)

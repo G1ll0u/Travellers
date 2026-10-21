@@ -6,9 +6,7 @@ import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.spawn.TravellerSoftSpawner;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
-import com.jubitus.travellers.unit.equipment.SummonLoadout;
 import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
@@ -40,8 +38,6 @@ final class RaidLauncher {
     private static final int PLACEMENT_ATTEMPTS = 6;
     /** Spawns closer than the server view distance are vetoed, so raids always appear at least this far past it. */
     private static final int VIEW_MARGIN_BLOCKS = 16;
-    /** Share of elite waves in diamond rather than iron. */
-    private static final float ELITE_DIAMOND_CHANCE = 0.3F;
 
     private RaidLauncher() {
     }
@@ -95,7 +91,8 @@ final class RaidLauncher {
         VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
         BlockPos goal = player.getPosition();
         int distance = spawnDistance(ws);
-        Consumer<EntityTraveller> outfit = outfitFor(wave.kind, rng);
+        RaidGear gear = RaidGear.of(wave.kind);
+        Consumer<EntityTraveller> outfit = t -> gear.outfit(t, CultureRegistry.get(t.getCultureId()), rng);
         boolean mounted = wave.kind == RaidPlan.WaveKind.CAVALRY;
 
         int created = 0;
@@ -125,35 +122,10 @@ final class RaidLauncher {
         s.maxWaves = c.maxWaves;
         s.maxRaiders = c.maxRaiders;
         s.approachWeights = new int[]{c.oneFrontWeight, c.twoFrontsWeight, c.encircleWeight};
-        s.kindWeights = new int[]{c.hordeWeight, c.eliteWeight, c.cavalryWeight, c.archersWeight};
+        s.kindWeights = new int[]{c.hordeWeight, c.eliteWeight, c.cavalryWeight};
         s.cavalryAllowed = TravellersConfig.MOUNTS.enabled;
         s.mixedCulturePercent = c.mixedCultureChance;
         return s;
-    }
-
-    /** Gear of a wave kind, on top of the culture's natural roll; cavalry keeps it and only gets horses. */
-    @Nullable
-    private static Consumer<EntityTraveller> outfitFor(RaidPlan.WaveKind kind, Random rng) {
-        switch (kind) {
-            case HORDE:
-                return t -> SummonLoadout.apply(t, culture(t), rng, CultureDef.WeightProfile.RAIDER,
-                        rng.nextBoolean() ? SummonLoadout.Gear.NONE : SummonLoadout.Gear.LEATHER,
-                        SummonLoadout.Weapon.MELEE, SummonLoadout.Choice.NO);
-            case ELITE:
-                return t -> SummonLoadout.apply(t, culture(t), rng, CultureDef.WeightProfile.RAIDER,
-                        rng.nextFloat() < ELITE_DIAMOND_CHANCE ? SummonLoadout.Gear.DIAMOND : SummonLoadout.Gear.IRON,
-                        SummonLoadout.Weapon.MELEE, SummonLoadout.Choice.YES);
-            case ARCHERS:
-                return t -> SummonLoadout.apply(t, culture(t), rng, CultureDef.WeightProfile.RAIDER,
-                        SummonLoadout.Gear.NATURAL, SummonLoadout.Weapon.BOW, SummonLoadout.Choice.NO);
-            default:
-                return null;
-        }
-    }
-
-    @Nullable
-    private static CultureDef culture(EntityTraveller t) {
-        return CultureRegistry.get(t.getCultureId());
     }
 
     private static int spawnDistance(WorldServer ws) {

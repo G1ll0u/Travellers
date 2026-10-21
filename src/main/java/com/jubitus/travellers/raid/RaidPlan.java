@@ -12,7 +12,7 @@ public final class RaidPlan {
 
     /** How a wave fights; the size factor keeps every kind on the same strength budget. */
     public enum WaveKind {
-        HORDE(1.4), ELITE(0.6), CAVALRY(1.0), ARCHERS(1.0);
+        HORDE(1.4), ELITE(0.6), CAVALRY(1.0);
 
         final double sizeFactor;
 
@@ -43,8 +43,8 @@ public final class RaidPlan {
         public int maxRaiders = 40;
         /** ONE_FRONT, TWO_FRONTS, ENCIRCLE. */
         public int[] approachWeights = {1, 1, 1};
-        /** HORDE, ELITE, CAVALRY, ARCHERS. */
-        public int[] kindWeights = {1, 1, 1, 1};
+        /** HORDE, ELITE, CAVALRY. */
+        public int[] kindWeights = {1, 1, 1};
         public boolean cavalryAllowed = true;
         public int mixedCulturePercent;
     }
