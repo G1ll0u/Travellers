@@ -220,8 +220,8 @@ public class PlayerHostility {
     }
 
     /**
-     * Pulls every nearby same-owner hired worker into a fight against {@code attacker}, without
-     * stealing a mate that's already busy with a live target. Callers are expected to have already
+     * Pulls idle nearby same-owner hired workers into a fight against {@code attacker}, nearest first and
+     * melee only up to the free attacker slots, once per attacker every few seconds (HelpCallGate). Callers are expected to have already
      * decided the single worker in {@code self} is allowed to fight {@code attacker} (this doesn't
      * re-check canRetaliateAgainst for the group - the whole point is that admission was already
      * granted once, at the individual level).
@@ -229,14 +229,25 @@ public class PlayerHostility {
     public static void rallyGroupAgainst(EntityTravellerWorker self, EntityLivingBase attacker, @Nullable UUID enemyOwner) {
         UUID ownerId = self.getFollowOwnerId();
         if (ownerId == null || attacker == null || !attacker.isEntityAlive()) return;
+        List<EntityTravellerWorker> mates = nearbyOwnedMates(self.world, self.getPosition(), ownerId);
+        // The war is declared for every mate; the rally itself goes once per attacker per group, nearest idle mates first.
+        if (enemyOwner != null) {
+            for (EntityTravellerWorker mate : mates) mate.playerHostility.engageEnemyOwner(enemyOwner);
+        }
+        if (!com.jubitus.travellers.combat.HelpCallGate.tryCall(self, attacker)) return;
+        int meleeSlots = com.jubitus.travellers.combat.HelpCallGate.freeMeleeSlots(self, attacker);
+        mates.sort(java.util.Comparator.comparingDouble(m -> m.getDistanceSq(attacker)));
         int recruited = 0;
-        for (EntityTravellerWorker mate : nearbyOwnedMates(self.world, self.getPosition(), ownerId)) {
+        for (EntityTravellerWorker mate : mates) {
             if (mate == self) continue;
-            if (enemyOwner != null) mate.playerHostility.engageEnemyOwner(enemyOwner);
             EntityLivingBase cur = mate.getAttackTarget();
-            if (cur == null || !cur.isEntityAlive()) {
-                mate.setAttackTarget(attacker);
-                if (mate.getAttackTarget() == attacker) recruited++;
+            if (cur != null && cur.isEntityAlive()) continue;
+            boolean melee = !mate.hasBowAnywherePublic();
+            if (melee && meleeSlots <= 0) continue;
+            mate.setAttackTarget(attacker);
+            if (mate.getAttackTarget() == attacker) {
+                recruited++;
+                if (melee) meleeSlots--;
             }
         }
         com.jubitus.travellers.debug.profile.MovementProfiler.helpCall("worker rally", recruited);

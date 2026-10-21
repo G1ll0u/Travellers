@@ -118,11 +118,16 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 && com.jubitus.travellers.combat.AttackTargetLimiter.getAttackerCount(attacker)
                         >= com.jubitus.travellers.config.TravellersConfig.COMBAT.callForHelpSkipIfAttackersAtLeast;
 
-        if (this.callForHelp && enoughAlreadyEngaged) {
+        // Never against a unit (allies notice it through their own reassessment), once per attacker per group (HelpCallGate).
+        boolean callsAllies = this.callForHelp && attacker != null && attacker.isEntityAlive()
+                && !(attacker instanceof EntityTraveller) && owner instanceof EntityTraveller;
+        if (callsAllies && enoughAlreadyEngaged) {
             com.jubitus.travellers.debug.profile.MovementProfiler.helpCall("call for help, skipped", 0);
         }
-        if (this.callForHelp && attacker != null && attacker.isEntityAlive() && !enoughAlreadyEngaged) {
+        if (callsAllies && !enoughAlreadyEngaged
+                && com.jubitus.travellers.combat.HelpCallGate.tryCall((EntityTraveller) owner, attacker)) {
             int recruited = 0;
+            int meleeSlots = com.jubitus.travellers.combat.HelpCallGate.freeMeleeSlots((EntityTraveller) owner, attacker);
             double r = this.assistRadius;
             AxisAlignedBB box = new AxisAlignedBB(
                     owner.posX - r, owner.posY - 8, owner.posZ - r,
@@ -148,7 +153,6 @@ public class TravellerHurtByTarget extends EntityAITarget {
             for (EntityTraveller ally : allies) {
                 if (ally == owner) continue;
                 if (!ally.isEntityAlive()) continue;
-                if (attacker instanceof EntityTraveller) continue;
                 if (TravellersDerivedConfig.isPeacefulBlocked(ally.world)) continue;
 
                 // Only same-faction allies respond to calls for help.
@@ -164,12 +168,15 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 // IMPORTANT: don't steal targets. Only pull in allies that currently have no target.
                 EntityLivingBase cur = ally.getAttackTarget();
                 if (cur != null && cur.isEntityAlive()) continue;
+                boolean melee = !ally.hasBowAnywherePublic();
+                if (melee && meleeSlots <= 0) continue;
 
                 // Use your limiter-aware setter (it will bypass limiter automatically if <=8 blocks & no target)
                 boolean ok = ally.trySetAttackTargetLimited(attacker, 0);
                 if (ok) {
                     ally.getNavigator().clearPath();
                     recruited++;
+                    if (melee) meleeSlots--;
                 }
             }
             com.jubitus.travellers.debug.profile.MovementProfiler.helpCall("call for help", recruited);

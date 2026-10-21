@@ -1,4 +1,4 @@
-Status: phase 1 in progress — steps 1-4 done (awaiting an in-game check), next: step 5
+Status: phase 1 in progress — steps 1-6 done (awaiting an in-game check), next: step 6b
 
 # Combat awareness: reassessment, escorts, calmer help calls
 
@@ -68,11 +68,13 @@ minimal server cost.
    target on removal and whenever one of our tasks started); the report lists which classes were removed.
 4. **Archers** — `done`. Same rule with the 8-block distance; the bow task follows the new target each tick and the
    melee hand-off is distance-based.
-5. **Escort leash** — `todo`. Target pick, reassessment and disengage refuse targets beyond the leash for escort-slot
-   workers; threats attacking the leader score first; escort archers' repositioning stays inside the leash.
-6. **Calmer help calls** — `todo`. Per-group cooldown map shared by `TravellerHurtByTarget` call for help and
-   `rallyGroupAgainst`; recruit only idle allies up to the attacker cap. `EntityAIDefendOwnerProactively` moves onto
-   `SharedThreatScan`.
+5. **Escort leash** — `done`. The follow AI records each worker's escort role (`setEscortSlot`, kept through a
+   fight); `getEscortedLeader()` is non-null only while it follows. A melee escort refuses a target farther than 10
+   blocks from the leader and drops one beyond 12; an escort archer keeps far targets but stands its ground like HOLD
+   (`ArcherMovement.standsGround`).
+6. **Calmer help calls** — `done`. `HelpCallGate`: one call per attacker per group every 3 s, shared by the call for
+   help and the worker rally; melee recruits only up to the free attacker slots, nearest first; no call for help
+   against units. `EntityAIDefendOwnerProactively` stays on its own scan (measured 0.08 ms/tick, not worth moving).
 6b. **Lighter mounted chase** — `todo`. Fewer melee-chase A* repaths for mounted fighters (shape decided from the
    report numbers).
 7. **Virtual battles** — `todo`. No positions there: keep the shared lock and cap, check nothing diverges visibly when

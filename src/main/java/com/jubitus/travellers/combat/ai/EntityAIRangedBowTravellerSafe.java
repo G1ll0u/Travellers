@@ -32,7 +32,7 @@ import net.minecraft.world.World;
  * (e.g. a low ceiling) does the archer physically sidestep to open the angle.
  * - Without LOS: reposition toward the target faster than normal (a short grace period first, to
  * avoid twitchy repathing on brief flicker), still fully drawn and ready.
- * - HOLD-attitude workers ({@link ArcherMovement#isHoldAttitude}) skip kiting/backstep/distance-drift entirely and
+ * - HOLD-attitude and escort workers ({@link ArcherMovement#standsGround}) skip kiting/backstep/distance-drift entirely and
  * hold their ground - the lofted shot covers most blocked-line cases without moving at all, and the
  * rare last-resort sidestep is small and tethered to the worker's own formation slot. This is what
  * lets a player park an archer group on a tower without them wandering off the edge.
@@ -204,7 +204,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             // to match the arc when lofting, so the pose never disagrees with the arrow's path.
             movement.hardFaceTarget(tgt, 48.0F, 36.0F, 75.0F, lofted ? shotLine.lobPitchDeg() : null);
 
-            if (movement.isHoldAttitude()) {
+            if (movement.standsGround()) {
                 movement.applyHoldMovement(needsClearing);
             } else {
                 movement.applyKitingMovement(d, needsClearing);
@@ -257,7 +257,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
 
         // HOLD attitude: never actually walk to chase LOS back (see class javadoc for what does
         // stay active - kiting/sidestep while visible are untouched, only this blind pursuit stops).
-        if (noLOSTicks < LOS_REACQUIRE_GRACE_TICKS || movement.isHoldAttitude()) {
+        if (noLOSTicks < LOS_REACQUIRE_GRACE_TICKS || movement.standsGround()) {
             // Short grace: hold still briefly (foliage flicker, a door swinging shut, etc.) rather
             // than immediately committing to a reposition.
             mob.getNavigator().clearPath();

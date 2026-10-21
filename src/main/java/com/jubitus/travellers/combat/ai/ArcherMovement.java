@@ -52,9 +52,11 @@ final class ArcherMovement {
         repathCooldown = 0;
     }
 
-    boolean isHoldAttitude() {
-        return mob instanceof EntityTravellerWorker
-                && ((EntityTravellerWorker) mob).getCachedAttitude() == WorkerAttitude.HOLD;
+    /** HOLD archers and escort archers shoot from where they stand (an escort never walks away from its leader). */
+    boolean standsGround() {
+        if (!(mob instanceof EntityTravellerWorker)) return false;
+        EntityTravellerWorker w = (EntityTravellerWorker) mob;
+        return w.getCachedAttitude() == WorkerAttitude.HOLD || w.getEscortedLeader() != null;
     }
 
     /**

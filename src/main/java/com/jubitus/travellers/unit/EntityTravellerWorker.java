@@ -1496,6 +1496,20 @@ public class EntityTravellerWorker extends EntityTraveller {
                 && this.returnUsingFollow;
     }
 
+    // Last formation role reported by the follow AI, kept through a fight (the follow task does not run then).
+    private boolean escortSlot = false;
+
+    public void setEscortSlot(boolean escort) {
+        this.escortSlot = escort;
+    }
+
+    /** The leader this worker escorts (an escort slot while following), or null: escorts fight only near it. */
+    @Nullable
+    public net.minecraft.entity.EntityLivingBase getEscortedLeader() {
+        if (!escortSlot || !isHiredFollower() || !isFollowOrderActive()) return null;
+        return getEffectiveFollowTarget();
+    }
+
     /** Transport worker coming back to the player: tight escort instead of a formation slot. */
     public boolean isPickupEscortActive() {
         return this.mode == WorkerMode.RETURNING && delivery.jobDelivered && this.returnUsingFollow;

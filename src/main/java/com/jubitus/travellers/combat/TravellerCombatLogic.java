@@ -61,6 +61,9 @@ public class TravellerCombatLogic {
     private boolean wasInCombatPrev = false;
     private int silenceUntilTick = 0;
     private static final int RECENT_HIT_TICKS = 40;
+    // A melee escort takes no target farther than this from its leader, and drops one beyond ESCORT_DROP.
+    private static final double ESCORT_LEASH = 10.0D;
+    private static final double ESCORT_DROP = 12.0D;
     private int targetAdoptedTick = 0;
     private int stuckTargetTicks = 0;
     private double lastTargetDistSq = -1.0D;
@@ -160,6 +163,13 @@ public class TravellerCombatLogic {
             noteDrop("creative player");
             entity.setAttackTarget(null);
             entity.setInCombat(false);
+            return;
+        }
+        if (beyondEscortLeash(tgt, ESCORT_DROP)) {
+            noteDrop("escort leash");
+            entity.setAttackTarget(null);
+            entity.setInCombat(false);
+            entity.getNavigator().clearPath();
             return;
         }
         double maxEngage = TravellersConfig.COMBAT.attackTriggerRange;
@@ -770,6 +780,12 @@ public class TravellerCombatLogic {
                 return;
             }
         }
+        if (target != null && !entity.world.isRemote && beyondEscortLeash(target, ESCORT_LEASH)) {
+            if (refusalKeepsCurrent(target)) return;
+            noteDrop("refused: escort leash");
+            rejectTarget();
+            return;
+        }
 
         // Hard cap of attackers per target (close-range bypass).
         if (!entity.world.isRemote && target != null) {
@@ -1035,6 +1051,16 @@ public class TravellerCombatLogic {
         }
 
         return true;
+    }
+
+    /** A melee escort fights only near the leader it escorts (horizontal distance); archers shoot from their place. */
+    private boolean beyondEscortLeash(EntityLivingBase target, double leash) {
+        if (!(entity instanceof EntityTravellerWorker) || entity.hasBowAnywherePublic()) return false;
+        EntityLivingBase leader = ((EntityTravellerWorker) entity).getEscortedLeader();
+        if (leader == null) return false;
+        double dx = target.posX - leader.posX;
+        double dz = target.posZ - leader.posZ;
+        return dx * dx + dz * dz > leash * leash;
     }
 
     /** A refused new candidate never costs the unit the live target it already has. */

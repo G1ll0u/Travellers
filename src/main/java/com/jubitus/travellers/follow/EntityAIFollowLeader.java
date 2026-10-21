@@ -155,6 +155,13 @@ public class EntityAIFollowLeader extends EntityAIBase {
     private FollowFormationCoordinator.SlotAssignment resolveWorkerSlot(EntityLivingBase target, FollowMode mode,
                                                                         FollowRuntimeConfig cfg, double desiredDist) {
         EntityTravellerWorker w = requireWorker();
+        FollowFormationCoordinator.SlotAssignment slot = pickWorkerSlot(w, target, mode, cfg, desiredDist);
+        w.setEscortSlot(slot.isEscort);
+        return slot;
+    }
+
+    private FollowFormationCoordinator.SlotAssignment pickWorkerSlot(EntityTravellerWorker w, EntityLivingBase target,
+                                                                     FollowMode mode, FollowRuntimeConfig cfg, double desiredDist) {
         if (w.isPickupEscortActive() && target instanceof EntityPlayer) {
             return FollowFormationCoordinator.getPickupEscortSlot(w, target,
                     TravellersConfig.WORKER.pickupEscortDistance);
