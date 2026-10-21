@@ -140,6 +140,24 @@ public final class MovementProfiler {
         session.raidScan(inBox, preferred, rays, found, nanos);
     }
 
+    /** One attack-target decision: "adopted", "refused" (lock held) or the verdict that allowed a switch. */
+    public static void targetChange(String kind) {
+        if (session == null) return;
+        session.targetChange(kind);
+    }
+
+    /** One help call (call for help, worker rally) and how many idle allies it pulled in. */
+    public static void helpCall(String kind, int recruited) {
+        if (session == null) return;
+        session.helpCall(kind, recruited);
+    }
+
+    /** One world query for threats: entities returned and its cost. */
+    public static void threatScan(String kind, int found, long nanos) {
+        if (session == null) return;
+        session.threatScan(kind, found, nanos);
+    }
+
     public static void materialized(UUID id, boolean ok) {
         if (session == null) return;
         session.materialized(id, ok, now());

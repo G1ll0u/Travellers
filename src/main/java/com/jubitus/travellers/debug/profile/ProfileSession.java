@@ -203,6 +203,24 @@ final class ProfileSession {
         if (nanos > raidScanMaxNanos) raidScanMaxNanos = nanos;
     }
 
+    final Map<String, Long> targetChanges = new TreeMap<>();
+    final Map<String, Tally> helpCalls = new TreeMap<>();
+    final Map<String, Tally> threatScanFound = new TreeMap<>();
+    final Map<String, Tally> threatScanNanos = new TreeMap<>();
+
+    void targetChange(String kind) {
+        targetChanges.merge(kind, 1L, Long::sum);
+    }
+
+    void helpCall(String kind, int recruited) {
+        helpCalls.computeIfAbsent(kind, k -> new Tally()).add(recruited);
+    }
+
+    void threatScan(String kind, int found, long nanos) {
+        threatScanFound.computeIfAbsent(kind, k -> new Tally()).add(found);
+        threatScanNanos.computeIfAbsent(kind, k -> new Tally()).add(nanos);
+    }
+
     final Map<String, Long> followSchedule = new TreeMap<>();
     long followCapTicks;
     private long lastFollowCapTick = -1;

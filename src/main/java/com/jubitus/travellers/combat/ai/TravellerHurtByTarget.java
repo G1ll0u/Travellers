@@ -118,7 +118,11 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 && com.jubitus.travellers.combat.AttackTargetLimiter.getAttackerCount(attacker)
                         >= com.jubitus.travellers.config.TravellersConfig.COMBAT.callForHelpSkipIfAttackersAtLeast;
 
+        if (this.callForHelp && enoughAlreadyEngaged) {
+            com.jubitus.travellers.debug.profile.MovementProfiler.helpCall("call for help, skipped", 0);
+        }
         if (this.callForHelp && attacker != null && attacker.isEntityAlive() && !enoughAlreadyEngaged) {
+            int recruited = 0;
             double r = this.assistRadius;
             AxisAlignedBB box = new AxisAlignedBB(
                     owner.posX - r, owner.posY - 8, owner.posZ - r,
@@ -165,8 +169,10 @@ public class TravellerHurtByTarget extends EntityAITarget {
                 boolean ok = ally.trySetAttackTargetLimited(attacker, 0);
                 if (ok) {
                     ally.getNavigator().clearPath();
+                    recruited++;
                 }
             }
+            com.jubitus.travellers.debug.profile.MovementProfiler.helpCall("call for help", recruited);
 
 
         }

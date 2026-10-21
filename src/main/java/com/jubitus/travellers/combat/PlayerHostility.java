@@ -229,14 +229,17 @@ public class PlayerHostility {
     public static void rallyGroupAgainst(EntityTravellerWorker self, EntityLivingBase attacker, @Nullable UUID enemyOwner) {
         UUID ownerId = self.getFollowOwnerId();
         if (ownerId == null || attacker == null || !attacker.isEntityAlive()) return;
+        int recruited = 0;
         for (EntityTravellerWorker mate : nearbyOwnedMates(self.world, self.getPosition(), ownerId)) {
             if (mate == self) continue;
             if (enemyOwner != null) mate.playerHostility.engageEnemyOwner(enemyOwner);
             EntityLivingBase cur = mate.getAttackTarget();
             if (cur == null || !cur.isEntityAlive()) {
                 mate.setAttackTarget(attacker);
+                if (mate.getAttackTarget() == attacker) recruited++;
             }
         }
+        com.jubitus.travellers.debug.profile.MovementProfiler.helpCall("worker rally", recruited);
     }
 
     public boolean isEnemyMillVillager(org.millenaire.common.entity.MillVillager v) {

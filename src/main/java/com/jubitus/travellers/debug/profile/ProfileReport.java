@@ -72,6 +72,7 @@ final class ProfileReport {
         scheduler(sb, s, ticks);
         paths(sb, s, ticks);
         raidScans(sb, s, ticks);
+        combat(sb, s, ticks);
         boundary(sb, s);
         groups(sb, s);
         hotspots(sb, s);
@@ -294,6 +295,33 @@ final class ProfileReport {
         sb.append("  cost: ").append(f2(s.raidScanNanos / 1e6 / ticks)).append(" ms per tick, ")
                 .append(f2(s.raidScanNanos / 1e6 / n)).append(" ms per scan, worst ")
                 .append(f2(s.raidScanMaxNanos / 1e6)).append(" ms\n");
+    }
+
+    private static void combat(StringBuilder sb, ProfileSession s, long ticks) {
+        header(sb, "Combat targeting");
+        long total = 0;
+        for (long v : s.targetChanges.values()) total += v;
+        sb.append("  target decisions ").append(total).append(" (adopted = had none, refused = lock held, others = switch reason)\n");
+        for (Map.Entry<String, Long> e : s.targetChanges.entrySet()) {
+            sb.append("    ").append(pad(e.getKey(), 24)).append(pad(String.valueOf(e.getValue()), 9))
+                    .append(pct(e.getValue(), Math.max(1L, total))).append('\n');
+        }
+        sb.append("  help calls (allies pulled in per call)\n");
+        for (Map.Entry<String, ProfileSession.Tally> e : s.helpCalls.entrySet()) {
+            ProfileSession.Tally t = e.getValue();
+            sb.append("    ").append(pad(e.getKey(), 24)).append(pad(String.valueOf(t.count), 9))
+                    .append("avg ").append(f1(t.avg())).append(", max ").append((long) t.max).append('\n');
+        }
+        sb.append("  threat scans (world queries)\n");
+        for (Map.Entry<String, ProfileSession.Tally> e : s.threatScanNanos.entrySet()) {
+            ProfileSession.Tally n = e.getValue();
+            ProfileSession.Tally f = s.threatScanFound.get(e.getKey());
+            sb.append("    ").append(pad(e.getKey(), 24)).append(pad(String.valueOf(n.count), 9))
+                    .append(f2((double) n.count / ticks)).append(" per tick, ")
+                    .append(f1(f.avg())).append(" entities, ")
+                    .append(f2(n.sum / 1e6 / ticks)).append(" ms per tick, worst ")
+                    .append(f2(n.max / 1e6)).append(" ms\n");
+        }
     }
 
     private static void paths(StringBuilder sb, ProfileSession s, long ticks) {

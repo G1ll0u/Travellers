@@ -51,4 +51,15 @@ class TargetLockPolicyTest {
         s.currentUseless = true;
         assertTrue(TargetLockPolicy.mayReplace(s));
     }
+
+    @Test
+    void verdictNamesTheRuleThatAllowedTheSwitch() {
+        TargetLockPolicy.Situation s = locked(0);
+        assertEquals(TargetLockPolicy.Verdict.LOCKED, TargetLockPolicy.decide(s));
+        s.candidateHitsMeClose = true;
+        assertEquals(TargetLockPolicy.Verdict.HIT_CLOSE, TargetLockPolicy.decide(s));
+        s.candidateAttacksLeader = true;
+        assertEquals(TargetLockPolicy.Verdict.LEADER_ATTACKED, TargetLockPolicy.decide(s));
+        assertEquals(TargetLockPolicy.Verdict.LOCK_EXPIRED, TargetLockPolicy.decide(locked(TargetLockPolicy.LOCK_TICKS)));
+    }
 }

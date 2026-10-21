@@ -608,8 +608,13 @@ public class TravellerCombatLogic {
     public void setAttackTarget(@Nullable EntityLivingBase target) {
         EntityLivingBase prev = entity.getAttackTarget();
         // A live, still-useful target is kept against any switch request (see TargetLockPolicy).
-        if (!entity.world.isRemote && target != null && prev != null && prev != target && !mayReplaceTarget(target)) {
-            return;
+        TargetLockPolicy.Verdict verdict = null;
+        if (!entity.world.isRemote && target != null && prev != null && prev != target) {
+            verdict = replaceVerdict(target);
+            if (verdict == TargetLockPolicy.Verdict.LOCKED) {
+                recordTargetChange("refused", prev, target);
+                return;
+            }
         }
         if (!entity.world.isRemote && prev != null && prev != target) {
             AttackTargetLimiter.leave(entity, prev);
@@ -740,7 +745,12 @@ public class TravellerCombatLogic {
         entity.vanillaSetAttackTarget(target);
 
         if (!entity.world.isRemote) {
-            if (target != prev) targetAdoptedTick = entity.ticksExisted;
+            if (target != prev) {
+                targetAdoptedTick = entity.ticksExisted;
+                if (target != null) {
+                    recordTargetChange(verdict == null ? "adopted" : verdict.name().toLowerCase(java.util.Locale.ROOT), prev, target);
+                }
+            }
             if (target != null) entity.setInCombat(true);
             if (target instanceof EntityPlayer) {
                 chasingPlayerId = target.getUniqueID();
@@ -766,7 +776,11 @@ public class TravellerCombatLogic {
     /** False when the current target is locked and {@code candidate} has no right to replace it. */
     public boolean mayReplaceTarget(EntityLivingBase candidate) {
         EntityLivingBase cur = entity.getAttackTarget();
-        if (cur == null || cur == candidate) return true;
+        return cur == null || cur == candidate || replaceVerdict(candidate) != TargetLockPolicy.Verdict.LOCKED;
+    }
+
+    private TargetLockPolicy.Verdict replaceVerdict(EntityLivingBase candidate) {
+        EntityLivingBase cur = entity.getAttackTarget();
 
         TargetLockPolicy.Situation s = new TargetLockPolicy.Situation();
         s.currentUseless = !cur.isEntityAlive() || entity.isIgnoring(cur);
@@ -781,7 +795,17 @@ public class TravellerCombatLogic {
         s.candidateHitsMeClose = entity.getRevengeTarget() == candidate
                 && entity.ticksExisted - entity.getRevengeTimer() <= RECENT_HIT_TICKS
                 && entity.getDistanceSq(candidate) <= TargetLockPolicy.CLOSE_HIT_DIST_SQ;
-        return TargetLockPolicy.mayReplace(s);
+        return TargetLockPolicy.decide(s);
+    }
+
+    /** Profiler tally and trace line for one target decision; {@code kind} is "adopted", "refused" or the switch verdict. */
+    private void recordTargetChange(String kind, @Nullable EntityLivingBase prev, EntityLivingBase target) {
+        com.jubitus.travellers.debug.profile.MovementProfiler.targetChange(kind);
+        if (!com.jubitus.travellers.debug.trace.TravellerTracer.isTraced(entity.getUniqueID())) return;
+        String from = prev == null || !prev.isEntityAlive() ? "-"
+                : prev.getName() + String.format(java.util.Locale.ROOT, " d=%.1f", entity.getDistance(prev));
+        com.jubitus.travellers.debug.trace.TravellerTracer.event(entity, "combat", "target " + kind + ": " + from
+                + " -> " + target.getName() + String.format(java.util.Locale.ROOT, " d=%.1f", entity.getDistance(target)));
     }
 
     private int countRecentThreats() {

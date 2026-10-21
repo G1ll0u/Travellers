@@ -77,7 +77,7 @@ public final class SharedThreatScan {
             // A member far from its group (an idle worker across the map) scans its own box only.
             if (!contains(shared, box)) return direct(scanner, box, scopeOwner, priority);
             if (!PathBudget.tryAcquire(world, PathBudget.Client.COMBAT_SCAN, scanner.getEntityId(), priority)) return null;
-            entry = new Entry(dim, now, sharedReach, shared, query(scanner, shared, scopeOwner));
+            entry = new Entry(dim, now, sharedReach, shared, query(scanner, shared, scopeOwner, "shared group scan"));
             evictStale(now);
             CACHE.put(scope, entry);
         }
@@ -92,12 +92,15 @@ public final class SharedThreatScan {
     @Nullable
     private static List<EntityLivingBase> direct(EntityTraveller scanner, AxisAlignedBB box, @Nullable UUID scopeOwner, int priority) {
         if (!PathBudget.tryAcquire(scanner.world, PathBudget.Client.COMBAT_SCAN, scanner.getEntityId(), priority)) return null;
-        return query(scanner, box, scopeOwner);
+        return query(scanner, box, scopeOwner, "own scan");
     }
 
-    private static List<EntityLivingBase> query(EntityTraveller scanner, AxisAlignedBB box, @Nullable UUID scopeOwner) {
-        return scanner.world.getEntitiesWithinAABB(EntityLivingBase.class, box,
+    private static List<EntityLivingBase> query(EntityTraveller scanner, AxisAlignedBB box, @Nullable UUID scopeOwner, String kind) {
+        long start = System.nanoTime();
+        List<EntityLivingBase> found = scanner.world.getEntitiesWithinAABB(EntityLivingBase.class, box,
                 e -> e != null && e.isEntityAlive() && mayBeThreat(scanner, e, scopeOwner));
+        com.jubitus.travellers.debug.profile.MovementProfiler.threatScan(kind, found.size(), System.nanoTime() - start);
+        return found;
     }
 
     // INVARIANT: member-specific hostility (players, workers, villagers, other units) is kept whole here; only group-uniform rules filter.

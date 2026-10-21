@@ -36,11 +36,18 @@ public final class TargetLockPolicy {
         return recentThreats >= OUTNUMBERED_THREATS ? OUTNUMBERED_LOCK_TICKS : LOCK_TICKS;
     }
 
+    /** Why a switch is allowed, or LOCKED when it is not. */
+    public enum Verdict { CURRENT_USELESS, LEADER_ATTACKED, HIT_CLOSE, LOCK_EXPIRED, LOCKED }
+
     /** Priority ladder: leader threat > close hit on me > current target (locked) > anything else. */
+    public static Verdict decide(Situation s) {
+        if (s.currentUseless) return Verdict.CURRENT_USELESS;
+        if (s.candidateAttacksLeader) return Verdict.LEADER_ATTACKED;
+        if (s.candidateHitsMeClose) return Verdict.HIT_CLOSE;
+        return s.currentAgeTicks >= lockTicks(s.recentThreats) ? Verdict.LOCK_EXPIRED : Verdict.LOCKED;
+    }
+
     public static boolean mayReplace(Situation s) {
-        if (s.currentUseless) return true;
-        if (s.candidateAttacksLeader) return true;
-        if (s.candidateHitsMeClose) return true;
-        return s.currentAgeTicks >= lockTicks(s.recentThreats);
+        return decide(s) != Verdict.LOCKED;
     }
 }

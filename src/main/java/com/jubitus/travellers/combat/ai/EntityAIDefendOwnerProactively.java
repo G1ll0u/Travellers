@@ -68,10 +68,12 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
             box = box.union(leader.getEntityBoundingBox().grow(r, r, r));
         }
 
+        long start = System.nanoTime();
         List<EntityLivingBase> list = worker.world.getEntitiesWithinAABB(
                 EntityLivingBase.class, box,
                 e -> Hostility.isWorkerEnemy(worker, e)
         );
+        com.jubitus.travellers.debug.profile.MovementProfiler.threatScan("defend owner", list.size(), System.nanoTime() - start);
 
         if (list.isEmpty()) return false;
 
