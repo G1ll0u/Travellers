@@ -120,6 +120,9 @@ public class TravellersConfig {
     public static class Rendering {
         @Config.Comment("Show name tags above travellers heads.")
         public boolean showTravellerNames = false;
+
+        @Config.Comment("Colour of the armband every raider wears, as a hex code (000000 is black, FF0000 is red).")
+        public String raiderMarkColor = "000000";
     }
 
     public static class ChunkReader {

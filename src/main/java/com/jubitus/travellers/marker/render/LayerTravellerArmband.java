@@ -4,11 +4,16 @@ import com.jubitus.travellers.unit.render.RenderLodHelper;
 import com.jubitus.travellers.unit.render.RenderTraveller;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
+import com.jubitus.travellers.unit.EntityTravellerRaider;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.config.TravellersDerivedConfig;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.entity.layers.LayerRenderer;
 import com.jubitus.travellers.marker.WorkerMarkStyle;
+
+import javax.annotation.Nullable;
 
 
 public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
@@ -31,17 +36,14 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
                               float headPitch,
                               float scale) {
 
-        if (!(entity instanceof EntityTravellerWorker)) return;
-
-        EntityTravellerWorker worker = (EntityTravellerWorker) entity;
-        if (!worker.shouldRenderOwnerMark()) return;
+        ResourceLocation texture = markTexture(entity);
+        if (texture == null) return;
 
         if (renderer.isRenderingBaked()) return;
 
         if (RenderLodHelper.isBeyond(entity, TravellersConfig.ENTITY_RENDER_LOD.armbandLayerMaxDistance)) return;
 
-        WorkerMarkStyle style = worker.getOwnerMarkStyle();
-        int color = worker.getOwnerMarkColor();
+        int color = markColor(entity);
 
         float r = ((color >> 16) & 0xFF) / 255.0F;
         float g = ((color >> 8)  & 0xFF) / 255.0F;
@@ -50,7 +52,7 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
         model.setModelAttributes((ModelBiped) renderer.getMainModel());
         model.setLivingAnimations(entity, limbSwing, limbSwingAmount, partialTicks);
 
-        renderer.bindTexture(style.getTexture(worker.isVisualLeader()));
+        renderer.bindTexture(texture);
 
         // Lit like the body it sits on, so it matches the baked skin's shading.
         // Explicit blend func — robust against other mods that may have changed the state.
@@ -75,6 +77,28 @@ public class LayerTravellerArmband implements LayerRenderer<EntityTraveller> {
         GlStateManager.disablePolygonOffset();
         GlStateManager.disableBlend();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    /** The armband this unit wears, or null if none: a hired worker's owner mark, or the raider mark. */
+    @Nullable
+    public static ResourceLocation markTexture(EntityTraveller entity) {
+        if (entity instanceof EntityTravellerRaider) {
+            return WorkerMarkStyle.PLAIN.getTexture(false);
+        }
+        if (entity instanceof EntityTravellerWorker) {
+            EntityTravellerWorker worker = (EntityTravellerWorker) entity;
+            if (worker.shouldRenderOwnerMark()) {
+                return worker.getOwnerMarkStyle().getTexture(worker.isVisualLeader());
+            }
+        }
+        return null;
+    }
+
+    /** RGB of the armband returned by {@link #markTexture}. */
+    public static int markColor(EntityTraveller entity) {
+        return entity instanceof EntityTravellerWorker
+                ? ((EntityTravellerWorker) entity).getOwnerMarkColor()
+                : TravellersDerivedConfig.raiderMarkColor();
     }
 
     @Override

@@ -44,6 +44,26 @@ public class TravellersDerivedConfig {
                 && !TravellersConfig.COMBAT.ignorePeaceful;
     }
 
+    private static String raiderMarkColorSource;
+    private static int raiderMarkColor;
+
+    /** RENDERING.raiderMarkColor parsed as RGB; black when it isn't a valid hex colour. Re-parsed when the text changes. */
+    public static int raiderMarkColor() {
+        String text = TravellersConfig.RENDERING.raiderMarkColor;
+        if (!java.util.Objects.equals(text, raiderMarkColorSource)) {
+            int parsed = 0;
+            try {
+                String hex = text == null ? "" : text.trim();
+                if (hex.startsWith("#")) hex = hex.substring(1);
+                if (hex.length() == 6) parsed = Integer.parseInt(hex, 16);
+            } catch (NumberFormatException ignored) {
+            }
+            raiderMarkColor = parsed;
+            raiderMarkColorSource = text;
+        }
+        return raiderMarkColor;
+    }
+
     public static void refresh() {
         RAIDER_ATTACK_LIST.reload(
                 TravellersConfig.ATTACK_RULES.raiderAttackIdRules,

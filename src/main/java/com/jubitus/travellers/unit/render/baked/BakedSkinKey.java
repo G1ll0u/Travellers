@@ -1,5 +1,7 @@
 package com.jubitus.travellers.unit.render.baked;
 
+import com.jubitus.travellers.marker.render.LayerTravellerArmband;
+
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -46,11 +48,11 @@ final class BakedSkinKey {
                 armourColor[i] = item.hasOverlay(stack) ? item.getColor(stack) & 0xFFFFFF : -1;
             }
         }
-        EntityTravellerWorker worker = e instanceof EntityTravellerWorker ? (EntityTravellerWorker) e : null;
-        if (worker != null && worker.shouldRenderOwnerMark()
+        ResourceLocation markTexture = LayerTravellerArmband.markTexture(e);
+        if (markTexture != null
                 && !RenderLodHelper.isBeyond(e, TravellersConfig.ENTITY_RENDER_LOD.armbandLayerMaxDistance)) {
-            mark = worker.getOwnerMarkStyle().getTexture(worker.isVisualLeader());
-            markColor = worker.getOwnerMarkColor();
+            mark = markTexture;
+            markColor = LayerTravellerArmband.markColor(e);
         } else {
             mark = null;
             markColor = 0;
