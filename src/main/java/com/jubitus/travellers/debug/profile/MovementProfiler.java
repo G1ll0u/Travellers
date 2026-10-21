@@ -146,6 +146,12 @@ public final class MovementProfiler {
         session.targetChange(kind);
     }
 
+    /** A live attack target dropped, with the reason noted by the code that dropped it. */
+    public static void targetDrop(String reason) {
+        if (session == null) return;
+        session.targetDrop(reason);
+    }
+
     /** One help call (call for help, worker rally) and how many idle allies it pulled in. */
     public static void helpCall(String kind, int recruited) {
         if (session == null) return;

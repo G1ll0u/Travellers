@@ -618,6 +618,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Never attack the owner
         if (isOwner(target)) {
+            combat.noteDrop("new target refused: owner");
             super.setAttackTarget(null);
             return;
         }
@@ -625,6 +626,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Blacklist
         if (target != null) {
             if (getAggroBlacklist().matches(target)) {
+                combat.noteDrop("new target refused: blacklisted");
                 super.setAttackTarget(null);
                 return;
             }
@@ -644,6 +646,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                                     || (target instanceof EntityLiving && ((EntityLiving) target).getAttackTarget() == getFollowOwner())));
 
             if (!sees && d2 > (8.0D * 8.0D) && !isDirectCombat) {
+                combat.noteDrop("new target refused: unseen");
                 super.setAttackTarget(null);
                 return;
             }
@@ -748,6 +751,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 || (tgt instanceof EntityTravellerWorker
                 && !playerHostility.isEnemyHiredWorker((EntityTravellerWorker) tgt));
         if (stale) {
+            combat.noteDrop("no longer an enemy");
             this.setAttackTarget(null);
             this.setRevengeTarget(null);
             this.setInCombat(false);
@@ -784,6 +788,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // If WE got pulled too far from the anchor, stop fighting and go back.
         if (this.getDistanceSqToCenter(idleAnchorPos) > ANCHOR_HARD_LEASH * ANCHOR_HARD_LEASH) {
+            combat.noteDrop("guard leash");
             this.setAttackTarget(null);
             this.setRevengeTarget(null);
             this.setInCombat(false);
@@ -793,6 +798,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Don't even ACCEPT targets that are far from the anchor.
         if (tgt != null && distSqFromAnchor(tgt) > ANCHOR_GUARD_RADIUS * ANCHOR_GUARD_RADIUS) {
+            combat.noteDrop("guard leash");
             this.setAttackTarget(null);
             this.setRevengeTarget(null);
             this.setInCombat(false);

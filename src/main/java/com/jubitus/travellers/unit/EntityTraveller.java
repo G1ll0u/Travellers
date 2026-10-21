@@ -2666,6 +2666,7 @@ public void fall(float distance, float damageMultiplier) {
         if (this.world.isRemote) return;
         if (this.isInPlayerViewDistance()) return;
 
+        combat.noteDrop("offscreen");
         if ((this.ticksExisted & 15) != 0) { // 1 fois / 16 ticks
             if (this.getAttackTarget() != null) this.setAttackTarget(null);
             if (this.getRevengeTarget() != null) this.setRevengeTarget(null);

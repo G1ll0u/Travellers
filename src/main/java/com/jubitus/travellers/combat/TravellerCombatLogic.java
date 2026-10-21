@@ -67,6 +67,9 @@ public class TravellerCombatLogic {
     // Last dead attack target a retarget boost was armed for: cleanup is deferred while boosted, so the
     // dead target stays assigned and would otherwise re-arm the boost every tick.
     @Nullable private EntityLivingBase lastHandledDeadTarget = null;
+    // Instrumentation: the target seen last tick and why it is being dropped (see observeTargetDrop).
+    @Nullable private EntityLivingBase observedTarget = null;
+    @Nullable private String dropReason = null;
 
     // -------------------------------------------------------------------------
     // Per-tick upkeep (server only; EntityTraveller.onUpdate calls these in this order)
@@ -79,6 +82,7 @@ public class TravellerCombatLogic {
 
     /** Attacker-slot upkeep, combat-end reset, disengage when too far, stuck target, revenge re-engage. */
     public void tickEngagement() {
+        observeTargetDrop();
         EntityLivingBase at = entity.getAttackTarget();
         // Archers bypass the limiter - no slot to maintain
         if (at != null && at.isEntityAlive() && !entity.shouldBypassAttackTargetLimiter(at)) {
@@ -88,6 +92,7 @@ public class TravellerCombatLogic {
                     entity.computeEffectiveAttackerCap(at));
             if (!ok) {
                 // Evicted from the slot: back off briefly so we don't frantic-retry every tick
+                noteDrop("evicted from attacker cap");
                 entity.ignoreTarget(at, 30);
                 entity.setAttackTarget(null);
                 entity.setInCombat(false);
@@ -123,6 +128,7 @@ public class TravellerCombatLogic {
         // helpRange is used for assistance chaining
         maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.helpRange);
         if (entity.getDistanceSq(tgt) > maxEngage * maxEngage) {
+            noteDrop("too far");
             entity.setAttackTarget(null);
             entity.setInCombat(false);
             if (entity.isAimingBow()) {
@@ -158,6 +164,7 @@ public class TravellerCombatLogic {
             abandon = !entity.getEntitySenses().canSee(tgt);
         }
         if (abandon) {
+            noteDrop("unreachable");
             // Shorter ignore for revenge targets (they attacked us): re-engage sooner
             entity.ignoreTarget(tgt, entity.getRevengeTarget() == tgt ? 40 : 200);
             entity.setAttackTarget(null);
@@ -275,6 +282,7 @@ public class TravellerCombatLogic {
         boolean assistStillDriven = entity.isOwnerStillFightingAssistTarget(p);
 
         if (playerCalm && fleeingLongEnough && !wasRecentlyThreat && !assistStillDriven) {
+            noteDrop("player forgiven");
             entity.setAttackTarget(null);
             entity.setInCombat(false);
             entity.getNavigator().clearPath();
@@ -625,6 +633,7 @@ public class TravellerCombatLogic {
 
             if (d2 > r * r) {
                 // hard reject
+                noteDrop("new target refused: out of range");
                 entity.vanillaSetAttackTarget(null);
                 entity.setInCombat(false);
                 entity.setRevengeTarget(null);
@@ -638,6 +647,7 @@ public class TravellerCombatLogic {
             }
         }
         if (entity.world != null && TravellersDerivedConfig.isPeacefulBlocked(entity.world)) {
+            noteDrop("peaceful");
             entity.vanillaSetAttackTarget(null);
             entity.setInCombat(false);
             return;
@@ -649,6 +659,7 @@ public class TravellerCombatLogic {
         if (target instanceof EntityPlayer) {
             EntityPlayer tp = (EntityPlayer) target;
             if (tp.isCreative() || tp.isSpectator()) {
+                noteDrop("new target refused: creative player");
                 entity.vanillaSetAttackTarget(null);
                 entity.setInCombat(false);
                 return;
@@ -658,6 +669,7 @@ public class TravellerCombatLogic {
             EntityRuleList blacklist = entity.getAggroBlacklist();
             if (blacklist.matches(target)) {
                 entity.ignoreTarget(target, 20 * 60);
+                noteDrop("new target refused: blacklisted");
                 rejectTarget();
                 return;
             }
@@ -667,6 +679,7 @@ public class TravellerCombatLogic {
         // / defend AIs from mobbing a mount they can't damage.
         if (target != null && !entity.world.isRemote && entity.isFriendlyBondedMount(target)) {
             entity.ignoreTarget(target, 20 * 30);
+            noteDrop("new target refused: friendly mount");
             rejectTarget();
             return;
         }
@@ -675,12 +688,14 @@ public class TravellerCombatLogic {
         if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
                 && !entity.isInPlayerViewDistance()
                 && (!entity.world.isRemote || !(target instanceof EntityPlayer))) {
+            noteDrop(target == null ? "offscreen" : "new target refused: offscreen");
             rejectTarget();
             return;
         }
         if (!entity.isAggressiveToTravellers() && target instanceof net.minecraft.entity.IEntityOwnable) {
             net.minecraft.entity.IEntityOwnable ownable = (net.minecraft.entity.IEntityOwnable) target;
             if (ownable.getOwner() instanceof EntityPlayer) {
+                noteDrop("new target refused: player's pet");
                 rejectTarget();
                 return;
             }
@@ -690,6 +705,7 @@ public class TravellerCombatLogic {
 
             // Same-faction fights are blocked, except hired workers of hostile owners
             if (!entity.isHostileUnit(other)) {
+                noteDrop("new target refused: same side");
                 rejectTarget();
                 return;
             }
@@ -796,6 +812,28 @@ public class TravellerCombatLogic {
                 && entity.ticksExisted - entity.getRevengeTimer() <= RECENT_HIT_TICKS
                 && entity.getDistanceSq(candidate) <= TargetLockPolicy.CLOSE_HIT_DIST_SQ;
         return TargetLockPolicy.decide(s);
+    }
+
+    /** Names why the live target is about to be dropped; the first reason wins until the next observation. */
+    public void noteDrop(String reason) {
+        EntityLivingBase cur = entity.getAttackTarget();
+        if (dropReason == null && cur != null && cur.isEntityAlive()) dropReason = reason;
+    }
+
+    /** A live target that disappeared since last tick is a drop: tallied with the reason noted for it. */
+    private void observeTargetDrop() {
+        EntityLivingBase seen = observedTarget;
+        EntityLivingBase cur = entity.getAttackTarget();
+        String reason = dropReason;
+        observedTarget = cur;
+        dropReason = null;
+        if (seen == null || cur != null || !seen.isEntityAlive()) return;
+        if (reason == null) reason = "untagged";
+        com.jubitus.travellers.debug.profile.MovementProfiler.targetDrop(reason);
+        if (com.jubitus.travellers.debug.trace.TravellerTracer.isTraced(entity.getUniqueID())) {
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(entity, "combat", "target dropped (" + reason + "): "
+                    + seen.getName() + String.format(java.util.Locale.ROOT, " d=%.1f", entity.getDistance(seen)));
+        }
     }
 
     /** Profiler tally and trace line for one target decision; {@code kind} is "adopted", "refused" or the switch verdict. */

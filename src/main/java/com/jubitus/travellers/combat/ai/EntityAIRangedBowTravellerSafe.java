@@ -271,6 +271,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
     /** Drops a target that cannot be hit; the boosted scan then prefers one that can (LOS is part of its filter). */
     private boolean giveUpUnhittableTarget(EntityLivingBase tgt) {
         mob.ignoreTarget(tgt, UNHITTABLE_IGNORE_TICKS);
+        mob.combat.noteDrop("archer: no shot");
         mob.setAttackTarget(null);
         mob.requestImmediateRetarget();
         unableToHitTicks = 0;

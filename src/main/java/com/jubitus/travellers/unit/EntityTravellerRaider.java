@@ -193,6 +193,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (target instanceof EntityPlayer) {
             EntityPlayer p = (EntityPlayer) target;
             if (p.isCreative() || p.isSpectator()) {
+                combat.noteDrop("new target refused: creative player");
                 super.setAttackTarget(null);
                 setInCombat(false);
                 return;

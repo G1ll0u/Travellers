@@ -306,6 +306,13 @@ final class ProfileReport {
             sb.append("    ").append(pad(e.getKey(), 24)).append(pad(String.valueOf(e.getValue()), 9))
                     .append(pct(e.getValue(), Math.max(1L, total))).append('\n');
         }
+        long drops = 0;
+        for (long v : s.targetDrops.values()) drops += v;
+        sb.append("  live targets dropped ").append(drops).append(" (target still alive, unit left with no target)\n");
+        for (Map.Entry<String, Long> e : s.targetDrops.entrySet()) {
+            sb.append("    ").append(pad(e.getKey(), 40)).append(pad(String.valueOf(e.getValue()), 9))
+                    .append(pct(e.getValue(), Math.max(1L, drops))).append('\n');
+        }
         sb.append("  help calls (allies pulled in per call)\n");
         for (Map.Entry<String, ProfileSession.Tally> e : s.helpCalls.entrySet()) {
             ProfileSession.Tally t = e.getValue();

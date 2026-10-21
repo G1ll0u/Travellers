@@ -1,4 +1,4 @@
-Status: phase 1 in progress — step 1 done (awaiting a baseline report), next: step 2
+Status: phase 1 in progress — step 1 done, drop counter added (awaiting a second report), next: step 2
 
 # Combat awareness: reassessment, escorts, calmer help calls
 
@@ -31,6 +31,8 @@ minimal server cost.
   beyond that they drop the target and come back. Escort archers may shoot a far target but never move away to do so.
 - Help calls: one per attacker per group every ~3 s, idle allies only, no more than the attacker cap needs; the rest
   find targets through reassessment.
+- Raiders and plain travellers keep no call for help against units (it never recruited anyone): reassessment covers it.
+- Mounted melee chase A* is the main combat cost (first report): it gets its own step after reassessment.
 
 ## Proposed constants (internal, tuned after the first test)
 
@@ -49,6 +51,8 @@ minimal server cost.
 1. **Instrument first** — `done`. Profile report section "Combat targeting": target decisions (adopted, refused by
    the lock, switch verdict), help calls with allies pulled in, threat scan cost per kind. Trace `combat` events on
    each decision. Steps 3, 5 and 6 add their own reasons (close threat, escort leash, help cooldown) to the same tally.
+1b. **Drop counter** — `done`. "Live targets dropped" by reason in the report and trace. Suspect to confirm: refusing a
+   new candidate (out of range, same side, offscreen…) also drops — and sometimes ignores for 60 s — the current target.
 2. **Split the ranges** — `todo`. `attackTriggerRange` = detection only; drop the bow +80 % (archers detect at the same
    range); close bands become the fixed constants above; `SharedThreatScan` box vertical reach capped.
 3. **Reassessment** — `todo`. New pure class in `combat/` scoring candidates from the group's cached
@@ -63,6 +67,8 @@ minimal server cost.
 6. **Calmer help calls** — `todo`. Per-group cooldown map shared by `TravellerHurtByTarget` call for help and
    `rallyGroupAgainst`; recruit only idle allies up to the attacker cap. `EntityAIDefendOwnerProactively` moves onto
    `SharedThreatScan`.
+6b. **Lighter mounted chase** — `todo`. Fewer melee-chase A* repaths for mounted fighters (shape decided from the
+   report numbers).
 7. **Virtual battles** — `todo`. No positions there: keep the shared lock and cap, check nothing diverges visibly when
    a battle materializes.
 8. **Wrap-up** — `todo`. Update `combat/CLAUDE.md` (switch rules, escort leash), archive this plan.

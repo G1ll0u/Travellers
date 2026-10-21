@@ -212,6 +212,12 @@ final class ProfileSession {
         targetChanges.merge(kind, 1L, Long::sum);
     }
 
+    final Map<String, Long> targetDrops = new TreeMap<>();
+
+    void targetDrop(String reason) {
+        targetDrops.merge(reason, 1L, Long::sum);
+    }
+
     void helpCall(String kind, int recruited) {
         helpCalls.computeIfAbsent(kind, k -> new Tally()).add(recruited);
     }
