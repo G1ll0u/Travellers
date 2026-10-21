@@ -312,19 +312,19 @@ public class TravellersConfig {
 
     public static class SpawnTravellers {
         @Config.Comment("How many travellers a village should have per villager it has. Example: 0.33 means 1 traveller for every 3 villagers.")
-        @Config.RangeDouble(min = 0.01, max = 10.0)
+        @Config.RangeDouble(min = 0.01, max = 50.0)
         public float travellerCapPerVillager = 0.24f;
 
         @Config.Comment("Every village always gets at least this many travellers, even a brand new one with no population yet.")
-        @Config.RangeInt(min = 0, max = 64)
+        @Config.RangeInt(min = 0, max = 256)
         public int travellerCapMinPerVillage = 2;
 
         @Config.Comment("No single village will ever get more travellers than this, no matter how big it grows.")
-        @Config.RangeInt(min = 0, max = 64)
+        @Config.RangeInt(min = 0, max = 256)
         public int travellerCapMaxPerVillage = 12;
 
         @Config.Comment("How many travellers appear around a standalone building that isn't part of a full village.")
-        @Config.RangeInt(min = 0, max = 4)
+        @Config.RangeInt(min = 0, max = 256)
         public int travellerCapPerLoneBuilding = 2;
 
         @Config.Comment("Minimum distance (blocks) from its home village/lone building a freshly spawned traveller can appear.")
@@ -340,11 +340,11 @@ public class TravellersConfig {
         public int groupSpawnChance = 50;
 
         @Config.Comment("Smallest possible size for a traveller group (including the leader).")
-        @Config.RangeInt(min = 2, max = 12)
+        @Config.RangeInt(min = 2, max = 64)
         public int groupMinSize = 2;
 
         @Config.Comment("Largest possible size for a traveller group (including the leader).")
-        @Config.RangeInt(min = 2, max = 12)
+        @Config.RangeInt(min = 2, max = 64)
         public int groupMaxSize = 8;
     }
 
@@ -358,19 +358,19 @@ public class TravellersConfig {
         public int raiderSpawnMaxDistanceFromHome = 600;
 
         @Config.Comment("How many raiders a village should attract per villager it has. Example: 0.2 means 1 raider for every 5 villagers.")
-        @Config.RangeDouble(min = 0.01, max = 10.0)
+        @Config.RangeDouble(min = 0.01, max = 64.0)
         public float raiderCapPerVillager = 0.12f;
 
         @Config.Comment("Every village always attracts at least this many raiders, even a brand new one with no population yet.")
-        @Config.RangeInt(min = 0, max = 32)
+        @Config.RangeInt(min = 0, max = 256)
         public int raiderCapMinPerVillage = 1;
 
         @Config.Comment("No single village will ever attract more raiders than this, no matter how big it grows.")
-        @Config.RangeInt(min = 0, max = 32)
+        @Config.RangeInt(min = 0, max = 256)
         public int raiderCapMaxPerVillage = 12;
 
         @Config.Comment("How many raiders appear around a standalone building that isn't part of a full village.")
-        @Config.RangeInt(min = 0, max = 4)
+        @Config.RangeInt(min = 0, max = 32)
         public int raiderCapPerLoneBuilding = 1;
 
         @Config.Comment("If true, raiders travel along the Ultreia/MPB road network like travellers do. If false, raiders roam freely off-road.")
@@ -381,25 +381,25 @@ public class TravellersConfig {
         public int groupSpawnChance = 50;
 
         @Config.Comment("Smallest possible size for a raider warband (including the leader).")
-        @Config.RangeInt(min = 2, max = 12)
+        @Config.RangeInt(min = 2, max = 64)
         public int groupMinSize = 2;
 
         @Config.Comment("Largest possible size for a raider warband (including the leader).")
-        @Config.RangeInt(min = 2, max = 12)
+        @Config.RangeInt(min = 2, max = 64)
         public int groupMaxSize = 8;
     }
 
     public static class SpawnWorkers {
         @Config.Comment("How many workers a village should have per villager it has. Same formula as travellers/raiders. Example: 0.1 means 1 worker for every 10 villagers.")
-        @Config.RangeDouble(min = 0.01, max = 10.0)
+        @Config.RangeDouble(min = 0.01, max = 20.0)
         public float workerCapPerVillager = 0.25f;
 
         @Config.Comment("Every village always gets at least this many workers, even a brand new one with no population yet.")
-        @Config.RangeInt(min = 0, max = 32)
+        @Config.RangeInt(min = 0, max = 256)
         public int workerCapMinPerVillage = 1;
 
         @Config.Comment("No single village will ever get more workers than this, no matter how big it grows.")
-        @Config.RangeInt(min = 0, max = 32)
+        @Config.RangeInt(min = 0, max = 256)
         public int workerCapMaxPerVillage = 8;
 
         @Config.Comment("Workers the global population controller spawns per lone building.")

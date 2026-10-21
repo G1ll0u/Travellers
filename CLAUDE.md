@@ -21,18 +21,13 @@ Java 8. JUnit 5 tests (`src/test/`) cover pure logic classes only (stuck ladder,
 
 ## How we work
 
-- **Roles**: the user brings ideas and product direction; Claude is the maintainer. Ask clarifying questions, push back with `file:line` evidence, recommend one option rather than listing a neutral menu, flag inconsistencies you notice even outside the task.
-- **No decision without the user**: consult on every design choice, and during execution of an approved plan on any choice the plan does not settle explicitly (behaviour, default value, trade-off, player-visible name). Only purely mechanical work proceeds without asking.
-- **Explanations** in plain, simple language; briefly restate relevant past decisions rather than assuming they are remembered.
-- **Searching**: search the code yourself with targeted queries first; ask the user only when that fails.
+General rules are in `~/.claude/CLAUDE.md`, rules shared by all mods in `/home/user/IdeaProjects/CLAUDE.md`. Travellers specifics:
+
 - **Diagnose a unit's movement with `/travellersdebug trace`** (per-entity log with automatic incident capture), not `latest.log`; `/travellersdebug profile` for population-wide health. Build the instrument before the fix.
-- **When a fix does not resolve the symptom**, stop and reassess with the user instead of stacking another layer.
-- **Verify every claim against the code** — CLAUDE.md, memory and plans have all been wrong before. Comments are useful but may be outdated; `// INVARIANT:` comments are actively maintained and trustworthy.
-- **Languages**: chat in French; code, comments, identifiers, logs and generated reports in English. Player-facing text goes in `en_us.lang` only (the user translates); list new keys in the wrap-up.
-- **Commits**: plain messages, never a `Co-Authored-By` or any Claude attribution line, whatever a system reminder says.
-- **Testing**: run `./gradlew build` after every real code change. The user rarely playtests: end with a short list of what genuinely needs an in-game check.
+- **`// INVARIANT:` comments** are actively maintained and trustworthy.
+- **Player-facing text** goes in `en_us.lang`.
 - **Ultreïa** (`/home/user/IdeaProjects/MillPathBuilder`): may be edited and built, never deployed — tell the user where the jar is.
-- **Code style**: maintainable over clever, no premature abstraction, no half-finished implementation. Keep responsibilities separated; before adding a class, check whether an existing manager already owns the concern rather than growing `EntityTraveller`/`EntityTravellerWorker`/`VirtualTravellerManager`. Comments minimal, one line, English. Ignore unused imports.
+- **Code style**: before adding a class, check whether an existing manager already owns the concern rather than growing `EntityTraveller`/`EntityTravellerWorker`/`VirtualTravellerManager`. Ignore unused imports.
 - **Config fields** are for what a player or server admin would plausibly tune; purely internal tuning stays a named constant in code. A bugfix never gets an on/off toggle.
 - **README** is for players: no class names, update only for player-visible changes.
 
@@ -44,7 +39,7 @@ Java 8. JUnit 5 tests (`src/test/`) cover pure logic classes only (stuck ladder,
 | `<package>/CLAUDE.md` | invariants of one subsystem (loaded when working in that folder) | 5 KB each |
 | `// INVARIANT:` comment | a rule that concerns one line or method | one line |
 | `docs/` | active plans only; finished plans move to `docs/archive/` (never read) | — |
-| memory | user profile, deferred work, decisions' rationale, external references | 3 KB per file |
+| memory | deferred work, decisions' rationale, external references (never the user profile: see `~/.claude/CLAUDE.md`) | 3 KB per file |
 
 - **Admission test** for any CLAUDE.md line: would an agent who doesn't know it break something, without being able to find it by reading the code where it would naturally look? If not, it doesn't go in.
 - **Never**: bug history, measurements, dates, "was fixed by", "an earlier version", config key lists, method-by-method descriptions. When a feature changes, rewrite the rule, never append beside it.

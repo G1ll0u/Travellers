@@ -49,3 +49,13 @@ src/main/resources/assets/travellers/sounds/travellers/choir_studio*.py
 /docs/archive/
 /CHANGELOG.md
 src/main/resources/assets/travellers/personalities/fr_bak/
+
+# local, not versioned
+/libs/
+*.bak
+.claude/settings.local.json
+.mcp.json
+/sources/
+/-home-user-Desktop-Projects-Travellers-SRC/
+/resetIntellIJ_Trial.sh
+__pycache__/

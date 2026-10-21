@@ -119,22 +119,15 @@ public class Travellers {
 
         // Load config
         File configDir = new File(event.getModConfigurationDirectory(), "travellers");
-        JubiConfig.register(
-                "travellers", "Travellers", "travellersconfig",
-                TravellersConfig.class, TravellersNetwork.CHANNEL,
-                () -> {
+        JubiConfig.builder("travellers", "Travellers", TravellersConfig.class, TravellersNetwork.CHANNEL, configDir)
+                .command("travellersconfig")
+                .onSave(() -> {
                     TravellersDerivedConfig.refresh();
                     TravellersDerivedConfig.applyRuntimeEffects();
                     TravellersDerivedConfig.syncServerCostCachesFromConfig();
                     broadcastServerCostsToAllPlayers();
-                },
-                configDir,
-                false, // isClientOnly
-                null,  // dynamicCategorySource
-                0      // resetVersion — force a one-time reset for pre-jubiconfig-2.3.0 installs
-        );
-        JubiConfig.applyOnStartup();
-        JubiConfig.loadHistory();
+                })
+                .register();
         TravellersDerivedConfig.refresh();
         TravellersDerivedConfig.syncServerCostCachesFromConfig();
         ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
