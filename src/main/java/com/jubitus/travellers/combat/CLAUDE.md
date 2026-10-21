@@ -7,6 +7,8 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 - **One scan per entity**: `RaiderAttackTargetAI` / the worker's `ThrottledAttackTargetAI` each use one `EntityAINearestAttackableTarget` with one predicate. New target categories go into the predicate, never a parallel task.
 - `shouldAttackExtraEntity()` is the single place deciding "extra" hostile categories.
 - The proactive threat scan queries the world through `SharedThreatScan` (one budgeted query per group); it returns a superset, and member-specific hostility is applied by the caller afterwards. Any other AABB-scanning `shouldExecute()` acquires `PathBudget` (`COMBAT_SCAN` row) first. Who is an enemy: `Hostility` (`isCrossFaction`, `isWorkerEnemy`), never a local copy.
+- **Target tasks hand the target off once** (`shouldContinueExecuting` false, `resetTask` leaves it): keeping and dropping a target belongs to `TravellerCombatLogic`. A refused new candidate never drops the current target (`refusalKeepsCurrent`).
+- Height of a target: `SharedThreatScan.heightAllows` only (archers ±32 if seen, melee ±5).
 - `ForeignTargetTaskScrubber` strips target tasks other mods inject directly.
 - Peaceful: always `TravellersDerivedConfig.isPeacefulBlocked(world)`, never `getDifficulty()` directly.
 - Attack lists per type: `ATTACK_RULES` → `RAIDER_/TRAVELLER_/WORKER_ATTACK_LIST` (worker falls back to traveller).

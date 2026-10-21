@@ -53,6 +53,9 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
         // Anchor/stay mode: don't range far, EntityAIDefendIfClose handles close defense
         if (worker.isHiredFollower() && !worker.isFollowOrderActive()) return false;
 
+        EntityLivingBase current = worker.getAttackTarget();
+        if (current != null && current.isEntityAlive()) return false;
+
         boolean boosted = worker.isRetargetBoosted();
 
         // If the worker is quietly following and has no current target,
@@ -121,5 +124,27 @@ public class ThrottledAttackTargetAI<T extends EntityLivingBase>
         if (best != null && bestDistSq < currentDistToOwnerSq - 4.0D) {
             targetEntity = best;
         }
+    }
+
+    // Hands the target off once: vanilla's continue/reset would drop it beyond FOLLOW_RANGE or after 3 s unseen.
+    @Override
+    public boolean shouldContinueExecuting() {
+        return false;
+    }
+
+    @Override
+    public void resetTask() {
+    }
+
+    // Detection uses the combat range, not FOLLOW_RANGE (a pathing setting): a target beyond it would be refused anyway.
+    @Override
+    protected double getTargetDistance() {
+        return com.jubitus.travellers.config.TravellersConfig.COMBAT.attackTriggerRange;
+    }
+
+    // Vanilla scans 4 blocks up/down; candidates must be seen, which already rules out caves.
+    @Override
+    protected AxisAlignedBB getTargetableArea(double targetDistance) {
+        return taskOwner.getEntityBoundingBox().grow(targetDistance, com.jubitus.travellers.combat.SharedThreatScan.SCAN_HEIGHT, targetDistance);
     }
 }

@@ -89,7 +89,7 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
 
     private EntityLivingBase nearestRaidTarget(java.util.UUID playerId) {
         double range = getTargetDistance();
-        net.minecraft.util.math.AxisAlignedBB box = raider.getEntityBoundingBox().grow(range, 4.0D, range);
+        net.minecraft.util.math.AxisAlignedBB box = raider.getEntityBoundingBox().grow(range, com.jubitus.travellers.combat.SharedThreatScan.SCAN_HEIGHT, range);
         boolean profiling = com.jubitus.travellers.debug.profile.MovementProfiler.isActive();
         long startNanos = profiling ? System.nanoTime() : 0L;
         int inBox = 0, rays = 0;
@@ -97,6 +97,7 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         for (EntityLivingBase e : raider.world.getEntitiesWithinAABB(EntityLivingBase.class, box)) {
             inBox++;
             if (!e.isEntityAlive() || e.isInvisible() || raider.isIgnoring(e)) continue;
+            if (!com.jubitus.travellers.combat.SharedThreatScan.heightAllows(raider, e)) continue;
             boolean preferred;
             if (e instanceof net.minecraft.entity.player.EntityPlayer) {
                 net.minecraft.entity.player.EntityPlayer p = (net.minecraft.entity.player.EntityPlayer) e;
@@ -125,5 +126,27 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
                     inBox, candidates.size(), rays, best != null, System.nanoTime() - startNanos);
         }
         return best;
+    }
+
+    // Hands the target off once: vanilla's continue/reset would drop it beyond FOLLOW_RANGE or after 3 s unseen.
+    @Override
+    public boolean shouldContinueExecuting() {
+        return false;
+    }
+
+    @Override
+    public void resetTask() {
+    }
+
+    // Detection uses the combat range, not FOLLOW_RANGE (a pathing setting): a target beyond it would be refused anyway.
+    @Override
+    protected double getTargetDistance() {
+        return com.jubitus.travellers.config.TravellersConfig.COMBAT.attackTriggerRange;
+    }
+
+    // Vanilla scans 4 blocks up/down; candidates must be seen, which already rules out caves.
+    @Override
+    protected net.minecraft.util.math.AxisAlignedBB getTargetableArea(double targetDistance) {
+        return taskOwner.getEntityBoundingBox().grow(targetDistance, com.jubitus.travellers.combat.SharedThreatScan.SCAN_HEIGHT, targetDistance);
     }
 }

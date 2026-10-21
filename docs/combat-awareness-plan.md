@@ -1,4 +1,4 @@
-Status: phase 1 in progress — step 1 done, drop counter added (awaiting a second report), next: step 2
+Status: phase 1 in progress — steps 1-2 done (awaiting an in-game check), next: step 3
 
 # Combat awareness: reassessment, escorts, calmer help calls
 
@@ -44,17 +44,21 @@ minimal server cost.
 | switch margin | candidate at most half the current distance | anti flip-flop while approaching |
 | escort leash | 10 blocks (drop at 12) | around the leader |
 | help call cooldown | 60 ticks per attacker per group | |
-| scan vertical reach | ±16 blocks | shared threat scan box height |
+| scan height | ±32 blocks | every threat scan box; melee units still only pick targets within 5 blocks up/down |
 
 ## Steps
 
 1. **Instrument first** — `done`. Profile report section "Combat targeting": target decisions (adopted, refused by
    the lock, switch verdict), help calls with allies pulled in, threat scan cost per kind. Trace `combat` events on
    each decision. Steps 3, 5 and 6 add their own reasons (close threat, escort leash, help cooldown) to the same tally.
-1b. **Drop counter** — `done`. "Live targets dropped" by reason in the report and trace. Suspect to confirm: refusing a
-   new candidate (out of range, same side, offscreen…) also drops — and sometimes ignores for 60 s — the current target.
-2. **Split the ranges** — `todo`. `attackTriggerRange` = detection only; drop the bow +80 % (archers detect at the same
-   range); close bands become the fixed constants above; `SharedThreatScan` box vertical reach capped.
+1b. **Drop counter** — `done`. "Live targets dropped" by reason in the report and trace.
+2. **Split the ranges and stop silent drops** — `done`. `attackTriggerRange` is the only detection range (target tasks
+   no longer use FOLLOW_RANGE, bow +80 % removed, fixed 8-block close pick). Height: a seen enemy up to 32 blocks
+   above/below is a target for archers (cliffs, walls), melee keeps 5 blocks, unseen beyond 5 blocks is a cave
+   (`SharedThreatScan.heightAllows`); an aiming archer is never "stuck". A refused new
+   candidate keeps the current target (it used to drop it, sometimes ignoring it for 60 s). Target tasks hand the
+   target off once: vanilla's continue/reset no longer drops it at FOLLOW_RANGE or after 3 s unseen; creative players
+   are dropped by `disengageIfTooFar`.
 3. **Reassessment** — `todo`. New pure class in `combat/` scoring candidates from the group's cached
    `SharedThreatScan` list (no new world query, at most 2 sight rays), called from `TravellerCombatLogic.tickEngagement`.
    `TargetLockPolicy` gains the approach/contact distinction and the close-threat rule; it stays the only switch

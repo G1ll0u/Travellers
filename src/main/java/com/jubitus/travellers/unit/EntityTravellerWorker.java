@@ -234,6 +234,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 true,
                 false,
                 e -> com.jubitus.travellers.combat.Hostility.isWorkerEnemy(this, e)
+                        && com.jubitus.travellers.combat.SharedThreatScan.heightAllows(this, e)
         ));
 
         // Worker travel AI (for jobs)
@@ -618,7 +619,8 @@ public class EntityTravellerWorker extends EntityTraveller {
 
         // Never attack the owner
         if (isOwner(target)) {
-            combat.noteDrop("new target refused: owner");
+            if (combat.refusalKeepsCurrent(target)) return;
+            combat.noteDrop("refused: owner");
             super.setAttackTarget(null);
             return;
         }
@@ -626,7 +628,8 @@ public class EntityTravellerWorker extends EntityTraveller {
         // Blacklist
         if (target != null) {
             if (getAggroBlacklist().matches(target)) {
-                combat.noteDrop("new target refused: blacklisted");
+                if (combat.refusalKeepsCurrent(target)) return;
+                combat.noteDrop("refused: blacklisted");
                 super.setAttackTarget(null);
                 return;
             }
@@ -646,7 +649,8 @@ public class EntityTravellerWorker extends EntityTraveller {
                                     || (target instanceof EntityLiving && ((EntityLiving) target).getAttackTarget() == getFollowOwner())));
 
             if (!sees && d2 > (8.0D * 8.0D) && !isDirectCombat) {
-                combat.noteDrop("new target refused: unseen");
+                if (combat.refusalKeepsCurrent(target)) return;
+                combat.noteDrop("refused: unseen");
                 super.setAttackTarget(null);
                 return;
             }
@@ -1797,7 +1801,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     private EntityLivingBase findThreatNearOwner(@Nullable EntityLivingBase owner, double r) {
         if (owner == null) return null;
 
-        AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, 4.0D, r);
+        AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, com.jubitus.travellers.combat.SharedThreatScan.SCAN_HEIGHT, r);
 
         List<EntityLivingBase> list = world.getEntitiesWithinAABB(EntityLivingBase.class, box,
                 e -> e != null
@@ -1805,8 +1809,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                         && e instanceof net.minecraft.entity.monster.IMob
                         // NEW: basic LoS gate (choose one or both)
                         && this.canEntityBeSeen(e)
-                        // optional: avoid “underground below me” targets by Y band
-                        && Math.abs(e.posY - owner.posY) <= 6.0D
+                        && com.jubitus.travellers.combat.SharedThreatScan.heightAllows(this, e)
         );
 
         EntityLivingBase best = null;

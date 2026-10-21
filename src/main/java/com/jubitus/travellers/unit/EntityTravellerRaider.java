@@ -85,7 +85,6 @@ public class EntityTravellerRaider extends EntityTraveller {
                 2,
                 new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.attackTriggerRange, true)
                         .setAssistRadius(TravellersConfig.COMBAT.helpRange)
-                        .setBowRangeBonus(0.0) // keep attackTriggerRange strict
         );
 
         // 4) Attack nearest enemy — player, friendly traveller, or attack-list entity.
@@ -103,7 +102,7 @@ public class EntityTravellerRaider extends EntityTraveller {
                                 && e.isEntityAlive()
                                 && !e.isInvisible()
                                 && !this.isIgnoring(e)
-                                && Math.abs(e.posY - this.posY) <= 5.0D
+                                && com.jubitus.travellers.combat.SharedThreatScan.heightAllows(this, e)
                                 && (
                                         (e instanceof EntityPlayer
                                                 && !((EntityPlayer) e).isCreative()
@@ -193,7 +192,8 @@ public class EntityTravellerRaider extends EntityTraveller {
         if (target instanceof EntityPlayer) {
             EntityPlayer p = (EntityPlayer) target;
             if (p.isCreative() || p.isSpectator()) {
-                combat.noteDrop("new target refused: creative player");
+                if (combat.refusalKeepsCurrent(target)) return;
+                combat.noteDrop("refused: creative player");
                 super.setAttackTarget(null);
                 setInCombat(false);
                 return;

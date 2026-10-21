@@ -56,4 +56,14 @@ public class EntityAIWorkerHurtByTargetTraveller extends EntityAITarget {
         this.timestamp = worker.getRevengeTimer();
         super.startExecuting();
     }
+
+    // Hands the target off once: vanilla's continue/reset would drop it beyond FOLLOW_RANGE or after 3 s unseen.
+    @Override
+    public boolean shouldContinueExecuting() {
+        return false;
+    }
+
+    @Override
+    public void resetTask() {
+    }
 }

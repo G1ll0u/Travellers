@@ -68,6 +68,13 @@ public class EntityAIOwnerHurtTargetTraveller extends EntityAITarget {
         return Hostility.isWorkerEnemy(worker, target);
     }
 
+    // Hands the target off once: vanilla's continue/reset would drop it beyond FOLLOW_RANGE or after 3 s unseen.
+    @Override
+    public boolean shouldContinueExecuting() {
+        return false;
+    }
 
-
+    @Override
+    public void resetTask() {
+    }
 }

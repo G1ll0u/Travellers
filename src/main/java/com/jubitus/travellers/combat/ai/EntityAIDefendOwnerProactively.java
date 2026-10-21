@@ -13,6 +13,7 @@ import java.util.List;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
 import com.jubitus.travellers.pathing.PathBudget;
 import com.jubitus.travellers.combat.Hostility;
+import com.jubitus.travellers.combat.SharedThreatScan;
 
 /**
  * Proactive defense: scans around the player owner AND the escort worker-leader.
@@ -63,9 +64,9 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
         // AREN'T already actively attacking, so this can't start chasing things through a
         // ceiling/floor - see the threateningLeadership bypass.
         double r = TravellersConfig.COMBAT.defendOwnerProactiveRadius;
-        AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, r, r);
+        AxisAlignedBB box = owner.getEntityBoundingBox().grow(r, SharedThreatScan.SCAN_HEIGHT, r);
         if (leader != null && leader.isEntityAlive()) {
-            box = box.union(leader.getEntityBoundingBox().grow(r, r, r));
+            box = box.union(leader.getEntityBoundingBox().grow(r, SharedThreatScan.SCAN_HEIGHT, r));
         }
 
         long start = System.nanoTime();
@@ -95,8 +96,7 @@ public class EntityAIDefendOwnerProactively extends EntityAIBase {
             // Skip enemies in caves above/below (adjacent cave problem) - but never an entity
             // that's already actively attacking leadership (e.g. a ranged attacker on a wall or
             // tower well above the owner, not remotely a "different cave" situation).
-            double dy = e.posY - owner.posY;
-            if (!threateningLeadership && Math.abs(dy) > 5.0D) continue;
+            if (!threateningLeadership && !SharedThreatScan.heightAllows(worker, e)) continue;
 
             // Require either the worker or the owner to have line of sight
             boolean canSee = worker.getEntitySenses().canSee(e);

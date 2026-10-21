@@ -28,18 +28,15 @@ import com.jubitus.travellers.pathing.PathBudget;
 public class EntityAIDefendIfClose extends EntityAIBase {
     private static final double CLOSE_NO_LOS_RANGE = 4.0D;
     private static final double CLOSE_NO_LOS_RANGE_SQ = CLOSE_NO_LOS_RANGE * CLOSE_NO_LOS_RANGE;
+    // A candidate this close is taken at once instead of scoring the rest (squared, 8 blocks).
+    private static final double CLOSE_PICK_DIST_SQ = 8.0D * 8.0D;
     private final EntityTraveller mob;
     private final boolean requireLOS;
     private final int tickRate;
     private final int tickPhase;
     private boolean pendingEmergency = false;
-    private double triggerRangeSq;
-    private double closeStartSq;
-    private double closeHoldSq;
     private double baseTriggerRange;
-    private double baseTriggerRangeSq;
     private EntityLivingBase pending;
-    private double bowRangeBonusFrac = 0.8;
 
     // OLD SIGNATURE – used at call site
     public EntityAIDefendIfClose(EntityTraveller mob, double triggerRange, boolean requireLOS) {
@@ -69,15 +66,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
         // and silently overwriting each other's setAttackTarget() call mid-fight.
         this.setMutexBits(1);
 
-        this.baseTriggerRange = triggerRange;                // linear
-        this.baseTriggerRangeSq = triggerRange * triggerRange; // squared
-        this.triggerRangeSq = baseTriggerRangeSq;
-
-        // proximity bands (≈65% to start, 75% to hold)
-        double start = baseTriggerRange * 0.65;
-        double hold = baseTriggerRange * 0.75;
-        this.closeStartSq = start * start;
-        this.closeHoldSq = hold * hold;
+        this.baseTriggerRange = triggerRange;
     }
 
     // Optional convenience: (mob, range, requireLOS, tickRate)
@@ -92,13 +81,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
     public EntityAIDefendIfClose setAssistRadius(double r) {
         this.baseTriggerRange = r;
-        this.baseTriggerRangeSq = r * r;
-        this.triggerRangeSq = baseTriggerRangeSq;
-
-        double start = baseTriggerRange * 0.65;
-        double hold = baseTriggerRange * 0.75;
-        this.closeStartSq = start * start;
-        this.closeHoldSq = hold * hold;
         return this;
     }
 
@@ -132,7 +114,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
 
         double effRangeSq = currentTriggerRangeSq();
         double effRange = Math.sqrt(effRangeSq);
-        AxisAlignedBB localBox = mob.getEntityBoundingBox().grow(effRange, 1.5D, effRange);
+        AxisAlignedBB localBox = mob.getEntityBoundingBox().grow(effRange, SharedThreatScan.SCAN_HEIGHT, effRange);
 
         // Only set for a hired follower with a live owner - used below to widen the vertical
         // cave filter for anything already actively attacking that owner (e.g. an archer on a
@@ -149,10 +131,10 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                 // formation must still notice a threat standing next to it, not only near the owner.
                 UUID scope = owner.getUniqueID();
                 List<EntityLivingBase> nearOwner = SharedThreatScan.scan(mob, scope, owner,
-                        owner.getEntityBoundingBox().grow(effRange), effRange, scanPriority);
+                        owner.getEntityBoundingBox().grow(effRange, SharedThreatScan.SCAN_HEIGHT, effRange), effRange, scanPriority);
                 if (nearOwner == null) return false;
                 List<EntityLivingBase> nearSelf = SharedThreatScan.scan(mob, scope, owner,
-                        mob.getEntityBoundingBox().grow(effRange), effRange, scanPriority);
+                        mob.getEntityBoundingBox().grow(effRange, SharedThreatScan.SCAN_HEIGHT, effRange), effRange, scanPriority);
                 if (nearSelf == null) return false;
                 nearby = nearOwner;
                 for (EntityLivingBase e : nearSelf) {
@@ -261,9 +243,9 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             boolean threatening = currentTarget == mob || e.getRevengeTarget() == mob
                     || (scanOwner != null && (currentTarget == scanOwner || e.getRevengeTarget() == scanOwner));
 
-            // Ignore large vertical separations (caves below/above)
+            // Unseen and far above/below is another cave; seen, only archers fight across a cliff
             double dy = e.posY - mob.posY;
-            if (!threatening && Math.abs(dy) > 5.0D) {
+            if (!threatening && (Math.abs(dy) > 5.0D && !see || !SharedThreatScan.heightAllows(mob, e))) {
                 if (awDebug) logAwSkip(mob, e, "vertical separation dy=" + dy);
                 continue;
             }
@@ -313,7 +295,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             if (score < bestScore) {
                 bestScore = score;
                 pick = e;
-                if (d2 <= (0.25 * closeStartSq)) break;
+                if (d2 <= CLOSE_PICK_DIST_SQ) break;
             }
         }
 
@@ -367,16 +349,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
             }
         }
 
-        boolean hasBow =
-                mob.hasBowInBackpackPublic() ||
-                        (!mob.getHeldItemMainhand().isEmpty() &&
-                                mob.getHeldItemMainhand().getItem() instanceof net.minecraft.item.ItemBow);
-
-        double rangeLin = baseTriggerRange;
-        if (hasBow && bowRangeBonusFrac > 0.0) {
-            rangeLin = rangeLin * (1.0 + bowRangeBonusFrac);
-        }
-        return rangeLin * rangeLin;
+        return baseTriggerRange * baseTriggerRange;
     }
 
 
@@ -424,11 +397,6 @@ public class EntityAIDefendIfClose extends EntityAIBase {
     public void resetTask() {
         pending = null;
         // Do NOT clear mob's attack target here — we want them to keep fighting once engaged.
-    }
-
-    public EntityAIDefendIfClose setBowRangeBonus(double frac) {
-        this.bowRangeBonusFrac = Math.max(0.0, frac);
-        return this;
     }
 
 }

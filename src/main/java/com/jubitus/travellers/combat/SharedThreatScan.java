@@ -27,6 +27,9 @@ import java.util.UUID;
  */
 public final class SharedThreatScan {
 
+    /** Vertical reach of every threat scan box: a visible enemy on a cliff or wall this far up/down is fair game. */
+    public static final double SCAN_HEIGHT = 32.0D;
+    private static final double MELEE_HEIGHT = 5.0D;
     private static final int FRESH_TICKS = 8;
     /** Formation spread around the anchor that a member's own box may reach and still be served. */
     private static final double FORMATION_MARGIN = 16.0D;
@@ -73,7 +76,8 @@ public final class SharedThreatScan {
         boolean sameDim = entry != null && entry.dimension == dim;
         if (!sameDim || now - entry.tick >= FRESH_TICKS || !contains(entry.box, box)) {
             double sharedReach = Math.max(reach, sameDim && now - entry.tick < EVICT_AGE_TICKS ? entry.reach : 0.0D);
-            AxisAlignedBB shared = anchor.getEntityBoundingBox().grow(sharedReach + FORMATION_MARGIN);
+            AxisAlignedBB shared = anchor.getEntityBoundingBox().grow(sharedReach + FORMATION_MARGIN,
+                    SCAN_HEIGHT + FORMATION_MARGIN, sharedReach + FORMATION_MARGIN);
             // A member far from its group (an idle worker across the map) scans its own box only.
             if (!contains(shared, box)) return direct(scanner, box, scopeOwner, priority);
             if (!PathBudget.tryAcquire(world, PathBudget.Client.COMBAT_SCAN, scanner.getEntityId(), priority)) return null;
@@ -115,6 +119,14 @@ public final class SharedThreatScan {
                 || e instanceof IMob
                 || TravellerHostilityHelper.isLavaCowAggressive(e)
                 || scanner.shouldAttackExtraEntity(e);
+    }
+
+    /**
+     * Height rule for picking a target the unit can already see: an archer takes anything within SCAN_HEIGHT (cliffs,
+     * walls); a melee unit only targets within 5 blocks up/down, or it walks to the edge and stalls.
+     */
+    public static boolean heightAllows(EntityTraveller unit, Entity target) {
+        return Math.abs(target.posY - unit.posY) <= MELEE_HEIGHT || unit.hasBowAnywherePublic();
     }
 
     private static boolean contains(AxisAlignedBB outer, AxisAlignedBB inner) {

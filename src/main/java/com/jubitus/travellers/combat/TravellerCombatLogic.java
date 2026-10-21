@@ -116,9 +116,16 @@ public class TravellerCombatLogic {
         adoptRevengeTargetAfterLock();
     }
 
+    /** Too far, or a player who turned creative/spectator: dropped (target tasks no longer re-check every tick). */
     private void disengageIfTooFar() {
         EntityLivingBase tgt = entity.getAttackTarget();
         if (tgt == null || !tgt.isEntityAlive()) return;
+        if (tgt instanceof EntityPlayer && (((EntityPlayer) tgt).isCreative() || ((EntityPlayer) tgt).isSpectator())) {
+            noteDrop("creative player");
+            entity.setAttackTarget(null);
+            entity.setInCombat(false);
+            return;
+        }
         double maxEngage = TravellersConfig.COMBAT.attackTriggerRange;
         boolean hasBow = entity.hasBowInBackpackPublic()
                 || (!entity.getHeldItemMainhand().isEmpty() && entity.getHeldItemMainhand().getItem() instanceof ItemBow);
@@ -147,9 +154,10 @@ public class TravellerCombatLogic {
             return;
         }
         double d2 = entity.getDistanceSq(tgt);
-        // In melee range the distance barely changes while trading blows: not stuck
+        // In melee range the distance barely changes while trading blows: not stuck. An archer holds its
+        // distance on purpose (from a cliff too): its own no-shot rule drops what it cannot hit.
         final double meleeRangeSq = 3.5 * 3.5;
-        if (d2 > meleeRangeSq && lastTargetDistSq >= 0 && d2 >= lastTargetDistSq - 2.0D) {
+        if (d2 > meleeRangeSq && !entity.isAimingBow() && lastTargetDistSq >= 0 && d2 >= lastTargetDistSq - 2.0D) {
             stuckTargetTicks++;
         } else {
             stuckTargetTicks = 0;
@@ -624,16 +632,15 @@ public class TravellerCombatLogic {
                 return;
             }
         }
-        if (!entity.world.isRemote && prev != null && prev != target) {
-            AttackTargetLimiter.leave(entity, prev);
-        }
         if (!entity.world.isRemote && target != null) {
             double r = TravellersConfig.COMBAT.attackTriggerRange;
             double d2 = entity.getDistanceSq(target);
 
             if (d2 > r * r) {
+                if (refusalKeepsCurrent(target)) return;
                 // hard reject
-                noteDrop("new target refused: out of range");
+                noteDrop("refused: out of range");
+                leaveSlot(prev);
                 entity.vanillaSetAttackTarget(null);
                 entity.setInCombat(false);
                 entity.setRevengeTarget(null);
@@ -648,6 +655,7 @@ public class TravellerCombatLogic {
         }
         if (entity.world != null && TravellersDerivedConfig.isPeacefulBlocked(entity.world)) {
             noteDrop("peaceful");
+            leaveSlot(prev);
             entity.vanillaSetAttackTarget(null);
             entity.setInCombat(false);
             return;
@@ -659,7 +667,9 @@ public class TravellerCombatLogic {
         if (target instanceof EntityPlayer) {
             EntityPlayer tp = (EntityPlayer) target;
             if (tp.isCreative() || tp.isSpectator()) {
-                noteDrop("new target refused: creative player");
+                if (refusalKeepsCurrent(target)) return;
+                noteDrop("refused: creative player");
+                leaveSlot(prev);
                 entity.vanillaSetAttackTarget(null);
                 entity.setInCombat(false);
                 return;
@@ -669,7 +679,8 @@ public class TravellerCombatLogic {
             EntityRuleList blacklist = entity.getAggroBlacklist();
             if (blacklist.matches(target)) {
                 entity.ignoreTarget(target, 20 * 60);
-                noteDrop("new target refused: blacklisted");
+                if (refusalKeepsCurrent(target)) return;
+                noteDrop("refused: blacklisted");
                 rejectTarget();
                 return;
             }
@@ -679,7 +690,8 @@ public class TravellerCombatLogic {
         // / defend AIs from mobbing a mount they can't damage.
         if (target != null && !entity.world.isRemote && entity.isFriendlyBondedMount(target)) {
             entity.ignoreTarget(target, 20 * 30);
-            noteDrop("new target refused: friendly mount");
+            if (refusalKeepsCurrent(target)) return;
+            noteDrop("refused: friendly mount");
             rejectTarget();
             return;
         }
@@ -688,14 +700,15 @@ public class TravellerCombatLogic {
         if (TravellersConfig.OFFSCREEN.travellerNoAggroOffscreen
                 && !entity.isInPlayerViewDistance()
                 && (!entity.world.isRemote || !(target instanceof EntityPlayer))) {
-            noteDrop(target == null ? "offscreen" : "new target refused: offscreen");
+            noteDrop("offscreen");
             rejectTarget();
             return;
         }
         if (!entity.isAggressiveToTravellers() && target instanceof net.minecraft.entity.IEntityOwnable) {
             net.minecraft.entity.IEntityOwnable ownable = (net.minecraft.entity.IEntityOwnable) target;
             if (ownable.getOwner() instanceof EntityPlayer) {
-                noteDrop("new target refused: player's pet");
+                if (refusalKeepsCurrent(target)) return;
+                noteDrop("refused: player's pet");
                 rejectTarget();
                 return;
             }
@@ -705,14 +718,14 @@ public class TravellerCombatLogic {
 
             // Same-faction fights are blocked, except hired workers of hostile owners
             if (!entity.isHostileUnit(other)) {
-                noteDrop("new target refused: same side");
+                if (refusalKeepsCurrent(target)) return;
+                noteDrop("refused: same side");
                 rejectTarget();
                 return;
             }
         }
 
-// --- NEW: hard cap attackers per target ---
-// --- hard cap attackers per target (with your 8-block bypass rule) ---
+        // Hard cap of attackers per target (close-range bypass).
         if (!entity.world.isRemote && target != null) {
             // target is never a creative/spectator player here - rejected earlier above.
             {
@@ -733,6 +746,7 @@ public class TravellerCombatLogic {
                                     effectiveMax, AttackTargetLimiter.getAttackerCount(target));
                         }
                         entity.ignoreTarget(target, 30);
+                        if (refusalKeepsCurrent(target)) return;
                         startWatchingFight(target, 60);
                         if (entity.getRevengeTarget() == target) entity.setRevengeTarget(null);
                         entity.setInCombat(false);
@@ -757,7 +771,9 @@ public class TravellerCombatLogic {
             }
         }
 
-
+        if (!entity.world.isRemote && prev != null && prev != target) {
+            AttackTargetLimiter.leave(entity, prev);
+        }
         entity.vanillaSetAttackTarget(target);
 
         if (!entity.world.isRemote) {
@@ -957,6 +973,16 @@ public class TravellerCombatLogic {
         }
 
         return true;
+    }
+
+    /** A refused new candidate never costs the unit the live target it already has. */
+    public boolean refusalKeepsCurrent(@Nullable EntityLivingBase candidate) {
+        EntityLivingBase cur = entity.getAttackTarget();
+        return !entity.world.isRemote && candidate != null && cur != null && cur != candidate && cur.isEntityAlive();
+    }
+
+    private void leaveSlot(@Nullable EntityLivingBase prev) {
+        if (!entity.world.isRemote && prev != null) AttackTargetLimiter.leave(entity, prev);
     }
 
     private void rejectTarget() {
