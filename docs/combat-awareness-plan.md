@@ -1,4 +1,4 @@
-Status: phase 1 in progress — steps 1-6 done (awaiting an in-game check), next: step 6b
+Status: phase 1 in progress — steps 1-6b done (awaiting an in-game check), next: step 7
 
 # Combat awareness: reassessment, escorts, calmer help calls
 
@@ -75,8 +75,9 @@ minimal server cost.
 6. **Calmer help calls** — `done`. `HelpCallGate`: one call per attacker per group every 3 s, shared by the call for
    help and the worker rally; melee recruits only up to the free attacker slots, nearest first; no call for help
    against units. `EntityAIDefendOwnerProactively` stays on its own scan (measured 0.08 ms/tick, not worth moving).
-6b. **Lighter mounted chase** — `todo`. Fewer melee-chase A* repaths for mounted fighters (shape decided from the
-   report numbers).
+6b. **Lighter mounted chase** — `done`. Mounted fighters chase by `DirectSteering` like pedestrians (each leg proven
+   against the horse's corridor, curved approach kept); A* only after being blocked. Also: `RaiderRetaliationInjector`
+   no longer gives our own units a vanilla raider-target task (it bypassed budget, lock and leash and dropped targets).
 7. **Virtual battles** — `todo`. No positions there: keep the shared lock and cap, check nothing diverges visibly when
    a battle materializes.
 8. **Wrap-up** — `todo`. Update `combat/CLAUDE.md` (switch rules, escort leash), archive this plan.

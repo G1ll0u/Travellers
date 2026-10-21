@@ -19,6 +19,7 @@ import net.minecraft.util.math.Vec3d;
 import com.jubitus.travellers.combat.TravellerItemDamage;
 import com.jubitus.travellers.follow.DirectSteering;
 import com.jubitus.travellers.pathing.PathBody;
+import javax.annotation.Nullable;
 import com.jubitus.travellers.pathing.PathBudget;
 
 public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
@@ -293,8 +294,9 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             // silently overriding any setAIMoveSpeed() call below — it must reflect our
             // configured desired speed, not a flat 1.0 (full base speed).
             double navMultiplier = base > 1.0E-4 ? (desired / base) : 1.0D;
-            if (steer != null && !PathBody.isMounted(attacker)) {
-                chaseBySteering(tgt, navMultiplier);
+            if (steer != null) {
+                // Mounted too: DirectSteering proves each leg against the horse's corridor, A* stays the last resort.
+                chaseBySteering(tgt, navMultiplier, mountedApproachAim(tgt, inReach));
             } else {
                 if (--repathCooldown <= 0) {
                     repathCooldown = inReach ? REPATH_INTERVAL_NEAR : REPATH_INTERVAL_FAR;
@@ -304,21 +306,11 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
                         lastPathTick = attacker.ticksExisted;
                         lastPathTargetX = tgt.posX;
                         lastPathTargetZ = tgt.posZ;
-                        Vec3d curvedAim = mountedApproachAim(tgt, inReach);
-                        if (curvedAim != null) {
-                            attacker.getNavigator().tryMoveToXYZ(curvedAim.x, curvedAim.y, curvedAim.z, navMultiplier);
-                        } else {
-                            attacker.getNavigator().tryMoveToEntityLiving(tgt, navMultiplier);
-                        }
-                        // A failed mounted search is the costliest A*; back off like the on-foot chase does.
+                        attacker.getNavigator().tryMoveToEntityLiving(tgt, navMultiplier);
                         if (attacker.getNavigator().noPath()) {
                             pathRetryTick = attacker.ticksExisted + STEER_PATH_RETRY_BACKOFF_TICKS;
                         }
                     }
-                }
-                // No path while backing off: ride straight at the target if the corridor allows.
-                if (steer != null && attacker.getNavigator().noPath() && attacker.ticksExisted < pathRetryTick) {
-                    steer.steerToward(tgt.posX, tgt.posY, tgt.posZ, navMultiplier);
                 }
             }
 
@@ -400,8 +392,11 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         return new Vec3d(tgt.posX + nx * curve * side, tgt.posY, tgt.posZ + nz * curve * side);
     }
 
-    /** Steer straight at the target; ask for a path only after being blocked a while, and keep steering while denied. */
-    private void chaseBySteering(EntityLivingBase tgt, double speed) {
+    /**
+     * Steer straight at the target (or a mounted rider's curved aim point); ask for a path only after being
+     * blocked a while, and keep steering while denied.
+     */
+    private void chaseBySteering(EntityLivingBase tgt, double speed, @Nullable Vec3d aim) {
         if (!attacker.getNavigator().noPath()) {
             if (chasePathStillUseful(tgt)) {
                 steer.steeringBlockedTicks = 0;
@@ -420,7 +415,11 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
             if (!attacker.getNavigator().noPath()) return;
             pathRetryTick = attacker.ticksExisted + STEER_PATH_RETRY_BACKOFF_TICKS;
         }
-        steer.steerToward(tgt.posX, tgt.posY, tgt.posZ, speed);
+        if (aim != null) {
+            steer.steerToward(aim.x, aim.y, aim.z, speed);
+        } else {
+            steer.steerToward(tgt.posX, tgt.posY, tgt.posZ, speed);
+        }
     }
 
     private boolean chasePathStillUseful(EntityLivingBase tgt) {

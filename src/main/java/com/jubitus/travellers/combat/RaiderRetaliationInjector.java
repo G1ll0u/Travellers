@@ -18,8 +18,6 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 @Mod.EventBusSubscriber(modid = "travellers")
 public final class RaiderRetaliationInjector {
 
-    private static final String TAG = "TravAddedRaiderTarget";
-
     @SubscribeEvent
     public static void onJoinWorld(EntityJoinWorldEvent e) {
         if (e.getWorld().isRemote) return;
@@ -29,31 +27,31 @@ public final class RaiderRetaliationInjector {
 
         EntityLiving living = (EntityLiving) ent;
 
-        // Don't add anything to raiders themselves
-        if (living instanceof EntityTravellerRaider) return;
+        // Never our own units: their targeting is ours alone (a vanilla target task would bypass the scan budget, lock and leash).
+        if (living instanceof com.jubitus.travellers.unit.EntityTraveller) return;
 
         // Only touch entities that are in your RAIDER_ATTACK_LIST (id, namespace, or class match)
         if (!TravellersDerivedConfig.RAIDER_ATTACK_LIST.matches(living)) return;
-
-        // Avoid double-injecting on chunk reloads
-        NBTTagCompound tag = living.getEntityData();
-        if (tag.getBoolean(TAG)) return;
 
         // Only creatures can own target AIs like NearestAttackableTarget
         if (living instanceof EntityCreature) {
             EntityCreature creature = (EntityCreature) living;
 
-            // Optional: skip truly pacifist things (no attack goals)
-            if (!hasAnyAttackGoal(creature)) {
-                // If you prefer to force them anyway, remove this block.
-                tag.setBoolean(TAG, true);
-                return;
-            }
+            // Skip truly pacifist things (no attack goals)
+            if (!hasAnyAttackGoal(creature)) return;
+            // AI tasks are not saved: re-added on every join (chunk reload), never twice on one entity
+            if (hasRaiderGoal(creature)) return;
 
             // Priority 5 is usually below "attack player/villager" but high enough to matter
             creature.targetTasks.addTask(5, new TargetRaidersGoal(creature));
-            tag.setBoolean(TAG, true);
         }
+    }
+
+    private static boolean hasRaiderGoal(EntityCreature creature) {
+        for (EntityAITasks.EntityAITaskEntry en : creature.targetTasks.taskEntries) {
+            if (en.action instanceof TargetRaidersGoal) return true;
+        }
+        return false;
     }
 
     /**
