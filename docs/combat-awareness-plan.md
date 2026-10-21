@@ -1,4 +1,4 @@
-Status: phase 1 in progress — steps 1-2 done (awaiting an in-game check), next: step 3
+Status: phase 1 in progress — steps 1-4 done (awaiting an in-game check), next: step 5
 
 # Combat awareness: reassessment, escorts, calmer help calls
 
@@ -59,13 +59,13 @@ minimal server cost.
    candidate keeps the current target (it used to drop it, sometimes ignoring it for 60 s). Target tasks hand the
    target off once: vanilla's continue/reset no longer drops it at FOLLOW_RANGE or after 3 s unseen; creative players
    are dropped by `disengageIfTooFar`.
-3. **Reassessment** — `todo`. New pure class in `combat/` scoring candidates from the group's cached
-   `SharedThreatScan` list (no new world query, at most 2 sight rays), called from `TravellerCombatLogic.tickEngagement`.
-   `TargetLockPolicy` gains the approach/contact distinction and the close-threat rule; it stays the only switch
-   authority. Raiders on a raid count their raid player as a candidate (fixes the raider walking past the player).
-   JUnit tests for the scoring and the policy.
-4. **Archers** — `todo`. Close-threat rule with the archer distance; check the bow task re-aims at once and the
-   melee hand-off still triggers.
+3. **Reassessment** — `done`. Every second, an engaged unit not in contact looks at enemies within 6 blocks (8 for
+   archers) through `SharedThreatScan.around` (group cache, no new world query in a group) and `Hostility.isUnitEnemy`;
+   `TargetLockPolicy` gains contact (target within 4 blocks and a blow exchanged in the last 3 s: only leader
+   attacked / hit close move it, no lock expiry) and CLOSE_THREAT (within reach and coming at me, or at most half the
+   current distance). Re-asserting the current target is a no-op (it used to re-run the checks and drop it).
+4. **Archers** — `done`. Same rule with the 8-block distance; the bow task follows the new target each tick and the
+   melee hand-off is distance-based.
 5. **Escort leash** — `todo`. Target pick, reassessment and disengage refuse targets beyond the leash for escort-slot
    workers; threats attacking the leader score first; escort archers' repositioning stays inside the leash.
 6. **Calmer help calls** — `todo`. Per-group cooldown map shared by `TravellerHurtByTarget` call for help and

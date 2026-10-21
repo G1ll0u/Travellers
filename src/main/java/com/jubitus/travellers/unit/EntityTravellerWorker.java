@@ -616,6 +616,11 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     @Override
     public void setAttackTarget(@Nullable EntityLivingBase target) {
+        // Re-asserting the current target (an owner's repeated hits) must not re-run the checks below and drop it.
+        if (target != null && target == getAttackTarget()) {
+            super.setAttackTarget(target);
+            return;
+        }
 
         // Never attack the owner
         if (isOwner(target)) {

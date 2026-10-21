@@ -8,9 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TargetLockPolicyTest {
 
+    /** Approaching a target 20 blocks away; the candidate is 15 blocks away (no close threat). */
     private static TargetLockPolicy.Situation locked(int age) {
         TargetLockPolicy.Situation s = new TargetLockPolicy.Situation();
         s.currentAgeTicks = age;
+        s.currentDistSq = 20 * 20;
+        s.candidateDistSq = 15 * 15;
         return s;
     }
 
@@ -61,5 +64,46 @@ class TargetLockPolicyTest {
         s.candidateAttacksLeader = true;
         assertEquals(TargetLockPolicy.Verdict.LEADER_ATTACKED, TargetLockPolicy.decide(s));
         assertEquals(TargetLockPolicy.Verdict.LOCK_EXPIRED, TargetLockPolicy.decide(locked(TargetLockPolicy.LOCK_TICKS)));
+    }
+
+    @Test
+    void enemyCrossingThePathBeatsAFarTarget() {
+        TargetLockPolicy.Situation s = locked(0);
+        s.currentDistSq = 30 * 30;
+        s.candidateDistSq = 2 * 2;
+        assertEquals(TargetLockPolicy.Verdict.CLOSE_THREAT, TargetLockPolicy.decide(s));
+    }
+
+    @Test
+    void closeEnemyNotClearlyNearerNeedsToBeComingAtMe() {
+        TargetLockPolicy.Situation s = locked(0);
+        s.currentDistSq = 8 * 8;
+        s.candidateDistSq = 5 * 5;
+        assertEquals(TargetLockPolicy.Verdict.LOCKED, TargetLockPolicy.decide(s));
+        s.candidateAttacksMe = true;
+        assertEquals(TargetLockPolicy.Verdict.CLOSE_THREAT, TargetLockPolicy.decide(s));
+    }
+
+    @Test
+    void archerTurnsOnARusherSooner() {
+        TargetLockPolicy.Situation s = locked(0);
+        s.currentDistSq = 40 * 40;
+        s.candidateDistSq = 7 * 7;
+        s.candidateAttacksMe = true;
+        assertEquals(TargetLockPolicy.Verdict.LOCKED, TargetLockPolicy.decide(s));
+        s.archer = true;
+        assertEquals(TargetLockPolicy.Verdict.CLOSE_THREAT, TargetLockPolicy.decide(s));
+    }
+
+    @Test
+    void unitInContactOnlyMovesForUrgency() {
+        TargetLockPolicy.Situation s = locked(TargetLockPolicy.LOCK_TICKS * 10);
+        s.inContact = true;
+        s.currentDistSq = 2 * 2;
+        s.candidateDistSq = 1;
+        s.candidateAttacksMe = true;
+        assertEquals(TargetLockPolicy.Verdict.LOCKED, TargetLockPolicy.decide(s));
+        s.candidateHitsMeClose = true;
+        assertEquals(TargetLockPolicy.Verdict.HIT_CLOSE, TargetLockPolicy.decide(s));
     }
 }

@@ -69,6 +69,24 @@ public final class Hostility {
     }
 
     /**
+     * May this unit pick {@code e} as a target on its own: {@link #isWorkerEnemy} for a hired worker; otherwise
+     * units at war with it, any player for a raider, monsters for the others, its extra categories, and any
+     * creature attacking it.
+     */
+    public static boolean isUnitEnemy(EntityTraveller unit, @Nullable Entity e) {
+        if (unit instanceof EntityTravellerWorker) return isWorkerEnemy((EntityTravellerWorker) unit, e);
+        if (!(e instanceof EntityLivingBase) || e == unit || !e.isEntityAlive()) return false;
+        if (e instanceof EntityTraveller) return isAtWar(unit, (EntityTraveller) e);
+        if (e instanceof EntityPlayer) {
+            EntityPlayer p = (EntityPlayer) e;
+            return unit.isAggressiveToTravellers() && !p.isCreative() && !p.isSpectator();
+        }
+        if (e instanceof EntityLiving && ((EntityLiving) e).getAttackTarget() == unit) return true;
+        if (e instanceof IMob && !unit.isAggressiveToTravellers()) return true;
+        return unit.shouldAttackExtraEntity(e);
+    }
+
+    /**
      * May this hired worker pick {@code e} as a target on its own: enemy players and workers
      * (declared or engaged owners), raiders, monsters, and its extra categories (attack list,
      * enemy-village villagers, Ancient Warfare 2), and anything actively attacking its side. Never its owner or its owner's side.

@@ -122,6 +122,23 @@ public final class SharedThreatScan {
     }
 
     /**
+     * Possible threats within {@code radius} of one unit (5 blocks up/down), served from its group's shared scan
+     * when it has one: a hired worker's group is its owner's, a plain unit's its group leader's. Null when the
+     * scan budget refused this tick.
+     */
+    @Nullable
+    public static List<EntityLivingBase> around(EntityTraveller unit, double radius, int priority) {
+        AxisAlignedBB box = unit.getEntityBoundingBox().grow(radius, MELEE_HEIGHT, radius);
+        if (unit instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) unit;
+            EntityPlayer owner = w.isHiredFollower() ? w.getFollowOwner() : null;
+            if (owner == null || !owner.isEntityAlive()) return scan(unit, null, null, box, radius, priority);
+            return scan(unit, owner.getUniqueID(), owner, box, radius, priority);
+        }
+        return scan(unit, unit.getGroupLeaderUUID(), unit.getEffectiveFollowTarget(), box, radius, priority);
+    }
+
+    /**
      * Height rule for picking a target the unit can already see: an archer takes anything within SCAN_HEIGHT (cliffs,
      * walls); a melee unit only targets within 5 blocks up/down, or it walks to the edge and stalls.
      */

@@ -67,6 +67,9 @@ public class TravellerCombatLogic {
     // Last dead attack target a retarget boost was armed for: cleanup is deferred while boosted, so the
     // dead target stays assigned and would otherwise re-arm the boost every tick.
     @Nullable private EntityLivingBase lastHandledDeadTarget = null;
+    // Last melee blow landed, for "in contact" (TargetLockPolicy).
+    @Nullable private Entity lastStrikeTarget = null;
+    private int lastStrikeTick = -1000;
     // Instrumentation: the target seen last tick and why it is being dropped (see observeTargetDrop).
     @Nullable private EntityLivingBase observedTarget = null;
     @Nullable private String dropReason = null;
@@ -114,6 +117,39 @@ public class TravellerCombatLogic {
         abandonUnreachableTarget();
         reengageRevengeTarget();
         adoptRevengeTargetAfterLock();
+        reassessTarget();
+    }
+
+    /** Every second while closing on a target: a visible enemy that comes close may take its place (TargetLockPolicy decides). */
+    private void reassessTarget() {
+        EntityLivingBase cur = entity.getAttackTarget();
+        if (cur == null || !cur.isEntityAlive()) return;
+        if ((entity.ticksExisted + entity.getEntityId()) % TargetLockPolicy.REASSESS_TICKS != 0) return;
+        if (isInContact(cur)) return;
+        double r = TargetLockPolicy.closeThreatDist(entity.hasBowAnywherePublic());
+        List<EntityLivingBase> near = SharedThreatScan.around(entity, r, 0);
+        if (near == null || near.isEmpty()) return;
+        near.sort(Comparator.comparingDouble(entity::getDistanceSq));
+        int rays = 0;
+        for (EntityLivingBase e : near) {
+            if (e == cur || e == entity || e.isInvisible() || entity.isIgnoring(e)) continue;
+            if (!SharedThreatScan.heightAllows(entity, e) || !Hostility.isUnitEnemy(entity, e)) continue;
+            if (!mayReplaceTarget(e)) continue;
+            // Nearest first: two sight rays at most per look-around.
+            if (rays++ >= 2) return;
+            if (!entity.getEntitySenses().canSee(e)) continue;
+            entity.trySetAttackTargetLimited(e, 0);
+            return;
+        }
+    }
+
+    /** Trading blows with its target: close, and a blow exchanged either way within the last 3 s. */
+    private boolean isInContact(EntityLivingBase cur) {
+        if (entity.getDistanceSq(cur) > TargetLockPolicy.CONTACT_DIST_SQ) return false;
+        int now = entity.ticksExisted;
+        boolean struck = lastStrikeTarget == cur && now - lastStrikeTick <= TargetLockPolicy.CONTACT_BLOW_TICKS;
+        boolean hitBy = entity.getRevengeTarget() == cur && now - entity.getRevengeTimer() <= TargetLockPolicy.CONTACT_BLOW_TICKS;
+        return struck || hitBy;
     }
 
     /** Too far, or a player who turned creative/spectator: dropped (target tasks no longer re-check every tick). */
@@ -440,6 +476,10 @@ public class TravellerCombatLogic {
         // uniformly for melee and arrows in TravellerFriendlyFireHandler, keyed off the entity
         // actually hit rather than the intended target — see that class for why.
         boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(entity), damage);
+        if (hit) {
+            lastStrikeTarget = target;
+            lastStrikeTick = entity.ticksExisted;
+        }
         if (!hit) return false;
 
         // A counter-effect on the target (e.g. Thorns) can synchronously kill the attacker inside
@@ -623,6 +663,12 @@ public class TravellerCombatLogic {
      */
     public void setAttackTarget(@Nullable EntityLivingBase target) {
         EntityLivingBase prev = entity.getAttackTarget();
+        // Re-asserting the current target changes nothing; dropping it is tickEngagement's job.
+        if (target != null && target == prev && !TravellersDerivedConfig.isPeacefulBlocked(entity.world)) return;
+        if (target == null && dropReason == null && prev != null && prev.isEntityAlive()
+                && com.jubitus.travellers.debug.profile.MovementProfiler.isActive()) {
+            noteDrop("untagged: " + dropCaller());
+        }
         // A live, still-useful target is kept against any switch request (see TargetLockPolicy).
         TargetLockPolicy.Verdict verdict = null;
         if (!entity.world.isRemote && target != null && prev != null && prev != target) {
@@ -827,6 +873,11 @@ public class TravellerCombatLogic {
         s.candidateHitsMeClose = entity.getRevengeTarget() == candidate
                 && entity.ticksExisted - entity.getRevengeTimer() <= RECENT_HIT_TICKS
                 && entity.getDistanceSq(candidate) <= TargetLockPolicy.CLOSE_HIT_DIST_SQ;
+        s.inContact = cur.isEntityAlive() && isInContact(cur);
+        s.currentDistSq = entity.getDistanceSq(cur);
+        s.candidateDistSq = entity.getDistanceSq(candidate);
+        s.candidateAttacksMe = candidate instanceof EntityLiving && ((EntityLiving) candidate).getAttackTarget() == entity;
+        s.archer = entity.hasBowAnywherePublic();
         return TargetLockPolicy.decide(s);
     }
 
@@ -834,6 +885,17 @@ public class TravellerCombatLogic {
     public void noteDrop(String reason) {
         EntityLivingBase cur = entity.getAttackTarget();
         if (dropReason == null && cur != null && cur.isEntityAlive()) dropReason = reason;
+    }
+
+    /** First caller outside the unit classes and vanilla's setter chain: names an untagged drop (profiling only). */
+    private static String dropCaller() {
+        for (StackTraceElement f : new Throwable().getStackTrace()) {
+            String c = f.getClassName();
+            if (c.equals(TravellerCombatLogic.class.getName()) || c.startsWith("com.jubitus.travellers.unit.EntityTraveller")
+                    || c.equals("net.minecraft.entity.EntityLiving") || c.equals("net.minecraft.entity.EntityCreature")) continue;
+            return c.substring(c.lastIndexOf('.') + 1) + "." + f.getMethodName() + ":" + f.getLineNumber();
+        }
+        return "?";
     }
 
     /** A live target that disappeared since last tick is a drop: tallied with the reason noted for it. */
