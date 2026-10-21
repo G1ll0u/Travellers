@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.gui;
 
+import com.jubitus.travellers.unit.equipment.EquipLoadout;
 import com.jubitus.travellers.unit.equipment.EquipTargetKind;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgGroupCreate;
@@ -407,7 +408,7 @@ final class FormationOrdersMenu {
                     addStayChoice(src, dest, EquipTargetKind.STABLE, "take_horses", busy);
                     addStayChoice(src, dest, EquipTargetKind.STABLE_RETURN, "return_horses", busy);
                 } else {
-                    addStayChoice(src, dest, dest.kind, "equip", busy);
+                    addEquipChoice(group, dest, busy);
                     addStayChoice(src, dest, dest.kind.toDump(), "dump", busy);
                 }
             }
@@ -530,10 +531,31 @@ final class FormationOrdersMenu {
                                String key, @Nullable String busy) {
         menu.itemUnless(busy, tr(key), () -> {
             menu.header(tr("after_mission"));
-            menu.item(tr("stay_there"), () -> sendEquip(leader, dest, kind, true));
-            menu.item(tr("come_back"), () -> sendEquip(leader, dest, kind, false));
+            menu.item(tr("stay_there"), () -> sendEquip(leader, dest, kind, true, EquipLoadout.DEFAULT));
+            menu.item(tr("come_back"), () -> sendEquip(leader, dest, kind, false, EquipLoadout.DEFAULT));
             menu.open(clickX, clickY, screenW(), screenH());
         });
+    }
+
+    /** Get equipment: the gear ticks, pre-ticked with the group's last ones, then stay or come back. */
+    private void addEquipChoice(FormationLeaderInfo group, MsgEquipDestsResponse.EquipDestInfo dest, @Nullable String busy) {
+        UUID leader = group.uuid;
+        menu.itemUnless(busy, tr("equip"), () -> {
+            EquipLoadout[] ticks = {EquipLoadout.of(group.equipRole)};
+            menu.header(tr("loadout"));
+            addTick(ticks, EquipLoadout.MELEE, "loadout.melee");
+            addTick(ticks, EquipLoadout.BOW, "loadout.bow");
+            addTick(ticks, EquipLoadout.SHIELD, "loadout.shield");
+            addTick(ticks, EquipLoadout.ARMOR, "loadout.armour");
+            menu.header(tr("after_mission"));
+            menu.item(tr("stay_there"), () -> sendEquip(leader, dest, dest.kind, true, ticks[0]));
+            menu.item(tr("come_back"), () -> sendEquip(leader, dest, dest.kind, false, ticks[0]));
+            menu.open(clickX, clickY, screenW(), screenH());
+        });
+    }
+
+    private void addTick(EquipLoadout[] ticks, int kind, String key) {
+        menu.toggle(tr(key), () -> ticks[0].has(kind), () -> ticks[0] = ticks[0].toggle(kind));
     }
 
     private void addGo(UUID leader, BlockPos pos, @Nullable String busy) {
@@ -543,8 +565,9 @@ final class FormationOrdersMenu {
         });
     }
 
-    private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, EquipTargetKind kind, boolean stay) {
-        TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGetEquip(leader, dest.pos, kind, stay));
+    private void sendEquip(UUID leader, MsgEquipDestsResponse.EquipDestInfo dest, EquipTargetKind kind, boolean stay,
+                           EquipLoadout loadout) {
+        TravellersNetwork.CHANNEL.sendToServer(new MsgLeaderGetEquip(leader, dest.pos, kind, stay, loadout));
         showDestination(dest.pos);
     }
 

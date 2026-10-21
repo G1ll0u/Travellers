@@ -31,9 +31,10 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * Get Equipment at a Barrack or a controlled village: the leader and its followers swap their gear for
- * better weapons, bows and armour from the chests, judged by {@link TravellerEquipmentPolicy}. Weapons
- * live in the backpack (the hand only shows a ghost copy); displaced items go back to the chests.
+ * Get Equipment at a Barrack or a controlled village: the leader and its followers take the leader's
+ * ordered {@link EquipLoadout} as their role, leave gear outside it and spares in the chests, then take
+ * the best ticked gear there, judged by {@link TravellerEquipmentPolicy}. Weapons live in the backpack
+ * (the hand only shows a ghost copy); displaced items go back to the chests.
  */
 public final class WorkerEquipExchanger {
 
@@ -50,8 +51,9 @@ public final class WorkerEquipExchanger {
     public static int[] exchangeWithFollowers(EntityTravellerWorker leader, WorldServer world,
                                               BlockPos target, EquipTargetKind kind) {
         int[] result = {0, 1};
+        EquipLoadout loadout = leader.trips.getEquipLoadout();
         withChests(world, leader, target, kind, chests -> {
-            if (!chests.isEmpty()) applyToGroup(leader, world, w -> equipFromChests(w, chests), result);
+            if (!chests.isEmpty()) applyToGroup(leader, world, w -> equipFromChests(w, chests, loadout), result);
         });
         return result;
     }
@@ -162,8 +164,10 @@ public final class WorkerEquipExchanger {
         }
     }
 
-    private static boolean equipFromChests(EntityTravellerWorker worker, List<IInventory> chests) {
-        boolean changed = false;
+    private static boolean equipFromChests(EntityTravellerWorker worker, List<IInventory> chests, EquipLoadout loadout) {
+        // The role gates every upgrade test below, so only ticked kinds are taken.
+        worker.setEquipRole(loadout);
+        boolean changed = leaveUnwanted(worker, chests);
         for (EntityEquipmentSlot slot : ARMOR_SLOTS) {
             changed |= takeArmor(worker, chests, slot);
         }
@@ -239,7 +243,7 @@ public final class WorkerEquipExchanger {
         for (IInventory chest : chests) {
             for (int i = 0; i < chest.getSizeInventory(); i++) {
                 ItemStack s = chest.getStackInSlot(i);
-                if (s.isEmpty() || eq.isGhost(s) || !eq.isBowUpgrade(s)) continue;
+                if (s.isEmpty() || eq.isGhost(s) || !TravellerEquipmentManager.isBow(s) || !eq.wantsBow(s)) continue;
                 double rank = TravellerEquipmentPolicy.weaponRank(s);
                 if (best == null || rank > best.rank) best = new Pick(chest, i, rank);
             }
@@ -247,14 +251,66 @@ public final class WorkerEquipExchanger {
         if (best == null) return false;
 
         ItemStackHandler pack = worker.inventory;
+        ItemStack taken = best.chest.decrStackSize(best.slot, 1);
         for (int i = 0; i < pack.getSlots(); i++) {
             if (!TravellerEquipmentManager.isBow(pack.getStackInSlot(i))) continue;
             ItemStack old = pack.getStackInSlot(i);
-            pack.setStackInSlot(i, best.chest.decrStackSize(best.slot, 1));
+            pack.setStackInSlot(i, taken);
             giveBack(worker, chests, old);
             return true;
         }
+        ItemStack left = ItemHandlerHelper.insertItemStacked(pack, taken, false);
+        if (left.isEmpty()) return true;
+        // Backpack full: the bow stays in the chest.
+        giveBack(worker, chests, left);
         return false;
+    }
+
+    /**
+     * Puts in the chests the gear the worker's role leaves out (worn, held or packed) and its spares:
+     * every packed melee weapon and bow but the best one, every packed shield and armour piece. Spares
+     * go first so the take step can pick the best of them back.
+     */
+    private static boolean leaveUnwanted(EntityTravellerWorker worker, List<IInventory> chests) {
+        TravellerEquipmentManager eq = worker.equipment;
+        boolean changed = false;
+        for (EntityEquipmentSlot slot : EntityEquipmentSlot.values()) {
+            ItemStack s = worker.getItemStackFromSlot(slot);
+            if (s.isEmpty() || eq.fitsRole(s)) continue;
+            worker.setItemStackToSlot(slot, ItemStack.EMPTY);
+            if (!eq.isGhost(s)) giveBack(worker, chests, s);
+            changed = true;
+        }
+        ItemStackHandler pack = worker.inventory;
+        int keepMelee = bestPackedWeapon(pack, false);
+        int keepBow = bestPackedWeapon(pack, true);
+        List<ItemStack> out = new ArrayList<>();
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack s = pack.getStackInSlot(i);
+            if (s.isEmpty() || eq.isGhost(s) || TravellerEquipmentPolicy.bucketFor(s, null) == null) continue;
+            if ((i == keepMelee || i == keepBow) && eq.fitsRole(s)) continue;
+            out.add(pack.extractItem(i, s.getCount(), false));
+        }
+        for (ItemStack s : out) giveBack(worker, chests, s);
+        return changed || !out.isEmpty();
+    }
+
+    /** Backpack slot of the best melee weapon (or bow), -1 when there is none. */
+    private static int bestPackedWeapon(ItemStackHandler pack, boolean bow) {
+        int best = -1;
+        double bestRank = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < pack.getSlots(); i++) {
+            ItemStack s = pack.getStackInSlot(i);
+            boolean fits = bow ? TravellerEquipmentManager.isBow(s)
+                    : TravellerEquipmentManager.isWeapon(s) && !TravellerEquipmentManager.isBow(s);
+            if (!fits) continue;
+            double rank = TravellerEquipmentPolicy.weaponRank(s);
+            if (rank > bestRank) {
+                bestRank = rank;
+                best = i;
+            }
+        }
+        return best;
     }
 
     private static boolean takeShield(EntityTravellerWorker worker, List<IInventory> chests) {

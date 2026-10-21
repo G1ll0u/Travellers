@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.net;
 
+import com.jubitus.travellers.unit.equipment.EquipLoadout;
 import net.minecraft.nbt.NBTTagCompound;
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -26,6 +27,10 @@ public final class FormationLeaderInfo {
     public int ownerColor = 0xFFFFFF;
     // -1 if virtual (no loaded entity)
     public int entityId = -1;
+    // The group's last Get Equipment ticks, pre-ticked on the next one.
+    public int equipRole = EquipLoadout.DEFAULT.bits;
+    // The leader and its followers (the player row: workers following the player directly).
+    public GroupGearSummary gear = new GroupGearSummary();
 
     public FormationLeaderInfo() {}
 
@@ -56,6 +61,8 @@ public final class FormationLeaderInfo {
         tag.setInteger("TextureIndex", textureIndex);
         tag.setInteger("OwnerColor", ownerColor);
         tag.setInteger("EntityId", entityId);
+        tag.setByte("EquipRole", (byte) equipRole);
+        tag.setTag("Gear", gear.toNbt());
         return tag;
     }
 
@@ -75,6 +82,8 @@ public final class FormationLeaderInfo {
         info.textureIndex = tag.hasKey("TextureIndex") ? tag.getInteger("TextureIndex") : 0;
         info.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;
         info.entityId = tag.hasKey("EntityId") ? tag.getInteger("EntityId") : -1;
+        info.equipRole = tag.getByte("EquipRole");
+        info.gear = GroupGearSummary.fromNbt(tag.getCompoundTag("Gear"));
         return info;
     }
 }

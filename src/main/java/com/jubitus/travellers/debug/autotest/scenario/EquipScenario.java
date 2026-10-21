@@ -3,6 +3,7 @@ package com.jubitus.travellers.debug.autotest.scenario;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.autotest.AutotestZones;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.equipment.EquipLoadout;
 import com.jubitus.travellers.unit.equipment.EquipTargetKind;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.zone.PlayerZoneManager;
@@ -62,7 +63,8 @@ public final class EquipScenario extends AutotestScenario {
         EntityTravellerWorker w = spawnHiredWorker(ws, from, zone.ownerUUID);
         if (w == null) return Outcome.fail("spawn refused at " + from.getX() + " " + from.getZ());
         workerId = w.getUniqueID();
-        w.trips.startGetEquip(target, stay, zoneType == ZoneType.STABLE ? EquipTargetKind.STABLE : EquipTargetKind.LONE_BARRACK);
+        w.trips.startGetEquip(target, stay, zoneType == ZoneType.STABLE ? EquipTargetKind.STABLE : EquipTargetKind.LONE_BARRACK,
+                EquipLoadout.DEFAULT);
         return null;
     }
 

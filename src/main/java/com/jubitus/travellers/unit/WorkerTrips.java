@@ -6,6 +6,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.unit.equipment.EquipOrders;
+import com.jubitus.travellers.unit.equipment.EquipLoadout;
 import com.jubitus.travellers.unit.equipment.EquipTargetKind;
 import com.jubitus.travellers.zone.ZoneRef;
 import net.minecraft.entity.player.EntityPlayer;
@@ -29,6 +30,7 @@ public final class WorkerTrips {
     private int goOrderTargetDim;
     private boolean getEquipStay;
     private EquipTargetKind getEquipTargetKind = EquipTargetKind.LONE_BARRACK;
+    private EquipLoadout getEquipLoadout = EquipLoadout.DEFAULT;
 
     WorkerTrips(EntityTravellerWorker worker) {
         this.worker = worker;
@@ -113,11 +115,16 @@ public final class WorkerTrips {
         return getEquipTargetKind;
     }
 
-    public void startGetEquip(BlockPos target, boolean stay, @Nullable EquipTargetKind kind) {
+    public EquipLoadout getEquipLoadout() {
+        return getEquipLoadout;
+    }
+
+    public void startGetEquip(BlockPos target, boolean stay, @Nullable EquipTargetKind kind, EquipLoadout loadout) {
         if (worker.world.isRemote || target == null) return;
 
         this.getEquipStay = stay;
         this.getEquipTargetKind = kind == null ? EquipTargetKind.LONE_BARRACK : kind;
+        this.getEquipLoadout = loadout;
         worker.mode = EntityTravellerWorker.WorkerMode.GET_EQUIPMENT;
         cancelCompetingTravel();
         worker.delivery.jobDelivered = false;
@@ -266,6 +273,7 @@ public final class WorkerTrips {
     void writeNbt(NBTTagCompound nbt) {
         nbt.setBoolean("GetEquipStay", getEquipStay);
         nbt.setString("GetEquipTargetKind", getEquipTargetKind.name());
+        nbt.setByte("GetEquipLoadout", (byte) getEquipLoadout.bits);
         nbt.setBoolean("GoingHome", goingHome);
         nbt.setBoolean("GoingToDuty", goingToDuty);
         nbt.setBoolean("GoOrderActive", goOrderActive);
@@ -284,6 +292,8 @@ public final class WorkerTrips {
                 ? EquipTargetKind.fromNbt(nbt.getString("GetEquipTargetKind"))
                 // Legacy saves stored a boolean instead - true meant CONTROLLED_VILLAGE, false LONE_BARRACK.
                 : (nbt.getBoolean("GetEquipWholeVillage") ? EquipTargetKind.CONTROLLED_VILLAGE : EquipTargetKind.LONE_BARRACK);
+        getEquipLoadout = nbt.hasKey("GetEquipLoadout")
+                ? EquipLoadout.of(nbt.getByte("GetEquipLoadout")) : EquipLoadout.DEFAULT;
 
         goingHome = nbt.getBoolean("GoingHome");
         goingToDuty = nbt.getBoolean("GoingToDuty");

@@ -207,7 +207,7 @@ public class TravellerEquipmentManager {
 
     /** True if candidate is a culture-legal, condition-acceptable upgrade over the best weapon held/stashed. */
     public boolean isWeaponUpgrade(ItemStack candidate) {
-        if (!isWeapon(candidate) && !isBow(candidate)) return false;
+        if (!isWeapon(candidate) && !isBow(candidate) || !fitsRole(candidate)) return false;
         return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(),
                 bestOwnedWeapon(), candidate, null);
     }
@@ -215,15 +215,22 @@ public class TravellerEquipmentManager {
     /** True if candidate is a bow better than the one in the backpack; false when the entity carries no bow. */
     public boolean isBowUpgrade(ItemStack candidate) {
         ItemStack current = findBowInBackpack();
-        if (current == null || !isBow(candidate)) return false;
+        if (current == null || !isBow(candidate) || !fitsRole(candidate)) return false;
         return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(), current, candidate, null);
     }
 
     /** True if candidate is a culture-legal, condition-acceptable upgrade over the best armor for the slot. */
     public boolean isArmorUpgrade(ItemStack candidate, EntityEquipmentSlot slot) {
-        if (!isArmorForSlot(candidate, slot)) return false;
+        if (!isArmorForSlot(candidate, slot) || !fitsRole(candidate)) return false;
         return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(),
                 bestOwnedArmor(slot), candidate, slot);
+    }
+
+    /** False for gear of a kind a hired worker's role leaves out; true for everyone else. */
+    public boolean fitsRole(ItemStack candidate) {
+        if (!(entity instanceof EntityTravellerWorker)) return true;
+        EquipLoadout role = ((EntityTravellerWorker) entity).getEquipRole();
+        return role == null || role.allows(candidate);
     }
 
     // -------------------------------------------------------------------------
@@ -692,6 +699,7 @@ public class TravellerEquipmentManager {
 
     /** True if the entity owns no bow yet, or the candidate is a culture-legal upgrade over its best one. */
     public boolean wantsBow(ItemStack candidate) {
+        if (!fitsRole(candidate)) return false;
         ItemStack owned = bestOwnedBow();
         if (owned.isEmpty()) return true;
         return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(), owned, candidate, null);
@@ -699,7 +707,7 @@ public class TravellerEquipmentManager {
 
     /** True if the entity owns a bow, or has none and no shield yet / the candidate is a better one. */
     public boolean wantsShield(ItemStack candidate) {
-        if (!isShield(candidate) || hasBowAnywhere()) return false;
+        if (!isShield(candidate) || hasBowAnywhere() || !fitsRole(candidate)) return false;
         ItemStack held = entity.getHeldItemOffhand();
         if (held.isEmpty()) {
             return TravellerEquipmentPolicy.isUpgrade(entity.getCultureId(), bypassCultureFilter(),

@@ -336,6 +336,8 @@ public class GuiWorkerFormationHub extends GuiScreen
             }
         }
         tooltips.render(mouseX, mouseY, width, height);
+        FormationLeaderInfo hoveredLeader = leaderList.infoAt(mouseX, mouseY);
+        if (hoveredLeader != null) GroupSummaryTooltip.draw(fontRenderer, hoveredLeader, mouseX, mouseY, width, height);
     }
 
     private void drawBoxHeader(int x, int w, String text) {

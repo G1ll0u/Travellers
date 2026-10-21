@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.gui;
 
+import javax.annotation.Nullable;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
@@ -35,6 +36,13 @@ final class FormationLeaderList {
     /** Row under the mouse, or -1. */
     int rowAt(int mouseX, int mouseY) {
         return rows.rowAt(mouseX, mouseY, leaders.size());
+    }
+
+    /** Leader row under the mouse, or null. */
+    @Nullable
+    FormationLeaderInfo infoAt(int mouseX, int mouseY) {
+        int idx = rowAt(mouseX, mouseY);
+        return idx >= 0 && idx < leaders.size() ? leaders.get(idx) : null;
     }
 
     void scrollBy(int wheel) {

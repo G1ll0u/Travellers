@@ -43,7 +43,7 @@ public class TravellerWorkerLootHandler {
             if (ei == null || ei.isDead) continue;
 
             ItemStack stack = ei.getItem();
-            if (stack.isEmpty()) continue;
+            if (stack.isEmpty() || !worker.equipment.fitsRole(stack)) continue;
 
             // A shield is only ever worn in the offhand, never stacked into the backpack
             if (TravellerEquipmentManager.isShield(stack)) {

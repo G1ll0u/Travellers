@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.unit.equipment.EquipLoadout;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
@@ -57,6 +58,13 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private boolean showEquipDialog = false;
     private GuiButton equipStayButton, equipReturnButton, equipCancelButton;
 
+    private static final int[] TICK_KINDS = {EquipLoadout.MELEE, EquipLoadout.BOW, EquipLoadout.SHIELD, EquipLoadout.ARMOR};
+    private static final String[] TICK_KEYS = {"melee", "bow", "shield", "armour"};
+    private final GuiTravellersButton[] tickButtons = new GuiTravellersButton[TICK_KINDS.length];
+    private EquipLoadout ticks = EquipLoadout.DEFAULT;
+    // The gear ticks only belong to Get Equipment at a Barrack or a village, not to Dump Items or a Stable.
+    private boolean ticksShown = false;
+
     private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
 
     private final EntityTravellerWorker worker;
@@ -83,6 +91,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
     private BlockPos selectedMapPos = null;
 
     private int guiLeft, guiTop;
+    private static final int TICK_H = 16;
 
     public GuiWorkerGo(EntityPlayer player, EntityTravellerWorker worker) {
         this.player = player;
@@ -162,14 +171,20 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
                 I18n.format("travellers.worker.barracks.dump", "Dump Items")));
         this.dumpButton.enabled = false;
 
-        // Inline equip dialog buttons (over the list), hidden until opened
-        int dlgY = listY + 4;
-        this.equipStayButton   = this.addButton(new GuiTravellersButton(11, listX, dlgY, listW, bh,
+        // Inline equip dialog buttons (over the list), hidden until opened; placed by layoutEquipDialog
+        this.equipStayButton   = this.addButton(new GuiTravellersButton(11, listX, listY, listW, bh,
                 I18n.format("travellers.worker.barracks.equip_stay", "Equip and Stay")));
-        this.equipReturnButton = this.addButton(new GuiTravellersButton(12, listX, dlgY + bh + gap, listW, bh,
+        this.equipReturnButton = this.addButton(new GuiTravellersButton(12, listX, listY, listW, bh,
                 I18n.format("travellers.worker.barracks.equip_return", "Equip and Return")));
-        this.equipCancelButton = this.addButton(new GuiTravellersButton(13, listX, dlgY + (bh + gap) * 2, listW, bh,
+        this.equipCancelButton = this.addButton(new GuiTravellersButton(13, listX, listY, listW, bh,
                 I18n.format("travellers.gui.cancel", "Cancel")));
+        ticks = worker != null && worker.getEquipRole() != null ? worker.getEquipRole() : EquipLoadout.DEFAULT;
+        for (int i = 0; i < TICK_KINDS.length; i++) {
+            tickButtons[i] = this.addButton(new GuiTravellersButton(20 + i, listX, listY, halfW, TICK_H,
+                    I18n.format("travellers.worker.formation.menu.loadout." + TICK_KEYS[i]))
+                    .style(GuiTravellersButton.Style.TOGGLE));
+        }
+        refreshTicks();
         showEquipDialog = false;
         applyEquipDialogVisibility();
 
@@ -376,6 +391,13 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
             applyEquipDialogVisibility();
             return;
         }
+        for (int i = 0; i < TICK_KINDS.length; i++) {
+            if (button == tickButtons[i]) {
+                ticks = ticks.toggle(TICK_KINDS[i]);
+                refreshTicks();
+                return;
+            }
+        }
         if (button == equipCancelButton) {
             showEquipDialog = false;
             applyEquipDialogVisibility();
@@ -420,8 +442,30 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         super.actionPerformed(button);
     }
 
+    private void refreshTicks() {
+        for (int i = 0; i < TICK_KINDS.length; i++) tickButtons[i].toggled(ticks.has(TICK_KINDS[i]));
+    }
+
+    /** Gear ticks in two columns on top when shown, then Stay / Return / Cancel. */
+    private void layoutEquipDialog() {
+        int gap = 4;
+        int y = listY + 4;
+        for (int i = 0; i < TICK_KINDS.length; i++) {
+            GuiTravellersButton b = tickButtons[i];
+            b.x = i % 2 == 0 ? listX : listX + listW - b.width;
+            b.y = y + (i / 2) * (TICK_H + gap);
+            b.visible = showEquipDialog && ticksShown;
+        }
+        if (ticksShown) y += 2 * (TICK_H + gap) + gap;
+        for (GuiButton b : new GuiButton[]{equipStayButton, equipReturnButton, equipCancelButton}) {
+            b.y = y;
+            y += b.height + gap;
+        }
+    }
+
     private void applyEquipDialogVisibility() {
         boolean d = showEquipDialog;
+        layoutEquipDialog();
         equipStayButton.visible = d;
         equipReturnButton.visible = d;
         equipCancelButton.visible = d;
@@ -443,6 +487,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         boolean stable = ok && rows.get(selectedIndex).kind == MsgWorkerGoList.Kind.STABLE;
         if (dumpButton != null) dumpButton.enabled = ok && !stable;
         boolean dump = dumpMission && !stable;
+        ticksShown = ok && !stable && !dump;
         if (getEquipButton != null) {
             getEquipButton.displayString = I18n.format(stable
                     ? "travellers.worker.barracks.take_horses" : "travellers.worker.barracks.get_equip");
@@ -474,7 +519,7 @@ public class GuiWorkerGo extends GuiScreen implements IWorkerGoListReceiver, IWo
         if (targetUUID == null || r.pos == null) return;
         TravellersNetwork.CHANNEL.sendToServer(
                 new com.jubitus.travellers.unit.equipment.net.MsgWorkerGetEquipment(
-                        targetUUID, stay, kind, r.pos));
+                        targetUUID, stay, kind, r.pos, ticks));
     }
 
     @Override

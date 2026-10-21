@@ -14,6 +14,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
+import com.jubitus.travellers.follow.net.GroupGearSummary;
 import com.jubitus.travellers.follow.net.MsgSyncLeaderFollowerCount;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
@@ -743,6 +744,9 @@ public final class WorkerGroupService {
         Set<UUID> leaderIds = new HashSet<>();
         Map<UUID, Integer> followerCount = new HashMap<>();
         Map<UUID, FormationLeaderInfo> meta = new HashMap<>();
+        // Keyed by group: the leader's own UUID gets itself, its followers add to it too.
+        Map<UUID, GroupGearSummary> gear = new HashMap<>();
+        GroupGearSummary playerGear = new GroupGearSummary();
         int directFollowers = 0;
         int representativeId = -1;
 
@@ -755,6 +759,8 @@ public final class WorkerGroupService {
                     leaderIds.add(lead);
                     followerCount.merge(lead, 1, Integer::sum);
                 }
+                (lead == null ? playerGear : gear.computeIfAbsent(lead, k -> new GroupGearSummary())).addLoaded(w);
+                gear.computeIfAbsent(w.getUniqueID(), k -> new GroupGearSummary()).addLoaded(w);
                 FormationLeaderInfo info = new FormationLeaderInfo(w.getUniqueID(), w.getName(), 0,
                         w.posX, w.posZ, false, false);
                 info.followActive = w.isFollowOrderActive();
@@ -764,6 +770,7 @@ public final class WorkerGroupService {
                 info.textureIndex = w.getTextureIndex();
                 info.ownerColor = w.getOwnerMarkColor();
                 info.entityId = w.getEntityId();
+                if (w.getEquipRole() != null) info.equipRole = w.getEquipRole().bits;
                 meta.put(w.getUniqueID(), info);
             }
         }
@@ -774,6 +781,8 @@ public final class WorkerGroupService {
                 leaderIds.add(r.escortLeaderUUID);
                 followerCount.merge(r.escortLeaderUUID, 1, Integer::sum);
             }
+            (r.escortLeaderUUID == null ? playerGear : gear.computeIfAbsent(r.escortLeaderUUID, k -> new GroupGearSummary())).addVirtual(r);
+            gear.computeIfAbsent(r.uuid, k -> new GroupGearSummary()).addVirtual(r);
             if (!meta.containsKey(r.uuid)) meta.put(r.uuid, virtualMeta(r));
         }
 
@@ -782,8 +791,10 @@ public final class WorkerGroupService {
         // Player row first (workers following the owner directly).
         WorkerFormationScopeKey playerScope = new WorkerFormationScopeKey(
                 WorkerFormationScopeKey.Type.PLAYER, owner);
-        leaders.add(new FormationLeaderInfo(null, player.getName(), directFollowers,
-                player.posX, player.posZ, true, false));
+        FormationLeaderInfo playerRow = new FormationLeaderInfo(null, player.getName(), directFollowers,
+                player.posX, player.posZ, true, false);
+        playerRow.gear = playerGear;
+        leaders.add(playerRow);
         settingsByScope.put(playerScope.asMapKey(), fsd.getSettings(playerScope));
 
         // One row per leader.
@@ -791,6 +802,7 @@ public final class WorkerGroupService {
             FormationLeaderInfo m = meta.get(leaderId);
             if (m == null) continue; // dangling escort ref (leader gone); self-heals within ~20 ticks
             m.followerCount = followerCount.getOrDefault(leaderId, 0);
+            m.gear = gear.get(leaderId);
             if (!m.isVirtual && representativeId < 0) representativeId = m.entityId;
             leaders.add(m);
             WorkerFormationScopeKey ldrScope = new WorkerFormationScopeKey(
@@ -827,6 +839,8 @@ public final class WorkerGroupService {
                 ? r.entityNbt.getInteger("TextureIdx") : 0;
         info.ownerColor = r.ownerColor;
         info.entityId = -1;
+        String roleKey = com.jubitus.travellers.unit.equipment.EquipLoadout.ROLE_NBT_KEY;
+        if (r.entityNbt != null && r.entityNbt.hasKey(roleKey)) info.equipRole = r.entityNbt.getByte(roleKey);
         return info;
     }
 

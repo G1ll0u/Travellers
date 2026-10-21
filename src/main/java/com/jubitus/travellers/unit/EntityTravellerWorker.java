@@ -154,6 +154,9 @@ public class EntityTravellerWorker extends EntityTraveller {
     public final RecruitMission recruit = new RecruitMission(this);
     public final DeliveryJob delivery = new DeliveryJob(this);
     public final WorkerTrips trips = new WorkerTrips(this);
+    // Gear kinds ticked at its last Get Equipment; null = never set (picks up any upgrade).
+    @Nullable
+    private com.jubitus.travellers.unit.equipment.EquipLoadout equipRole;
     // 18-slot cargo inventory used for deliveries (separate from personal backpack)
     private final ItemStackHandler travelInventory = new ItemStackHandler(18);
     // --- follower / hire state (existing) ---
@@ -1979,6 +1982,15 @@ public class EntityTravellerWorker extends EntityTraveller {
                 .get((net.minecraft.world.WorldServer) world).isVirtual(id);
     }
 
+    @Nullable
+    public com.jubitus.travellers.unit.equipment.EquipLoadout getEquipRole() {
+        return equipRole;
+    }
+
+    public void setEquipRole(@Nullable com.jubitus.travellers.unit.equipment.EquipLoadout role) {
+        this.equipRole = role;
+    }
+
     // --- NBT save / load ---
     @Override
     public void writeEntityToNBT(NBTTagCompound nbt) {
@@ -2003,6 +2015,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         Optional<UUID> o = dataManager.get(FOLLOW_OWNER_DM);
         if (o.isPresent()) nbt.setUniqueId("FollowOwnerId", o.get());
         if (zone != null) zone.write(nbt);
+        if (equipRole != null) nbt.setByte(com.jubitus.travellers.unit.equipment.EquipLoadout.ROLE_NBT_KEY, (byte) equipRole.bits);
     }
 
     @Override
@@ -2068,6 +2081,8 @@ public class EntityTravellerWorker extends EntityTraveller {
             setFollowOrderActive(true);
         }
         trips.readGoOrderNbt(nbt);
+        String roleKey = com.jubitus.travellers.unit.equipment.EquipLoadout.ROLE_NBT_KEY;
+        equipRole = nbt.hasKey(roleKey) ? com.jubitus.travellers.unit.equipment.EquipLoadout.of(nbt.getByte(roleKey)) : null;
         if (!world.isRemote) {
             refreshOwnerVisualsFromSavedData();
         }

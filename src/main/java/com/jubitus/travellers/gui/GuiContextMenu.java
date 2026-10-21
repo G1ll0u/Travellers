@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.RenderHelper;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /**
  * Small right-click menu drawn by a screen on top of everything else: section headers, items, and
@@ -17,19 +18,21 @@ import java.util.List;
  */
 public final class GuiContextMenu {
 
-    private enum Kind { HEADER, ITEM, DISABLED }
+    private enum Kind { HEADER, ITEM, DISABLED, TOGGLE }
 
     private static final class Row {
         final Kind kind;
         final String text;
         @Nullable final String reason;
         @Nullable final Runnable action;
+        @Nullable final BooleanSupplier checked;
 
-        Row(Kind kind, String text, @Nullable String reason, @Nullable Runnable action) {
+        Row(Kind kind, String text, @Nullable String reason, @Nullable Runnable action, @Nullable BooleanSupplier checked) {
             this.kind = kind;
             this.text = text;
             this.reason = reason;
             this.action = action;
+            this.checked = checked;
         }
     }
 
@@ -37,6 +40,8 @@ public final class GuiContextMenu {
     private static final int ROW_H = 12;
     private static final int SECTION_GAP = 4;
     private static final int REASON_W = 150;
+    private static final int BOX = 7;
+    private static final int BOX_GAP = 4;
     // Above tooltips (z 300), under notification toasts (z 400).
     private static final float Z = 350F;
 
@@ -45,17 +50,23 @@ public final class GuiContextMenu {
     private int x, y, w, h;
 
     public GuiContextMenu header(String text) {
-        rows.add(new Row(Kind.HEADER, text, null, null));
+        rows.add(new Row(Kind.HEADER, text, null, null, null));
         return this;
     }
 
     public GuiContextMenu item(String text, Runnable action) {
-        rows.add(new Row(Kind.ITEM, text, null, action));
+        rows.add(new Row(Kind.ITEM, text, null, action, null));
         return this;
     }
 
     public GuiContextMenu disabled(String text, @Nullable String reason) {
-        rows.add(new Row(Kind.DISABLED, text, reason, null));
+        rows.add(new Row(Kind.DISABLED, text, reason, null, null));
+        return this;
+    }
+
+    /** A checkbox row: clicking runs {@code flip} and keeps the menu open; the box shows {@code checked}. */
+    public GuiContextMenu toggle(String text, BooleanSupplier checked, Runnable flip) {
+        rows.add(new Row(Kind.TOGGLE, text, null, flip, checked));
         return this;
     }
 
@@ -79,7 +90,8 @@ public final class GuiContextMenu {
         int textW = 0;
         h = 2;
         for (int i = 0; i < rows.size(); i++) {
-            textW = Math.max(textW, fr.getStringWidth(rows.get(i).text));
+            Row row = rows.get(i);
+            textW = Math.max(textW, fr.getStringWidth(row.text) + (row.kind == Kind.TOGGLE ? BOX + BOX_GAP : 0));
             if (rows.get(i).kind == Kind.HEADER && i > 0) h += SECTION_GAP;
             h += ROW_H;
         }
@@ -105,6 +117,10 @@ public final class GuiContextMenu {
     public boolean mouseClicked(int mouseX, int mouseY) {
         if (!open) return false;
         Row row = rowAt(mouseX, mouseY);
+        if (row != null && row.kind == Kind.TOGGLE) {
+            row.action.run();
+            return true;
+        }
         Runnable action = row != null && row.kind == Kind.ITEM ? row.action : null;
         if (row != null && row.kind != Kind.ITEM) return true; // a header or greyed item: stay open
         close();
@@ -148,6 +164,18 @@ public final class GuiContextMenu {
                     break;
                 case DISABLED:
                     fr.drawString(row.text, x + PAD_X, textY, TravellersGuiTheme.COL_BTN_TEXT_OFF);
+                    break;
+                case TOGGLE:
+                    if (row == hovered) Gui.drawRect(x + 1, rowY, x + w - 1, rowY + ROW_H, TravellersGuiTheme.COL_ROW_HOVER);
+                    int bx = x + PAD_X;
+                    int by = rowY + (ROW_H - BOX) / 2;
+                    TravellersGuiTheme.drawBorder(bx, by, BOX, BOX, TravellersGuiTheme.COL_BORDER);
+                    if (row.checked.getAsBoolean()) {
+                        // COL_TEXT has no alpha (fine for text): a rectangle needs it opaque.
+                        Gui.drawRect(bx + 2, by + 2, bx + BOX - 2, by + BOX - 2, 0xFF000000 | TravellersGuiTheme.COL_TEXT);
+                    }
+                    fr.drawString(row.text, bx + BOX + BOX_GAP, textY,
+                            row == hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
                     break;
             }
             rowY += ROW_H;

@@ -38,11 +38,15 @@ public final class VirtualCombatProfile {
     public final float toughness;
     /** A real shield in the offhand and no bow: virtual hits may be parried. */
     public final boolean hasShield;
+    public final boolean hasMeleeWeapon;
+    // Worn chestplate (EMPTY when none), for the Formation Hub's group summary.
+    public final ItemStack chestArmour;
 
     private VirtualCombatProfile(float maxHealth, float meleeDamage, int attackCooldownTicks,
                                  boolean isArcher, float rangedDamage, int rangedCooldownTicks,
                                  double rangedMinDist, double rangedMaxDist,
-                                 float armor, float toughness, boolean hasShield) {
+                                 float armor, float toughness, boolean hasShield,
+                                 boolean hasMeleeWeapon, ItemStack chestArmour) {
         this.maxHealth = maxHealth;
         this.meleeDamage = meleeDamage;
         this.attackCooldownTicks = attackCooldownTicks;
@@ -54,6 +58,8 @@ public final class VirtualCombatProfile {
         this.armor = armor;
         this.toughness = toughness;
         this.hasShield = hasShield;
+        this.hasMeleeWeapon = hasMeleeWeapon;
+        this.chestArmour = chestArmour;
     }
 
     public static VirtualCombatProfile fromEntityNbt(NBTTagCompound nbt, String entityClass) {
@@ -77,7 +83,11 @@ public final class VirtualCombatProfile {
                 * TravellersConfig.COMBAT.rangedDamageMultiplier;
 
         float armor = 0f, toughness = 0f;
-        for (ItemStack s : readStackList(nbt, "ArmorItems")) {
+        List<ItemStack> worn = readStackList(nbt, "ArmorItems");
+        // Saved in slot index order: feet, legs, chest, head.
+        ItemStack chest = worn.size() > EntityEquipmentSlot.CHEST.getIndex()
+                ? worn.get(EntityEquipmentSlot.CHEST.getIndex()) : ItemStack.EMPTY;
+        for (ItemStack s : worn) {
             if (s.isEmpty() || !(s.getItem() instanceof ItemArmor)) continue;
             EntityEquipmentSlot slot = ((ItemArmor) s.getItem()).armorType;
             Multimap<String, AttributeModifier> mods = s.getAttributeModifiers(slot);
@@ -88,7 +98,7 @@ public final class VirtualCombatProfile {
         return new VirtualCombatProfile(maxHealth, meleeDamage, Math.max(1, cooldown),
                 archer, rangedDamage, Math.max(1, TravellersConfig.COMBAT.rangedCooldown),
                 TravellersConfig.COMBAT.rangedMinDist, TravellersConfig.COMBAT.rangedMaxDist,
-                armor, toughness, !archer && containsShield(hand));
+                armor, toughness, !archer && containsShield(hand), !weapon.isEmpty(), chest);
     }
 
     private static boolean containsShield(List<ItemStack> stacks) {

@@ -21,6 +21,8 @@ public class MsgSyncWorkerHireState implements IMessage {
     private UUID ownerId;
     private boolean followOrderActive;
     private String homeVillageName = "";
+    // -1 = never set
+    private int equipRole = -1;
 
     public MsgSyncWorkerHireState() {
     }
@@ -33,6 +35,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         BlockPos home = worker.getHomeVillage();
         String name = home != null ? MillSettlements.nameOrNull(worker.world, home) : null;
         this.homeVillageName = name != null ? name : "";
+        if (worker.getEquipRole() != null) this.equipRole = worker.getEquipRole().bits;
     }
 
     @Override
@@ -51,6 +54,7 @@ public class MsgSyncWorkerHireState implements IMessage {
 
         this.followOrderActive = buf.readBoolean();
         this.homeVillageName = ByteBufUtils.readUTF8String(buf);
+        this.equipRole = buf.readByte();
     }
 
     @Override
@@ -68,6 +72,7 @@ public class MsgSyncWorkerHireState implements IMessage {
 
         buf.writeBoolean(followOrderActive);
         ByteBufUtils.writeUTF8String(buf, homeVillageName);
+        buf.writeByte(equipRole);
     }
 
     public static class Handler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
@@ -93,6 +98,8 @@ public class MsgSyncWorkerHireState implements IMessage {
 
                 w.setFollowOrderActive(msg.followOrderActive);
                 w.clientHomeVillageName = msg.homeVillageName;
+                w.setEquipRole(msg.equipRole < 0 ? null
+                        : com.jubitus.travellers.unit.equipment.EquipLoadout.of(msg.equipRole));
             });
             return null;
         }

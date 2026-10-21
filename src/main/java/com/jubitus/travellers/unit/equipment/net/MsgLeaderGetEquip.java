@@ -4,6 +4,7 @@ import com.jubitus.travellers.unit.equipment.EquipOrders;
 import com.jubitus.travellers.config.TravellersConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.equipment.EquipLoadout;
 import com.jubitus.travellers.unit.equipment.EquipTargetKind;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
@@ -29,11 +30,13 @@ public class MsgLeaderGetEquip implements IMessage {
     private EquipTargetKind kind;
     // true = the group stays at the destination once equipped, false = it comes back to follow its owner
     private boolean stay;
+    private int loadout;
 
     public MsgLeaderGetEquip() {}
 
-    public MsgLeaderGetEquip(UUID leaderUUID, BlockPos destPos, EquipTargetKind kind, boolean stay) {
+    public MsgLeaderGetEquip(UUID leaderUUID, BlockPos destPos, EquipTargetKind kind, boolean stay, EquipLoadout loadout) {
         this.stay = stay;
+        this.loadout = loadout.bits;
         this.uuidMost = leaderUUID.getMostSignificantBits();
         this.uuidLeast = leaderUUID.getLeastSignificantBits();
         this.destPosLong = destPos.toLong();
@@ -47,6 +50,7 @@ public class MsgLeaderGetEquip implements IMessage {
         destPosLong = buf.readLong();
         kind = EquipTargetKind.values()[buf.readByte() & 0xFF];
         stay = buf.readBoolean();
+        loadout = buf.readByte();
     }
 
     @Override
@@ -56,6 +60,7 @@ public class MsgLeaderGetEquip implements IMessage {
         buf.writeLong(destPosLong);
         buf.writeByte(kind.ordinal());
         buf.writeBoolean(stay);
+        buf.writeByte(loadout);
     }
 
     public static class Handler implements IMessageHandler<MsgLeaderGetEquip, IMessage> {
@@ -63,7 +68,8 @@ public class MsgLeaderGetEquip implements IMessage {
         public IMessage onMessage(MsgLeaderGetEquip msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                EquipOrders.start(player, new UUID(msg.uuidMost, msg.uuidLeast), BlockPos.fromLong(msg.destPosLong), msg.stay, msg.kind, false);
+                EquipOrders.start(player, new UUID(msg.uuidMost, msg.uuidLeast), BlockPos.fromLong(msg.destPosLong), msg.stay, msg.kind,
+                        EquipLoadout.of(msg.loadout), false);
             });
             return null;
         }

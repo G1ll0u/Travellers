@@ -2,7 +2,7 @@
 
 - Every Travellers screen implements the empty marker `ITravellersGui` (toasts are drawn over those only). `GuiTravellersButton` + `TravellersGuiTheme` are the standard button and theme, meant to replace remaining vanilla `GuiButton`s. `GuiContextMenu` is the reusable right-click menu.
 - A screen showing the player's workers on a map uses `worldmap/gui/WorkerMapScreenSupport` (+ `WorldMapNavButtons`); a row list uses `ScrollList` + `TravellersGuiTheme.drawScrollbar`; clipping goes through `GuiClip`.
-- **Never load sounds synchronously in `initGui()`** (freezes the client). A `GuiTextField` must be drawn every frame. `Gui.drawRect` leaves the GL colour set — reset to white before drawing an entity.
+- **Never load sounds synchronously in `initGui()`** (freezes the client). A `GuiTextField` must be drawn every frame. `Gui.drawRect` leaves the GL colour set — reset to white before drawing an entity. Theme text colours (`COL_TEXT`…) carry no alpha: OR `0xFF000000` before using one in `Gui.drawRect`.
 
 ## Worker Hub (`GuiWorkerHub`, `hub/`)
 The single entry point for a hired worker: live portrait with the menu fanned out as a tree. Rationale: memory `project_worker_hub_gui`.

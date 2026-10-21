@@ -24,11 +24,14 @@ public class MsgWorkerGetEquipment implements IMessage {
     private boolean stayThere;
     private com.jubitus.travellers.unit.equipment.EquipTargetKind kind;
     private BlockPos homePos;
+    private int loadout;
 
     public MsgWorkerGetEquipment() {}
 
     public MsgWorkerGetEquipment(UUID workerUUID, boolean stayThere,
-                                  com.jubitus.travellers.unit.equipment.EquipTargetKind kind, BlockPos homePos) {
+                                  com.jubitus.travellers.unit.equipment.EquipTargetKind kind, BlockPos homePos,
+                                  com.jubitus.travellers.unit.equipment.EquipLoadout loadout) {
+        this.loadout = loadout.bits;
         this.workerUUID = workerUUID;
         this.stayThere = stayThere;
         this.kind = kind;
@@ -44,6 +47,7 @@ public class MsgWorkerGetEquipment implements IMessage {
         stayThere = (flags & 1) != 0;
         kind = com.jubitus.travellers.unit.equipment.EquipTargetKind.values()[(flags >> 1) & 0x0F];
         homePos = BlockPos.fromLong(buf.readLong());
+        loadout = buf.readByte();
     }
 
     @Override
@@ -53,6 +57,7 @@ public class MsgWorkerGetEquipment implements IMessage {
         byte flags = (byte) ((stayThere ? 1 : 0) | (kind.ordinal() << 1));
         buf.writeByte(flags);
         buf.writeLong(homePos.toLong());
+        buf.writeByte(loadout);
     }
 
     public static class Handler implements IMessageHandler<MsgWorkerGetEquipment, IMessage> {
@@ -60,7 +65,8 @@ public class MsgWorkerGetEquipment implements IMessage {
         public IMessage onMessage(MsgWorkerGetEquipment msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> {
-                EquipOrders.start(player, msg.workerUUID, msg.homePos, msg.stayThere, msg.kind, true);
+                EquipOrders.start(player, msg.workerUUID, msg.homePos, msg.stayThere, msg.kind,
+                        com.jubitus.travellers.unit.equipment.EquipLoadout.of(msg.loadout), true);
             });
             return null;
         }

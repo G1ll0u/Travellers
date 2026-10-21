@@ -33,7 +33,7 @@ public final class EquipOrders {
     }
 
     public static void start(EntityPlayerMP player, UUID workerId, BlockPos dest, boolean stay,
-                             EquipTargetKind kind, boolean detachFromGroup) {
+                             EquipTargetKind kind, EquipLoadout loadout, boolean detachFromGroup) {
         MinecraftServer srv = player.getServer();
         if (srv == null || !isValidTarget(player, dest, kind)) return;
         WorkerLookup.Owned owned = WorkerLookup.findOwned(srv, player.getUniqueID(), workerId);
@@ -51,7 +51,7 @@ public final class EquipOrders {
                 return;
             }
             if (detachFromGroup) WorkerGroupService.detachForMission(player, workerId);
-            owned.live.trips.startGetEquip(dest, stay, kind);
+            owned.live.trips.startGetEquip(dest, stay, kind, loadout);
             return;
         }
 
@@ -69,7 +69,7 @@ public final class EquipOrders {
             WorkerGroupService.detachForMission(player, r.uuid);
             temp.clearEscortLeader();
         }
-        temp.trips.startGetEquip(dest, stay, kind);
+        temp.trips.startGetEquip(dest, stay, kind, loadout);
 
         NBTTagCompound updatedNbt = new NBTTagCompound();
         temp.writeToNBT(updatedNbt);
