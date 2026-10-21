@@ -7,6 +7,7 @@ import com.jubitus.travellers.combat.AttackTargetLimiter;
 import com.jubitus.travellers.combat.TargetLockPolicy;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
+import com.jubitus.travellers.debug.BattleLog;
 import com.jubitus.travellers.unit.equipment.TravellerEquipmentManager;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
@@ -303,6 +304,7 @@ public class VirtualBattleManager extends WorldSavedData {
         BattleRecord b = new BattleRecord(UUID.randomUUID(), world.provider.getDimension(), center, now);
         b.campAnchorId = campAnchorId;
         battles.put(b.id, b);
+        BattleLog.log(world.getMinecraftServer(), now, b, "create" + (campAnchorId != null ? " camp" : ""));
         markDirty();
         return b;
     }
@@ -328,6 +330,7 @@ public class VirtualBattleManager extends WorldSavedData {
             b.lastSimTick = now;
             b.notifiedOwners.clear();
             battles.put(b.id, b);
+            BattleLog.log(world.getMinecraftServer(), now, b, "reopen ended=" + (now - b.endTick) + "t " + BattleLog.counts(b));
             markDirty();
             return b;
         }
@@ -395,6 +398,10 @@ public class VirtualBattleManager extends WorldSavedData {
             aSide = 1 - tSide;
         } else if (tSide < 0) {
             tSide = 1 - aSide;
+        }
+        if (aSide == tSide) {
+            BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "loaded-engagement same side "
+                    + BattleLog.shortKey(aKey) + " vs " + BattleLog.shortKey(tKey) + " side=" + aSide);
         }
         addLoadedParticipant(b, attacker, aSide, aKey);
         addLoadedParticipant(b, target, tSide, tKey);
@@ -477,6 +484,8 @@ public class VirtualBattleManager extends WorldSavedData {
         for (UUID owner : owners) {
             if (b.notifiedOwners.contains(owner) || !meetsNotifySignificance(b, owner)) continue;
             if (!b.notifiedOwners.add(owner)) continue;
+            BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "notify-start owner="
+                    + owner.toString().substring(0, 8) + online(world, owner));
             BattleNotifications.started(world.getMinecraftServer(), owner, b.id, battlePlace(b),
                     countsFor(b, owner, world.getTotalWorldTime()));
         }
@@ -577,9 +586,16 @@ public class VirtualBattleManager extends WorldSavedData {
                 if (foes == 0 && own > 0) outcome = BattleNotifications.Outcome.WON;
                 else if (own == 0 && foes > 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST;
             }
+            BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "notify-end owner="
+                    + owner.toString().substring(0, 8) + online(world, owner) + " outcome=" + outcome + " fallen=" + fallen);
             BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen,
                     countsFor(b, owner, world.getTotalWorldTime()));
         }
+    }
+
+    private static String online(WorldServer world, UUID owner) {
+        return world.getMinecraftServer() != null && world.getMinecraftServer().getPlayerList().getPlayerByUUID(owner) != null
+                ? " online" : " offline";
     }
 
     private static String resolveParticipantName(WorldServer world, VirtualTravellerManager vtm, UUID uuid) {
@@ -605,6 +621,8 @@ public class VirtualBattleManager extends WorldSavedData {
     void mergeBattles(WorldServer world, BattleRecord dst, BattleRecord src, Map<UUID, Integer> sideMapping,
                       VirtualTravellerManager vtm) {
         flushFallen(world, src, true);
+        BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), dst, "merge from=" + BattleLog.id(src)
+                + " " + BattleLog.counts(src));
         for (BattleParticipant p : src.participants.values()) {
             Integer side = sideMapping.get(p.uuid);
             if (side == null) continue;
@@ -663,7 +681,7 @@ public class VirtualBattleManager extends WorldSavedData {
         b.lastSimTick = now;
         if (elapsed <= 0) return;
 
-        // Refresh loaded flags; drop pawns that vanished entirely (debug clears etc.)
+        // Refresh loaded and absent flags; players who left are dropped.
         List<BattleParticipant> gone = null;
         for (BattleParticipant p : b.participants.values()) {
             if (!p.alive) continue;
@@ -677,10 +695,13 @@ public class VirtualBattleManager extends WorldSavedData {
             }
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             p.loaded = rec == null;
-            if (rec == null && world.getEntityFromUuid(p.uuid) == null) {
-                p.alive = false;
-                participantIndex.remove(p.uuid);
+            // INVARIANT: a pawn in no world (chunk unloaded, restart) is absent, never fallen: it stays standing, untargeted.
+            boolean absent = rec == null && world.getEntityFromUuid(p.uuid) == null;
+            if (absent && !p.absent) {
+                BattleLog.log(world.getMinecraftServer(), now, b, "absent " + BattleLog.shortKey(p.groupKey)
+                        + " " + p.uuid.toString().substring(0, 8));
             }
+            p.absent = absent;
         }
         if (gone != null) {
             for (BattleParticipant p : gone) {
@@ -1175,6 +1196,9 @@ public class VirtualBattleManager extends WorldSavedData {
                 : now - b.lastBlowTick > LULL_END_TICKS;
         boolean timeout = now - b.startTick > TravellersConfig.BATTLE_EVENTS.maxBattleDurationTicks;
         if (!cleared && !quiet && !timeout) return false;
+        BattleLog.log(world.getMinecraftServer(), now, b, "end " + (cleared ? "cleared" : timeout ? "timeout"
+                : b.firstBlowTick < 0 ? "no-blow" : "lull") + " age=" + (now - b.startTick) + "t sinceBlow="
+                + (b.lastBlowTick < 0 ? -1 : now - b.lastBlowTick) + "t " + BattleLog.counts(b));
         endBattle(world, vtm, b, cleared);
         return true;
     }

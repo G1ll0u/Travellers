@@ -27,6 +27,8 @@ public class BattleParticipant {
     public boolean isPlayer;
     /** Transient: true while the pawn is materialized (physical AI owns it). Revalidated each pass. */
     public transient boolean loaded;
+    /** Transient: loaded, yet in no world right now (its chunk unloaded, server restarting). Still standing. */
+    public transient boolean absent;
     /** Transient: elapsed sim ticks spent unable to close on a target outside DEFEND/HOLD tether.
      *  Mirrors EntityTraveller's stuckTargetTicks; past the threshold the pawn individually leaves
      *  its battle instead of waiting for the whole fight to resolve. Not persisted, like `loaded`. */

@@ -37,6 +37,8 @@ class BattleEncounterScanner {
     private final Map<String, long[]> proximitySeen = new HashMap<>();
     // Declared hostility per owner, refreshed from hired records each pass
     private final Map<UUID, Set<UUID>> ownerDeclarations = new HashMap<>();
+    // Battle pairs whose refused merge was already logged
+    private final Set<String> refusedMerges = new HashSet<>();
     // Worker-leader uuids observed this pass (some record escorts them)
     private final Set<UUID> escortLeaders = new HashSet<>();
 
@@ -441,6 +443,7 @@ class BattleEncounterScanner {
             if (b.dimension == dim) list.add(b);
         }
         if (list.size() < 2) return;
+        if (refusedMerges.size() > 1024) refusedMerges.clear();
         List<List<Member>> members = new ArrayList<>();
         for (BattleRecord b : list) members.add(membersOf(world, vtm, b));
         for (int i = 0; i < list.size(); i++) {
@@ -457,6 +460,12 @@ class BattleEncounterScanner {
                 if (mapping != null) {
                     mgr.mergeBattles(world, dst, src, mapping, vtm);
                     return; // list is stale after a merge; next pass handles the rest
+                }
+                if (refusedMerges.add(dst.id + "|" + src.id)) {
+                    com.jubitus.travellers.debug.BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), dst,
+                            "merge refused (faction on both sides) other=" + com.jubitus.travellers.debug.BattleLog.id(src)
+                                    + " " + com.jubitus.travellers.debug.BattleLog.counts(dst) + " | "
+                                    + com.jubitus.travellers.debug.BattleLog.counts(src));
                 }
             }
         }
