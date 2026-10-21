@@ -1,6 +1,6 @@
 # Raids performance plan
 
-Status: analysis only, no code yet. To be investigated in depth by a later agent.
+Status: idea 1 done (raid scan nearest-first, 8 rays max, vanilla 1-in-10 gate kept; counters in `/travellersdebug profile`) and idea 6 (server-wide raid cap). Next: a new spark report of the 200 v 170 fight; ideas 2-5 only if it still shows a hot spot.
 
 ## Goal
 

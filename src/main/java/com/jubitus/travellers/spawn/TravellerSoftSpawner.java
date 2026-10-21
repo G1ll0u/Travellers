@@ -451,7 +451,7 @@ public final class TravellerSoftSpawner {
         // Roll for group followers — same culture as the leader, same route
         int groupSize = rollGroupSize(ws.rand, entityClass, remainingNeed);
         for (int i = 1; i < groupSize; i++) {
-            spawnVirtualFollower(ws, mgr, r, entityClass, cultureId, spawnPos);
+            spawnVirtualFollower(ws, mgr, r, entityClass, cultureId, spawnPos, null);
         }
         return groupSize;
     }
@@ -483,7 +483,8 @@ public final class TravellerSoftSpawner {
 
     private static UUID spawnVirtualFollower(WorldServer ws, VirtualTravellerManager mgr,
                                              VirtualTravellerRecord leader, String entityClass,
-                                             @Nullable String cultureId, BlockPos spawnPos) {
+                                             @Nullable String cultureId, BlockPos spawnPos,
+                                             @Nullable java.util.function.Consumer<EntityTraveller> outfit) {
         EntityTraveller tempEntity = "RAIDER".equals(entityClass)
                 ? new EntityTravellerRaider(ws)
                 : new EntityTraveller(ws);
@@ -492,6 +493,7 @@ public final class TravellerSoftSpawner {
         net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
                 ? new EntityTraveller.SpawnData(cultureId) : null;
         tempEntity.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+        if (outfit != null) outfit.accept(tempEntity);
         tempEntity.setGroupLeaderUUID(leader.uuid);
 
         net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
@@ -520,13 +522,16 @@ public final class TravellerSoftSpawner {
 
     /**
      * Creates one raid warband as virtual records walking straight to {@code goal}: a leader and
-     * {@code size - 1} followers, all of one culture.
+     * {@code size - 1} followers, all of one culture, each dressed by {@code outfit} after its natural roll.
      *
+     * @param mounted true forces the whole band on horseback; false keeps the usual group roll
      * @return the unit ids created, empty when the point is vetoed (near a settlement or a player)
      */
     public static java.util.List<UUID> spawnRaidGroup(WorldServer ws, VirtualTravellerManager mgr,
                                                       BlockPos ringPoint, @Nullable String cultureId,
-                                                      BlockPos homeVillage, BlockPos goal, int size) {
+                                                      BlockPos homeVillage, BlockPos goal, int size,
+                                                      @Nullable java.util.function.Consumer<EntityTraveller> outfit,
+                                                      boolean mounted) {
         java.util.List<UUID> ids = new java.util.ArrayList<>();
         BlockPos spawnPos = resolveVirtualSpawnY(ws, ringPoint);
         if (MillSettlements.isNear(ws, spawnPos, TravellersConfig.SPAWN.spawnSettlementAvoidanceRadius)
@@ -540,6 +545,7 @@ public final class TravellerSoftSpawner {
         net.minecraft.entity.IEntityLivingData spawnData = (cultureId != null && !cultureId.isEmpty())
                 ? new EntityTraveller.SpawnData(cultureId) : null;
         temp.onInitialSpawn(ws.getDifficultyForLocation(spawnPos), spawnData);
+        if (outfit != null) outfit.accept(temp);
         net.minecraft.nbt.NBTTagCompound entityNbt = new net.minecraft.nbt.NBTTagCompound();
         temp.writeToNBT(entityNbt);
 
@@ -552,13 +558,13 @@ public final class TravellerSoftSpawner {
         r.setTrip(java.util.Collections.singletonList(goal), 0);
         r.goal = goal;
         r.virtualizedTick = ws.getTotalWorldTime();
-        r.mounted = TravellerMountSupport.rollGroupMount(ws.rand, "RAIDER");
+        r.mounted = mounted || TravellerMountSupport.rollGroupMount(ws.rand, "RAIDER");
         r.groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle
                 .randomGroupStyle(ws.rand).name();
         mgr.addRecord(r);
         ids.add(r.uuid);
         for (int i = 1; i < size; i++) {
-            ids.add(spawnVirtualFollower(ws, mgr, r, "RAIDER", cultureId, spawnPos));
+            ids.add(spawnVirtualFollower(ws, mgr, r, "RAIDER", cultureId, spawnPos, outfit));
         }
         return ids;
     }

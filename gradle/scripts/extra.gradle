@@ -286,6 +286,17 @@ tasks.register('generateDynamicSounds') {
         choirIndexOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(choirIndexData)) + "\n"
         println "[generateDynamicSounds] Wrote ${choirIndexOut} (${choirIndex.size()} langs)"
 
+        // ---- Raid cues ----
+        // Structure: sounds/raid/<cue>/*.ogg -> event "raid.<cue>", one random clip per play; no clip, no event.
+        def raidCueBase = new File(soundsBase, "raid")
+        dirChildren(raidCueBase).each { File cueDir ->
+            def cue = cueDir.name.toLowerCase()
+            def clips = oggsIn(cueDir).collect { File ogg ->
+                [name: "${MODID}:raid/${cue}/${ogg.name.substring(0, ogg.name.length() - 4)}", stream: false]
+            }
+            if (!clips.isEmpty()) soundsMap["raid.${cue}"] = [category: "hostile", sounds: clips]
+        }
+
         soundsJsonOut.text = JsonOutput.prettyPrint(JsonOutput.toJson(soundsMap)) + "\n"
         println "[generateDynamicSounds] Wrote ${soundsJsonOut} with ${soundsMap.size()} events"
 

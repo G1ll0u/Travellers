@@ -27,6 +27,9 @@ public final class NotificationDefs {
 
     // --- Raids ---
     public static final NotificationDef RAID_INCOMING = event(DANGER, "travellers.notify.raid.incoming", 0);
+    public static final NotificationDef RAID_WAVE = event(DANGER, "travellers.notify.raid.wave", 2);
+    public static final NotificationDef RAID_REPELLED = event(SUCCESS, "travellers.notify.raid.repelled", 0);
+    public static final NotificationDef RAID_SCATTERED = event(INFO, "travellers.notify.raid.scattered", 0);
 
     // --- Worker hiring (MsgHireWorker) ---
     public static final NotificationDef HIRE_ALREADY_HIRED_BY_OTHER = reply(REFUSAL, "travellers.notify.hire.already_hired_by_other", 0);

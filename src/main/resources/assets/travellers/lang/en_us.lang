@@ -566,7 +566,11 @@ travellers.worker.hub.node.inventory=Inventory
 travellers.worker.hub.node.formation=Formation
 travellers.worker.hub.info.health=Health %s/%s
 travellers.worker.hub.info.village=From %s
-travellers.notify.raid.incoming=A raid is coming for you!
+travellers.notify.raid.incoming=Raid incoming!
+travellers.notify.raid.wave=Wave %s/%s incoming!
+travellers.notify.raid.repelled=Raid repelled.
+travellers.notify.raid.scattered=Raid over: the raiders scatter.
+travellers.raid.bar=Raid — wave %s/%s
 
 # /summonworkers
 commands.travellers.summonworkers.usage=/summonworkers <count> [player] [gear=natural|none|leather|chain|iron|diamond] [weapon=natural|melee|bow] [shield=natural|yes|no] [mount=natural|yes|no] [culture=<id>]

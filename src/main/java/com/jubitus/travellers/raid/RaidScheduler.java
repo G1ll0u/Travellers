@@ -13,21 +13,23 @@ import net.minecraft.world.WorldServer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.apache.logging.log4j.Level;
 
 import javax.annotation.Nullable;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.Locale;
 import java.util.UUID;
 
-/** Decides, once a second and per player, when a raid starts and when it is over. */
+/** Decides, once a second and per player, when a raid starts, when its next wave comes and when it is over. */
 public final class RaidScheduler {
 
     private static final int CHECK_INTERVAL_TICKS = 20;
-    /** A raid that is not finished by then is over, whatever its raiders are doing. */
-    private static final long MAX_RAID_TICKS = 20L * 60 * 20;
+    /** A wave that is not beaten by then ends the raid, whatever its raiders are doing. */
+    private static final long MAX_WAVE_TICKS = 20L * 60 * 20;
+    /** The next wave comes once at most this share of the current one still stands. */
+    private static final double NEXT_WAVE_REMAINING = 0.25;
 
     /** A raid that could not be placed is tried again after this long. */
     private static final long RETRY_TICKS = 2400L;
@@ -35,9 +37,6 @@ public final class RaidScheduler {
     private static final int REAIM_EVERY_CHECKS = 5;
     /** The player must move this far from the raiders' stop before they are re-aimed. */
     private static final int REAIM_DISTANCE = 16;
-
-    /** Players already examined since this server started (see {@link #tickPlayer}). */
-    private static final Set<UUID> SEEN_THIS_SESSION = new HashSet<>();
 
     private RaidScheduler() {
     }
@@ -56,7 +55,7 @@ public final class RaidScheduler {
         long now = overworld.getTotalWorldTime();
         for (Map.Entry<UUID, RaidWorldData.PlayerRaidState> entry : data.allStates()) {
             if (entry.getValue().activeRaidId == null) continue;
-            tickActiveRaid(overworld, data, server.getPlayerList().getPlayerByUUID(entry.getKey()),
+            tickActiveRaid(overworld, data, entry.getKey(), server.getPlayerList().getPlayerByUUID(entry.getKey()),
                     entry.getValue(), now);
         }
         if (!TravellersConfig.RAIDS.enabled) return;
@@ -65,22 +64,34 @@ public final class RaidScheduler {
         }
     }
 
+    /** A player who was away when their raid fell due never pays the debt as a raid on login. */
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent e) {
+        MinecraftServer server = e.player.getServer();
+        if (server == null || server.getWorld(0) == null) return;
+        RaidWorldData data = RaidWorldData.get(server);
+        RaidWorldData.PlayerRaidState s = data.find(e.player.getUniqueID());
+        long now = server.getWorld(0).getTotalWorldTime();
+        if (s != null && s.activeRaidId == null && s.earliestTick < now) {
+            reschedule(data, s, now, server.getWorld(0).rand);
+        }
+    }
+
+    public static void onServerStopping() {
+        RaidAnnouncer.clearBars();
+    }
+
     private static void tickPlayer(WorldServer overworld, RaidWorldData data, EntityPlayerMP player) {
         if (player.dimension != 0 || player.isCreative() || player.isSpectator()) return;
         if (TravellersDerivedConfig.isPeacefulBlocked(overworld)) return;
 
         long now = overworld.getTotalWorldTime();
-        UUID id = player.getUniqueID();
-        RaidWorldData.PlayerRaidState s = data.find(id);
+        RaidWorldData.PlayerRaidState s = data.find(player.getUniqueID());
         if (s == null) {
-            s = data.create(id);
+            s = data.create(player.getUniqueID());
             s.firstSeenTick = now;
             reschedule(data, s, now, overworld.rand);
-        } else if (SEEN_THIS_SESSION.add(id) && s.activeRaidId == null && s.earliestTick < now) {
-            // The player was away when it fell due: never pay the debt as a raid on login.
-            reschedule(data, s, now, overworld.rand);
         }
-
         if (s.activeRaidId != null) return;
 
         long graceEnd = s.firstSeenTick + Math.round(TravellersConfig.RAIDS.graceDays * RaidSchedule.DAY_TICKS);
@@ -93,50 +104,91 @@ public final class RaidScheduler {
     /** Starts a raid for this player right now, scheduled or not. @return false when nothing could be placed. */
     static boolean startRaid(WorldServer overworld, RaidWorldData data, EntityPlayerMP player,
                              RaidWorldData.PlayerRaidState s, long now) {
+        RaidLauncher.Start start = RaidLauncher.plan(overworld, player, overworld.rand);
         UUID raidId = UUID.randomUUID();
-        s.activeRaidId = raidId;
-        s.activeSinceTick = now;
-        int raiders = RaidLauncher.launch(overworld, player, data, raidId);
-        if (raiders == 0) {
+        if (start != null) {
+            s.activeRaidId = raidId;
+            s.activeSinceTick = now;
+            s.plan = start.plan;
+            s.baseAngle = start.baseAngle;
+        }
+        if (start == null || !launchWave(overworld, data, player, s, 0, now)) {
             s.activeRaidId = null;
+            s.plan = null;
             s.earliestTick = now + RETRY_TICKS;
             data.markDirty();
             return false;
         }
-        data.markDirty();
-        FMLLog.log(Level.INFO, "[Travellers/Raid] raid %s on %s: %d raiders", raidId, player.getName(), raiders);
+        FMLLog.log(Level.INFO, "[Travellers/Raid] raid %s on %s: %s", raidId, player.getName(), describePlan(s.plan));
         return true;
     }
 
-    /** Ends the raid when its raiders are all gone or its time is up; otherwise keeps them aimed at the player. */
-    private static void tickActiveRaid(WorldServer ws, RaidWorldData data, @Nullable EntityPlayerMP player,
-                                       RaidWorldData.PlayerRaidState s, long now) {
+    private static boolean launchWave(WorldServer ws, RaidWorldData data, EntityPlayerMP player,
+                                      RaidWorldData.PlayerRaidState s, int index, long now) {
+        RaidLauncher.WaveResult result = RaidLauncher.launchWave(ws, player, data, s.activeRaidId, index,
+                s.plan.waves.get(index), s.baseAngle);
+        if (result.created == 0) return false;
+        s.wave = index;
+        s.waveSinceTick = now;
+        s.waveLaunched = result.created;
+        data.markDirty();
+        RaidAnnouncer.waveLaunched(player, index, s.plan.waves.size(), result.place, result.angle);
+        return true;
+    }
+
+    /** Ends the raid when it is beaten or a wave lasts too long; sends the next wave; keeps raiders aimed at the player. */
+    private static void tickActiveRaid(WorldServer ws, RaidWorldData data, UUID playerId,
+                                       @Nullable EntityPlayerMP player, RaidWorldData.PlayerRaidState s, long now) {
         UUID raidId = s.activeRaidId;
-        boolean aim = player != null && player.dimension == 0 && !player.isDead
-                && (now / CHECK_INTERVAL_TICKS) % REAIM_EVERY_CHECKS == 0;
+        boolean present = player != null && player.dimension == 0 && !player.isDead;
+        boolean aim = present && (now / CHECK_INTERVAL_TICKS) % REAIM_EVERY_CHECKS == 0;
         BlockPos goal = aim ? player.getPosition() : null;
         VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
-        int alive = 0;
-        for (UUID id : data.membersOf(raidId)) {
+        int alive = 0, aliveWave = 0;
+        for (Map.Entry<UUID, Integer> m : data.membersOf(raidId).entrySet()) {
+            UUID id = m.getKey();
             Entity e = ws.getEntityFromUuid(id);
             if (e instanceof EntityTraveller) {
                 if (!e.isEntityAlive()) continue;
-                alive++;
                 if (aim) reaimLoaded((EntityTraveller) e, goal);
-                continue;
+            } else {
+                VirtualTravellerRecord r = mgr.getRecord(id);
+                if (r == null) continue;
+                if (aim && r.groupLeaderUUID == null && farFrom(r.currentTripStop(), goal)) {
+                    mgr.retargetRaidLeader(id, goal);
+                }
             }
-            VirtualTravellerRecord r = mgr.getRecord(id);
-            if (r == null) continue;
             alive++;
-            if (aim && r.groupLeaderUUID == null && farFrom(r.currentTripStop(), goal)) {
-                mgr.retargetRaidLeader(id, goal);
-            }
+            if (m.getValue() == s.wave) aliveWave++;
         }
-        if (alive == 0 || now - s.activeSinceTick > MAX_RAID_TICKS) {
-            data.clearRaid(raidId);
-            s.activeRaidId = null;
-            reschedule(data, s, now, ws.rand);
+
+        int waves = s.plan.waves.size();
+        boolean lastLaunched = s.wave >= waves - 1;
+        if (lastLaunched && alive == 0) {
+            endRaid(ws, data, playerId, player, s, now, true);
+            return;
         }
+        if (now - s.waveSinceTick > MAX_WAVE_TICKS) {
+            endRaid(ws, data, playerId, player, s, now, false);
+            return;
+        }
+        long maxDelay = Math.round(TravellersConfig.RAIDS.maxWaveDelayMinutes * 60 * 20);
+        boolean nextDue = aliveWave <= NEXT_WAVE_REMAINING * s.waveLaunched || now - s.waveSinceTick >= maxDelay;
+        if (!lastLaunched && nextDue && present && !TravellersDerivedConfig.isPeacefulBlocked(ws)
+                && launchWave(ws, data, player, s, s.wave + 1, now)) {
+            aliveWave = s.waveLaunched;
+        }
+        RaidAnnouncer.updateBar(raidId, present ? player : null, s.wave, waves, aliveWave, s.waveLaunched);
+    }
+
+    private static void endRaid(WorldServer ws, RaidWorldData data, UUID playerId, @Nullable EntityPlayerMP player,
+                                RaidWorldData.PlayerRaidState s, long now, boolean repelled) {
+        UUID raidId = s.activeRaidId;
+        data.clearRaid(raidId);
+        s.activeRaidId = null;
+        s.plan = null;
+        reschedule(data, s, now, ws.rand);
+        RaidAnnouncer.ended(ws.getMinecraftServer(), raidId, playerId, player, repelled);
     }
 
     private static void reaimLoaded(EntityTraveller t, BlockPos goal) {
@@ -159,6 +211,16 @@ public final class RaidScheduler {
         data.markDirty();
     }
 
+    private static String describePlan(RaidPlan plan) {
+        StringBuilder sb = new StringBuilder(plan.approach.name().toLowerCase(Locale.ROOT)).append(", ")
+                .append(plan.totalRaiders()).append(" raiders:");
+        for (RaidPlan.Wave w : plan.waves) {
+            sb.append(" [").append(w.size).append(' ').append(w.kind.name().toLowerCase(Locale.ROOT)).append(' ')
+                    .append(w.culture).append(' ').append(Math.round(w.offsetDegrees)).append("deg]");
+        }
+        return sb.toString();
+    }
+
     // --- Debug entry points (/travellersdebug raid) ---
 
     /** Starts a raid on this player now, ignoring the timer, the grace period and the enabled switch. */
@@ -175,7 +237,7 @@ public final class RaidScheduler {
         }
         String warn = TravellersDerivedConfig.isPeacefulBlocked(overworld)
                 ? " (Peaceful difficulty: raiders will not attack.)" : "";
-        return "Raid started: " + data.membersOf(s.activeRaidId).size() + " raiders." + warn;
+        return "Raid started: " + describePlan(s.plan) + "." + warn;
     }
 
     /** Ends the player's raid at once; its raiders go back to ordinary life. */
@@ -184,8 +246,10 @@ public final class RaidScheduler {
         RaidWorldData data = RaidWorldData.get(player.getServer());
         RaidWorldData.PlayerRaidState s = data.find(player.getUniqueID());
         if (s == null || s.activeRaidId == null) return "No raid is running on you.";
+        RaidAnnouncer.removeBar(s.activeRaidId);
         data.clearRaid(s.activeRaidId);
         s.activeRaidId = null;
+        s.plan = null;
         reschedule(data, s, overworld.getTotalWorldTime(), overworld.rand);
         return "Raid ended.";
     }
@@ -197,8 +261,10 @@ public final class RaidScheduler {
         if (s == null) return "Raids: nothing scheduled for you yet (enabled=" + TravellersConfig.RAIDS.enabled + ").";
         long now = overworld.getTotalWorldTime();
         if (s.activeRaidId != null) {
-            return "Raid running for " + (now - s.activeSinceTick) / 20 + " s, "
-                    + data.membersOf(s.activeRaidId).size() + " raiders.\n" + membersReport(overworld, data, player, s);
+            return "Raid running for " + (now - s.activeSinceTick) / 20 + " s, wave " + (s.wave + 1) + "/"
+                    + s.plan.waves.size() + " for " + (now - s.waveSinceTick) / 20 + " s (started with "
+                    + s.waveLaunched + "), " + data.membersOf(s.activeRaidId).size() + " raiders so far. Plan: "
+                    + describePlan(s.plan) + "\n" + membersReport(overworld, data, player, s);
         }
         long graceEnd = s.firstSeenTick + Math.round(TravellersConfig.RAIDS.graceDays * RaidSchedule.DAY_TICKS);
         return "Next raid: not before " + Math.max(0L, s.earliestTick - now) / 20 + " s, in the "
@@ -225,7 +291,7 @@ public final class RaidScheduler {
         VirtualTravellerRecord nearestVirtual = null;
         double bestLoaded = Double.MAX_VALUE, bestVirtual = Double.MAX_VALUE, bestLeader = Double.MAX_VALUE;
         EntityTraveller nearestLeader = null;
-        for (UUID id : data.membersOf(s.activeRaidId)) {
+        for (UUID id : data.membersOf(s.activeRaidId).keySet()) {
             Entity e = ws.getEntityFromUuid(id);
             if (e instanceof EntityTraveller && e.isEntityAlive()) {
                 loaded++;

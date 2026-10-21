@@ -3184,13 +3184,65 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.1, max = 5.0)
         public float difficultyScale = 1.0f;
 
-        @Config.Comment("The most raiders a single raid will ever bring, however many workers you have.")
-        @Config.RangeInt(min = 1, max = 200)
+        @Config.Comment("The most raiders a single raid will ever bring, all waves together, however many workers you have.")
+        @Config.RangeInt(min = 1, max = 4000)
         public int maxRaiders = 40;
 
-        @Config.Comment("How far from you (in blocks) the raiders appear. They walk the rest of the way, so this is also your warning time.")
+        @Config.Comment("Only your henchmen within this many blocks of you count when a raid is sized, so a lone trip far from your army brings a small raid. 0 counts all of them, wherever they are.")
+        @Config.RangeInt(min = 0, max = 2000)
+        public int strengthRadius = 128;
+
+        @Config.Comment("The most raid raiders alive at once on the whole server, all players together. A wave that would go over it comes smaller, or waits.")
+        @Config.RangeInt(min = 10, max = 2400)
+        public int maxActiveRaidRaiders = 160;
+
+        @Config.Comment("How far from you (in blocks) the raiders appear. They walk the rest of the way, so this is also your warning time. Never closer than the server's view distance.")
         @Config.RangeInt(min = 80, max = 500)
         public int spawnDistance = 180;
+
+        @Config.Comment("Fewest waves in a raid. Bigger raids get more waves, between this and the maximum.")
+        @Config.RangeInt(min = 1, max = 10)
+        public int minWaves = 1;
+
+        @Config.Comment("Most waves in a raid. Set it equal to the minimum for a fixed number of waves.")
+        @Config.RangeInt(min = 1, max = 50)
+        public int maxWaves = 4;
+
+        @Config.Comment("The next wave comes when the current one is nearly beaten, or after this many minutes at the latest.")
+        @Config.RangeDouble(min = 0.5, max = 20.0)
+        public float maxWaveDelayMinutes = 5.0f;
+
+        @Config.Comment("How often a raid comes from a single direction, compared with the other approaches.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int oneFrontWeight = 50;
+
+        @Config.Comment("How often a raid's waves come from two different directions, compared with the other approaches.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int twoFrontsWeight = 30;
+
+        @Config.Comment("How often a raid surrounds you, each wave from another direction, compared with the other approaches.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int encircleWeight = 20;
+
+        @Config.Comment("How often a wave is a horde: more raiders, lightly armed.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int hordeWeight = 40;
+
+        @Config.Comment("How often a wave is elite: fewer raiders in heavy armour.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int eliteWeight = 20;
+
+        @Config.Comment("How often a wave is cavalry: every raider on horseback. Never happens when mounts are off.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int cavalryWeight = 20;
+
+        @Config.Comment("How often a wave is archers: every raider with a bow.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int archersWeight = 20;
+
+        @Config.Comment("Chance (percent) that a wave after the first comes from another culture allowed to raid you.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int mixedCultureChance = 25;
 
         @Config.Comment("Cultures allowed to raid you, by their Millenaire culture name (for example: norman, japanese, byzantines, hindi, inuits, mayan, seljuk). Leave empty to allow every culture present in the world.")
         public String[] allowedCultures = new String[0];

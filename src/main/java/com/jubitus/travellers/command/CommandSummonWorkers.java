@@ -135,7 +135,7 @@ public class CommandSummonWorkers extends CommandBase {
             worker.onInitialSpawn(ws.getDifficultyForLocation(spot),
                     cultureId != null ? new EntityTraveller.SpawnData(cultureId) : null);
             CultureDef culture = CultureRegistry.get(worker.getCultureId());
-            SummonLoadout.apply(worker, culture, rand, gear, weapon, shield);
+            SummonLoadout.apply(worker, culture, rand, CultureDef.WeightProfile.WORKER, gear, weapon, shield);
 
             worker.setHomeVillage(null);
             worker.hireAsFollower(target);

@@ -1,6 +1,6 @@
 package com.jubitus.travellers.unit.equipment;
 
-import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.EntityEquipmentSlot;
@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Forced gear for {@code /summonworkers}: overrides parts of the natural spawn roll, culture items of
- * the asked tier first, the vanilla piece as fallback. Runs after {@code onInitialSpawn}.
+ * Forced gear for {@code /summonworkers} and raid waves: overrides parts of the natural spawn roll, culture
+ * items of the asked tier first, the vanilla piece as fallback. Runs after {@code onInitialSpawn}.
  */
 public final class SummonLoadout {
 
@@ -36,11 +36,11 @@ public final class SummonLoadout {
     private SummonLoadout() {
     }
 
-    public static void apply(EntityTravellerWorker w, @Nullable CultureDef c, Random r,
+    public static void apply(EntityTraveller w, @Nullable CultureDef c, Random r, CultureDef.WeightProfile profile,
                              Gear gear, Weapon weapon, Choice shield) {
         if (gear != Gear.NATURAL) {
             for (EntityEquipmentSlot slot : ARMOR_SLOTS) {
-                w.setItemStackToSlot(slot, gear == Gear.NONE ? ItemStack.EMPTY : armorPiece(c, r, slot, gear));
+                w.setItemStackToSlot(slot, gear == Gear.NONE ? ItemStack.EMPTY : armorPiece(c, r, profile, slot, gear));
             }
         }
 
@@ -50,7 +50,7 @@ public final class SummonLoadout {
                 : !hasBow && gear == Gear.NATURAL && (weapon == Weapon.NATURAL || hasMelee(w.inventory));
         if (!keep) {
             removeWeapons(w.inventory);
-            ItemStack chosen = wantBow ? bow(c, r) : melee(c, r, gear);
+            ItemStack chosen = wantBow ? bow(c, r, profile) : melee(c, r, profile, gear);
             ItemHandlerHelper.insertItemStacked(w.inventory, chosen, false);
         }
 
@@ -61,14 +61,15 @@ public final class SummonLoadout {
         if (shield == Choice.YES) {
             w.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
         } else if (shield == Choice.NATURAL) {
-            w.equipment.trySpawnShield(r, CultureDef.WeightProfile.WORKER);
+            w.equipment.trySpawnShield(r, profile);
         }
     }
 
-    private static ItemStack armorPiece(@Nullable CultureDef c, Random r, EntityEquipmentSlot slot, Gear gear) {
+    private static ItemStack armorPiece(@Nullable CultureDef c, Random r, CultureDef.WeightProfile profile,
+                                        EntityEquipmentSlot slot, Gear gear) {
         ItemArmor.ArmorMaterial wanted = ARMOR_TIERS[gear.ordinal() - Gear.LEATHER.ordinal()];
         if (c != null) {
-            List<ItemStack> pool = c.spawnPool(CultureDef.WeightProfile.WORKER, s ->
+            List<ItemStack> pool = c.spawnPool(profile, s ->
                     s.getItem() instanceof ItemArmor
                             && ((ItemArmor) s.getItem()).armorType == slot
                             && !TravellerEquipmentManager.isGoldTier(s)
@@ -109,15 +110,15 @@ public final class SummonLoadout {
         }
     }
 
-    private static ItemStack melee(@Nullable CultureDef c, Random r, Gear gear) {
+    private static ItemStack melee(@Nullable CultureDef c, Random r, CultureDef.WeightProfile profile, Gear gear) {
         if (gear == Gear.NATURAL) {
-            ItemStack natural = c != null ? c.randomMeleeOrTool(r, CultureDef.WeightProfile.WORKER) : ItemStack.EMPTY;
+            ItemStack natural = c != null ? c.randomMeleeOrTool(r, profile) : ItemStack.EMPTY;
             return natural.isEmpty() ? new ItemStack(Items.STONE_SWORD) : natural;
         }
         // Stone up to chainmail, then iron and diamond.
         Item wanted = gear == Gear.DIAMOND ? Items.DIAMOND_SWORD : gear == Gear.IRON ? Items.IRON_SWORD : Items.STONE_SWORD;
         if (c != null) {
-            List<ItemStack> pool = c.spawnPool(CultureDef.WeightProfile.WORKER, s ->
+            List<ItemStack> pool = c.spawnPool(profile, s ->
                     TravellerEquipmentManager.isWeapon(s)
                             && !TravellerEquipmentManager.isBelowWeaponFloor(s)
                             && !TravellerEquipmentManager.isGoldTier(s)
@@ -142,8 +143,8 @@ public final class SummonLoadout {
         return best;
     }
 
-    private static ItemStack bow(@Nullable CultureDef c, Random r) {
-        ItemStack bow = c != null ? c.randomBow(r, CultureDef.WeightProfile.WORKER) : ItemStack.EMPTY;
+    private static ItemStack bow(@Nullable CultureDef c, Random r, CultureDef.WeightProfile profile) {
+        ItemStack bow = c != null ? c.randomBow(r, profile) : ItemStack.EMPTY;
         return bow.isEmpty() ? new ItemStack(Items.BOW) : bow;
     }
 

@@ -248,6 +248,7 @@ public class Travellers {
         // world loaded in this same client session (two different save files can both use dimension 0).
         com.jubitus.travellers.zone.stable.StableCoordinator.resetAll();
         com.jubitus.travellers.zone.ZoneRoleRescan.resetAll();
+        com.jubitus.travellers.raid.RaidScheduler.onServerStopping();
         com.jubitus.travellers.zone.stable.StableWatchLog.closeAll();
 
         com.jubitus.travellers.travel.destination.TravelDestinationChooser.resetAll();

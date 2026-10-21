@@ -13319,5 +13319,23 @@
                 "stream": true
             }
         ]
+    },
+    "raid.horn": {
+        "category": "hostile",
+        "sounds": [
+            {
+                "name": "travellers:raid/horn/tadaaa",
+                "stream": false
+            }
+        ]
+    },
+    "raid.end": {
+        "category": "hostile",
+        "sounds": [
+            {
+                "name": "travellers:raid/end/dataaaa",
+                "stream": false
+            }
+        ]
     }
 }

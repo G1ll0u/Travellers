@@ -24,6 +24,8 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
     private static final int MAX_RAYS_PER_SCAN = 8;
 
     private final EntityTravellerRaider raider;
+    /** Vanilla's targetChance (private there): the raid scan rolls the same 1-in-N gate. */
+    private final int scanChance;
 
     public RaiderAttackTargetAI(EntityTravellerRaider raider,
                                 Class<T> targetClass,
@@ -33,6 +35,7 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
                                 Predicate<? super T> selector) {
         super(raider, targetClass, checkInterval, mustSee, mustReach, selector);
         this.raider = raider;
+        this.scanChance = checkInterval;
     }
 
     /** Convenience ctor for simple class-only targeting (no predicate). */
@@ -41,6 +44,7 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
                                 boolean mustSee) {
         super(raider, targetClass, mustSee);
         this.raider = raider;
+        this.scanChance = 10;
     }
 
     @Override
@@ -62,7 +66,8 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
         // A raider on a raid goes for the raid's player and that player's hired workers first.
         java.util.UUID raidPlayer = com.jubitus.travellers.raid.RaidWorldData
                 .targetPlayer(raider.world, raider.getUniqueID());
-        if (raidPlayer != null) {
+        if (raidPlayer != null && (raider.isRetargetBoosted() || scanChance <= 0
+                || raider.getRNG().nextInt(scanChance) == 0)) {
             EntityLivingBase preferred = nearestRaidTarget(raidPlayer);
             if (preferred != null) {
                 @SuppressWarnings("unchecked")

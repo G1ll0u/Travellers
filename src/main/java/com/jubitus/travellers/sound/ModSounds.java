@@ -21,6 +21,8 @@ public final class ModSounds {
     public static SoundEvent TRAVELLER_HELLO;
     public static SoundEvent TRAVELLER_SONG1, TRAVELLER_SONG2, TRAVELLER_SONG3;
     public static SoundEvent AMBIENT;
+    /** Raid cues; null until the user ships clips in sounds/raid/horn and sounds/raid/end. */
+    @javax.annotation.Nullable public static SoundEvent RAID_HORN, RAID_END;
 
     public static VoiceSet EN_TRAV, FR_TRAV;
     public static VoiceSet EN_RAID, FR_RAID;
@@ -51,6 +53,11 @@ public final class ModSounds {
 
         // 3) Register choir stem events
         registerChoirEvents(toReg, cidx);
+
+        // 4) Raid cues, only those sounds.json backs with clips
+        java.util.Set<String> declared = declaredSoundEvents();
+        if (declared.contains("raid.horn")) RAID_HORN = reg(toReg, "raid.horn");
+        if (declared.contains("raid.end")) RAID_END = reg(toReg, "raid.end");
 
         e.getRegistry().registerAll(toReg.toArray(new SoundEvent[0]));
         assignVoicesToCulturesDynamic(idx, ridx);
@@ -269,6 +276,20 @@ public final class ModSounds {
 
 
 
+
+    private static java.util.Set<String> declaredSoundEvents() {
+        try (java.io.InputStream in = ModSounds.class.getClassLoader()
+                .getResourceAsStream("assets/" + Tags.MOD_ID + "/sounds.json")) {
+            if (in == null) return java.util.Collections.emptySet();
+            com.google.gson.JsonObject root = new com.google.gson.JsonParser()
+                    .parse(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            java.util.Set<String> keys = new java.util.HashSet<>();
+            for (java.util.Map.Entry<String, com.google.gson.JsonElement> e : root.entrySet()) keys.add(e.getKey());
+            return keys;
+        } catch (Throwable ignored) {
+            return java.util.Collections.emptySet();
+        }
+    }
 
     private static SoundEvent reg(java.util.List<SoundEvent> out, String keyPath) {
         final ResourceLocation id = new ResourceLocation(Tags.MOD_ID, keyPath);
