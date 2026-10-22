@@ -158,6 +158,8 @@ public final class NotificationDefs {
     public static final NotificationDef BATTLE_WON = event(SUCCESS, "travellers.notify.battle.won", 1);
     public static final NotificationDef BATTLE_LOST = event(DANGER, "travellers.notify.battle.lost", 1);
     public static final NotificationDef BATTLE_BROKEN_OFF = event(ALERT, "travellers.notify.battle.broken_off", 1);
+    /** Login toast standing for every battle story queued while the owner was away (the journal keeps each one). */
+    public static final NotificationDef BATTLE_AWAY_SUMMARY = reply(ALERT, "travellers.notify.battle.away_summary", 2);
 
     private static Map<String, NotificationDef> byKey;
 

@@ -1,4 +1,4 @@
-Status: steps 0-3 done, waiting for a play session; next: step 4
+Status: steps 0-4 done; next: step 5
 
 # Battle events: correct battles, one shared visual report
 
@@ -47,6 +47,6 @@ never produces fake battles; the player reads a battle at a glance (map marker a
    A new fight inside a running battle's zone joins it; touching battles always merge. Status: done.
 3. **End of a battle** — no lull end while a standing fighter is absent or frozen by vanilla (owner logged out);
    an absent pawn leaves the battle after a minute. Status: done.
-4. **Offline summary** — battle results queued for an offline owner collapse into one login toast. Status: todo.
+4. **Offline summary** — battle results queued for an offline owner collapse into one login toast (only when there are several). Status: done.
 5. **Balance-of-power tooltip** — shared by map marker and journal; replaces `BattleMarkerLabel` and the journal's
    battle text. Status: todo.

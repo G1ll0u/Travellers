@@ -27,6 +27,8 @@ public class BattleParticipant {
     public transient boolean loaded;
     /** Transient: loaded, yet in no world right now (its chunk unloaded, server restarting). Still standing. */
     public transient boolean absent;
+    /** Transient: last position seen loaded (diagnostics of a pawn gone absent). */
+    public transient double lastX, lastZ;
     /** Transient: world tick it went absent; past a minute it leaves the battle (not fallen). */
     public transient long absentSince;
     /** Transient: elapsed sim ticks spent unable to close on a target outside DEFEND/HOLD tether.

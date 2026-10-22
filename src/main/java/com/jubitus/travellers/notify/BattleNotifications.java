@@ -25,8 +25,14 @@ public final class BattleNotifications {
     private BattleNotifications() {
     }
 
+    private static final String STORY_PREFIX = "battle:";
+
     public static String storyKey(UUID battleId) {
-        return "battle:" + battleId;
+        return STORY_PREFIX + battleId;
+    }
+
+    public static boolean isStory(@Nullable String storyKey) {
+        return storyKey != null && storyKey.startsWith(STORY_PREFIX);
     }
 
     public static void started(@Nullable MinecraftServer server, UUID ownerId, UUID battleId,

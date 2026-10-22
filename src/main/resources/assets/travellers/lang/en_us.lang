@@ -473,6 +473,7 @@ travellers.notify.battle.fallen_more=Battle: %s of your henchmen fallen (%s and 
 travellers.notify.battle.won=Battle won - %s of your henchmen fell
 travellers.notify.battle.lost=Battle lost - %s of your henchmen fell
 travellers.notify.battle.broken_off=Battle broken off - %s of your henchmen fell
+travellers.notify.battle.away_summary=While you were away: %s battles, %s of your henchmen fell
 travellers.notify.overflow=+%s more notices
 travellers.notify.location_suffix=%sm to the %s
 

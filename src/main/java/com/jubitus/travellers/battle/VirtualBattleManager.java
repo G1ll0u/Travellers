@@ -697,11 +697,17 @@ public class VirtualBattleManager extends WorldSavedData {
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             p.loaded = rec == null;
             // INVARIANT: a pawn in no world (chunk unloaded, restart) is absent, never fallen: it stays standing, untargeted.
-            boolean absent = rec == null && world.getEntityFromUuid(p.uuid) == null;
+            Entity loadedBody = rec == null ? world.getEntityFromUuid(p.uuid) : null;
+            if (loadedBody != null) {
+                p.lastX = loadedBody.posX;
+                p.lastZ = loadedBody.posZ;
+            }
+            boolean absent = rec == null && loadedBody == null;
             if (absent && !p.absent) {
                 p.absentSince = now;
                 BattleLog.log(world.getMinecraftServer(), now, b, "absent " + BattleLog.shortKey(p.groupKey)
-                        + " " + p.uuid.toString().substring(0, 8));
+                        + " " + p.uuid.toString().substring(0, 8) + String.format(" last=%.0f,%.0f chunk=%s", p.lastX, p.lastZ,
+                        world.isBlockLoaded(new BlockPos(p.lastX, 64, p.lastZ)) ? "loaded" : "unloaded"));
             }
             p.absent = absent;
             if (absent && now - p.absentSince > ABSENT_RELEASE_TICKS) {
