@@ -806,8 +806,8 @@ public class VirtualTravellerManager extends WorldSavedData {
             }
             Entity leader = world.getEntityFromUuid(r.escortLeaderUUID);
             if (leader != null && !leader.isDead) {
-                double moved = leader.posX - leader.prevPosX;
-                double movedZ = leader.posZ - leader.prevPosZ;
+                double moved = com.jubitus.travellers.unit.EntityMotion.velX(leader);
+                double movedZ = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
                 long idleTicks = (moved * moved + movedZ * movedZ) < 1.0E-4 ? Long.MAX_VALUE : 0L;
                 if (holdAnchoredFormation(r, leader.posX, leader.posZ, idleTicks)) return;
                 boolean mounted = r.mountNbt != null || PathBody.isMounted(leader);

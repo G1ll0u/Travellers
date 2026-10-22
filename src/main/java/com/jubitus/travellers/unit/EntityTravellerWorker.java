@@ -2095,8 +2095,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     private static boolean isMovingEnough(EntityLivingBase e) {
         if (e == null) return false;
 
-        double dpX = e.posX - e.prevPosX;
-        double dpZ = e.posZ - e.prevPosZ;
+        double dpX = EntityMotion.velX(e);
+        double dpZ = EntityMotion.velZ(e);
         double mvSq = dpX * dpX + dpZ * dpZ;
 
         double moX = e.motionX;

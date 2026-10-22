@@ -75,8 +75,8 @@ public final class UnitSpeed {
     public static double followMaxPercent(boolean mounted, @Nullable Entity leader) {
         double cap = mounted ? TravellersConfig.SPEED.mountedFollowMaxPercent : TravellersConfig.SPEED.followMaxPercent;
         if (leader == null) return cap;
-        double dx = leader.posX - leader.prevPosX;
-        double dz = leader.posZ - leader.prevPosZ;
+        double dx = EntityMotion.velX(leader);
+        double dz = EntityMotion.velZ(leader);
         return Math.max(cap, percentOfBlocksPerTick(Math.sqrt(dx * dx + dz * dz)) * LEADER_MARGIN);
     }
 

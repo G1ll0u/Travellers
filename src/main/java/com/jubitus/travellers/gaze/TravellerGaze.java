@@ -279,7 +279,7 @@ public final class TravellerGaze {
         else if (e instanceof EntityTraveller || e instanceof MillVillager) score = 2.0D;
         else score = 0.8D;
         // Someone coming closer draws the eye.
-        double closing = -(dx * (e.motionX - mob.motionX) + dz * (e.motionZ - mob.motionZ));
+        double closing = -(dx * (com.jubitus.travellers.unit.EntityMotion.velX(e) - mob.motionX) + dz * (com.jubitus.travellers.unit.EntityMotion.velZ(e) - mob.motionZ));
         if (closing > 0.02D && d2 < 100.0D) score += 2.0D;
         return score / (1.0D + d2 / 64.0D);
     }

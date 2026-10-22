@@ -106,8 +106,8 @@ public final class GroupFormationTracker {
                                                                           long now) {
         LeaderContext ctx = touch(follower, leader, now);
 
-        double leaderDx = leader.posX - leader.prevPosX;
-        double leaderDz = leader.posZ - leader.prevPosZ;
+        double leaderDx = com.jubitus.travellers.unit.EntityMotion.velX(leader);
+        double leaderDz = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
         double leaderSpeed = Math.sqrt(leaderDx * leaderDx + leaderDz * leaderDz);
         boolean leaderActuallyMoving = leaderSpeed > 0.005D;
         double bodyScale = mounted ? FormationGeometry.MOUNTED_SPACING_SCALE : 1.0D;
@@ -177,8 +177,8 @@ public final class GroupFormationTracker {
             Collections.sort(ids);
             ctx.orderedIds = ids;
 
-            double dx = leader.posX - leader.prevPosX;
-            double dz = leader.posZ - leader.prevPosZ;
+            double dx = com.jubitus.travellers.unit.EntityMotion.velX(leader);
+            double dz = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
             if (travellerLeader != null && ctx.anchor.routeHeading(travellerLeader, ROUTE_HEADING)) {
                 // Walking a route: face along it, not along the leader's own steps.
                 ctx.headingX = ROUTE_HEADING[0];
@@ -249,7 +249,7 @@ public final class GroupFormationTracker {
         int rank = ctx.file.rankOf(follower.getUniqueID());
         if (rank < 0) return null;
         boolean frozen = ctx.anchor.isFrozen();
-        double leaderDx = leader.posX - leader.prevPosX, leaderDz = leader.posZ - leader.prevPosZ;
+        double leaderDx = com.jubitus.travellers.unit.EntityMotion.velX(leader), leaderDz = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
         double leaderSpeed = Math.sqrt(leaderDx * leaderDx + leaderDz * leaderDz);
         FormationGeometry.SlotOffset fileOff = new FormationGeometry.SlotOffset(0.0D, 0.0D,
                 ctx.file.behind(rank), FILE_ARRIVE_RADIUS, 0.0D);

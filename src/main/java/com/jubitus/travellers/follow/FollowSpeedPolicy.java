@@ -16,6 +16,8 @@ final class FollowSpeedPolicy {
     private static final double MIN_FOLLOW_PERCENT = 35.0D;
 
     double smoothedMoveSpeed;
+    /** Trace probe: the pace (percent, horse included) asked on the last tick. */
+    double lastPercent;
 
     FollowSpeedPolicy(EntityAIFollowLeader ai, EntityTraveller follower) {
         this.ai = ai;
@@ -66,6 +68,7 @@ final class FollowSpeedPolicy {
         }
 
         percent = MathHelper.clamp(percent, MIN_FOLLOW_PERCENT, UnitSpeed.followMaxPercent(mounted, target));
+        lastPercent = percent;
         // The horse multiplies the rider's own pace: ask the rider for the share it does not provide.
         if (mounted) percent /= UnitSpeed.mountedFactor();
 

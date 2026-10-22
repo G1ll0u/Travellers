@@ -58,6 +58,8 @@ public final class TraceSample {
     // AI / FOLLOW
     public String runningTasks = "";
     public int steeringBlockedTicks = -1;
+    /** Follow probe: who sets the pace, the leader's measured pace and distance; empty when not following. */
+    public String followPace = "";
     /** Why the follow task is not running, or null when it runs or the unit has none. */
     public String followOff = null;
 
@@ -145,6 +147,7 @@ public final class TraceSample {
         StringBuilder sb = new StringBuilder();
         this.steeringBlockedTicks = -1;
         this.followOff = null;
+        this.followPace = "";
         EntityAIFollowLeader idleFollow = null;
         for (EntityAITasks.EntityAITaskEntry entry : entity.tasks.taskEntries) {
             if (!entry.using) {
@@ -155,6 +158,14 @@ public final class TraceSample {
             sb.append(entry.action.getClass().getSimpleName());
             if (entry.action instanceof EntityAIFollowLeader) {
                 this.steeringBlockedTicks = ((EntityAIFollowLeader) entry.action).getSteeringBlockedTicks();
+                net.minecraft.entity.EntityLivingBase leader = entity.getEffectiveFollowTarget();
+                if (leader != null) {
+                    double ldx = com.jubitus.travellers.unit.EntityMotion.velX(leader), ldz = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
+                    this.followPace = String.format(java.util.Locale.ROOT, " want=%s lead=%.0f%% ldist=%.1f",
+                            ((EntityAIFollowLeader) entry.action).describePace(),
+                            com.jubitus.travellers.unit.UnitSpeed.percentOfBlocksPerTick(Math.sqrt(ldx * ldx + ldz * ldz)),
+                            Math.sqrt(entity.getDistanceSq(leader)));
+                }
             }
         }
         this.runningTasks = sb.length() == 0 ? "idle" : sb.toString();
@@ -219,7 +230,7 @@ public final class TraceSample {
             sb.append(" | ai=").append(runningTasks);
         }
         if (channels.contains(TraceChannel.FOLLOW) && steeringBlockedTicks >= 0) {
-            sb.append(" | follow:blocked=").append(steeringBlockedTicks);
+            sb.append(" | follow:blocked=").append(steeringBlockedTicks).append(followPace);
         } else if (channels.contains(TraceChannel.FOLLOW) && followOff != null) {
             sb.append(" | follow:off=").append(followOff);
         }
@@ -239,7 +250,7 @@ public final class TraceSample {
         mounted = o.mounted; mountMode = o.mountMode;
         horseAttr = o.horseAttr; horseDxz = o.horseDxz;
         horseCollided = o.horseCollided; horseOnGround = o.horseOnGround; mountWedged = o.mountWedged;
-        runningTasks = o.runningTasks; steeringBlockedTicks = o.steeringBlockedTicks; followOff = o.followOff;
+        runningTasks = o.runningTasks; steeringBlockedTicks = o.steeringBlockedTicks; followOff = o.followOff; followPace = o.followPace;
     }
 
     /** True when the entity is asking to move and getting nowhere - the shape of every stuck report. */

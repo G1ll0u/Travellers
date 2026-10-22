@@ -139,8 +139,8 @@ public final class FollowFormationCoordinator {
         }
         double offX = dx / len * dist;
         double offZ = dz / len * dist;
-        double vx = leader.posX - leader.prevPosX;
-        double vz = leader.posZ - leader.prevPosZ;
+        double vx = com.jubitus.travellers.unit.EntityMotion.velX(leader);
+        double vz = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
         double speed = Math.sqrt(vx * vx + vz * vz);
         return new SlotAssignment(FollowMode.SURFACE, 0, 1, 1.0D, 1.0D,
                 -offX / dist, -offZ / dist, speed, speed > 0.04D,

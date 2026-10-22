@@ -941,8 +941,8 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private boolean walkingToward(EntityLivingBase e) {
-        double vx = e.posX - e.prevPosX;
-        double vz = e.posZ - e.prevPosZ;
+        double vx = com.jubitus.travellers.unit.EntityMotion.velX(e);
+        double vz = com.jubitus.travellers.unit.EntityMotion.velZ(e);
         double tx = mob.posX - e.posX;
         double tz = mob.posZ - e.posZ;
         double d = Math.sqrt(tx * tx + tz * tz);

@@ -50,8 +50,8 @@ final class FollowSteering {
         double horizToGoalSq = FollowMath.distanceSq2D(follower.posX, follower.posZ, goal.x, goal.z);
         double horizToGoal = Math.sqrt(horizToGoalSq);
 
-        boolean leaderStill = Math.abs(target.posX - target.prevPosX) < 0.05D
-                && Math.abs(target.posZ - target.prevPosZ) < 0.05D;
+        boolean leaderStill = Math.abs(com.jubitus.travellers.unit.EntityMotion.velX(target)) < 0.05D
+                && Math.abs(com.jubitus.travellers.unit.EntityMotion.velZ(target)) < 0.05D;
 
         // The leader itself is swimming (not just standing at a shore) — water ahead is the
         // expected medium to cross, not an obstacle to steer away from.
@@ -220,8 +220,8 @@ final class FollowSteering {
     }
 
     private boolean slotLikeLeaderMovement(EntityLivingBase target) {
-        return Math.abs(target.posX - target.prevPosX) > 0.05D
-                || Math.abs(target.posZ - target.prevPosZ) > 0.05D;
+        return Math.abs(com.jubitus.travellers.unit.EntityMotion.velX(target)) > 0.05D
+                || Math.abs(com.jubitus.travellers.unit.EntityMotion.velZ(target)) > 0.05D;
     }
 
     private boolean isCloseEnoughToStopSteering(GoalCandidate goal, EntityLivingBase target) {

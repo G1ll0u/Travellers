@@ -330,8 +330,8 @@ public final class FollowRecoveryHelper {
     }
 
     private static Vec3d getCaveRescueBiasDir(EntityLivingBase target) {
-        double mx = target.posX - target.prevPosX;
-        double mz = target.posZ - target.prevPosZ;
+        double mx = com.jubitus.travellers.unit.EntityMotion.velX(target);
+        double mz = com.jubitus.travellers.unit.EntityMotion.velZ(target);
         double m2 = mx * mx + mz * mz;
 
         if (m2 > 0.01D) {

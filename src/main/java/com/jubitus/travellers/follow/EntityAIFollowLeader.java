@@ -65,6 +65,11 @@ public class EntityAIFollowLeader extends EntityAIBase {
         return steering.direct.steeringBlockedTicks;
     }
 
+    /** Trace probe: "pacer" while the mounted pacer steers, else the speed policy's last asked pace. */
+    public String describePace() {
+        return mountedPacer.isEngaged() ? "pacer" : String.format(java.util.Locale.ROOT, "%.0f%%", speed.lastPercent);
+    }
+
     /** Horizontal distance from the follower to its current formation goal, or -1 without one. */
     public double getProfileSlotDistance() {
         if (currentGoal == null) return -1.0D;
@@ -397,7 +402,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (mode == FollowMode.SURFACE && !airborneLeader
                 && !GroupFormationTracker.isWaitingForLeader(target.getUniqueID())
                 && mountedPacer.tick(target.posX, target.posZ,
-                        target.posX - target.prevPosX, target.posZ - target.prevPosZ,
+                        com.jubitus.travellers.unit.EntityMotion.velX(target), com.jubitus.travellers.unit.EntityMotion.velZ(target),
                         slot.idealX, slot.idealZ, horizontalDistanceTo(target),
                         baseSpeed,
                         isMounted() ? TravellersConfig.WORKER_FORMATION.mountedCatchUpDistanceScale : 1.0D,

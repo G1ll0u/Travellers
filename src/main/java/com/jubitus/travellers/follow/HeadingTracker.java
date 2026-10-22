@@ -44,8 +44,8 @@ final class HeadingTracker {
     void update(EntityLivingBase leader, WorkerFormationSettings formationSettings) {
         boolean workerLeader = leader instanceof EntityTravellerWorker;
 
-        double tickDx = leader.posX - leader.prevPosX;
-        double tickDz = leader.posZ - leader.prevPosZ;
+        double tickDx = com.jubitus.travellers.unit.EntityMotion.velX(leader);
+        double tickDz = com.jubitus.travellers.unit.EntityMotion.velZ(leader);
         double tickDistSq = tickDx * tickDx + tickDz * tickDz;
 
         double thresholdSq = workerLeader ? WORKER_MOVE_EPSILON_SQ : PLAYER_MOVE_EPSILON_SQ;

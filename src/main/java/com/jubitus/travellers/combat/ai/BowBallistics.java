@@ -169,9 +169,9 @@ final class BowBallistics {
         private int lastVelTick = -1000;
 
         Vec3d sample(EntityLivingBase t, int nowTick) {
-            double vx = (t.posX - t.prevPosX);
-            double vy = (t.posY - t.prevPosY);
-            double vz = (t.posZ - t.prevPosZ);
+            double vx = (com.jubitus.travellers.unit.EntityMotion.velX(t));
+            double vy = (com.jubitus.travellers.unit.EntityMotion.velY(t));
+            double vz = (com.jubitus.travellers.unit.EntityMotion.velZ(t));
 
             java.util.UUID id = t.getUniqueID();
             if (lastTargetId != null && lastTargetId.equals(id) && nowTick == lastVelTick + 1) {

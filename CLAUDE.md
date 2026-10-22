@@ -111,6 +111,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Find a worker by id, loaded or virtual | `unit/WorkerLookup` |
 | Is this gear allowed for a hired worker (its equipment role) | `unit/equipment/TravellerEquipmentManager.fitsRole` |
 | How fast a unit moves (percent of a walking player, ceilings, mounted factor, offscreen pace) | `unit/UnitSpeed` |
+| How far an entity moved per tick (players: never `pos - prevPos` on the server) | `unit/EntityMotion` |
 | Any marker on a vanilla horse / a horse joining or dying | `horse/HorseMarkers`, `horse/HorseEvents` |
 
 ## Cross-cutting invariants

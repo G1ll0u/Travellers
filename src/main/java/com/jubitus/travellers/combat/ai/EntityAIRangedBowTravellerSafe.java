@@ -222,7 +222,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
             }
             if (d2 < minDistSq || d2 > maxDistSq) return;
 
-            boolean targetMoving = Math.abs(tgt.posX - tgt.prevPosX) + Math.abs(tgt.posZ - tgt.prevPosZ) > 0.02;
+            boolean targetMoving = Math.abs(com.jubitus.travellers.unit.EntityMotion.velX(tgt)) + Math.abs(com.jubitus.travellers.unit.EntityMotion.velZ(tgt)) > 0.02;
 
             // Only steady briefly if stationary AND already in the preferred band.
             // Outside the band, keep moving; inside, 1-tick micro-settle for a cleaner shot.

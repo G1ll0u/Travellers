@@ -271,11 +271,11 @@ final class FollowFlightController {
     private Vec3d chasePoint(EntityLivingBase target) {
         TravellersConfig.Elytra cfg = TravellersConfig.ELYTRA;
 
-        double x = target.posX + target.motionX * cfg.followChaseLeadTicks;
-        double z = target.posZ + target.motionZ * cfg.followChaseLeadTicks;
+        double x = target.posX + com.jubitus.travellers.unit.EntityMotion.velX(target) * cfg.followChaseLeadTicks;
+        double z = target.posZ + com.jubitus.travellers.unit.EntityMotion.velZ(target) * cfg.followChaseLeadTicks;
 
         double verticalLead = MathHelper.clamp(
-                target.motionY * cfg.followChaseVerticalLeadTicks,
+                com.jubitus.travellers.unit.EntityMotion.velY(target) * cfg.followChaseVerticalLeadTicks,
                 -cfg.followChaseMaxAltitudeLead, cfg.followChaseMaxAltitudeLead);
         double y = target.posY + verticalLead;
 
