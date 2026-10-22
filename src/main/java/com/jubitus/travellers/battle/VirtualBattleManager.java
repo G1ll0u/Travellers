@@ -91,6 +91,8 @@ public class VirtualBattleManager extends WorldSavedData {
     private static final int REOPEN_TICKS = 1200;
     /** The shown position follows the blows only once they drift this far from it. */
     private static final double ANCHOR_DRIFT = 48.0;
+    /** A pawn in no world for this long leaves its battle (not fallen), so the battle can end without it. */
+    private static final int ABSENT_RELEASE_TICKS = 1200;
     /** An owner's "henchmen fallen" toast is updated at most this often during a battle. */
     private static final int FALLEN_BEAT_TICKS = 200;
 
@@ -176,6 +178,11 @@ public class VirtualBattleManager extends WorldSavedData {
         return id != null ? battles.get(id) : null;
     }
 
+    /** Still running (not ended, not merged into another). */
+    public boolean isRunning(BattleRecord b) {
+        return battles.get(b.id) == b;
+    }
+
     public Iterable<BattleRecord> getBattlesView() {
         return battles.values();
     }
@@ -222,7 +229,7 @@ public class VirtualBattleManager extends WorldSavedData {
         EntityTraveller nearest = null;
         double best = Double.MAX_VALUE;
         for (BattleParticipant p : b.participants.values()) {
-            if (!p.alive || p.side == self.side) continue;
+            if (!p.alive || !b.areEnemies(self, p)) continue;
             Entity e = world.getEntityFromUuid(p.uuid);
             if (!(e instanceof EntityTraveller) || e.isDead) continue;
             double d = entity.getDistanceSq(e);
@@ -298,15 +305,28 @@ public class VirtualBattleManager extends WorldSavedData {
         markDirty();
     }
 
+    /** The running battle whose zone holds this point, else one that just ended there (reopened), else a new one. */
     BattleRecord createBattle(WorldServer world, BlockPos center, long now, @Nullable UUID campAnchorId) {
+        BattleRecord running = runningAt(world.provider.getDimension(), center);
+        if (running != null) return running;
         BattleRecord reopened = reopenAt(world, center, now);
         if (reopened != null) return reopened;
         BattleRecord b = new BattleRecord(UUID.randomUUID(), world.provider.getDimension(), center, now);
         b.campAnchorId = campAnchorId;
         battles.put(b.id, b);
-        BattleLog.log(world.getMinecraftServer(), now, b, "create" + (campAnchorId != null ? " camp" : ""));
         markDirty();
         return b;
+    }
+
+    @Nullable
+    private BattleRecord runningAt(int dim, BlockPos pos) {
+        for (BattleRecord b : battles.values()) {
+            if (b.dimension != dim) continue;
+            double dx = b.anchor.getX() - pos.getX();
+            double dz = b.anchor.getZ() - pos.getZ();
+            if (dx * dx + dz * dz <= (double) b.zoneRadius * b.zoneRadius) return b;
+        }
+        return null;
     }
 
     /**
@@ -325,7 +345,6 @@ public class VirtualBattleManager extends WorldSavedData {
             recentlyEnded.remove(b);
             b.participants.values().removeIf(p -> p.alive);
             b.endTick = -1;
-            b.winnerSide = -1;
             b.lastBlowTick = now;
             b.lastSimTick = now;
             b.notifiedOwners.clear();
@@ -337,11 +356,10 @@ public class VirtualBattleManager extends WorldSavedData {
         return null;
     }
 
-    void addToBattle(WorldServer world, BattleRecord b, VirtualTravellerRecord rec, int side,
+    void addToBattle(WorldServer world, BattleRecord b, VirtualTravellerRecord rec,
                      String groupKey, boolean isGroupLeader, long now) {
-        if (rec.battleId != null || b.participants.containsKey(rec.uuid) || !mayJoin(rec.uuid, now)) return;
+        if (rec.battleId != null || isParticipant(rec.uuid) || !mayJoin(rec.uuid, now)) return;
         BattleParticipant p = new BattleParticipant(rec.uuid);
-        p.side = side;
         p.groupKey = groupKey;
         p.isGroupLeader = isGroupLeader;
         p.attackTimer = (rec.uuid.hashCode() & 7); // small stagger so hits don't sync up
@@ -357,10 +375,10 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /** Loaded-only pawn joining/starting a battle: no VirtualTravellerRecord backs it, just a UUID. */
-    void addLoadedParticipant(BattleRecord b, EntityTraveller entity, int side, String groupKey) {
-        if (b.participants.containsKey(entity.getUniqueID())) return;
+    void addLoadedParticipant(BattleRecord b, EntityTraveller entity, String groupKey) {
+        // Already fighting in another battle here: the zone merge brings both together.
+        if (isParticipant(entity.getUniqueID())) return;
         BattleParticipant p = new BattleParticipant(entity.getUniqueID());
-        p.side = side;
         p.groupKey = groupKey;
         p.loaded = true;
         p.attackTimer = (entity.getUniqueID().hashCode() & 7);
@@ -389,22 +407,9 @@ public class VirtualBattleManager extends WorldSavedData {
             b = createBattle(world, attacker.getPosition(), world.getTotalWorldTime(), null);
         }
 
-        int aSide = b.sideOfGroup(aKey);
-        int tSide = b.sideOfGroup(tKey);
-        if (aSide < 0 && tSide < 0) {
-            aSide = 0;
-            tSide = 1;
-        } else if (aSide < 0) {
-            aSide = 1 - tSide;
-        } else if (tSide < 0) {
-            tSide = 1 - aSide;
-        }
-        if (aSide == tSide) {
-            BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "loaded-engagement same side "
-                    + BattleLog.shortKey(aKey) + " vs " + BattleLog.shortKey(tKey) + " side=" + aSide);
-        }
-        addLoadedParticipant(b, attacker, aSide, aKey);
-        addLoadedParticipant(b, target, tSide, tKey);
+        b.addEnemies(aKey, tKey);
+        addLoadedParticipant(b, attacker, aKey);
+        addLoadedParticipant(b, target, tKey);
 
         checkNotifyOwners(world, b);
         markDirty();
@@ -431,11 +436,9 @@ public class VirtualBattleManager extends WorldSavedData {
         BattleParticipant foe = b.participants.get(foeId);
         if (foe == null || !foe.alive) return;
         String key = BattleParticipant.OWNER_KEY_PREFIX + player.getUniqueID();
-        int side = b.sideOfGroup(key);
-        if (side < 0) side = 1 - foe.side;
-        if (side == foe.side) return;
+        if (key.equals(foe.groupKey)) return;
+        b.addEnemies(key, foe.groupKey);
         BattleParticipant p = new BattleParticipant(player.getUniqueID());
-        p.side = side;
         p.groupKey = key;
         p.loaded = true;
         p.isPlayer = true;
@@ -495,14 +498,13 @@ public class VirtualBattleManager extends WorldSavedData {
     private boolean meetsNotifySignificance(BattleRecord b, UUID owner) {
         TravellersConfig.BattleEvents cfg = TravellersConfig.BATTLE_EVENTS;
         String key = BattleParticipant.OWNER_KEY_PREFIX + owner;
-        int ownSide = b.sideOfGroup(key);
-        if (ownSide < 0) return false;
+        if (!b.hasFaction(key)) return false;
         int ownCount = 0;
         int enemyCount = 0;
         for (BattleParticipant p : b.participants.values()) {
             if (!p.alive) continue;
             if (p.groupKey.equals(key)) ownCount++;
-            else if (p.side != ownSide) enemyCount++;
+            else if (b.areEnemies(key, p.groupKey)) enemyCount++;
         }
         return enemyCount >= cfg.notifyMinEnemyCount && enemyCount >= ownCount * cfg.notifyMinEnemyToWorkerRatio;
     }
@@ -516,7 +518,7 @@ public class VirtualBattleManager extends WorldSavedData {
     /** Headcounts of the battle seen from this owner's side, for the journal row. */
     private static BattleSummary.Counts countsFor(BattleRecord b, UUID owner, long now) {
         String ownKey = BattleParticipant.OWNER_KEY_PREFIX + owner;
-        int ownSide = b.sideOfGroup(ownKey);
+        Map<String, Integer> camps = b.camps(ownKey);
         int ownStanding = 0, ownFallen = 0, foeStanding = 0, foeFallen = 0;
         int[] foes = new int[3], allies = new int[3]; // raiders, travellers, henchmen
         for (BattleParticipant p : b.participants.values()) {
@@ -526,7 +528,7 @@ public class VirtualBattleManager extends WorldSavedData {
                 continue;
             }
             int kind = "RAIDER".equals(p.groupKey) ? 0 : p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX) ? 2 : 1;
-            if (p.side == ownSide) {
+            if (camps.get(p.groupKey) == 0) {
                 allies[kind]++;
             } else {
                 foes[kind]++;
@@ -574,18 +576,18 @@ public class VirtualBattleManager extends WorldSavedData {
     private void notifyOutcomes(WorldServer world, BattleRecord b) {
         for (UUID owner : b.notifiedOwners) {
             String key = BattleParticipant.OWNER_KEY_PREFIX + owner;
-            int side = b.sideOfGroup(key);
-            int fallen = 0;
+            int fallen = 0, own = 0, foes = 0;
             for (BattleParticipant p : b.participants.values()) {
-                if (!p.alive && p.groupKey.equals(key)) fallen++;
+                if (p.groupKey.equals(key)) {
+                    if (p.alive) own++;
+                    else fallen++;
+                } else if (p.alive && b.areEnemies(key, p.groupKey)) {
+                    foes++;
+                }
             }
             BattleNotifications.Outcome outcome = BattleNotifications.Outcome.BROKEN_OFF;
-            if (side >= 0) {
-                int own = b.countAlive(side);
-                int foes = b.countAlive(1 - side);
-                if (foes == 0 && own > 0) outcome = BattleNotifications.Outcome.WON;
-                else if (own == 0 && foes > 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST;
-            }
+            if (foes == 0 && own > 0) outcome = BattleNotifications.Outcome.WON;
+            else if (own == 0 && foes > 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST;
             BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "notify-end owner="
                     + owner.toString().substring(0, 8) + online(world, owner) + " outcome=" + outcome + " fallen=" + fallen);
             BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen,
@@ -617,17 +619,16 @@ public class VirtualBattleManager extends WorldSavedData {
         return "Unknown";
     }
 
-    /** Moves every participant of {@code src} into {@code dst} (side mapping decided by caller). */
-    void mergeBattles(WorldServer world, BattleRecord dst, BattleRecord src, Map<UUID, Integer> sideMapping,
-                      VirtualTravellerManager vtm) {
+    /** Moves every participant of {@code src} into {@code dst}, with the enmities seen there. */
+    void mergeBattles(WorldServer world, BattleRecord dst, BattleRecord src, VirtualTravellerManager vtm) {
         flushFallen(world, src, true);
         BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), dst, "merge from=" + BattleLog.id(src)
                 + " " + BattleLog.counts(src));
+        dst.enemyPairs.addAll(src.enemyPairs);
         for (BattleParticipant p : src.participants.values()) {
-            Integer side = sideMapping.get(p.uuid);
-            if (side == null) continue;
-            p.side = side;
+            if (dst.participants.containsKey(p.uuid)) continue;
             dst.participants.put(p.uuid, p);
+            if (!p.alive) continue;
             participantIndex.put(p.uuid, dst.id);
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             if (rec != null) rec.battleId = dst.id;
@@ -681,7 +682,7 @@ public class VirtualBattleManager extends WorldSavedData {
         b.lastSimTick = now;
         if (elapsed <= 0) return;
 
-        // Refresh loaded and absent flags; players who left are dropped.
+        // Refresh loaded and absent flags; players who left, and pawns absent too long, are dropped (not fallen).
         List<BattleParticipant> gone = null;
         for (BattleParticipant p : b.participants.values()) {
             if (!p.alive) continue;
@@ -698,10 +699,16 @@ public class VirtualBattleManager extends WorldSavedData {
             // INVARIANT: a pawn in no world (chunk unloaded, restart) is absent, never fallen: it stays standing, untargeted.
             boolean absent = rec == null && world.getEntityFromUuid(p.uuid) == null;
             if (absent && !p.absent) {
+                p.absentSince = now;
                 BattleLog.log(world.getMinecraftServer(), now, b, "absent " + BattleLog.shortKey(p.groupKey)
                         + " " + p.uuid.toString().substring(0, 8));
             }
             p.absent = absent;
+            if (absent && now - p.absentSince > ABSENT_RELEASE_TICKS) {
+                BattleLog.log(world.getMinecraftServer(), now, b, "absent released " + p.uuid.toString().substring(0, 8));
+                if (gone == null) gone = new ArrayList<>();
+                gone.add(p);
+            }
         }
         if (gone != null) {
             for (BattleParticipant p : gone) {
@@ -938,7 +945,7 @@ public class VirtualBattleManager extends WorldSavedData {
         BattleParticipant current = null;
         if (p.targetUuid != null) {
             BattleParticipant t = b.participants.get(p.targetUuid);
-            if (t != null && t.alive && t.side != p.side && foePosition(world, vtm, t.uuid) != null) current = t;
+            if (t != null && t.alive && b.areEnemies(p, t) && foePosition(world, vtm, t.uuid) != null) current = t;
             else p.targetUuid = null;
         }
         if (current != null && now - p.targetSinceTick < TargetLockPolicy.LOCK_TICKS) return current;
@@ -953,7 +960,7 @@ public class VirtualBattleManager extends WorldSavedData {
         long bestScore = Long.MAX_VALUE;
         long currentScore = Long.MAX_VALUE;
         for (BattleParticipant t : b.participants.values()) {
-            if (!t.alive || t.side == p.side || t.isPlayer) continue;
+            if (!t.alive || !b.areEnemies(p, t) || t.isPlayer) continue;
             double[] pos = foePosition(world, vtm, t.uuid);
             if (pos == null) continue;
             double dx = pos[0] - rec.posX;
@@ -1015,8 +1022,7 @@ public class VirtualBattleManager extends WorldSavedData {
             VirtualTravellerRecord shieldRec = null;
             double best = LEADER_SHIELD_RADIUS_SQ;
             for (BattleParticipant q : b.participants.values()) {
-                if (!q.alive || q.isGroupLeader || q.side != victim.side
-                        || !q.groupKey.equals(victim.groupKey)) continue;
+                if (!q.alive || q.isGroupLeader || !q.groupKey.equals(victim.groupKey)) continue;
                 VirtualTravellerRecord qr = vtm.getRecord(q.uuid);
                 if (qr == null) continue;
                 double dx = qr.posX - victimRec.posX;
@@ -1188,12 +1194,10 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     private boolean checkBattleEnd(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, long now) {
-        int aliveA = b.countAlive(0);
-        int aliveB = b.countAlive(1);
-        boolean cleared = aliveA == 0 || aliveB == 0;
-        boolean quiet = b.firstBlowTick < 0
+        boolean cleared = !b.hasStandingEnemies();
+        boolean quiet = (b.firstBlowTick < 0
                 ? now - b.startTick > APPROACH_END_TICKS
-                : now - b.lastBlowTick > LULL_END_TICKS;
+                : now - b.lastBlowTick > LULL_END_TICKS) && !hasIdleFighters(world, b);
         boolean timeout = now - b.startTick > TravellersConfig.BATTLE_EVENTS.maxBattleDurationTicks;
         if (!cleared && !quiet && !timeout) return false;
         BattleLog.log(world.getMinecraftServer(), now, b, "end " + (cleared ? "cleared" : timeout ? "timeout"
@@ -1201,6 +1205,21 @@ public class VirtualBattleManager extends WorldSavedData {
                 + (b.lastBlowTick < 0 ? -1 : now - b.lastBlowTick) + "t " + BattleLog.counts(b));
         endBattle(world, vtm, b, cleared);
         return true;
+    }
+
+    /**
+     * A standing fighter that cannot strike right now: absent, or loaded where vanilla does not tick it (nobody
+     * near after a logout) until it is handed to the offscreen simulation. The battle waits for it.
+     */
+    private static boolean hasIdleFighters(WorldServer world, BattleRecord b) {
+        for (BattleParticipant p : b.participants.values()) {
+            if (!p.alive || p.isPlayer) continue;
+            if (p.absent) return true;
+            if (!p.loaded) continue;
+            Entity e = world.getEntityFromUuid(p.uuid);
+            if (e != null && VirtualTravellerManager.isFrozenByVanillaAt(world, e.posX, e.posZ)) return true;
+        }
+        return false;
     }
 
     /**
@@ -1238,9 +1257,6 @@ public class VirtualBattleManager extends WorldSavedData {
         notifyOutcomes(world, b);
         distributeLootPool(world, vtm, b, allowPillage);
         battles.remove(b.id);
-        int aliveA = b.countAlive(0);
-        int aliveB = b.countAlive(1);
-        b.winnerSide = aliveA > 0 && aliveB == 0 ? 0 : aliveB > 0 && aliveA == 0 ? 1 : -1;
         b.endTick = now;
         getRecentlyEnded(now);
         recentlyEnded.add(b);
@@ -1255,7 +1271,7 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /**
-     * Clean win (one side wiped, the other not, no timeout): surviving virtual winners get first
+     * Clean win (no enemies left standing, no timeout): surviving virtual winners get first
      * pick at upgrading their equipment from the pool; whatever is left (and all of the pool on a
      * timeout/draw/forced end) becomes a deferred ground drop at the battle's center.
      */
@@ -1263,11 +1279,7 @@ public class VirtualBattleManager extends WorldSavedData {
         if (b.lootPool.tagCount() == 0) return;
 
         if (allowPillage && TravellersConfig.BATTLE_EVENTS.battleLootingEnabled) {
-            boolean aliveA = b.countAlive(0) > 0;
-            boolean aliveB = b.countAlive(1) > 0;
-            if (aliveA != aliveB) {
-                pillageForSurvivors(world, vtm, b, aliveA ? 0 : 1);
-            }
+            pillageForSurvivors(world, vtm, b);
         }
 
         if (b.lootPool.tagCount() > 0) {
@@ -1279,10 +1291,10 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /** Only still-virtual survivors (never materialized pawns, which keep their physical AI/inventory) pillage. */
-    private void pillageForSurvivors(WorldServer world, VirtualTravellerManager vtm, BattleRecord b, int winnerSide) {
+    private void pillageForSurvivors(WorldServer world, VirtualTravellerManager vtm, BattleRecord b) {
         for (BattleParticipant p : b.participants.values()) {
             if (b.lootPool.tagCount() == 0) break;
-            if (p.side != winnerSide || !p.alive || p.loaded) continue;
+            if (!p.alive || p.loaded) continue;
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             if (rec == null) continue;
             b.lootPool = pillageOne(world, rec, b.lootPool);

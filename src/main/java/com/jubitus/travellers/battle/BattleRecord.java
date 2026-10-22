@@ -9,6 +9,7 @@ import net.minecraft.nbt.NBTTagString;
 import com.jubitus.travellers.notify.BattleSummary;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ public class BattleRecord {
     public final transient Map<UUID, Long> lastFallenBeat = new HashMap<>();
 
     public static final int MIN_ZONE_RADIUS = 16;
+    public static final String RAIDER = "RAIDER";
     // Share of a new blow's position taken into the running blow position.
     private static final double BLOW_SMOOTHING = 0.1;
     public long startTick;
@@ -60,8 +62,8 @@ public class BattleRecord {
     public NBTTagList lootPool = new NBTTagList();
     /** Transient: world tick the battle ended, -1 while it runs (an ended battle is kept briefly for its map marker). */
     public long endTick = -1;
-    /** Transient: the side left standing alone at the end, or -1 (still running, timeout, or nobody left). */
-    public int winnerSide = -1;
+    /** Faction pairs ("a|b", sorted) seen fighting each other here; raiders need none (see {@link #areEnemies}). */
+    public final Set<String> enemyPairs = new HashSet<>();
 
     public BattleRecord(UUID id, int dimension, BlockPos center, long startTick) {
         this.id = id;
@@ -74,12 +76,73 @@ public class BattleRecord {
         this.lastSimTick = startTick;
     }
 
-    public int countAlive(int side) {
-        int n = 0;
+    /** Raiders fight every other faction; other factions only once seen fighting each other here. */
+    public boolean areEnemies(String a, String b) {
+        if (a.equals(b)) return false;
+        if (RAIDER.equals(a) != RAIDER.equals(b)) return true;
+        return enemyPairs.contains(pairKey(a, b));
+    }
+
+    public boolean areEnemies(BattleParticipant a, BattleParticipant b) {
+        return areEnemies(a.groupKey, b.groupKey);
+    }
+
+    public void addEnemies(String a, String b) {
+        if (!a.equals(b)) enemyPairs.add(pairKey(a, b));
+    }
+
+    private static String pairKey(String a, String b) {
+        return a.compareTo(b) < 0 ? a + "|" + b : b + "|" + a;
+    }
+
+    /** Two enemies are still standing: the fight goes on. */
+    public boolean hasStandingEnemies() {
+        List<String> standing = new ArrayList<>();
         for (BattleParticipant p : participants.values()) {
-            if (p.alive && p.side == side) n++;
+            if (p.alive && !standing.contains(p.groupKey)) standing.add(p.groupKey);
         }
-        return n;
+        for (int i = 0; i < standing.size(); i++) {
+            for (int j = i + 1; j < standing.size(); j++) {
+                if (areEnemies(standing.get(i), standing.get(j))) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Factions split in two camps for display: 0 = the viewer's faction and everyone not its enemy, 1 = its enemies.
+     * Without a viewer faction here, camps follow the enemy graph from the raiders (or the first faction).
+     */
+    public Map<String, Integer> camps(@Nullable String viewKey) {
+        List<String> keys = new ArrayList<>();
+        for (BattleParticipant p : participants.values()) {
+            if (!keys.contains(p.groupKey)) keys.add(p.groupKey);
+        }
+        Map<String, Integer> camp = new HashMap<>();
+        if (keys.isEmpty()) return camp;
+        String seed = viewKey != null && keys.contains(viewKey) ? viewKey : null;
+        if (seed != null) {
+            camp.put(seed, 0);
+        } else if (keys.contains(RAIDER)) {
+            camp.put(RAIDER, 1);
+            seed = RAIDER;
+        } else {
+            seed = keys.get(0);
+            camp.put(seed, 0);
+        }
+        // Breadth-first, so the seed's direct enemies are placed before anyone's enemy of an enemy.
+        List<String> queue = new ArrayList<>();
+        queue.add(seed);
+        for (int i = 0; i < queue.size(); i++) {
+            String k = queue.get(i);
+            for (String o : keys) {
+                if (camp.containsKey(o) || !areEnemies(k, o)) continue;
+                camp.put(o, 1 - camp.get(k));
+                queue.add(o);
+            }
+        }
+        for (String k : keys) camp.putIfAbsent(k, 0);
+        return camp;
     }
 
     /** A blow landed (or was parried) at this spot: the battle becomes visible and stays alive. */
@@ -114,12 +177,11 @@ public class BattleRecord {
         return false;
     }
 
-    /** Side the given group key belongs to, or -1 if not present. */
-    public int sideOfGroup(String key) {
+    public boolean hasFaction(String key) {
         for (BattleParticipant p : participants.values()) {
-            if (p.groupKey.equals(key)) return p.side;
+            if (p.groupKey.equals(key)) return true;
         }
-        return -1;
+        return false;
     }
 
     public NBTTagCompound toNbt() {
@@ -146,6 +208,9 @@ public class BattleRecord {
             notified.appendTag(new NBTTagString(owner.toString()));
         }
         tag.setTag("Notified", notified);
+        NBTTagList pairs = new NBTTagList();
+        for (String pair : enemyPairs) pairs.appendTag(new NBTTagString(pair));
+        tag.setTag("Enemies", pairs);
         if (lootPool.tagCount() > 0) tag.setTag("Loot", lootPool);
         return tag;
     }
@@ -176,6 +241,8 @@ public class BattleRecord {
         for (int i = 0; i < notified.tagCount(); i++) {
             r.notifiedOwners.add(UUID.fromString(notified.getStringTagAt(i)));
         }
+        NBTTagList pairs = tag.getTagList("Enemies", 8);
+        for (int i = 0; i < pairs.tagCount(); i++) r.enemyPairs.add(pairs.getStringTagAt(i));
         if (tag.hasKey("Loot", 9)) r.lootPool = tag.getTagList("Loot", 10);
         return r;
     }

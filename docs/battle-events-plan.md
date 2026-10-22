@@ -1,4 +1,4 @@
-Status: steps 0-1 done, waiting for a play session to read the battle log
+Status: steps 0-3 done, waiting for a play session; next: step 4
 
 # Battle events: correct battles, one shared visual report
 
@@ -17,8 +17,14 @@ never produces fake battles; the player reads a battle at a glance (map marker a
    `onLoadedEngagement` never checks that the two keys end on opposite sides, so a faction ends on both sides
    (live save: raiders on both sides). Merges are then refused, so one fight splits into several battles, and the
    map label prints "Travellers & Raiders" for both sides.
-3. A battle ends after 30 s without a blow; with escorts leashed and archers holding, probably reached mid-fight
-   (to measure in step 0).
+3. Battle log, one night: lull ends are rare (2 of 87k); one was a 30 vs 24 fight ended 40 s after the owner
+   logged out: loaded pawns frozen by vanilla strike no blow and are not simulated.
+4. At login ~15 battles were created at once around the player: `onLoadedEngagement` only joins the battle of the
+   attacker or target, never a running battle at that place; merges then absorb one per detection pass, and each
+   split battle sends its own "under attack" toast.
+5. Overnight offline queue: ~60 real battle results, mostly 11 henchmen dying ~12 times each near 650..820, -250..-520
+   (respawn at their bed, die again).
+6. A battle had the same owner on both sides (side bug, cause 2).
 
 ## Decisions taken with the user
 
@@ -33,13 +39,14 @@ never produces fake battles; the player reads a battle at a glance (map marker a
 ## Steps
 
 0. **Instrument** — `logs/travellers-battles.log`: create / reopen / merge (or refused, why) / end (reason, counts),
-   pawns marked absent, owner notices (online/offline). Status: done.
+   pawns marked absent, owner notices (online/offline); only battles with henchmen or players. Status: done.
 1. **Absent is not dead** — a loaded participant missing from the world stays standing and untargeted, so its side
    is never emptied by it; the battle then ends by lull. Status: done, to verify in the log.
 2. **Factions instead of two sides** — participants keep a faction; hostility between factions decides targets,
    joins, merges and the end (no two hostile factions standing). Viewer-relative camps computed for display.
-   Status: todo.
-3. **End of a battle** — from the step 0 log, fix the lull end so a fight still closing in is not ended. Status: todo.
+   A new fight inside a running battle's zone joins it; touching battles always merge. Status: done.
+3. **End of a battle** — no lull end while a standing fighter is absent or frozen by vanilla (owner logged out);
+   an absent pawn leaves the battle after a minute. Status: done.
 4. **Offline summary** — battle results queued for an offline owner collapse into one login toast. Status: todo.
 5. **Balance-of-power tooltip** — shared by map marker and journal; replaces `BattleMarkerLabel` and the journal's
    battle text. Status: todo.

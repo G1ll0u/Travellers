@@ -95,16 +95,16 @@ public class BattleDebugCommand implements DebugSubcommand {
                                          boolean detailed) {
         StringBuilder sb = new StringBuilder();
         sb.append("Battle @ ").append(b.center.getX()).append(",").append(b.center.getZ())
-                .append(" sideA=").append(b.countAlive(0))
-                .append(" sideB=").append(b.countAlive(1))
+                .append(" ").append(com.jubitus.travellers.debug.BattleLog.counts(b))
                 .append(" age=").append((ws.getTotalWorldTime() - b.startTick) / 20).append("s");
         if (b.campAnchorId != null) sb.append(" [camp assault]");
         if (detailed) {
+            java.util.Map<String, Integer> camps = b.camps(null);
             VirtualTravellerManager vtm = VirtualTravellerManager.get(ws);
             for (com.jubitus.travellers.battle.BattleParticipant p : b.participants.values()) {
                 com.jubitus.travellers.virtual.VirtualTravellerRecord r =
                         vtm.getRecord(p.uuid);
-                sb.append("\n  [").append(p.side == 0 ? "A" : "B").append("] ")
+                sb.append("\n  [").append(camps.get(p.groupKey) == 0 ? "A" : "B").append("] ")
                         .append(p.groupKey)
                         .append(p.isGroupLeader ? " LEADER" : "")
                         .append(p.alive ? "" : " DEAD")

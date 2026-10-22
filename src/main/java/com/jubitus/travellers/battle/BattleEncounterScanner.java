@@ -29,7 +29,7 @@ import java.util.UUID;
 class BattleEncounterScanner {
 
     private static final int CELL_SIZE = 64;
-    private static final String KEY_RAIDER = "RAIDER";
+    private static final String KEY_RAIDER = BattleRecord.RAIDER;
     private static final String KEY_CIVIL = "CIVIL";
     private static final String KEY_OWNER_PREFIX = BattleParticipant.OWNER_KEY_PREFIX;
 
@@ -37,8 +37,6 @@ class BattleEncounterScanner {
     private final Map<String, long[]> proximitySeen = new HashMap<>();
     // Declared hostility per owner, refreshed from hired records each pass
     private final Map<UUID, Set<UUID>> ownerDeclarations = new HashMap<>();
-    // Battle pairs whose refused merge was already logged
-    private final Set<String> refusedMerges = new HashSet<>();
     // Worker-leader uuids observed this pass (some record escorts them)
     private final Set<UUID> escortLeaders = new HashSet<>();
 
@@ -132,8 +130,9 @@ class BattleEncounterScanner {
         }
 
         BattleRecord battle = mgr.createBattle(world, center, now, campAnchor);
-        mgr.addToBattle(world, battle, a, 0, groupKey(a), isWorkerGroupLeader(a), now);
-        mgr.addToBattle(world, battle, b, 1, groupKey(b), isWorkerGroupLeader(b), now);
+        battle.addEnemies(groupKey(a), groupKey(b));
+        mgr.addToBattle(world, battle, a, groupKey(a), isWorkerGroupLeader(a), now);
+        mgr.addToBattle(world, battle, b, groupKey(b), isWorkerGroupLeader(b), now);
 
         // Pull in both parties' groups (and any other bystanders resolvable by hostility)
         for (VirtualTravellerRecord rec : recordsNear(cells, center.getX(), center.getZ(), cfg.battleJoinRadius)) {
@@ -150,13 +149,11 @@ class BattleEncounterScanner {
     private static final class Member {
         final BattleGroupLink link;
         final double x, z;
-        final int side;
 
-        Member(BattleGroupLink link, double x, double z, int side) {
+        Member(BattleGroupLink link, double x, double z) {
             this.link = link;
             this.x = x;
             this.z = z;
-            this.side = side;
         }
     }
 
@@ -178,12 +175,12 @@ class BattleEncounterScanner {
             if (!p.alive || p.isPlayer) continue;
             VirtualTravellerRecord rec = vtm.getRecord(p.uuid);
             if (rec != null) {
-                out.add(new Member(BattleGroupLink.of(rec), rec.posX, rec.posZ, p.side));
+                out.add(new Member(BattleGroupLink.of(rec), rec.posX, rec.posZ));
                 continue;
             }
             Entity e = world.getEntityFromUuid(p.uuid);
             if (e instanceof EntityTraveller && !e.isDead) {
-                out.add(new Member(BattleGroupLink.of((EntityTraveller) e), e.posX, e.posZ, p.side));
+                out.add(new Member(BattleGroupLink.of((EntityTraveller) e), e.posX, e.posZ));
             }
         }
         return out;
@@ -239,41 +236,32 @@ class BattleEncounterScanner {
                 if (mate == null) continue;
                 it.remove();
                 String key = rec != null ? groupKey(rec) : VirtualBattleManager.loadedGroupKey(ent);
-                int keySide = b.sideOfGroup(key);
-                if (keySide >= 0 && keySide != mate.side) continue; // its faction already fights on the other side
-                if (rec != null) mgr.addToBattle(world, b, rec, mate.side, key, isWorkerGroupLeader(rec), now);
-                else mgr.addLoadedParticipant(b, ent, mate.side, key);
-                members.add(new Member(link, cx, cz, mate.side));
+                if (rec != null) mgr.addToBattle(world, b, rec, key, isWorkerGroupLeader(rec), now);
+                else mgr.addLoadedParticipant(b, ent, key);
+                members.add(new Member(link, cx, cz));
                 grew = true;
             }
         }
     }
 
-    /** Adds a bystander record to an ongoing battle if its group belongs to (or is hostile to) a side. */
+    /** Adds a bystander record to an ongoing battle if its faction already fights there or is hostile to one that does. */
     private void tryJoin(WorldServer world, VirtualBattleManager mgr, BattleRecord b,
                          VirtualTravellerRecord rec, long now, TravellersConfig.BattleEvents cfg) {
         if (rec.battleId != null) return;
         if (rec.campSiteId != null && !cfg.campAssaults && !rec.campSiteId.equals(b.campAnchorId)) return;
 
         String key = groupKey(rec);
-        int side = b.sideOfGroup(key);
-        if (side < 0) {
-            boolean hostileTo0 = sideHostileToKey(world, b, 0, key, rec, now, cfg, b.id);
-            boolean hostileTo1 = sideHostileToKey(world, b, 1, key, rec, now, cfg, b.id);
-            if (hostileTo0 == hostileTo1) return; // neutral, or hostile to both: stay out
-            side = hostileTo0 ? 1 : 0;
+        if (!b.hasFaction(key)) {
+            Set<String> hostile = new HashSet<>();
+            for (BattleParticipant p : b.participants.values()) {
+                if (p.alive && !hostile.contains(p.groupKey) && hostileKeys(world, p.groupKey, key, rec, now, cfg, b.id)) {
+                    hostile.add(p.groupKey);
+                }
+            }
+            if (hostile.isEmpty()) return; // neutral: stays out
+            for (String h : hostile) b.addEnemies(h, key);
         }
-        mgr.addToBattle(world, b, rec, side, key, isWorkerGroupLeader(rec), now);
-    }
-
-    private boolean sideHostileToKey(WorldServer world, BattleRecord b, int side, String key, VirtualTravellerRecord rec,
-                                     long now, TravellersConfig.BattleEvents cfg, UUID battleId) {
-        Set<String> seen = new HashSet<>();
-        for (BattleParticipant p : b.participants.values()) {
-            if (!p.alive || p.side != side || !seen.add(p.groupKey)) continue;
-            if (hostileKeys(world, p.groupKey, key, rec, now, cfg, battleId)) return true;
-        }
-        return false;
+        mgr.addToBattle(world, b, rec, key, isWorkerGroupLeader(rec), now);
     }
 
     // -------------------------------------------------------------------------
@@ -435,7 +423,7 @@ class BattleEncounterScanner {
     // Merging
     // -------------------------------------------------------------------------
 
-    /** Two battles become one when their zones overlap or a group fights in both (and their sides line up). */
+    /** Two battles become one when their zones overlap or a group fights in both. */
     private void mergeBattles(WorldServer world, VirtualTravellerManager vtm, VirtualBattleManager mgr) {
         int dim = world.provider.getDimension();
         List<BattleRecord> list = new ArrayList<>();
@@ -443,30 +431,21 @@ class BattleEncounterScanner {
             if (b.dimension == dim) list.add(b);
         }
         if (list.size() < 2) return;
-        if (refusedMerges.size() > 1024) refusedMerges.clear();
         List<List<Member>> members = new ArrayList<>();
         for (BattleRecord b : list) members.add(membersOf(world, vtm, b));
         for (int i = 0; i < list.size(); i++) {
             BattleRecord a = list.get(i);
+            if (!mgr.isRunning(a)) continue;
             for (int j = i + 1; j < list.size(); j++) {
+                if (!mgr.isRunning(a)) break;
                 BattleRecord b = list.get(j);
+                if (!mgr.isRunning(b)) continue;
                 double dx = a.anchor.getX() - b.anchor.getX();
                 double dz = a.anchor.getZ() - b.anchor.getZ();
                 double touch = a.zoneRadius + b.zoneRadius;
                 if (dx * dx + dz * dz > touch * touch && !shareGroup(members.get(i), members.get(j))) continue;
                 BattleRecord dst = a.participants.size() >= b.participants.size() ? a : b;
-                BattleRecord src = dst == a ? b : a;
-                Map<UUID, Integer> mapping = alignSides(dst, src);
-                if (mapping != null) {
-                    mgr.mergeBattles(world, dst, src, mapping, vtm);
-                    return; // list is stale after a merge; next pass handles the rest
-                }
-                if (refusedMerges.add(dst.id + "|" + src.id)) {
-                    com.jubitus.travellers.debug.BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), dst,
-                            "merge refused (faction on both sides) other=" + com.jubitus.travellers.debug.BattleLog.id(src)
-                                    + " " + com.jubitus.travellers.debug.BattleLog.counts(dst) + " | "
-                                    + com.jubitus.travellers.debug.BattleLog.counts(src));
-                }
+                mgr.mergeBattles(world, dst, dst == a ? b : a, vtm);
             }
         }
     }
@@ -478,42 +457,6 @@ class BattleEncounterScanner {
             }
         }
         return false;
-    }
-
-    /**
-     * Maps every src participant to a dst side via shared group keys, or null if unresolvable or if any
-     * faction would end up fighting on both sides.
-     */
-    @Nullable
-    static Map<UUID, Integer> alignSides(BattleRecord dst, BattleRecord src) {
-        Map<String, Integer> keySides = new HashMap<>();
-        for (BattleParticipant p : dst.participants.values()) {
-            keySides.putIfAbsent(p.groupKey, p.side);
-        }
-        // Determine which src side corresponds to dst side 0 using any shared key
-        Integer srcSideForDst0 = null;
-        for (BattleParticipant p : src.participants.values()) {
-            Integer dstSide = keySides.get(p.groupKey);
-            if (dstSide != null) {
-                srcSideForDst0 = dstSide == 0 ? p.side : 1 - p.side;
-                break;
-            }
-        }
-        // No shared keys: align raider sides if both battles have raiders
-        if (srcSideForDst0 == null) {
-            Integer dstRaiderSide = keySides.get(KEY_RAIDER);
-            int srcRaiderSide = src.sideOfGroup(KEY_RAIDER);
-            if (dstRaiderSide == null || srcRaiderSide < 0) return null;
-            srcSideForDst0 = dstRaiderSide == 0 ? srcRaiderSide : 1 - srcRaiderSide;
-        }
-        Map<UUID, Integer> mapping = new HashMap<>();
-        for (BattleParticipant p : src.participants.values()) {
-            int side = p.side == srcSideForDst0 ? 0 : 1;
-            Integer known = keySides.putIfAbsent(p.groupKey, side);
-            if (known != null && known != side) return null;
-            mapping.put(p.uuid, side);
-        }
-        return mapping;
     }
 
     private static List<BattleRecord> iterableToList(Iterable<BattleRecord> it) {

@@ -12,6 +12,8 @@ Offscreen per-pawn combat (`TravellersConfig.BATTLE_EVENTS`, debug `/travellersd
 - Owner notifications are significance-filtered, one per owner per battle, and only while one of the owner's henchmen still stands in it (a reopened battle keeps its fallen).
 - A battle enrols whole marching groups (`BattleGroupLink`): one member fighting pulls in its group, loaded or virtual.
 - A battle exists before its first blow but is shown (map, journal, toasts) only from it; it ends when a side is empty or after a lull, and a fight at the same place shortly after reopens it.
-- Its zone is measured around the anchor (where blows land) and capped at `engagementRadius`; merge and reopen use it, and a merge never puts one faction on both sides.
+- Its zone is measured around the anchor (where blows land) and capped at `engagementRadius`; a fight inside a running battle's zone joins it, touching battles always merge, reopen uses it too.
+- No fixed sides: each participant keeps its faction; `BattleRecord.areEnemies` (raiders fight all, other pairs once seen fighting) decides targets, joins and the end; `camps(viewer)` is for display only.
+- A loaded pawn missing from the world is absent, never fallen; no lull end while a fighter is absent or frozen by vanilla.
 - Offscreen healing mirrors the auto-eat AI; raiders excluded.
 - A hired worker killed here goes through `ZoneAssignments.onWorkerDied` then `WorkerLifecycleNotifications`, like a loaded death.

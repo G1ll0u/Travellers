@@ -17,8 +17,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Always-on battle lifecycle log, {@code logs/travellers-battles.log}: creation, reopen, merges (and why one is
- * refused), pawns gone missing, the end with its reason and headcounts, and owner notices. Capped per minute.
+ * Always-on battle lifecycle log, {@code logs/travellers-battles.log}, for battles with henchmen or players: reopen,
+ * merges, pawns gone missing, the end with its reason and headcounts, and owner notices. Capped per minute.
  */
 public final class BattleLog {
 
@@ -35,11 +35,12 @@ public final class BattleLog {
         return b.id.toString().substring(0, 8);
     }
 
-    /** Alive/fallen per side and faction, e.g. {@code 0:RAIDER=3/1 1:OWNER:f91b6f5a=5/0}. */
+    /** Alive/fallen per display camp and faction, e.g. {@code 0:OWNER:f91b6f5a=5/0 1:RAIDER=3/1}. */
     public static String counts(BattleRecord b) {
+        Map<String, Integer> camps = b.camps(null);
         Map<String, int[]> byKey = new TreeMap<>();
         for (BattleParticipant p : b.participants.values()) {
-            String key = p.side + ":" + shortKey(p.groupKey) + (p.isPlayer ? "(player)" : "");
+            String key = camps.get(p.groupKey) + ":" + shortKey(p.groupKey) + (p.isPlayer ? "(player)" : "");
             int[] c = byKey.computeIfAbsent(key, k -> new int[2]);
             c[p.alive ? 0 : 1]++;
         }
@@ -57,9 +58,17 @@ public final class BattleLog {
                 : groupKey;
     }
 
+    /** Logged only for battles with a hired henchman or a player in them. */
     public static void log(@Nullable MinecraftServer server, long tick, BattleRecord b, String event) {
-        if (server == null) return;
+        if (server == null || !involvesPlayers(b)) return;
         write(server, "t=" + tick + " battle=" + id(b) + " at=" + b.anchor.getX() + "," + b.anchor.getZ() + " " + event);
+    }
+
+    private static boolean involvesPlayers(BattleRecord b) {
+        for (BattleParticipant p : b.participants.values()) {
+            if (p.isPlayer || p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) return true;
+        }
+        return false;
     }
 
     private static void write(MinecraftServer server, String line) {

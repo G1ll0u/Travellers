@@ -13,8 +13,6 @@ public class BattleParticipant {
     public static final String OWNER_KEY_PREFIX = "OWNER:";
 
     public final UUID uuid;
-    /** 0 = side A, 1 = side B. */
-    public int side;
     /** Faction/coalition key: "RAIDER", "CIVIL", or "OWNER:<uuid>" for hired workers. */
     public String groupKey = "CIVIL";
     @Nullable public UUID targetUuid;
@@ -29,6 +27,8 @@ public class BattleParticipant {
     public transient boolean loaded;
     /** Transient: loaded, yet in no world right now (its chunk unloaded, server restarting). Still standing. */
     public transient boolean absent;
+    /** Transient: world tick it went absent; past a minute it leaves the battle (not fallen). */
+    public transient long absentSince;
     /** Transient: elapsed sim ticks spent unable to close on a target outside DEFEND/HOLD tether.
      *  Mirrors EntityTraveller's stuckTargetTicks; past the threshold the pawn individually leaves
      *  its battle instead of waiting for the whole fight to resolve. Not persisted, like `loaded`. */
@@ -63,7 +63,6 @@ public class BattleParticipant {
     public NBTTagCompound toNbt() {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setString("UUID", uuid.toString());
-        tag.setInteger("Side", side);
         tag.setString("Group", groupKey);
         if (targetUuid != null) tag.setString("Target", targetUuid.toString());
         tag.setInteger("Timer", attackTimer);
@@ -75,7 +74,6 @@ public class BattleParticipant {
 
     public static BattleParticipant fromNbt(NBTTagCompound tag) {
         BattleParticipant p = new BattleParticipant(UUID.fromString(tag.getString("UUID")));
-        p.side = tag.getInteger("Side");
         p.groupKey = tag.hasKey("Group") ? tag.getString("Group") : "CIVIL";
         if (tag.hasKey("Target")) p.targetUuid = UUID.fromString(tag.getString("Target"));
         p.attackTimer = tag.getInteger("Timer");

@@ -97,14 +97,14 @@ public class BattleMapStream {
 
             List<MsgMapBattleUpdate.Entry> visible = new ArrayList<>();
             for (Tally t : all) {
-                if (t.dim != viewDim) continue;
-                long dx = (long) t.pos.getX() - cx;
-                long dz = (long) t.pos.getZ() - cz;
+                if (t.battle.dimension != viewDim) continue;
+                long dx = (long) t.battle.anchor.getX() - cx;
+                long dz = (long) t.battle.anchor.getZ() - cz;
                 if (dx * dx + dz * dz > rangeSq) continue;
                 // Vision rule: a battle is only visible if within range of at least one of the
                 // player's own alive units (loaded/virtual). Master switch off = old unfiltered behavior.
-                if (visionGated && !PlayerUnitVisionSource.isVisible(mine, t.dim,
-                        t.pos.getX(), t.pos.getZ(), visionRadius)) continue;
+                if (visionGated && !PlayerUnitVisionSource.isVisible(mine, t.battle.dimension,
+                        t.battle.anchor.getX(), t.battle.anchor.getZ(), visionRadius)) continue;
                 visible.add(t.entryFor(playerId));
             }
 
@@ -131,77 +131,53 @@ public class BattleMapStream {
 
     /** One battle counted once per publish; turned into a viewer-relative entry per subscriber. */
     private static final class Tally {
-        final int dim;
-        final BlockPos pos;
-        final boolean campAssault;
+        final BattleRecord battle;
         final boolean running;
-        final int winnerSide;
         final int seconds;
-        final int[] standing = new int[2];
-        final int[] fallen = new int[2];
-        /** KIND_TRAVELLERS / KIND_RAIDERS bits per side (hired workers are told apart per viewer). */
-        final int[] kinds = new int[2];
-        final List<Set<UUID>> owners = Arrays.asList(new HashSet<>(), new HashSet<>());
-        /** Per owner: {standing, fallen} of their own henchmen. */
-        final Map<UUID, int[]> perOwner = new HashMap<>();
+        /** Per faction: {standing, fallen}. */
+        final Map<String, int[]> perFaction = new HashMap<>();
 
         Tally(BattleRecord b, long now) {
-            dim = b.dimension;
-            pos = b.anchor;
-            campAssault = b.campAnchorId != null;
+            battle = b;
             running = b.endTick < 0;
-            winnerSide = b.winnerSide;
             seconds = (int) (Math.max(0, now - (running ? b.firstBlowTick : b.endTick)) / 20);
             for (BattleParticipant p : b.participants.values()) {
-                int side = p.side == 1 ? 1 : 0;
-                if (p.alive) standing[side]++;
-                else fallen[side]++;
-                if ("RAIDER".equals(p.groupKey)) {
-                    kinds[side] |= MsgMapBattleUpdate.KIND_RAIDERS;
-                } else if (p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) {
-                    try {
-                        UUID owner = UUID.fromString(p.groupKey.substring(BattleParticipant.OWNER_KEY_PREFIX.length()));
-                        owners.get(side).add(owner);
-                        perOwner.computeIfAbsent(owner, k -> new int[2])[p.alive ? 0 : 1]++;
-                    } catch (IllegalArgumentException ignored) {
-                    }
-                } else {
-                    kinds[side] |= MsgMapBattleUpdate.KIND_TRAVELLERS;
-                }
+                perFaction.computeIfAbsent(p.groupKey, k -> new int[2])[p.alive ? 0 : 1]++;
             }
         }
 
         MsgMapBattleUpdate.Entry entryFor(UUID viewer) {
-            int mySide = owners.get(0).contains(viewer) ? 0 : owners.get(1).contains(viewer) ? 1 : -1;
-            int first = mySide >= 0 ? mySide : 0;
+            String viewKey = BattleParticipant.OWNER_KEY_PREFIX + viewer;
+            Map<String, Integer> camps = battle.camps(viewKey);
             MsgMapBattleUpdate.Entry e = new MsgMapBattleUpdate.Entry();
-            e.dim = dim;
-            e.pos = pos;
-            e.campAssault = campAssault;
-            e.involved = mySide >= 0;
-            e.first = side(first, viewer);
-            e.second = side(1 - first, viewer);
+            e.dim = battle.dimension;
+            e.pos = battle.anchor;
+            e.campAssault = battle.campAnchorId != null;
+            e.involved = perFaction.containsKey(viewKey);
+            for (Map.Entry<String, int[]> f : perFaction.entrySet()) {
+                MsgMapBattleUpdate.Side s = camps.get(f.getKey()) == 0 ? e.first : e.second;
+                int[] c = f.getValue();
+                s.standing += c[0];
+                s.fallen += c[1];
+                s.kinds |= kindOf(f.getKey(), viewKey);
+                if (f.getKey().equals(viewKey)) {
+                    s.yoursStanding = c[0];
+                    s.yoursFallen = c[1];
+                }
+            }
             e.result = running ? MsgMapBattleUpdate.Result.RUNNING
-                    : winnerSide < 0 ? MsgMapBattleUpdate.Result.NO_WINNER
-                    : winnerSide == first ? MsgMapBattleUpdate.Result.FIRST_WON : MsgMapBattleUpdate.Result.SECOND_WON;
+                    : e.first.standing > 0 && e.second.standing == 0 ? MsgMapBattleUpdate.Result.FIRST_WON
+                    : e.second.standing > 0 && e.first.standing == 0 ? MsgMapBattleUpdate.Result.SECOND_WON
+                    : MsgMapBattleUpdate.Result.NO_WINNER;
             e.seconds = seconds;
             return e;
         }
 
-        private MsgMapBattleUpdate.Side side(int side, UUID viewer) {
-            MsgMapBattleUpdate.Side s = new MsgMapBattleUpdate.Side();
-            s.standing = standing[side];
-            s.fallen = fallen[side];
-            s.kinds = kinds[side];
-            for (UUID owner : owners.get(side)) {
-                s.kinds |= owner.equals(viewer) ? MsgMapBattleUpdate.KIND_YOURS : MsgMapBattleUpdate.KIND_HIRED;
-            }
-            if (owners.get(side).contains(viewer)) {
-                int[] mine = perOwner.get(viewer);
-                s.yoursStanding = mine[0];
-                s.yoursFallen = mine[1];
-            }
-            return s;
+        private static int kindOf(String faction, String viewKey) {
+            if (BattleRecord.RAIDER.equals(faction)) return MsgMapBattleUpdate.KIND_RAIDERS;
+            if (faction.equals(viewKey)) return MsgMapBattleUpdate.KIND_YOURS;
+            if (faction.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) return MsgMapBattleUpdate.KIND_HIRED;
+            return MsgMapBattleUpdate.KIND_TRAVELLERS;
         }
     }
 }
