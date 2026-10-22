@@ -444,10 +444,17 @@ class BattleEncounterScanner {
                 double dz = a.anchor.getZ() - b.anchor.getZ();
                 double touch = a.zoneRadius + b.zoneRadius;
                 if (dx * dx + dz * dz > touch * touch && !shareGroup(members.get(i), members.get(j))) continue;
-                BattleRecord dst = a.participants.size() >= b.participants.size() ? a : b;
+                BattleRecord dst = keptInMerge(a, b);
                 mgr.mergeBattles(world, dst, dst == a ? b : a, vtm);
             }
         }
+    }
+
+    /** The battle the player saw first keeps its marker and journal row; if neither is shown yet, the larger. */
+    private static BattleRecord keptInMerge(BattleRecord a, BattleRecord b) {
+        if (a.firstBlowTick >= 0 && b.firstBlowTick >= 0) return a.firstBlowTick <= b.firstBlowTick ? a : b;
+        if (a.firstBlowTick >= 0 || b.firstBlowTick >= 0) return a.firstBlowTick >= 0 ? a : b;
+        return a.participants.size() >= b.participants.size() ? a : b;
     }
 
     private static boolean shareGroup(List<Member> a, List<Member> b) {

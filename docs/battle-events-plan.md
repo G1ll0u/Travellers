@@ -1,4 +1,4 @@
-Status: steps 0-4 done; next: step 5
+Status: steps 0-5 done; open: battle pawns removed alive (probe `removed-alive` in the log), then wrap-up
 
 # Battle events: correct battles, one shared visual report
 
@@ -49,4 +49,4 @@ never produces fake battles; the player reads a battle at a glance (map marker a
    an absent pawn leaves the battle after a minute. Status: done.
 4. **Offline summary** — battle results queued for an offline owner collapse into one login toast (only when there are several). Status: done.
 5. **Balance-of-power tooltip** — shared by map marker and journal; replaces `BattleMarkerLabel` and the journal's
-   battle text. Status: todo.
+   battle text. Status: done (`battle/client/BattleTooltip`).

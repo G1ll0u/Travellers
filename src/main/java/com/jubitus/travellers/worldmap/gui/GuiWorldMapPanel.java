@@ -96,17 +96,20 @@ public class GuiWorldMapPanel {
         /** Force-balance bar under the marker: share of the left colour (0..1), or negative for no bar. */
         public final float balance;
         public final int balanceLeftRgb, balanceRightRgb;
+        /** A battle marker's drawn tooltip, in place of {@link #label}. */
+        @javax.annotation.Nullable public final com.jubitus.travellers.battle.client.BattleTooltip battle;
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label) {
             this(pos, argb, type, label, 0f);
         }
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg) {
-            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null, -1f, 0, 0);
+            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null, -1f, 0, 0, null);
         }
 
         private Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg, float drawX, float drawZ,
-                       java.util.UUID unitId, float balance, int balanceLeftRgb, int balanceRightRgb) {
+                       java.util.UUID unitId, float balance, int balanceLeftRgb, int balanceRightRgb,
+                       @javax.annotation.Nullable com.jubitus.travellers.battle.client.BattleTooltip battle) {
             this.pos = pos;
             this.argb = argb;
             this.type = type;
@@ -118,19 +121,24 @@ public class GuiWorldMapPanel {
             this.balance = balance;
             this.balanceLeftRgb = balanceLeftRgb;
             this.balanceRightRgb = balanceRightRgb;
+            this.battle = battle;
         }
 
         /** The same marker drawn at another spot; {@link #pos} stays its identity. */
         public Marker at(float x, float z) {
-            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId, balance, balanceLeftRgb, balanceRightRgb);
+            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId, balance, balanceLeftRgb, balanceRightRgb, battle);
         }
 
         public Marker forUnit(java.util.UUID id) {
-            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id, balance, balanceLeftRgb, balanceRightRgb);
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id, balance, balanceLeftRgb, balanceRightRgb, battle);
         }
 
         public Marker withBalance(float share, int leftRgb, int rightRgb) {
-            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, share, leftRgb, rightRgb);
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, share, leftRgb, rightRgb, battle);
+        }
+
+        public Marker withBattle(com.jubitus.travellers.battle.client.BattleTooltip tooltip) {
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, balance, balanceLeftRgb, balanceRightRgb, tooltip);
         }
     }
 
@@ -262,18 +270,19 @@ public class GuiWorldMapPanel {
 
     // ── Tooltip ──────────────────────────────────────────────────────────────
 
-    /** Returns the label of the marker drawn on top under the mouse, or null. */
-    public String getTooltipAt(int mouseX, int mouseY, int mapX, int mapY) {
+    /** The marker drawn on top under the mouse that has a tooltip, or null. */
+    @javax.annotation.Nullable
+    public Marker tooltipMarkerAt(int mouseX, int mouseY, int mapX, int mapY) {
         if (!isMappedDimension()) return null;
         Marker.MarkerType[] types = Marker.MarkerType.values();
         for (int t = types.length - 1; t >= 0; t--) {
             for (int i = markers.size() - 1; i >= 0; i--) {
                 Marker m = markers.get(i);
-                if (m.type != types[t] || m.label == null || m.label.isEmpty()) continue;
+                if (m.type != types[t] || m.battle == null && (m.label == null || m.label.isEmpty())) continue;
                 float dx = mouseX - worldToScreenX(m.drawX, mapX);
                 float dy = mouseY - worldToScreenY(m.drawZ, mapY);
                 float r = hitRadiusPx(m.type.size);
-                if (dx * dx + dy * dy <= r * r) return m.label;
+                if (dx * dx + dy * dy <= r * r) return m;
             }
         }
         return null;

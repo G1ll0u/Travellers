@@ -385,9 +385,6 @@ travellers.gui.history.time.just_now=à l'instant
 travellers.gui.history.time.minutes_ago=il y a %sm
 travellers.gui.history.time.hours_ago=il y a %sh
 travellers.gui.history.time.days_ago=il y a %sd
-travellers.gui.history.battle_tooltip.casualty_died=%s est mort
-travellers.gui.history.battle_tooltip.casualty_hurt=%s a survécu (%s PV restants)
-travellers.gui.history.battle_tooltip.attackers=Attaquants :
 
 travellers.dialogue.worker_farewell=J'ai fait ce que j'avais à faire. Laissez-moi me reposer un peu.
 

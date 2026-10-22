@@ -332,7 +332,8 @@ public class GuiWorkerFormationHub extends GuiScreen
         if (TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled) {
             JournalEntry hovered = journal.entryAt(mouseX, mouseY);
             if (hovered != null && hovered.battleSummary != null) {
-                drawHoveringText(FormationHubJournal.battleTooltip(hovered.battleSummary), mouseX, mouseY);
+                com.jubitus.travellers.battle.client.BattleTooltip.forJournal(hovered.battleSummary)
+                        .draw(fontRenderer, mouseX, mouseY, width, height);
             }
         }
         tooltips.render(mouseX, mouseY, width, height);

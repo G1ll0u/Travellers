@@ -15,22 +15,25 @@ import java.util.List;
 /** One entry per battle the viewer can see, running or just ended, seen from the viewer's side; the client writes the text. */
 public class MsgMapBattleUpdate implements IMessage {
 
-    /** Who fights on a side, as {@link Side#kinds} bits. */
-    public static final int KIND_YOURS = 1, KIND_HIRED = 2, KIND_TRAVELLERS = 4, KIND_RAIDERS = 8;
-
     public enum Result { RUNNING, FIRST_WON, SECOND_WON, NO_WINNER }
 
     public static class Side {
         public int standing;
         public int fallen;
-        public int kinds;
+        /** Headcounts by kind, fallen included; {@link #hired} is other owners' henchmen, the viewer's own are {@code yours*}. */
+        public int raiders, travellers, hired;
+        /** Mark colour (RGB) of the other owner with the most henchmen here; 0 when there are none. */
+        public int hiredColor;
         /** The viewer's own henchmen (and the viewer) among these, when this is the viewer's side. */
         public int yoursStanding, yoursFallen;
 
         void write(ByteBuf buf) {
             buf.writeInt(standing);
             buf.writeInt(fallen);
-            buf.writeByte(kinds);
+            buf.writeInt(raiders);
+            buf.writeInt(travellers);
+            buf.writeInt(hired);
+            buf.writeInt(hiredColor);
             buf.writeInt(yoursStanding);
             buf.writeInt(yoursFallen);
         }
@@ -39,7 +42,10 @@ public class MsgMapBattleUpdate implements IMessage {
             Side s = new Side();
             s.standing = buf.readInt();
             s.fallen = buf.readInt();
-            s.kinds = buf.readByte();
+            s.raiders = buf.readInt();
+            s.travellers = buf.readInt();
+            s.hired = buf.readInt();
+            s.hiredColor = buf.readInt();
             s.yoursStanding = buf.readInt();
             s.yoursFallen = buf.readInt();
             return s;
@@ -47,6 +53,7 @@ public class MsgMapBattleUpdate implements IMessage {
     }
 
     public static class Entry {
+        public java.util.UUID id;
         public int dim;
         public BlockPos pos;
         public boolean campAssault;
@@ -78,6 +85,7 @@ public class MsgMapBattleUpdate implements IMessage {
         Result[] results = Result.values();
         for (int i = 0; i < n; i++) {
             Entry e = new Entry();
+            e.id = new java.util.UUID(buf.readLong(), buf.readLong());
             e.dim = buf.readInt();
             e.pos = new BlockPos(buf.readInt(), buf.readInt(), buf.readInt());
             e.campAssault = buf.readBoolean();
@@ -96,6 +104,8 @@ public class MsgMapBattleUpdate implements IMessage {
         buf.writeInt(entries != null ? entries.size() : 0);
         if (entries == null) return;
         for (Entry e : entries) {
+            buf.writeLong(e.id.getMostSignificantBits());
+            buf.writeLong(e.id.getLeastSignificantBits());
             buf.writeInt(e.dim);
             buf.writeInt(e.pos.getX());
             buf.writeInt(e.pos.getY());

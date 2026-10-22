@@ -120,10 +120,10 @@ public class BattleMapStream {
             VirtualBattleManager mgr = VirtualBattleManager.get(ws);
             // A battle is shown from its first blow: groups merely closing in, or passing by, show nothing.
             for (BattleRecord b : mgr.getBattlesView()) {
-                if (b.firstBlowTick >= 0) out.add(new Tally(b, now));
+                if (b.firstBlowTick >= 0) out.add(new Tally(b, ws, now));
             }
             for (BattleRecord b : mgr.getRecentlyEnded(now)) {
-                if (b.firstBlowTick >= 0) out.add(new Tally(b, now));
+                if (b.firstBlowTick >= 0) out.add(new Tally(b, ws, now));
             }
         }
         return out;
@@ -136,9 +136,13 @@ public class BattleMapStream {
         final int seconds;
         /** Per faction: {standing, fallen}. */
         final Map<String, int[]> perFaction = new HashMap<>();
+        /** Mark colour per owner faction key, looked up once per publish. */
+        final Map<String, Integer> ownerColours = new HashMap<>();
+        final WorldServer world;
 
-        Tally(BattleRecord b, long now) {
+        Tally(BattleRecord b, WorldServer world, long now) {
             battle = b;
+            this.world = world;
             running = b.endTick < 0;
             seconds = (int) (Math.max(0, now - (running ? b.firstBlowTick : b.endTick)) / 20);
             for (BattleParticipant p : b.participants.values()) {
@@ -150,19 +154,33 @@ public class BattleMapStream {
             String viewKey = BattleParticipant.OWNER_KEY_PREFIX + viewer;
             Map<String, Integer> camps = battle.camps(viewKey);
             MsgMapBattleUpdate.Entry e = new MsgMapBattleUpdate.Entry();
+            e.id = battle.id;
             e.dim = battle.dimension;
             e.pos = battle.anchor;
             e.campAssault = battle.campAnchorId != null;
             e.involved = perFaction.containsKey(viewKey);
+            int firstTopHired = 0, secondTopHired = 0;
             for (Map.Entry<String, int[]> f : perFaction.entrySet()) {
                 MsgMapBattleUpdate.Side s = camps.get(f.getKey()) == 0 ? e.first : e.second;
                 int[] c = f.getValue();
                 s.standing += c[0];
                 s.fallen += c[1];
-                s.kinds |= kindOf(f.getKey(), viewKey);
+                int total = c[0] + c[1];
                 if (f.getKey().equals(viewKey)) {
                     s.yoursStanding = c[0];
                     s.yoursFallen = c[1];
+                } else if (BattleRecord.RAIDER.equals(f.getKey())) {
+                    s.raiders += total;
+                } else if (f.getKey().startsWith(BattleParticipant.OWNER_KEY_PREFIX)) {
+                    // The camp's henchmen wear the colour of the owner who brought the most.
+                    if (total > (s == e.first ? firstTopHired : secondTopHired)) {
+                        if (s == e.first) firstTopHired = total;
+                        else secondTopHired = total;
+                        s.hiredColor = ownerColour(f.getKey());
+                    }
+                    s.hired += total;
+                } else {
+                    s.travellers += total;
                 }
             }
             e.result = running ? MsgMapBattleUpdate.Result.RUNNING
@@ -173,11 +191,15 @@ public class BattleMapStream {
             return e;
         }
 
-        private static int kindOf(String faction, String viewKey) {
-            if (BattleRecord.RAIDER.equals(faction)) return MsgMapBattleUpdate.KIND_RAIDERS;
-            if (faction.equals(viewKey)) return MsgMapBattleUpdate.KIND_YOURS;
-            if (faction.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) return MsgMapBattleUpdate.KIND_HIRED;
-            return MsgMapBattleUpdate.KIND_TRAVELLERS;
+        private int ownerColour(String ownerKey) {
+            return ownerColours.computeIfAbsent(ownerKey, k -> {
+                try {
+                    UUID owner = UUID.fromString(k.substring(BattleParticipant.OWNER_KEY_PREFIX.length()));
+                    return com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData.get(world).getFor(owner).color;
+                } catch (IllegalArgumentException ex) {
+                    return 0;
+                }
+            });
         }
     }
 }

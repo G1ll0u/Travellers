@@ -2,11 +2,8 @@ package com.jubitus.travellers.follow.gui;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
-import com.jubitus.travellers.notify.BattleSummary;
 import com.jubitus.travellers.notify.JournalEntry;
-import com.jubitus.travellers.notify.WorkerLifecycleNotifications;
 import com.jubitus.travellers.notify.client.ClientJournalCache;
-import com.jubitus.travellers.notify.client.LocationFormat;
 import com.jubitus.travellers.notify.client.NoticeText;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -143,75 +140,6 @@ final class FormationHubJournal {
             rowTop += rowH;
         }
         return null;
-    }
-
-    /** Headcounts, not names: a big battle reads in a few lines. Old rows (no headcounts) keep their foe names, capped. */
-    static List<String> battleTooltip(BattleSummary bs) {
-        List<String> lines = new ArrayList<>();
-        BattleSummary.Counts c = bs.counts;
-        if (c != null) lines.add(battleTitle(bs, c));
-        String location = LocationFormat.describe(bs.location, bs.dimension);
-        if (location != null) lines.add(location);
-        if (c != null) {
-            lines.add(tip("your_side", c.ownStanding, c.ownFallen));
-            String allies = kinds(c.allyRaiders, c.allyTravellers, c.allyHenchmen);
-            if (allies != null) lines.add(tip("allies", allies));
-            lines.add(tip("enemies", foeKinds(c), c.foeStanding, c.foeFallen));
-        }
-
-        List<String> dead = new ArrayList<>();
-        int tomorrow = 0, later = 0, noBed = 0, never = 0;
-        for (BattleSummary.CasualtyEntry k : bs.ownWorkerCasualties) {
-            if (!k.died) continue;
-            dead.add(k.name);
-            if (k.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_BED) noBed++;
-            else if (k.respawnOutlook == WorkerLifecycleNotifications.OUTLOOK_NO_RESPAWN) never++;
-            else if (k.respawnOutlook <= 1) tomorrow++;
-            else later++;
-        }
-        if (!dead.isEmpty()) {
-            String shown = String.join(", ", dead.subList(0, Math.min(NAMES_SHOWN, dead.size())));
-            lines.add(dead.size() > NAMES_SHOWN ? tip("losses_more", shown, dead.size() - NAMES_SHOWN) : tip("losses", shown));
-            List<String> outlook = new ArrayList<>();
-            if (tomorrow > 0) outlook.add(tip("outlook.tomorrow", tomorrow));
-            if (later > 0) outlook.add(tip("outlook.later", later));
-            if (noBed > 0) outlook.add(tip("outlook.no_bed", noBed));
-            if (never > 0) outlook.add(tip("outlook.never", never));
-            lines.add("  " + String.join(", ", outlook));
-        }
-
-        if (!bs.legacyAttackers.isEmpty()) {
-            int n = bs.legacyAttackers.size();
-            String shown = String.join(", ", bs.legacyAttackers.subList(0, Math.min(NAMES_SHOWN, n)));
-            lines.add(n > NAMES_SHOWN ? tip("attackers_more", shown, n - NAMES_SHOWN) : tip("attackers", shown));
-        }
-        return lines;
-    }
-
-    private static final int NAMES_SHOWN = 3;
-
-    private static String battleTitle(BattleSummary bs, BattleSummary.Counts c) {
-        String time = (c.seconds / 60) + ":" + String.format("%02d", c.seconds % 60);
-        return tip("title." + bs.state.name().toLowerCase(java.util.Locale.ROOT), foeKinds(c), time);
-    }
-
-    private static String foeKinds(BattleSummary.Counts c) {
-        String foes = kinds(c.foeRaiders, c.foeTravellers, c.foeHenchmen);
-        return foes != null ? foes : "?";
-    }
-
-    /** "80 raiders, 5 travellers", or null when all are zero. */
-    @Nullable
-    private static String kinds(int raiders, int travellers, int henchmen) {
-        List<String> parts = new ArrayList<>();
-        if (raiders > 0) parts.add(tip("kind.raiders", raiders));
-        if (travellers > 0) parts.add(tip("kind.travellers", travellers));
-        if (henchmen > 0) parts.add(tip("kind.henchmen", henchmen));
-        return parts.isEmpty() ? null : String.join(", ", parts);
-    }
-
-    private static String tip(String key, Object... args) {
-        return I18n.format("travellers.gui.history.battle_tooltip." + key, args);
     }
 
     /** Entry text split on '\n' (only the first line carries the time-ago prefix). */

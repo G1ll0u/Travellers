@@ -28,10 +28,14 @@ public final class BattleSummary {
         public final int seconds;
         /** Others fighting on the owner's side, by kind, fallen included. */
         public final int allyRaiders, allyTravellers, allyHenchmen;
+        public final int allyStanding, allyFallen;
+        /** Mark colour (RGB) of the other owner with the most henchmen on each camp; 0 when none. */
+        public final int allyHenchmenColor, foeHenchmenColor;
 
         public Counts(int ownStanding, int ownFallen, int foeStanding, int foeFallen,
                       int foeRaiders, int foeTravellers, int foeHenchmen, int seconds,
-                      int allyRaiders, int allyTravellers, int allyHenchmen) {
+                      int allyRaiders, int allyTravellers, int allyHenchmen, int allyStanding, int allyFallen,
+                      int allyHenchmenColor, int foeHenchmenColor) {
             this.ownStanding = ownStanding;
             this.ownFallen = ownFallen;
             this.foeStanding = foeStanding;
@@ -43,11 +47,16 @@ public final class BattleSummary {
             this.allyRaiders = allyRaiders;
             this.allyTravellers = allyTravellers;
             this.allyHenchmen = allyHenchmen;
+            this.allyStanding = allyStanding;
+            this.allyFallen = allyFallen;
+            this.allyHenchmenColor = allyHenchmenColor;
+            this.foeHenchmenColor = foeHenchmenColor;
         }
 
         void write(NBTTagCompound tag) {
             tag.setIntArray("Counts", new int[]{ownStanding, ownFallen, foeStanding, foeFallen,
-                    foeRaiders, foeTravellers, foeHenchmen, seconds, allyRaiders, allyTravellers, allyHenchmen});
+                    foeRaiders, foeTravellers, foeHenchmen, seconds, allyRaiders, allyTravellers, allyHenchmen,
+                    allyStanding, allyFallen, allyHenchmenColor, foeHenchmenColor});
         }
 
         @Nullable
@@ -55,7 +64,8 @@ public final class BattleSummary {
             int[] c = tag.getIntArray("Counts");
             if (c.length < 8) return null;
             return new Counts(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7],
-                    c.length > 8 ? c[8] : 0, c.length > 9 ? c[9] : 0, c.length > 10 ? c[10] : 0);
+                    c.length > 8 ? c[8] : 0, c.length > 9 ? c[9] : 0, c.length > 10 ? c[10] : 0,
+                    c.length > 11 ? c[11] : 0, c.length > 12 ? c[12] : 0, c.length > 13 ? c[13] : 0, c.length > 14 ? c[14] : 0);
         }
     }
 

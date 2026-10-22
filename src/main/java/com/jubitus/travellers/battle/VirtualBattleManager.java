@@ -44,6 +44,7 @@ import net.minecraft.world.storage.WorldSavedData;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -89,7 +90,7 @@ public class VirtualBattleManager extends WorldSavedData {
     private static final int APPROACH_END_TICKS = 1200;
     /** A fight starting this soon after a battle ended at the same place continues that battle. */
     private static final int REOPEN_TICKS = 1200;
-    /** The shown position follows the blows only once they drift this far from it. */
+    /** The shown position follows the blows only once they drift this far from it (or the zone radius, when larger). */
     private static final double ANCHOR_DRIFT = 48.0;
     /** A pawn in no world for this long leaves its battle (not fallen), so the battle can end without it. */
     private static final int ABSENT_RELEASE_TICKS = 1200;
@@ -262,6 +263,21 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
         markDirty();
+    }
+
+    /** Probe: a fighting pawn removed from the world alive and not handed to a record; logs who removed it. */
+    public void onParticipantRemoved(WorldServer world, EntityTraveller entity) {
+        if (entity.getHealth() <= 0f || entity.isDead) return;
+        BattleRecord b = battleOf(entity.getUniqueID());
+        if (b == null || VirtualTravellerManager.get(world).getRecord(entity.getUniqueID()) != null) return;
+        StringBuilder by = new StringBuilder();
+        StackTraceElement[] st = new Throwable().getStackTrace();
+        for (int i = 2; i < Math.min(st.length, 9); i++) {
+            by.append(i > 2 ? " < " : "").append(st[i].getClassName().replaceAll(".*\\.", "")).append('.')
+                    .append(st[i].getMethodName()).append(':').append(st[i].getLineNumber());
+        }
+        BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "removed-alive "
+                + entity.getUniqueID().toString().substring(0, 8) + " by " + by);
     }
 
     // -------------------------------------------------------------------------
@@ -490,7 +506,7 @@ public class VirtualBattleManager extends WorldSavedData {
             BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "notify-start owner="
                     + owner.toString().substring(0, 8) + online(world, owner));
             BattleNotifications.started(world.getMinecraftServer(), owner, b.id, battlePlace(b),
-                    countsFor(b, owner, world.getTotalWorldTime()));
+                    countsFor(world, b, owner, world.getTotalWorldTime()));
         }
     }
 
@@ -516,20 +532,27 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /** Headcounts of the battle seen from this owner's side, for the journal row. */
-    private static BattleSummary.Counts countsFor(BattleRecord b, UUID owner, long now) {
+    private static BattleSummary.Counts countsFor(WorldServer world, BattleRecord b, UUID owner, long now) {
         String ownKey = BattleParticipant.OWNER_KEY_PREFIX + owner;
         Map<String, Integer> camps = b.camps(ownKey);
-        int ownStanding = 0, ownFallen = 0, foeStanding = 0, foeFallen = 0;
+        int ownStanding = 0, ownFallen = 0, foeStanding = 0, foeFallen = 0, allyStanding = 0, allyFallen = 0;
         int[] foes = new int[3], allies = new int[3]; // raiders, travellers, henchmen
+        // Other owners' henchmen per camp, to colour each camp after the owner who brought the most.
+        List<Map<String, Integer>> otherOwners = Arrays.asList(new HashMap<>(), new HashMap<>());
         for (BattleParticipant p : b.participants.values()) {
             if (p.groupKey.equals(ownKey)) {
                 if (p.alive) ownStanding++;
                 else ownFallen++;
                 continue;
             }
-            int kind = "RAIDER".equals(p.groupKey) ? 0 : p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX) ? 2 : 1;
-            if (camps.get(p.groupKey) == 0) {
+            boolean hired = p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX);
+            int kind = BattleRecord.RAIDER.equals(p.groupKey) ? 0 : hired ? 2 : 1;
+            int camp = camps.get(p.groupKey);
+            if (hired) otherOwners.get(camp).merge(p.groupKey, 1, Integer::sum);
+            if (camp == 0) {
                 allies[kind]++;
+                if (p.alive) allyStanding++;
+                else allyFallen++;
             } else {
                 foes[kind]++;
                 if (p.alive) foeStanding++;
@@ -538,7 +561,19 @@ public class VirtualBattleManager extends WorldSavedData {
         }
         int seconds = b.firstBlowTick < 0 ? 0 : (int) (Math.max(0, now - b.firstBlowTick) / 20);
         return new BattleSummary.Counts(ownStanding, ownFallen, foeStanding, foeFallen,
-                foes[0], foes[1], foes[2], seconds, allies[0], allies[1], allies[2]);
+                foes[0], foes[1], foes[2], seconds, allies[0], allies[1], allies[2], allyStanding, allyFallen,
+                topOwnerColour(world, otherOwners.get(0)), topOwnerColour(world, otherOwners.get(1)));
+    }
+
+    /** Mark colour of the owner with the most henchmen among {@code counts} (owner key to headcount), 0 when empty. */
+    private static int topOwnerColour(WorldServer world, Map<String, Integer> counts) {
+        String top = null;
+        for (Map.Entry<String, Integer> e : counts.entrySet()) {
+            if (top == null || e.getValue() > counts.get(top)) top = e.getKey();
+        }
+        if (top == null) return 0;
+        UUID owner = UUID.fromString(top.substring(BattleParticipant.OWNER_KEY_PREFIX.length()));
+        return com.jubitus.travellers.marker.WorkerOwnerVisualsSavedData.get(world).getFor(owner).color;
     }
 
     private static NoticePlace battlePlace(BattleRecord b) {
@@ -566,7 +601,7 @@ public class VirtualBattleManager extends WorldSavedData {
             Long last = b.lastFallenBeat.get(e.getKey());
             if (!force && last != null && now - last < FALLEN_BEAT_TICKS) continue;
             BattleNotifications.workersFell(world.getMinecraftServer(), e.getKey(), b.id, battlePlace(b), e.getValue(),
-                    countsFor(b, e.getKey(), now));
+                    countsFor(world, b, e.getKey(), now));
             b.lastFallenBeat.put(e.getKey(), now);
             it.remove();
         }
@@ -591,7 +626,7 @@ public class VirtualBattleManager extends WorldSavedData {
             BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "notify-end owner="
                     + owner.toString().substring(0, 8) + online(world, owner) + " outcome=" + outcome + " fallen=" + fallen);
             BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen,
-                    countsFor(b, owner, world.getTotalWorldTime()));
+                    countsFor(world, b, owner, world.getTotalWorldTime()));
         }
     }
 
@@ -878,7 +913,9 @@ public class VirtualBattleManager extends WorldSavedData {
         } else {
             double dx = b.blowX - (b.anchor.getX() + 0.5);
             double dz = b.blowZ - (b.anchor.getZ() + 0.5);
-            if (dx * dx + dz * dz > ANCHOR_DRIFT * ANCHOR_DRIFT) {
+            // A big battle's blows wander inside its zone: the marker moves only once they leave it.
+            double drift = Math.max(ANCHOR_DRIFT, b.zoneRadius);
+            if (dx * dx + dz * dz > drift * drift) {
                 b.anchor = new BlockPos(Math.floor(b.blowX), b.center.getY(), Math.floor(b.blowZ));
             }
         }

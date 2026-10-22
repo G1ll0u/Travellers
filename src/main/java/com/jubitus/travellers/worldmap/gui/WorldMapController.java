@@ -178,17 +178,15 @@ public class WorldMapController {
         sendView();
     }
 
-    /** Returns the marker label under the mouse, or null. */
-    public String getTooltip(int mouseX, int mouseY) {
-        if (!isMouseOver(mouseX, mouseY)) return null;
-        return panel.getTooltipAt(mouseX, mouseY, mapX, mapY);
-    }
-
-    /** Draws the hovered marker's label (one line per '\n') as a tooltip. */
+    /** Draws the hovered marker's tooltip: a battle's own drawing, else its label (one line per '\n'). */
     public void drawTooltip(GuiScreen screen, int mouseX, int mouseY) {
-        String label = getTooltip(mouseX, mouseY);
-        if (label != null && !label.isEmpty()) {
-            screen.drawHoveringText(Arrays.asList(label.split("\n")), mouseX, mouseY);
+        GuiWorldMapPanel.Marker m = isMouseOver(mouseX, mouseY) ? panel.tooltipMarkerAt(mouseX, mouseY, mapX, mapY) : null;
+        if (m == null) return;
+        if (m.battle != null) {
+            BattleMarkerHold.hovered(m.battle.id, m.pos);
+            m.battle.draw(Minecraft.getMinecraft().fontRenderer, mouseX, mouseY, screen.width, screen.height);
+        } else {
+            screen.drawHoveringText(Arrays.asList(m.label.split("\n")), mouseX, mouseY);
         }
     }
 

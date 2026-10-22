@@ -1,4 +1,4 @@
-Status: phase 1 in progress — steps 1-6b done (awaiting an in-game check), next: step 7
+Status: phase 1 steps 1-7 done; awaiting the user's in-game check before wrap-up (step 8)
 
 # Combat awareness: reassessment, escorts, calmer help calls
 
@@ -78,8 +78,8 @@ minimal server cost.
 6b. **Lighter mounted chase** — `done`. Mounted fighters chase by `DirectSteering` like pedestrians (each leg proven
    against the horse's corridor, curved approach kept); A* only after being blocked. Also: `RaiderRetaliationInjector`
    no longer gives our own units a vanilla raider-target task (it bypassed budget, lock and leash and dropped targets).
-7. **Virtual battles** — `todo`. No positions there: keep the shared lock and cap, check nothing diverges visibly when
-   a battle materializes.
+7. **Virtual battles** — `done, no change`. They keep the shared lock duration then move to a strictly nearer / less
+   contested foe; "contact" has no meaning without real positions, and a materialized unit re-picks the nearest foe.
 8. **Wrap-up** — `todo`. Update `combat/CLAUDE.md` (switch rules, escort leash), archive this plan.
 
 ## Phase 2 (later, own plan): front line

@@ -2065,6 +2065,8 @@ public void fall(float distance, float damageMultiplier) {
     @Override
     public void setDead() {
         if (!this.world.isRemote) {
+            com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
+                    .onParticipantRemoved((net.minecraft.world.WorldServer) world, this);
             TravellerDoorways.releaseAll(this.world, this.getEntityId());
             // If we're in a boat, despawn the boat with us
             if (this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {

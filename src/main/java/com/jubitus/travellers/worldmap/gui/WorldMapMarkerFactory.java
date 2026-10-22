@@ -163,9 +163,9 @@ public final class WorldMapMarkerFactory {
     }
 
     /** Loaded = fully opaque, virtual = translucent so the two are visually distinguishable. */
-    private static final int COLOR_POP_TRAVELLER = 0x55CC66;
-    private static final int COLOR_POP_RAIDER    = 0xCC4444;
-    private static final int COLOR_POP_WORKER    = 0x4488CC;
+    public static final int COLOR_POP_TRAVELLER = 0x55CC66;
+    public static final int COLOR_POP_RAIDER    = 0xCC4444;
+    public static final int COLOR_POP_WORKER    = 0x4488CC;
     private static final int VIRTUAL_ALPHA = 0xAA000000;
     private static final int LOADED_ALPHA  = 0xFF000000;
 
@@ -253,12 +253,14 @@ public final class WorldMapMarkerFactory {
         boolean running = e.result == com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate.Result.RUNNING;
         int argb = !running ? COLOR_BATTLE_ENDED : e.involved ? COLOR_BATTLE_MINE : COLOR_BATTLE_OTHERS;
         int fighters = e.first.standing + e.first.fallen + e.second.standing + e.second.fallen;
-        GuiWorldMapPanel.Marker m = new GuiWorldMapPanel.Marker(e.pos, argb,
+        GuiWorldMapPanel.Marker m = new GuiWorldMapPanel.Marker(BattleMarkerHold.positionOf(e.id, e.pos), argb,
                 fighters <= SKIRMISH_MAX_FIGHTERS ? GuiWorldMapPanel.Marker.MarkerType.BATTLE_SKIRMISH
-                        : GuiWorldMapPanel.Marker.MarkerType.BATTLE, BattleMarkerLabel.describe(e));
+                        : GuiWorldMapPanel.Marker.MarkerType.BATTLE, null)
+                .withBattle(com.jubitus.travellers.battle.client.BattleTooltip.forMap(e));
         if (!running) return m;
-        return e.involved ? m.withBalance(BattleMarkerLabel.firstShare(e), 0x55CC55, 0xDD3333)
-                : m.withBalance(BattleMarkerLabel.firstShare(e), 0xE0E0E0, 0x707070);
+        int total = e.first.standing + e.second.standing;
+        float share = total <= 0 ? 0.5f : e.first.standing / (float) total;
+        return e.involved ? m.withBalance(share, 0x55CC55, 0xDD3333) : m.withBalance(share, 0xE0E0E0, 0x707070);
     }
 
     private static int argb(int rgb) { return 0xFF000000 | (rgb & 0xFFFFFF); }
