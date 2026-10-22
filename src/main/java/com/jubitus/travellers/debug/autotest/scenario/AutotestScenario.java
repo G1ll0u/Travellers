@@ -77,6 +77,11 @@ public abstract class AutotestScenario {
             virtual.removeRecord(ws, id);
         }
         spawned.clear();
+        restoreWorld(ws);
+    }
+
+    /** Puts back any blocks the scenario changed. */
+    protected void restoreWorld(WorldServer ws) {
     }
 
     /** A worker hired by the test account at {@code pos}, traced; null when the spawn is refused. */

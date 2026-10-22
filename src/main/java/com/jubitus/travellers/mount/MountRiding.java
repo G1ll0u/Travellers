@@ -220,62 +220,60 @@ final class MountRiding {
     }
 
     /**
-     * Jumps a hole or stream the planner routed across ({@code TravellerNodeProcessor.addMountGapCandidates}):
-     * fires once the column under the horse's leading edge has no dry ground and the steering target
-     * lies beyond dry ground within {@code MOUNTS.mountedMaxGapWidth}. Cardinal only, like the planner,
-     * so the scanned line is the flown line. The impulse is sized from vanilla's airborne physics
-     * (gravity, 0.91 horizontal drag) to land the whole body on the far rim.
+     * Jumps a hole or stream, the pedestrian rule on horseback: when the ground ahead drops more than a
+     * step and dry ground resumes near takeoff height within {@code MOUNTS.mountedMaxGapWidth}, the
+     * horse jumps across instead of riding down into it. Fires along the line to the steering target,
+     * whatever its angle - planned ({@code TravellerNodeProcessor.addMountGapCandidates}) or a straight
+     * ride the corridor approved. The impulse is sized from vanilla's airborne physics (gravity, 0.91
+     * horizontal drag) to land the whole body on the far rim.
      */
     static void tickMountedGapJump(EntityTraveller rider, EntityHorse horse) {
         int maxGap = TravellersConfig.MOUNTS.mountedMaxGapWidth;
         if (!TravellersConfig.MOUNTS.mountedJumpEnabled || maxGap <= 0) return;
         if (!horse.onGround || horse.isHorseJumping() || horse.isInWater()) return;
-        if (rider.moveForward <= 0.02F || !rider.getMoveHelper().isUpdating()) return;
+        // Not isUpdating(): this runs before the rider's AI, after the move helper has already reset to WAIT.
+        if (rider.moveForward <= 0.02F) return;
 
         double toX = rider.getMoveHelper().getX() - horse.posX;
         double toZ = rider.getMoveHelper().getZ() - horse.posZ;
-        boolean alongX = Math.abs(toX) >= Math.abs(toZ);
-        double toAlong = alongX ? toX : toZ;
-        if (Math.abs(alongX ? toZ : toX) > GAP_TARGET_MAX_SIDE_OFFSET) return;
-        int sg = toAlong > 0 ? 1 : -1;
-        double along = alongX ? horse.posX : horse.posZ;
-        double side = alongX ? horse.posZ : horse.posX;
+        double toTarget = Math.sqrt(toX * toX + toZ * toZ);
         double half = horse.width / 2.0D;
-        // A planned jump steers at a node beyond the gap; ordinary walking steers one cell ahead.
-        if (Math.abs(toAlong) < half + 1.5D) return;
+        // A jump steers at a point beyond the gap; ordinary walking steers one cell ahead.
+        if (toTarget < half + 1.5D) return;
+        double dirX = toX / toTarget;
+        double dirZ = toZ / toTarget;
         double feet = horse.getEntityBoundingBox().minY;
 
         // One column read per tick on ordinary ground: the one under the middle of the chest.
-        int first = MathHelper.floor(along + sg * (half + 0.3D));
-        double fx = alongX ? first + 0.5D : side;
-        double fz = alongX ? side : first + 0.5D;
+        double reach = half + 0.3D;
         if (!Double.isNaN(com.jubitus.travellers.pathing.MountTerrainProfile.groundYNear(
-                horse.world, fx, fz, feet, horse.stepHeight, 1.0D, 2))) {
+                horse.world, horse.posX + dirX * reach, horse.posZ + dirZ * reach, feet, horse.stepHeight, 1.0D, 2))) {
+            return;
+        }
+        // Launching while still turning would throw the horse sideways off the lip.
+        float yaw = (float) (MathHelper.atan2(dirZ, dirX) * (180.0D / Math.PI)) - 90.0F;
+        if (Math.abs(MathHelper.wrapDegrees(yaw - horse.rotationYaw)) > GAP_JUMP_MAX_YAW_ERROR) {
+            traceJumpRejection(rider, "gap ahead but the horse is not facing it yet");
             return;
         }
 
-        for (int g = 1; g <= maxGap; g++) {
-            int col = first + sg * g;
-            double near = rimSurface(horse.world, alongX, col, side, half, feet, 1.0D);
+        for (double d = reach + GAP_SCAN_STEP; d <= reach + maxGap + 1.0E-6D; d += GAP_SCAN_STEP) {
+            double near = rimSurface(horse.world, horse.posX, horse.posZ, dirX, dirZ, d, half, feet);
             if (Double.isNaN(near)) continue;
-            double far = rimSurface(horse.world, alongX, col + sg, side, half, feet, 1.0D);
+            double far = rimSurface(horse.world, horse.posX, horse.posZ, dirX, dirZ, d + 1.0D, half, feet);
             if (Double.isNaN(far)) return;
             double landY = Math.max(near, far);
-            double landAlong = (sg > 0 ? col : col + 1) + sg * (half + 0.2D);
-            double distance = Math.abs(landAlong - along);
-            if (Math.abs(toAlong) < distance - half) return; // steering target is not across the gap
+            double distance = d + half + 0.2D;
+            if (toTarget < d - GAP_SCAN_STEP) return; // steering target short of the far rim
 
-            AxisAlignedBB box = horse.getEntityBoundingBox();
             double floor = Math.max(feet, landY) + 0.3D;
             double top = floor + com.jubitus.travellers.pathing.PathBody.clearanceHeight(rider);
-            double lo = Math.min(along, landAlong) - half;
-            double hi = Math.max(along, landAlong) + half;
-            AxisAlignedBB flight = alongX
-                    ? new AxisAlignedBB(lo, floor, box.minZ, hi, top, box.maxZ)
-                    : new AxisAlignedBB(box.minX, floor, lo, box.maxX, top, hi);
-            if (horse.world.collidesWithAnyBlock(flight)) {
-                traceJumpRejection(rider, "gap ahead but the flight path is blocked");
-                return;
+            for (double t = 0.0D; t <= distance + 1.0E-6D; t += GAP_SCAN_STEP) {
+                double cx = horse.posX + dirX * t, cz = horse.posZ + dirZ * t;
+                if (horse.world.collidesWithAnyBlock(new AxisAlignedBB(cx - half, floor, cz - half, cx + half, top, cz + half))) {
+                    traceJumpRejection(rider, "gap ahead but the flight path is blocked");
+                    return;
+                }
             }
 
             double strength = horse.getHorseJumpStrength();
@@ -292,33 +290,31 @@ final class MountRiding {
             }
 
             horse.motionY = vy;
-            horse.motionX = alongX ? sg * vh : 0.0D;
-            horse.motionZ = alongX ? 0.0D : sg * vh;
+            horse.motionX = dirX * vh;
+            horse.motionZ = dirZ * vh;
             horse.setHorseJumping(true);
             horse.isAirBorne = true;
-            float yaw = alongX ? (sg > 0 ? -90.0F : 90.0F) : (sg > 0 ? 0.0F : 180.0F);
             horse.rotationYaw = yaw;
             rider.rotationYaw = yaw;
             rider.mountState.setMountJumpYaw(yaw);
             com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
-                    String.format(java.util.Locale.ROOT, "gap jump width=%d dist=%.2f drop=%.2f vy=%.2f vh=%.2f",
-                            g, distance, drop, vy, vh));
+                    String.format(java.util.Locale.ROOT, "gap jump dist=%.2f drop=%.2f vy=%.2f vh=%.2f yaw=%.0f",
+                            distance, drop, vy, vh, yaw));
             return;
         }
     }
 
     /**
-     * The dry surface under one cross-section of the horse ({@code col} along the axis, its width
-     * across), or NaN when any part of it has nothing to stand on between one block below
-     * {@code feet} and {@code rise} above.
+     * The dry surface under the horse's cross-section {@code d} blocks along the heading, or NaN when
+     * any part of it has nothing to stand on between one block below and one block above {@code feet}.
      */
-    static double rimSurface(World world, boolean alongX, int col, double side, double half,
-                                     double feet, double rise) {
+    static double rimSurface(World world, double x, double z, double dirX, double dirZ, double d,
+                             double half, double feet) {
         double best = Double.NaN;
         for (double s = -half + 0.05D; s <= half - 0.05D + 1.0E-6D; s += half - 0.05D) {
-            double x = alongX ? col + 0.5D : side + s;
-            double z = alongX ? side + s : col + 0.5D;
-            double y = com.jubitus.travellers.pathing.MountTerrainProfile.groundYNear(world, x, z, feet, rise, 1.0D, 2);
+            double px = x + dirX * d - dirZ * s;
+            double pz = z + dirZ * d + dirX * s;
+            double y = com.jubitus.travellers.pathing.MountTerrainProfile.groundYNear(world, px, pz, feet, 1.0D, 1.0D, 2);
             if (Double.isNaN(y)) return Double.NaN;
             if (Double.isNaN(best) || y > best) best = y;
         }
@@ -341,8 +337,11 @@ final class MountRiding {
         return distance * (1.0D - 0.91D) / (1.0D - Math.pow(0.91D, ticks));
     }
 
-    /** How far beside the jump axis the steering target may sit. */
-    static final double GAP_TARGET_MAX_SIDE_OFFSET = 1.5D;
+    /** Sampling step along the jump line, for both the landing search and the flight sweep. */
+    static final double GAP_SCAN_STEP = 0.5D;
+
+    /** Widest angle between the horse's facing and the jump line it may launch along. */
+    static final float GAP_JUMP_MAX_YAW_ERROR = 30.0F;
 
     /** Arc height above the higher rim - enough to clear the far edge with the whole body. */
     static final double GAP_JUMP_APEX = 0.8D;
