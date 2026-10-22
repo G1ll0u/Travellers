@@ -18,6 +18,9 @@ import net.minecraft.util.math.Vec3d;
  */
 public class EntityAIStableGraze extends EntityAIBase {
 
+    /** Vanilla horses wander at this navigator speed. */
+    private static final double WANDER_SPEED = 0.7D;
+
     private final EntityHorse horse;
     private final BlockPos center;
     private final double halfWidth;
@@ -63,7 +66,7 @@ public class EntityAIStableGraze extends EntityAIBase {
 
     @Override
     public void startExecuting() {
-        horse.getNavigator().tryMoveToXYZ(targetX, targetY, targetZ, 1.0D);
+        horse.getNavigator().tryMoveToXYZ(targetX, targetY, targetZ, WANDER_SPEED);
     }
 
     private boolean isInsideBox(double x, double z) {

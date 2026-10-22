@@ -77,6 +77,10 @@ public class TravellerMoveHelper extends EntityMoveHelper {
         float enterAngle = (float) TravellersConfig.MOUNTS.mountedPivotInPlaceAngle;
         float releaseAngle = (float) TravellersConfig.MOUNTS.mountedPivotReleaseAngle;
         if (this.pivotingInPlace ? yawError > releaseAngle : yawError > enterAngle) {
+            if (!this.pivotingInPlace) {
+                com.jubitus.travellers.debug.trace.TravellerTracer.event(this.rider, "steer", String.format(
+                        java.util.Locale.ROOT, "pivot in place err=%.0f to=%.1f,%.1f", yawError, this.posX, this.posZ));
+            }
             this.pivotingInPlace = true;
             this.entity.setAIMoveSpeed(0.0F);
             return;

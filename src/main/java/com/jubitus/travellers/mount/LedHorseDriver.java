@@ -63,13 +63,14 @@ final class LedHorseDriver {
 
         double stop = TravellersConfig.MOUNTS.ledFollowStopDistance;
         double leadGap = TravellersConfig.MOUNTS.ledFollowLeadGapBlocks;
-        // A capped catch-up factor for closing a gap; a walk-pace floor so a lagging horse still
+        // A capped catch-up factor for closing a gap; a travel-pace floor so a lagging horse still
         // makes ground even when the rider itself has slowed to a crawl.
         double pace = Math.max(MountRiding.MIN_MOUNTED_SPEED, smoothed / attrVal);
         if (dist > stop + leadGap) {
             double over = dist - (stop + leadGap);
-            pace = Math.max(pace, 1.0D)
-                    * Math.min(1.0D + over * 0.15D, TravellersConfig.MOUNTS.ledFollowCatchupMaxSpeedFactor);
+            double catchUp = Math.min(1.0D + over * 0.15D, TravellersConfig.MOUNTS.ledFollowCatchupMaxSpeedFactor);
+            // Ground speed grows with the square of the move speed: sqrt keeps catchUp a multiple of the pace.
+            pace = Math.max(pace, UnitSpeed.aiSpeed(UnitSpeed.travelPercent()) / attrVal) * Math.sqrt(catchUp);
         }
 
         // Deep water / no ground to tread: tow it straight (behind a swimming rider or a boat).

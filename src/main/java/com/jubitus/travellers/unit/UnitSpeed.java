@@ -1,7 +1,10 @@
 package com.jubitus.travellers.unit;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.MathHelper;
+
+import javax.annotation.Nullable;
 
 /**
  * The one authority on how fast a unit moves. Every speed is a percentage of a walking player
@@ -23,6 +26,8 @@ public final class UnitSpeed {
     public static final double STROLL_PERCENT = 70.0D;
     /** In-reach circling is slower than the chase. */
     public static final double FIGHT_RATIO = 0.84D;
+    /** How much a follower may outpace its leader to close a gap, whatever the leader's speed. */
+    private static final double LEADER_MARGIN = 1.1D;
 
     private static final double WALK_AI_SPEED = Math.sqrt(WALK_BPT * (1.0D - GROUND_DRAG));
 
@@ -66,21 +71,25 @@ public final class UnitSpeed {
         return Math.max(1.0D, TravellersConfig.SPEED.mountedPercent / Math.max(1.0D, travelPercent()));
     }
 
-    /** Fastest pace (percent) a follower or catching-up unit may reach. */
-    public static double followMaxPercent(boolean mounted) {
-        return mounted ? TravellersConfig.SPEED.mountedFollowMaxPercent : TravellersConfig.SPEED.followMaxPercent;
+    /** Fastest pace (percent) a follower or catching-up unit may reach: never below its leader's own pace. */
+    public static double followMaxPercent(boolean mounted, @Nullable Entity leader) {
+        double cap = mounted ? TravellersConfig.SPEED.mountedFollowMaxPercent : TravellersConfig.SPEED.followMaxPercent;
+        if (leader == null) return cap;
+        double dx = leader.posX - leader.prevPosX;
+        double dz = leader.posZ - leader.prevPosZ;
+        return Math.max(cap, percentOfBlocksPerTick(Math.sqrt(dx * dx + dz * dz)) * LEADER_MARGIN);
     }
 
     /** How much faster than travel pace a follower may go to close a gap. */
     public static double followCatchUpFactor(boolean mounted) {
-        return Math.max(1.0D, followMaxPercent(mounted) / Math.max(1.0D, travelPercent()));
+        return Math.max(1.0D, followMaxPercent(mounted, null) / Math.max(1.0D, travelPercent()));
     }
 
     /** Speed (percent) a unit never exceeds in its current situation, as it moves on the ground. */
     public static double ceilingPercent(EntityTraveller unit) {
         if (unit.getAttackTarget() != null) return attackPercent();
         if (unit.isRouteLocked() || (unit.isHiredFollower() && !unit.isJobActive())) {
-            return followMaxPercent(unit.isMountedOnBondedMount());
+            return followMaxPercent(unit.isMountedOnBondedMount(), unit.getEffectiveFollowTarget());
         }
         return unit.isMountedOnBondedMount() ? TravellersConfig.SPEED.mountedPercent : travelPercent();
     }

@@ -506,11 +506,11 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 20, max = 400)
         public double mountedPercent = 110;
 
-        @Config.Comment("Fastest pace a follower or a unit catching up may reach, in % of a walking player. Followers match their leader's pace and only use this margin to close a gap.")
+        @Config.Comment("Fastest pace a follower or a unit catching up uses to close a gap, in % of a walking player. Followers always keep up with a faster leader.")
         @Config.RangeDouble(min = 20, max = 300)
         public double followMaxPercent = 125;
 
-        @Config.Comment("Fastest pace a rider following or catching up may reach, in % of a walking player. Riders keep their leader's pace and only use this to close a gap, so it is what makes them catch up faster than walkers.")
+        @Config.Comment("Fastest pace a rider following or catching up uses to close a gap, in % of a walking player. Riders always keep up with a faster leader; this is what makes them catch up faster than walkers.")
         @Config.RangeDouble(min = 20, max = 400)
         public double mountedFollowMaxPercent = 150;
 

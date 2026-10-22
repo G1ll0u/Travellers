@@ -142,12 +142,16 @@ final class MountedFollowPacer {
     /** Whether the pacer is currently driving. The owner-follow task's own keep-running check is
      * "far away, or still has a path" - a pacing follower has neither (it steers pathless and rides
      * right at its slot), so the task must stay alive on this instead. */
+    /** Trace probe: the lane the last pacing tick steered along. */
+    private String lastLane = "";
+
     boolean isEngaged() {
         return engaged;
     }
 
     void reset() {
         engaged = false;
+        lastLane = "";
         leaderMovingTicks = 0;
         leaderStillTicks = 0;
         wedgedTicks = 0;
@@ -274,11 +278,13 @@ final class MountedFollowPacer {
         // more often on hills than the leader itself ever needs to.
         double legBlocks = TravellersConfig.MOUNTS.mountedDirectLegBlocks;
         boolean steered = nav.steerDirectLegCapped(aimX, aimZ, legBlocks, baseSpeed * factor);
+        String lane = "aim";
         if (!steered && distToLeader > LEAD_BLOCKS) {
             // The straight line to the slot can clip a trunk the leader simply walked past - in a
             // forest the one lane proven open is the leader's own. Fall in directly behind them
             // before giving up on the tick.
             steered = nav.steerDirectLegCapped(leaderX, leaderZ, legBlocks, baseSpeed * factor);
+            lane = "leader";
         }
         if (!steered && leaderEntity != null) {
             // Both the aim point and the leader's raw position refused - rolling terrain, not a
@@ -292,7 +298,13 @@ final class MountedFollowPacer {
                     : PlayerLeaderTrail.pointBehind(leaderEntity.getUniqueID(), distToLeader);
             if (trailPoint != null) {
                 steered = nav.steerDirectLegCapped(trailPoint.x, trailPoint.z, legBlocks, baseSpeed * factor);
+                lane = "trail";
             }
+        }
+        if (!steered) lane = "none";
+        if (!lane.equals(lastLane)) {
+            lastLane = lane;
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(follower, "follow", "pace lane " + lane);
         }
         if (!steered) {
             // Corridor refusals are terrain, and terrain doesn't change while standing still -

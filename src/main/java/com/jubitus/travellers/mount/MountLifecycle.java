@@ -21,8 +21,8 @@ final class MountLifecycle {
     private MountLifecycle() {
     }
 
-    /** A horse that must stop being a mount (a Stable pool horse): its loaded rider lets go of it and
-     * every mount marker is removed. */
+    /** A horse that must stop being a mount (a Stable pool horse): its loaded rider lets go of it,
+     * every mount marker is removed and its speed is back to an ordinary horse's. */
     static void dropBondFromHorse(EntityHorse horse) {
         UUID owner = HorseMarkers.getBondedOwner(horse);
         if (owner != null && horse.world instanceof WorldServer) {
@@ -36,6 +36,7 @@ final class MountLifecycle {
             }
         }
         HorseMarkers.clearMountMarkers(horse.getEntityData());
+        horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(DEFAULT_HORSE_SPEED);
     }
 
     /** A rider hands its live bonded horse over alive (a Stable return): dismounted, bond cleared on both
@@ -52,7 +53,6 @@ final class MountLifecycle {
         rider.setMountUUID(null);
         rider.mountState.setMountSnapshotNbt(null);
         dropBondFromHorse(horse);
-        horse.getEntityAttribute(SharedMonsterAttributes.MOVEMENT_SPEED).setBaseValue(DEFAULT_HORSE_SPEED);
         HorseAI.restoreVanilla(horse);
         return horse;
     }
