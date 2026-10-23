@@ -25,6 +25,12 @@ final class FollowMath {
         return dx * dx + dz * dz;
     }
 
+    /** A hired worker leads with the worker formation spacing; any other unit leads like a traveller group. */
+    static boolean isHiredWorker(net.minecraft.entity.Entity e) {
+        return e instanceof com.jubitus.travellers.unit.EntityTravellerWorker
+                && ((com.jubitus.travellers.unit.EntityTravellerWorker) e).isHiredFollower();
+    }
+
     static double lerp(double a, double b, double t) {
         return a + (b - a) * t;
     }

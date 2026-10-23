@@ -448,8 +448,11 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
         if (hireButton != null) {
             if (ctx.isFree()) {
                 int cost = TravellersDerivedConfig.workerHireCostDeniersServerCache;
-                String price = cost >= 0 ? MillMoney.format(cost) : "?";
-                hireButton.displayString = net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire", price);
+                int count = worker.clientHireGroupSize;
+                String price = cost >= 0 ? MillMoney.format(cost * count) : "?";
+                hireButton.displayString = count > 1
+                        ? net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire_group", count, price)
+                        : net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire", price);
                 hireButton.enabled = true;
             } else {
                 hireButton.displayString = net.minecraft.client.resources.I18n.format("travellers.worker.orders.hired_other");
@@ -482,7 +485,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
             return;
         }
         if (button == hireButton) {
-            TravellersNetwork.CHANNEL.sendToServer(new MsgHireWorker(workerId));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgHireWorker(worker));
             return;
         }
         if (button instanceof NodeButton) {

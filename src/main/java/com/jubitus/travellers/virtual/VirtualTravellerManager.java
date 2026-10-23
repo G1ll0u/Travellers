@@ -379,8 +379,8 @@ public class VirtualTravellerManager extends WorldSavedData {
         if ("WORKER".equals(r.entityClass)) {
             if (r.personalTravelGoal != null) return true;
             if (missionDest(r) != null) return !r.isCatchupMode;
-            return !r.isHiredFollower && r.escortLeaderUUID == null && !r.isCatchupMode
-                    && "IDLE".equals(r.workerMode);
+            return !r.isHiredFollower && r.escortLeaderUUID == null && r.groupLeaderUUID == null
+                    && !r.isCatchupMode && "IDLE".equals(r.workerMode);
         }
         return false;
     }
@@ -651,6 +651,42 @@ public class VirtualTravellerManager extends WorldSavedData {
         refreshGoal(world, r, now);
     }
 
+    /**
+     * Group follower (traveller, raider or unhired worker escort): tracks the leader's position (virtual or,
+     * once it has materialized, loaded), offset by the same deterministic ring the materializer uses, so the
+     * group marches as a loose pack regardless of which side has materialized. Deliberately RING-shaped
+     * regardless of r.groupFormationStyle: GroupFormationTracker takes over once the group is visible.
+     * Returns false when the caller now leads (successor elected) and must travel on its own.
+     */
+    private boolean tickGroupFollower(WorldServer world, VirtualTravellerRecord r, long now) {
+        if (r.visit != null) {
+            visits.tick(world, r, now);
+            if (r.visit != null) return true;
+        } else if (visits.tryStartFollower(world, r, now)) {
+            return true;
+        }
+        VirtualTravellerRecord leaderRec = records.get(r.groupLeaderUUID);
+        int[] off = MaterializePositionResolver.followerSpreadOffset(r.uuid);
+        // BlockPos's double constructor floors; an (int) cast here truncated toward zero and
+        // shifted every goal one block east/north of where it belongs west/north of the origin.
+        if (leaderRec != null) {
+            r.goal = new BlockPos(leaderRec.posX + off[0], leaderRec.posY,
+                    leaderRec.posZ + off[1]);
+            return true;
+        }
+        Entity liveLeader = world.getEntityFromUuid(r.groupLeaderUUID);
+        if (liveLeader != null && !liveLeader.isDead) {
+            r.goal = new BlockPos(liveLeader.posX + off[0], liveLeader.posY,
+                    liveLeader.posZ + off[1]);
+            return true;
+        }
+        // Leader gone without a death hook (not virtual, not loaded): elect a successor. A follower
+        // tracks the new leader from the next refresh; the successor travels on below.
+        r.groupLeaderUUID = com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(world,
+                r.groupLeaderUUID, r.uuid);
+        return r.groupLeaderUUID != null;
+    }
+
     private void refreshGoal(WorldServer world, VirtualTravellerRecord r, long now) {
         // Non-worker travellers/raiders: advance through route, replan at end
         if (!"WORKER".equals(r.entityClass)) {
@@ -659,43 +695,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                     && com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid);
             // Camp lifecycle takes priority: halt at the slot while camping, or claim a passing campsite.
             if (!raiding && r.visit == null && handleCamp(world, r)) return;
-            // Group follower: track leader's position (virtual or, once it has materialized, loaded),
-            // offset by the same deterministic ring the materializer uses, so the group marches as a
-            // loose pack (not a stack) regardless of which side of the group has materialized.
-            // Deliberately RING-shaped here regardless of r.groupFormationStyle - fully offscreen
-            // simulation has no rendering to keep coherent, only positions close enough together that
-            // nothing looks stacked; the real style (GroupFormationTracker, loaded-side only) takes
-            // over the moment the group is actually visible. A group whose rolled style isn't RING
-            // can briefly reshuffle into its real shape right after materializing near a player -
-            // a known, accepted simplification, not a bug.
-            if (r.groupLeaderUUID != null) {
-                if (r.visit != null) {
-                    visits.tick(world, r, now);
-                    if (r.visit != null) return;
-                } else if (visits.tryStartFollower(world, r, now)) {
-                    return;
-                }
-                VirtualTravellerRecord leaderRec = records.get(r.groupLeaderUUID);
-                int[] off = MaterializePositionResolver.followerSpreadOffset(r.uuid);
-                // BlockPos's double constructor floors; an (int) cast here truncated toward zero and
-                // shifted every goal one block east/north of where it belongs west/north of the origin.
-                if (leaderRec != null) {
-                    r.goal = new BlockPos(leaderRec.posX + off[0], leaderRec.posY,
-                            leaderRec.posZ + off[1]);
-                    return;
-                }
-                Entity liveLeader = world.getEntityFromUuid(r.groupLeaderUUID);
-                if (liveLeader != null && !liveLeader.isDead) {
-                    r.goal = new BlockPos(liveLeader.posX + off[0], liveLeader.posY,
-                            liveLeader.posZ + off[1]);
-                    return;
-                }
-                // Leader gone without a death hook (not virtual, not loaded): elect a successor. A follower
-                // tracks the new leader from the next refresh; the successor travels on below.
-                r.groupLeaderUUID = com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(world,
-                        r.groupLeaderUUID, r.uuid);
-                if (r.groupLeaderUUID != null) return;
-            }
+            if (r.groupLeaderUUID != null && tickGroupFollower(world, r, now)) return;
             // Leader or solo: movement along the itinerary happens in advanceVirtual; here we keep
             // the itinerary current and move on to the next trip stop at the end of each leg.
             tickRoamRoute(world, r, now);
@@ -706,6 +706,8 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Hired or actively-working workers (mid-mission/escort) never stop to camp.
         if (TravellersConfig.CAMP_EVENTS.workersCanCamp && !r.isHiredFollower
                 && "IDLE".equals(r.workerMode) && r.visit == null && handleCamp(world, r)) return;
+        // Merchant escort: an unhired worker group follows its merchant exactly like a traveller group.
+        if (r.groupLeaderUUID != null && tickGroupFollower(world, r, now)) return;
 
         // Goal precedence below mirrors the loaded getVirtualGoal() exactly - catchup, active mission,
         // go order, THEN escort slot, THEN follow-owner - so a worker resolves the same goal whether it
@@ -845,6 +847,40 @@ public class VirtualTravellerManager extends WorldSavedData {
             return;
         }
         // Follow OFF / no owner / hired-but-anchored: goal stays unchanged so the worker stays put.
+    }
+
+    /**
+     * Hires a virtual roaming worker for {@code owner}, the offscreen twin of
+     * {@link EntityTravellerWorker#hireAsFollower}: it leaves its merchant group, visit and camp, and follows
+     * the owner from the next goal refresh.
+     */
+    public void hireVirtualWorker(WorldServer world, VirtualTravellerRecord r, EntityPlayer owner) {
+        if (r.entityNbt == null) return;
+        EntityTravellerWorker w = new EntityTravellerWorker(world);
+        w.readFromNBT(r.entityNbt);
+        w.setGroupLeaderUUID(null);
+        w.hireAsFollower(owner);
+        NBTTagCompound nbt = new NBTTagCompound();
+        w.writeToNBT(nbt);
+        r.entityNbt = nbt;
+        r.invalidateNbtCaches();
+
+        if (r.visit != null) visits.drop(world, r);
+        if (r.campSiteId != null) {
+            com.jubitus.travellers.camp.CampsiteManager.get(world).releaseOccupant(r.uuid);
+            r.campSiteId = null;
+            r.campSlotIndex = -1;
+        }
+        r.isHiredFollower = true;
+        r.followOwnerUUID = owner.getUniqueID();
+        r.followOrderActive = true;
+        r.ownerColor = w.getOwnerMarkColor() & 0xFFFFFF;
+        r.groupLeaderUUID = null;
+        r.workerMode = "IDLE";
+        r.setTrip(java.util.Collections.emptyList(), -1);
+        r.itinerary.clear();
+        r.goal = owner.getPosition();
+        markDirty();
     }
 
     void tryVirtualDonate(WorldServer world, VirtualTravellerRecord r) {

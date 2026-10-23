@@ -7,13 +7,6 @@ public final class FollowModeSelector {
 
     private final EntityTraveller worker;
 
-    /** Whether {@link #select} may ever settle into {@link FollowMode#CAVE}. False for a plain
-     *  traveller/raider group follower - {@code FollowFormationCoordinator}, the only consumer of
-     *  CAVE mode's single-file geometry, is worker-only by design (see
-     *  {@code GroupFormationTracker}'s own header comment); a group follower still gets the CATCHUP
-     *  escalation below unconditionally, only the cave/surface distinction is worker-only. */
-    private final boolean caveModeEnabled;
-
     private int caveCandidateTicks;
     private int openCandidateTicks;
     private int untrackedTicks;
@@ -23,9 +16,8 @@ public final class FollowModeSelector {
     private boolean cachedVisible = false;
     private int visibilityCooldown = 0;
 
-    public FollowModeSelector(EntityTraveller worker, boolean caveModeEnabled) {
+    public FollowModeSelector(EntityTraveller worker) {
         this.worker = worker;
-        this.caveModeEnabled = caveModeEnabled;
     }
 
     public void reset() {
@@ -57,7 +49,11 @@ public final class FollowModeSelector {
 
         FollowContext ctx = FollowContext.sample(worker, target, cfg, cachedVisible);
 
-        if (caveModeEnabled) {
+        // CAVE's single-file geometry belongs to FollowFormationCoordinator, which only hired workers use;
+        // a spawn-group follower (traveller, raider, merchant escort) still gets the CATCHUP escalation below.
+        if (!worker.isHiredFollower()) {
+            stableLocalMode = FollowMode.SURFACE;
+        } else {
             boolean caveCandidate = ctx.underground || ctx.enclosed;
             if (caveCandidate) {
                 caveCandidateTicks++;

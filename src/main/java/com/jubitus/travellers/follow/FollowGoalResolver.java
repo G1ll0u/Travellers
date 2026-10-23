@@ -296,7 +296,7 @@ final class FollowGoalResolver {
         // follower's RING offset is already a fixed personal spread (see FormationGeometry.
         // computeRingOffset) - unlike a worker's rank-based slot, it does not cluster followers onto
         // the same spot to begin with, so skipping this penalty is a safe no-op for groups.
-        if (!(follower instanceof EntityTravellerWorker)) return 0.0D;
+        if (!follower.isHiredFollower()) return 0.0D;
         List<EntityTravellerWorker> neighbors =
                 FollowFormationCoordinator.getCrowdNeighbors(leader, ai.requireWorker(), x, z);
 
@@ -489,7 +489,7 @@ final class FollowGoalResolver {
         }
 
         int groupSize = slot.groupSize;
-        boolean workerLeader = target instanceof EntityTravellerWorker;
+        boolean workerLeader = FollowMath.isHiredWorker(target);
 
         int base;
         if (workerLeader) {

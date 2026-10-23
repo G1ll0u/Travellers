@@ -19,6 +19,7 @@ travellers.worker.hub.transport.tooltip=Send this henchman to a village to sell 
 travellers.worker.hub.follow=Orders
 travellers.worker.follow.title=Follower Options
 travellers.worker.orders.hire=Hire (%s)
+travellers.worker.orders.hire_group=Hire all %s (%s)
 travellers.worker.orders.unhire=Unhire
 travellers.worker.orders.hired_other=Hired by somebody
 travellers.worker.follow.hired_success=The traveller is now following you.

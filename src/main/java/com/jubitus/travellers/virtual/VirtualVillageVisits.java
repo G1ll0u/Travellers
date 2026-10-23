@@ -167,16 +167,21 @@ final class VirtualVillageVisits {
 
     private void endVirtualVisit(WorldServer world, VirtualTravellerRecord r, long now) {
         com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
+        drop(world, r);
+        // A follower's own trip isn't what brought it here; it simply goes back to following.
+        if (st == null || st.asFollower) return;
+        if ("WORKER".equals(r.entityClass)) manager.tryVirtualDonate(world, r);
+        manager.advanceTrip(world, r, now);
+    }
+
+    /** Ends the stay without its departure effects (gift, next trip stop). */
+    void drop(WorldServer world, VirtualTravellerRecord r) {
         r.visit = null;
         r.visitClockTick = -1L;
         com.jubitus.travellers.village.visit.VisitOccupancy.release(world, r.uuid);
         if ("HITCHED".equals(r.mountMode)) r.mountMode = MountMode.MOUNTED.name();
         if (r.entityNbt != null) r.entityNbt.removeTag("VillageHitchStop");
         manager.markDirty();
-        // A follower's own trip isn't what brought it here; it simply goes back to following.
-        if (st == null || st.asFollower) return;
-        if ("WORKER".equals(r.entityClass)) manager.tryVirtualDonate(world, r);
-        manager.advanceTrip(world, r, now);
     }
 
     /** Draws the record's next spot in the village, the same way the loaded visit draws its targets. */

@@ -230,10 +230,11 @@ public final class TravellerSoftSpawner {
                         workerAttempts++;
                         // May fail a roll (e.g. landed too close to a player) — retry with a fresh roll
                         // rather than give up, same reasoning as the traveller/raider loops above.
-                        if (!spawnVirtualWorker(ws, mgr, workerKey, cultureId)) continue;
-                        spawnedWorkers++;
-                        spawnsThisCycle++;
-                        totalWorkers++;
+                        int added = spawnVirtualWorker(ws, mgr, workerKey, cultureId, needWorkers - spawnedWorkers);
+                        if (added <= 0) continue;
+                        spawnedWorkers += added;
+                        spawnsThisCycle += added;
+                        totalWorkers += added;
                         workerAnchors.add(workerKey);
                     }
                 }
@@ -296,10 +297,11 @@ public final class TravellerSoftSpawner {
                     while (spawnedLoneWorkers < needW && spawnsThisCycle < maxSpawnsPerCycle
                             && (workerCap <= 0 || totalWorkers < workerCap) && loneWorkerAttempts < maxLoneWorkerAttempts) {
                         loneWorkerAttempts++;
-                        if (!spawnVirtualWorker(ws, mgr, loneCenter, loneCulture)) continue;
-                        spawnedLoneWorkers++;
-                        spawnsThisCycle++;
-                        totalWorkers++;
+                        int added = spawnVirtualWorker(ws, mgr, loneCenter, loneCulture, needW - spawnedLoneWorkers);
+                        if (added <= 0) continue;
+                        spawnedLoneWorkers += added;
+                        spawnsThisCycle += added;
+                        totalWorkers += added;
                     }
                 }
             }
@@ -464,17 +466,21 @@ public final class TravellerSoftSpawner {
      *                       target. Pass a large number (e.g. Integer.MAX_VALUE) to disable the cap.
      */
     private static int rollGroupSize(java.util.Random rand, String entityClass, int remainingNeed) {
-        boolean isTraveller = "TRAVELLER".equals(entityClass);
-        int chance = isTraveller
-                ? TravellersConfig.SPAWN_TRAVELLERS.groupSpawnChance
-                : TravellersConfig.SPAWN_RAIDERS.groupSpawnChance;
+        int chance, min, max;
+        if ("TRAVELLER".equals(entityClass)) {
+            chance = TravellersConfig.SPAWN_TRAVELLERS.groupSpawnChance;
+            min = TravellersConfig.SPAWN_TRAVELLERS.groupMinSize;
+            max = TravellersConfig.SPAWN_TRAVELLERS.groupMaxSize;
+        } else if ("WORKER".equals(entityClass)) {
+            chance = TravellersConfig.SPAWN_WORKERS.groupSpawnChance;
+            min = TravellersConfig.SPAWN_WORKERS.groupMinSize;
+            max = TravellersConfig.SPAWN_WORKERS.groupMaxSize;
+        } else {
+            chance = TravellersConfig.SPAWN_RAIDERS.groupSpawnChance;
+            min = TravellersConfig.SPAWN_RAIDERS.groupMinSize;
+            max = TravellersConfig.SPAWN_RAIDERS.groupMaxSize;
+        }
         if (chance <= 0 || rand.nextInt(100) >= chance) return 1;
-        int min = isTraveller
-                ? TravellersConfig.SPAWN_TRAVELLERS.groupMinSize
-                : TravellersConfig.SPAWN_RAIDERS.groupMinSize;
-        int max = isTraveller
-                ? TravellersConfig.SPAWN_TRAVELLERS.groupMaxSize
-                : TravellersConfig.SPAWN_RAIDERS.groupMaxSize;
         max = Math.min(max, Math.max(1, remainingNeed));
         if (min > max) return 1; // not enough room left for even the smallest configured group
         if (min >= max) return min;
@@ -485,8 +491,8 @@ public final class TravellerSoftSpawner {
                                              VirtualTravellerRecord leader, String entityClass,
                                              @Nullable String cultureId, BlockPos spawnPos,
                                              @Nullable java.util.function.Consumer<EntityTraveller> outfit) {
-        EntityTraveller tempEntity = "RAIDER".equals(entityClass)
-                ? new EntityTravellerRaider(ws)
+        EntityTraveller tempEntity = "RAIDER".equals(entityClass) ? new EntityTravellerRaider(ws)
+                : "WORKER".equals(entityClass) ? new EntityTravellerWorker(ws)
                 : new EntityTraveller(ws);
         tempEntity.setPosition(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
         tempEntity.setHomeVillage(leader.homeVillage);
@@ -574,11 +580,11 @@ public final class TravellerSoftSpawner {
      * planned so materialization behaves exactly like a freshly spawned worker. No world entity
      * is created.
      *
-     * @return true if a record was created, false if this roll failed (e.g. landed too close to a
-     *         player) — callers should retry with a fresh roll rather than treat this as permanent.
+     * @return the number of records created (merchant + escort), 0 if this roll failed (e.g. landed
+     *         too close to a player) — callers should retry with a fresh roll rather than treat this as permanent.
      */
-    private static boolean spawnVirtualWorker(WorldServer ws, VirtualTravellerManager mgr,
-                                              BlockPos homeVillage, @Nullable String cultureId) {
+    private static int spawnVirtualWorker(WorldServer ws, VirtualTravellerManager mgr,
+                                          BlockPos homeVillage, @Nullable String cultureId, int remainingNeed) {
         BlockPos homePos = resolveVirtualSpawnY(ws, homeVillage);
 
         EntityTravellerWorker tempEntity = new EntityTravellerWorker(ws);
@@ -602,7 +608,7 @@ public final class TravellerSoftSpawner {
                         "[Travellers/Population] WORKER spawn vetoed at %s (within %d blocks of a settlement)",
                         spawnPos, avoidRadius);
             }
-            return false;
+            return 0;
         }
         if (isNearAnyPlayer(ws, spawnPos)) {
             if (TravellersConfig.OFFSCREEN.populationDebugLog) {
@@ -610,7 +616,7 @@ public final class TravellerSoftSpawner {
                         "[Travellers/Population] WORKER spawn vetoed at %s (within a player's view distance)",
                         spawnPos);
             }
-            return false;
+            return 0;
         }
 
         // Culture and trip tuning must be rolled before the first destination is chosen.
@@ -622,7 +628,7 @@ public final class TravellerSoftSpawner {
         tc.updateNearestVillage();
         tc.noteChosenDestination(homeVillage);
         tc.ensureRoutePlanned();
-        if (tc.route.isEmpty()) return false; // not enough destinations to travel
+        if (tc.route.isEmpty()) return 0; // not enough destinations to travel
         tc.setReadyToDepart(true);
         tc.setDepartCooldownTicks(0);
 
@@ -648,11 +654,19 @@ public final class TravellerSoftSpawner {
         // walk toward and the worker sits frozen at home until it materializes.
         r.goal = tempEntity.getVirtualGoal();
         r.virtualizedTick = ws.getTotalWorldTime();
-        // Non-hired workers spawn individually (no group loop here) — roll per worker. Hired-worker
-        // groups are formed later by players via WorkerGroupService, not at spawn time.
+        // Group-atomic rolls, same as spawnVirtualTraveller. Hired-worker groups are a separate
+        // concept, formed by players via WorkerGroupService.
         r.mounted = TravellerMountSupport.rollGroupMount(ws.rand, "WORKER");
+        r.groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle
+                .randomGroupStyle(ws.rand).name();
         mgr.addRecord(r);
-        return true;
+
+        // The merchant's escort: same culture, tracks the merchant like a traveller group follower.
+        int groupSize = rollGroupSize(ws.rand, "WORKER", remainingNeed);
+        for (int i = 1; i < groupSize; i++) {
+            spawnVirtualFollower(ws, mgr, r, "WORKER", cultureId, spawnPos, null);
+        }
+        return groupSize;
     }
 
     /** Returns a spawn position for a virtual entity: real surface Y if chunk is loaded, waypoint Y or 64 otherwise. */

@@ -229,7 +229,7 @@ final class FollowSteering {
         double dz = goal.z - follower.posZ;
         double distSq = dx * dx + dz * dz;
 
-        double stopSq = (target instanceof EntityTravellerWorker)
+        double stopSq = FollowMath.isHiredWorker(target)
                 ? DIRECT_STEER_STOP_WORKER_LEADER_SQ
                 : DIRECT_STEER_STOP_NEAR_SLOT_SQ;
 

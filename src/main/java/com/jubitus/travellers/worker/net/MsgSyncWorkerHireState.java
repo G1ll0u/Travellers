@@ -23,6 +23,7 @@ public class MsgSyncWorkerHireState implements IMessage {
     private String homeVillageName = "";
     // -1 = never set
     private int equipRole = -1;
+    private int hireGroupSize = 1;
 
     public MsgSyncWorkerHireState() {
     }
@@ -36,6 +37,10 @@ public class MsgSyncWorkerHireState implements IMessage {
         String name = home != null ? MillSettlements.nameOrNull(worker.world, home) : null;
         this.homeVillageName = name != null ? name : "";
         if (worker.getEquipRole() != null) this.equipRole = worker.getEquipRole().bits;
+        if (!hired && worker.world instanceof net.minecraft.world.WorldServer) {
+            this.hireGroupSize = com.jubitus.travellers.worker.MerchantGroup
+                    .of((net.minecraft.world.WorldServer) worker.world, worker).size();
+        }
     }
 
     @Override
@@ -55,6 +60,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         this.followOrderActive = buf.readBoolean();
         this.homeVillageName = ByteBufUtils.readUTF8String(buf);
         this.equipRole = buf.readByte();
+        this.hireGroupSize = buf.readInt();
     }
 
     @Override
@@ -73,6 +79,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         buf.writeBoolean(followOrderActive);
         ByteBufUtils.writeUTF8String(buf, homeVillageName);
         buf.writeByte(equipRole);
+        buf.writeInt(hireGroupSize);
     }
 
     public static class Handler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
@@ -98,6 +105,7 @@ public class MsgSyncWorkerHireState implements IMessage {
 
                 w.setFollowOrderActive(msg.followOrderActive);
                 w.clientHomeVillageName = msg.homeVillageName;
+                w.clientHireGroupSize = msg.hireGroupSize;
                 w.setEquipRole(msg.equipRole < 0 ? null
                         : com.jubitus.travellers.unit.equipment.EquipLoadout.of(msg.equipRole));
             });

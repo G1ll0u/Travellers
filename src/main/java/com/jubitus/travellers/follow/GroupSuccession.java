@@ -20,8 +20,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * A traveller/raider group outlives its leader: the best-equipped member (armour + weapon) takes the lead
- * and the leader's trip, and every other member follows it. Hired-worker groups: {@code WorkerGroupService}.
+ * A traveller/raider group, or a merchant's escort (unhired workers), outlives its leader: the best-equipped
+ * member (armour + weapon) takes the lead and the leader's trip, and every other member follows it.
+ * Hired-worker groups: {@code WorkerGroupService}.
  */
 public final class GroupSuccession {
 
@@ -30,7 +31,7 @@ public final class GroupSuccession {
 
     /** A loaded leader is dying: its trip is still readable. No-op when nobody follows it. */
     public static void onLeaderDied(WorldServer world, EntityTraveller leader) {
-        if (leader instanceof EntityTravellerWorker || leader.getGroupLeaderUUID() != null) return;
+        if (leader.isHiredFollower() || leader.getGroupLeaderUUID() != null) return;
         List<BlockPos> stops = leader.getTravelRoute();
         int index = leader.getVillageRouteIndex();
         if (stops.isEmpty() || index < 0 || index >= stops.size()) {
@@ -43,7 +44,7 @@ public final class GroupSuccession {
 
     /** A virtual leader is dying (offscreen battle): its record is still present. */
     public static void onLeaderDied(WorldServer world, VirtualTravellerRecord leader) {
-        if ("WORKER".equals(leader.entityClass) || leader.groupLeaderUUID != null) return;
+        if (leader.isHiredFollower || leader.groupLeaderUUID != null) return;
         elect(world, leader.uuid, leader.tripStops, leader.tripIndex);
     }
 
@@ -70,13 +71,13 @@ public final class GroupSuccession {
     private static UUID elect(WorldServer world, UUID goneLeaderId, List<BlockPos> tripStops, int tripIndex) {
         Map<UUID, EntityTraveller> loaded = new HashMap<>();
         for (EntityTraveller t : world.getEntities(EntityTraveller.class, e -> e != null && !e.isDead
-                && !(e instanceof EntityTravellerWorker) && goneLeaderId.equals(e.getGroupLeaderUUID()))) {
+                && !e.isHiredFollower() && goneLeaderId.equals(e.getGroupLeaderUUID()))) {
             loaded.put(t.getUniqueID(), t);
         }
         Map<UUID, VirtualTravellerRecord> virtual = new HashMap<>();
         int dim = world.provider.getDimension();
         for (VirtualTravellerRecord r : VirtualTravellerManager.get(world).getRecordsView()) {
-            if (r.dimension == dim && !"WORKER".equals(r.entityClass) && goneLeaderId.equals(r.groupLeaderUUID)) {
+            if (r.dimension == dim && !r.isHiredFollower && goneLeaderId.equals(r.groupLeaderUUID)) {
                 virtual.put(r.uuid, r);
             }
         }

@@ -125,6 +125,9 @@ public class EntityTravellerWorker extends EntityTraveller {
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.VARINT);
     static final DataParameter<Boolean> HIRED_FOLLOWER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
+    // A merchant's escort carries no backpack; the group link itself is server-only.
+    private static final DataParameter<Boolean> MERCHANT_ESCORT_DM =
+            EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.BOOLEAN);
     static final DataParameter<Optional<UUID>> FOLLOW_OWNER_DM =
             EntityDataManager.createKey(EntityTravellerWorker.class, DataSerializers.OPTIONAL_UNIQUE_ID);
     // --- assigned home sync ---
@@ -165,6 +168,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     public boolean hiredFollower = false;
     // Client copy of the home village's name, sent with the hire state (village data is server-only).
     public String clientHomeVillageName = "";
+    // Client copy of how many workers a hire takes (the merchant's whole group), sent with the hire state.
+    public int clientHireGroupSize = 1;
     // --- the one zone assignment: a Barrack (lodging) or a Stable (lodging + duty) ---
     @Nullable
     ZoneRef zone = null;
@@ -592,13 +597,15 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (isHiredFollower()) {
             return isMissionCarrying() && !isBackpackHiddenByCombat();
         }
+        if (dataManager.get(MERCHANT_ESCORT_DM)) return false;
         return super.shouldRenderBackpack();
     }
 
     // Base hook: auto-planner will skip this entity when true
     @Override
     public boolean isRouteLocked() {
-        return routeLocked;
+        // A merchant's escort has no trip of its own, like any group follower.
+        return routeLocked || getGroupLeaderUUID() != null;
     }
 
     @Override
@@ -672,6 +679,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         super.entityInit();
         this.dataManager.register(USING_TRAVEL_AI, false);
         this.dataManager.register(HIRED_FOLLOWER_DM, false);
+        this.dataManager.register(MERCHANT_ESCORT_DM, false);
         this.dataManager.register(FOLLOW_OWNER_DM, Optional.absent());
         this.dataManager.register(ESCORT_LEADER_DM, Optional.absent());
         this.dataManager.register(LEADER_FOLLOWER_COUNT_DM, 0);
@@ -724,6 +732,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         }
         super.onLivingUpdate();
         if (world.isRemote) return;
+        dataManager.set(MERCHANT_ESCORT_DM, !isHiredFollower() && getGroupLeaderUUID() != null);
 
         // Choir freeze: skip ALL worker navigation/movement logic.
         // Movement and look are handled by EntityAIChoirFreeze (priority 0, mutex 3).
@@ -1382,6 +1391,8 @@ public class EntityTravellerWorker extends EntityTraveller {
      */
     @Nullable
     public EntityLivingBase getEffectiveFollowTarget() {
+        // An unhired worker follows only its merchant (spawn group), like a traveller group follower.
+        if (!isHiredFollower()) return super.getEffectiveFollowTarget();
         UUID leaderId = getEscortLeaderUUID();
         if (leaderId != null) {
             EntityTravellerWorker leader = resolveEscortLeader(leaderId);
@@ -1628,6 +1639,13 @@ public class EntityTravellerWorker extends EntityTraveller {
         // active order is anchored - it must stay put (return null), never chase a stale targetVillage
         // (its "ancien emplacement"), which would resurface on the next virtualize→materialize round-trip.
         if (!isHiredFollower()) {
+            UUID merchant = getGroupLeaderUUID();
+            if (merchant != null && world instanceof WorldServer) {
+                Entity le = ((WorldServer) world).getEntityFromUuid(merchant);
+                if (le != null && !le.isDead) return le.getPosition();
+                return com.jubitus.travellers.virtual.VirtualTravellerManager
+                        .get((WorldServer) world).getVirtualPosition(merchant);
+            }
             BlockPos tv = getTravelCommon().getTargetVillage();
             if (tv != null) return tv;
         }

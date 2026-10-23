@@ -4,6 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.worker.MerchantGroup;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.net.TravellersNetwork;
@@ -22,22 +23,27 @@ import java.util.UUID;
 
 public class MsgHireWorker implements IMessage {
     private int entityId;
+    // The group size the player saw priced; the server refuses a hire at any other size.
+    private int groupSize;
 
     public MsgHireWorker() {
     }
 
-    public MsgHireWorker(int entityId) {
-        this.entityId = entityId;
+    public MsgHireWorker(EntityTravellerWorker worker) {
+        this.entityId = worker.getEntityId();
+        this.groupSize = worker.clientHireGroupSize;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         this.entityId = buf.readInt();
+        this.groupSize = buf.readInt();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(entityId);
+        buf.writeInt(groupSize);
     }
 
     public static class Handler implements IMessageHandler<MsgHireWorker, IMessage> {
@@ -82,7 +88,14 @@ public class MsgHireWorker implements IMessage {
                     return;
                 }
 
-                int costInDeniers = TravellersDerivedConfig.workerHireCostDeniersServerCache;
+                // The whole merchant group or nobody. A group that changed since the price was shown is
+                // re-priced on the player's screen instead of charged.
+                MerchantGroup group = MerchantGroup.of(player.getServerWorld(), worker);
+                if (group.size() != msg.groupSize) {
+                    TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                    return;
+                }
+                int costInDeniers = TravellersDerivedConfig.workerHireCostDeniersServerCache * group.size();
                 int playerMoneyBefore = MillMoney.countPlayerMoney(player);
 
                 if (playerMoneyBefore < costInDeniers) {
@@ -97,7 +110,7 @@ public class MsgHireWorker implements IMessage {
                     return;
                 }
 
-                worker.hireAsFollower(player);
+                group.hireAll(player.getServerWorld(), player);
 
 
                 TravellersNetwork.CHANNEL.sendTo(

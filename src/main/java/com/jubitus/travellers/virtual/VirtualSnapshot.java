@@ -61,6 +61,8 @@ final class VirtualSnapshot {
         r.personalTravelGoal = worker.trips.getActivePersonalTravelGoal();
         r.homeVillage = worker.getHomeVillage();
         r.escortLeaderUUID = worker.getEscortLeaderUUID();
+        r.groupLeaderUUID = worker.getGroupLeaderUUID();
+        r.groupFormationStyle = worker.getGroupFormationStyle().name();
         r.captureIdentityFromNbt();
         r.virtualizedTick = now;
 
@@ -140,12 +142,17 @@ final class VirtualSnapshot {
 
     /** Re-applies the record-authoritative state of a traveller or raider right after readFromNBT. */
     static void applyToTraveller(VirtualTravellerRecord r, EntityTraveller entity) {
+        applyGroup(r, entity);
+        // Unconditional overwrite: the record is authoritative for population accounting
+        // (TravellerSoftSpawner), entityNbt is just a frozen snapshot.
+        entity.setHomeVillage(r.homeVillage);
+    }
+
+    /** Group link and style, shared by travellers, raiders and unhired worker escorts. */
+    private static void applyGroup(VirtualTravellerRecord r, EntityTraveller entity) {
         // Unconditional: entityNbt may still carry a stale (e.g. dead-leader) UUID that r.groupLeaderUUID
         // has since cleared (see VirtualBattleManager.endBattle) — always overwrite, null included.
         entity.setGroupLeaderUUID(r.groupLeaderUUID);
-        // Same unconditional-overwrite reasoning: the record is authoritative for population
-        // accounting (TravellerSoftSpawner), entityNbt is just a frozen snapshot.
-        entity.setHomeVillage(r.homeVillage);
         if (r.groupFormationStyle != null) {
             try {
                 entity.setGroupFormationStyle(
@@ -165,6 +172,7 @@ final class VirtualSnapshot {
      * escort leader). Called once, immediately after readFromNBT in materializeWorker.
      */
     static void applyToWorker(VirtualTravellerRecord r, EntityTravellerWorker worker) {
+        applyGroup(r, worker);
         // Escort leader may have changed while virtual (create/assign/merge/come-back commands).
         if (!java.util.Objects.equals(r.escortLeaderUUID, worker.getEscortLeaderUUID())) {
             worker.setEscortLeaderUUID(r.escortLeaderUUID);

@@ -77,7 +77,7 @@ public final class WorkerHubMenu {
                                     ? "travellers.worker.hub.node.unhire_confirm"
                                     : "travellers.worker.hub.node.unhire"))
                             .tooltip("travellers.worker.hub.node.unhire.tooltip")
-                            .onClick(ctx -> ctx.send(new MsgHireWorker(ctx.worker.getEntityId())))
+                            .onClick(ctx -> ctx.send(new MsgHireWorker(ctx.worker)))
             ),
 
             WorkerHubNode.branch("management", Column.LEFT, "travellers.worker.hub.node.management",

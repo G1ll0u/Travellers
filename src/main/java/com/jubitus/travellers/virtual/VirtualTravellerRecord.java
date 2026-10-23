@@ -143,7 +143,7 @@ public class VirtualTravellerRecord {
     // position-trail deviation from its route chord. Never persisted.
     public transient long lastTrailLogTick;
 
-    // Non-null for traveller/raider group followers: UUID of the group leader they must track.
+    // Non-null for traveller/raider group followers and merchant escorts (unhired workers): the leader they track.
     @Nullable public UUID groupLeaderUUID;
 
     // Rolled once at spawn, group-atomic exactly like `mounted` below (the leader rolls, every

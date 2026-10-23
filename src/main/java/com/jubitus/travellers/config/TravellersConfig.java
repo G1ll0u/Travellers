@@ -421,10 +421,17 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 3000)
         public int workerSpawnMaxDistanceFromHome = 600;
 
+        @Config.Comment("Chance (0-100) that a newly spawned merchant worker travels with an escort of other workers. The escort can only be hired together with the merchant.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int groupSpawnChance = 75;
 
+        @Config.Comment("Smallest possible size for an escorted merchant group (including the merchant).")
+        @Config.RangeInt(min = 2, max = 16)
+        public int groupMinSize = 2;
 
-
-
+        @Config.Comment("Largest possible size for an escorted merchant group (including the merchant).")
+        @Config.RangeInt(min = 2, max = 16)
+        public int groupMaxSize = 4;
     }
 
     public static class GroupFollow {

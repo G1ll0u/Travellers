@@ -136,7 +136,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         this.baseSpeed = UnitSpeed.travelNav();
         this.startDist = startDist;
         this.stopDist = stopDist;
-        this.modeSelector = new FollowModeSelector(follower, follower instanceof EntityTravellerWorker);
+        this.modeSelector = new FollowModeSelector(follower);
         this.boatController = new FollowBoatController(follower);
         this.flightController = new FollowFlightController(follower);
         this.mountedPacer = new MountedFollowPacer(follower);
@@ -191,7 +191,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
      */
     private FollowFormationCoordinator.SlotAssignment resolveSlot(EntityLivingBase target, FollowMode mode,
                                                                   FollowRuntimeConfig cfg, double desiredDist) {
-        if (follower instanceof EntityTravellerWorker) {
+        if (follower.isHiredFollower()) {
             return resolveWorkerSlot(target, mode, cfg, desiredDist);
         }
         boolean mounted = PathBody.isMounted(follower) || PathBody.isMounted(target);
@@ -730,7 +730,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (mode == FollowMode.CAVE) {
             return cfg.cave.baseLeaderDistance;
         }
-        if (target instanceof EntityTravellerWorker) {
+        if (FollowMath.isHiredWorker(target)) {
             return Math.max(cfg.surface.baseLeaderDistanceWorker, stopDist + 1.8D);
         }
         return Math.max(cfg.surface.baseLeaderDistancePlayer, stopDist + 1.3D);
@@ -751,11 +751,13 @@ public class EntityAIFollowLeader extends EntityAIBase {
         if (follower.isCatchupTravel()) return "catchup";
         // Dispersed in the village its leader is visiting (EntityAIVillageVisit), until it leaves.
         if (follower.isDispersedInVillage()) return "dispersedInVillage";
-        // "Hired" is a worker-only precondition (guards against stale follow state on a non-hired
-        // worker) - a plain traveller/raider group follower has no hire concept at all, and its
-        // only gate on "am I allowed to follow" is isFollowOrderActive() below.
-        if (follower instanceof EntityTravellerWorker && !follower.isHiredFollower()) return "notHired";
-        if (!follower.isFollowOrderActive()) return "noFollowOrder";
+        // An unhired worker follows only as a merchant's escort (its spawn group, like a traveller group
+        // follower); its own follow order is a hired-worker notion and stale on it.
+        if (follower instanceof EntityTravellerWorker && !follower.isHiredFollower()) {
+            if (follower.getGroupLeaderUUID() == null) return "notHired";
+        } else if (!follower.isFollowOrderActive()) {
+            return "noFollowOrder";
+        }
         if (follower.isJobActive() && !follower.isReturnUsingFollow()) return "jobActive";
         return null;
     }
@@ -811,7 +813,7 @@ public class EntityAIFollowLeader extends EntityAIBase {
     }
 
     private void applyEmergencySeparation(EntityLivingBase leader) {
-        boolean workerLeader = leader instanceof EntityTravellerWorker;
+        boolean workerLeader = FollowMath.isHiredWorker(leader);
 
         double protectRadius = workerLeader ? 3.15D : Math.sqrt(TOO_CLOSE_TO_LEADER_SQ);
         double d2 = follower.getDistanceSq(leader);
