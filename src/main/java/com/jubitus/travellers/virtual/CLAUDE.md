@@ -25,4 +25,5 @@ Every `EntityTraveller` subclass is virtualized instead of despawning: `setDead(
 
 ## Where a record reappears (`MaterializePositionResolver`)
 - Far-travelled records are surface-clamped; others keep their frozen Y (indoors, underground). Liquid/hazard floors rejected, tree canopies descended (`BlockRules.isTreePart`/`isCanopy`), Millénaire footprints pushed out (`MillFootprints`), mounted records resolved horse-sized.
+- A follower reappears near its own record: a formation place farther than `FORMATION_SNAP_MAX_BLOCKS` is ignored, never pulled to its leader.
 - `MATERIALIZATION.logEvents` logs every virtualize/materialize with its reason (`VirtualizationLog`).

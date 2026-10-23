@@ -74,7 +74,16 @@ public final class MaterializePositionResolver {
     // not enough to reach the storey above.
     private static final int SAME_LEVEL_Y_SLACK = 2;
 
+    // INVARIANT: a follower reappears near its own record; a formation place farther than this is ignored.
+    private static final double FORMATION_SNAP_MAX_BLOCKS = 10.0;
+
     private MaterializePositionResolver() {}
+
+    private static boolean withinFormationSnap(double x, double z, double slotX, double slotZ) {
+        double dx = slotX - x;
+        double dz = slotZ - z;
+        return dx * dx + dz * dz <= FORMATION_SNAP_MAX_BLOCKS * FORMATION_SNAP_MAX_BLOCKS;
+    }
 
     /**
      * True when the record has moved far enough from where it was virtualized that its frozen Y no
@@ -144,25 +153,16 @@ public final class MaterializePositionResolver {
             return new ResolvedPosition(bbx + 0.5D, y, bbz + 0.5D, "battle");
         }
 
-        // Group traveller/raider followers: spawn in a deterministic ring around the leader.
+        // Group traveller/raider followers: their ring slot around the leader, when the record is about there.
         // Must be checked before escortLeaderUUID (workers use that field, not this one).
         if (r.groupLeaderUUID != null) {
             double[] leaderPos = findLeaderPosition(world, r.groupLeaderUUID, allRecords);
-            double[] file = leaderPos == null ? null
-                    : com.jubitus.travellers.follow.GroupRoadFile.materializePlace(world, r, r.groupLeaderUUID, false, allRecords);
-            if (file != null && LoadedChunks.isLoaded(world, file[0], file[1])) {
-                // On a road: in file behind the leader, the way the loaded group walks it.
-                via += ">groupFile";
-                baseX = Math.floor(file[0]) + 0.5;
-                baseZ = Math.floor(file[1]) + 0.5;
-                referenceY = leaderPos[1];
-                preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize;
-            } else if (leaderPos != null) {
+            if (leaderPos != null) {
                 int[] off = followerSpreadOffset(r.uuid);
-                via += ">groupRing";
                 double cx = Math.floor(leaderPos[0] + off[0]) + 0.5;
                 double cz = Math.floor(leaderPos[2] + off[1]) + 0.5;
-                if (LoadedChunks.isLoaded(world, cx, cz)) {
+                if (withinFormationSnap(baseX, baseZ, cx, cz) && LoadedChunks.isLoaded(world, cx, cz)) {
+                    via += ">groupRing";
                     // If the ring column is still close to where the follower itself was last standing
                     // (stationary leader: the ring hasn't moved since virtualize), that raw frozen Y is an
                     // accurate reference for that exact spot - including inside a building - so keep it
@@ -183,29 +183,16 @@ public final class MaterializePositionResolver {
 
         if (r.escortLeaderUUID != null) {
             double[] leaderPos = findLeaderPosition(world, r.escortLeaderUUID, allRecords);
-            double[] file = leaderPos == null ? null
-                    : com.jubitus.travellers.follow.GroupRoadFile.materializePlace(world, r, r.escortLeaderUUID, true, allRecords);
-            if (file != null && LoadedChunks.isLoaded(world, file[0], file[1])) {
-                // Leader on a road (a Go order): in file behind it, the way the loaded escort walks it.
-                via += ">escortFile";
-                baseX = Math.floor(file[0]) + 0.5;
-                baseZ = Math.floor(file[1]) + 0.5;
-                referenceY = leaderPos[1];
-                preferSurface = TravellersConfig.MATERIALIZATION.surfaceClampOnMaterialize;
-            } else if (leaderPos != null) {
-                // Normally VirtualFormationSimulator has already steered the follower's simulated
-                // position to (or close to) its live formation slot by materialization time, so using
-                // the raw r.posX/r.posZ is fine. But a follower can also materialize while still
-                // meaningfully displaced from its slot - most commonly right after a virtual battle
-                // scattered it - in which case spawning at the raw position drops it far from the
-                // group it's supposed to defend/be defended by. Prefer the goal (the slot itself)
-                // whenever it's known and far enough from the raw position to matter.
+            if (leaderPos != null) {
+                // Its formation slot (r.goal) when the record is about there; a follower still far from
+                // it (a straggler, scattered by a battle) reappears where it is and walks back.
                 if (r.goal != null) {
                     double gx = r.goal.getX() + 0.5;
                     double gz = r.goal.getZ() + 0.5;
                     double ddx = gx - baseX;
                     double ddz = gz - baseZ;
-                    if (ddx * ddx + ddz * ddz > 4.0 * 4.0 && LoadedChunks.isLoaded(world, gx, gz)) {
+                    if (ddx * ddx + ddz * ddz > 4.0 * 4.0 && withinFormationSnap(baseX, baseZ, gx, gz)
+                            && LoadedChunks.isLoaded(world, gx, gz)) {
                         via += ">escortSlot";
                         baseX = gx;
                         baseZ = gz;

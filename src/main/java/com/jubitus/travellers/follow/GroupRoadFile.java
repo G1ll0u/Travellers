@@ -1,26 +1,18 @@
 package com.jubitus.travellers.follow;
 
 import com.jubitus.travellers.follow.formations.FormationGeometry;
-import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
-import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
-import com.jubitus.travellers.pathing.PathBody;
 import com.jubitus.travellers.pathing.itinerary.Itinerary;
-import com.jubitus.travellers.unit.EntityTraveller;
-import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -183,81 +175,6 @@ public final class GroupRoadFile {
         }
         out[0] = px - tz * side;
         out[1] = pz + tx * side;
-    }
-
-    /**
-     * Where a follower reappears when its group comes back into view on a road: its rank (by UUID among the
-     * leader's followers, loaded or virtual) in a single file behind the leader at the formation's distances -
-     * widths and escort places are not resolved offscreen, the loaded file sorts them out. Null when the leader is not on or just before a road, so the
-     * usual placement applies. {@code escort}: hired escorts ({@code escortLeaderUUID}) instead of a group.
-     */
-    @Nullable
-    public static double[] materializePlace(WorldServer world, VirtualTravellerRecord r, UUID leaderId, boolean escort,
-                                            Map<UUID, VirtualTravellerRecord> records) {
-        Itinerary it;
-        double along;
-        boolean mounted;
-        VirtualTravellerRecord lr = records.get(leaderId);
-        if (lr != null) {
-            if (lr.visit != null || lr.battleId != null || lr.campSiteId != null) return null;
-            // Only a leader still travelling its leg: a worker's itinerary outlives its finished Go order.
-            if ("WORKER".equals(lr.entityClass) ? !lr.goOrderActive : lr.groupLeaderUUID != null) return null;
-            it = lr.itinerary.get();
-            along = lr.itinerary.cursor.along();
-            mounted = lr.mounted || lr.mountNbt != null;
-        } else {
-            Entity e = world.getEntityFromUuid(leaderId);
-            if (!(e instanceof EntityTraveller) || e.isDead) return null;
-            EntityTraveller leader = (EntityTraveller) e;
-            it = GroupRouteAnchor.walkedItinerary(leader);
-            along = it == null ? 0.0D : projectAlong(it, leader.getItineraryState().cursor.segment(), leader.posX, leader.posZ);
-            mounted = PathBody.isMounted(leader);
-        }
-        if (it == null || it.size() < 2) return null;
-
-        List<UUID> members = new ArrayList<>();
-        for (VirtualTravellerRecord m : records.values()) {
-            if (leaderId.equals(escort ? m.escortLeaderUUID : m.groupLeaderUUID)) members.add(m.uuid);
-        }
-        for (EntityTraveller m : world.getEntities(EntityTraveller.class, x -> x != null && !x.isDead && leaderId.equals(
-                escort ? (x instanceof EntityTravellerWorker ? ((EntityTravellerWorker) x).getEscortLeaderUUID() : null)
-                        : x.getGroupLeaderUUID()))) {
-            if (!members.contains(m.getUniqueID())) members.add(m.getUniqueID());
-        }
-        Collections.sort(members);
-        int rank = members.indexOf(r.uuid);
-        if (rank < 0) return null;
-
-        WorkerFormationSettings settings = escort
-                ? WorkerFormationSavedData.get(world).getSettings(
-                        new WorkerFormationScopeKey(WorkerFormationScopeKey.Type.WORKER, leaderId))
-                : WorkerFormationSettings.defaults();
-        Shape shape = Shape.of(0.0D, settings, mounted ? FormationGeometry.MOUNTED_SPACING_SCALE : 1.0D);
-        if (!roadWithin(it, along - shape.firstGap - (members.size() + 1) * shape.rowSpacing, along + ENTER_AHEAD)) {
-            return null;
-        }
-        double[] out = new double[2];
-        pointAt(it, along - shape.firstGap - rank * shape.rowSpacing, 0.0D, out);
-        return out;
-    }
-
-    /** Distance along {@code it} of the point nearest {@code (x, z)}, searched around segment {@code aroundSeg}. */
-    private static double projectAlong(Itinerary it, int aroundSeg, double x, double z) {
-        int last = it.size() - 2;
-        int from = Math.max(0, Math.min(aroundSeg, last) - 6), to = Math.min(last, aroundSeg + 6);
-        double bestD = Double.MAX_VALUE, best = 0.0D;
-        for (int k = from; k <= to; k++) {
-            double ax = it.x(k) + 0.5D, az = it.z(k) + 0.5D;
-            double sx = it.x(k + 1) + 0.5D - ax, sz = it.z(k + 1) + 0.5D - az;
-            double len2 = sx * sx + sz * sz;
-            double t = len2 < 1e-9 ? 0.0D : Math.max(0.0D, Math.min(1.0D, ((x - ax) * sx + (z - az) * sz) / len2));
-            double d = (x - ax - sx * t) * (x - ax - sx * t) + (z - az - sz * t) * (z - az - sz * t);
-            if (d < bestD) {
-                bestD = d;
-                best = it.cum(k) + (it.cum(k + 1) - it.cum(k)) * t;
-            }
-        }
-        return best;
     }
 
     /** Lanes available at {@code a}, narrowed by any narrow sample just ahead. */

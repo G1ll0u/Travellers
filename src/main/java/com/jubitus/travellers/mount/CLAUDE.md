@@ -29,6 +29,7 @@ Permanent 1:1 bond between an `EntityTraveller` subclass and a vanilla `EntityHo
 ## Players and sync
 - `horse/HorseTheftGuard` blocks players from bonded horses at both interact and `EntityMountEvent`, both sides; the client learns the lock from `HorseInteractLock` (synced via `MixinEntityHorse`).
 - A rider that looks frozen while its horse walks off is a tracking desync, never an AI bug: `MountSyncReconciler` (world tick) repairs it; `MixinEntityTracker` gives the mount its rider's tracking range.
+- A riding traveller is tracked exactly when its bonded horse is (`MixinEntityTrackerEntry`); a rider shown without its horse glides back to its last on-foot position.
 - A rider defends its horse by feeding the attacker to its own hurt-by-target AI (`MountDefenseHandler`) — no separate targeting rule.
 
 ## Rider death
