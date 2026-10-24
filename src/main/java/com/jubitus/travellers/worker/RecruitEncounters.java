@@ -46,8 +46,8 @@ public final class RecruitEncounters {
                             double x, double z) {
         tour.forgetDead(id -> whereAlive(ws, id));
         if (ownerId == null || tour.isBack() || tour.isComplete() || purse.get() <= 0) return;
-        EntityPlayerMP owner = ws.getMinecraftServer().getPlayerList().getPlayerByUUID(ownerId);
-        if (owner == null) return;
+        // The owner may be offline: the world goes on, recruits are hired on their behalf.
+        UUID owner = ownerId;
 
         double cx = x, cz = z, radius = ROAD_RADIUS;
         boolean inVillage = false;
@@ -81,7 +81,7 @@ public final class RecruitEncounters {
         }
     }
 
-    private static void ask(WorldServer ws, RecruitTour tour, WorkerPurse purse, SpawnGroup g, EntityPlayerMP owner, UUID recruiterId,
+    private static void ask(WorldServer ws, RecruitTour tour, WorkerPurse purse, SpawnGroup g, UUID owner, UUID recruiterId,
                             boolean inVillage) {
         List<UUID> ids = new ArrayList<>();
         Map<String, Integer> byCulture = new HashMap<>();
@@ -104,7 +104,7 @@ public final class RecruitEncounters {
 
         for (Map.Entry<String, Integer> e : byCulture.entrySet()) {
             if (e.getKey() == null || tour.missing(e.getKey()) < e.getValue()
-                    || RecruitCultures.verdict(ws, owner.getUniqueID(), e.getKey()) != RecruitCultures.Verdict.OK) {
+                    || RecruitCultures.verdict(ws, owner, e.getKey()) != RecruitCultures.Verdict.OK) {
                 MovementProfiler.recruitAsk(e.getKey() == null || tour.missing(e.getKey()) == 0 ? "culture" : "quota");
                 return;
             }
@@ -113,7 +113,7 @@ public final class RecruitEncounters {
             MovementProfiler.recruitAsk("purse");
             return;
         }
-        int chance = RecruitCultures.chancePercent(ws, owner.getUniqueID(), leadCulture);
+        int chance = RecruitCultures.chancePercent(ws, owner, leadCulture);
         if (!inVillage) chance = chance * TravellersConfig.RECRUITMENT.recruitRoadChancePercent / 100;
         if (ws.rand.nextInt(100) >= chance) {
             MovementProfiler.recruitAsk(inVillage ? "refused in village" : "refused on road");
@@ -124,17 +124,17 @@ public final class RecruitEncounters {
         if (joined.isEmpty()) return;
         MovementProfiler.recruitAsk(inVillage ? "joined in village" : "joined on road");
         if (!inVillage) tour.log().joinedOnRoad(groupPos(g), joined.size());
-        WorkerGroupService.joinRecruiter(owner, joined, recruiterId);
+        WorkerGroupService.joinRecruiter(ws.getMinecraftServer(), owner, joined, recruiterId);
         BlockPos at = groupPos(g);
         MillSettlements.Settlement place = inVillage ? MillSettlements.at(ws, tour.currentStop().center)
                 : MillSettlements.nearestVillage(ws, at, NAMED_PLACE_RADIUS);
         String placeName = place != null ? place.displayName() : at.getX() + "/" + at.getZ();
-        NotificationService.notifyAt(owner, inVillage ? NotificationDefs.RECRUIT_WORKERS_RECRUITED : NotificationDefs.RECRUIT_WORKERS_RECRUITED_ROAD,
-                new NoticePlace(at, ws.provider.getDimension(), recruiterId), String.valueOf(joined.size()), placeName);
+        NotificationService.notifyOfflineAt(ws.getMinecraftServer(), owner, inVillage ? NotificationDefs.RECRUIT_WORKERS_RECRUITED : NotificationDefs.RECRUIT_WORKERS_RECRUITED_ROAD,
+                new NoticePlace(at, ws.provider.getDimension(), recruiterId), null, String.valueOf(joined.size()), placeName);
     }
 
     /** Each member becomes a hired worker of the owner, paid from the purse; returns who actually joined. */
-    private static List<UUID> join(WorldServer ws, RecruitTour tour, WorkerPurse purse, SpawnGroup g, EntityPlayerMP owner,
+    private static List<UUID> join(WorldServer ws, RecruitTour tour, WorkerPurse purse, SpawnGroup g, UUID owner,
                                    boolean inVillage) {
         VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
         long now = ws.getTotalWorldTime();

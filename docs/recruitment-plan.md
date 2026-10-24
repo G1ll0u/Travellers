@@ -1,4 +1,4 @@
-Status: steps 1-8, 10 and 11 done; step 9 (edge cases) left. Open: repeated village stays (see step 2).
+Status: all steps done, awaiting in-game checks; then archive. Open: repeated village stays (see step 2).
 
 # Recruitment missions by culture
 
@@ -37,6 +37,6 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 6. **Encounters + roll**: `worker/RecruitEncounters`, groups via `worker/SpawnGroup` (was MerchantGroup), outcome counts in the profile report. — done
 7. **Conversion**: a record becomes a hired worker (`VirtualTravellerManager.recruitRecord`); a loaded traveller goes through virtualize → convert → `materializeSoon` (horse carried by the hand-off); a loaded free worker is hired in place; recruits fall in behind the recruiter (`WorkerGroupService.joinRecruiter`). — done
 8. **Purse**: paid per recruit; the rest taken from the report (step 11) once the recruiter rejoins the owner (who may be offline or elsewhere meanwhile: the tour waits, purse kept); coins dropped where a loaded recruiter dies; lost with a recruiter that dies offscreen. — done
-9. **Edge cases** above, lang keys. Recall: Formation Hub, right-click the recruiter itself, "Call back from recruiting" (`MsgRecruitRecall`, loaded or offscreen); it turns back and still recruits on the way, like any return. Recruiting only (other missions: with the purchases work). — recall done — todo (old mode, old screen, cost sync and their config/lang already removed).
+9. **Edge cases**: all of the list above covered; recall from the Formation Hub (`MsgRecruitRecall`, loaded or offscreen, still recruits on the way back; recruiting only, other missions with the purchases work); an offline owner's recruiter keeps recruiting on their behalf (hired by UUID, notices queued). — done
 10. **Succession**: the existing hired-group election (`WorkerGroupService.elect`, best-equipped follower, "has taken command" notice) now also hands the recruiting tour and the purse to the successor, who carries on where it was; loaded and offscreen deaths alike. No successor: coins dropped in view, lost offscreen. The fallen recruiter is a cross on the report map, not a lost recruit. — done
 11. **Report**: back at the owner's side the recruiter waits (notice); right-click opens `GuiRecruitReport` (route on the map: visited / skipped / not reached villages, road joins, deaths; per culture found/wanted pips and deaths; spent / left; Take button). The tour ends once the purse is empty; closing early keeps it waiting. Journal in `worker/RecruitLog`, payload `worker/RecruitReport`. — done

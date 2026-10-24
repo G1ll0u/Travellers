@@ -1304,7 +1304,11 @@ public class EntityTravellerWorker extends EntityTraveller {
      * Hire/dismiss already exist – just update to default follow state.
      */
     public void hireAsFollower(EntityPlayer owner) {
-        UUID id = owner.getUniqueID();
+        hireAsFollower(owner.getUniqueID());
+    }
+
+    /** Hired by an owner who may be offline (a recruiter hiring on their behalf). */
+    public void hireAsFollower(UUID id) {
         this.followOwnerId = id;
         this.hiredFollower = true;
         if (!world.isRemote) {

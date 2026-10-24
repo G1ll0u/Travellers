@@ -858,11 +858,17 @@ public class VirtualTravellerManager extends WorldSavedData {
      * the owner from the next goal refresh.
      */
     public void hireVirtualWorker(WorldServer world, VirtualTravellerRecord r, EntityPlayer owner) {
+        hireVirtualWorker(world, r, owner.getUniqueID());
+        r.goal = owner.getPosition();
+    }
+
+    /** Hired by an owner who may be offline; the record's goal is left for its follow logic to set. */
+    public void hireVirtualWorker(WorldServer world, VirtualTravellerRecord r, UUID ownerId) {
         if (r.entityNbt == null) return;
         EntityTravellerWorker w = new EntityTravellerWorker(world);
         w.readFromNBT(r.entityNbt);
         w.setGroupLeaderUUID(null);
-        w.hireAsFollower(owner);
+        w.hireAsFollower(ownerId);
         NBTTagCompound nbt = new NBTTagCompound();
         w.writeToNBT(nbt);
         r.entityNbt = nbt;
@@ -875,21 +881,21 @@ public class VirtualTravellerManager extends WorldSavedData {
             r.campSlotIndex = -1;
         }
         r.isHiredFollower = true;
-        r.followOwnerUUID = owner.getUniqueID();
+        r.followOwnerUUID = ownerId;
         r.followOrderActive = true;
         r.ownerColor = w.getOwnerMarkColor() & 0xFFFFFF;
         r.groupLeaderUUID = null;
         r.workerMode = "IDLE";
         r.setTrip(java.util.Collections.emptyList(), -1);
         r.itinerary.clear();
-        r.goal = owner.getPosition();
+        r.goal = null;
         markDirty();
     }
 
     /** A recruit joins {@code owner}: a traveller record becomes a worker record (same identity, gear, horse), hired like any worker. */
-    public void recruitRecord(WorldServer world, VirtualTravellerRecord r, EntityPlayer owner) {
+    public void recruitRecord(WorldServer world, VirtualTravellerRecord r, UUID ownerId) {
         if ("TRAVELLER".equals(r.entityClass)) r.entityClass = "WORKER";
-        hireVirtualWorker(world, r, owner);
+        hireVirtualWorker(world, r, ownerId);
     }
 
     /** An offscreen successor takes over a dead recruiter's tour where it was. */
