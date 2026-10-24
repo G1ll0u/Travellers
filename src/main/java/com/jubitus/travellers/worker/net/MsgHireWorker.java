@@ -23,8 +23,9 @@ import java.util.UUID;
 
 public class MsgHireWorker implements IMessage {
     private int entityId;
-    // The group size the player saw priced; the server refuses a hire at any other size.
+    // The group size and price the player saw; the server refuses a hire if either changed since.
     private int groupSize;
+    private int price;
 
     public MsgHireWorker() {
     }
@@ -32,18 +33,21 @@ public class MsgHireWorker implements IMessage {
     public MsgHireWorker(EntityTravellerWorker worker) {
         this.entityId = worker.getEntityId();
         this.groupSize = worker.clientHireGroupSize;
+        this.price = worker.clientHirePrice;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         this.entityId = buf.readInt();
         this.groupSize = buf.readInt();
+        this.price = buf.readInt();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeInt(entityId);
         buf.writeInt(groupSize);
+        buf.writeInt(price);
     }
 
     public static class Handler implements IMessageHandler<MsgHireWorker, IMessage> {
@@ -91,11 +95,11 @@ public class MsgHireWorker implements IMessage {
                 // The whole merchant group or nobody. A group that changed since the price was shown is
                 // re-priced on the player's screen instead of charged.
                 MerchantGroup group = MerchantGroup.of(player.getServerWorld(), worker);
-                if (group.size() != msg.groupSize) {
+                int costInDeniers = group.hirePrice();
+                if (group.size() != msg.groupSize || costInDeniers != msg.price) {
                     TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
                     return;
                 }
-                int costInDeniers = TravellersDerivedConfig.workerHireCostDeniersServerCache * group.size();
                 int playerMoneyBefore = MillMoney.countPlayerMoney(player);
 
                 if (playerMoneyBefore < costInDeniers) {

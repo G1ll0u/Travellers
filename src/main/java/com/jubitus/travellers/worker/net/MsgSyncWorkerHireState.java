@@ -24,6 +24,7 @@ public class MsgSyncWorkerHireState implements IMessage {
     // -1 = never set
     private int equipRole = -1;
     private int hireGroupSize = 1;
+    private int hirePrice = -1;
 
     public MsgSyncWorkerHireState() {
     }
@@ -38,8 +39,10 @@ public class MsgSyncWorkerHireState implements IMessage {
         this.homeVillageName = name != null ? name : "";
         if (worker.getEquipRole() != null) this.equipRole = worker.getEquipRole().bits;
         if (!hired && worker.world instanceof net.minecraft.world.WorldServer) {
-            this.hireGroupSize = com.jubitus.travellers.worker.MerchantGroup
-                    .of((net.minecraft.world.WorldServer) worker.world, worker).size();
+            com.jubitus.travellers.worker.MerchantGroup group = com.jubitus.travellers.worker.MerchantGroup
+                    .of((net.minecraft.world.WorldServer) worker.world, worker);
+            this.hireGroupSize = group.size();
+            this.hirePrice = group.hirePrice();
         }
     }
 
@@ -61,6 +64,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         this.homeVillageName = ByteBufUtils.readUTF8String(buf);
         this.equipRole = buf.readByte();
         this.hireGroupSize = buf.readInt();
+        this.hirePrice = buf.readInt();
     }
 
     @Override
@@ -80,6 +84,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         ByteBufUtils.writeUTF8String(buf, homeVillageName);
         buf.writeByte(equipRole);
         buf.writeInt(hireGroupSize);
+        buf.writeInt(hirePrice);
     }
 
     public static class Handler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
@@ -106,6 +111,7 @@ public class MsgSyncWorkerHireState implements IMessage {
                 w.setFollowOrderActive(msg.followOrderActive);
                 w.clientHomeVillageName = msg.homeVillageName;
                 w.clientHireGroupSize = msg.hireGroupSize;
+                w.clientHirePrice = msg.hirePrice;
                 w.setEquipRole(msg.equipRole < 0 ? null
                         : com.jubitus.travellers.unit.equipment.EquipLoadout.of(msg.equipRole));
             });

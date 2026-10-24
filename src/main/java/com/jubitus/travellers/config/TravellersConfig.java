@@ -38,6 +38,7 @@ public class TravellersConfig {
     public static final Fishing FISHING = new Fishing();
     public static final ControlledVillage CONTROLLED_VILLAGE = new ControlledVillage();
     public static final Worker WORKER = new Worker();
+    public static final Money MONEY = new Money();
     public static final Recruitment RECRUITMENT = new Recruitment();
     public static final Merchant MERCHANT = new Merchant();
     public static final Filters FILTERS = new Filters();
@@ -2657,10 +2658,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 20, max = 6000)
         public int zoneRescanIntervalTicks = 100;
 
-        @Config.Comment("Cost to hire a worker (in deniers). 1 argent = 64 deniers.")
-        @Config.RangeInt(min = 0, max = 10000000)
-        public int workerHireCostDeniers = 640;
-
         @Config.Comment("Writes each worker's cargo and gear to the game log at every mission step (for bug hunting).")
         public boolean debugMissionLog = false;
 
@@ -2718,6 +2715,48 @@ public class TravellersConfig {
         @Config.Comment("Minimum block distance between worker villages.")
         @Config.RangeInt(min = 100, max = 10000)
         public int workerVillageMinDistance = 250;
+    }
+
+    public static class Money {
+        @Config.Comment("Bronze deniers every raider slain by a player drops, however poorly equipped (64 bronze = 1 silver, 64 silver = 1 gold).")
+        @Config.RangeInt(min = 0, max = 100000)
+        public int dropBaseDeniers = 4;
+
+        @Config.Comment("Extra bronze deniers a slain raider drops for each point of armour and weapon damage it carried.")
+        @Config.RangeInt(min = 0, max = 100000)
+        public int dropDeniersPerGearPoint = 3;
+
+        @Config.Comment("How much a drop can vary up or down from its usual amount, in percent.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int dropRandomPercent = 30;
+
+        @Config.Comment("Experience every slain raider gives, however poorly equipped.")
+        @Config.RangeInt(min = 0, max = 10000)
+        public int xpBase = 3;
+
+        @Config.Comment("Extra experience a slain raider gives for each point of armour and weapon damage it carried.")
+        @Config.RangeDouble(min = 0.0, max = 100.0)
+        public double xpPerGearPoint = 0.5;
+
+        @Config.Comment("How much the experience can vary up or down from its usual amount, in percent.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int xpRandomPercent = 30;
+
+        @Config.Comment("What peaceful travellers and unhired workers drop (deniers and experience), in percent of a raider with the same gear.")
+        @Config.RangeInt(min = 0, max = 1000)
+        public int peacefulDropPercent = 50;
+
+        @Config.Comment("Bronze deniers every worker costs to hire, however poorly equipped.")
+        @Config.RangeInt(min = 0, max = 10000000)
+        public int hireBaseDeniers = 192;
+
+        @Config.Comment("Extra bronze deniers a worker costs to hire for each point of armour and weapon damage it carries.")
+        @Config.RangeInt(min = 0, max = 100000)
+        public int hireDeniersPerGearPoint = 24;
+
+        @Config.Comment("How much one worker's hiring price can differ from another's with the same gear, in percent.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int hireRandomPercent = 15;
     }
 
     public static class Recruitment {

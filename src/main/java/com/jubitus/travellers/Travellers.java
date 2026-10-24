@@ -85,7 +85,6 @@ public class Travellers {
         if (srv == null) return;
 
         MsgSyncServerCosts packet = new MsgSyncServerCosts(
-                TravellersDerivedConfig.workerHireCostDeniersServerCache,
                 TravellersDerivedConfig.recruitFeeFlatServerCache,
                 TravellersDerivedConfig.recruitFeePerBlockServerCache,
                 TravellersDerivedConfig.recruitFeePerVillageServerCache

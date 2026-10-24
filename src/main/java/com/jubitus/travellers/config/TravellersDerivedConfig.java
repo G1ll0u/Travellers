@@ -29,7 +29,6 @@ public class TravellersDerivedConfig {
     public static final EntityRuleList RAIDER_AGGRO_BLACKLIST = new EntityRuleList();
 
     // Client-only: last value received from server for GUI display. -1/NaN = unknown (not received yet).
-    public static int workerHireCostDeniersServerCache = -1;
     public static int recruitFeeFlatServerCache = -1;
     public static double recruitFeePerBlockServerCache = Double.NaN;
     public static int recruitFeePerVillageServerCache = -1;
@@ -85,7 +84,6 @@ public class TravellersDerivedConfig {
     }
 
     public static void syncServerCostCachesFromConfig() {
-        workerHireCostDeniersServerCache = TravellersConfig.WORKER.workerHireCostDeniers;
         recruitFeeFlatServerCache = TravellersConfig.RECRUITMENT.recruitFeeFlat;
         recruitFeePerBlockServerCache = TravellersConfig.RECRUITMENT.recruitFeePerBlock;
         recruitFeePerVillageServerCache = TravellersConfig.RECRUITMENT.recruitFeePerVillage;

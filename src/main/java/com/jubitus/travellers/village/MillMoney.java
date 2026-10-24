@@ -2,7 +2,13 @@ package com.jubitus.travellers.village;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import org.millenaire.common.item.MillItems;
 import org.millenaire.common.utilities.MillCommonUtilities;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** The player's Millénaire money: the one place that counts, spends, gives and formats deniers. */
 public final class MillMoney {
@@ -13,6 +19,21 @@ public final class MillMoney {
     /** Millénaire's short price text (e.g. "1o 2a 3d"). */
     public static String format(int deniers) {
         return MillCommonUtilities.getShortPrice(deniers);
+    }
+
+    /** The fewest coin stacks (gold, silver, then bronze deniers) worth {@code deniers}. */
+    public static List<ItemStack> coins(int deniers) {
+        List<ItemStack> out = new ArrayList<>();
+        if (deniers <= 0) return out;
+        addStacks(out, MillItems.DENIER_OR, deniers / (64 * 64));
+        addStacks(out, MillItems.DENIER_ARGENT, deniers / 64 % 64);
+        addStacks(out, MillItems.DENIER, deniers % 64);
+        return out;
+    }
+
+    private static void addStacks(List<ItemStack> out, Item coin, int count) {
+        int max = new ItemStack(coin).getMaxStackSize();
+        for (; count > 0; count -= max) out.add(new ItemStack(coin, Math.min(max, count)));
     }
 
     public static int countPlayerMoney(EntityPlayer player) {

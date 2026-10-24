@@ -436,44 +436,10 @@ public final class DeliveryJob {
         }
     }
 
-    /**
-     * Convert a total amount of deniers into DENIER / DENIER_ARGENT / DENIER_OR
-     * and put them into the worker's cargo inventory. If inventory is full, drop
-     * the leftover in the world at the worker's feet.
-     */
+    /** Puts the payment's coins into the worker's cargo, then its backpack, dropping what fits in neither. */
     private void addMoneyToCargo(int deniersTotal) {
-        if (deniersTotal <= 0) return;
-
-        int denierOr = deniersTotal / (64 * 64);
-        deniersTotal %= (64 * 64);
-        int denierArgent = deniersTotal / 64;
-        int denier = deniersTotal % 64;
-
-        MillLog.major(worker, "[TravellersWorker] Coin breakdown: "
-                + denierOr + "o, " + denierArgent + "a, " + denier + "d");
-
-        addCoinsToCargo(MillItems.DENIER_OR, denierOr);
-        addCoinsToCargo(MillItems.DENIER_ARGENT, denierArgent);
-        addCoinsToCargo(MillItems.DENIER, denier);
-    }
-
-    /**
-     * Insert a given number of coin items into the cargo inventory, splitting into
-     * valid stack sizes. Any leftovers that don't fit get dropped in the world.
-     */
-    private void addCoinsToCargo(Item coinItem, int amount) {
-        if (amount <= 0) return;
-
-        ItemStackHandler inv = worker.getTravelInventory();
-        int maxStack = coinItem.getItemStackLimit(new ItemStack(coinItem));
-
-        while (amount > 0) {
-            int toPlace = Math.min(maxStack, amount);
-            ItemStack stack = new ItemStack(coinItem, toPlace);
-            amount -= toPlace;
-
-            ItemStack remaining = insertStackInHandler(inv, stack);
-            // Overflow goes to the backpack; dropped only if that is full too.
+        for (ItemStack coins : MillMoney.coins(deniersTotal)) {
+            ItemStack remaining = insertStackInHandler(worker.getTravelInventory(), coins);
             if (!remaining.isEmpty()) remaining = insertStackInHandler(worker.inventory, remaining);
             if (!remaining.isEmpty()) {
                 MillLog.major(worker, "[TravellersWorker] Cargo full, dropping "

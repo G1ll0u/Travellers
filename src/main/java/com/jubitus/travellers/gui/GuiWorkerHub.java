@@ -447,9 +447,8 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
 
         if (hireButton != null) {
             if (ctx.isFree()) {
-                int cost = TravellersDerivedConfig.workerHireCostDeniersServerCache;
                 int count = worker.clientHireGroupSize;
-                String price = cost >= 0 ? MillMoney.format(cost * count) : "?";
+                String price = worker.clientHirePrice >= 0 ? MillMoney.format(worker.clientHirePrice) : "?";
                 hireButton.displayString = count > 1
                         ? net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire_group", count, price)
                         : net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire", price);

@@ -170,6 +170,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     public String clientHomeVillageName = "";
     // Client copy of how many workers a hire takes (the merchant's whole group), sent with the hire state.
     public int clientHireGroupSize = 1;
+    public int clientHirePrice = -1;
     // --- the one zone assignment: a Barrack (lodging) or a Stable (lodging + duty) ---
     @Nullable
     ZoneRef zone = null;

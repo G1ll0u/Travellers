@@ -22,7 +22,6 @@ public class MsgRequestServerCosts implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 TravellersNetwork.CHANNEL.sendTo(
                         new MsgSyncServerCosts(
-                                TravellersConfig.WORKER.workerHireCostDeniers,
                                 TravellersConfig.RECRUITMENT.recruitFeeFlat,
                                 TravellersConfig.RECRUITMENT.recruitFeePerBlock,
                                 TravellersConfig.RECRUITMENT.recruitFeePerVillage

@@ -155,6 +155,8 @@ public class EntityTraveller extends EntityCreature {
     // against a hand-marked one. Never persisted - it exists for one test run and is deleted by its
     // own watchdog, never handed off to the offscreen simulation.
     private boolean debugPathTest = false;
+    // Gear score taken when the unit dies, for the experience vanilla counts a second later.
+    private double gearAtDeath = Double.NaN;
     // Configuration-ish knobs
     private static final DataParameter<String> CULTURE_ID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.STRING);
@@ -984,15 +986,7 @@ public class EntityTraveller extends EntityCreature {
 
     @Override
     protected int getExperiencePoints(EntityPlayer player) {
-        int base = 4; // baseline
-        // small bonuses for gear
-        int gear =
-                (!getItemStackFromSlot(EntityEquipmentSlot.CHEST).isEmpty() ? 2 : 0) +
-                        (!getItemStackFromSlot(EntityEquipmentSlot.LEGS).isEmpty() ? 1 : 0) +
-                        (!getItemStackFromSlot(EntityEquipmentSlot.HEAD).isEmpty() ? 1 : 0);
-        // bonus for max health above 20
-        int hpBonus = Math.max(0, (int) Math.floor((getMaxHealth() - 20f) / 10f));
-        return base + gear + hpBonus; // tweak to taste
+        return UnitWorth.experience(this, Double.isNaN(gearAtDeath) ? UnitWorth.gearScore(this) : gearAtDeath);
     }
 
     @Override
@@ -1866,6 +1860,10 @@ public void fall(float distance, float damageMultiplier) {
         // Strip every ghost-tagged visual copy (sword/bow/torch/block/rod) before vanilla's drop
         // logic runs, or a clone with no attribute modifiers can be dropped alongside the real item.
         equipment.purgeGhostItems();
+        if (!world.isRemote) {
+            gearAtDeath = UnitWorth.gearScore(this);
+            UnitWorth.dropCoins(this, gearAtDeath, recentlyHit > 0);
+        }
         super.onDeath(cause);
     }
 

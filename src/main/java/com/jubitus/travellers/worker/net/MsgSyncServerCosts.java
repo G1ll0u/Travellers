@@ -9,16 +9,13 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 public class MsgSyncServerCosts implements IMessage {
-    private int workerHireCostDeniers;
-
     private int recruitFeeFlat;
     private double recruitFeePerBlock;
     private int recruitFeePerVillage;
 
     public MsgSyncServerCosts() {}
 
-    public MsgSyncServerCosts(int hire, int flat, double perBlock, int perVillage) {
-        this.workerHireCostDeniers = hire;
+    public MsgSyncServerCosts(int flat, double perBlock, int perVillage) {
         this.recruitFeeFlat = flat;
         this.recruitFeePerBlock = perBlock;
         this.recruitFeePerVillage = perVillage;
@@ -26,8 +23,6 @@ public class MsgSyncServerCosts implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        workerHireCostDeniers = buf.readInt();
-
         recruitFeeFlat = buf.readInt();
         recruitFeePerBlock = buf.readDouble();
         recruitFeePerVillage = buf.readInt();
@@ -35,8 +30,6 @@ public class MsgSyncServerCosts implements IMessage {
 
     @Override
     public void toBytes(ByteBuf buf) {
-        buf.writeInt(workerHireCostDeniers);
-
         buf.writeInt(recruitFeeFlat);
         buf.writeDouble(recruitFeePerBlock);
         buf.writeInt(recruitFeePerVillage);
@@ -46,8 +39,6 @@ public class MsgSyncServerCosts implements IMessage {
         @Override
         public IMessage onMessage(MsgSyncServerCosts msg, MessageContext ctx) {
             Minecraft.getMinecraft().addScheduledTask(() -> {
-
-                TravellersDerivedConfig.workerHireCostDeniersServerCache = msg.workerHireCostDeniers;
 
                 TravellersDerivedConfig.recruitFeeFlatServerCache = msg.recruitFeeFlat;
                 TravellersDerivedConfig.recruitFeePerBlockServerCache = msg.recruitFeePerBlock;

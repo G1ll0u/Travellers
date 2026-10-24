@@ -1,6 +1,7 @@
 package com.jubitus.travellers.worker;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.unit.UnitWorth;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import net.minecraft.entity.Entity;
@@ -43,6 +44,14 @@ public final class MerchantGroup {
 
     public int size() {
         return loaded.size() + virtual.size();
+    }
+
+    /** What hiring the whole group costs, each member priced by its own gear. */
+    public int hirePrice() {
+        int total = 0;
+        for (EntityTravellerWorker w : loaded) total += UnitWorth.hirePrice(w);
+        for (VirtualTravellerRecord r : virtual) total += UnitWorth.hirePrice(r);
+        return total;
     }
 
     /** Every member becomes an ordinary hired worker following {@code owner}, ungrouped. */
