@@ -26,6 +26,7 @@ import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.jubitus.travellers.combat.TravellerCombatLogic;
 import com.jubitus.travellers.combat.TravellerItemDamage;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.item.EntityItem;
@@ -79,6 +80,9 @@ public class VirtualBattleManager extends WorldSavedData {
     // After leaving a battle without a result, a pawn cannot be pulled into a new one for this long (60 s).
     private static final int REJOIN_COOLDOWN_TICKS = 1200;
     private static final int ORPHAN_SWEEP_INTERVAL = 200;
+    // Probe: a battle older than this gets its loaded fighters' state logged every STALL_PROBE_INTERVAL.
+    private static final long STALL_PROBE_AGE = 1200;
+    private static final int STALL_PROBE_INTERVAL = 400;
     // How long an ended battle keeps its map marker, showing the result (60 s).
     private static final int ENDED_MARKER_TICKS = 1200;
     /** A shown battle ends after this long without any blow. */
@@ -100,6 +104,9 @@ public class VirtualBattleManager extends WorldSavedData {
     // Transient: pawn uuid -> world tick before which it may not be (re)added to a battle
     private final Map<UUID, Long> rejoinBlockedUntil = new HashMap<>();
     private long lastOrphanSweepTick = -1;
+    private long lastStallProbeTick = -1;
+    // Probe: each loaded fighter's ticksExisted at the previous stall probe (transient).
+    private final Map<UUID, Integer> stallProbeTicks = new HashMap<>();
     private final List<PendingLootDrop> pendingLoot = new ArrayList<>();
 
     // Transient: pawn uuid -> battle id (rebuilt on load)
@@ -148,6 +155,11 @@ public class VirtualBattleManager extends WorldSavedData {
                 lastSimPassTick = now;
                 simPass(world, now);
             }
+        }
+
+        if (now - lastStallProbeTick >= STALL_PROBE_INTERVAL) {
+            lastStallProbeTick = now;
+            probeStalls(world, now);
         }
 
         if (now - lastOrphanSweepTick >= ORPHAN_SWEEP_INTERVAL) {
@@ -262,6 +274,40 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
         markDirty();
+    }
+
+    /**
+     * Probe: why a long battle does not end. Per loaded standing fighter: frozen by vanilla, ticks run since
+     * the last probe (0 = not ticking), target and distance, whether it has a path.
+     */
+    private void probeStalls(WorldServer world, long now) {
+        int dim = world.provider.getDimension();
+        Map<UUID, Integer> seen = new HashMap<>();
+        for (BattleRecord b : battles.values()) {
+            if (b.dimension != dim || now - b.startTick < STALL_PROBE_AGE) continue;
+            int lines = 0;
+            for (BattleParticipant p : b.participants.values()) {
+                if (!p.alive || p.isPlayer || !p.loaded || lines >= 40) continue;
+                Entity e = world.getEntityFromUuid(p.uuid);
+                if (!(e instanceof EntityTraveller)) continue;
+                EntityTraveller t = (EntityTraveller) e;
+                Integer before = stallProbeTicks.get(p.uuid);
+                seen.put(p.uuid, t.ticksExisted);
+                EntityLivingBase tgt = t.getAttackTarget();
+                BattleLog.logAny(world.getMinecraftServer(), now, b, String.format(java.util.Locale.ROOT,
+                        "stall %s %s at=%.0f,%.0f frozen=%s ticket=%s ticked=%s hp=%.1f tgt=%s d=%s path=%s riding=%s bow=%s",
+                        p.uuid.toString().substring(0, 8), p.groupKey, t.posX, t.posZ,
+                        VirtualTravellerManager.isFrozenByVanillaAt(world, t.posX, t.posZ),
+                        world.getPersistentChunks().containsKey(new net.minecraft.util.math.ChunkPos(t.getPosition())),
+                        before == null ? "?" : String.valueOf(t.ticksExisted - before), t.getHealth(),
+                        tgt == null ? "-" : tgt.getUniqueID().toString().substring(0, 8),
+                        tgt == null ? "-" : String.format(java.util.Locale.ROOT, "%.1f", t.getDistance(tgt)),
+                        t.getNavigator().noPath() ? "none" : "yes", t.isRiding(), t.isAimingBow()));
+                lines++;
+            }
+        }
+        stallProbeTicks.clear();
+        stallProbeTicks.putAll(seen);
     }
 
     /** Probe: a pawn still standing in a battle that does not index it died, so the battle never hears of it. */

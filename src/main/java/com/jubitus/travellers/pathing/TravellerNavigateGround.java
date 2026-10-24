@@ -85,6 +85,11 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return travellerFinder;
     }
 
+    // Our own search target and repath clock: vanilla's are private and only its own search sets them.
+    @Nullable
+    private BlockPos searchTarget;
+    private long lastRepathTick;
+
     @Nullable
     @Override
     public net.minecraft.pathfinding.Path getPathToPos(BlockPos pos) {
@@ -94,35 +99,76 @@ public class TravellerNavigateGround extends PathNavigateGround {
     @Nullable
     @Override
     public net.minecraft.pathfinding.Path getPathToEntityLiving(net.minecraft.entity.Entity target) {
-        if (!com.jubitus.travellers.debug.profile.MovementProfiler.isActive() || !canNavigate()) {
-            return super.getPathToEntityLiving(target);
+        return timedPathToPos(new BlockPos(target), false); // as PathNavigateGround does
+    }
+
+    @Override
+    public void updatePath() {
+        if (this.world.getTotalWorldTime() - lastRepathTick > 20L) {
+            if (searchTarget != null) {
+                this.currentPath = null;
+                this.currentPath = getPathToPos(searchTarget);
+                lastRepathTick = this.world.getTotalWorldTime();
+                this.tryUpdatePath = false;
+            }
+        } else {
+            this.tryUpdatePath = true;
         }
-        net.minecraft.pathfinding.Path before = this.currentPath;
-        long t0 = System.nanoTime();
-        net.minecraft.pathfinding.Path path = super.getPathToEntityLiving(target);
-        long nanos = System.nanoTime() - t0;
-        // Vanilla hands back the current path untouched when the target cell hasn't changed - no search ran.
-        if (path == null || path != before) {
-            com.jubitus.travellers.debug.profile.MovementProfiler.pathSearch(this.entity, nanos, path,
-                    target.posX, target.posY, target.posZ, false);
-        }
-        return path;
     }
 
     @Nullable
     private net.minecraft.pathfinding.Path timedPathToPos(BlockPos pos, boolean probe) {
         if (!com.jubitus.travellers.debug.profile.MovementProfiler.isActive() || !canNavigate()) {
-            return super.getPathToPos(pos);
+            return search(pos);
         }
         net.minecraft.pathfinding.Path before = this.currentPath;
         long t0 = System.nanoTime();
-        net.minecraft.pathfinding.Path path = super.getPathToPos(pos);
+        net.minecraft.pathfinding.Path path = search(pos);
         long nanos = System.nanoTime() - t0;
         if (path == null || path != before) {
             com.jubitus.travellers.debug.profile.MovementProfiler.pathSearch(this.entity, nanos, path,
                     pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, probe);
         }
         return path;
+    }
+
+    /**
+     * Vanilla's ground search (PathNavigate + PathNavigateGround), except every block it reads comes from
+     * {@link LoadedOnlyChunkCache}: a search never loads a chunk, so it needs no loaded-area gate.
+     */
+    @Nullable
+    private net.minecraft.pathfinding.Path search(BlockPos pos) {
+        if (!(this.world instanceof net.minecraft.world.WorldServer)) return super.getPathToPos(pos);
+        if (!canNavigate()) return null;
+        float range = getPathSearchRange();
+        BlockPos home = new BlockPos(this.entity);
+        int r = (int) (range + 8.0F);
+        LoadedOnlyChunkCache cache = new LoadedOnlyChunkCache((net.minecraft.world.WorldServer) this.world, home,
+                home.add(-r, -r, -r), home.add(r, r, r));
+        BlockPos target = groundTarget(cache, pos);
+        if (this.currentPath != null && !this.currentPath.isFinished() && target.equals(searchTarget)) {
+            return this.currentPath;
+        }
+        searchTarget = target;
+        this.world.profiler.startSection("pathfind");
+        net.minecraft.pathfinding.Path path = getPathFinder().findPath(cache, this.entity, target, range);
+        this.world.profiler.endSection();
+        return path;
+    }
+
+    // PathNavigateGround's target fix-up: down onto the floor below an air target, up out of a solid one.
+    private BlockPos groundTarget(LoadedOnlyChunkCache cache, BlockPos pos) {
+        if (cache.getBlockState(pos).getMaterial() == Material.AIR) {
+            BlockPos below = pos.down();
+            while (below.getY() > 0 && cache.getBlockState(below).getMaterial() == Material.AIR) below = below.down();
+            if (below.getY() > 0) return below.up();
+            while (below.getY() < this.world.getHeight() && cache.getBlockState(below).getMaterial() == Material.AIR) below = below.up();
+            pos = below;
+        }
+        if (!cache.getBlockState(pos).getMaterial().isSolid()) return pos;
+        BlockPos above = pos.up();
+        while (above.getY() < this.world.getHeight() && cache.getBlockState(above).getMaterial().isSolid()) above = above.up();
+        return above;
     }
 
     @Override

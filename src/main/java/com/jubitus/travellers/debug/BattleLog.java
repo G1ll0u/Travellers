@@ -65,6 +65,12 @@ public final class BattleLog {
         write(server, "t=" + tick + " battle=" + id(b) + " at=" + b.anchor.getX() + "," + b.anchor.getZ() + " " + event);
     }
 
+    /** Probe lines: written for every battle, henchmen or not. */
+    public static void logAny(@Nullable MinecraftServer server, long tick, BattleRecord b, String event) {
+        if (server == null) return;
+        write(server, "t=" + tick + " battle=" + id(b) + " at=" + b.anchor.getX() + "," + b.anchor.getZ() + " " + event);
+    }
+
     private static boolean involvesPlayers(BattleRecord b) {
         for (BattleParticipant p : b.participants.values()) {
             if (p.isPlayer || p.groupKey.startsWith(BattleParticipant.OWNER_KEY_PREFIX)) return true;

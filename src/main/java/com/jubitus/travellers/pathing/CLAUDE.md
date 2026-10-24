@@ -1,6 +1,7 @@
 # Pathing: navigator, itinerary, terrain grid, coarse routes
 
 - `TravellerNavigateGround` / `TravellerNodeProcessor` / `TravellerMoveHelper`: loaded-side A* and movement. Mounted searches read a per-search cached block access (planning only); `MixinPathFinder` raises the node cap only for `TravellerNodeProcessor` searches.
+- **Our path searches never load a chunk**: `TravellerNavigateGround.search` reads through `LoadedOnlyChunkCache` (an unloaded chunk reads as blank); never call vanilla's `getPathToPos`, never gate a search on a loaded area.
 - `PathBody` + `MountTerrainProfile`: the one clearance model (see `mount/CLAUDE.md`).
 
 ## Itinerary (`itinerary/`)

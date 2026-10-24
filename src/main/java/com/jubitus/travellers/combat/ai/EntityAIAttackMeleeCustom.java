@@ -98,9 +98,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         if (inReach) return true;
 
         WorkerAttitude attitude = attitudeOf();
-        if (attitude != WorkerAttitude.ATTACK && !withinTether(tgt)) return false;
-
-        return isPathAreaLoaded(tgt, 24);
+        return attitude == WorkerAttitude.ATTACK || withinTether(tgt);
     }
 
     /** Group posture for this attacker - always ATTACK for anything that isn't a hired worker. */
@@ -455,10 +453,5 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         double dx = (px < bb.minX) ? (bb.minX - px) : (px > bb.maxX ? px - bb.maxX : 0.0D);
         double dz = (pz < bb.minZ) ? (bb.minZ - pz) : (pz > bb.maxZ ? pz - bb.maxZ : 0.0D);
         return dx * dx + dz * dz;
-    }
-
-    private boolean isPathAreaLoaded(EntityLivingBase tgt, int radiusBlocks) {
-        return attacker.world.isAreaLoaded(attacker.getPosition(), radiusBlocks)
-                && attacker.world.isAreaLoaded(tgt.getPosition(), radiusBlocks);
     }
 }
