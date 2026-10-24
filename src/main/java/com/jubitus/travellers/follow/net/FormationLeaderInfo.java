@@ -20,6 +20,8 @@ public final class FormationLeaderInfo {
     public boolean busy;
     // True while it walks to a spot it was sent to with a Go order.
     public boolean goActive;
+    // True while it is on the outbound part of a recruiting tour: the one order it takes is a recall.
+    public boolean recallable;
 
     // Display data for the leader list
     public String cultureId = "";
@@ -57,6 +59,7 @@ public final class FormationLeaderInfo {
         tag.setBoolean("FollowActive", followActive);
         tag.setBoolean("Busy", busy);
         tag.setBoolean("GoActive", goActive);
+        tag.setBoolean("Recallable", recallable);
         tag.setString("CultureId", cultureId);
         tag.setInteger("TextureIndex", textureIndex);
         tag.setInteger("OwnerColor", ownerColor);
@@ -78,6 +81,7 @@ public final class FormationLeaderInfo {
         info.followActive = tag.getBoolean("FollowActive");
         info.busy = tag.getBoolean("Busy");
         info.goActive = tag.getBoolean("GoActive");
+        info.recallable = tag.getBoolean("Recallable");
         info.cultureId = tag.hasKey("CultureId") ? tag.getString("CultureId") : "";
         info.textureIndex = tag.hasKey("TextureIndex") ? tag.getInteger("TextureIndex") : 0;
         info.ownerColor = tag.hasKey("OwnerColor") ? tag.getInteger("OwnerColor") : 0xFFFFFF;

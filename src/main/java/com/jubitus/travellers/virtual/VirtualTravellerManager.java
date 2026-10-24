@@ -892,6 +892,13 @@ public class VirtualTravellerManager extends WorldSavedData {
         hireVirtualWorker(world, r, owner);
     }
 
+    /** An offscreen recruiter called back by its owner. */
+    public void recallRecruiter(WorldServer world, VirtualTravellerRecord r) {
+        if (r.recruitTour == null || r.recruitTour.isReturning()) return;
+        missions.turnBack(world, r);
+        markDirty();
+    }
+
     /** Brings this record back as soon as the body it left is gone, skipping the materialize debounce. */
     public void materializeSoon(UUID id) {
         materializeSoon.add(id);

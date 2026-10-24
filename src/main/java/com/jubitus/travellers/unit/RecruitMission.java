@@ -217,6 +217,11 @@ public final class RecruitMission {
         return MillMoney.givePlayerMoney((EntityPlayerMP) owner, purse) ? purse : 0;
     }
 
+    /** Called back by the owner: turns back now, still meeting people on the way like any return. */
+    public void recall() {
+        if (tour != null && !tour.isReturning()) beginReturnToOwner();
+    }
+
     /** Dismissed mid-tour (the owner is the one dismissing, so online): the purse goes back, the tour ends here. */
     void onDismissed() {
         if (tour == null) return;

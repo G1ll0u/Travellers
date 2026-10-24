@@ -12,6 +12,7 @@ import com.jubitus.travellers.gui.GuiContextMenu;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.unit.equipment.net.MsgEquipDestsResponse;
 import com.jubitus.travellers.unit.equipment.net.MsgLeaderGetEquip;
+import com.jubitus.travellers.worker.net.MsgRecruitRecall;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
@@ -377,6 +378,9 @@ final class FormationOrdersMenu {
             }
             if (!group.followActive) {
                 menu.itemUnless(busy, tr("resume"), () -> setLeaderFollow(group, true));
+            }
+            if (group.recallable) {
+                menu.itemUnless(null, tr("recall"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgRecruitRecall(src)));
             }
             menuTargets.add(unit.pos);
         } else if (unit != null && unit.kind == TargetKind.PLAYER) {

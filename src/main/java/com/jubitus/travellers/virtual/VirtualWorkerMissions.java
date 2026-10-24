@@ -230,13 +230,18 @@ final class VirtualWorkerMissions {
             r.jobGoal = next.center;
             r.goal = next.center;
         } else {
-            tour.turnBack();
-            r.workerMode = "RETURNING";
-            r.jobGoal = null;
-            EntityPlayer owner = r.followOwnerUUID != null ? world.getPlayerEntityByUUID(r.followOwnerUUID) : null;
-            if (owner != null) r.goal = owner.getPosition();
+            turnBack(world, r);
         }
         manager.markDirty();
+    }
+
+    /** The offscreen side of RecruitMission.beginReturnToOwner: the record heads for its owner. */
+    void turnBack(WorldServer world, VirtualTravellerRecord r) {
+        r.recruitTour.turnBack();
+        r.workerMode = "RETURNING";
+        r.jobGoal = null;
+        EntityPlayer owner = r.followOwnerUUID != null ? world.getPlayerEntityByUUID(r.followOwnerUUID) : null;
+        if (owner != null) r.goal = owner.getPosition();
     }
 
     private void tryVirtualEquipExchange(WorldServer world, VirtualTravellerRecord r) {

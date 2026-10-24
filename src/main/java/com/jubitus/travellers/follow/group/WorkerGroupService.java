@@ -780,6 +780,7 @@ public final class WorkerGroupService {
                 info.followActive = w.isFollowOrderActive();
                 info.goActive = w.trips.isGoOrderActive();
                 info.busy = WorkerOrderGuard.isBusy(w);
+                info.recallable = w.recruit.getTour() != null && !w.recruit.getTour().isReturning();
                 info.cultureId = w.getCultureId();
                 info.textureIndex = w.getTextureIndex();
                 info.ownerColor = w.getOwnerMarkColor();
@@ -847,6 +848,7 @@ public final class WorkerGroupService {
         info.followActive = r.followOrderActive;
         info.goActive = r.goOrderActive;
         info.busy = WorkerOrderGuard.isBusy(r);
+        info.recallable = r.recruitTour != null && !r.recruitTour.isReturning();
         info.cultureId = r.entityNbt != null && r.entityNbt.hasKey("CultureId")
                 ? r.entityNbt.getString("CultureId") : "";
         info.textureIndex = r.entityNbt != null && r.entityNbt.hasKey("TextureIdx")

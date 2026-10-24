@@ -22,6 +22,7 @@ A hired worker sent recruiting brings back real units of the world (travellers, 
 - **Groups**: a candidate in a spawn group joins with its whole group (purse and quota permitting) or not at all.
 - **Conversion**: a traveller becomes a worker keeping name, culture, appearance, gear, voice, dialogue memory and its bonded horse. Raiders never.
 - **Population**: a hired unit (recruited or not) stops counting toward its village's quota and the worker cap, so the spawner refills it; its home village is kept (dialogue, hire screen).
+- **Purse belongs to the worker** (next): moved out of the recruiting tour so the planned purchase missions reuse it as is.
 - **Old mode** (spawning fresh recruits) removed, with its config keys.
 
 ## Edge cases to cover
@@ -36,5 +37,5 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 6. **Encounters + roll**: `worker/RecruitEncounters`, groups via `worker/SpawnGroup` (was MerchantGroup), outcome counts in the profile report. — done
 7. **Conversion**: a record becomes a hired worker (`VirtualTravellerManager.recruitRecord`); a loaded traveller goes through virtualize → convert → `materializeSoon` (horse carried by the hand-off); a loaded free worker is hired in place; recruits fall in behind the recruiter (`WorkerGroupService.joinRecruiter`). — done
 8. **Purse**: paid per recruit; the rest refunded when the recruiter rejoins the owner (who may be offline or elsewhere meanwhile: the tour waits, purse kept) or dismisses it; coins dropped where a loaded recruiter dies; lost with a recruiter that dies offscreen. — done
-9. **Edge cases** above, lang keys. Open question: there is no order to call a recruiter back mid-tour. — todo (old mode, old screen, cost sync and their config/lang already removed).
+9. **Edge cases** above, lang keys. Recall: Formation Hub, right-click the recruiter itself, "Call back from recruiting" (`MsgRecruitRecall`, loaded or offscreen); it turns back and still recruits on the way, like any return. Recruiting only (other missions: with the purchases work). — recall done — todo (old mode, old screen, cost sync and their config/lang already removed).
 10. **Succession** (to discuss, user idea): when the recruiter dies, its successor among the recruits takes over the purse (and the tour?), loaded and offscreen alike. — todo

@@ -44,6 +44,7 @@ public final class NotificationDefs {
     public static final NotificationDef RECRUIT_NOT_ENOUGH_FEE = reply(REFUSAL, "travellers.notify.recruit.not_enough_fee", 2);
     public static final NotificationDef RECRUIT_PAYMENT_FAILED = reply(REFUSAL, "travellers.notify.recruit.payment_failed", 0);
     public static final NotificationDef RECRUIT_MISSION_STARTED = reply(INFO, "travellers.notify.recruit.mission_started", 1);
+    public static final NotificationDef RECRUIT_RECALLED = reply(INFO, "travellers.notify.recruit.recalled", 1);
     public static final NotificationDef RECRUIT_WORKERS_RECRUITED = event(SUCCESS, "travellers.notify.recruit.henchmen_recruited", 2);
     public static final NotificationDef RECRUIT_WORKERS_RECRUITED_ROAD = event(SUCCESS, "travellers.notify.recruit.henchmen_recruited_road", 2);
     public static final NotificationDef RECRUIT_MISSION_COMPLETED = event(SUCCESS, "travellers.notify.recruit.mission_completed", 0);
