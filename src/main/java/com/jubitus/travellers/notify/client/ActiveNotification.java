@@ -1,5 +1,6 @@
 package com.jubitus.travellers.notify.client;
 
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.notify.NotificationType;
 import net.minecraft.client.Minecraft;
@@ -42,7 +43,7 @@ public class ActiveNotification {
     private void setContent(NotificationType type, String text) {
         this.type = type;
         int width = TravellersConfig.NOTIFICATIONS.widthPixels;
-        this.wrappedLines = Minecraft.getMinecraft().fontRenderer.listFormattedStringToWidth(text, width);
+        this.wrappedLines = MoneyText.wrap(Minecraft.getMinecraft().fontRenderer, text, width);
     }
 
     public void tick() {

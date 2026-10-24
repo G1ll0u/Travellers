@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
@@ -252,7 +253,7 @@ public class GuiRecruitReport extends GuiScreen implements ITravellersGui {
         int textY = top + (ROW_H - 7) / 2;
         TravellersGuiTheme.drawScaledText(fontRenderer, label, listX + 3, textY, TEXT_SCALE, TravellersGuiTheme.COL_TEXT_DIM);
         String value = MillMoney.format(deniers);
-        int w = (int) Math.ceil(fontRenderer.getStringWidth(value) * TEXT_SCALE);
+        int w = (int) Math.ceil(MoneyText.width(fontRenderer, value) * TEXT_SCALE);
         TravellersGuiTheme.drawScaledText(fontRenderer, value, listX + LIST_W - 3 - w, textY, TEXT_SCALE, valueColor);
     }
 

@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.ScrollList;
@@ -257,7 +258,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     private void drawHeader() {
         if (plannedVillages.isEmpty()) return;
         boolean afford = MillMoney.countPlayerMoney(player) >= travelFee + purse;
-        fontRenderer.drawString(I18n.format("travellers.worker.recruit.travel_purse",
+        MoneyText.draw(fontRenderer, I18n.format("travellers.worker.recruit.travel_purse",
                         MillMoney.format(travelFee), MillMoney.format(purse)),
                 listX, mapY + 1, afford ? TravellersGuiTheme.COL_AFFORD : TravellersGuiTheme.COL_CANNOT);
     }

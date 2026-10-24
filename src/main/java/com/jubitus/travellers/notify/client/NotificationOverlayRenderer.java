@@ -1,5 +1,6 @@
 package com.jubitus.travellers.notify.client;
 
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.Tags;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
@@ -106,7 +107,7 @@ public class NotificationOverlayRenderer {
         GlStateManager.translate(x + PADDING + SEVERITY_BAR_W, y + PADDING, 0.0F);
         GlStateManager.scale(fontScale, fontScale, 1.0F);
         for (int i = 0; i < n.wrappedLines.size(); i++) {
-            fr.drawString(n.wrappedLines.get(i), 0, i * fr.FONT_HEIGHT, textColor);
+            MoneyText.draw(fr, n.wrappedLines.get(i), 0, i * fr.FONT_HEIGHT, textColor);
         }
         GlStateManager.popMatrix();
 

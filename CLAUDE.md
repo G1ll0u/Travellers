@@ -112,6 +112,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Is this gear allowed for a hired worker (its equipment role) | `unit/equipment/TravellerEquipmentManager.fitsRole` |
 | Can this player recruit from this culture / is this unit a recruit candidate | `worker/RecruitCultures` |
 | Handing money to a player | `MillMoney.giveWhatFits` (all into a carried Millénaire purse, else what fits; never dropped or lost) |
+| Showing an amount to a player | `MillMoney.format` + `gui/MoneyText` (a plain `drawString` shows the raw token) |
 | How fast a unit moves (percent of a walking player, ceilings, mounted factor, offscreen pace) | `unit/UnitSpeed` |
 | How far an entity moved per tick (players: never `pos - prevPos` on the server) | `unit/EntityMotion` |
 | Any marker on a vanilla horse / a horse joining or dying | `horse/HorseMarkers`, `horse/HorseEvents` |

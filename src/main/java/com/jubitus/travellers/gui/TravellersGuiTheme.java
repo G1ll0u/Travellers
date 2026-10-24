@@ -114,7 +114,7 @@ public final class TravellersGuiTheme {
 
     /** Draws a string centered on x, in the main text color. */
     public static void drawCenteredText(FontRenderer fr, String text, int centerX, int y, int color) {
-        fr.drawString(text, centerX - fr.getStringWidth(text) / 2, y, color);
+        MoneyText.draw(fr, text, centerX - MoneyText.width(fr, text) / 2, y, color);
     }
 
     /** Draws a 1px vertical line in the given color. */
@@ -170,7 +170,7 @@ public final class TravellersGuiTheme {
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0f);
         GlStateManager.scale(scale, scale, 1f);
-        fr.drawString(text, 0, 0, color);
+        MoneyText.draw(fr, text, 0, 0, color);
         GlStateManager.popMatrix();
     }
 
@@ -200,8 +200,8 @@ public final class TravellersGuiTheme {
 
     /** Trims a label to fit maxWidth, appending a dot when it had to be cut. */
     public static String trimLabel(FontRenderer fr, String text, int maxWidth) {
-        if (fr.getStringWidth(text) <= maxWidth) return text;
-        String cut = fr.trimStringToWidth(text, Math.max(0, maxWidth - fr.getStringWidth(".")));
+        if (MoneyText.width(fr, text) <= maxWidth) return text;
+        String cut = MoneyText.trimToWidth(fr, text, Math.max(0, maxWidth - fr.getStringWidth(".")));
         return cut + ".";
     }
 }

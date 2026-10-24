@@ -1,5 +1,6 @@
 package com.jubitus.travellers.follow.gui;
 
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.notify.JournalEntry;
@@ -111,7 +112,7 @@ final class FormationHubJournal {
             GlStateManager.translate(innerX + 8, rowTop + (rowH - lineH * lines.length) / 2f, 0f);
             GlStateManager.scale(fontScale, fontScale, 1f);
             for (int l = 0; l < lines.length; l++) {
-                fr.drawString(fr.trimStringToWidth(lines[l], textMaxW), 0,
+                MoneyText.draw(fr, MoneyText.trimToWidth(fr, lines[l], textMaxW), 0,
                         Math.round(l * lineH / fontScale), TravellersGuiTheme.COL_TEXT);
             }
             GlStateManager.popMatrix();

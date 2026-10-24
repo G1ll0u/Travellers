@@ -133,8 +133,8 @@ public class GuiTravellersButton extends GuiButton {
 
         // Centered on the button itself, so a column of buttons reads as one block — but never
         // allowed to run under the leading marker, which stays pinned to the left edge.
-        int labelX = this.x + (this.width - mc.fontRenderer.getStringWidth(label)) / 2;
-        mc.fontRenderer.drawString(label, Math.max(labelX, left), textY, textColor);
+        int labelX = this.x + (this.width - MoneyText.width(mc.fontRenderer, label)) / 2;
+        MoneyText.draw(mc.fontRenderer, label, Math.max(labelX, left), textY, textColor);
     }
 
     private int resolveBorder() {

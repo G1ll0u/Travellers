@@ -9,6 +9,7 @@ import org.millenaire.common.utilities.MillCommonUtilities;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /** The player's Millénaire money: the one place that counts, spends, gives and formats deniers. */
 public final class MillMoney {
@@ -16,18 +17,31 @@ public final class MillMoney {
     private MillMoney() {
     }
 
-    /** Millénaire's short price text (e.g. "1o 2a 3d"). */
+    /** An amount inside player-facing text; {@code gui/MoneyText} draws it as coin icons. */
+    public static final Pattern AMOUNT = Pattern.compile("\u00a7\\$(\\d{1,9});");
+
+    /** Gold, silver, then bronze deniers, the order of {@link #split}. */
+    public static Item[] coinItems() {
+        return new Item[]{MillItems.DENIER_OR, MillItems.DENIER_ARGENT, MillItems.DENIER};
+    }
+
+    /** Player-facing text for an amount (an {@link #AMOUNT} token): sent as is in notices and labels. */
     public static String format(int deniers) {
-        return MillCommonUtilities.getShortPrice(deniers);
+        return "\u00a7$" + Math.max(0, deniers) + ";";
+    }
+
+    /** Coin counts {gold, silver, bronze} worth {@code deniers}. */
+    public static int[] split(int deniers) {
+        int d = Math.max(0, deniers);
+        return new int[]{d / (64 * 64), d / 64 % 64, d % 64};
     }
 
     /** The fewest coin stacks (gold, silver, then bronze deniers) worth {@code deniers}. */
     public static List<ItemStack> coins(int deniers) {
         List<ItemStack> out = new ArrayList<>();
-        if (deniers <= 0) return out;
-        addStacks(out, MillItems.DENIER_OR, deniers / (64 * 64));
-        addStacks(out, MillItems.DENIER_ARGENT, deniers / 64 % 64);
-        addStacks(out, MillItems.DENIER, deniers % 64);
+        int[] counts = split(deniers);
+        Item[] items = coinItems();
+        for (int i = 0; i < counts.length; i++) addStacks(out, items[i], counts[i]);
         return out;
     }
 

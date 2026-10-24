@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
@@ -259,7 +260,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             int cost = DeliveryJob.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
             costStr = MillMoney.format(cost);
         }
-        this.fontRenderer.drawString(I18n.format("travellers.worker.cost", costStr), listX, listY - 10,
+        MoneyText.draw(this.fontRenderer, I18n.format("travellers.worker.cost", costStr), listX, listY - 10,
                 TravellersGuiTheme.COL_TEXT);
     }
 
