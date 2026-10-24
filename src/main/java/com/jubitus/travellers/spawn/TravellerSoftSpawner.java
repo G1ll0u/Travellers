@@ -97,12 +97,16 @@ public final class TravellerSoftSpawner {
         List<EntityTravellerWorker> loadedWorkersList =
                 ws.getEntities(EntityTravellerWorker.class, net.minecraft.entity.Entity::isEntityAlive);
         Map<BlockPos, Integer> loadedWorkersByVillage = new java.util.HashMap<>();
+        int loadedFreeWorkers = 0;
         for (EntityTravellerWorker w : loadedWorkersList) {
+            // Hired workers have left their village's population (same rule as countByHomeVillage).
+            if (w.isHiredFollower()) continue;
+            loadedFreeWorkers++;
             BlockPos home = w.getHomeVillage();
             if (home == null) continue;
             loadedWorkersByVillage.merge(new BlockPos(home.getX(), 0, home.getZ()), 1, Integer::sum);
         }
-        int totalWorkers = loadedWorkersList.size() + mgr.countByClass("WORKER");
+        int totalWorkers = loadedFreeWorkers + mgr.countByClass("WORKER");
         final int workerCap = TravellersConfig.SPAWN_WORKERS.workerLoadedCap;
         // Anti-duplication guard for villages whose Town Hall got registered more than once at nearby positions.
         java.util.Set<BlockPos> workerAnchors = new java.util.HashSet<>(loadedWorkersByVillage.keySet());

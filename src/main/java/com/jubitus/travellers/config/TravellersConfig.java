@@ -410,7 +410,7 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 4)
         public int workerCapPerLoneBuilding = 0;
 
-        @Config.Comment("Hard cap on total workers (virtual + loaded) spawned by the population controller. Does not count hired workers assigned via the barracks/recruitment flow beyond their home village's own target.")
+        @Config.Comment("Most free workers the world keeps at once; workers you hire no longer count.")
         @Config.RangeInt(min = 0, max = 2048)
         public int workerLoadedCap = 1024;
 

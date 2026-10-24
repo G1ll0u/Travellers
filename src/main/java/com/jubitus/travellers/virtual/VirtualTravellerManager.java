@@ -1832,6 +1832,8 @@ public class VirtualTravellerManager extends WorldSavedData {
         for (VirtualTravellerRecord r : records.values()) {
             if (!entityClass.equals(r.entityClass)) continue;
             if (r.homeVillage == null) continue;
+            // INVARIANT: hired units have left their village's population; the spawner refills it.
+            if (r.isHiredFollower) continue;
             // INVARIANT: raid raiders never count toward a village quota (the soft spawner would refill them).
             if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) continue;
             if (r.homeVillage.getX() == key.getX() && r.homeVillage.getZ() == key.getZ()) n++;
@@ -1839,11 +1841,11 @@ public class VirtualTravellerManager extends WorldSavedData {
         return n;
     }
 
-    /** Count all virtual records of a given entityClass. */
+    /** Count the virtual records of a given entityClass still in the free population (not hired). */
     public int countByClass(String entityClass) {
         int n = 0;
         for (VirtualTravellerRecord r : records.values()) {
-            if (entityClass.equals(r.entityClass)) n++;
+            if (entityClass.equals(r.entityClass) && !r.isHiredFollower) n++;
         }
         return n;
     }
