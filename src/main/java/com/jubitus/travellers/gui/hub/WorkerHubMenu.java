@@ -60,6 +60,8 @@ public final class WorkerHubMenu {
                                     .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.GO)),
 
                             WorkerHubNode.leaf("recruit", Kind.SCREEN, Column.LEFT, "travellers.worker.hub.node.recruit")
+                                    .tooltip("travellers.worker.hub.node.recruit.tooltip")
+                                    .enabledIf(ctx -> !ctx.worker.hasEscortLeader() && ctx.worker.getDisplayLeaderFollowerCount() > 0)
                                     .onClick(ctx -> ctx.openSubGui(MsgOpenWorkerSubGui.Type.RECRUIT)),
 
                             WorkerHubNode.leaf("transport", Kind.SCREEN, Column.LEFT, "travellers.worker.hub.node.transport")

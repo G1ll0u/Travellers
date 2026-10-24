@@ -58,6 +58,11 @@ public class MsgRecruitStart implements IMessage {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_BUSY);
                 return;
             }
+            if (worker.getEscortLeaderUUID() != null
+                    || WorkerGroupService.countFollowers(player.getServer(), player.getUniqueID(), worker.getUniqueID()) == 0) {
+                NotificationService.notify(player, NotificationDefs.RECRUIT_NEEDS_GROUP);
+                return;
+            }
             RecruitPlan plan = RecruitPlan.build(player.getServerWorld(), player.getUniqueID(), player.getPosition(), msg.wanted);
             if (plan.isEmpty()) {
                 NotificationService.notify(player, NotificationDefs.RECRUIT_NO_VILLAGES_IN_RANGE);
@@ -75,7 +80,6 @@ public class MsgRecruitStart implements IMessage {
                 return;
             }
             NotificationService.notify(player, NotificationDefs.RECRUIT_MISSION_STARTED, MillMoney.format(plan.total()));
-            WorkerGroupService.detachForMission(player, worker.getUniqueID());
             worker.purse.add(plan.purse);
             worker.recruit.start(RecruitTour.of(plan, player.getPosition(), player.world.getTotalWorldTime()));
         }

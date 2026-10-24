@@ -406,6 +406,7 @@ travellers.notify.hire.payment_failed=Hire failed: money could not be deducted.
 travellers.notify.hire.dismissed=The travellers will no longer follow you.
 
 travellers.notify.recruit.busy=I'm busy right now.
+travellers.notify.recruit.needs_group=Only the leader of a group can go recruiting.
 travellers.notify.recruit.no_villages_in_range=No villages in range to recruit from.
 travellers.notify.recruit.not_enough_fee=Recruit fee: %s (you have %s)
 travellers.notify.recruit.payment_failed=Recruit fee payment failed. Try again.
@@ -574,6 +575,7 @@ travellers.worker.hub.node.leader=Lead
 travellers.worker.hub.node.go=Missions
 travellers.worker.hub.node.travel=Travel
 travellers.worker.hub.node.recruit=Recruit
+travellers.worker.hub.node.recruit.tooltip=Sends this leader and their group on a recruiting tour. Make them lead at least one henchman first.
 travellers.worker.hub.node.choir=Sing
 travellers.worker.hub.node.transport=Transport
 travellers.worker.hub.node.unhire=Dismiss

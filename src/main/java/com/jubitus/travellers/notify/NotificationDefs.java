@@ -40,6 +40,7 @@ public final class NotificationDefs {
 
     // --- Recruitment (MsgRecruitStart, RecruitMission) ---
     public static final NotificationDef RECRUIT_BUSY = reply(REFUSAL, "travellers.notify.recruit.busy", 0);
+    public static final NotificationDef RECRUIT_NEEDS_GROUP = reply(REFUSAL, "travellers.notify.recruit.needs_group", 0);
     public static final NotificationDef RECRUIT_NO_VILLAGES_IN_RANGE = reply(REFUSAL, "travellers.notify.recruit.no_villages_in_range", 0);
     public static final NotificationDef RECRUIT_NOT_ENOUGH_FEE = reply(REFUSAL, "travellers.notify.recruit.not_enough_fee", 2);
     public static final NotificationDef RECRUIT_PAYMENT_FAILED = reply(REFUSAL, "travellers.notify.recruit.payment_failed", 0);
