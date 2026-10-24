@@ -395,9 +395,14 @@ public class VirtualBattleManager extends WorldSavedData {
         return null;
     }
 
+    /** A hired henchman with no weapon and no armour (e.g. just back beside its bed) is never drawn into an offscreen battle. */
+    static boolean staysOutOfBattles(VirtualTravellerRecord rec) {
+        return rec.isHiredFollower && rec.getCombatProfile().isDefenceless();
+    }
+
     void addToBattle(WorldServer world, BattleRecord b, VirtualTravellerRecord rec,
                      String groupKey, boolean isGroupLeader, long now) {
-        if (rec.battleId != null || isParticipant(rec.uuid) || !mayJoin(rec.uuid, now)) return;
+        if (rec.battleId != null || isParticipant(rec.uuid) || !mayJoin(rec.uuid, now) || staysOutOfBattles(rec)) return;
         BattleParticipant p = new BattleParticipant(rec.uuid);
         p.groupKey = groupKey;
         p.isGroupLeader = isGroupLeader;

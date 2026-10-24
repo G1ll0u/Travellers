@@ -62,6 +62,11 @@ public final class VirtualCombatProfile {
         this.chestArmour = chestArmour;
     }
 
+    /** No weapon, no bow and no armour. */
+    public boolean isDefenceless() {
+        return !isArcher && !hasMeleeWeapon && armor <= 0f;
+    }
+
     public static VirtualCombatProfile fromEntityNbt(NBTTagCompound nbt, String entityClass) {
         float defaultMaxHealth = "WORKER".equals(entityClass)
                 ? (float) TravellersConfig.ATTRIBUTES.workerMaxHealth

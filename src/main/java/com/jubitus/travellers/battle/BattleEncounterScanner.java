@@ -271,6 +271,7 @@ class BattleEncounterScanner {
     private boolean isHostilePair(WorldServer world, VirtualTravellerRecord a, VirtualTravellerRecord b, long now,
                                   TravellersConfig.BattleEvents cfg) {
         if ((a.campSiteId != null || b.campSiteId != null) && !cfg.campAssaults) return false;
+        if (VirtualBattleManager.staysOutOfBattles(a) || VirtualBattleManager.staysOutOfBattles(b)) return false;
         String ka = groupKey(a);
         String kb = groupKey(b);
         if (ka.equals(kb)) return false;
