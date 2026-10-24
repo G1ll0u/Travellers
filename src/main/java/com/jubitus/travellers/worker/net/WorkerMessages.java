@@ -24,5 +24,7 @@ public final class WorkerMessages {
         toServer(MsgRequestServerCosts.class, MsgRequestServerCosts.Handler.class);
         toClient(MsgSyncServerCosts.class, () -> new MsgSyncServerCosts.Handler());
         toClient(MsgWorkerGoList.class, () -> new MsgWorkerGoList.ClientHandler());
+        toServer(MsgRecruitPreviewRequest.class, MsgRecruitPreviewRequest.Handler.class);
+        toClient(MsgRecruitPreview.class, () -> new MsgRecruitPreview.Handler());
     }
 }

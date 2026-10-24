@@ -143,6 +143,15 @@ travellers.worker.orders.choir.tooltip=Have this henchman sing along with other 
 travellers.worker.recruit.start=Recruit
 travellers.worker.recruit.fee=Fee: %s
 travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
+travellers.worker.recruit.travel_purse=Travel %s, purse %s
+travellers.worker.recruit.none=No village in range
+travellers.worker.recruit.blocked.enemy=Enemy
+travellers.worker.recruit.blocked.reputation=Distrusted
+travellers.worker.recruit.tip.villages=%s villages, nearest %sm away
+travellers.worker.recruit.tip.free=About %s of their people around
+travellers.worker.recruit.tip.chance=%s%% chance that each one agrees
+travellers.worker.recruit.tip.enemy=One of their villages is your enemy
+travellers.worker.recruit.tip.reputation=Your reputation with them is too low
 
 travellers.worker.home_list.empty=No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.
 

@@ -1,4 +1,4 @@
-Status: steps 1-2 done; step 3 next. Open: repeated village stays (see step 2).
+Status: steps 1-4 done, step 5 half done (planner); the new screen is not in the Orders menu yet. Open: repeated village stays (see step 2).
 
 # Recruitment missions by culture
 
@@ -9,9 +9,13 @@ A hired worker sent recruiting brings back real units of the world (travellers, 
 - **Screen**: cultures present in range, each with reputation and a wanted-count +/-; locked cultures greyed with the reason; shows how common each culture is around (traffic is very uneven between cultures).
 - **Eligibility**: Millénaire culture reputation (`UserProfile.getCultureReputation`) above a threshold AND no village of that culture in the player's enemy list (`TravellerVillageRelations`); the enemy rule is a config toggle.
 - **Payment**: travel fee + a purse paid upfront. Each recruit is paid from the purse at its own `UnitWorth.hirePrice` when it accepts; remainder refunded on return; purse dropped as coins if the recruiter dies.
-- **Route**: villages of the picked cultures, sized to the wanted counts, ordered nearest-first, then back to the owner.
-- **Stay**: the recruiter waits at each village; every traveller / unhired worker of a wanted culture whose village visit happens there gets one roll. Leaves when the quota is met or time runs out; if still short at the end, adds villages of the missing culture (capped), then returns.
-- **Chance**: base chance 25 % per candidate (a group rolls once), raised by the player's reputation with its culture; config field.
+- **Route**: per picked culture, its nearest villages in range, one per 3 wanted recruits (config); all stops chained nearest-next from the player, then back to the owner. At most 20 recruits per mission (config).
+- **Prices**: travel fee 256 + 128 per village + 0.07 per block (config). Purse = wanted × average hire price of free units of that culture around, + 25 % (config); the server computes the plan and both prices, the screen only shows them.
+- **Screen layout**: map on the left showing the planned villages, culture list on the right (name, reputation, chance, -/+ counter); details on hover. The old screen stays in the Orders menu until the new mission works end to end.
+- **Encounters, one mechanism**: about every second the recruiter checks the candidates around it (loaded and offscreen alike, same distance test): a small radius on the road (outbound and return legs), the whole village while it waits there. One roll per unit per mission. No hook in the village-visit code.
+- **Stay**: the recruiter waits at each village; leaves when the quota is met or time runs out; if still short at the end, adds villages of the missing culture (capped), then returns, still recruiting on the way back while quota and purse allow.
+- **Any wanted culture anywhere**: at any stop of the tour, a passer-by of any wanted culture whose quota is not met gets its roll; planned villages only decide where to go.
+- **Chance**: base chance 25 % per candidate (a group rolls once), raised by the player's reputation with its culture up to 50 % at Stellar; half that on the road; all config fields.
 - **Stay length**: at most 5 minutes per village; config field.
 - **Groups**: a candidate in a spawn group joins with its whole group (purse and quota permitting) or not at all.
 - **Conversion**: a traveller becomes a worker keeping name, culture, appearance, gear, voice, dialogue memory and its bonded horse. Raiders never.
@@ -24,10 +28,10 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 ## Steps
 1. **Population fix**: hired units leave their village quota (normal hiring + merchant group). Separate commit. — done
 2. **Measure** village traffic (`profile` section "Village visits"). — done. Open: ~29 % of stays are the same unit restarting in the same village within minutes; user measures on their server ("repeated by" lines), then find the cause. Recruitment rolls once per unit per village regardless.
-3. **Eligibility** authority + culture list message (server → screen). — todo
-4. **Screen**: culture rows, counters, fee and purse preview. — todo
-5. **Planning**: village selection per culture, ordering, purse escrow, persistence on entity and record. — todo
-6. **Stay + roll**, hooked on village-visit arrival, loaded and virtual. — todo
+3. **Eligibility**: `worker/RecruitCultures` (verdict, chance, candidates), `village/MillCultures` (reputation, names). — done
+4. **Screen**: `GuiWorkerRecruitCultures` + preview messages. — done; its Recruit button stays disabled until step 5 starts a tour, and it replaces `GuiWorkerRecruit` in the Orders menu at step 9.
+5. **Planning**: `worker/RecruitPlan` (villages, order, fees) — done. Left: start order (pay travel + purse), mission state persisted on entity and record.
+6. **Encounters + roll** (road and village), loaded and virtual. — todo
 7. **Conversion** traveller → worker (data, group, horse), loaded and virtual. — todo
 8. **Purse**: pay per recruit, refund, drop on death (loaded and virtual death). — todo
 9. **Edge cases** above, old mode and config removal, lang keys. — todo

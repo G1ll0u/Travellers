@@ -2790,11 +2790,38 @@ public class TravellersConfig {
 
         @Config.Comment("Additional fee per visited village (in deniers).")
         @Config.RangeInt(min = 0, max = 1000000)
-        public int recruitFeePerVillage = 1280;
+        public int recruitFeePerVillage = 128;
 
         @Config.Comment("Minimum distance between recruitment target villages.")
         @Config.RangeInt(min = 0, max = 10000)
         public int recruitMinVillageDistance = 300;
+
+        @Config.Comment("Lowest Millénaire reputation with a culture that still lets you recruit its people (0 is Neutral, 2048 is Stellar).")
+        @Config.RangeInt(min = -640, max = 4096)
+        public int recruitMinCultureReputation = 0;
+
+        @Config.Comment("While any village of a culture is your enemy, none of its people will join you.")
+        public boolean recruitEnemyVillageBlocksCulture = true;
+
+        @Config.Comment("Chance in percent that a passer-by (or their whole group) agrees to join, at the lowest reputation that allows recruiting.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int recruitAcceptChancePercent = 25;
+
+        @Config.Comment("The same chance once your reputation with their culture is Stellar.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int recruitAcceptChanceMaxPercent = 50;
+
+        @Config.Comment("How many recruits you can expect per village visited: the tour plans one village of a culture for this many recruits wanted from it.")
+        @Config.RangeInt(min = 1, max = 20)
+        public int recruitsPerPlannedVillage = 3;
+
+        @Config.Comment("Most recruits one recruiter can be sent to bring back.")
+        @Config.RangeInt(min = 1, max = 100)
+        public int recruitMaxPerMission = 20;
+
+        @Config.Comment("Extra money in the recruiter's purse, in percent of the expected hiring prices, for recruits better equipped than average. What is left comes back to you.")
+        @Config.RangeInt(min = 0, max = 200)
+        public int recruitPurseMarginPercent = 25;
     }
 
     // Kept under its old name so saved settings still apply: these tune the wandering Henchmen's gift.

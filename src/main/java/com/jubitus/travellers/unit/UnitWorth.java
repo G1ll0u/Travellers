@@ -15,8 +15,8 @@ public final class UnitWorth {
     private UnitWorth() {
     }
 
-    public static int hirePrice(EntityTravellerWorker worker) {
-        return hirePrice(gearScore(worker), worker.getUniqueID());
+    public static int hirePrice(EntityTraveller unit) {
+        return hirePrice(gearScore(unit), unit.getUniqueID());
     }
 
     public static int hirePrice(VirtualTravellerRecord record) {

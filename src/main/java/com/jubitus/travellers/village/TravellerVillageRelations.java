@@ -46,6 +46,19 @@ public class TravellerVillageRelations extends WorldSavedData {
         return set.contains(new VillageKey(dim, center));
     }
 
+    /** True when the player counts any village of this culture as an enemy, wherever it stands. */
+    public boolean hasEnemyOfCulture(WorldServer ws, UUID playerId, String cultureKey) {
+        Set<VillageKey> set = enemyVillagesByPlayer.get(playerId);
+        if (set == null || cultureKey == null) return false;
+        for (VillageKey k : set) {
+            WorldServer kw = net.minecraftforge.common.DimensionManager.getWorld(k.dim);
+            if (kw == null) continue;
+            MillSettlements.Settlement s = MillSettlements.at(kw, new BlockPos(k.x, k.y, k.z));
+            if (s != null && cultureKey.equals(s.cultureKey)) return true;
+        }
+        return false;
+    }
+
     public void setEnemy(UUID playerId, int dim, BlockPos center, boolean enemy) {
         if (playerId == null || center == null) return;
 

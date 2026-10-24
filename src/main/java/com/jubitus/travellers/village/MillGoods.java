@@ -76,7 +76,7 @@ public final class MillGoods {
         out.reached = true;
         out.villageName = th.getVillageQualifiedName();
 
-        UserProfile profile = profileOf(world, employerId);
+        UserProfile profile = MillSettlements.profile(world, employerId);
         if (profile == null || th.culture == null || !canTrade(th, profile)) {
             out.refused = true;
             out.unsold = true;
@@ -94,18 +94,6 @@ public final class MillGoods {
             LoadedChunks.release(world, borrowed);
         }
         return out;
-    }
-
-    // Millénaire's per-player record (reputation, language), which exists for offline players too.
-    @Nullable
-    private static UserProfile profileOf(WorldServer world, UUID playerId) {
-        MillWorldData wd = MillSettlements.wd(world);
-        if (wd == null) return null;
-        try {
-            return wd.getProfile(playerId);
-        } catch (NullPointerException unknownPlayer) {
-            return null;
-        }
     }
 
     /**

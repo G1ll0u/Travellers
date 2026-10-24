@@ -149,6 +149,18 @@ public final class MillSettlements {
         }
     }
 
+    /** Millénaire's per-player record (reputation, language), which exists for offline players too. */
+    @Nullable
+    public static org.millenaire.common.world.UserProfile profile(WorldServer world, java.util.UUID playerId) {
+        MillWorldData wd = wd(world);
+        if (wd == null) return null;
+        try {
+            return wd.getProfile(playerId);
+        } catch (NullPointerException unknownPlayer) {
+            return null;
+        }
+    }
+
     public static Snapshot snapshot(World world) {
         int dim = world.provider.getDimension();
         long now = world.getTotalWorldTime();
