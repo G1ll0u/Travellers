@@ -65,6 +65,10 @@ public class TravellerCombatLogic {
     private static final double ESCORT_LEASH = 10.0D;
     private static final double ESCORT_DROP = 12.0D;
     private int targetAdoptedTick = 0;
+    // Human hesitation before the first blow or arrow at a newly adopted target (8..16 ticks).
+    private static final int REACTION_MIN_TICKS = 8;
+    private static final int REACTION_SPREAD_TICKS = 9;
+    private int reactionUntilTick = 0;
     private int stuckTargetTicks = 0;
     private double lastTargetDistSq = -1.0D;
     // Last dead attack target a retarget boost was armed for: cleanup is deferred while boosted, so the
@@ -82,6 +86,11 @@ public class TravellerCombatLogic {
     // -------------------------------------------------------------------------
 
     /** 5 s of voice silence after a fight ends. */
+    /** Still hesitating after switching to a new target: no strike or shot at it yet. */
+    public boolean isReacting() {
+        return entity.ticksExisted < reactionUntilTick;
+    }
+
     public boolean isInPostCombatSilence() {
         return entity.ticksExisted < silenceUntilTick;
     }
@@ -842,6 +851,7 @@ public class TravellerCombatLogic {
             if (target != prev) {
                 targetAdoptedTick = entity.ticksExisted;
                 if (target != null) {
+                    reactionUntilTick = entity.ticksExisted + REACTION_MIN_TICKS + entity.getRNG().nextInt(REACTION_SPREAD_TICKS);
                     recordTargetChange(verdict == null ? "adopted" : verdict.name().toLowerCase(java.util.Locale.ROOT), prev, target);
                 }
             }

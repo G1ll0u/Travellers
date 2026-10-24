@@ -7,6 +7,7 @@
     "MixinOwnedMobFriendlyTraveller",
     "MixinEntityCreature",
     "MixinEntityLiving",
+    "MixinEntityLivingBase",
     "MixinEntityHorse",
     "MixinEntityTracker",
     "MixinEntityTrackerAccessor",

@@ -345,8 +345,9 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
         }
 
         // Never actually land a hit on something we can't see (e.g. through a thin wall corner)
-        boolean shieldUp = this.attacker instanceof EntityTraveller && !((EntityTraveller) this.attacker).shield.mayStrike();
-        if (!shieldUp && gapXZSq <= reachSq && this.attackTick <= 0 && this.attacker.getEntitySenses().canSee(target)) {
+        boolean holdsBack = this.attacker instanceof EntityTraveller
+                && (!((EntityTraveller) this.attacker).shield.mayStrike() || ((EntityTraveller) this.attacker).combat.isReacting());
+        if (!holdsBack && gapXZSq <= reachSq && this.attackTick <= 0 && this.attacker.getEntitySenses().canSee(target)) {
             this.attackTick = TravellerItemDamage.computeAttackCooldownTicks(attacker);
             this.attacker.swingArm(EnumHand.MAIN_HAND);
             this.attacker.attackEntityAsMob(target);

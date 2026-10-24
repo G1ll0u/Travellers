@@ -21,10 +21,12 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 
 ## Melee
 - Mounted fighters dismount to LED on reaching strike range and curve their approach while closing (see `mount/CLAUDE.md`).
+- No blow or arrow at a newly adopted target while `combat.isReacting()`; any new strike or shot path checks it.
 - Never apply durability wear after a call that may have killed the entity (shared `ItemStack` with the drop) — guard on health first.
 
 ## Shield
-- `ShieldGuard` is the only place that raises/lowers the offhand shield; the block itself is vanilla's, and `EntityTraveller.damageShield` is overridden because vanilla leaves it empty for mobs.
+- `ShieldGuard` is the only place that raises/lowers the offhand shield; the block itself is vanilla's except its direction (below), and `EntityTraveller.damageShield` is overridden because vanilla leaves it empty for mobs.
+- The block covers the front half of the body (`ShieldGuard.covers`, via `MixinEntityLivingBase`), never vanilla's head-based test.
 - A unit never holds a bow and a shield: `TravellerEquipmentManager.wantsShield` / `enforceBowShieldExclusion` are the only authorities (the bow wins).
 - Strikes go through `ShieldGuard.mayStrike()` (no strike with the shield up or just lowered); an attacker still strikes into a raised shield.
 - An absorbed hit (`ShieldGuard.blockedThisTick()`) halves the knockback and mutes the hurt sound; with the shield up the body holds the threat and the gaze cannot drag it (`TravellerBodyHelper`).

@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Shield stance of a unit holding a shield in its offhand. The block itself is vanilla's (front
- * half-plane, durability, attacker knockback); this class decides when to take the stance:
+ * Shield stance of a unit holding a shield in its offhand. The block itself is vanilla's (durability,
+ * attacker knockback) except its direction, see {@link #covers}; this class decides when to take the stance:
  * <ol>
  *   <li><b>guard</b> — a foe within a few blocks, or an arrow flying at the unit, after a human
  *       reaction delay. A raised shield never strikes, and the unit is slowed.</li>
@@ -125,6 +125,19 @@ public final class ShieldGuard {
         double dz = facing.posZ - entity.posZ;
         if (dx * dx + dz * dz < 0.0025) return Float.NaN;
         return (float) (Math.atan2(dz, dx) * (180.0D / Math.PI)) - 90.0F;
+    }
+
+    /**
+     * Whether the shield stops this hit: what comes from the front half, like a player's, but of the body,
+     * since vanilla's head-based test turns with a neck that twists 75 degrees and so covered the back.
+     */
+    public boolean covers(net.minecraft.util.DamageSource source) {
+        if (source.isUnblockable() || !entity.isActiveItemStackBlocking()) return false;
+        net.minecraft.util.math.Vec3d from = source.getDamageLocation();
+        if (from == null) return false;
+        float yaw = entity.renderYawOffset * 0.017453292F;
+        return (from.x - entity.posX) * -net.minecraft.util.math.MathHelper.sin(yaw)
+                + (from.z - entity.posZ) * net.minecraft.util.math.MathHelper.cos(yaw) > 0.0D;
     }
 
     /** True once if the last hit was absorbed by the shield (so armour is not worn for it). */
@@ -304,7 +317,7 @@ public final class ShieldGuard {
     private boolean isFriendlyShooter(Entity shooter) {
         if (shooter == null) return false;
         if (shooter == entity) return true;
-        if (shooter instanceof EntityTraveller) return !Hostility.isCrossFaction(entity, (EntityTraveller) shooter);
+        if (shooter instanceof EntityTraveller) return !entity.isHostileUnit((EntityTraveller) shooter);
         return shooter instanceof EntityPlayer && entity instanceof EntityTravellerWorker
                 && entity.isOwner((EntityPlayer) shooter);
     }

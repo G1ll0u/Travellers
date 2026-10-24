@@ -217,7 +217,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
                 aimWarmup--;
                 return;
             }
-            if (coolDown > 0) {
+            if (coolDown > 0 || mob.combat.isReacting()) {
                 return;
             }
             if (d2 < minDistSq || d2 > maxDistSq) return;
