@@ -73,9 +73,6 @@ public class VirtualBattleManager extends WorldSavedData {
     // Clamp elapsed sim ticks so a long pause (restart, lag) can't burst hundreds of attacks
     private static final int MAX_STEP_TICKS = 200;
     private static final double LEADER_SHIELD_RADIUS_SQ = 8.0 * 8.0;
-    // Elapsed sim ticks a DEFEND/HOLD pawn can spend leashed away from its target before it gives up
-    // and leaves its battle individually. Mirrors EntityTraveller's stuckTargetTicks threshold (80).
-    private static final int TETHER_DISENGAGE_TICKS = 80;
 
     // Elapsed sim ticks a pawn may go without any progress before it leaves its battle (30 s).
     private static final int NO_PROGRESS_DISENGAGE_TICKS = 600;
@@ -111,7 +108,6 @@ public class VirtualBattleManager extends WorldSavedData {
     private long lastDetectTick = -1;
     private long lastSimPassTick = -1;
     private long lastLootTick = -1;
-    private int simCursor = 0;
 
     public VirtualBattleManager(String name) {
         super(name);
@@ -248,7 +244,10 @@ public class VirtualBattleManager extends WorldSavedData {
     public void onParticipantDeath(WorldServer world, EntityTraveller entity, @Nullable DamageSource cause) {
         UUID uuid = entity.getUniqueID();
         UUID id = participantIndex.remove(uuid);
-        if (id == null) return;
+        if (id == null) {
+            logUnindexedDeath(world, uuid);
+            return;
+        }
         BattleRecord b = battles.get(id);
         if (b == null) return;
         BattleParticipant p = b.participants.get(uuid);
@@ -263,6 +262,30 @@ public class VirtualBattleManager extends WorldSavedData {
             }
         }
         markDirty();
+    }
+
+    /** Probe: a pawn still standing in a battle that does not index it died, so the battle never hears of it. */
+    private void logUnindexedDeath(WorldServer world, UUID uuid) {
+        for (BattleRecord b : battles.values()) {
+            BattleParticipant p = b.participants.get(uuid);
+            if (p != null && p.alive) {
+                BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "death-unindexed "
+                        + uuid.toString().substring(0, 8));
+            }
+        }
+    }
+
+    /** Probe: a pawn standing in a battle leaves the world without a record taking over; logs how (death, removal, chunk unload). */
+    public void onParticipantLeftWorld(WorldServer world, EntityTraveller entity) {
+        BattleRecord b = battleOf(entity.getUniqueID());
+        BattleParticipant p = b != null ? b.participants.get(entity.getUniqueID()) : null;
+        if (p == null || !p.alive || VirtualTravellerManager.get(world).getRecord(entity.getUniqueID()) != null) return;
+        p.lastX = entity.posX;
+        p.lastZ = entity.posZ;
+        BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "left-world "
+                + entity.getUniqueID().toString().substring(0, 8) + String.format(" at=%.0f,%.0f dead=%s hp=%.1f chunk=%s",
+                entity.posX, entity.posZ, entity.isDead, entity.getHealth(),
+                com.jubitus.travellers.ground.chunk.LoadedChunks.isLoaded(world, entity.posX, entity.posZ) ? "loaded" : "unloaded"));
     }
 
     /** Probe: a fighting pawn removed from the world alive and not handed to a record; logs who removed it. */
@@ -622,7 +645,7 @@ public class VirtualBattleManager extends WorldSavedData {
             }
             BattleNotifications.Outcome outcome = BattleNotifications.Outcome.BROKEN_OFF;
             if (foes == 0 && own > 0) outcome = BattleNotifications.Outcome.WON;
-            else if (own == 0 && foes > 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST;
+            else if (own == 0 && fallen > 0) outcome = BattleNotifications.Outcome.LOST; // all fell, even if allies won
             BattleLog.log(world.getMinecraftServer(), world.getTotalWorldTime(), b, "notify-end owner="
                     + owner.toString().substring(0, 8) + online(world, owner) + " outcome=" + outcome + " fallen=" + fallen);
             BattleNotifications.ended(world.getMinecraftServer(), owner, b.id, battlePlace(b), outcome, fallen,
@@ -700,15 +723,9 @@ public class VirtualBattleManager extends WorldSavedData {
         if (list.isEmpty()) return;
 
         VirtualTravellerManager vtm = VirtualTravellerManager.get(world);
-        // Movement is cheap and runs for every battle each pass, so pawns run smoothly however many
-        // battles share the round-robin below; targeting and blows stay budgeted.
         for (BattleRecord b : list) moveBattle(world, vtm, b, now);
-        int budget = Math.min(TravellersConfig.BATTLE_EVENTS.maxBattlesSimPerTick, list.size());
-        for (int i = 0; i < budget; i++) {
-            BattleRecord b = list.get((simCursor + i) % list.size());
-            stepBattle(world, vtm, b, now);
-        }
-        simCursor = (simCursor + budget) % Math.max(1, list.size());
+        // INVARIANT: every battle steps on every pass: a long step resolves each pawn's blows one pawn after another, so the first listed strikes first.
+        for (BattleRecord b : list) stepBattle(world, vtm, b, now);
         markDirty();
     }
 
@@ -741,8 +758,9 @@ public class VirtualBattleManager extends WorldSavedData {
             if (absent && !p.absent) {
                 p.absentSince = now;
                 BattleLog.log(world.getMinecraftServer(), now, b, "absent " + BattleLog.shortKey(p.groupKey)
-                        + " " + p.uuid.toString().substring(0, 8) + String.format(" last=%.0f,%.0f chunk=%s", p.lastX, p.lastZ,
-                        world.isBlockLoaded(new BlockPos(p.lastX, 64, p.lastZ)) ? "loaded" : "unloaded"));
+                        + " " + p.uuid.toString().substring(0, 8) + (p.lastX == 0 && p.lastZ == 0 ? " last=never-seen"
+                        : String.format(" last=%.0f,%.0f chunk=%s", p.lastX, p.lastZ,
+                        world.isBlockLoaded(new BlockPos(p.lastX, 64, p.lastZ)) ? "loaded" : "unloaded")));
             }
             p.absent = absent;
             if (absent && now - p.absentSince > ABSENT_RELEASE_TICKS) {
@@ -787,7 +805,6 @@ public class VirtualBattleManager extends WorldSavedData {
                 }
                 // No reachable enemy: drift toward the fight
                 walkTo(p, b.anchor.getX() + 0.5, b.anchor.getZ() + 0.5, 2.0, UnitSpeed.travelPercent());
-                p.tetherStuckTicks = 0;
                 p.lastTargetDist = -1;
                 if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
                     if (toDisengage == null) toDisengage = new ArrayList<>();
@@ -818,12 +835,10 @@ public class VirtualBattleManager extends WorldSavedData {
                 p.move = BattleParticipant.MoveIntent.STAND;
                 strike(world, vtm, b, p, rec, target, trec, prof.rangedDamage, prof.rangedCooldownTicks,
                         false, elapsed, now);
-                p.tetherStuckTicks = 0;
             } else if (trec != null && dist <= meleeReach) {
                 p.move = BattleParticipant.MoveIntent.STAND;
                 strike(world, vtm, b, p, rec, target, trec, prof.meleeDamage, prof.attackCooldownTicks,
                         true, elapsed, now);
-                p.tetherStuckTicks = 0;
             } else if (VirtualFormationSimulator.withinTether(world, vtm, rec, tx, tz, now)) {
                 // An archer only keeps its distance while the target is beyond bow range; closer than the
                 // bow's minimum it closes in and fights in melee, so two archers can never freeze apart.
@@ -832,24 +847,18 @@ public class VirtualBattleManager extends WorldSavedData {
                 p.move = BattleParticipant.MoveIntent.TO_TARGET;
                 p.moveStopAt = stopAt;
                 p.movePercent = UnitSpeed.attackPercent();
-                p.tetherStuckTicks = 0;
             } else {
                 // DEFEND/HOLD: this target strayed outside the leash - fall back to the anchor
                 // (formation slot / leader position) instead of chasing, mirroring
-                // EntityAIAttackMeleeCustom's chase abort. Long enough stuck like this and the pawn
-                // leaves the fight individually, the offscreen counterpart of EntityTraveller's
-                // generic stuck-target self-clear.
+                // EntityAIAttackMeleeCustom's chase abort. Holding its post is its part in the fight:
+                // it stays in the battle and strikes whoever comes within the leash.
                 if (rec.goal != null) {
                     walkTo(p, rec.goal.getX() + 0.5, rec.goal.getZ() + 0.5, 0.5, UnitSpeed.travelPercent());
                 } else {
                     p.move = BattleParticipant.MoveIntent.STAND;
                 }
-                p.tetherStuckTicks += elapsed;
-                if (p.tetherStuckTicks > TETHER_DISENGAGE_TICKS) {
-                    if (toDisengage == null) toDisengage = new ArrayList<>();
-                    toDisengage.add(p);
-                    continue;
-                }
+                p.noProgressTicks = 0;
+                p.lastTargetDist = -1;
             }
             if (p.noProgressTicks > NO_PROGRESS_DISENGAGE_TICKS) {
                 if (toDisengage == null) toDisengage = new ArrayList<>();
@@ -943,7 +952,7 @@ public class VirtualBattleManager extends WorldSavedData {
     }
 
     /**
-     * A single DEFEND/HOLD pawn gives up on this battle without dying: leaves the participant list,
+     * A single pawn whose fight is elsewhere, or that made no progress for long, gives up on this battle without dying: leaves the participant list,
      * resumes its normal goal (mission/formation/follow-owner) right away, same as a survivor at
      * {@link #endBattle}. No loot changes hands - this is a withdrawal, not a kill. If this empties
      * one side, {@link #checkBattleEnd} concludes the fight normally on the battle's next sim pass.

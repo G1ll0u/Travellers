@@ -31,11 +31,6 @@ public class BattleParticipant {
     public transient double lastX, lastZ;
     /** Transient: world tick it went absent; past a minute it leaves the battle (not fallen). */
     public transient long absentSince;
-    /** Transient: elapsed sim ticks spent unable to close on a target outside DEFEND/HOLD tether.
-     *  Mirrors EntityTraveller's stuckTargetTicks; past the threshold the pawn individually leaves
-     *  its battle instead of waiting for the whole fight to resolve. Not persisted, like `loaded`. */
-    public transient int tetherStuckTicks;
-
     /** Transient: elapsed sim ticks without a blow given or taken, a target closed in on, or (loaded) a target held.
      *  Past the threshold the pawn leaves the battle so no fight can pin a unit indefinitely. */
     public transient int noProgressTicks;

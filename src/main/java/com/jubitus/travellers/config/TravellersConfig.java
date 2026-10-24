@@ -2507,10 +2507,6 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 1.0, max = 5.0)
         public double meleeReach = 1.0;
 
-        @Config.Comment("Max battles advanced per simulation pass (round-robin across passes).")
-        @Config.RangeInt(min = 1, max = 64)
-        public int maxBattlesSimPerTick = 4;
-
         @Config.Comment("Safety cap: a battle older than this many ticks is force-resolved (24000 = 1 day).")
         @Config.RangeInt(min = 1200, max = 480000)
         public int maxBattleDurationTicks = 24000;

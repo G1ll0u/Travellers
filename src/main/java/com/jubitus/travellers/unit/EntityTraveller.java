@@ -2062,6 +2062,15 @@ public void fall(float distance, float damageMultiplier) {
 
 
     @Override
+    public void onRemovedFromWorld() {
+        super.onRemovedFromWorld();
+        if (!this.world.isRemote) {
+            com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
+                    .onParticipantLeftWorld((net.minecraft.world.WorldServer) world, this);
+        }
+    }
+
+    @Override
     public void setDead() {
         if (!this.world.isRemote) {
             com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
