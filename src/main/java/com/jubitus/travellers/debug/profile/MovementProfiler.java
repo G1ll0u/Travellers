@@ -180,6 +180,12 @@ public final class MovementProfiler {
                 follower, mounted, virtual, now());
     }
 
+    /** A recruiter asked a group: "joined", or why not ("quota", "purse", "culture", "refused" on the roll). */
+    public static void recruitAsk(String outcome) {
+        if (session == null) return;
+        session.recruitAsk(outcome);
+    }
+
     public static void materialized(UUID id, boolean ok) {
         if (session == null) return;
         session.materialized(id, ok, now());

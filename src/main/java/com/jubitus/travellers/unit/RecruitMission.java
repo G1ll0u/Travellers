@@ -7,6 +7,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.travel.TravelCommon;
 import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.worker.RecruitEncounters;
 import com.jubitus.travellers.worker.RecruitPlan;
 import com.jubitus.travellers.worker.RecruitTour;
 import net.minecraft.entity.player.EntityPlayer;
@@ -166,6 +167,7 @@ public final class RecruitMission {
                 || !(worker.world instanceof WorldServer)) return;
         WorldServer ws = (WorldServer) worker.world;
         long now = ws.getTotalWorldTime();
+        meetPeople();
         RecruitPlan.Stop stop = tour.currentStop();
         if (stop == null) {
             beginReturnToOwner();
@@ -216,9 +218,17 @@ public final class RecruitMission {
         worker.catchup.stop();
     }
 
+    private void meetPeople() {
+        if (tour != null && worker.ticksExisted % 20 == 0 && worker.world instanceof WorldServer) {
+            RecruitEncounters.tick((WorldServer) worker.world, tour, worker.getUniqueID(),
+                    worker.getFollowOwnerId(), worker.posX, worker.posZ);
+        }
+    }
+
     // Server tick of the return leg to the owner.
     void tickReturnToOwner() {
         if (!isReturningToOwner()) return;
+        meetPeople();
         EntityPlayer owner = worker.getFollowOwner();
         if (owner == null || owner.isDead || owner.dimension != worker.dimension) {
             finish(null);

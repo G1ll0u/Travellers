@@ -67,8 +67,8 @@ final class VirtualWorkerMissions {
                 continue;
             }
 
-            // Recruiting tours: processed after iteration (recruits change the record map)
-            if (r.isHiredFollower && r.recruitTour != null && "RECRUITING".equals(r.workerMode)) {
+            // Recruiting tours, outbound and return legs: processed after iteration (recruits change the record map)
+            if (r.isHiredFollower && r.recruitTour != null) {
                 if (recruitArrivals == null) recruitArrivals = new ArrayList<>();
                 recruitArrivals.add(r.uuid);
                 continue;
@@ -114,7 +114,10 @@ final class VirtualWorkerMissions {
         if (recruitArrivals != null) {
             for (UUID id : recruitArrivals) {
                 VirtualTravellerRecord r = records.get(id);
-                if (r != null && r.recruitTour != null) tickVirtualTour(world, r);
+                if (r == null || r.recruitTour == null) continue;
+                if ("RECRUITING".equals(r.workerMode)) tickVirtualTour(world, r);
+                com.jubitus.travellers.worker.RecruitEncounters.tick(world, r.recruitTour, r.uuid,
+                        r.followOwnerUUID, r.posX, r.posZ);
             }
         }
 

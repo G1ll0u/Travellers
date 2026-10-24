@@ -396,6 +396,7 @@ travellers.notify.recruit.not_enough_fee=Recruit fee: %s (you have %s)
 travellers.notify.recruit.payment_failed=Recruit fee payment failed. Try again.
 travellers.notify.recruit.mission_started=Recruit mission started. Fee paid: %s
 travellers.notify.recruit.henchmen_recruited=Recruited %s henchmen at %s.
+travellers.notify.recruit.henchmen_recruited_road=Recruited %s henchmen on the road near %s.
 travellers.notify.recruit.mission_completed=Recruit mission completed.
 
 travellers.notify.worker.not_hired_transport=You must hire this henchman to use Transport.

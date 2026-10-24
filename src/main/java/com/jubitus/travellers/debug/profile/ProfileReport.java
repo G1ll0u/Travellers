@@ -352,6 +352,7 @@ final class ProfileReport {
                     .append(", ").append(f1(e.getValue().avg())).append(" s after its previous start on average\n");
         }
         sb.append("  recruitable by culture (villages only): ").append(joinLongs(s.recruitableByCulture)).append('\n');
+        if (!s.recruitAsks.isEmpty()) sb.append("  recruiters asked groups: ").append(joinLongs(s.recruitAsks)).append('\n');
 
         List<ProfileSession.VillageTraffic> villages = new ArrayList<>();
         for (ProfileSession.VillageTraffic t : s.villageTraffic.values()) if (!t.lone) villages.add(t);

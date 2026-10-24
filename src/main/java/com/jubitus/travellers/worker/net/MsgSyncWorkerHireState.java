@@ -39,7 +39,7 @@ public class MsgSyncWorkerHireState implements IMessage {
         this.homeVillageName = name != null ? name : "";
         if (worker.getEquipRole() != null) this.equipRole = worker.getEquipRole().bits;
         if (!hired && worker.world instanceof net.minecraft.world.WorldServer) {
-            com.jubitus.travellers.worker.MerchantGroup group = com.jubitus.travellers.worker.MerchantGroup
+            com.jubitus.travellers.worker.SpawnGroup group = com.jubitus.travellers.worker.SpawnGroup
                     .of((net.minecraft.world.WorldServer) worker.world, worker);
             this.hireGroupSize = group.size();
             this.hirePrice = group.hirePrice();

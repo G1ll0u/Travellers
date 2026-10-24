@@ -93,6 +93,8 @@ public class VirtualTravellerManager extends WorldSavedData {
      * on its own.
      */
     private final Map<UUID, Long> materializeGraceUntil = new HashMap<>();
+    /** Recruits that were standing in view when they joined: back in the world as workers without the usual debounce. */
+    private final Set<UUID> materializeSoon = new HashSet<>();
 
     private long lastSimTick = -1;
     private long lastMatCheckTick = -1;
@@ -151,6 +153,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Clean expired grace periods
         graceUntil.entrySet().removeIf(e -> now > e.getValue());
         materializeGraceUntil.entrySet().removeIf(e -> now > e.getValue());
+        tickMaterializeSoon(world, now);
 
         // Refresh goals for dynamic targets (catchup / follow owner)
         if (now - lastGoalRefresh >= every(GOAL_REFRESH_INTERVAL, stretch)) {
@@ -881,6 +884,40 @@ public class VirtualTravellerManager extends WorldSavedData {
         r.itinerary.clear();
         r.goal = owner.getPosition();
         markDirty();
+    }
+
+    /** A recruit joins {@code owner}: a traveller record becomes a worker record (same identity, gear, horse), hired like any worker. */
+    public void recruitRecord(WorldServer world, VirtualTravellerRecord r, EntityPlayer owner) {
+        if ("TRAVELLER".equals(r.entityClass)) r.entityClass = "WORKER";
+        hireVirtualWorker(world, r, owner);
+    }
+
+    /** Brings this record back as soon as the body it left is gone, skipping the materialize debounce. */
+    public void materializeSoon(UUID id) {
+        materializeSoon.add(id);
+        materializeGraceUntil.remove(id);
+    }
+
+    private void tickMaterializeSoon(WorldServer world, long now) {
+        if (materializeSoon.isEmpty()) return;
+        for (java.util.Iterator<UUID> it = materializeSoon.iterator(); it.hasNext(); ) {
+            UUID id = it.next();
+            VirtualTravellerRecord r = records.get(id);
+            if (r == null) {
+                it.remove();
+                continue;
+            }
+            if (r.dimension != world.provider.getDimension()) continue;
+            Entity body = world.getEntityFromUuid(id);
+            if (body != null && body.isDead) continue; // vanilla frees the identity at its next entity pass
+            it.remove();
+            // A live copy, or frozen ground: the ordinary materialize pass decides.
+            if (body != null || isFrozenByVanillaAt(world, r.posX, r.posZ)) continue;
+            VirtualizationLog.materialize(world, r);
+            boolean spawned = materializeEntity(world, r, now);
+            com.jubitus.travellers.debug.profile.MovementProfiler.materialized(r.uuid, spawned);
+            if (!spawned) materializeGraceUntil.put(id, now + TravellersConfig.MATERIALIZATION.rematerializeGraceTicks);
+        }
     }
 
     void tryVirtualDonate(WorldServer world, VirtualTravellerRecord r) {

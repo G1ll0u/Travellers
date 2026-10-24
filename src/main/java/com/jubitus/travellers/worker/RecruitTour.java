@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * A recruiting tour in progress: the stops, what is wanted and already found, the purse, who was already
@@ -28,7 +29,8 @@ public final class RecruitTour {
 
     private final List<RecruitPlan.Stop> stops;
     private final Map<String, Integer> wanted;
-    private final Map<String, Integer> recruited = new LinkedHashMap<>();
+    /** Recruits that joined, with their culture; a dead one frees its place again. */
+    private final Map<UUID, String> recruits = new LinkedHashMap<>();
     // INVARIANT: one roll per unit per tour, on the road and in villages alike.
     private final Set<UUID> asked = new HashSet<>();
     /** Where the player stood when ordering it: the range of extra villages is measured from here. */
@@ -69,7 +71,28 @@ public final class RecruitTour {
     }
 
     public int missing(String cultureKey) {
-        return Math.max(0, wanted.getOrDefault(cultureKey, 0) - recruited.getOrDefault(cultureKey, 0));
+        int found = 0;
+        for (String c : recruits.values()) if (c.equals(cultureKey)) found++;
+        return Math.max(0, wanted.getOrDefault(cultureKey, 0) - found);
+    }
+
+    public boolean wasAsked(UUID unit) {
+        return asked.contains(unit);
+    }
+
+    public void markAsked(UUID unit) {
+        asked.add(unit);
+    }
+
+    /** One recruit of this culture joined, paid from the purse. */
+    public void addRecruit(UUID unit, String cultureKey, int price) {
+        recruits.put(unit, cultureKey);
+        purse = Math.max(0, purse - price);
+    }
+
+    /** Forgets recruits that no longer exist anywhere (killed): their places open again, their price stays spent. */
+    public void forgetDead(Predicate<UUID> alive) {
+        recruits.keySet().removeIf(id -> !alive.test(id));
     }
 
     public boolean isComplete() {
@@ -151,7 +174,14 @@ public final class RecruitTour {
         }
         t.setTag("Stops", list);
         t.setTag("Wanted", writeCounts(wanted));
-        t.setTag("Recruited", writeCounts(recruited));
+        NBTTagList recruitList = new NBTTagList();
+        for (Map.Entry<UUID, String> e : recruits.entrySet()) {
+            NBTTagCompound c = new NBTTagCompound();
+            c.setUniqueId("Id", e.getKey());
+            c.setString("Culture", e.getValue());
+            recruitList.appendTag(c);
+        }
+        t.setTag("Recruits", recruitList);
         NBTTagList askedList = new NBTTagList();
         for (UUID id : asked) {
             NBTTagCompound c = new NBTTagCompound();
@@ -179,7 +209,11 @@ public final class RecruitTour {
         }
         RecruitTour tour = new RecruitTour(stops, readCounts(t.getCompoundTag("Wanted")),
                 BlockPos.fromLong(t.getLong("Origin")), t.getInteger("Purse"));
-        tour.recruited.putAll(readCounts(t.getCompoundTag("Recruited")));
+        NBTTagList recruitList = t.getTagList("Recruits", Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < recruitList.tagCount(); i++) {
+            NBTTagCompound c = recruitList.getCompoundTagAt(i);
+            tour.recruits.put(c.getUniqueId("Id"), c.getString("Culture"));
+        }
         NBTTagList askedList = t.getTagList("Asked", Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < askedList.tagCount(); i++) tour.asked.add(askedList.getCompoundTagAt(i).getUniqueId("Id"));
         tour.index = t.getInteger("Index");

@@ -265,6 +265,12 @@ final class ProfileSession {
         }
     }
 
+    final Map<String, Long> recruitAsks = new java.util.TreeMap<>();
+
+    void recruitAsk(String outcome) {
+        recruitAsks.merge(outcome, 1L, Long::sum);
+    }
+
     void helpCall(String kind, int recruited) {
         helpCalls.computeIfAbsent(kind, k -> new Tally()).add(recruited);
     }

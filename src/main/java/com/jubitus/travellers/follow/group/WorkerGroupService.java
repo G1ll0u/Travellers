@@ -105,6 +105,20 @@ public final class WorkerGroupService {
         return leaderId;
     }
 
+    /** New recruits fall in behind the recruiter that found them, busy on its tour or not. */
+    public static void joinRecruiter(EntityPlayerMP owner, List<UUID> recruits, UUID recruiterId) {
+        MinecraftServer server = owner.getServer();
+        if (server == null || recruits.isEmpty()) return;
+        Set<UUID> set = new HashSet<>(recruits);
+        for (EntityTravellerWorker w : collectLoaded(server, owner.getUniqueID(), w -> set.contains(w.getUniqueID())).values()) {
+            assignToLeaderLoaded(w, recruiterId);
+        }
+        for (VirtualTravellerRecord r : collectVirtual(server, owner.getUniqueID(), r -> set.contains(r.uuid)).values()) {
+            assignToLeaderVirtual(r, recruiterId);
+        }
+        epilogue(owner, server, setOf(recruiterId));
+    }
+
     /** Assign the given selection as followers of an existing leader. */
     public static void assignToLeader(EntityPlayerMP player, List<UUID> memberUuids, UUID leaderId) {
         MinecraftServer server = player.getServer();

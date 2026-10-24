@@ -2795,6 +2795,10 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 100)
         public int recruitAcceptChanceMaxPercent = 50;
 
+        @Config.Comment("Chance that someone met on the road agrees, in percent of the chance in a village (where the recruiter takes the time to talk).")
+        @Config.RangeInt(min = 0, max = 100)
+        public int recruitRoadChancePercent = 50;
+
         @Config.Comment("How long a recruiter waits in each village for people to come by, in minutes.")
         @Config.RangeInt(min = 1, max = 60)
         public int recruitStayMinutes = 5;

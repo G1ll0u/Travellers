@@ -4,7 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
 
 import com.jubitus.travellers.unit.EntityTravellerWorker;
-import com.jubitus.travellers.worker.MerchantGroup;
+import com.jubitus.travellers.worker.SpawnGroup;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.net.TravellersNetwork;
@@ -94,7 +94,7 @@ public class MsgHireWorker implements IMessage {
 
                 // The whole merchant group or nobody. A group that changed since the price was shown is
                 // re-priced on the player's screen instead of charged.
-                MerchantGroup group = MerchantGroup.of(player.getServerWorld(), worker);
+                SpawnGroup group = SpawnGroup.of(player.getServerWorld(), worker);
                 int costInDeniers = group.hirePrice();
                 if (group.size() != msg.groupSize || costInDeniers != msg.price) {
                     TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);

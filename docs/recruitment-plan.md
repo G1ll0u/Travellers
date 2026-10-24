@@ -1,4 +1,4 @@
-Status: steps 1-5 done; step 6 next. The new screen is live in the Orders menu but a tour brings nobody back and keeps the purse until steps 6-8: recruiting is not usable on the server meanwhile. Open: repeated village stays (see step 2).
+Status: steps 1-7 done; step 8 next. Recruits join, but the purse left over is not refunded yet and is not dropped on death. Open: repeated village stays (see step 2).
 
 # Recruitment missions by culture
 
@@ -15,6 +15,8 @@ A hired worker sent recruiting brings back real units of the world (travellers, 
 - **Encounters, one mechanism**: about every second the recruiter checks the candidates around it (loaded and offscreen alike, same distance test): a small radius on the road (outbound and return legs), the whole village while it waits there. One roll per unit per mission. No hook in the village-visit code.
 - **Stay**: the recruiter waits at each village; leaves when the quota is met or time runs out; if still short at the end, adds villages of the missing culture (capped), then returns, still recruiting on the way back while quota and purse allow.
 - **Any wanted culture anywhere**: at any stop of the tour, a passer-by of any wanted culture whose quota is not met gets its roll; planned villages only decide where to go.
+- **Dead recruit**: a recruit killed before the tour ends frees its place again (the recruiter keeps looking while the purse allows); its price stays spent. Detected by existence (no record, no live body), so any cause of death counts, loaded or offscreen.
+- **Notices**: "Recruited N henchmen at <village>" in a village, "... on the road near <nearest village>" on the road.
 - **Chance**: base chance 25 % per candidate (a group rolls once), raised by the player's reputation with its culture up to 50 % at Stellar; half that on the road; all config fields.
 - **Stay length**: at most 5 minutes per village; config field.
 - **Groups**: a candidate in a spawn group joins with its whole group (purse and quota permitting) or not at all.
@@ -31,7 +33,7 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 3. **Eligibility**: `worker/RecruitCultures` (verdict, chance, candidates), `village/MillCultures` (reputation, names). — done
 4. **Screen**: `GuiWorkerRecruitCultures` + preview messages, in the Orders menu. — done
 5. **Planning + start**: `worker/RecruitPlan`, `MsgRecruitStart` (replans, charges travel + purse), `worker/RecruitTour` (the state, moved between entity and record; arrive / wait / leave / extra villages shared by `RecruitMission.tickTour` and `VirtualWorkerMissions.tickVirtualTour`). — done
-6. **Encounters + roll** (road and village), loaded and virtual. — todo
-7. **Conversion** traveller → worker (data, group, horse), loaded and virtual. — todo
+6. **Encounters + roll**: `worker/RecruitEncounters`, groups via `worker/SpawnGroup` (was MerchantGroup), outcome counts in the profile report. — done
+7. **Conversion**: a record becomes a hired worker (`VirtualTravellerManager.recruitRecord`); a loaded traveller goes through virtualize → convert → `materializeSoon` (horse carried by the hand-off); a loaded free worker is hired in place; recruits fall in behind the recruiter (`WorkerGroupService.joinRecruiter`). — done
 8. **Purse**: pay per recruit, refund, drop on death (loaded and virtual death). — todo
 9. **Edge cases** above, lang keys. — todo (old mode, old screen, cost sync and their config/lang already removed). Note: a dismissed recruiter or one whose owner is offline ends its tour at once (purse: see step 8).
