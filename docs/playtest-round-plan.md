@@ -1,4 +1,4 @@
-Status: session 1 (recruiting + money) in review; session 2 (virtual battles) rounds 1–3 done, absent-pawn fix awaiting an in-game check; session 3 not started.
+Status: session 1 (recruiting + money) in review; session 2 (virtual battles) rounds 1–3 done, absent-pawn fix awaiting an in-game check; session 3 recall done, itinerary display todo.
 
 # Playtest round: battles, missions, recruiting, money
 
@@ -17,9 +17,11 @@ Fix and finish what the user noticed while testing, one theme per session, witho
 - All of an owner's henchmen fell = "lost", even when allies won.
 - A hired henchman with no weapon and no armour (e.g. just respawned at its bed) is never drawn into an offscreen battle; loaded, it still defends itself.
 - The test server keeps `engagementRadius=128` on purpose.
+- Recall works on a mission's outbound leg only: sale/donation before delivery (cargo comes back untraded, travel fee not refunded), Get Equipment (nothing exchanged), recruiting. Not offered once a delivery is on its way back. Menu entry "Call back", for a group or a lone worker.
+- The Formation Hub map shows the planned route of any selected group that has one (missions and Go orders).
 - Virtual battles: read the trace/battle logs on the test server (`user@192.168.1.88:/home/user/server_grandevadrouille_2026/`) before changing anything; ask the user for any setting or test needed; never autotests.
 
 ## Steps
 1. **Recruiting + money** — done, awaiting review: leader-only rule; denier icons; lost-change, stuck-purse and dropped-sale fixes. Open: "only real villages, no lone buildings" already holds in code (only Millénaire's village list, within range); waiting for the user to say where they saw otherwise.
 2. **Virtual battles** — round 1 done: per-pass stepping, leash stays in battle, lost outcome, probe `left-world` / `death-unindexed` in `travellers-battles.log`. Round 2: unarmed henchmen stay out of offscreen battles. Round 3: absent pawns were dying pawns re-enrolled during their death animation (probe: all dead, hp 0, chunk loaded); a dying pawn is no longer enrolled. Remove the probe once confirmed in game. Symptoms: units "forget" to fight, fights that never end, absurd losses (24 vs 2 lost 4). Leads to check against logs, none proven: disengage after 30 s without progress then 1 min rejoin ban; no end while a fighter is absent; catch-up steps of up to 10 s resolved in list order (one side strikes first); melee cap per target; leader shield redirect. Notices and battle events must match what happened.
-3. **Mission recall + itinerary** — todo. "Call back" for every mission (sale/donation before or after delivery, equipment, stable horses), designed with the user; show a selected group's planned route on the Formation Hub map (reuse the itinerary debug drawing).
+3. **Mission recall + itinerary** — recall done (awaiting in-game check); itinerary display todo. "Call back" for every mission (sale/donation before or after delivery, equipment, stable horses), designed with the user; show a selected group's planned route on the Formation Hub map (reuse the itinerary debug drawing).

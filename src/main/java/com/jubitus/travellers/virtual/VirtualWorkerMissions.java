@@ -184,11 +184,8 @@ final class VirtualWorkerMissions {
         if (r.jobGoal == null) return;
         if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
 
-        // Build a temporary entity (not spawned) to run the delivery logic
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+        // Temporary entity (not spawned) runs the delivery logic
+        EntityTravellerWorker worker = tempWorker(world, r);
 
         // Loads the village's chest chunks only for the trade, then releases them
         worker.delivery.deliverCargo(r.jobGoal);
@@ -197,16 +194,42 @@ final class VirtualWorkerMissions {
         NBTTagCompound updatedNbt = new NBTTagCompound();
         worker.writeToNBT(updatedNbt);
         com.jubitus.travellers.debug.MissionDebugLog.record(r.uuid, r.name, "virtual-trade-after", updatedNbt);
+        headBackWithCargo(r, worker, updatedNbt);
+    }
+
+    /** Delivered or called back: the record keeps the temporary entity's state and heads back to the employer. */
+    private void headBackWithCargo(VirtualTravellerRecord r, EntityTravellerWorker worker, NBTTagCompound updatedNbt) {
         r.entityNbt = updatedNbt;
         r.invalidateNbtCaches();
-
-        // Update record to RETURNING so the virtual worker heads back to the employer
         r.workerMode = "RETURNING";
         r.jobGoal = null;
         BlockPos returnGoal = worker.getVirtualGoal(); // returns employerReturnPos when RETURNING
         if (returnGoal != null) r.goal = returnGoal;
-
         manager.markDirty();
+    }
+
+    /** The offscreen side of MissionRecall.recall: the record turns back from its outbound leg. */
+    void recall(WorldServer world, VirtualTravellerRecord r) {
+        if (r.recruitTour != null && !r.recruitTour.isReturning()) {
+            turnBack(world, r);
+        } else if ("TO_VILLAGE".equals(r.workerMode)) {
+            EntityTravellerWorker worker = tempWorker(world, r);
+            worker.delivery.recall();
+            NBTTagCompound updatedNbt = new NBTTagCompound();
+            worker.writeToNBT(updatedNbt);
+            headBackWithCargo(r, worker, updatedNbt);
+        } else if (r.goOrderActive && "GET_EQUIPMENT".equals(r.workerMode)) {
+            finishVirtualEquip(world, r, tempWorker(world, r), r.goal, false);
+        }
+    }
+
+    // Not spawned: carries the record's state for logic written against the entity.
+    private static EntityTravellerWorker tempWorker(WorldServer world, VirtualTravellerRecord r) {
+        EntityTravellerWorker worker = new EntityTravellerWorker(world);
+        worker.readFromNBT(r.entityNbt);
+        worker.setUniqueId(r.uuid);
+        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+        return worker;
     }
 
     /** The offscreen side of RecruitMission.tickTour: same tour decisions, arrival judged at the mission radius. */
@@ -269,10 +292,7 @@ final class VirtualWorkerMissions {
         if (!com.jubitus.travellers.ground.chunk.LoadedChunks.tryAcquireJob(world)) return;
 
         // Temporary entity (not spawned) carries equipment state for the swap; the chest chunks are borrowed inside.
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+        EntityTravellerWorker worker = tempWorker(world, r);
 
         com.jubitus.travellers.unit.equipment.WorkerEquipExchanger.run(worker, world, target, kind);
 
@@ -285,10 +305,7 @@ final class VirtualWorkerMissions {
      * {@code captureMountIfBonded} uses - so {@code restoreOrBondMount} spawns and bonds it on materialize.
      */
     private void tryVirtualHorsePickup(WorldServer world, VirtualTravellerRecord r, BlockPos target, boolean stay) {
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+        EntityTravellerWorker worker = tempWorker(world, r);
 
         com.jubitus.travellers.zone.PlayerZoneRecord zone =
                 com.jubitus.travellers.zone.PlayerZoneManager.get(world)
@@ -318,10 +335,7 @@ final class VirtualWorkerMissions {
                 r.uuid, given);
 
         // Built after the return, so the temporary entity no longer carries the horse's bond.
-        EntityTravellerWorker worker = new EntityTravellerWorker(world);
-        worker.readFromNBT(r.entityNbt);
-        worker.setUniqueId(r.uuid);
-        worker.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
+        EntityTravellerWorker worker = tempWorker(world, r);
         finishVirtualEquip(world, r, worker, target, stay);
     }
 

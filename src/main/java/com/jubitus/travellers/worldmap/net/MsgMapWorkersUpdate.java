@@ -32,6 +32,8 @@ public class MsgMapWorkersUpdate implements IMessage {
         // The worker group (leader) this worker escorts, or null when it follows its owner or nobody.
         public UUID followLeaderUuid;
         public boolean followsOwner;
+        // On a mission's outbound leg: it can be called back.
+        public boolean recallable;
         // Duty kind of an on-duty worker (e.g. STABLE_HAND), "" for none: picks its map marker.
         public String role = "";
         /** Centre of the zone an on-duty worker serves, else null. */
@@ -84,6 +86,7 @@ public class MsgMapWorkersUpdate implements IMessage {
             e.statusKey = ByteBufUtils.readUTF8String(buf);
             e.followName = ByteBufUtils.readUTF8String(buf);
             e.followsOwner = buf.readBoolean();
+            e.recallable = buf.readBoolean();
             e.role = ByteBufUtils.readUTF8String(buf);
             if (buf.readBoolean()) e.followLeaderUuid = new UUID(buf.readLong(), buf.readLong());
             if (buf.readBoolean()) e.dutyZone = BlockPos.fromLong(buf.readLong());
@@ -113,6 +116,7 @@ public class MsgMapWorkersUpdate implements IMessage {
             ByteBufUtils.writeUTF8String(buf, e.statusKey != null ? e.statusKey : "");
             ByteBufUtils.writeUTF8String(buf, e.followName != null ? e.followName : "");
             buf.writeBoolean(e.followsOwner);
+            buf.writeBoolean(e.recallable);
             ByteBufUtils.writeUTF8String(buf, e.role != null ? e.role : "");
             buf.writeBoolean(e.followLeaderUuid != null);
             if (e.followLeaderUuid != null) {

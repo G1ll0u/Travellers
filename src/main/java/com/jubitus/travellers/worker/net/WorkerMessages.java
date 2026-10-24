@@ -15,7 +15,7 @@ public final class WorkerMessages {
         toClient(MsgSyncWorkerHireState.class, () -> new MsgSyncWorkerHireState.Handler());
         toServer(MsgHireWorker.class, MsgHireWorker.Handler.class);
         toServer(MsgRecruitStart.class, MsgRecruitStart.Handler.class);
-        toServer(MsgRecruitRecall.class, MsgRecruitRecall.Handler.class);
+        toServer(MsgMissionRecall.class, MsgMissionRecall.Handler.class);
         toServer(MsgRecruitTakePurse.class, MsgRecruitTakePurse.Handler.class);
         toClient(MsgRecruitReport.class, () -> new MsgRecruitReport.Handler());
         toServer(MsgOpenWorkerSubGui.class, MsgOpenWorkerSubGui.Handler.class);

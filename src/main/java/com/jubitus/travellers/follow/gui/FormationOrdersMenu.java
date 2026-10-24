@@ -12,7 +12,7 @@ import com.jubitus.travellers.gui.GuiContextMenu;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.unit.equipment.net.MsgEquipDestsResponse;
 import com.jubitus.travellers.unit.equipment.net.MsgLeaderGetEquip;
-import com.jubitus.travellers.worker.net.MsgRecruitRecall;
+import com.jubitus.travellers.worker.net.MsgMissionRecall;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
@@ -380,7 +380,7 @@ final class FormationOrdersMenu {
                 menu.itemUnless(busy, tr("resume"), () -> setLeaderFollow(group, true));
             }
             if (group.recallable) {
-                menu.itemUnless(null, tr("recall"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgRecruitRecall(src)));
+                menu.itemUnless(null, tr("recall"), () -> TravellersNetwork.CHANNEL.sendToServer(new MsgMissionRecall(src)));
             }
             menuTargets.add(unit.pos);
         } else if (unit != null && unit.kind == TargetKind.PLAYER) {
@@ -449,6 +449,14 @@ final class FormationOrdersMenu {
             menu.header(I18n.format("travellers.worker.formation.card.followers_selected", sel.size()));
             menu.item(tr("follow_me"), () -> sendFollowers(MsgGroupCreate.Action.COME_BACK, sel, null));
             menu.itemUnless(needTwo, tr("create_group"), () -> createGroup(sel, null));
+            List<UUID> recallable = new ArrayList<>();
+            for (UUID id : sel) {
+                MsgMapWorkersUpdate.Entry e = mapData.workerByUuid(id);
+                if (e != null && e.recallable) recallable.add(id);
+            }
+            if (!recallable.isEmpty()) {
+                menu.item(tr("recall"), () -> recallable.forEach(id -> TravellersNetwork.CHANNEL.sendToServer(new MsgMissionRecall(id))));
+            }
             menuTargets.add(unit.pos);
             return;
         }

@@ -68,6 +68,7 @@ public class WorkerMapStream {
         final String statusKey;
         final UUID followTarget; // escort leader UUID, or null
         final boolean followsOwner;
+        final boolean recallable;
         final String role;
         final BlockPos dutyZone;
 
@@ -89,6 +90,7 @@ public class WorkerMapStream {
             this.statusKey = statusKeyFor(w.getMode().name(), w.isGoingHome(), w.trips.isGoOrderActive(), w.trips.getEquipTargetKind().name());
             this.followTarget = w.getEscortLeaderUUID();
             this.followsOwner = this.followTarget == null && w.isFollowOrderActive();
+            this.recallable = com.jubitus.travellers.worker.MissionRecall.isRecallable(w);
             this.role = w.getDutyKind() != null ? w.getDutyKind() : "";
             this.dutyZone = w.getDutyZoneCenter();
         }
@@ -111,6 +113,7 @@ public class WorkerMapStream {
                     vr.entityNbt != null ? vr.entityNbt.getString("GetEquipTargetKind") : "");
             this.followTarget = vr.escortLeaderUUID;
             this.followsOwner = this.followTarget == null && vr.followOrderActive;
+            this.recallable = com.jubitus.travellers.worker.MissionRecall.isRecallable(vr);
             this.role = vr.dutyKind != null ? vr.dutyKind : "";
             this.dutyZone = vr.dutyKind != null ? vr.dutyZoneCenter : null;
         }
@@ -342,6 +345,7 @@ public class WorkerMapStream {
                 en.inBattle = w.inBattle;
                 en.statusKey = w.statusKey;
                 en.followsOwner = w.followsOwner;
+                en.recallable = w.recallable;
                 en.role = w.role;
                 en.dutyZone = w.dutyZone;
                 en.followLeaderUuid = w.followTarget;

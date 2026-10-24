@@ -915,9 +915,9 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     /** An offscreen recruiter called back by its owner. */
-    public void recallRecruiter(WorldServer world, VirtualTravellerRecord r) {
-        if (r.recruitTour == null || r.recruitTour.isReturning()) return;
-        missions.turnBack(world, r);
+    public void recallMission(WorldServer world, VirtualTravellerRecord r) {
+        if (!com.jubitus.travellers.worker.MissionRecall.isRecallable(r)) return;
+        missions.recall(world, r);
         markDirty();
     }
 

@@ -158,6 +158,17 @@ public final class WorkerTrips {
         tc.setDepartCooldownTicks(0);
     }
 
+    public boolean isFetchingEquipment() {
+        return goOrderActive && worker.mode == EntityTravellerWorker.WorkerMode.GET_EQUIPMENT;
+    }
+
+    /** Called back before the place: nothing is exchanged, the worker follows its owner again. */
+    public void recallGetEquip() {
+        if (!isFetchingEquipment()) return;
+        cancelGoOrder();
+        finishGetEquip(false, null);
+    }
+
     public void cancelGoOrder() {
         goOrderActive = false;
         goOrderTargetPos = null;

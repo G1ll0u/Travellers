@@ -117,6 +117,16 @@ public final class DeliveryJob {
         return worker.mode == EntityTravellerWorker.WorkerMode.RETURNING && this.jobDelivered;
     }
 
+    // Walking to the village, cargo not traded yet.
+    public boolean isOutbound() {
+        return worker.mode == EntityTravellerWorker.WorkerMode.TO_VILLAGE && !this.jobDelivered;
+    }
+
+    /** Called back before the village: the cargo comes back untraded, the travel fee stays spent. */
+    public void recall() {
+        if (isOutbound()) onDelivered();
+    }
+
     boolean isFarewellActive() {
         return farewellActive;
     }

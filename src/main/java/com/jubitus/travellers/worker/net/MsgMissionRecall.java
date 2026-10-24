@@ -5,6 +5,7 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
+import com.jubitus.travellers.worker.MissionRecall;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.WorldServer;
@@ -15,15 +16,15 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import java.util.UUID;
 
-/** Formation Hub → server: call a recruiter back from its tour, loaded or offscreen. */
-public class MsgRecruitRecall implements IMessage {
+/** Formation Hub → server: call a worker back from its mission, loaded or offscreen. */
+public class MsgMissionRecall implements IMessage {
 
     private UUID workerId;
 
-    public MsgRecruitRecall() {
+    public MsgMissionRecall() {
     }
 
-    public MsgRecruitRecall(UUID workerId) {
+    public MsgMissionRecall(UUID workerId) {
         this.workerId = workerId;
     }
 
@@ -38,9 +39,9 @@ public class MsgRecruitRecall implements IMessage {
         buf.writeLong(workerId.getLeastSignificantBits());
     }
 
-    public static class Handler implements IMessageHandler<MsgRecruitRecall, IMessage> {
+    public static class Handler implements IMessageHandler<MsgMissionRecall, IMessage> {
         @Override
-        public IMessage onMessage(MsgRecruitRecall msg, MessageContext ctx) {
+        public IMessage onMessage(MsgMissionRecall msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() -> handle(player, msg.workerId));
             return null;
@@ -51,13 +52,13 @@ public class MsgRecruitRecall implements IMessage {
             if (o == null) return;
             String name;
             if (o.live != null) {
-                if (!o.live.recruit.isOnMission()) return;
-                o.live.recruit.recall();
+                if (!MissionRecall.isRecallable(o.live)) return;
+                MissionRecall.recall(o.live);
                 name = o.live.getName();
             } else {
                 WorldServer ws = DimensionManager.getWorld(o.record.dimension);
-                if (ws == null || o.record.recruitTour == null) return;
-                VirtualTravellerManager.get(ws).recallRecruiter(ws, o.record);
+                if (ws == null || !MissionRecall.isRecallable(o.record)) return;
+                VirtualTravellerManager.get(ws).recallMission(ws, o.record);
                 name = o.record.name;
             }
             NotificationService.notify(player, NotificationDefs.RECRUIT_RECALLED, name);

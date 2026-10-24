@@ -20,7 +20,7 @@ public final class FormationLeaderInfo {
     public boolean busy;
     // True while it walks to a spot it was sent to with a Go order.
     public boolean goActive;
-    // True while it is on the outbound part of a recruiting tour: the one order it takes is a recall.
+    // True on a mission's outbound leg: the one order it takes is a recall.
     public boolean recallable;
 
     // Display data for the leader list
