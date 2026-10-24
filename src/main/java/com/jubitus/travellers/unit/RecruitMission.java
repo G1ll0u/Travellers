@@ -323,6 +323,7 @@ public final class RecruitMission {
 
     private boolean hasReachedVillage(BlockPos villageCenter) {
         if (villageCenter == null) return false;
+        if (worker.getTravelCommon().hasReached(villageCenter)) return true; // where travel stops
 
         BlockPos stop = this.currentStopPos != null
                 ? this.currentStopPos

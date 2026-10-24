@@ -102,6 +102,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Binding/releasing a worker to a zone | `zone/ZoneAssignments` |
 | Is a worker too busy for an order | `follow/group/WorkerOrderGuard` |
 | Where a record reappears | `virtual/MaterializePositionResolver` |
+| Has a unit reached its stop (travel and every mission) | `travel/TravelCommon.hasReached` (a mission's radius is its stop radius) |
 | Player-facing notices | `notify/NotificationService` |
 | Is this unit watched by a player | `isInPlayerViewDistanceApprox()` |
 | Peaceful difficulty blocks combat | `TravellersDerivedConfig.isPeacefulBlocked(world)` |

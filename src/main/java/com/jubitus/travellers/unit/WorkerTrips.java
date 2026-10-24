@@ -169,6 +169,13 @@ public final class WorkerTrips {
         finishGetEquip(false, null);
     }
 
+    /** The arrival radius of this worker's Go / Get Equipment target, or -1 when {@code target} is not that target. */
+    public int orderArrivalRadius(BlockPos target) {
+        if (!goOrderActive || !target.equals(goOrderTargetPos)) return -1;
+        return worker.mode == EntityTravellerWorker.WorkerMode.GET_EQUIPMENT
+                ? TravellersConfig.WORKER.workerEquipArrivalRadius : TravellersConfig.WORKER.workerGoArrivalRadius;
+    }
+
     public void cancelGoOrder() {
         goOrderActive = false;
         goOrderTargetPos = null;
@@ -221,10 +228,7 @@ public final class WorkerTrips {
 
         if (goOrderActive && goOrderTargetPos != null && goOrderTargetDim == worker.dimension) {
             boolean equip = worker.mode == EntityTravellerWorker.WorkerMode.GET_EQUIPMENT;
-            int r = equip ? TravellersConfig.WORKER.workerEquipArrivalRadius : TravellersConfig.WORKER.workerGoArrivalRadius;
-            double dx = worker.posX - (goOrderTargetPos.getX() + 0.5D);
-            double dz = worker.posZ - (goOrderTargetPos.getZ() + 0.5D);
-            if (dx * dx + dz * dz <= (double) (r * r)) {
+            if (tc.hasReached(goOrderTargetPos)) {
                 goOrderActive = false;
                 worker.stopAllTravelNow();
                 if (equip) {
@@ -242,8 +246,7 @@ public final class WorkerTrips {
     }
 
     private boolean isWithin(TravelCommon tc, BlockPos center) {
-        int r = tc.arrivalRadiusBlocks(center);
-        return worker.getDistanceSqToCenter(center) <= (double) (r * r);
+        return tc.hasReached(center);
     }
 
     private void anchorAt(BlockPos pos) {

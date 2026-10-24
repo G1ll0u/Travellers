@@ -215,8 +215,8 @@ public final class DeliveryJob {
     void tick(TravelCommon tc) {
         // 1) Going TO the village (unchanged)
         if (worker.mode == EntityTravellerWorker.WorkerMode.TO_VILLAGE && jobVillageCenter != null && !jobDelivered) {
-            int r = tc.arrivalRadiusBlocks(jobVillageCenter);
-            if (worker.getDistanceSqToCenter(jobVillageCenter) <= (double) (r * r)) {
+            // INVARIANT: the same arrival rule as the travel AI, or it stops short (XZ) of a 3D radius and waits forever.
+            if (tc.hasReached(jobVillageCenter)) {
                 deliverCargo(jobVillageCenter);
                 // deliverCargo calls onDelivered() already
             }
@@ -366,8 +366,7 @@ public final class DeliveryJob {
         }
         BlockPos target = home != null ? home : employerReturnPos;
         if (target == null || awaitingPickup) return;
-        int r = tc.arrivalRadiusBlocks(target);
-        if (worker.getDistanceSqToCenter(target) <= (double) (r * r)) {
+        if (tc.hasReached(target)) {
             tc.clearRoute(false);
             worker.getNavigator().clearPath();
             awaitingPickup = true;

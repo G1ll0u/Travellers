@@ -463,17 +463,20 @@ public class TravelCommon {
 
     private static final int ARRIVAL_HYSTERESIS_BLOCKS = 8;
 
-    // A settlement stop counts as reached within its arrival radius (XZ), or as soon as the unit
-    // stands in the town hall's own footprint - a big town hall must never be walked into first.
+    /** Whether the unit has reached this stop: the one arrival rule, shared by travel and every mission. */
+    public boolean hasReached(@Nullable BlockPos stop) {
+        return isAtStop(stop, 0);
+    }
+
+    // A stop counts as reached within its arrival radius (XZ), or as soon as the unit stands in the
+    // town hall's own footprint - a big town hall must never be walked into first.
     private boolean isAtStop(@Nullable BlockPos stop, int extra) {
         if (stop == null) return false;
         int r = arrivalRadiusBlocks(stop) + extra;
-        if (stopKindFor(stop) == StopKind.OTHER) {
-            return owner.getDistanceSqToCenter(stop) <= (double) r * r;
-        }
         double dx = owner.posX - (stop.getX() + 0.5D);
         double dz = owner.posZ - (stop.getZ() + 0.5D);
         if (dx * dx + dz * dz <= (double) r * r) return true;
+        if (stopKindFor(stop) == StopKind.OTHER) return false;
         MillFootprints.Footprint f = MillFootprints.atPlanar(owner.world, owner.posX, owner.posZ, 2 + extra);
         return f != null && f.building.getPos() != null
                 && f.building.getPos().getiX() == stop.getX() && f.building.getPos().getiZ() == stop.getZ();
@@ -501,6 +504,11 @@ public class TravelCommon {
     public int arrivalRadiusBlocks(BlockPos target) {
         if (com.jubitus.travellers.raid.RaidWorldData.isRaider(owner.world, owner.getUniqueID())) {
             return RAID_ARRIVAL_BLOCKS;
+        }
+        // INVARIANT: a mission's own radius is the travel stop's radius, so travel stops exactly where the mission arrives.
+        if (owner instanceof EntityTravellerWorker) {
+            int order = ((EntityTravellerWorker) owner).trips.orderArrivalRadius(target);
+            if (order > 0) return order;
         }
         switch (stopKindFor(target)) {
             case VILLAGE:
