@@ -3,6 +3,7 @@ package com.jubitus.travellers.follow.group;
 import com.jubitus.travellers.unit.WorkerLookup;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.follow.GroupSuccession;
+import com.jubitus.travellers.worker.RecruitTour;
 import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.follow.formations.WorkerFormationSavedData;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
@@ -472,32 +473,42 @@ public final class WorkerGroupService {
     // Leader succession
     // -------------------------------------------------------------------------
 
-    /** What a dead leader was doing, handed to its successor. A mission is never inherited. */
+    /**
+     * What a dead leader was doing, handed to its successor. The one mission inherited is a recruiting tour,
+     * with the purse that pays for it (the recruits are the group that carries on).
+     */
     public static final class LeaderOrder {
-        static final LeaderOrder UNKNOWN = new LeaderOrder(null, true, null);
+        static final LeaderOrder UNKNOWN = new LeaderOrder(null, true, null, null, 0);
 
         @Nullable final UUID convoyLeader;
         final boolean follow;
         @Nullable final BlockPos goTarget;
+        @Nullable final RecruitTour recruitTour;
+        final int purse;
 
-        private LeaderOrder(@Nullable UUID convoyLeader, boolean follow, @Nullable BlockPos goTarget) {
+        private LeaderOrder(@Nullable UUID convoyLeader, boolean follow, @Nullable BlockPos goTarget,
+                            @Nullable RecruitTour recruitTour, int purse) {
             this.convoyLeader = convoyLeader;
             this.follow = follow;
             this.goTarget = goTarget;
+            this.recruitTour = recruitTour;
+            this.purse = purse;
         }
     }
 
     /** Read before the death code resets the leader's flags. */
     public static LeaderOrder captureOrder(EntityTravellerWorker leader) {
+        if (leader.recruit.getTour() != null) return new LeaderOrder(null, true, null, leader.recruit.getTour(), leader.purse.get());
         if (WorkerOrderGuard.isBusy(leader)) return LeaderOrder.UNKNOWN;
         BlockPos go = leader.trips.isGoOrderActive() ? leader.trips.getGoOrderTargetPos() : null;
-        return new LeaderOrder(leader.getEscortLeaderUUID(), leader.isFollowOrderActive(), go);
+        return new LeaderOrder(leader.getEscortLeaderUUID(), leader.isFollowOrderActive(), go, null, 0);
     }
 
     public static LeaderOrder captureOrder(VirtualTravellerRecord leader) {
+        if (leader.recruitTour != null) return new LeaderOrder(null, true, null, leader.recruitTour, leader.purse.get());
         if (WorkerOrderGuard.isBusy(leader)) return LeaderOrder.UNKNOWN;
         return new LeaderOrder(leader.escortLeaderUUID, leader.followOrderActive,
-                leader.goOrderActive ? leader.goal : null);
+                leader.goOrderActive ? leader.goal : null, null, 0);
     }
 
     /**
@@ -505,8 +516,9 @@ public final class WorkerGroupService {
      * and its formation settings, and the owner is told. Members on a mission or leading a group of their own are
      * never elected; with no candidate every follower goes back to the owner.
      */
-    public static void onLeaderDied(MinecraftServer server, @Nullable UUID owner, UUID leaderId, LeaderOrder order) {
-        if (owner != null) elect(server, owner, leaderId, order);
+    /** Returns true when a successor took over the leader's recruiting tour and purse. */
+    public static boolean onLeaderDied(MinecraftServer server, @Nullable UUID owner, UUID leaderId, LeaderOrder order) {
+        return owner != null && elect(server, owner, leaderId, order) != null && order.recruitTour != null;
     }
 
     /**
@@ -582,6 +594,17 @@ public final class WorkerGroupService {
         }
         for (VirtualTravellerRecord r : virtual.values()) {
             if (!r.uuid.equals(successor)) assignToLeaderVirtual(r, successor);
+        }
+        if (order.recruitTour != null) {
+            if (newLeader != null) {
+                newLeader.purse.add(order.purse);
+                newLeader.recruit.start(order.recruitTour);
+            } else {
+                VirtualTravellerRecord r = virtual.get(successor);
+                net.minecraft.world.WorldServer ws = net.minecraftforge.common.DimensionManager.getWorld(r.dimension);
+                r.purse.add(order.purse);
+                if (ws != null) VirtualTravellerManager.get(ws).giveRecruitTour(ws, r, order.recruitTour);
+            }
         }
 
         WorkerFormationSavedData formations = WorkerFormationSavedData.get(server.worlds[0]);

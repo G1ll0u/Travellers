@@ -1000,10 +1000,14 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
-            purse.drop(this);
-            recruit.abandon();
+            if (recruit.getTour() != null) recruit.getTour().log().recruiterDied(getPosition());
+            // Captured with the tour and the purse, which a successor inherits; both leave this body before the
+            // bed-respawn snapshot below, or a worker back at its bed would carry the same tour and money.
             com.jubitus.travellers.follow.group.WorkerGroupService.LeaderOrder leaderOrder =
                     com.jubitus.travellers.follow.group.WorkerGroupService.captureOrder(this);
+            int carried = purse.get();
+            purse.set(0);
+            recruit.abandon();
             setFollowOrderActive(false);
 
             if (getHomeVillage() != null && world instanceof WorldServer) {
@@ -1036,9 +1040,13 @@ public class EntityTravellerWorker extends EntityTraveller {
             }
 
             // After the death notice, so the owner reads "X died" before "Y has taken command".
-            if (hiredFollower && world.getMinecraftServer() != null) {
-                com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderDied(world.getMinecraftServer(),
-                        followOwnerId, getUniqueID(), leaderOrder);
+            boolean inherited = hiredFollower && world.getMinecraftServer() != null
+                    && com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderDied(world.getMinecraftServer(),
+                            followOwnerId, getUniqueID(), leaderOrder);
+            // Nobody took the purse over: the coins fall where it died.
+            if (!inherited && carried > 0) {
+                purse.set(carried);
+                purse.drop(this);
             }
         }
 

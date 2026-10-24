@@ -1152,6 +1152,8 @@ public class VirtualBattleManager extends WorldSavedData {
 
         com.jubitus.travellers.follow.GroupSuccession.onLeaderDied(world, rec);
         if (rec.isHiredFollower && world.getMinecraftServer() != null) {
+            if (rec.recruitTour != null) rec.recruitTour.log().recruiterDied(new BlockPos(rec.posX, rec.posY, rec.posZ));
+            // A recruiting tour and its purse go to the successor; with none, the purse is lost with the record.
             com.jubitus.travellers.follow.group.WorkerGroupService.onLeaderDied(world.getMinecraftServer(),
                     rec.followOwnerUUID, rec.uuid, com.jubitus.travellers.follow.group.WorkerGroupService.captureOrder(rec));
         }

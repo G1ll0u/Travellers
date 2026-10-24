@@ -47,6 +47,11 @@ public final class RecruitLog {
         roadJoins.add(new long[]{at.toLong(), count});
     }
 
+    /** The recruiter itself fell (a successor carries on): a cross on the map, not a lost recruit. */
+    public void recruiterDied(BlockPos at) {
+        deaths.add(at.toLong());
+    }
+
     void died(String culture, BlockPos at) {
         culture(culture)[2]++;
         deaths.add(at.toLong());

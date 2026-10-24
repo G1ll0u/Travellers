@@ -892,6 +892,22 @@ public class VirtualTravellerManager extends WorldSavedData {
         hireVirtualWorker(world, r, owner);
     }
 
+    /** An offscreen successor takes over a dead recruiter's tour where it was. */
+    public void giveRecruitTour(WorldServer world, VirtualTravellerRecord r, com.jubitus.travellers.worker.RecruitTour tour) {
+        r.recruitTour = tour;
+        com.jubitus.travellers.worker.RecruitPlan.Stop stop = tour.currentStop();
+        if (stop == null) {
+            missions.turnBack(world, r);
+        } else {
+            r.workerMode = "RECRUITING";
+            r.jobGoal = stop.center;
+            r.goal = stop.center;
+            r.goOrderActive = false;
+            r.followOrderActive = true;
+        }
+        markDirty();
+    }
+
     /** An offscreen recruiter called back by its owner. */
     public void recallRecruiter(WorldServer world, VirtualTravellerRecord r) {
         if (r.recruitTour == null || r.recruitTour.isReturning()) return;
