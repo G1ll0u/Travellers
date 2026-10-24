@@ -73,6 +73,7 @@ final class ProfileReport {
         paths(sb, s, ticks);
         raidScans(sb, s, ticks);
         combat(sb, s, ticks);
+        villageVisits(sb, s, ticks);
         boundary(sb, s);
         groups(sb, s);
         hotspots(sb, s);
@@ -335,6 +336,47 @@ final class ProfileReport {
                     .append(f2(n.sum / 1e6 / ticks)).append(" ms per tick, worst ")
                     .append(f2(n.max / 1e6)).append(" ms\n");
         }
+    }
+
+    private static void villageVisits(StringBuilder sb, ProfileSession s, long ticks) {
+        header(sb, "Village visits (stays started; recruitable = travellers and free workers)");
+        double hours = ticks / 72000.0D;
+        long n = s.visits;
+        sb.append("  stays ").append(n).append(" (").append(f1(n / hours)).append(" per hour) | ")
+                .append(joinLongs(s.visitsByKind)).append('\n');
+        sb.append("  offscreen ").append(pct(s.visitsVirtual, n)).append(" | as group follower ")
+                .append(pct(s.visitsFollower, n)).append(" | mounted ").append(pct(s.visitsMounted, n))
+                .append(" | same unit, same village again ").append(pct(s.visitsRepeated, n)).append('\n');
+        for (Map.Entry<String, ProfileSession.Tally> e : s.visitRepeatGapSeconds.entrySet()) {
+            sb.append("    repeated by ").append(e.getKey()).append(": ").append(e.getValue().count)
+                    .append(", ").append(f1(e.getValue().avg())).append(" s after its previous start on average\n");
+        }
+        sb.append("  recruitable by culture (villages only): ").append(joinLongs(s.recruitableByCulture)).append('\n');
+
+        List<ProfileSession.VillageTraffic> villages = new ArrayList<>();
+        for (ProfileSession.VillageTraffic t : s.villageTraffic.values()) if (!t.lone) villages.add(t);
+        if (villages.isEmpty()) return;
+        villages.sort((a, b) -> Long.compare(b.recruitable, a.recruitable));
+        long median = villages.get(villages.size() / 2).recruitable;
+        sb.append("  ").append(villages.size()).append(" villages visited | recruitable per village per hour: median ")
+                .append(f1(median / hours)).append(", busiest ").append(f1(villages.get(0).recruitable / hours))
+                .append(", quietest ").append(f1(villages.get(villages.size() - 1).recruitable / hours)).append('\n');
+        for (int i = 0; i < Math.min(5, villages.size()); i++) {
+            ProfileSession.VillageTraffic t = villages.get(i);
+            sb.append("    ").append(pad(t.name, 32)).append(f1(t.recruitable / hours)).append(" recruitable/h, ")
+                    .append(f1(t.raiders / hours)).append(" raiders/h\n");
+        }
+    }
+
+    private static String joinLongs(Map<String, Long> counts) {
+        List<Map.Entry<String, Long>> rows = new ArrayList<>(counts.entrySet());
+        rows.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Long> r : rows) {
+            if (sb.length() > 0) sb.append(" | ");
+            sb.append(r.getKey()).append(' ').append(r.getValue());
+        }
+        return sb.toString();
     }
 
     private static void paths(StringBuilder sb, ProfileSession s, long ticks) {

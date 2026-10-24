@@ -57,6 +57,8 @@ final class VirtualVillageVisits {
 
     private void startStay(WorldServer world, VirtualTravellerRecord r, com.jubitus.travellers.village.visit.VillageVisitState st,
                            com.jubitus.travellers.village.VillageVisitIndex.Settlement s, long now) {
+        com.jubitus.travellers.debug.profile.MovementProfiler.villageVisit(world, r.uuid, st.stop, s.lone, r.entityClass,
+                r.cultureId, st.asFollower, r.mounted, true);
         if (r.mounted && r.mountNbt != null && TravellersConfig.MOUNTS.hitchMountInVillages
                 && (r.mountMode == null || "MOUNTED".equals(r.mountMode))) {
             // Tied where the grounds begin, on the side it came from, like the loaded hitch.

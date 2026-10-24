@@ -243,6 +243,11 @@ public class EntityAIVillageVisit extends EntityAIBase {
             loneHaltDone = false;
             failuresInARow = 0;
             trace("start", (follower ? "with group " : "stay=" + remaining() / 20 + "s ") + describeSettlement());
+            if (settlement != null) {
+                com.jubitus.travellers.debug.profile.MovementProfiler.villageVisit(mob.world, mob.getUniqueID(), stop, settlement.lone,
+                        mob instanceof EntityTravellerRaider ? "RAIDER" : mob instanceof EntityTravellerWorker ? "WORKER" : "TRAVELLER",
+                        mob.getCultureId(), follower, mob.isRiding(), false);
+            }
         } else {
             trace("resume", follower ? "with group" : "left=" + remaining() / 20 + "s");
         }

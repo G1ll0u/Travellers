@@ -223,6 +223,48 @@ final class ProfileSession {
         targetDrops.merge(reason, 1L, Long::sum);
     }
 
+    static final class VillageTraffic {
+        final String name;
+        final boolean lone;
+        long recruitable;
+        long raiders;
+
+        VillageTraffic(String name, boolean lone) {
+            this.name = name;
+            this.lone = lone;
+        }
+    }
+
+    final Map<Long, VillageTraffic> villageTraffic = new HashMap<>();
+    final Map<String, Long> visitsByKind = new java.util.TreeMap<>();
+    final Map<String, Long> recruitableByCulture = new java.util.TreeMap<>();
+    final Map<String, Long> visitLastTick = new HashMap<>();
+    final Map<String, Tally> visitRepeatGapSeconds = new java.util.TreeMap<>();
+    long visits, visitsVirtual, visitsFollower, visitsMounted, visitsRepeated;
+
+    void villageVisit(UUID unit, BlockPos stop, String name, boolean lone, String entityClass, @Nullable String culture,
+                      boolean follower, boolean mounted, boolean virtual, long now) {
+        visits++;
+        Long last = visitLastTick.put(unit + "@" + stop.toLong(), now);
+        if (last != null) {
+            visitsRepeated++;
+            visitRepeatGapSeconds.computeIfAbsent((follower ? "follower" : "leader") + (virtual ? " offscreen" : " loaded"),
+                    k -> new Tally()).add((now - last) / 20L);
+        }
+        if (virtual) visitsVirtual++;
+        if (follower) visitsFollower++;
+        if (mounted) visitsMounted++;
+        boolean raider = "RAIDER".equals(entityClass);
+        visitsByKind.merge(raider ? "raider" : "WORKER".equals(entityClass) ? "free worker" : "traveller", 1L, Long::sum);
+        VillageTraffic t = villageTraffic.computeIfAbsent(stop.toLong(), k -> new VillageTraffic(name, lone));
+        if (raider) {
+            t.raiders++;
+        } else {
+            t.recruitable++;
+            if (!lone) recruitableByCulture.merge(culture == null ? "?" : culture, 1L, Long::sum);
+        }
+    }
+
     void helpCall(String kind, int recruited) {
         helpCalls.computeIfAbsent(kind, k -> new Tally()).add(recruited);
     }

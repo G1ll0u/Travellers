@@ -170,6 +170,16 @@ public final class MovementProfiler {
         session.threatScan(kind, found, nanos);
     }
 
+    /** A unit starts a village stay (loaded or offscreen); entityClass is the record's TRAVELLER / RAIDER / WORKER. */
+    public static void villageVisit(net.minecraft.world.World world, UUID unit, net.minecraft.util.math.BlockPos stop, boolean lone,
+                                    String entityClass, @Nullable String culture, boolean follower,
+                                    boolean mounted, boolean virtual) {
+        if (session == null || world.isRemote) return;
+        String name = com.jubitus.travellers.village.MillSettlements.nameOrNull(world, stop);
+        session.villageVisit(unit, stop, name != null ? name : stop.getX() + "," + stop.getZ(), lone, entityClass, culture,
+                follower, mounted, virtual, now());
+    }
+
     public static void materialized(UUID id, boolean ok) {
         if (session == null) return;
         session.materialized(id, ok, now());
