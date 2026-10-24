@@ -116,7 +116,7 @@ final class VirtualWorkerMissions {
                 VirtualTravellerRecord r = records.get(id);
                 if (r == null || r.recruitTour == null) continue;
                 if ("RECRUITING".equals(r.workerMode)) tickVirtualTour(world, r);
-                com.jubitus.travellers.worker.RecruitEncounters.tick(world, r.recruitTour, r.uuid,
+                com.jubitus.travellers.worker.RecruitEncounters.tick(world, r.recruitTour, r.purse, r.uuid,
                         r.followOwnerUUID, r.posX, r.posZ);
             }
         }

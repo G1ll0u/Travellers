@@ -155,6 +155,7 @@ public class EntityTravellerWorker extends EntityTraveller {
 
     public final PlayerHostility playerHostility = new PlayerHostility(this);
     public final RecruitMission recruit = new RecruitMission(this);
+    public final WorkerPurse purse = new WorkerPurse();
     public final DeliveryJob delivery = new DeliveryJob(this);
     public final WorkerTrips trips = new WorkerTrips(this);
     // Gear kinds ticked at its last Get Equipment; null = never set (picks up any upgrade).
@@ -964,6 +965,12 @@ public class EntityTravellerWorker extends EntityTraveller {
             return true;
         }
 
+        // Back from recruiting: talking to it opens the report (and the purse).
+        if (recruit.isBack() && WorkerLookup.isOwnedBy(this, player.getUniqueID()) && !this.isInCombat()) {
+            if (player instanceof EntityPlayerMP) recruit.openReport((EntityPlayerMP) player);
+            return true;
+        }
+
         // 2) If actually away doing a job, block interaction as before
         if (this.mode != WorkerMode.IDLE) {
             NotificationService.notify(player, NotificationDefs.WORKER_ALREADY_ON_JOB);
@@ -993,7 +1000,8 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
-            recruit.onDeath();
+            purse.drop(this);
+            recruit.abandon();
             com.jubitus.travellers.follow.group.WorkerGroupService.LeaderOrder leaderOrder =
                     com.jubitus.travellers.follow.group.WorkerGroupService.captureOrder(this);
             setFollowOrderActive(false);
@@ -2018,6 +2026,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         super.writeEntityToNBT(nbt);
         delivery.writeNbt(nbt);
         recruit.writeNbt(nbt);
+        purse.write(nbt);
         nbt.setInteger("WorkerMode", mode.ordinal());
         trips.writeNbt(nbt);
         nbt.setBoolean("RouteLocked", routeLocked);
@@ -2045,6 +2054,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         forceSpawn = true;
         delivery.readNbt(nbt);
         recruit.readNbt(nbt);
+        purse.read(nbt);
 
         int m = nbt.getInteger("WorkerMode");
         mode = (m >= 0 && m < WorkerMode.values().length) ? WorkerMode.values()[m] : WorkerMode.IDLE;

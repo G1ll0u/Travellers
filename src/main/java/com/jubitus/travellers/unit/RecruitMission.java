@@ -10,6 +10,9 @@ import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.worker.RecruitEncounters;
 import com.jubitus.travellers.worker.RecruitPlan;
+import com.jubitus.travellers.worker.RecruitReport;
+import com.jubitus.travellers.worker.net.MsgRecruitReport;
+import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.RecruitTour;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -188,7 +191,6 @@ public final class RecruitMission {
     }
 
     private void finish(EntityPlayer owner) {
-        int refund = refundPurse(owner);
         this.tour = null;
         this.currentStopPos = null;
         resetArrivalWatchdog();
@@ -202,19 +204,26 @@ public final class RecruitMission {
         worker.routeLocked = true; // keep companion mode
         worker.setFollowOrderActive(true);
 
-        if (refund > 0) {
-            NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED_REFUND, NoticePlace.of(worker),
-                    MillMoney.format(refund));
-        } else {
-            NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED, NoticePlace.of(worker));
-        }
+        NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED, NoticePlace.of(worker));
     }
 
-    /** What is left in the purse goes back to the owner; returns the amount handed over. */
-    private int refundPurse(@Nullable EntityPlayer owner) {
-        int purse = tour != null ? tour.purse() : 0;
-        if (purse <= 0 || !(owner instanceof EntityPlayerMP)) return 0;
-        return MillMoney.givePlayerMoney((EntityPlayerMP) owner, purse) ? purse : 0;
+    public boolean isBack() {
+        return tour != null && tour.isBack();
+    }
+
+    /** The owner talks to the recruiter that is back: the report opens; with nothing left to hand over, the tour ends. */
+    public void openReport(EntityPlayerMP owner) {
+        if (!isBack()) return;
+        TravellersNetwork.sendToPlayer(owner, new MsgRecruitReport(RecruitReport.of(worker, tour)));
+        if (worker.purse.get() <= 0) finish(owner);
+    }
+
+    /** The owner takes what they can carry; the tour ends once the purse is empty. */
+    public void takePurse(EntityPlayerMP owner) {
+        if (!isBack()) return;
+        if (worker.purse.handTo(owner) == 0) NotificationService.notify(owner, NotificationDefs.WORKER_PURSE_NO_ROOM);
+        TravellersNetwork.sendToPlayer(owner, new MsgRecruitReport(RecruitReport.of(worker, tour)));
+        if (worker.purse.get() <= 0) finish(owner);
     }
 
     /** Called back by the owner: turns back now, still meeting people on the way like any return. */
@@ -222,21 +231,15 @@ public final class RecruitMission {
         if (tour != null && !tour.isReturning()) beginReturnToOwner();
     }
 
-    /** Dismissed mid-tour (the owner is the one dismissing, so online): the purse goes back, the tour ends here. */
+    /** Dismissed mid-tour: the tour ends here (the worker hands its purse back itself). */
     void onDismissed() {
         if (tour == null) return;
-        refundPurse(worker.getFollowOwner());
         abandon();
         if (worker.mode == EntityTravellerWorker.WorkerMode.RECRUITING) worker.mode = EntityTravellerWorker.WorkerMode.IDLE;
         worker.getTravelCommon().clearRoute(false);
     }
 
-    /** Killed with the purse on him: the coins fall where he died. */
-    void onDeath() {
-        if (tour == null) return;
-        for (ItemStack coins : MillMoney.coins(tour.purse())) worker.entityDropItem(coins, 0.5F);
-        abandon();
-    }
+
 
     private void beginReturnToOwner() {
         if (tour != null && !tour.isReturning()) tour.turnBack();
@@ -255,7 +258,7 @@ public final class RecruitMission {
 
     private void meetPeople() {
         if (tour != null && worker.ticksExisted % 20 == 0 && worker.world instanceof WorldServer) {
-            RecruitEncounters.tick((WorldServer) worker.world, tour, worker.getUniqueID(),
+            RecruitEncounters.tick((WorldServer) worker.world, tour, worker.purse, worker.getUniqueID(),
                     worker.getFollowOwnerId(), worker.posX, worker.posZ);
         }
     }
@@ -270,7 +273,11 @@ public final class RecruitMission {
         double dx = worker.posX - owner.posX;
         double dz = worker.posZ - owner.posZ;
         // Follow AI pulls him in; "dist > 200 -> startOwnerCatchupTravel()" kicks in on its own.
-        if (dx * dx + dz * dz <= 8.0D * 8.0D) finish(owner);
+        if (tour.isBack() || dx * dx + dz * dz > 8.0D * 8.0D) return;
+        // Back: it stays at the owner's side until they read the report and take the purse.
+        tour.markBack();
+        worker.voice.playHello();
+        NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_BACK, NoticePlace.of(worker), worker.getName());
     }
 
     private double distSq2DTo(BlockPos pos) {

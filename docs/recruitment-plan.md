@@ -1,4 +1,4 @@
-Status: steps 1-8 done; step 9 (edge cases) next, step 10 to discuss first. Open: repeated village stays (see step 2).
+Status: steps 1-8 and 11 done; step 10 to discuss, then step 9 (edge cases). Open: repeated village stays (see step 2).
 
 # Recruitment missions by culture
 
@@ -8,7 +8,7 @@ A hired worker sent recruiting brings back real units of the world (travellers, 
 ## Decisions (with the user)
 - **Screen**: cultures present in range, each with reputation and a wanted-count +/-; locked cultures greyed with the reason; shows how common each culture is around (traffic is very uneven between cultures).
 - **Eligibility**: Millénaire culture reputation (`UserProfile.getCultureReputation`) above a threshold AND no village of that culture in the player's enemy list (`TravellerVillageRelations`); the enemy rule is a config toggle.
-- **Payment**: travel fee + a purse paid upfront. Each recruit is paid from the purse at its own `UnitWorth.hirePrice` when it accepts; remainder refunded on return; purse dropped as coins if the recruiter dies.
+- **Payment**: travel fee + a purse paid upfront. Each recruit is paid from the purse at its own `UnitWorth.hirePrice` when it accepts; remainder taken by the owner from the report; purse dropped as coins if the recruiter dies in view.
 - **Route**: per picked culture, its nearest villages in range, one per 3 wanted recruits (config); all stops chained nearest-next from the player, then back to the owner. At most 20 recruits per mission (config).
 - **Prices**: travel fee 256 + 128 per village + 0.07 per block (config). Purse = wanted × average hire price of free units of that culture around, + 25 % (config); the server computes the plan and both prices, the screen only shows them.
 - **Screen layout**: map on the left showing the planned villages, culture list on the right (name, reputation, chance, -/+ counter); details on hover. The old screen stays in the Orders menu until the new mission works end to end.
@@ -22,7 +22,7 @@ A hired worker sent recruiting brings back real units of the world (travellers, 
 - **Groups**: a candidate in a spawn group joins with its whole group (purse and quota permitting) or not at all.
 - **Conversion**: a traveller becomes a worker keeping name, culture, appearance, gear, voice, dialogue memory and its bonded horse. Raiders never.
 - **Population**: a hired unit (recruited or not) stops counting toward its village's quota and the worker cap, so the spawner refills it; its home village is kept (dialogue, hire screen).
-- **Purse belongs to the worker** (next): moved out of the recruiting tour so the planned purchase missions reuse it as is.
+- **Purse belongs to the worker**: `unit/WorkerPurse` on the worker and its record (copied at each hand-off), not in the tour, so the planned purchase missions reuse it as is. Generic rules: a worker carrying money cannot be dismissed (take the purse first), coins dropped on a loaded death (before the bed-respawn snapshot), lost offscreen. Money goes to the player only through `MillMoney.giveWhatFits` (all into a carried Millénaire purse, else the coins that fit; the rest stays in the worker's purse, never dropped or lost).
 - **Old mode** (spawning fresh recruits) removed, with its config keys.
 
 ## Edge cases to cover
@@ -36,6 +36,7 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 5. **Planning + start**: `worker/RecruitPlan`, `MsgRecruitStart` (replans, charges travel + purse), `worker/RecruitTour` (the state, moved between entity and record; arrive / wait / leave / extra villages shared by `RecruitMission.tickTour` and `VirtualWorkerMissions.tickVirtualTour`). — done
 6. **Encounters + roll**: `worker/RecruitEncounters`, groups via `worker/SpawnGroup` (was MerchantGroup), outcome counts in the profile report. — done
 7. **Conversion**: a record becomes a hired worker (`VirtualTravellerManager.recruitRecord`); a loaded traveller goes through virtualize → convert → `materializeSoon` (horse carried by the hand-off); a loaded free worker is hired in place; recruits fall in behind the recruiter (`WorkerGroupService.joinRecruiter`). — done
-8. **Purse**: paid per recruit; the rest refunded when the recruiter rejoins the owner (who may be offline or elsewhere meanwhile: the tour waits, purse kept) or dismisses it; coins dropped where a loaded recruiter dies; lost with a recruiter that dies offscreen. — done
+8. **Purse**: paid per recruit; the rest taken from the report (step 11) once the recruiter rejoins the owner (who may be offline or elsewhere meanwhile: the tour waits, purse kept); coins dropped where a loaded recruiter dies; lost with a recruiter that dies offscreen. — done
 9. **Edge cases** above, lang keys. Recall: Formation Hub, right-click the recruiter itself, "Call back from recruiting" (`MsgRecruitRecall`, loaded or offscreen); it turns back and still recruits on the way, like any return. Recruiting only (other missions: with the purchases work). — recall done — todo (old mode, old screen, cost sync and their config/lang already removed).
 10. **Succession** (to discuss, user idea): when the recruiter dies, its successor among the recruits takes over the purse (and the tour?), loaded and offscreen alike. — todo
+11. **Report**: back at the owner's side the recruiter waits (notice); right-click opens `GuiRecruitReport` (route on the map: visited / skipped / not reached villages, road joins, deaths; per culture found/wanted pips and deaths; spent / left; Take button). The tour ends once the purse is empty; closing early keeps it waiting. Journal in `worker/RecruitLog`, payload `worker/RecruitReport`. — done

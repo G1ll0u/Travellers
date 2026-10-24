@@ -10,6 +10,7 @@ import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.unit.UnitWorth;
 import com.jubitus.travellers.unit.VirtualizationGate;
+import com.jubitus.travellers.unit.WorkerPurse;
 import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.village.VillageVisitIndex;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
@@ -41,9 +42,10 @@ public final class RecruitEncounters {
     }
 
     /** Regularly, from RecruitMission (loaded) and VirtualWorkerMissions (offscreen); each unit is asked once, so the rate only decides who is noticed. */
-    public static void tick(WorldServer ws, RecruitTour tour, UUID recruiterId, @Nullable UUID ownerId, double x, double z) {
-        tour.forgetDead(id -> isAlive(ws, id));
-        if (ownerId == null || tour.isComplete() || tour.purse() <= 0) return;
+    public static void tick(WorldServer ws, RecruitTour tour, WorkerPurse purse, UUID recruiterId, @Nullable UUID ownerId,
+                            double x, double z) {
+        tour.forgetDead(id -> whereAlive(ws, id));
+        if (ownerId == null || tour.isBack() || tour.isComplete() || purse.get() <= 0) return;
         EntityPlayerMP owner = ws.getMinecraftServer().getPlayerList().getPlayerByUUID(ownerId);
         if (owner == null) return;
 
@@ -75,11 +77,11 @@ public final class RecruitEncounters {
         }
         for (SpawnGroup g : met) {
             if (tour.isComplete()) return;
-            ask(ws, tour, g, owner, recruiterId, inVillage);
+            ask(ws, tour, purse, g, owner, recruiterId, inVillage);
         }
     }
 
-    private static void ask(WorldServer ws, RecruitTour tour, SpawnGroup g, EntityPlayerMP owner, UUID recruiterId,
+    private static void ask(WorldServer ws, RecruitTour tour, WorkerPurse purse, SpawnGroup g, EntityPlayerMP owner, UUID recruiterId,
                             boolean inVillage) {
         List<UUID> ids = new ArrayList<>();
         Map<String, Integer> byCulture = new HashMap<>();
@@ -107,7 +109,7 @@ public final class RecruitEncounters {
                 return;
             }
         }
-        if (g.hirePrice() > tour.purse()) {
+        if (g.hirePrice() > purse.get()) {
             MovementProfiler.recruitAsk("purse");
             return;
         }
@@ -118,12 +120,12 @@ public final class RecruitEncounters {
             return;
         }
 
-        List<UUID> joined = join(ws, tour, g, owner);
+        List<UUID> joined = join(ws, tour, purse, g, owner, inVillage);
         if (joined.isEmpty()) return;
         MovementProfiler.recruitAsk(inVillage ? "joined in village" : "joined on road");
+        if (!inVillage) tour.log().joinedOnRoad(groupPos(g), joined.size());
         WorkerGroupService.joinRecruiter(owner, joined, recruiterId);
-        BlockPos at = g.loaded.isEmpty() ? new BlockPos(g.virtual.get(0).posX, g.virtual.get(0).posY, g.virtual.get(0).posZ)
-                : g.loaded.get(0).getPosition();
+        BlockPos at = groupPos(g);
         MillSettlements.Settlement place = inVillage ? MillSettlements.at(ws, tour.currentStop().center)
                 : MillSettlements.nearestVillage(ws, at, NAMED_PLACE_RADIUS);
         String placeName = place != null ? place.displayName() : at.getX() + "/" + at.getZ();
@@ -132,7 +134,8 @@ public final class RecruitEncounters {
     }
 
     /** Each member becomes a hired worker of the owner, paid from the purse; returns who actually joined. */
-    private static List<UUID> join(WorldServer ws, RecruitTour tour, SpawnGroup g, EntityPlayerMP owner) {
+    private static List<UUID> join(WorldServer ws, RecruitTour tour, WorkerPurse purse, SpawnGroup g, EntityPlayerMP owner,
+                                   boolean inVillage) {
         VirtualTravellerManager mgr = VirtualTravellerManager.get(ws);
         long now = ws.getTotalWorldTime();
         List<UUID> joined = new ArrayList<>();
@@ -140,6 +143,7 @@ public final class RecruitEncounters {
             int price = UnitWorth.hirePrice(e);
             String culture = e.getCultureId();
             UUID id = e.getUniqueID();
+            BlockPos at = e.getPosition();
             if (e instanceof EntityTravellerWorker) {
                 e.setGroupLeaderUUID(null);
                 ((EntityTravellerWorker) e).hireAsFollower(owner);
@@ -152,26 +156,35 @@ public final class RecruitEncounters {
                 mgr.recruitRecord(ws, r, owner);
                 mgr.materializeSoon(id);
             }
-            tour.addRecruit(id, culture, price);
+            purse.spend(price);
+            tour.addRecruit(id, culture, at, inVillage, price);
             joined.add(id);
         }
         for (VirtualTravellerRecord r : g.virtual) {
             int price = UnitWorth.hirePrice(r);
             mgr.recruitRecord(ws, r, owner);
-            tour.addRecruit(r.uuid, r.cultureId, price);
+            purse.spend(price);
+            tour.addRecruit(r.uuid, r.cultureId, new BlockPos(r.posX, r.posY, r.posZ), inVillage, price);
             joined.add(r.uuid);
         }
         return joined;
     }
 
+    private static BlockPos groupPos(SpawnGroup g) {
+        return g.loaded.isEmpty() ? new BlockPos(g.virtual.get(0).posX, g.virtual.get(0).posY, g.virtual.get(0).posZ)
+                : g.loaded.get(0).getPosition();
+    }
+
     // Loaded or offscreen in any world; a body mid hand-off is dead but its record already exists.
-    private static boolean isAlive(WorldServer ws, UUID id) {
+    @Nullable
+    private static BlockPos whereAlive(WorldServer ws, UUID id) {
         for (WorldServer w : ws.getMinecraftServer().worlds) {
-            if (VirtualTravellerManager.get(w).getRecord(id) != null) return true;
+            VirtualTravellerRecord r = VirtualTravellerManager.get(w).getRecord(id);
+            if (r != null) return new BlockPos(r.posX, r.posY, r.posZ);
             net.minecraft.entity.Entity e = w.getEntityFromUuid(id);
-            if (e != null && !e.isDead) return true;
+            if (e != null && !e.isDead) return e.getPosition();
         }
-        return false;
+        return null;
     }
 
     private static double distSq(double ax, double az, double bx, double bz) {

@@ -65,20 +65,36 @@ public final class MillMoney {
         return after == before - amount;
     }
 
-    public static boolean givePlayerMoney(EntityPlayerMP player, int amount) {
-        if (player == null) return false;
-        if (amount <= 0) {
-            syncPlayerInventory(player);
-            return true;
+    /**
+     * Hands up to {@code amount} to the player without ever losing a coin: all of it into a Millénaire purse
+     * the player carries, else the coin stacks that fit in the inventory. Returns what was handed over.
+     */
+    public static int giveWhatFits(EntityPlayerMP player, int amount) {
+        if (player == null || amount <= 0) return 0;
+        int given = 0;
+        if (carriesMillPurse(player)) {
+            int before = countPlayerMoney(player);
+            MillCommonUtilities.changeMoney(player.inventory, amount, player);
+            given = countPlayerMoney(player) - before;
+        } else {
+            for (ItemStack stack : coins(amount)) {
+                int value = coinValue(stack.getItem());
+                int before = stack.getCount();
+                player.inventory.addItemStackToInventory(stack); // shrinks the stack by what went in
+                given += (before - stack.getCount()) * value;
+            }
         }
-
-        int before = countPlayerMoney(player);
-
-        MillCommonUtilities.changeMoney(player.inventory, amount, player);
         syncPlayerInventory(player);
+        return Math.max(0, given);
+    }
 
-        int after = countPlayerMoney(player);
-        return after == before + amount;
+    private static boolean carriesMillPurse(EntityPlayer player) {
+        for (ItemStack s : player.inventory.mainInventory) if (s.getItem() == MillItems.PURSE) return true;
+        return false;
+    }
+
+    private static int coinValue(Item coin) {
+        return coin == MillItems.DENIER_OR ? 64 * 64 : coin == MillItems.DENIER_ARGENT ? 64 : 1;
     }
 
     public static void syncPlayerInventory(EntityPlayerMP player) {

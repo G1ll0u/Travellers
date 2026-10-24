@@ -150,6 +150,20 @@ travellers.worker.recruit.tip.free=About %s of their people around
 travellers.worker.recruit.tip.chance=%s%% chance that each one agrees
 travellers.worker.recruit.tip.enemy=One of their villages is your enemy
 travellers.worker.recruit.tip.reputation=Your reputation with them is too low
+travellers.worker.recruit.report.title=%s, %s away
+travellers.worker.recruit.report.take=Take %s
+travellers.worker.recruit.report.taken=Purse empty
+travellers.worker.recruit.report.spent=Spent
+travellers.worker.recruit.report.left=Left in the purse
+travellers.worker.recruit.report.dead_short=+%s dead
+travellers.worker.recruit.report.tip.found=%s found of %s wanted
+travellers.worker.recruit.report.tip.where=%s in villages, %s on the road
+travellers.worker.recruit.report.tip.dead=%s died on the way
+travellers.worker.recruit.report.map.visited=%s. %s: %s recruits
+travellers.worker.recruit.report.map.skipped=%s: skipped
+travellers.worker.recruit.report.map.not_reached=%s: not reached
+travellers.worker.recruit.report.map.road=%s recruits joined on the road
+travellers.worker.recruit.report.map.death=A recruit died here
 
 travellers.worker.home_list.empty=No barracks assigned. Shift+right-click somewhere with summoning wand to create a barrack.
 
@@ -400,7 +414,9 @@ travellers.notify.recruit.mission_started=Recruit mission started. Fee paid: %s
 travellers.notify.recruit.henchmen_recruited=Recruited %s henchmen at %s.
 travellers.notify.recruit.henchmen_recruited_road=Recruited %s henchmen on the road near %s.
 travellers.notify.recruit.mission_completed=Recruit mission completed.
-travellers.notify.recruit.mission_completed_refund=Recruit mission completed. %s returned from the purse.
+travellers.notify.recruit.back=%s is back from recruiting: talk to them to read the report.
+travellers.notify.worker.purse_no_room=No room for the coins: free some space or carry a Millénaire purse.
+travellers.notify.worker.take_purse_first=%s still carries your money: take the purse first.
 
 travellers.notify.worker.not_hired_transport=You must hire this henchman to use Transport.
 travellers.notify.worker.not_hired_inventory=You can only access the pack of a henchman you've hired.

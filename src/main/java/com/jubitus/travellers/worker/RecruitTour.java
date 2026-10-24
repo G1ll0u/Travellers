@@ -16,10 +16,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
+import java.util.function.Function;
 
 /**
- * A recruiting tour in progress: the stops, what is wanted and already found, the purse, who was already
+ * A recruiting tour in progress: the stops, what is wanted and already found, who was already
  * asked. One object moved between the loaded worker and its virtual record, so both sides run the same
  * arrive / wait / leave decisions on it.
  */
@@ -31,26 +31,50 @@ public final class RecruitTour {
     private final Map<String, Integer> wanted;
     /** Recruits that joined, with their culture; a dead one frees its place again. */
     private final Map<UUID, String> recruits = new LinkedHashMap<>();
+    /** Last place each recruit was seen, where its death is marked on the report. */
+    private final Map<UUID, Long> recruitPos = new LinkedHashMap<>();
+    private final RecruitLog log;
     // INVARIANT: one roll per unit per tour, on the road and in villages alike.
     private final Set<UUID> asked = new HashSet<>();
     /** Where the player stood when ordering it: the range of extra villages is measured from here. */
     private final BlockPos origin;
     private int index;
-    private int purse;
     private int extraStops;
     /** World time the wait at the current stop ends; -1 while walking. */
     private long stayUntil = -1L;
     private boolean returning;
+    /** Back at the owner's side, waiting for them to read the report and take the purse. */
+    private boolean back;
 
-    private RecruitTour(List<RecruitPlan.Stop> stops, Map<String, Integer> wanted, BlockPos origin, int purse) {
+    private RecruitTour(List<RecruitPlan.Stop> stops, Map<String, Integer> wanted, BlockPos origin, RecruitLog log) {
         this.stops = stops;
         this.wanted = wanted;
         this.origin = origin;
-        this.purse = purse;
+        this.log = log;
     }
 
-    public static RecruitTour of(RecruitPlan plan, BlockPos origin) {
-        return new RecruitTour(new ArrayList<>(plan.stops), new LinkedHashMap<>(plan.wanted), origin, plan.purse);
+    public static RecruitTour of(RecruitPlan plan, BlockPos origin, long now) {
+        return new RecruitTour(new ArrayList<>(plan.stops), new LinkedHashMap<>(plan.wanted), origin, new RecruitLog(now));
+    }
+
+    public RecruitLog log() {
+        return log;
+    }
+
+    public List<RecruitPlan.Stop> stops() {
+        return stops;
+    }
+
+    public Map<String, Integer> wanted() {
+        return wanted;
+    }
+
+    public boolean isBack() {
+        return back;
+    }
+
+    public void markBack() {
+        back = true;
     }
 
     @Nullable
@@ -66,14 +90,8 @@ public final class RecruitTour {
         return stayUntil >= 0L;
     }
 
-    public int purse() {
-        return purse;
-    }
-
     public int missing(String cultureKey) {
-        int found = 0;
-        for (String c : recruits.values()) if (c.equals(cultureKey)) found++;
-        return Math.max(0, wanted.getOrDefault(cultureKey, 0) - found);
+        return Math.max(0, wanted.getOrDefault(cultureKey, 0) - found(cultureKey));
     }
 
     public boolean wasAsked(UUID unit) {
@@ -84,15 +102,36 @@ public final class RecruitTour {
         asked.add(unit);
     }
 
-    /** One recruit of this culture joined, paid from the purse. */
-    public void addRecruit(UUID unit, String cultureKey, int price) {
+    public void addRecruit(UUID unit, String cultureKey, BlockPos at, boolean inVillage, int price) {
         recruits.put(unit, cultureKey);
-        purse = Math.max(0, purse - price);
+        recruitPos.put(unit, at.toLong());
+        RecruitPlan.Stop stop = currentStop();
+        log.joined(cultureKey, inVillage && stop != null, stop != null ? stop.center : at, price);
     }
 
-    /** Forgets recruits that no longer exist anywhere (killed): their places open again, their price stays spent. */
-    public void forgetDead(Predicate<UUID> alive) {
-        recruits.keySet().removeIf(id -> !alive.test(id));
+    /**
+     * Forgets recruits that no longer exist anywhere (killed): their places open again, their price stays
+     * spent. {@code whereAlive} gives a live recruit's position, null for a dead one.
+     */
+    public void forgetDead(Function<UUID, BlockPos> whereAlive) {
+        for (java.util.Iterator<Map.Entry<UUID, String>> it = recruits.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<UUID, String> e = it.next();
+            BlockPos at = whereAlive.apply(e.getKey());
+            if (at != null) {
+                recruitPos.put(e.getKey(), at.toLong());
+                continue;
+            }
+            Long last = recruitPos.remove(e.getKey());
+            log.died(e.getValue(), last != null ? BlockPos.fromLong(last) : origin);
+            it.remove();
+        }
+    }
+
+    /** Recruits of this culture still alive. */
+    public int found(String cultureKey) {
+        int n = 0;
+        for (String c : recruits.values()) if (c.equals(cultureKey)) n++;
+        return n;
     }
 
     public boolean isComplete() {
@@ -102,6 +141,8 @@ public final class RecruitTour {
 
     /** Reached the current stop: the wait starts. */
     public void arrive(long now) {
+        RecruitPlan.Stop stop = currentStop();
+        if (stop != null) log.visited(stop.center);
         stayUntil = now + TravellersConfig.RECRUITMENT.recruitStayMinutes * 60L * 20L;
     }
 
@@ -119,7 +160,10 @@ public final class RecruitTour {
         stayUntil = -1L;
         index++;
         while (!isComplete()) {
-            while (index < stops.size() && !worthVisiting(ws, ownerId, stops.get(index))) index++;
+            while (index < stops.size() && !worthVisiting(ws, ownerId, stops.get(index))) {
+                log.skipped(stops.get(index).center);
+                index++;
+            }
             if (index < stops.size()) return stops.get(index);
             if (extraStops >= stops.size() - extraStops) break;
             RecruitPlan.Stop extra = extraStop(ws, ownerId);
@@ -179,6 +223,8 @@ public final class RecruitTour {
             NBTTagCompound c = new NBTTagCompound();
             c.setUniqueId("Id", e.getKey());
             c.setString("Culture", e.getValue());
+            Long at = recruitPos.get(e.getKey());
+            if (at != null) c.setLong("Pos", at);
             recruitList.appendTag(c);
         }
         t.setTag("Recruits", recruitList);
@@ -191,10 +237,11 @@ public final class RecruitTour {
         t.setTag("Asked", askedList);
         t.setLong("Origin", origin.toLong());
         t.setInteger("Index", index);
-        t.setInteger("Purse", purse);
         t.setInteger("Extra", extraStops);
         t.setLong("StayUntil", stayUntil);
         t.setBoolean("Returning", returning);
+        t.setBoolean("Back", back);
+        t.setTag("Log", log.write());
         return t;
     }
 
@@ -208,11 +255,12 @@ public final class RecruitTour {
             stops.add(new RecruitPlan.Stop(BlockPos.fromLong(c.getLong("Pos")), c.getString("Culture")));
         }
         RecruitTour tour = new RecruitTour(stops, readCounts(t.getCompoundTag("Wanted")),
-                BlockPos.fromLong(t.getLong("Origin")), t.getInteger("Purse"));
+                BlockPos.fromLong(t.getLong("Origin")), RecruitLog.read(t.getCompoundTag("Log"), 0L));
         NBTTagList recruitList = t.getTagList("Recruits", Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < recruitList.tagCount(); i++) {
             NBTTagCompound c = recruitList.getCompoundTagAt(i);
             tour.recruits.put(c.getUniqueId("Id"), c.getString("Culture"));
+            if (c.hasKey("Pos")) tour.recruitPos.put(c.getUniqueId("Id"), c.getLong("Pos"));
         }
         NBTTagList askedList = t.getTagList("Asked", Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < askedList.tagCount(); i++) tour.asked.add(askedList.getCompoundTagAt(i).getUniqueId("Id"));
@@ -220,6 +268,7 @@ public final class RecruitTour {
         tour.extraStops = t.getInteger("Extra");
         tour.stayUntil = t.getLong("StayUntil");
         tour.returning = t.getBoolean("Returning");
+        tour.back = t.getBoolean("Back");
         return tour;
     }
 

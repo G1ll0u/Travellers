@@ -76,7 +76,8 @@ public class MsgRecruitStart implements IMessage {
             }
             NotificationService.notify(player, NotificationDefs.RECRUIT_MISSION_STARTED, MillMoney.format(plan.total()));
             WorkerGroupService.detachForMission(player, worker.getUniqueID());
-            worker.recruit.start(RecruitTour.of(plan, player.getPosition()));
+            worker.purse.add(plan.purse);
+            worker.recruit.start(RecruitTour.of(plan, player.getPosition(), player.world.getTotalWorldTime()));
         }
     }
 }
