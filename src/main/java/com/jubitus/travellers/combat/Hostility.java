@@ -29,7 +29,7 @@ public final class Hostility {
     }
 
     /**
-     * {@link #isCrossFaction}, plus the fight between a hired worker and a non-worker unit that is
+     * {@link #isCrossFaction}, plus the fight between a hired worker and a unit that is not hired
      * actually under way (either one is attacking the other's side), so both sides strike back.
      */
     public static boolean isAtWar(EntityTraveller a, EntityTraveller b) {
@@ -38,10 +38,14 @@ public final class Hostility {
     }
 
     private static boolean fightsAgainst(EntityTraveller maybeWorker, EntityTraveller other) {
-        if (!(maybeWorker instanceof EntityTravellerWorker) || other instanceof EntityTravellerWorker) return false;
+        if (!(maybeWorker instanceof EntityTravellerWorker) || isHiredWorker(other)) return false;
         EntityTravellerWorker w = (EntityTravellerWorker) maybeWorker;
         if (!w.isHiredFollower()) return false;
         return w.getAttackTarget() == other || isAggressingOurSide(w, other);
+    }
+
+    private static boolean isHiredWorker(@Nullable Entity e) {
+        return e instanceof EntityTravellerWorker && ((EntityTravellerWorker) e).isHiredFollower();
     }
 
     /** Whatever e is currently attacking is the worker, its owner, or a hired mate of the same owner. */
@@ -95,7 +99,7 @@ public final class Hostility {
         if (!(e instanceof EntityLivingBase) || e == worker || !e.isEntityAlive()) return false;
         if (worker.isOwner((EntityLivingBase) e)) return false;
         if (isOwnerSide(worker, e)) return false;
-        if (e instanceof EntityTravellerWorker) return worker.playerHostility.isEnemyHiredWorker((EntityTravellerWorker) e);
+        if (isHiredWorker(e)) return worker.playerHostility.isEnemyHiredWorker((EntityTravellerWorker) e);
         if (e instanceof EntityPlayer) return worker.playerHostility.isEnemyPlayer((EntityPlayer) e);
         if (isAggressingOurSide(worker, e)) return true;
         if (e instanceof EntityTraveller) return isCrossFaction(worker, (EntityTraveller) e);

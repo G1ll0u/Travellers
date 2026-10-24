@@ -1855,6 +1855,7 @@ public void fall(float distance, float damageMultiplier) {
             com.jubitus.travellers.battle.VirtualBattleManager.get((net.minecraft.world.WorldServer) world)
                     .onParticipantDeath((net.minecraft.world.WorldServer) world, this, cause);
             com.jubitus.travellers.follow.GroupSuccession.onLeaderDied((net.minecraft.world.WorldServer) world, this);
+            callAlliesAgainstKiller(cause);
         }
         voice.tryPlayDeath();
         if (!this.world.isRemote && this.isRiding() && this.getRidingEntity() instanceof net.minecraft.entity.item.EntityBoat) {
@@ -2444,9 +2445,18 @@ public void fall(float distance, float damageMultiplier) {
         return isHostileUnit(rider);
     }
 
-    // Opposite factions; hired workers also fight the workers of an enemy owner.
+    // A player who kills a unit within its free hits still gets its allies on their back.
+    private void callAlliesAgainstKiller(DamageSource cause) {
+        if (isAggressiveToTravellers() || !(cause.getTrueSource() instanceof EntityPlayer)) return;
+        EntityPlayer killer = (EntityPlayer) cause.getTrueSource();
+        if (killer.isCreative() || killer.isSpectator() || isOwner(killer)) return;
+        if (!TravellersConfig.COMBAT.callForHelp || TravellersDerivedConfig.isPeacefulBlocked(world)) return;
+        com.jubitus.travellers.combat.ai.TravellerHurtByTarget.callAllies(this, killer, TravellersConfig.COMBAT.helpRange);
+    }
+
+    // Opposite factions or a fight under way with hired workers; hired workers also fight the workers of an enemy owner.
     public boolean isHostileUnit(EntityTraveller other) {
-        return com.jubitus.travellers.combat.Hostility.isCrossFaction(this, other);
+        return com.jubitus.travellers.combat.Hostility.isAtWar(this, other);
     }
 
     public java.util.List<BlockPos> getTravelRoute() {

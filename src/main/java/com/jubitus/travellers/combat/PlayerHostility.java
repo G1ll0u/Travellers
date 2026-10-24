@@ -166,7 +166,7 @@ public class PlayerHostility {
         if (attacker == w.getFollowOwner()) return false;
 
         // If attacker is an enemy worker: easy check (their declared list includes my owner)
-        if (attacker instanceof EntityTravellerWorker) {
+        if (attacker instanceof EntityTravellerWorker && ((EntityTravellerWorker) attacker).isHiredFollower()) {
             EntityTravellerWorker aw = (EntityTravellerWorker) attacker;
             UUID ao = aw.getFollowOwnerId();
             if (ao == null || ao.equals(myOwner)) return false;

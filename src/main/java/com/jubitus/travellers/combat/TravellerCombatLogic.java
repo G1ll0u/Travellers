@@ -1002,6 +1002,15 @@ public class TravellerCombatLogic {
             return true;
         }
 
+        // Free hits: a non-raider takes a few hits from a player before striking back, unless already at war with them.
+        if (src instanceof EntityPlayer && !entity.isAggressiveToTravellers()
+                && !(entity instanceof EntityTravellerWorker
+                        && ((EntityTravellerWorker) entity).playerHostility.isEnemyPlayer((EntityPlayer) src))
+                && notePlayerHitAndIsStillGrace((EntityPlayer) src)) {
+            entity.setRevengeTarget(null);
+            return true;
+        }
+
         if (src instanceof EntityTraveller) {
             EntityTraveller other = (EntityTraveller) src;
             if (!com.jubitus.travellers.combat.Hostility.isAtWar(entity, other)) {
