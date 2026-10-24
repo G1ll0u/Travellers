@@ -66,7 +66,7 @@ Packages under `src/main/java/com/jubitus/travellers/`, **one folder per feature
 | Horse mounts | `mount/`, `pathing/{PathBody,MountTerrainProfile}`, mount mixins | `mount/CLAUDE.md` |
 | Horse core shared by mounts and the Stable (markers, snapshots, join/death, theft guard) | `horse/` | `mount/CLAUDE.md` |
 | Player zones, Stable, duty | `zone/` | `zone/CLAUDE.md` |
-| Hired-worker orders, recruiting, worker screens | `worker/` | — |
+| Hired-worker orders, recruiting, worker screens | `worker/` | `worker/CLAUDE.md` |
 | Millénaire integration, village visits, village relations | `village/` | `village/CLAUDE.md` |
 | Camps, block-by-block building | `camp/` | `camp/CLAUDE.md` |
 | Virtual battles | `battle/` | `battle/CLAUDE.md` |
@@ -110,6 +110,8 @@ One question, one answer. Never add a second helper for a question listed here.
 | Are two units on opposite sides | `combat/Hostility` |
 | Find a worker by id, loaded or virtual | `unit/WorkerLookup` |
 | Is this gear allowed for a hired worker (its equipment role) | `unit/equipment/TravellerEquipmentManager.fitsRole` |
+| Can this player recruit from this culture / is this unit a recruit candidate | `worker/RecruitCultures` |
+| Handing money to a player | `MillMoney.giveWhatFits` (all into a carried Millénaire purse, else what fits; never dropped or lost) |
 | How fast a unit moves (percent of a walking player, ceilings, mounted factor, offscreen pace) | `unit/UnitSpeed` |
 | How far an entity moved per tick (players: never `pos - prevPos` on the server) | `unit/EntityMotion` |
 | Any marker on a vanilla horse / a horse joining or dying | `horse/HorseMarkers`, `horse/HorseEvents` |
@@ -127,7 +129,7 @@ One question, one answer. Never add a second helper for a question listed here.
 
 ## Small subsystems
 
-- **Entities**: `EntityTraveller` (base, `EntityCreature`) → `EntityTravellerRaider` (hostile), `EntityTravellerWorker` (henchman). `EntityTravellerBoat` is the mod's own boat. Unit components (`sleep`, `voice`, `mountState`, `handOff`, `combat`…) are final fields created after the vanilla constructors: never touch them from code those constructors reach (`entityInit`, `initEntityAI`, `applyEntityAttributes`, AI task constructors). Spawn groups (`groupLeaderUUID`: travellers, raiders, and merchant escorts of unhired workers) are formed at spawn; when the leader dies, `follow/GroupSuccession` elects the best-equipped member (armour + weapon), who takes over its trip. Hired-worker groups go through `WorkerGroupService`; follow code tests `isHiredFollower()`, never `instanceof EntityTravellerWorker`, for hired-escort behaviour. Hiring takes the whole merchant group (`worker/MerchantGroup`) and clears `groupLeaderUUID`.
+- **Entities**: `EntityTraveller` (base, `EntityCreature`) → `EntityTravellerRaider` (hostile), `EntityTravellerWorker` (henchman). `EntityTravellerBoat` is the mod's own boat. Unit components (`sleep`, `voice`, `mountState`, `handOff`, `combat`…) are final fields created after the vanilla constructors: never touch them from code those constructors reach (`entityInit`, `initEntityAI`, `applyEntityAttributes`, AI task constructors). Spawn groups (`groupLeaderUUID`: travellers, raiders, and merchant escorts of unhired workers) are formed at spawn; when the leader dies, `follow/GroupSuccession` elects the best-equipped member (armour + weapon), who takes over its trip. Hired-worker groups go through `WorkerGroupService`; follow code tests `isHiredFollower()`, never `instanceof EntityTravellerWorker`, for hired-escort behaviour. Hiring takes the whole merchant group (`worker/SpawnGroup`) and clears `groupLeaderUUID`.
 - **Culture**: `CultureRegistry` parses Millénaire's villager files so units look like real villagers of their culture. `EntityTraveller.getActiveAppearance()` is the one appearance resolver (texture and scale must agree). Hitbox width must stay under 1.0 (vanilla's node processor would demand 2-block corridors). First/family names never cross-paired across castes.
 - **Spawn**: `TravellerSoftSpawner.runVirtualPopulationTopUp()` only ever creates virtual records; real entities appear by materializing. A village's population is its Millénaire villager records (`MillSettlements`), never loaded `MillVillager` entities. `PopulationQuota` is the one quota formula.
 - **Player hostility**: `PlayerEnemyRelations` is account-wide per owner (one-sided until the declarer's workers land a hit, then mutual); `PlayerHostility.localHostilePlayers` is a separate per-worker transient retaliation list.
