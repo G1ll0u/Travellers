@@ -14,15 +14,12 @@ public final class WorkerMessages {
         toClient(MsgWorkerVillageList.class, () -> new MsgWorkerVillageList.Handler());
         toClient(MsgSyncWorkerHireState.class, () -> new MsgSyncWorkerHireState.Handler());
         toServer(MsgHireWorker.class, MsgHireWorker.Handler.class);
-        toServer(MsgRecruitWorkers.class, MsgRecruitWorkers.Handler.class);
-        toServer(MsgRecruitStartSelectedVillages.class, MsgRecruitStartSelectedVillages.Handler.class);
+        toServer(MsgRecruitStart.class, MsgRecruitStart.Handler.class);
         toServer(MsgOpenWorkerSubGui.class, MsgOpenWorkerSubGui.Handler.class);
         toServer(MsgWorkerRequestGoList.class, MsgWorkerRequestGoList.Handler.class);
         toServer(MsgWorkerGoTo.class, MsgWorkerGoTo.Handler.class);
         toServer(MsgWorkerGoToPos.class, MsgWorkerGoToPos.Handler.class);
         toClient(MsgOpenClientWorkerGui.class, () -> new MsgOpenClientWorkerGui.Handler());
-        toServer(MsgRequestServerCosts.class, MsgRequestServerCosts.Handler.class);
-        toClient(MsgSyncServerCosts.class, () -> new MsgSyncServerCosts.Handler());
         toClient(MsgWorkerGoList.class, () -> new MsgWorkerGoList.ClientHandler());
         toServer(MsgRecruitPreviewRequest.class, MsgRecruitPreviewRequest.Handler.class);
         toClient(MsgRecruitPreview.class, () -> new MsgRecruitPreview.Handler());

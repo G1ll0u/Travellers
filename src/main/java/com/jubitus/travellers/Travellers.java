@@ -17,7 +17,6 @@ import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
-import com.jubitus.travellers.worker.net.MsgSyncServerCosts;
 import com.jubitus.travellers.command.CommandDumpCultureItems;
 import com.jubitus.travellers.command.CommandGlowTravellers;
 import com.jubitus.travellers.command.CommandMountTraveller;
@@ -80,20 +79,6 @@ public class Travellers {
     @Mod.Instance(Tags.MOD_ID)
     public static Travellers INSTANCE;
 
-    public static void broadcastServerCostsToAllPlayers() {
-        MinecraftServer srv = net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
-        if (srv == null) return;
-
-        MsgSyncServerCosts packet = new MsgSyncServerCosts(
-                TravellersDerivedConfig.recruitFeeFlatServerCache,
-                TravellersDerivedConfig.recruitFeePerBlockServerCache,
-                TravellersDerivedConfig.recruitFeePerVillageServerCache
-        );
-
-        for (net.minecraft.entity.player.EntityPlayerMP p : srv.getPlayerList().getPlayers()) {
-            TravellersNetwork.CHANNEL.sendTo(packet, p);
-        }
-    }
 
     @Mod.EventHandler
     public void serverLoad(FMLServerStartingEvent event) {
@@ -123,12 +108,9 @@ public class Travellers {
                 .onSave(() -> {
                     TravellersDerivedConfig.refresh();
                     TravellersDerivedConfig.applyRuntimeEffects();
-                    TravellersDerivedConfig.syncServerCostCachesFromConfig();
-                    broadcastServerCostsToAllPlayers();
                 })
                 .register();
         TravellersDerivedConfig.refresh();
-        TravellersDerivedConfig.syncServerCostCachesFromConfig();
         ConfigManager.sync(Tags.MOD_ID, Config.Type.INSTANCE);
         TravellerChunkManager.registerCallback();                 // ForgeChunkManager callback
         MinecraftForge.EVENT_BUS.register(TravellerChunkManager.INSTANCE); // tick/unload events

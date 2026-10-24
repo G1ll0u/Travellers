@@ -1,7 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
 import com.jubitus.travellers.worker.gui.GuiWorker;
-import com.jubitus.travellers.worker.gui.GuiWorkerRecruit;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
@@ -107,8 +106,6 @@ public class MsgWorkerVillageList implements IMessage {
             GuiScreen screen = mc.currentScreen;
             if (screen instanceof GuiWorker) {
                 ((GuiWorker) screen).receiveVillageList(msg.centers, msg.labels, msg.distances);
-            } else if (screen instanceof GuiWorkerRecruit) {
-                ((GuiWorkerRecruit) screen).receiveVillageList(msg.centers, msg.labels, msg.distances);
             }
         }
     }

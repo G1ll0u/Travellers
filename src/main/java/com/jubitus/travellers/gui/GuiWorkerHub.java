@@ -20,7 +20,6 @@ import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgHireWorker;
-import com.jubitus.travellers.worker.net.MsgRequestServerCosts;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
@@ -105,7 +104,6 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
         this.layoutSignature = "";
         refreshInfoLines();
         rebuild();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgRequestServerCosts());
     }
 
     @Override

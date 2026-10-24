@@ -173,6 +173,8 @@ public class VirtualTravellerRecord {
     @Nullable public String mountMode;
     /** The current village stay, moved here from the entity at virtualize (see VillageVisitState). */
     @Nullable public com.jubitus.travellers.village.visit.VillageVisitState visit;
+    /** A hired worker's recruiting tour, moved here at virtualize (authoritative over entityNbt). */
+    @Nullable public com.jubitus.travellers.worker.RecruitTour recruitTour;
 
     // Camp occupation cache (P3). The campsite occupant is the source of truth; these are re-derived
     // on virtualize. When set, the entity halts its route and sits at its slot.
@@ -306,6 +308,7 @@ public class VirtualTravellerRecord {
         if (mountNbt != null) tag.setTag("MountData", mountNbt);
         if (mountMode != null) tag.setString("MountMode", mountMode);
         if (visit != null) tag.setTag("Visit", visit.write());
+        if (recruitTour != null) tag.setTag("RecruitTour", recruitTour.write());
         if (campSiteId != null) {
             tag.setString("CampSite", campSiteId.toString());
             tag.setInteger("CampSlot", campSlotIndex);
@@ -400,6 +403,7 @@ public class VirtualTravellerRecord {
         if (tag.hasKey("MountData")) r.mountNbt = tag.getCompoundTag("MountData");
         if (tag.hasKey("MountMode")) r.mountMode = tag.getString("MountMode");
         r.visit = com.jubitus.travellers.village.visit.VillageVisitState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
+        r.recruitTour = com.jubitus.travellers.worker.RecruitTour.read(tag.hasKey("RecruitTour") ? tag.getCompoundTag("RecruitTour") : null);
         if (tag.hasKey("CampSite")) {
             r.campSiteId = UUID.fromString(tag.getString("CampSite"));
             r.campSlotIndex = tag.getInteger("CampSlot");

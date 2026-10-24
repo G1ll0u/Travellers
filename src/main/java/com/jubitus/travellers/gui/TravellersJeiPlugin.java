@@ -3,7 +3,7 @@ package com.jubitus.travellers.gui;
 import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
 import com.jubitus.travellers.worker.gui.GuiWorkerGo;
-import com.jubitus.travellers.worker.gui.GuiWorkerRecruit;
+import com.jubitus.travellers.worker.gui.GuiWorkerRecruitCultures;
 import com.jubitus.travellers.worker.gui.GuiWorker;
 import com.jubitus.travellers.worker.gui.GuiWorkerInventory;
 import mezz.jei.api.IJeiRuntime;

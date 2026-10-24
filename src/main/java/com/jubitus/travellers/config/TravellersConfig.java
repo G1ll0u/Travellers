@@ -2764,22 +2764,6 @@ public class TravellersConfig {
         @Config.RangeInt(min = 0, max = 30000)
         public int recruitMaxVillageRadius = 8000;
 
-        @Config.Comment("Minimum villages searched per recruitment mission.")
-        @Config.RangeInt(min = 1, max = 100)
-        public int recruitVillagesMin = 1;
-
-        @Config.Comment("Maximum villages searched per recruitment mission.")
-        @Config.RangeInt(min = 1, max = 100)
-        public int recruitVillagesMax = 20;
-
-        @Config.Comment("Minimum workers spawned per visited village during recruitment.")
-        @Config.RangeInt(min = 0, max = 64)
-        public int recruitSpawnMin = 1;
-
-        @Config.Comment("Maximum workers spawned per visited village during recruitment.")
-        @Config.RangeInt(min = 0, max = 64)
-        public int recruitSpawnMax = 4;
-
         @Config.Comment("Flat recruitment fee in deniers added once per mission.")
         @Config.RangeInt(min = 0, max = 1000000)
         public int recruitFeeFlat = 256;
@@ -2810,6 +2794,10 @@ public class TravellersConfig {
         @Config.Comment("The same chance once your reputation with their culture is Stellar.")
         @Config.RangeInt(min = 0, max = 100)
         public int recruitAcceptChanceMaxPercent = 50;
+
+        @Config.Comment("How long a recruiter waits in each village for people to come by, in minutes.")
+        @Config.RangeInt(min = 1, max = 60)
+        public int recruitStayMinutes = 5;
 
         @Config.Comment("How many recruits you can expect per village visited: the tour plans one village of a culture for this many recruits wanted from it.")
         @Config.RangeInt(min = 1, max = 20)

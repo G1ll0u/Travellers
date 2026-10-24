@@ -1,4 +1,4 @@
-Status: steps 1-4 done, step 5 half done (planner); the new screen is not in the Orders menu yet. Open: repeated village stays (see step 2).
+Status: steps 1-5 done; step 6 next. The new screen is live in the Orders menu but a tour brings nobody back and keeps the purse until steps 6-8: recruiting is not usable on the server meanwhile. Open: repeated village stays (see step 2).
 
 # Recruitment missions by culture
 
@@ -29,9 +29,9 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 1. **Population fix**: hired units leave their village quota (normal hiring + merchant group). Separate commit. — done
 2. **Measure** village traffic (`profile` section "Village visits"). — done. Open: ~29 % of stays are the same unit restarting in the same village within minutes; user measures on their server ("repeated by" lines), then find the cause. Recruitment rolls once per unit per village regardless.
 3. **Eligibility**: `worker/RecruitCultures` (verdict, chance, candidates), `village/MillCultures` (reputation, names). — done
-4. **Screen**: `GuiWorkerRecruitCultures` + preview messages. — done; its Recruit button stays disabled until step 5 starts a tour, and it replaces `GuiWorkerRecruit` in the Orders menu at step 9.
-5. **Planning**: `worker/RecruitPlan` (villages, order, fees) — done. Left: start order (pay travel + purse), mission state persisted on entity and record.
+4. **Screen**: `GuiWorkerRecruitCultures` + preview messages, in the Orders menu. — done
+5. **Planning + start**: `worker/RecruitPlan`, `MsgRecruitStart` (replans, charges travel + purse), `worker/RecruitTour` (the state, moved between entity and record; arrive / wait / leave / extra villages shared by `RecruitMission.tickTour` and `VirtualWorkerMissions.tickVirtualTour`). — done
 6. **Encounters + roll** (road and village), loaded and virtual. — todo
 7. **Conversion** traveller → worker (data, group, horse), loaded and virtual. — todo
 8. **Purse**: pay per recruit, refund, drop on death (loaded and virtual death). — todo
-9. **Edge cases** above, old mode and config removal, lang keys. — todo
+9. **Edge cases** above, lang keys. — todo (old mode, old screen, cost sync and their config/lang already removed). Note: a dismissed recruiter or one whose owner is offline ends its tour at once (purse: see step 8).

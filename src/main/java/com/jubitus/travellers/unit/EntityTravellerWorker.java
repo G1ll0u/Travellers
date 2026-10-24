@@ -2096,9 +2096,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         if (!world.isRemote) syncZoneDataParams();
 
         trips.readZoneTripsNbt(nbt);
-        if (recruit.isReturningToOwner() && isHiredFollower()) {
-            setFollowOrderActive(true);
-        }
+        recruit.afterReadNbt();
         trips.readGoOrderNbt(nbt);
         String roleKey = com.jubitus.travellers.unit.equipment.EquipLoadout.ROLE_NBT_KEY;
         equipRole = nbt.hasKey(roleKey) ? com.jubitus.travellers.unit.equipment.EquipLoadout.of(nbt.getByte(roleKey)) : null;

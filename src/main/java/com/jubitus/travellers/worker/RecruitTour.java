@@ -1,0 +1,203 @@
+package com.jubitus.travellers.worker;
+
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.village.MillSettlements;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.WorldServer;
+import net.minecraftforge.common.util.Constants;
+
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * A recruiting tour in progress: the stops, what is wanted and already found, the purse, who was already
+ * asked. One object moved between the loaded worker and its virtual record, so both sides run the same
+ * arrive / wait / leave decisions on it.
+ */
+public final class RecruitTour {
+
+    public static final String NBT_KEY = "RecruitTour";
+
+    private final List<RecruitPlan.Stop> stops;
+    private final Map<String, Integer> wanted;
+    private final Map<String, Integer> recruited = new LinkedHashMap<>();
+    // INVARIANT: one roll per unit per tour, on the road and in villages alike.
+    private final Set<UUID> asked = new HashSet<>();
+    /** Where the player stood when ordering it: the range of extra villages is measured from here. */
+    private final BlockPos origin;
+    private int index;
+    private int purse;
+    private int extraStops;
+    /** World time the wait at the current stop ends; -1 while walking. */
+    private long stayUntil = -1L;
+    private boolean returning;
+
+    private RecruitTour(List<RecruitPlan.Stop> stops, Map<String, Integer> wanted, BlockPos origin, int purse) {
+        this.stops = stops;
+        this.wanted = wanted;
+        this.origin = origin;
+        this.purse = purse;
+    }
+
+    public static RecruitTour of(RecruitPlan plan, BlockPos origin) {
+        return new RecruitTour(new ArrayList<>(plan.stops), new LinkedHashMap<>(plan.wanted), origin, plan.purse);
+    }
+
+    @Nullable
+    public RecruitPlan.Stop currentStop() {
+        return returning || index >= stops.size() ? null : stops.get(index);
+    }
+
+    public boolean isReturning() {
+        return returning;
+    }
+
+    public boolean isStaying() {
+        return stayUntil >= 0L;
+    }
+
+    public int purse() {
+        return purse;
+    }
+
+    public int missing(String cultureKey) {
+        return Math.max(0, wanted.getOrDefault(cultureKey, 0) - recruited.getOrDefault(cultureKey, 0));
+    }
+
+    public boolean isComplete() {
+        for (String c : wanted.keySet()) if (missing(c) > 0) return false;
+        return true;
+    }
+
+    /** Reached the current stop: the wait starts. */
+    public void arrive(long now) {
+        stayUntil = now + TravellersConfig.RECRUITMENT.recruitStayMinutes * 60L * 20L;
+    }
+
+    public boolean isStayOver(long now) {
+        return isStaying() && (now >= stayUntil || isComplete());
+    }
+
+    /**
+     * Leaves the current stop for the next one still worth visiting, adding an extra village of a culture
+     * still missing at the end of the list (at most as many as were planned). Returns null when the tour
+     * turns back to the owner.
+     */
+    @Nullable
+    public RecruitPlan.Stop leave(WorldServer ws, UUID ownerId) {
+        stayUntil = -1L;
+        index++;
+        while (!isComplete()) {
+            while (index < stops.size() && !worthVisiting(ws, ownerId, stops.get(index))) index++;
+            if (index < stops.size()) return stops.get(index);
+            if (extraStops >= stops.size() - extraStops) break;
+            RecruitPlan.Stop extra = extraStop(ws, ownerId);
+            if (extra == null) break;
+            stops.add(extra);
+            extraStops++;
+        }
+        returning = true;
+        return null;
+    }
+
+    /** Ends the tour where it stands (cancelled, owner gone): straight back to the owner. */
+    public void turnBack() {
+        stayUntil = -1L;
+        returning = true;
+    }
+
+    // A village destroyed, or whose culture turned hostile to the player, is skipped.
+    private boolean worthVisiting(WorldServer ws, UUID ownerId, RecruitPlan.Stop stop) {
+        return MillSettlements.at(ws, stop.center) != null
+                && RecruitCultures.verdict(ws, ownerId, stop.cultureKey) == RecruitCultures.Verdict.OK;
+    }
+
+    @Nullable
+    private RecruitPlan.Stop extraStop(WorldServer ws, UUID ownerId) {
+        BlockPos from = stops.isEmpty() ? origin : stops.get(stops.size() - 1).center;
+        Set<Long> planned = new HashSet<>();
+        for (RecruitPlan.Stop s : stops) planned.add(s.center.toLong());
+        RecruitPlan.Stop best = null;
+        double bestSq = Double.MAX_VALUE;
+        for (MillSettlements.Settlement s : MillSettlements.villages(ws)) {
+            if (s.cultureKey == null || missing(s.cultureKey) == 0 || planned.contains(s.center.toLong())
+                    || !RecruitCultures.inRange(origin, s.center)
+                    || RecruitCultures.verdict(ws, ownerId, s.cultureKey) != RecruitCultures.Verdict.OK) continue;
+            double d = from.distanceSq(s.center.getX(), from.getY(), s.center.getZ());
+            if (d < bestSq) {
+                bestSq = d;
+                best = new RecruitPlan.Stop(s.center, s.cultureKey);
+            }
+        }
+        return best;
+    }
+
+    public NBTTagCompound write() {
+        NBTTagCompound t = new NBTTagCompound();
+        NBTTagList list = new NBTTagList();
+        for (RecruitPlan.Stop s : stops) {
+            NBTTagCompound c = new NBTTagCompound();
+            c.setLong("Pos", s.center.toLong());
+            c.setString("Culture", s.cultureKey);
+            list.appendTag(c);
+        }
+        t.setTag("Stops", list);
+        t.setTag("Wanted", writeCounts(wanted));
+        t.setTag("Recruited", writeCounts(recruited));
+        NBTTagList askedList = new NBTTagList();
+        for (UUID id : asked) {
+            NBTTagCompound c = new NBTTagCompound();
+            c.setUniqueId("Id", id);
+            askedList.appendTag(c);
+        }
+        t.setTag("Asked", askedList);
+        t.setLong("Origin", origin.toLong());
+        t.setInteger("Index", index);
+        t.setInteger("Purse", purse);
+        t.setInteger("Extra", extraStops);
+        t.setLong("StayUntil", stayUntil);
+        t.setBoolean("Returning", returning);
+        return t;
+    }
+
+    @Nullable
+    public static RecruitTour read(@Nullable NBTTagCompound t) {
+        if (t == null || !t.hasKey("Stops", Constants.NBT.TAG_LIST)) return null;
+        List<RecruitPlan.Stop> stops = new ArrayList<>();
+        NBTTagList list = t.getTagList("Stops", Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound c = list.getCompoundTagAt(i);
+            stops.add(new RecruitPlan.Stop(BlockPos.fromLong(c.getLong("Pos")), c.getString("Culture")));
+        }
+        RecruitTour tour = new RecruitTour(stops, readCounts(t.getCompoundTag("Wanted")),
+                BlockPos.fromLong(t.getLong("Origin")), t.getInteger("Purse"));
+        tour.recruited.putAll(readCounts(t.getCompoundTag("Recruited")));
+        NBTTagList askedList = t.getTagList("Asked", Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < askedList.tagCount(); i++) tour.asked.add(askedList.getCompoundTagAt(i).getUniqueId("Id"));
+        tour.index = t.getInteger("Index");
+        tour.extraStops = t.getInteger("Extra");
+        tour.stayUntil = t.getLong("StayUntil");
+        tour.returning = t.getBoolean("Returning");
+        return tour;
+    }
+
+    private static NBTTagCompound writeCounts(Map<String, Integer> counts) {
+        NBTTagCompound c = new NBTTagCompound();
+        for (Map.Entry<String, Integer> e : counts.entrySet()) c.setInteger(e.getKey(), e.getValue());
+        return c;
+    }
+
+    private static Map<String, Integer> readCounts(NBTTagCompound c) {
+        Map<String, Integer> out = new LinkedHashMap<>();
+        for (String k : c.getKeySet()) out.put(k, c.getInteger(k));
+        return out;
+    }
+}

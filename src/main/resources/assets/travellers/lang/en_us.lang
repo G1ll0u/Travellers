@@ -141,8 +141,6 @@ travellers.worker.orders.choir_stop=Stop Singing
 travellers.worker.orders.choir.tooltip=Have this henchman sing along with other nearby singing henchmen (WIP ONLY 1 SONG FOR NORMANS)
 
 travellers.worker.recruit.start=Recruit
-travellers.worker.recruit.fee=Fee: %s
-travellers.worker.recruit.too_close=Too close to recruit. Minimum distance: %sm
 travellers.worker.recruit.travel_purse=Travel %s, purse %s
 travellers.worker.recruit.none=No village in range
 travellers.worker.recruit.blocked.enemy=Enemy
@@ -392,16 +390,13 @@ travellers.notify.hire.not_enough_money=You don't have enough money (%s needed).
 travellers.notify.hire.payment_failed=Hire failed: money could not be deducted.
 travellers.notify.hire.dismissed=The travellers will no longer follow you.
 
-travellers.notify.recruit.not_your_worker=You don't control this henchman.
 travellers.notify.recruit.busy=I'm busy right now.
 travellers.notify.recruit.no_villages_in_range=No villages in range to recruit from.
 travellers.notify.recruit.not_enough_fee=Recruit fee: %s (you have %s)
-travellers.notify.recruit.route_not_enough_fee=Recruit fee: %s
 travellers.notify.recruit.payment_failed=Recruit fee payment failed. Try again.
 travellers.notify.recruit.mission_started=Recruit mission started. Fee paid: %s
 travellers.notify.recruit.henchmen_recruited=Recruited %s henchmen at %s.
 travellers.notify.recruit.mission_completed=Recruit mission completed.
-travellers.notify.recruit.village_too_close=That village is too close to recruit from. Minimum distance: %sm
 
 travellers.notify.worker.not_hired_transport=You must hire this henchman to use Transport.
 travellers.notify.worker.not_hired_inventory=You can only access the pack of a henchman you've hired.

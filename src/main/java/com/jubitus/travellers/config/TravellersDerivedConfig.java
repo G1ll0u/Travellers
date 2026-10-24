@@ -28,11 +28,6 @@ public class TravellersDerivedConfig {
     public static final EntityRuleList TRAVELLER_AGGRO_BLACKLIST = new EntityRuleList();
     public static final EntityRuleList RAIDER_AGGRO_BLACKLIST = new EntityRuleList();
 
-    // Client-only: last value received from server for GUI display. -1/NaN = unknown (not received yet).
-    public static int recruitFeeFlatServerCache = -1;
-    public static double recruitFeePerBlockServerCache = Double.NaN;
-    public static int recruitFeePerVillageServerCache = -1;
-
     /**
      * Single place deciding whether Peaceful difficulty should suppress combat for this world.
      * Every peaceful-gated check in the mod must route through this instead of comparing
@@ -83,11 +78,6 @@ public class TravellersDerivedConfig {
         com.jubitus.travellers.ground.BlockRules.clearCache();
     }
 
-    public static void syncServerCostCachesFromConfig() {
-        recruitFeeFlatServerCache = TravellersConfig.RECRUITMENT.recruitFeeFlat;
-        recruitFeePerBlockServerCache = TravellersConfig.RECRUITMENT.recruitFeePerBlock;
-        recruitFeePerVillageServerCache = TravellersConfig.RECRUITMENT.recruitFeePerVillage;
-    }
 
     /** Re-applies live-tunable attributes to every currently loaded EntityTraveller. */
     public static void applyRuntimeEffects() {

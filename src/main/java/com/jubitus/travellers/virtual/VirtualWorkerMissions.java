@@ -67,14 +67,10 @@ final class VirtualWorkerMissions {
                 continue;
             }
 
-            // Hired workers on RECRUITING missions: collect for post-iteration processing (records.put inside)
-            if (r.isHiredFollower && r.jobGoal != null && "RECRUITING".equals(r.workerMode)) {
-                double dx = r.jobGoal.getX() + 0.5 - r.posX;
-                double dz = r.jobGoal.getZ() + 0.5 - r.posZ;
-                if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
-                    if (recruitArrivals == null) recruitArrivals = new ArrayList<>();
-                    recruitArrivals.add(r.uuid);
-                }
+            // Recruiting tours: processed after iteration (recruits change the record map)
+            if (r.isHiredFollower && r.recruitTour != null && "RECRUITING".equals(r.workerMode)) {
+                if (recruitArrivals == null) recruitArrivals = new ArrayList<>();
+                recruitArrivals.add(r.uuid);
                 continue;
             }
 
@@ -115,11 +111,10 @@ final class VirtualWorkerMissions {
             }
         }
 
-        // Hired workers on RECRUITING missions: processed after iteration to avoid ConcurrentModificationException
         if (recruitArrivals != null) {
             for (UUID id : recruitArrivals) {
                 VirtualTravellerRecord r = records.get(id);
-                if (r != null) tryVirtualRecruitment(world, r);
+                if (r != null && r.recruitTour != null) tickVirtualTour(world, r);
             }
         }
 
@@ -211,67 +206,33 @@ final class VirtualWorkerMissions {
         manager.markDirty();
     }
 
-    private void tryVirtualRecruitment(WorldServer world, VirtualTravellerRecord r) {
-        BlockPos stop = r.jobGoal;
-        if (stop == null) return;
-
-        // Load recruiter temporarily to advance recruit state
-        EntityTravellerWorker recruiter = new EntityTravellerWorker(world);
-        recruiter.readFromNBT(r.entityNbt);
-        recruiter.setUniqueId(r.uuid);
-        recruiter.setPositionAndRotation(r.posX, r.posY, r.posZ, r.rotYaw, 0);
-
-        int recruitCount = recruiter.recruit.advanceStopVirtually(stop);
-
-        // Create virtual recruits with proper culture/name via onInitialSpawn
-        EntityPlayer owner = r.followOwnerUUID != null
-                ? world.getPlayerEntityByUUID(r.followOwnerUUID) : null;
-        if (owner != null && recruitCount > 0) {
-            DifficultyInstance diff = new DifficultyInstance(
-                    world.getDifficulty(), world.getWorldTime(), 0, 0.5f);
-
-            for (int i = 0; i < recruitCount; i++) {
-                EntityTravellerWorker recruit = new EntityTravellerWorker(world);
-                recruit.setPosition(stop.getX() + 0.5, stop.getY(), stop.getZ() + 0.5);
-                recruit.onInitialSpawn(diff, null); // sets culture, name, equipment
-                recruit.setHomeVillage(null);
-                recruit.hireAsFollower(owner);
-                recruit.setEscortLeaderUUID(r.uuid); // must be before writeToNBT so it persists
-
-                NBTTagCompound recruitNbt = new NBTTagCompound();
-                recruit.writeToNBT(recruitNbt);
-
-                UUID recruitId = recruit.getUniqueID();
-                VirtualTravellerRecord rec = new VirtualTravellerRecord(
-                        recruitId, stop.getX(), stop.getY(), stop.getZ(),
-                        recruit.rotationYaw, r.dimension, recruitNbt);
-                rec.isHiredFollower = true;
-                rec.name = recruit.getName();
-                rec.ownerColor = recruit.getOwnerMarkColor() & 0xFFFFFF;
-                rec.followOwnerUUID = r.followOwnerUUID;
-                rec.escortLeaderUUID = r.uuid;
-                rec.workerMode = "IDLE";
-                rec.goal = new BlockPos(r.posX, r.posY, r.posZ);
-                records.put(recruitId, rec);
+    /** The offscreen side of RecruitMission.tickTour: same tour decisions, arrival judged at the mission radius. */
+    private void tickVirtualTour(WorldServer world, VirtualTravellerRecord r) {
+        com.jubitus.travellers.worker.RecruitTour tour = r.recruitTour;
+        long now = world.getTotalWorldTime();
+        com.jubitus.travellers.worker.RecruitPlan.Stop stop = tour.currentStop();
+        if (stop != null && !tour.isStaying()) {
+            double dx = stop.center.getX() + 0.5 - r.posX;
+            double dz = stop.center.getZ() + 0.5 - r.posZ;
+            if (dx * dx + dz * dz <= JOB_ARRIVAL_FORCE_DIST * JOB_ARRIVAL_FORCE_DIST) {
+                tour.arrive(now);
+                manager.markDirty();
             }
-
-            org.millenaire.common.village.Building recruitTh = MillSettlements.townHall(world, stop);
-            String villageName = recruitTh != null ? recruitTh.getVillageQualifiedName() : "a village";
-            com.jubitus.travellers.notify.NotificationService.notifyAt(owner,
-                    com.jubitus.travellers.notify.NotificationDefs.RECRUIT_WORKERS_RECRUITED,
-                    new com.jubitus.travellers.notify.NoticePlace(stop, r.dimension, r.uuid), String.valueOf(recruitCount), villageName);
+            return;
         }
-
-        // Save recruiter updated state
-        NBTTagCompound updatedNbt = new NBTTagCompound();
-        recruiter.writeToNBT(updatedNbt);
-        r.entityNbt = updatedNbt;
-        r.invalidateNbtCaches();
-        r.workerMode = recruiter.getMode().name();
-        r.jobGoal = recruiter.getJobGoal(); // next stop, or null if returning
-        BlockPos nextGoal = recruiter.getVirtualGoal();
-        if (nextGoal != null) r.goal = nextGoal;
-
+        if (stop != null && !tour.isStayOver(now)) return;
+        com.jubitus.travellers.worker.RecruitPlan.Stop next = stop == null || r.followOwnerUUID == null
+                ? null : tour.leave(world, r.followOwnerUUID);
+        if (next != null) {
+            r.jobGoal = next.center;
+            r.goal = next.center;
+        } else {
+            tour.turnBack();
+            r.workerMode = "RETURNING";
+            r.jobGoal = null;
+            EntityPlayer owner = r.followOwnerUUID != null ? world.getPlayerEntityByUUID(r.followOwnerUUID) : null;
+            if (owner != null) r.goal = owner.getPosition();
+        }
         manager.markDirty();
     }
 

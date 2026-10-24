@@ -14,6 +14,7 @@ import com.jubitus.travellers.worker.RecruitPlan;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worker.net.MsgRecruitPreview;
 import com.jubitus.travellers.worker.net.MsgRecruitPreviewRequest;
+import com.jubitus.travellers.worker.net.MsgRecruitStart;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worker.net.MsgWorkerRequestGoList;
 import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
@@ -150,7 +151,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     @Override
     public void updateScreen() {
         super.updateScreen();
-        startButton.enabled = false; // the tour itself is not wired yet (see docs/recruitment-plan.md)
+        startButton.enabled = !plannedVillages.isEmpty() && MillMoney.countPlayerMoney(player) >= travelFee + purse;
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────
@@ -209,6 +210,11 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     protected void actionPerformed(GuiButton button) throws IOException {
         if (button == backButton) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
+            return;
+        }
+        if (button == startButton) {
+            TravellersNetwork.CHANNEL.sendToServer(new MsgRecruitStart(worker.getEntityId(), new LinkedHashMap<>(wanted)));
+            mc.player.closeScreen();
             return;
         }
         super.actionPerformed(button);

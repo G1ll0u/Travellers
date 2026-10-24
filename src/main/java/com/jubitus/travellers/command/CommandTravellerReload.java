@@ -22,8 +22,6 @@ public class CommandTravellerReload extends net.minecraft.command.CommandBase {
         JubiConfig.applyOnStartup();
         TravellersDerivedConfig.refresh();
         TravellersDerivedConfig.applyRuntimeEffects();
-        TravellersDerivedConfig.syncServerCostCachesFromConfig();
-        Travellers.broadcastServerCostsToAllPlayers();
         notifyCommandListener(sender, this, "Reloaded TravellersMod config.");
 
     }

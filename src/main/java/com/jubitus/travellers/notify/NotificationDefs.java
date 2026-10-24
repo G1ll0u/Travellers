@@ -38,18 +38,14 @@ public final class NotificationDefs {
     public static final NotificationDef HIRE_PAYMENT_FAILED = reply(REFUSAL, "travellers.notify.hire.payment_failed", 0);
     public static final NotificationDef DISMISS_FOLLOWER = reply(INFO, "travellers.notify.hire.dismissed", 0);
 
-    // --- Recruitment (MsgRecruitWorkers, MsgRecruitStartSelectedVillages, GuiWorkerRecruit) ---
-    public static final NotificationDef RECRUIT_NOT_YOUR_WORKER = reply(REFUSAL, "travellers.notify.recruit.not_your_worker", 0);
+    // --- Recruitment (MsgRecruitStart, RecruitMission) ---
     public static final NotificationDef RECRUIT_BUSY = reply(REFUSAL, "travellers.notify.recruit.busy", 0);
     public static final NotificationDef RECRUIT_NO_VILLAGES_IN_RANGE = reply(REFUSAL, "travellers.notify.recruit.no_villages_in_range", 0);
     public static final NotificationDef RECRUIT_NOT_ENOUGH_FEE = reply(REFUSAL, "travellers.notify.recruit.not_enough_fee", 2);
-    public static final NotificationDef RECRUIT_ROUTE_NOT_ENOUGH_FEE = reply(REFUSAL, "travellers.notify.recruit.route_not_enough_fee", 1);
     public static final NotificationDef RECRUIT_PAYMENT_FAILED = reply(REFUSAL, "travellers.notify.recruit.payment_failed", 0);
     public static final NotificationDef RECRUIT_MISSION_STARTED = reply(INFO, "travellers.notify.recruit.mission_started", 1);
     public static final NotificationDef RECRUIT_WORKERS_RECRUITED = event(SUCCESS, "travellers.notify.recruit.henchmen_recruited", 2);
     public static final NotificationDef RECRUIT_MISSION_COMPLETED = event(SUCCESS, "travellers.notify.recruit.mission_completed", 0);
-    public static final NotificationDef RECRUIT_TOO_CLOSE = reply(REFUSAL, "travellers.worker.recruit.too_close", 1);
-    public static final NotificationDef RECRUIT_VILLAGE_TOO_CLOSE = reply(REFUSAL, "travellers.notify.recruit.village_too_close", 1);
 
     // --- Worker sub-GUI actions (MsgOpenWorkerSubGui) ---
     public static final NotificationDef WORKER_NOT_HIRED_TRANSPORT = reply(REFUSAL, "travellers.notify.worker.not_hired_transport", 0);

@@ -5,7 +5,7 @@ import com.jubitus.travellers.village.ContainerWorkerVillageRelations;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
 import com.jubitus.travellers.worker.gui.GuiWorkerGo;
 import com.jubitus.travellers.zone.gui.GuiPlayerZonePrompt;
-import com.jubitus.travellers.worker.gui.GuiWorkerRecruit;
+import com.jubitus.travellers.worker.gui.GuiWorkerRecruitCultures;
 import com.jubitus.travellers.worker.gui.GuiWorker;
 import com.jubitus.travellers.worker.gui.GuiWorkerInventory;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -41,7 +41,7 @@ public class ClientGuiHandler extends CommonGuiHandler {
         if (id == TravellersGuiIds.WORKER_RECRUIT) {
             Entity e = world.getEntityByID(x);
             return (e instanceof EntityTravellerWorker)
-                    ? new GuiWorkerRecruit(player, (EntityTravellerWorker) e)
+                    ? new GuiWorkerRecruitCultures(player, (EntityTravellerWorker) e)
                     : null;
         }
 

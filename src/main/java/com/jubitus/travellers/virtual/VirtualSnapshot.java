@@ -50,6 +50,7 @@ final class VirtualSnapshot {
         r.catchupTargetUUID = worker.catchup.getTargetId();
         r.workerMode = worker.getMode().name();
         r.jobGoal = worker.getJobGoal();
+        r.recruitTour = worker.recruit.getTour();
         r.goOrderActive = worker.trips.isGoOrderActive();
         // Duty assignment + personal self-travel (Go Home / Go To Duty): a loaded worker that
         // virtualizes mid-route would otherwise drop these and stall offscreen (nothing refreshes
@@ -173,6 +174,8 @@ final class VirtualSnapshot {
      */
     static void applyToWorker(VirtualTravellerRecord r, EntityTravellerWorker worker) {
         applyGroup(r, worker);
+        // Unconditional: the record's tour went on offscreen, entityNbt holds the one it left with.
+        worker.recruit.adoptTour(r.recruitTour);
         // Escort leader may have changed while virtual (create/assign/merge/come-back commands).
         if (!java.util.Objects.equals(r.escortLeaderUUID, worker.getEscortLeaderUUID())) {
             worker.setEscortLeaderUUID(r.escortLeaderUUID);

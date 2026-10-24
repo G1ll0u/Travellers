@@ -5,7 +5,7 @@ import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
 import com.jubitus.travellers.worker.gui.GuiWorkerGo;
 import com.jubitus.travellers.zone.gui.GuiWorkerBarracks;
-import com.jubitus.travellers.worker.gui.GuiWorkerRecruit;
+import com.jubitus.travellers.worker.gui.GuiWorkerRecruitCultures;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
@@ -89,7 +89,7 @@ public class MsgOpenClientWorkerGui implements IMessage {
                     case RECRUIT: {
                         Entity e = world.getEntityByID(msg.entityId);
                         if (e instanceof EntityTravellerWorker) {
-                            mc.displayGuiScreen(new GuiWorkerRecruit(player, (EntityTravellerWorker) e));
+                            mc.displayGuiScreen(new GuiWorkerRecruitCultures(player, (EntityTravellerWorker) e));
                         }
                         return;
                     }
