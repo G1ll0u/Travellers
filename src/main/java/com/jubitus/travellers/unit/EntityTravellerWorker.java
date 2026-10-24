@@ -993,6 +993,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     @Override
     public void onDeath(DamageSource cause) {
         if (!world.isRemote) {
+            recruit.onDeath();
             com.jubitus.travellers.follow.group.WorkerGroupService.LeaderOrder leaderOrder =
                     com.jubitus.travellers.follow.group.WorkerGroupService.captureOrder(this);
             setFollowOrderActive(false);
@@ -1310,6 +1311,7 @@ public class EntityTravellerWorker extends EntityTraveller {
     }
 
     public void dismissFollower() {
+        if (!world.isRemote) recruit.onDismissed();
         this.hiredFollower = false;
         this.followOwnerId = null;
         this.routeLocked = false;

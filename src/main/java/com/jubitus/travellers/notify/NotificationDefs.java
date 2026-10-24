@@ -47,6 +47,7 @@ public final class NotificationDefs {
     public static final NotificationDef RECRUIT_WORKERS_RECRUITED = event(SUCCESS, "travellers.notify.recruit.henchmen_recruited", 2);
     public static final NotificationDef RECRUIT_WORKERS_RECRUITED_ROAD = event(SUCCESS, "travellers.notify.recruit.henchmen_recruited_road", 2);
     public static final NotificationDef RECRUIT_MISSION_COMPLETED = event(SUCCESS, "travellers.notify.recruit.mission_completed", 0);
+    public static final NotificationDef RECRUIT_MISSION_COMPLETED_REFUND = event(SUCCESS, "travellers.notify.recruit.mission_completed_refund", 1);
 
     // --- Worker sub-GUI actions (MsgOpenWorkerSubGui) ---
     public static final NotificationDef WORKER_NOT_HIRED_TRANSPORT = reply(REFUSAL, "travellers.notify.worker.not_hired_transport", 0);

@@ -398,6 +398,7 @@ travellers.notify.recruit.mission_started=Recruit mission started. Fee paid: %s
 travellers.notify.recruit.henchmen_recruited=Recruited %s henchmen at %s.
 travellers.notify.recruit.henchmen_recruited_road=Recruited %s henchmen on the road near %s.
 travellers.notify.recruit.mission_completed=Recruit mission completed.
+travellers.notify.recruit.mission_completed_refund=Recruit mission completed. %s returned from the purse.
 
 travellers.notify.worker.not_hired_transport=You must hire this henchman to use Transport.
 travellers.notify.worker.not_hired_inventory=You can only access the pack of a henchman you've hired.

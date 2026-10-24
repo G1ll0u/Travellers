@@ -1,4 +1,4 @@
-Status: steps 1-7 done; step 8 next. Recruits join, but the purse left over is not refunded yet and is not dropped on death. Open: repeated village stays (see step 2).
+Status: steps 1-8 done; step 9 (edge cases) next, step 10 to discuss first. Open: repeated village stays (see step 2).
 
 # Recruitment missions by culture
 
@@ -35,5 +35,6 @@ Recruiter dies (purse, recruits already gathered fall back to following the owne
 5. **Planning + start**: `worker/RecruitPlan`, `MsgRecruitStart` (replans, charges travel + purse), `worker/RecruitTour` (the state, moved between entity and record; arrive / wait / leave / extra villages shared by `RecruitMission.tickTour` and `VirtualWorkerMissions.tickVirtualTour`). — done
 6. **Encounters + roll**: `worker/RecruitEncounters`, groups via `worker/SpawnGroup` (was MerchantGroup), outcome counts in the profile report. — done
 7. **Conversion**: a record becomes a hired worker (`VirtualTravellerManager.recruitRecord`); a loaded traveller goes through virtualize → convert → `materializeSoon` (horse carried by the hand-off); a loaded free worker is hired in place; recruits fall in behind the recruiter (`WorkerGroupService.joinRecruiter`). — done
-8. **Purse**: pay per recruit, refund, drop on death (loaded and virtual death). — todo
-9. **Edge cases** above, lang keys. — todo (old mode, old screen, cost sync and their config/lang already removed). Note: a dismissed recruiter or one whose owner is offline ends its tour at once (purse: see step 8).
+8. **Purse**: paid per recruit; the rest refunded when the recruiter rejoins the owner (who may be offline or elsewhere meanwhile: the tour waits, purse kept) or dismisses it; coins dropped where a loaded recruiter dies; lost with a recruiter that dies offscreen. — done
+9. **Edge cases** above, lang keys. Open question: there is no order to call a recruiter back mid-tour. — todo (old mode, old screen, cost sync and their config/lang already removed).
+10. **Succession** (to discuss, user idea): when the recruiter dies, its successor among the recruits takes over the purse (and the tour?), loaded and offscreen alike. — todo

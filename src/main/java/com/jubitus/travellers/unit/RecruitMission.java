@@ -6,11 +6,14 @@ import com.jubitus.travellers.notify.NoticePlace;
 import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.travel.TravelCommon;
+import com.jubitus.travellers.village.MillMoney;
 import com.jubitus.travellers.village.MillSettlements;
 import com.jubitus.travellers.worker.RecruitEncounters;
 import com.jubitus.travellers.worker.RecruitPlan;
 import com.jubitus.travellers.worker.RecruitTour;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -184,7 +187,8 @@ public final class RecruitMission {
         else beginReturnToOwner();
     }
 
-    private void finish(@Nullable EntityPlayer owner) {
+    private void finish(EntityPlayer owner) {
+        int refund = refundPurse(owner);
         this.tour = null;
         this.currentStopPos = null;
         resetArrivalWatchdog();
@@ -198,9 +202,35 @@ public final class RecruitMission {
         worker.routeLocked = true; // keep companion mode
         worker.setFollowOrderActive(true);
 
-        if (owner != null) {
+        if (refund > 0) {
+            NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED_REFUND, NoticePlace.of(worker),
+                    MillMoney.format(refund));
+        } else {
             NotificationService.notifyAt(owner, NotificationDefs.RECRUIT_MISSION_COMPLETED, NoticePlace.of(worker));
         }
+    }
+
+    /** What is left in the purse goes back to the owner; returns the amount handed over. */
+    private int refundPurse(@Nullable EntityPlayer owner) {
+        int purse = tour != null ? tour.purse() : 0;
+        if (purse <= 0 || !(owner instanceof EntityPlayerMP)) return 0;
+        return MillMoney.givePlayerMoney((EntityPlayerMP) owner, purse) ? purse : 0;
+    }
+
+    /** Dismissed mid-tour (the owner is the one dismissing, so online): the purse goes back, the tour ends here. */
+    void onDismissed() {
+        if (tour == null) return;
+        refundPurse(worker.getFollowOwner());
+        abandon();
+        if (worker.mode == EntityTravellerWorker.WorkerMode.RECRUITING) worker.mode = EntityTravellerWorker.WorkerMode.IDLE;
+        worker.getTravelCommon().clearRoute(false);
+    }
+
+    /** Killed with the purse on him: the coins fall where he died. */
+    void onDeath() {
+        if (tour == null) return;
+        for (ItemStack coins : MillMoney.coins(tour.purse())) worker.entityDropItem(coins, 0.5F);
+        abandon();
     }
 
     private void beginReturnToOwner() {
@@ -230,10 +260,8 @@ public final class RecruitMission {
         if (!isReturningToOwner()) return;
         meetPeople();
         EntityPlayer owner = worker.getFollowOwner();
-        if (owner == null || owner.isDead || owner.dimension != worker.dimension) {
-            finish(null);
-            return;
-        }
+        // Owner offline, dead or elsewhere: the tour stays open, purse kept, until they are back.
+        if (owner == null || owner.isDead || owner.dimension != worker.dimension) return;
         double dx = worker.posX - owner.posX;
         double dz = worker.posZ - owner.posZ;
         // Follow AI pulls him in; "dist > 200 -> startOwnerCatchupTravel()" kicks in on its own.
