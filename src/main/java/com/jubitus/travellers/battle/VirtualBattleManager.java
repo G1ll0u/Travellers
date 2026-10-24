@@ -422,6 +422,8 @@ public class VirtualBattleManager extends WorldSavedData {
     void addLoadedParticipant(BattleRecord b, EntityTraveller entity, String groupKey) {
         // Already fighting in another battle here: the zone merge brings both together.
         if (isParticipant(entity.getUniqueID())) return;
+        // A pawn in its death animation already reported its death: enrolling it again leaves it standing forever.
+        if (!entity.isEntityAlive()) return;
         BattleParticipant p = new BattleParticipant(entity.getUniqueID());
         p.groupKey = groupKey;
         p.loaded = true;
