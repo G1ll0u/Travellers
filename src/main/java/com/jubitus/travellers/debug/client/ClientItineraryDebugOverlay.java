@@ -1,5 +1,6 @@
 package com.jubitus.travellers.debug.client;
 
+import com.jubitus.travellers.worldmap.gui.MapRouteLine;
 import com.jubitus.travellers.debug.net.MsgItineraryDebugMap;
 import com.jubitus.travellers.pathing.itinerary.Itinerary;
 import com.jubitus.travellers.pathing.route.TravelPlan;
@@ -69,36 +70,22 @@ public final class ClientItineraryDebugOverlay {
         float ox = mapX + mapW / 2f;
         float oy = mapY + mapH / 2f;
 
-        GlStateManager.disableTexture2D();
-        GlStateManager.enableBlend();
-        GlStateManager.glLineWidth(2.0F);
-        Tessellator t = Tessellator.getInstance();
-        BufferBuilder b = t.getBuffer();
-        if (d.xs.length >= 2) {
-            b.begin(GL11.GL_LINES, DefaultVertexFormats.POSITION_COLOR);
-            for (int i = 0; i < d.xs.length - 1; i++) {
-                int c = d.kinds[i] == Itinerary.ROAD ? ROAD_COLOR : d.kinds[i] == Itinerary.BOAT ? BOAT_COLOR
-                        : d.kinds[i] == Itinerary.GATE ? GATE_COLOR : WALK_COLOR;
-                vertex(b, ox + (d.xs[i] + 0.5f - centerX) / bpp, oy + (d.zs[i] + 0.5f - centerZ) / bpp, c);
-                vertex(b, ox + (d.xs[i + 1] + 0.5f - centerX) / bpp, oy + (d.zs[i + 1] + 0.5f - centerZ) / bpp, c);
-            }
-            t.draw();
-        }
-        GlStateManager.glLineWidth(1.0F);
-        GlStateManager.enableTexture2D();
+        MapRouteLine.draw(mapX, mapY, mapW, mapH, centerX, centerZ, bpp, d.xs, d.zs,
+                i -> d.kinds[i] == Itinerary.ROAD ? ROAD_COLOR : d.kinds[i] == Itinerary.BOAT ? BOAT_COLOR
+                        : d.kinds[i] == Itinerary.GATE ? GATE_COLOR : WALK_COLOR);
 
         for (int i = 0; i < d.tripStops.size(); i++) {
             BlockPos p = d.tripStops.get(i);
-            dot(ox + (p.getX() + 0.5f - centerX) / bpp, oy + (p.getZ() + 0.5f - centerZ) / bpp,
+            MapRouteLine.dot(ox + (p.getX() + 0.5f - centerX) / bpp, oy + (p.getZ() + 0.5f - centerZ) / bpp,
                     i == d.tripIndex ? 3 : 2, 0xFFFF40FF);
         }
         if (d.target != null) {
-            dot(ox + (d.target.getX() + 0.5f - centerX) / bpp, oy + (d.target.getZ() + 0.5f - centerZ) / bpp, 2, 0xFFFF3030);
+            MapRouteLine.dot(ox + (d.target.getX() + 0.5f - centerX) / bpp, oy + (d.target.getZ() + 0.5f - centerZ) / bpp, 2, 0xFFFF3030);
         }
         if (d.xs.length >= 2) {
-            dot(ox + ((float) d.cursorX - centerX) / bpp, oy + ((float) d.cursorZ - centerZ) / bpp, 2, 0xFFFFFFFF);
+            MapRouteLine.dot(ox + ((float) d.cursorX - centerX) / bpp, oy + ((float) d.cursorZ - centerZ) / bpp, 2, 0xFFFFFFFF);
         }
-        dot(ox + ((float) d.unitX - centerX) / bpp, oy + ((float) d.unitZ - centerZ) / bpp, 2, 0xFFFFFF40);
+        MapRouteLine.dot(ox + ((float) d.unitX - centerX) / bpp, oy + ((float) d.unitZ - centerZ) / bpp, 2, 0xFFFFFF40);
     }
 
     /** One-line summary drawn at the bottom of the map. */
@@ -119,15 +106,5 @@ public final class ClientItineraryDebugOverlay {
         int y = mapY + mapH - 12;
         Gui.drawRect(mapX + 2, y - 2, mapX + 6 + fr.getStringWidth(shown), y + 10, 0xB0000000);
         fr.drawString(shown, mapX + 4, y, 0xFFFFFFFF);
-    }
-
-    private static void vertex(BufferBuilder b, float x, float y, int argb) {
-        b.pos(x, y, 0).color((argb >> 16) & 255, (argb >> 8) & 255, argb & 255, (argb >>> 24) & 255).endVertex();
-    }
-
-    private static void dot(float x, float y, int r, int argb) {
-        int ix = Math.round(x), iy = Math.round(y);
-        Gui.drawRect(ix - r - 1, iy - r - 1, ix + r + 1, iy + r + 1, 0xFF000000);
-        Gui.drawRect(ix - r, iy - r, ix + r, iy + r, argb);
     }
 }

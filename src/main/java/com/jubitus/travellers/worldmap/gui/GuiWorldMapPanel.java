@@ -149,9 +149,9 @@ public class GuiWorldMapPanel {
     private float centerX = 0, centerZ = 0;
     private float blocksPerPixel = 1f;
 
-    // Debug: optional drawer invoked after the worldmap background and before the markers, so an
-    // overlay (e.g. the scanned-terrain map) can replace the background while keeping markers on top.
-    public Runnable debugBackgroundOverlay;
+    // Optional drawer invoked after the worldmap background and before the markers (debug terrain,
+    // a planned route), so markers stay on top.
+    public Runnable underMarkersOverlay;
 
     private BlockPos selectedPos = null;
 
@@ -306,8 +306,8 @@ public class GuiWorldMapPanel {
 
         drawTerrain(mapX, mapY, sf);
 
-        // Debug terrain overlay (opaque; drawn over the background, under the markers).
-        if (debugBackgroundOverlay != null) debugBackgroundOverlay.run();
+        // Overlays drawn over the terrain, under the markers (debug terrain, a planned route).
+        if (underMarkersOverlay != null) underMarkersOverlay.run();
 
         drawMarkers(mapX, mapY);
 

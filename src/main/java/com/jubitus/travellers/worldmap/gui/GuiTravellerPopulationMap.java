@@ -101,7 +101,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         terrainButton = this.addButton(new GuiTravellersButton(20, mapX + 50, zTop, Math.max(90, mapW - 250), 20,
                 terrainLabel()));
 
-        mapController.panel.debugBackgroundOverlay = this::drawTerrainOverlay;
+        mapController.panel.underMarkersOverlay = this::drawTerrainOverlay;
 
         int zTop2 = zTop + 24;
         int sbw = (mapW - 12) / 4;
@@ -126,7 +126,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribePopulationMap(false));
         TravellersNetwork.CHANNEL.sendToServer(new MsgSubscribeCampMap(false));
         if (mapController != null && mapController.panel != null) {
-            mapController.panel.debugBackgroundOverlay = null;
+            mapController.panel.underMarkersOverlay = null;
         }
         ClientTerrainDebugOverlay.clear();
         ClientLoadedChunksOverlay.clear();

@@ -332,7 +332,7 @@ public class VirtualTravellerManager extends WorldSavedData {
     }
 
     /** True when this record's movement comes from its itinerary this step. */
-    private static boolean followsItinerary(VirtualTravellerRecord r) {
+    public static boolean followsItinerary(VirtualTravellerRecord r) {
         return r.campSiteId == null && r.visit == null && routeDrivenMovement(r) && r.itinerary.isFor(legDestination(r));
     }
 

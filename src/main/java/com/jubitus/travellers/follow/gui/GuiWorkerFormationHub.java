@@ -170,6 +170,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         mapController = new WorldMapController(Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
                 "travellers_formation_hub_map", center);
         mapController.panel.setZoomBlocksPerPixel(bpp);
+        mapController.panel.underMarkersOverlay = () -> FormationRouteOverlay.draw(mapController);
         orders.setMap(mapController);
 
         mapData.subscribe();
@@ -230,6 +231,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         super.onGuiClosed();
         card.flush(true);
         mapData.unsubscribe();
+        FormationRouteOverlay.clear();
     }
 
     // ── Live refresh (MsgOpenFormationHubGui while open) ─────────────────────
@@ -311,6 +313,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         GlStateManager.disableDepth();
         TravellersGuiTheme.drawInnerPanel(mapBoxX, boxTop, mapBoxW, boxH);
         rebuildMapMarkers();
+        FormationRouteOverlay.track(routedWorker());
         mapController.panel.setHighlighted(orders.highlightedTargets(mouseX, mouseY, mapDragSelecting));
         mapController.draw();
         orders.drawDestinationCross();
@@ -384,6 +387,14 @@ public class GuiWorkerFormationHub extends GuiScreen
             fontRenderer.drawString(lines.get(i), 0, Math.round(i * HINT_LINE_H / HINT_SCALE), COL_TEXT_DIM);
         }
         GlStateManager.popMatrix();
+    }
+
+    // The selected group's leader, or a lone selected worker: whose planned route the map shows.
+    @Nullable
+    private UUID routedWorker() {
+        FormationLeaderInfo group = selection.group();
+        if (group != null) return group.uuid;
+        return selection.isFollowers() && selection.followers.size() == 1 ? selection.followers.get(0) : null;
     }
 
     private void drawSelectionRectangle() {

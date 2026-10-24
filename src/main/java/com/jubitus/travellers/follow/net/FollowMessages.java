@@ -27,5 +27,7 @@ public final class FollowMessages {
         toServer(MsgTalkToTraveller.class, MsgTalkToTraveller.Handler.class);
         toServer(MsgStopPlayerFollow.class, MsgStopPlayerFollow.Handler.class);
         toClient(MsgPlayerFollowState.class, () -> new MsgPlayerFollowState.Handler());
+        toServer(MsgGroupRouteRequest.class, MsgGroupRouteRequest.Handler.class);
+        toClient(MsgGroupRoute.class, () -> new MsgGroupRoute.Handler());
     }
 }
