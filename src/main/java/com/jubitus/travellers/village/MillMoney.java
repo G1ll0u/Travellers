@@ -59,24 +59,24 @@ public final class MillMoney {
         return amount <= 0 || countPlayerMoney(player) >= amount;
     }
 
+    /**
+     * Takes {@code amount} from the player if they have it. Millénaire silently loses change that does not fit
+     * in a full inventory: it is handed back, and what still does not fit falls at the player's feet.
+     */
     public static boolean trySpendPlayerMoney(EntityPlayerMP player, int amount) {
         if (player == null) return false;
-        if (amount <= 0) {
-            syncPlayerInventory(player);
-            return true;
-        }
-
         int before = countPlayerMoney(player);
-        if (before < amount) {
-            syncPlayerInventory(player);
-            return false;
+        boolean paid = amount <= 0 || before >= amount;
+        if (paid && amount > 0) {
+            MillCommonUtilities.changeMoney(player.inventory, -amount, player);
+            int lost = before - amount - countPlayerMoney(player);
+            if (lost > 0) {
+                lost -= giveWhatFits(player, lost);
+                for (ItemStack stack : coins(lost)) player.dropItem(stack, false);
+            }
         }
-
-        MillCommonUtilities.changeMoney(player.inventory, -amount, player);
         syncPlayerInventory(player);
-
-        int after = countPlayerMoney(player);
-        return after == before - amount;
+        return paid;
     }
 
     /**
@@ -107,7 +107,7 @@ public final class MillMoney {
         return false;
     }
 
-    private static int coinValue(Item coin) {
+    public static int coinValue(Item coin) {
         return coin == MillItems.DENIER_OR ? 64 * 64 : coin == MillItems.DENIER_ARGENT ? 64 : 1;
     }
 

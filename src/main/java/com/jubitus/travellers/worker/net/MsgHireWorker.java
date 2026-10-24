@@ -68,8 +68,9 @@ public class MsgHireWorker implements IMessage {
                 // --- Case 1: already hired by THIS player -> dismiss ---
                 if (hiredByMe) {
                     // INVARIANT: a worker carrying the owner's money is never dismissed with it.
+                    worker.purse.handTo(player);
                     if (worker.purse.get() > 0) {
-                        NotificationService.notify(player, NotificationDefs.WORKER_TAKE_PURSE_FIRST, worker.getName());
+                        NotificationService.notify(player, NotificationDefs.WORKER_PURSE_NO_ROOM);
                         return;
                     }
                     worker.dismissFollower();

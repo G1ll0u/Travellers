@@ -436,16 +436,13 @@ public final class DeliveryJob {
         }
     }
 
-    /** Puts the payment's coins into the worker's cargo, then its backpack, dropping what fits in neither. */
+    /** Puts the payment's coins into the worker's cargo, then its backpack; what fits in neither goes in its purse. */
     private void addMoneyToCargo(int deniersTotal) {
         for (ItemStack coins : MillMoney.coins(deniersTotal)) {
+            int value = MillMoney.coinValue(coins.getItem());
             ItemStack remaining = insertStackInHandler(worker.getTravelInventory(), coins);
             if (!remaining.isEmpty()) remaining = insertStackInHandler(worker.inventory, remaining);
-            if (!remaining.isEmpty()) {
-                MillLog.major(worker, "[TravellersWorker] Cargo full, dropping "
-                        + remaining.getCount() + "x " + remaining.getDisplayName());
-                worker.entityDropItem(remaining, 0.0F);
-            }
+            if (!remaining.isEmpty()) worker.purse.add(remaining.getCount() * value);
         }
     }
 
@@ -495,6 +492,8 @@ public final class DeliveryJob {
         // Only finish if we were on a return job
         if (worker.mode == EntityTravellerWorker.WorkerMode.RETURNING && this.jobDelivered) {
             com.jubitus.travellers.debug.MissionDebugLog.loaded(worker, "pickup-done");
+            worker.purse.handTo(player);
+            if (worker.purse.get() > 0) NotificationService.notify(player, NotificationDefs.WORKER_PURSE_NO_ROOM);
 
             // We’re done with the job logically, but we keep routeLocked
             // so he doesn’t start travelling yet.

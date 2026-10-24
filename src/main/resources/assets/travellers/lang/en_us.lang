@@ -417,7 +417,6 @@ travellers.notify.recruit.henchmen_recruited_road=Recruited %s henchmen on the r
 travellers.notify.recruit.mission_completed=Recruit mission completed.
 travellers.notify.recruit.back=%s is back from recruiting: talk to them to read the report.
 travellers.notify.worker.purse_no_room=No room for the coins: free some space or carry a Millénaire purse.
-travellers.notify.worker.take_purse_first=%s still carries your money: take the purse first.
 
 travellers.notify.worker.not_hired_transport=You must hire this henchman to use Transport.
 travellers.notify.worker.not_hired_inventory=You can only access the pack of a henchman you've hired.

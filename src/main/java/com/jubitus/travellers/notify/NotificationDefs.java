@@ -51,7 +51,6 @@ public final class NotificationDefs {
     public static final NotificationDef RECRUIT_MISSION_COMPLETED = event(SUCCESS, "travellers.notify.recruit.mission_completed", 0);
     public static final NotificationDef RECRUIT_BACK = event(SUCCESS, "travellers.notify.recruit.back", 1);
     public static final NotificationDef WORKER_PURSE_NO_ROOM = reply(REFUSAL, "travellers.notify.worker.purse_no_room", 0);
-    public static final NotificationDef WORKER_TAKE_PURSE_FIRST = reply(REFUSAL, "travellers.notify.worker.take_purse_first", 1);
 
     // --- Worker sub-GUI actions (MsgOpenWorkerSubGui) ---
     public static final NotificationDef WORKER_NOT_HIRED_TRANSPORT = reply(REFUSAL, "travellers.notify.worker.not_hired_transport", 0);
