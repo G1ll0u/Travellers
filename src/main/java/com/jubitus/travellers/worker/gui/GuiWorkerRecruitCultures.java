@@ -28,6 +28,7 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.client.config.GuiUtils;
@@ -71,6 +72,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     private final Set<BlockPos> plannedVillages = new HashSet<>();
     private int travelFee;
     private int purse;
+    private int maxTotal;
     private boolean received;
 
     private GuiButton backButton;
@@ -128,6 +130,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
         for (RecruitPlan.Stop s : msg.stops) plannedVillages.add(s.center);
         travelFee = msg.travelFee;
         purse = msg.purse;
+        maxTotal = msg.maxTotal;
         received = true;
         list.clamp(options.size());
         rebuildMapMarkers();
@@ -187,7 +190,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
         int step = isShiftKeyDown() ? 5 : 1;
         int count = wanted.getOrDefault(o.cultureKey, 0);
         if (inBox(mouseX, mouseY, minusX(), rowTop)) count -= step;
-        else if (inBox(mouseX, mouseY, plusX(), rowTop)) count += step;
+        else if (inBox(mouseX, mouseY, plusX(), rowTop) && room() > 0) count += Math.min(step, room());
         else return;
         count = Math.max(0, count);
         if (count == 0) wanted.remove(o.cultureKey);
@@ -219,6 +222,13 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
             return;
         }
         super.actionPerformed(button);
+    }
+
+    // Recruits that can still be added, all cultures together (the server caps the same total).
+    private int room() {
+        int total = 0;
+        for (int n : wanted.values()) total += n;
+        return maxTotal - total;
     }
 
     // ── Layout of a row ───────────────────────────────────────────────────────
@@ -253,14 +263,36 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
         int hovered = drawList(mouseX, mouseY);
         if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
         if (hovered >= 0) drawRowTooltip(options.get(hovered), mouseX, mouseY);
+        else if (isOverCost(mouseX, mouseY)) drawCostTooltip(mouseX, mouseY);
     }
 
     private void drawHeader() {
+        if (received) {
+            String count = I18n.format("travellers.worker.recruit.count", maxTotal - room(), maxTotal);
+            fontRenderer.drawString(count, listX + LIST_W - fontRenderer.getStringWidth(count), mapY + 1,
+                    room() > 0 ? TravellersGuiTheme.COL_TEXT_DIM : TravellersGuiTheme.COL_TEXT);
+        }
         if (plannedVillages.isEmpty()) return;
         boolean afford = MillMoney.countPlayerMoney(player) >= travelFee + purse;
-        MoneyText.draw(fontRenderer, I18n.format("travellers.worker.recruit.travel_purse",
-                        MillMoney.format(travelFee), MillMoney.format(purse)),
-                listX, mapY + 1, afford ? TravellersGuiTheme.COL_AFFORD : TravellersGuiTheme.COL_CANNOT);
+        MoneyText.draw(fontRenderer, costLine(), listX, mapY + 1,
+                afford ? TravellersGuiTheme.COL_TEXT : TravellersGuiTheme.COL_CANNOT);
+    }
+
+    private String costLine() {
+        return I18n.format("travellers.worker.recruit.cost", MillMoney.format(travelFee + purse));
+    }
+
+    private boolean isOverCost(int mouseX, int mouseY) {
+        return !plannedVillages.isEmpty() && mouseY >= mapY && mouseY < mapY + 10
+                && mouseX >= listX && mouseX < listX + MoneyText.width(fontRenderer, costLine());
+    }
+
+    private void drawCostTooltip(int mouseX, int mouseY) {
+        List<String> lines = new ArrayList<>();
+        lines.add(I18n.format("travellers.worker.recruit.cost.travel", MillMoney.format(travelFee)));
+        lines.add(I18n.format("travellers.worker.recruit.cost.purse", MillMoney.format(purse)));
+        lines.add(TextFormatting.GRAY + I18n.format("travellers.worker.recruit.cost.refund"));
+        MoneyText.drawTooltip(fontRenderer, lines, mouseX, mouseY, width, height);
     }
 
     /** Draws the rows; returns the hovered option (outside its counter boxes), or -1. */
@@ -307,7 +339,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
             TravellersGuiTheme.drawScaledText(fontRenderer, chance, repX + repW - chanceW, rowTop + textY, TEXT_SCALE, textCol);
 
             drawBox(minusX(), rowTop, "-", count > 0, inBox(mouseX, mouseY, minusX(), rowTop));
-            drawBox(plusX(), rowTop, "+", true, inBox(mouseX, mouseY, plusX(), rowTop));
+            drawBox(plusX(), rowTop, "+", room() > 0, inBox(mouseX, mouseY, plusX(), rowTop));
             String n = String.valueOf(count);
             int numCenter = minusX() + BOX + (plusX() - minusX() - BOX) / 2;
             int nW = (int) Math.ceil(fontRenderer.getStringWidth(n) * TEXT_SCALE);

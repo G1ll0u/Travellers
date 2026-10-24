@@ -451,6 +451,10 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
                         ? net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire_group", count, price)
                         : net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire", price);
                 hireButton.enabled = true;
+                // Coin icons are wider than the raw amount: grow around the centre so the price is never cut.
+                int w = Math.max(metrics.buttonWidth, MoneyText.width(fontRenderer, hireButton.displayString) + 10);
+                hireButton.x += (hireButton.width - w) / 2;
+                hireButton.width = w;
             } else {
                 hireButton.displayString = net.minecraft.client.resources.I18n.format("travellers.worker.orders.hired_other");
                 hireButton.enabled = false;

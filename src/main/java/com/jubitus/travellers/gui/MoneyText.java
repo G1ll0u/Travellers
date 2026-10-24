@@ -3,6 +3,7 @@ package com.jubitus.travellers.gui;
 import com.jubitus.travellers.village.MillMoney;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
@@ -81,6 +82,25 @@ public final class MoneyText {
             carry = FontRenderer.getFormatFromString(line);
         }
         return out;
+    }
+
+    /** A vanilla-styled tooltip whose lines may hold amounts. */
+    public static void drawTooltip(FontRenderer fr, List<String> lines, int mouseX, int mouseY, int screenW, int screenH) {
+        if (lines.isEmpty()) return;
+        int w = 0;
+        for (String l : lines) w = Math.max(w, width(fr, l));
+        int h = lines.size() * 10 - 2;
+        int x = mouseX + 12;
+        int y = mouseY - 12;
+        if (x + w + 4 > screenW) x = Math.max(4, mouseX - 16 - w);
+        y = Math.max(4, Math.min(y, screenH - h - 4));
+        GlStateManager.disableDepth();
+        Gui.drawRect(x - 3, y - 4, x + w + 3, y + h + 4, 0xF0100010);
+        Gui.drawRect(x - 4, y - 3, x + w + 4, y + h + 3, 0xF0100010);
+        Gui.drawRect(x - 3, y - 3, x + w + 3, y + h + 3, 0x505000FF);
+        Gui.drawRect(x - 2, y - 2, x + w + 2, y + h + 2, 0xF0100010);
+        for (int i = 0; i < lines.size(); i++) draw(fr, lines.get(i), x, y + i * 10, 0xFFFFFF);
+        GlStateManager.enableDepth();
     }
 
     private static boolean hasAmount(String text) {

@@ -3,6 +3,7 @@ package com.jubitus.travellers.worker.net;
 import com.jubitus.travellers.worker.RecruitCultures;
 import com.jubitus.travellers.worker.RecruitPlan;
 import com.jubitus.travellers.worker.gui.GuiWorkerRecruitCultures;
+import com.jubitus.travellers.config.TravellersConfig;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.math.BlockPos;
@@ -27,6 +28,8 @@ public class MsgRecruitPreview implements IMessage {
     public List<RecruitPlan.Stop> stops = new ArrayList<>();
     public int travelFee;
     public int purse;
+    // Most recruits one tour may bring back, all cultures together.
+    public int maxTotal;
 
     public MsgRecruitPreview() {
     }
@@ -38,6 +41,7 @@ public class MsgRecruitPreview implements IMessage {
         this.stops = plan.stops;
         this.travelFee = plan.travelFee;
         this.purse = plan.purse;
+        this.maxTotal = TravellersConfig.RECRUITMENT.recruitMaxPerMission;
     }
 
     @Override
@@ -63,6 +67,7 @@ public class MsgRecruitPreview implements IMessage {
         }
         travelFee = buf.readInt();
         purse = buf.readInt();
+        maxTotal = buf.readShort();
     }
 
     @Override
@@ -85,6 +90,7 @@ public class MsgRecruitPreview implements IMessage {
         }
         buf.writeInt(travelFee);
         buf.writeInt(purse);
+        buf.writeShort(maxTotal);
     }
 
     public static class Handler implements IMessageHandler<MsgRecruitPreview, IMessage> {
