@@ -5,89 +5,80 @@ import net.minecraft.item.Item;
 import net.minecraft.nbt.NBTTagCompound;
 
 /**
- * A tiny persisted snapshot of the four Stable-relevant item counts sitting in the zone's chest
- * ({@code WHEAT}, {@code SADDLE}, {@code GOLDEN_CARROT}, {@code GOLDEN_APPLE}), plus how many of each
- * the offscreen simulation has already spent but not yet removed from the real chest.
+ * A tiny persisted snapshot of the Stable-relevant item counts sitting in the zone's chests
+ * ({@link #ITEMS}), plus how many of each the offscreen simulation has already spent but not yet
+ * removed from the real chests.
  *
  * <p>This is what lets {@link StableWork} run identically whether the Stable is loaded or not:
  * the sim only ever reads/decrements this mirror, never a {@code TileEntity}. While the zone is
- * loaded, {@code StableCoordinator.reconcilePhysical} keeps it honest - it re-imports the real chest
- * counts every pass and drains any accrued offscreen spend back out of the physical chest. Same
- * "elapsed-time bookkeeping against a light mirror" idea the camp system uses for build progress.
+ * loaded, {@code StablePhysicalReconciler} keeps it honest - it drains any accrued offscreen spend
+ * out of the physical chests, then re-imports the real counts every pass.
  */
 public final class StableChestMirror {
 
+    /** Every item the stable economy spends, and its NBT key below. */
+    static final Item[] ITEMS = {Items.WHEAT, Items.SADDLE, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE,
+            StableWork.HAY_BALE, Items.SUGAR, Items.APPLE};
+    private static final String[] KEYS = {"Wheat", "Saddle", "GCarrot", "GApple", "HayBale", "Sugar", "Apple"};
+
     /** Believed-available counts (what the sim may still draw from). */
-    public int wheat, saddle, goldenCarrot, goldenApple;
-    /** Offscreen consumption not yet subtracted from the physical chest - drained on the next
-     * loaded reconcile pass. */
-    public int spentWheat, spentSaddle, spentGoldenCarrot, spentGoldenApple;
+    private final int[] counts = new int[ITEMS.length];
+    /** Offscreen consumption not yet subtracted from the physical chests. */
+    private final int[] spent = new int[ITEMS.length];
+
+    private static int indexOf(Item item) {
+        for (int i = 0; i < ITEMS.length; i++) {
+            if (ITEMS[i] == item) return i;
+        }
+        return -1;
+    }
 
     public int available(Item item) {
-        if (item == Items.WHEAT) return wheat;
-        if (item == Items.SADDLE) return saddle;
-        if (item == Items.GOLDEN_CARROT) return goldenCarrot;
-        if (item == Items.GOLDEN_APPLE) return goldenApple;
-        return 0;
+        int i = indexOf(item);
+        return i < 0 ? 0 : counts[i];
     }
 
     /** Draws one {@code item} from the mirror, recording it as unreconciled spend. Returns false
      * (and changes nothing) if the mirror believes there is none left. */
     public boolean consume(Item item) {
-        if (available(item) <= 0) return false;
-        if (item == Items.WHEAT) { wheat--; spentWheat++; }
-        else if (item == Items.SADDLE) { saddle--; spentSaddle++; }
-        else if (item == Items.GOLDEN_CARROT) { goldenCarrot--; spentGoldenCarrot++; }
-        else if (item == Items.GOLDEN_APPLE) { goldenApple--; spentGoldenApple++; }
-        else return false;
+        int i = indexOf(item);
+        if (i < 0 || counts[i] <= 0) return false;
+        counts[i]--;
+        spent[i]++;
         return true;
     }
 
-    /** Re-seeds the believed counts from a fresh physical chest scan (called only while loaded). The
-     * spend counters are left untouched here - {@link #drainSpent} handles removing them from the
-     * real chest first, in the same reconcile pass. */
-    public void importCounts(int wheat, int saddle, int goldenCarrot, int goldenApple) {
-        this.wheat = Math.max(0, wheat);
-        this.saddle = Math.max(0, saddle);
-        this.goldenCarrot = Math.max(0, goldenCarrot);
-        this.goldenApple = Math.max(0, goldenApple);
+    /** Re-seeds the believed count of {@code item} from a fresh physical chest scan (loaded only). */
+    public void importCount(Item item, int count) {
+        int i = indexOf(item);
+        if (i >= 0) counts[i] = Math.max(0, count);
     }
 
     /** How many of {@code item} the offscreen sim spent that still need removing from the physical
-     * chest; zeroes that counter (the caller is expected to actually remove them). */
+     * chests; zeroes that counter (the caller is expected to actually remove them). */
     public int drainSpent(Item item) {
-        int n;
-        if (item == Items.WHEAT) { n = spentWheat; spentWheat = 0; }
-        else if (item == Items.SADDLE) { n = spentSaddle; spentSaddle = 0; }
-        else if (item == Items.GOLDEN_CARROT) { n = spentGoldenCarrot; spentGoldenCarrot = 0; }
-        else if (item == Items.GOLDEN_APPLE) { n = spentGoldenApple; spentGoldenApple = 0; }
-        else n = 0;
+        int i = indexOf(item);
+        if (i < 0) return 0;
+        int n = spent[i];
+        spent[i] = 0;
         return n;
     }
 
     public void writeToNBT(NBTTagCompound tag) {
         NBTTagCompound m = new NBTTagCompound();
-        m.setInteger("Wheat", wheat);
-        m.setInteger("Saddle", saddle);
-        m.setInteger("GCarrot", goldenCarrot);
-        m.setInteger("GApple", goldenApple);
-        m.setInteger("SpentWheat", spentWheat);
-        m.setInteger("SpentSaddle", spentSaddle);
-        m.setInteger("SpentGCarrot", spentGoldenCarrot);
-        m.setInteger("SpentGApple", spentGoldenApple);
+        for (int i = 0; i < ITEMS.length; i++) {
+            m.setInteger(KEYS[i], counts[i]);
+            m.setInteger("Spent" + KEYS[i], spent[i]);
+        }
         tag.setTag("ChestMirror", m);
     }
 
     public void readFromNBT(NBTTagCompound tag) {
         if (!tag.hasKey("ChestMirror")) return;
         NBTTagCompound m = tag.getCompoundTag("ChestMirror");
-        wheat = m.getInteger("Wheat");
-        saddle = m.getInteger("Saddle");
-        goldenCarrot = m.getInteger("GCarrot");
-        goldenApple = m.getInteger("GApple");
-        spentWheat = m.getInteger("SpentWheat");
-        spentSaddle = m.getInteger("SpentSaddle");
-        spentGoldenCarrot = m.getInteger("SpentGCarrot");
-        spentGoldenApple = m.getInteger("SpentGApple");
+        for (int i = 0; i < ITEMS.length; i++) {
+            counts[i] = m.getInteger(KEYS[i]);
+            spent[i] = m.getInteger("Spent" + KEYS[i]);
+        }
     }
 }

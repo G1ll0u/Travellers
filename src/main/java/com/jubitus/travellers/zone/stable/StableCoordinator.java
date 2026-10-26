@@ -150,7 +150,12 @@ public final class StableCoordinator {
                 // loaded body included) counts as a hand for the elapsed-time pass.
                 virtualHands = StableBedService.countVirtualPalfreniersOnStation(world, zone, data)
                         + StableBedService.countLoadedPalfreniersOnStation(world, zone, data);
-                if (virtualHands > 0) dirty |= StableWork.timerPass(world, zone, data, now, virtualHands);
+            }
+            if (virtualHands > 0) {
+                dirty |= StableWork.timerPass(world, zone, data, now, virtualHands);
+            } else {
+                StableWork.holdAnchors(data, now);
+                dirty = true;
             }
             StableWatchLog.maybeSnapshot(world, zone, data, live, loadedHands, virtualHands);
             logZoneStateChange(world, zone, live, night, loadedHands, virtualHands);

@@ -131,15 +131,10 @@ final class StablePhysicalReconciler {
 
     private static void syncChestMirror(WorldServer world, PlayerZoneRecord zone, StableZoneData data) {
         StableChestMirror mirror = data.chestMirror;
-        removeFromChests(world, zone, Items.WHEAT, mirror.drainSpent(Items.WHEAT));
-        removeFromChests(world, zone, Items.SADDLE, mirror.drainSpent(Items.SADDLE));
-        removeFromChests(world, zone, Items.GOLDEN_CARROT, mirror.drainSpent(Items.GOLDEN_CARROT));
-        removeFromChests(world, zone, Items.GOLDEN_APPLE, mirror.drainSpent(Items.GOLDEN_APPLE));
-        mirror.importCounts(
-                countInChests(world, zone, Items.WHEAT),
-                countInChests(world, zone, Items.SADDLE),
-                countInChests(world, zone, Items.GOLDEN_CARROT),
-                countInChests(world, zone, Items.GOLDEN_APPLE));
+        for (Item item : StableChestMirror.ITEMS) {
+            removeFromChests(world, zone, item, mirror.drainSpent(item));
+            mirror.importCount(item, countInChests(world, zone, item));
+        }
     }
 
     private static int countInChests(WorldServer world, PlayerZoneRecord zone, Item item) {

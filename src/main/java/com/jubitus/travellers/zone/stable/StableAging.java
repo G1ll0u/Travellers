@@ -1,14 +1,17 @@
 package com.jubitus.travellers.zone.stable;
 
+import com.jubitus.travellers.horse.HorseSnapshots;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.WorldServer;
 
 /**
- * Ages every dormant (no live entity) pool entry by elapsed real time, mirroring vanilla's own
- * {@code EntityAgeable.onLivingUpdate} tick-by-tick growth - which only ever runs on a live, loaded
- * entity and would otherwise leave a bred foal frozen as a baby forever while its Stable sits
- * unloaded. Pure NBT math on the "Age" tag ({@link StableHorseEntry#horseNbt} already IS the entity's
- * full persisted state). Load-agnostic: called every {@code StableCoordinator.tick}, never gated.
+ * Ages and heals every dormant (no live entity) pool entry by elapsed real time, mirroring vanilla's
+ * own {@code EntityAgeable.onLivingUpdate} growth and {@code AbstractHorse.onLivingUpdate} natural
+ * regeneration - which only ever run on a live, loaded entity and would otherwise leave a bred foal
+ * frozen as a baby, or a hurt horse hurt, forever while its Stable sits unloaded. Pure NBT math
+ * ({@link StableHorseEntry#horseNbt} already IS the entity's full persisted state). Load-agnostic:
+ * called every {@code StableCoordinator.tick}, never gated.
  */
 final class StableAging {
 
@@ -30,6 +33,13 @@ final class StableAging {
             long elapsed = now - entry.lastAgeSyncTick;
             if (elapsed <= 0) continue;
             entry.lastAgeSyncTick = now;
+
+            NBTTagCompound nbt = entry.horseNbt;
+            float health = HorseSnapshots.health(nbt);
+            if (health > 0.0F && health < HorseSnapshots.maxHealth(nbt)) {
+                HorseSnapshots.heal(nbt, elapsed * StableWork.NATURAL_REGEN_PER_TICK);
+                dirty = true;
+            }
 
             int age = entry.horseNbt.getInteger("Age");
             int newAge;

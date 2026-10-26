@@ -18,6 +18,8 @@ final class PalfrenierState {
 
     enum Phase {
         DECIDE,
+        FETCH_HEAL_FEED,
+        HEAL_HORSE,
         FETCH_FEED,
         MOVE_TO_HORSE,
         FEED_HORSE,

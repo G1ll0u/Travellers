@@ -51,14 +51,14 @@ public final class WorkerHorsePickup {
         // require horseNbt here: StableCoordinator.reconcilePhysical keeps it continuously current on
         // every live pool horse now, so any tamed+saddled entry ends up eligible below regardless.
         for (StableHorseEntry e : data.pool) {
-            if (e.tamed && e.saddled && e.liveEntityUUID == null) {
+            if (e.tamed && e.saddled && e.liveEntityUUID == null && healthyEnough(e)) {
                 chosen = e;
                 break;
             }
         }
         if (chosen == null) {
             for (StableHorseEntry e : data.pool) {
-                if (e.tamed && e.saddled && e.horseNbt != null) {
+                if (e.tamed && e.saddled && e.horseNbt != null && healthyEnough(e)) {
                     chosen = e;
                     break;
                 }
@@ -208,5 +208,12 @@ public final class WorkerHorsePickup {
                 StableHorseEntry.Origin.RELEASED_FROM_DEAD_RIDER, // closest existing "recovered stock" meaning
                 world.getTotalWorldTime());
         PlayerZoneManager.get(world).markDirty();
+    }
+
+    /** A palfrenier never hands out a horse still recovering from its wounds. */
+    private static boolean healthyEnough(StableHorseEntry e) {
+        if (e.horseNbt == null) return false;
+        return HorseSnapshots.health(e.horseNbt)
+                >= HorseSnapshots.maxHealth(e.horseNbt) * TravellersConfig.STABLES.minHealthPercentForEquipment / 100.0F;
     }
 }

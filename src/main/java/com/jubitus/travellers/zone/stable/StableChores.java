@@ -6,6 +6,8 @@ import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.init.Items;
+import net.minecraft.init.SoundEvents;
+import net.minecraft.util.SoundCategory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
@@ -13,7 +15,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 import static com.jubitus.travellers.zone.stable.StableHandSupport.*;
 
-/** Palfrenier chest trips, saddling and breeding phases of {@link StableHandTask}. */
+/** Palfrenier chest trips, healing, saddling and breeding phases of {@link StableHandTask}. */
 final class StableChores {
 
     private static final int BREED_FEED_BEATS = 3;
@@ -31,8 +33,9 @@ final class StableChores {
             support.abandonChore(world, worker, st);
             return;
         }
-        if (support.countItem(world, zone, Items.WHEAT) <= 0) {
-            // Wheat gone before we got there - just tame dry. Shut the chest if we already opened it.
+        Item feed = StableWork.tamingFeed(new RealChestSource(world, zone));
+        if (feed == null) {
+            // Feed gone before we got there - just tame dry. Shut the chest if we already opened it.
             if (st.chestOpen && st.targetChest != null) support.closeChestVisual(world, st.targetChest);
             st.chestOpen = false;
             st.phase = PalfrenierState.Phase.MOVE_TO_HORSE;
@@ -40,11 +43,66 @@ final class StableChores {
             st.approachStartTick = -1L;
             return;
         }
-        if (walkToChestAndGrab(world, worker, zone, st, now, Items.WHEAT)) {
+        if (walkToChestAndGrab(world, worker, zone, st, now, feed)) {
             st.phase = PalfrenierState.Phase.MOVE_TO_HORSE;
             st.targetSince = now;
             st.approachStartTick = -1L;
         }
+    }
+
+    void fetchHealFeed(WorldServer world, EntityTravellerWorker worker, PlayerZoneRecord zone,
+                       StableZoneData data, PalfrenierState st, long now) {
+        EntityHorse horse = support.resolveTargetHorse(world, st);
+        if (horse == null || !horse.isTame() || poolEntry(data, horse) == null
+                || !StableWork.isHurt(horse.getHealth(), horse.getMaxHealth())) {
+            support.abandonChore(world, worker, st);
+            return;
+        }
+        Item feed = StableWork.healFeed(new RealChestSource(world, zone), horse.getMaxHealth() - horse.getHealth());
+        if (feed == null) {
+            support.abandonChore(world, worker, st);
+            st.nextDecideTick = now + TravellersConfig.STABLES.ambientDutyIntervalTicks;
+            return;
+        }
+        if (walkToChestAndGrab(world, worker, zone, st, now, feed)) {
+            st.phase = PalfrenierState.Phase.HEAL_HORSE;
+            st.phaseEndTick = 0L;
+            st.targetSince = now;
+            st.approachStartTick = -1L;
+        }
+    }
+
+    /** Feeds the target one {@link StableWork#healFeed} per beat until it is healed or the chest runs dry. */
+    void healHorse(WorldServer world, EntityTravellerWorker worker, PlayerZoneRecord zone,
+                   StableZoneData data, PalfrenierState st, long now) {
+        EntityHorse horse = support.resolveTargetHorse(world, st);
+        StableHorseEntry entry = horse == null ? null : poolEntry(data, horse);
+        if (horse == null || entry == null || !horse.isTame()
+                || !StableWork.isHurt(horse.getHealth(), horse.getMaxHealth())) {
+            support.abandonChore(world, worker, st);
+            return;
+        }
+        if (support.giveUpUnreachable(worker, st, horse.posX, horse.posY, horse.posZ, now)) return;
+        if (!support.approachWorkSpot(worker, st, horse.posX, horse.posY, horse.posZ, now)) return;
+        worker.getLookHelper().setLookPositionWithEntity(horse, 30.0F, 30.0F);
+        if (now < st.phaseEndTick) return;
+
+        RealChestSource chest = new RealChestSource(world, zone);
+        Item feed = StableWork.healFeed(chest, horse.getMaxHealth() - horse.getHealth());
+        float amount = StableWork.healStep(world, zone, entry, chest, horse.getHealth(), horse.getMaxHealth());
+        if (amount <= 0.0F) {
+            support.abandonChore(world, worker, st);
+            st.nextDecideTick = now + TravellersConfig.STABLES.ambientDutyIntervalTicks;
+            return;
+        }
+        worker.setHeldItem(EnumHand.MAIN_HAND, new ItemStack(feed));
+        worker.doInteractSwing(EnumHand.MAIN_HAND);
+        horse.heal(amount);
+        world.playSound(null, horse.posX, horse.posY, horse.posZ, SoundEvents.ENTITY_HORSE_EAT,
+                SoundCategory.NEUTRAL, 1.0F, 1.0F);
+        PlayerZoneManager.get(world).markDirty();
+        st.phaseEndTick = now + TravellersConfig.STABLES.tamingAttemptIntervalTicks;
+        st.targetSince = now; // the give-up clock measures time since the last beat, not the whole meal
     }
 
     void fetchCarrots(WorldServer world, EntityTravellerWorker worker, PlayerZoneRecord zone,

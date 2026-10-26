@@ -6,14 +6,18 @@ import com.jubitus.travellers.notify.NotificationDefs;
 import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import net.minecraft.entity.passive.EntityHorse;
+import com.jubitus.travellers.horse.HorseSnapshots;
+import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.WorldServer;
 
+import javax.annotation.Nullable;
+
 /**
- * The rules of stable work - taming, saddling, breeding - as pure state changes on
+ * The rules of stable work - healing, taming, saddling, breeding - as pure state changes on
  * {@link StableHorseEntry} / {@link StableZoneData}, with no knowledge of whether the Stable is
  * loaded. Two callers drive it:
  * <ul>
@@ -39,10 +43,23 @@ public final class StableWork {
     static final int MAX_TEMPER = 100;
     static final int FOAL_AGE = -24000;
 
+    public static final Item HAY_BALE = Item.getItemFromBlock(Blocks.HAY_BLOCK);
+    /** Healing feeds and their heal values, smallest first ({@code AbstractHorse.handleEating}).
+     * Golden carrots and apples stay reserved for breeding. */
+    private static final Item[] HEAL_FEEDS = {Items.SUGAR, Items.WHEAT, Items.APPLE, HAY_BALE};
+    private static final float[] HEAL_AMOUNTS = {1.0F, 2.0F, 3.0F, 20.0F};
+    /** Taming feeds, cheapest first - vanilla gives each the same temper gain. */
+    private static final Item[] TAMING_FEEDS = {Items.SUGAR, Items.WHEAT, Items.APPLE};
+    /** A horse missing less than this is not worth a feed. */
+    private static final float MIN_MISSING_HEALTH = 1.0F;
+    /** Vanilla's {@code AbstractHorse.onLivingUpdate}: 1 HP with a 1-in-900 chance per tick. */
+    static final float NATURAL_REGEN_PER_TICK = 1.0F / 900.0F;
+
     /** Upper bound on how many missed intervals one {@link #timerPass} call replays, per
      * progression - on a live overworld server there is never a gap (the coordinator ticks every
      * world tick), so this only ever matters after server downtime. */
     private static final int MAX_TAME_CATCHUP = 50;
+    private static final int MAX_HEAL_CATCHUP = 50;
     private static final int MAX_BREED_CATCHUP = 4;
     private static final int MAX_SADDLE_CATCHUP = 16;
 
@@ -55,25 +72,41 @@ public final class StableWork {
 
     /** The outcome of one {@link #tameStep}. */
     public static final class TameResult {
-        public final boolean fed;
+        /** The feed spent, or null for a dry beat. */
+        @Nullable public final Item feed;
         public final boolean tamedNow;
 
-        TameResult(boolean fed, boolean tamedNow) {
-            this.fed = fed;
+        TameResult(@Nullable Item feed, boolean tamedNow) {
+            this.feed = feed;
             this.tamedNow = tamedNow;
+        }
+
+        /** Health the feed gives back; the caller heals the live entity or the dormant snapshot. */
+        public float healAmount() {
+            return StableWork.healAmount(feed);
         }
     }
 
+    /** The taming feed the chest has, cheapest first, or null. */
+    @Nullable
+    public static Item tamingFeed(ChestSource chest) {
+        for (Item item : TAMING_FEEDS) {
+            if (chest.available(item) > 0) return item;
+        }
+        return null;
+    }
+
     /**
-     * One taming interaction on {@code e}: spends one wheat from {@code chest} if available
-     * ({@code fed}), raises temper by {@link #TEMPER_GAIN_FED}/{@link #TEMPER_GAIN_UNFED}
+     * One taming interaction on {@code e}: spends one {@link #tamingFeed} from {@code chest} if
+     * available, raises temper by {@link #TEMPER_GAIN_FED}/{@link #TEMPER_GAIN_UNFED}
      * (+{@code bonusTemper} for the mount-and-buck beat), then rolls {@code rand(100) < temper} for
      * a tame. Updates the <b>entry</b> only - the caller reflects {@code tamed}/temper onto any live
      * entity. Fires the owner "horse tamed" notification on success, once.
      */
     public static TameResult tameStep(WorldServer world, PlayerZoneRecord zone, StableHorseEntry e,
                                       ChestSource chest, int bonusTemper) {
-        boolean fed = chest.consume(Items.WHEAT);
+        Item feed = tamingFeed(chest);
+        boolean fed = feed != null && chest.consume(feed);
         int gain = (fed ? TEMPER_GAIN_FED : TEMPER_GAIN_UNFED) + Math.max(0, bonusTemper);
         e.temper = Math.min(MAX_TEMPER, e.temper + gain);
 
@@ -84,7 +117,54 @@ public final class StableWork {
             StableWatchLog.record(world, zone, StableWatchLog.Kind.TAME,
                     StableWatchLog.shortId(e.poolId) + " temper=" + e.temper, chest.isLive());
         }
-        return new TameResult(fed, tamedNow);
+        return new TameResult(fed ? feed : null, tamedNow);
+    }
+
+    public static boolean isHurt(float health, float maxHealth) {
+        return health > 0.0F && maxHealth - health >= MIN_MISSING_HEALTH;
+    }
+
+    /** Whether a pool entry's horse (as last captured) is missing health. */
+    public static boolean isHurt(StableHorseEntry e) {
+        return e.horseNbt != null && isHurt(HorseSnapshots.health(e.horseNbt), HorseSnapshots.maxHealth(e.horseNbt));
+    }
+
+    public static float healAmount(@Nullable Item feed) {
+        for (int i = 0; i < HEAL_FEEDS.length; i++) {
+            if (HEAL_FEEDS[i] == feed) return HEAL_AMOUNTS[i];
+        }
+        return 0.0F;
+    }
+
+    /** The feed that wastes least on a horse missing {@code missing} health: the biggest one that
+     * doesn't overshoot, else the smallest the chest has; null when the chest has none. */
+    @Nullable
+    public static Item healFeed(ChestSource chest, float missing) {
+        Item smallest = null;
+        Item bestFit = null;
+        for (int i = 0; i < HEAL_FEEDS.length; i++) {
+            if (chest.available(HEAL_FEEDS[i]) <= 0) continue;
+            if (smallest == null) smallest = HEAL_FEEDS[i];
+            if (HEAL_AMOUNTS[i] <= missing) bestFit = HEAL_FEEDS[i];
+        }
+        return bestFit != null ? bestFit : smallest;
+    }
+
+    /**
+     * One feeding beat on a hurt tamed horse: spends one {@link #healFeed} from {@code chest} and
+     * returns the health to add (0 when there is no feed). Updates nothing else - the caller heals
+     * the live entity or the dormant snapshot.
+     */
+    public static float healStep(WorldServer world, PlayerZoneRecord zone, StableHorseEntry e, ChestSource chest,
+                                 float health, float maxHealth) {
+        Item feed = healFeed(chest, maxHealth - health);
+        if (feed == null || !chest.consume(feed)) return 0.0F;
+        float amount = healAmount(feed);
+        if (health + amount >= maxHealth) {
+            StableWatchLog.record(world, zone, StableWatchLog.Kind.HEAL,
+                    StableWatchLog.shortId(e.poolId) + " healed", chest.isLive());
+        }
+        return amount;
     }
 
     /** Spends one saddle from {@code chest} and marks {@code e} saddled. Caller puts the real saddle
@@ -169,32 +249,55 @@ public final class StableWork {
 
     /**
      * Advances one step of stable work purely from elapsed time. {@code hands} is how many
-     * palfreniers are on station offscreen - it scales taming/saddling throughput. Returns true if
-     * any persisted state changed. Only called by {@code StableCoordinator} when there is no loaded
-     * palfrenier working the zone.
+     * palfreniers are on station offscreen - it scales healing/taming/saddling throughput. Returns
+     * true if any persisted state changed. Only called by {@code StableCoordinator} when there is no
+     * loaded palfrenier working the zone; every other pass calls {@link #holdAnchors} instead.
      */
     public static boolean timerPass(WorldServer world, PlayerZoneRecord zone, StableZoneData data,
                                     long now, int hands) {
         if (hands <= 0) return false;
         boolean dirty = false;
         ChestSource chest = new MirrorChestSource(data.chestMirror);
+        // Healing first: it is the palfreniers' priority, and it spends the same feed as taming.
+        int feedInterval = TravellersConfig.STABLES.tamingAttemptIntervalTicks;
 
-        int tameInterval = TravellersConfig.STABLES.tamingAttemptIntervalTicks;
+        int healBudget = hands;
+        for (StableHorseEntry e : data.pool) {
+            // INVARIANT: an entry nobody works this pass gets a fresh anchor, or it bursts later.
+            if (healBudget <= 0 || !e.tamed || e.liveEntityUUID != null || !isHurt(e)
+                    || e.lastHealTick == 0) {
+                e.lastHealTick = now;
+                continue;
+            }
+            long missed = (now - e.lastHealTick) / feedInterval;
+            if (missed <= 0) continue;
+            int steps = (int) Math.min(missed, MAX_HEAL_CATCHUP);
+            e.lastHealTick = now;
+            healBudget--;
+            for (int i = 0; i < steps && isHurt(e); i++) {
+                float amount = healStep(world, zone, e, chest,
+                        HorseSnapshots.health(e.horseNbt), HorseSnapshots.maxHealth(e.horseNbt));
+                if (amount <= 0.0F) break;
+                HorseSnapshots.heal(e.horseNbt, amount);
+                dirty = true;
+            }
+        }
+
         int tamingBudget = hands;
         for (StableHorseEntry e : data.pool) {
-            if (tamingBudget <= 0) break;
             if (e.tamed || e.horseNbt == null) continue;
-            if (e.lastTameProgressTick == 0) {
+            if (tamingBudget <= 0 || e.lastTameProgressTick == 0) {
                 e.lastTameProgressTick = now;
                 continue;
             }
-            long missed = (now - e.lastTameProgressTick) / tameInterval;
+            long missed = (now - e.lastTameProgressTick) / feedInterval;
             if (missed <= 0) continue;
             int steps = (int) Math.min(missed, MAX_TAME_CATCHUP);
             e.lastTameProgressTick = now;
             tamingBudget--;
             for (int i = 0; i < steps && !e.tamed; i++) {
-                tameStep(world, zone, e, chest, 0);
+                TameResult r = tameStep(world, zone, e, chest, 0);
+                if (r.feed != null && e.liveEntityUUID == null) HorseSnapshots.heal(e.horseNbt, r.healAmount());
                 writeDormantTaming(world, zone, e);
                 dirty = true;
             }
@@ -235,6 +338,19 @@ public final class StableWork {
             }
         }
         return dirty;
+    }
+
+    /**
+     * Keeps every elapsed-time anchor at {@code now} while {@link #timerPass} does not run (zone
+     * live, night, no palfrenier on station): that time was either worked for real or not worked at
+     * all, and must never be replayed as a catch-up burst once the timer pass resumes.
+     */
+    public static void holdAnchors(StableZoneData data, long now) {
+        for (StableHorseEntry e : data.pool) {
+            e.lastTameProgressTick = now;
+            e.lastHealTick = now;
+        }
+        data.lastBreedTick = now;
     }
 
     /** The first two pool entries that may breed together right now, or null. */

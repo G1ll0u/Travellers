@@ -40,6 +40,8 @@ public final class StableHorseEntry {
      * whether the Stable is loaded or offscreen) - mirrors {@code CampOccupant.lastProgressTick} so
      * switching between loaded and virtual never causes a time-jump either way. */
     public long lastTameProgressTick;
+    /** Elapsed-time anchor for feed healing, used by {@link StableWork} like {@link #lastTameProgressTick}. */
+    public long lastHealTick;
     /** Elapsed-time anchor for offline growth ({@link StableCoordinator#advanceVirtualAging}) - kept
      * fresh even while the horse is live (see {@code StableCoordinator.reconcilePhysical}) so a horse
      * that goes dormant never "catches up" on time it already aged through normally while loaded. */
@@ -60,6 +62,7 @@ public final class StableHorseEntry {
         tag.setLong("ReservedAtTick", reservedAtTick);
         tag.setString("Origin", origin.name());
         tag.setLong("LastTameProgressTick", lastTameProgressTick);
+        tag.setLong("LastHealTick", lastHealTick);
         tag.setLong("LastAgeSyncTick", lastAgeSyncTick);
         if (horseNbt != null) tag.setTag("HorseNbt", horseNbt);
     }
@@ -75,6 +78,7 @@ public final class StableHorseEntry {
         e.breedingCooldownUntil = tag.getLong("BreedingCooldownUntil");
         e.reservedAtTick = tag.getLong("ReservedAtTick");
         e.lastTameProgressTick = tag.getLong("LastTameProgressTick");
+        e.lastHealTick = tag.getLong("LastHealTick");
         e.lastAgeSyncTick = tag.getLong("LastAgeSyncTick");
         try {
             e.origin = Origin.valueOf(tag.getString("Origin"));

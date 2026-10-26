@@ -3,8 +3,8 @@ package com.jubitus.travellers.zone.stable;
 import net.minecraft.item.Item;
 
 /**
- * A minimal view of the Stable's item supply for {@link StableWork}: the four items the stable
- * economy spends (wheat, saddle, golden carrot, golden apple). Two implementations so the same rule
+ * A minimal view of the Stable's item supply for {@link StableWork}: the items the stable economy
+ * spends ({@link StableChestMirror#ITEMS}). Two implementations so the same rule
  * code runs loaded and offscreen:
  * <ul>
  *   <li>{@link RealChestSource} - reads and removes items straight from the zone's real chest

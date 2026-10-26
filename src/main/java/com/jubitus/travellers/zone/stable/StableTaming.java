@@ -8,6 +8,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.init.Items;
 import net.minecraft.init.SoundEvents;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.SoundCategory;
@@ -52,17 +53,18 @@ final class StableTaming {
         if (now < st.phaseEndTick) return;
 
         RealChestSource chest = new RealChestSource(world, zone);
-        // Keep the wheat visibly in hand between beats while there's stock (it was fetched from the
+        // Keep the feed visibly in hand between beats while there's stock (it was fetched from the
         // chest), drop it once the supply runs out.
-        if (chest.available(Items.WHEAT) > 0) {
-            worker.setHeldItem(EnumHand.MAIN_HAND, new ItemStack(Items.WHEAT));
+        Item feed = StableWork.tamingFeed(chest);
+        if (feed != null) {
+            worker.setHeldItem(EnumHand.MAIN_HAND, new ItemStack(feed));
         } else {
             support.clearHeldItem(worker);
         }
         worker.doInteractSwing(EnumHand.MAIN_HAND);
 
         StableWork.TameResult r = StableWork.tameStep(world, zone, entry, chest, 0);
-        if (r.fed && horse.getHealth() < horse.getMaxHealth()) horse.heal(2.0F);
+        horse.heal(r.healAmount());
         StableHorseSync.pushEntryOntoHorse(entry, horse, zone.ownerUUID);
         PlayerZoneManager.get(world).markDirty();
         if (entry.tamed) {
@@ -129,7 +131,9 @@ final class StableTaming {
         StableHorseEntry entry = (mount instanceof EntityHorse) ? poolEntry(data, (EntityHorse) mount) : null;
         if (entry != null && !entry.tamed) {
             RealChestSource chest = new RealChestSource(world, zone);
-            StableWork.tameStep(world, zone, entry, chest, TravellersConfig.STABLES.tamingBuckBonusTemper);
+            StableWork.TameResult r = StableWork.tameStep(world, zone, entry, chest,
+                    TravellersConfig.STABLES.tamingBuckBonusTemper);
+            ((EntityHorse) mount).heal(r.healAmount());
             StableHorseSync.pushEntryOntoHorse(entry, (EntityHorse) mount, zone.ownerUUID);
             PlayerZoneManager.get(world).markDirty();
             if (entry.tamed) {

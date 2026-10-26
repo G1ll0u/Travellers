@@ -24,7 +24,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The loaded palfrenier: walks its Stable and <b>does the work</b> - approaches and feeds an untamed
+ * The loaded palfrenier: walks its Stable and <b>does the work</b> - feeds a hurt horse until it is
+ * healed, approaches and feeds an untamed
  * horse, rides it and gets bucked off, fetches a saddle from the chest and puts it on, brings golden
  * carrots to a breeding pair. Each of those actions calls the shared rules in {@link StableWork}
  * against a {@link RealChestSource}, so the effect is real (the entity tames, the chest shrinks, a
@@ -116,7 +117,15 @@ public final class StableHandTask implements WorkerDutyBehavior {
         BlockPos myBed = data.bedByWorker.get(worker.getUniqueID());
         boolean night = CampsiteManager.isNight(ws);
 
-        if (night && myBed != null) {
+        if (myBed == null) {
+            // No bed: social idle only, never labour (the coordinator doesn't count it as a hand).
+            if (worker.sleep.isSleeping()) worker.sleep.wakeUp();
+            if (st.phase != PalfrenierState.Phase.DECIDE) support.abandonChore(ws, worker, st);
+            ambience.tickBreak(ws, worker, zone, st, now);
+            return;
+        }
+
+        if (night) {
             support.dismountIfRidingLoose(worker);
             ambience.tickNight(worker, st, myBed, now);
             return;
@@ -138,6 +147,12 @@ public final class StableHandTask implements WorkerDutyBehavior {
         switch (st.phase) {
             case DECIDE:
                 decide(ws, worker, zone, data, st, now);
+                break;
+            case FETCH_HEAL_FEED:
+                chores.fetchHealFeed(ws, worker, zone, data, st, now);
+                break;
+            case HEAL_HORSE:
+                chores.healHorse(ws, worker, zone, data, st, now);
                 break;
             case FETCH_FEED:
                 chores.fetchFeed(ws, worker, zone, data, st, now);
@@ -227,14 +242,30 @@ public final class StableHandTask implements WorkerDutyBehavior {
         if (now < st.nextDecideTick) return;
 
         Set<UUID> claimed = claimedHorsesByOthers(world, worker);
+        List<BlockPos> chests = zone.getRolePositions(ZoneRoles.CHEST);
+
+        // Healing comes first.
+        RealChestSource chestStock = new RealChestSource(world, zone);
+        if (!chests.isEmpty() && StableWork.healFeed(chestStock, Float.MAX_VALUE) != null) {
+            EntityHorse hurt = support.findNearest(world, zone, worker,
+                    h -> h.isTame() && StableWork.isHurt(h.getHealth(), h.getMaxHealth())
+                            && poolEntry(data, h) != null
+                            && !claimed.contains(h.getUniqueID())
+                            && !support.isAvoided(st, h.getUniqueID(), now));
+            if (hurt != null) {
+                st.targetChest = support.nearestChest(worker, chests);
+                support.startTarget(st, hurt.getUniqueID(), PalfrenierState.Phase.FETCH_HEAL_FEED, now);
+                support.logHand(worker, "healing a horse");
+                return;
+            }
+        }
 
         EntityHorse untamed = support.findNearest(world, zone, worker,
                 h -> !h.isTame() && poolEntry(data, h) != null
                         && !claimed.contains(h.getUniqueID())
                         && !support.isAvoided(st, h.getUniqueID(), now));
-        List<BlockPos> chests = zone.getRolePositions(ZoneRoles.CHEST);
         if (untamed != null) {
-            boolean fetch = !chests.isEmpty() && support.countItem(world, zone, Items.WHEAT) > 0;
+            boolean fetch = !chests.isEmpty() && StableWork.tamingFeed(chestStock) != null;
             support.startTarget(st, untamed.getUniqueID(),
                     fetch ? PalfrenierState.Phase.FETCH_FEED : PalfrenierState.Phase.MOVE_TO_HORSE, now);
             if (fetch) st.targetChest = support.nearestChest(worker, chests);

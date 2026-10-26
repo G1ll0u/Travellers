@@ -1961,6 +1961,10 @@ public class TravellersConfig {
         @Config.Comment("Guard-rail: a Stable's pool can also never exceed its own pen's footprint divided by this many square blocks per horse, whatever the player-wide worker cap would otherwise allow - stops a small pen from packing in dozens of horses. A larger pen naturally allows more.")
         @Config.RangeInt(min = 2, max = 64)
         public int horseCapAreaPerHorse = 8;
+
+        @Config.Comment("A Stable only gives a horse to a worker who comes for one once the horse has at least this much of its health back, in percent.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int minHealthPercentForEquipment = 75;
     }
 
     public static class Elytra {

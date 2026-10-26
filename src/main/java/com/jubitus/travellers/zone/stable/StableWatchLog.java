@@ -2,6 +2,7 @@ package com.jubitus.travellers.zone.stable;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
+import net.minecraft.init.Items;
 import net.minecraft.world.WorldServer;
 
 import java.io.BufferedWriter;
@@ -38,7 +39,7 @@ public final class StableWatchLog {
      * ZONE is a stable-level transition (loaded/unloaded, which scheduler drives the pool, a strayed
      * horse contained); HELD notes a chore a cap deliberately blocked.
      */
-    public enum Kind {TAME, SADDLE, BORN, GROWN, INTAKE, LEAVE, SNAPSHOT, HAND, ZONE, HELD}
+    public enum Kind {TAME, SADDLE, HEAL, BORN, GROWN, INTAKE, LEAVE, SNAPSHOT, HAND, ZONE, HELD}
 
     private static final int RING_SIZE = 400;
     private static final SimpleDateFormat CLOCK = new SimpleDateFormat("HH:mm:ss", Locale.ROOT);
@@ -90,9 +91,10 @@ public final class StableWatchLog {
     /** One-line state of a pool - shared by the snapshot line, {@code /travellersdebug stable list}
      * and the worldmap hover label so they can never disagree. */
     public static String summary(StableZoneData data, boolean loaded, int handsLoaded, int handsVirtual) {
-        int tamed = 0, saddled = 0, foals = 0, live = 0, dormant = 0;
+        int tamed = 0, saddled = 0, foals = 0, hurt = 0, live = 0, dormant = 0;
         for (StableHorseEntry e : data.pool) {
             if (e.tamed) tamed++;
+            if (StableWork.isHurt(e)) hurt++;
             if (e.saddled) saddled++;
             if (e.growingAge < 0) foals++;
             if (e.liveEntityUUID != null) live++;
@@ -100,9 +102,11 @@ public final class StableWatchLog {
         }
         StableChestMirror m = data.chestMirror;
         return String.format(Locale.ROOT,
-                "%s pool=%d (tamed=%d saddled=%d foals=%d live=%d dormant=%d) hands=L%d/V%d chest[wheat=%d saddle=%d gcarrot=%d gapple=%d]",
-                loaded ? "LOADED" : "virtual", data.pool.size(), tamed, saddled, foals, live, dormant,
-                handsLoaded, handsVirtual, m.wheat, m.saddle, m.goldenCarrot, m.goldenApple);
+                "%s pool=%d (tamed=%d saddled=%d foals=%d hurt=%d live=%d dormant=%d) hands=L%d/V%d chest[wheat=%d hay=%d sugar=%d apple=%d saddle=%d gcarrot=%d gapple=%d]",
+                loaded ? "LOADED" : "virtual", data.pool.size(), tamed, saddled, foals, hurt, live, dormant,
+                handsLoaded, handsVirtual, m.available(Items.WHEAT), m.available(StableWork.HAY_BALE),
+                m.available(Items.SUGAR), m.available(Items.APPLE), m.available(Items.SADDLE),
+                m.available(Items.GOLDEN_CARROT), m.available(Items.GOLDEN_APPLE));
     }
 
     public static List<String> tail(UUID zoneId, int n) {

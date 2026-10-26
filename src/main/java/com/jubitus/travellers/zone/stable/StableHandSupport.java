@@ -165,11 +165,10 @@ final class StableHandSupport {
 
     void clearHeldItem(EntityTravellerWorker worker) {
         ItemStack cur = worker.getHeldItemMainhand();
-        if (!cur.isEmpty() && (cur.getItem() == Items.WHEAT || cur.getItem() == Items.SADDLE
-                || cur.getItem() == Items.LEAD || cur.getItem() == Items.GOLDEN_CARROT
-                || cur.getItem() == Items.GOLDEN_APPLE)) {
-            worker.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
-        }
+        if (cur.isEmpty()) return;
+        boolean prop = cur.getItem() == Items.LEAD;
+        for (Item item : StableChestMirror.ITEMS) prop |= cur.getItem() == item;
+        if (prop) worker.setHeldItem(EnumHand.MAIN_HAND, ItemStack.EMPTY);
     }
 
     /** Writes a palfrenier-lifecycle line to {@link StableWatchLog} using the per-tick scratch. */
