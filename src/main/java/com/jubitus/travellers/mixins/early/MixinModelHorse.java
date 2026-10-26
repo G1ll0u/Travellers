@@ -1,4 +1,4 @@
-package com.jubitus.travellers.mixins;
+package com.jubitus.travellers.mixins.early;
 
 import com.jubitus.travellers.mount.client.HorseLod;
 import net.minecraft.client.model.ModelHorse;

@@ -610,3 +610,5 @@ commands.travellers.summonworkers.bowShield=A worker can't carry a bow and a shi
 commands.travellers.summonworkers.badOption=Unknown option: %s
 commands.travellers.summonworkers.badCulture=Unknown culture: %s
 commands.travellers.summonworkers.mountsDisabled=Horse mounts are disabled in the config: no horses will be given.
+
+tile.travellers.village_of_nature.name=The Village of Nature

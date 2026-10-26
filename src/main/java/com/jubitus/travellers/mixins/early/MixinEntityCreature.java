@@ -1,4 +1,4 @@
-package com.jubitus.travellers.mixins;
+package com.jubitus.travellers.mixins.early;
 
 import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;

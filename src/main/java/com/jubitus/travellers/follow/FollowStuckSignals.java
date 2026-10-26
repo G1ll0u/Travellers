@@ -238,6 +238,6 @@ final class FollowStuckSignals {
     }
 
     private boolean canSeeTarget(EntityLivingBase target) {
-        return follower.canEntityBeSeen(target) || target.canEntityBeSeen(follower);
+        return FollowMath.canSeeEachOther(follower, target);
     }
 }

@@ -31,6 +31,10 @@ final class FollowMath {
                 && ((com.jubitus.travellers.unit.EntityTravellerWorker) e).isHiredFollower();
     }
 
+    static boolean canSeeEachOther(net.minecraft.entity.EntityLivingBase a, net.minecraft.entity.EntityLivingBase b) {
+        return a.canEntityBeSeen(b) || b.canEntityBeSeen(a);
+    }
+
     static double lerp(double a, double b, double t) {
         return a + (b - a) * t;
     }

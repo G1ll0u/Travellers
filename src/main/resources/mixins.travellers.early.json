@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "com.jubitus.travellers.mixins",
+  "package": "com.jubitus.travellers.mixins.early",
   "compatibilityLevel": "JAVA_8",
   "refmap": "mixins.travellers.refmap.json",
   "mixins": [

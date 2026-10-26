@@ -1,0 +1,22 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "blocks/planks_oak",
+    "picture": "travellers:blocks/village_of_nature",
+    "frame": "blocks/planks_oak"
+  },
+  "elements": [
+    {
+      "from": [ -16, 0, 15 ],
+      "to": [ 16, 32, 16 ],
+      "faces": {
+        "north": { "uv": [ 0, 0, 16, 16 ], "texture": "#picture" },
+        "south": { "uv": [ 0, 0, 16, 16 ], "texture": "#frame" },
+        "east": { "uv": [ 0, 0, 1, 16 ], "texture": "#frame" },
+        "west": { "uv": [ 0, 0, 1, 16 ], "texture": "#frame" },
+        "up": { "uv": [ 0, 0, 16, 1 ], "texture": "#frame" },
+        "down": { "uv": [ 0, 0, 16, 1 ], "texture": "#frame" }
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-package com.jubitus.travellers.mixins;
+package com.jubitus.travellers.mixins.early;
 
 import com.google.common.base.Optional;
 import com.jubitus.travellers.horse.HorseInteractLock;

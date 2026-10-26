@@ -40,7 +40,7 @@ public final class FollowModeSelector {
         }
 
         if (visibilityCooldown <= 0) {
-            cachedVisible = worker.canEntityBeSeen(target) || target.canEntityBeSeen(worker);
+            cachedVisible = FollowMath.canSeeEachOther(worker, target);
             // Stagger refresh across workers using entity ID to avoid a ray-trace spike every N ticks.
             visibilityCooldown = 8 + Math.abs(worker.getEntityId() % 4);
         } else {

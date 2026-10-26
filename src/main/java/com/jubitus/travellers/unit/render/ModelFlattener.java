@@ -1,6 +1,6 @@
 package com.jubitus.travellers.unit.render;
 
-import com.jubitus.travellers.mixins.MixinModelBoxAccessor;
+import com.jubitus.travellers.mixins.early.MixinModelBoxAccessor;
 import net.minecraft.client.model.ModelBox;
 import net.minecraft.client.model.ModelRenderer;
 import net.minecraft.client.model.PositionTextureVertex;

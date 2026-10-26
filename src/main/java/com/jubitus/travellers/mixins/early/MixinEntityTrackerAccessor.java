@@ -1,4 +1,4 @@
-package com.jubitus.travellers.mixins;
+package com.jubitus.travellers.mixins.early;
 
 import net.minecraft.entity.EntityTracker;
 import net.minecraft.entity.EntityTrackerEntry;
