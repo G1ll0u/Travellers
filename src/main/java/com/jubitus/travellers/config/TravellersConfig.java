@@ -476,6 +476,18 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public float workerMobDamageScale = 0.35f;
 
+        @Config.Comment("How much damage travellers deal to monsters, animals and villagers (1 = normal). Raise it if creatures in your modpack are too tough.")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public float travellerDamageToMobsScale = 1.0f;
+
+        @Config.Comment("How much damage raiders deal to monsters, animals and villagers (1 = normal). Raise it if creatures in your modpack are too tough.")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public float raiderDamageToMobsScale = 1.0f;
+
+        @Config.Comment("How much damage henchmen deal to monsters, animals and villagers (1 = normal). Raise it if creatures in your modpack are too tough.")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public float workerDamageToMobsScale = 1.0f;
+
         @Config.Comment("Multiplier on all damage travellers deal to players.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public float travellerPlayerDamageMultiplier = 1.0f;

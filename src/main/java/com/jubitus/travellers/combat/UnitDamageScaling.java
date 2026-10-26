@@ -10,7 +10,7 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
-/** Configured damage multipliers: units hurt by creatures, players hurt by units. Allied hits are scaled by friendly fire only. */
+/** Configured damage multipliers: units hurt by creatures, players and creatures hurt by units. Allied hits are scaled by friendly fire only. */
 @Mod.EventBusSubscriber(modid = "travellers")
 public final class UnitDamageScaling {
 
@@ -27,9 +27,18 @@ public final class UnitDamageScaling {
         if (event.getEntityLiving() instanceof EntityTraveller) {
             if (src instanceof EntityPlayer || src instanceof EntityTraveller) return;
             event.setAmount(event.getAmount() * mobDamageScale((EntityTraveller) event.getEntityLiving()));
-        } else if (event.getEntityLiving() instanceof EntityPlayer && src instanceof EntityTraveller) {
-            event.setAmount(event.getAmount() * TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier);
+        } else if (src instanceof EntityTraveller) {
+            float scale = event.getEntityLiving() instanceof EntityPlayer
+                    ? TravellersConfig.ATTRIBUTES.travellerPlayerDamageMultiplier
+                    : damageToMobsScale((EntityTraveller) src);
+            event.setAmount(event.getAmount() * scale);
         }
+    }
+
+    private static float damageToMobsScale(EntityTraveller unit) {
+        if (unit instanceof EntityTravellerRaider) return TravellersConfig.ATTRIBUTES.raiderDamageToMobsScale;
+        if (unit instanceof EntityTravellerWorker) return TravellersConfig.ATTRIBUTES.workerDamageToMobsScale;
+        return TravellersConfig.ATTRIBUTES.travellerDamageToMobsScale;
     }
 
     private static float mobDamageScale(EntityTraveller unit) {
