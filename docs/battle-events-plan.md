@@ -1,4 +1,4 @@
-Status: steps 0-5 done; open: battle pawns removed alive (probe `removed-alive` in the log), then wrap-up
+Status: steps 0-5 done; "removed alive" pawns were only the debug reset command (probes removed); wrap-up next
 
 # Battle events: correct battles, one shared visual report
 

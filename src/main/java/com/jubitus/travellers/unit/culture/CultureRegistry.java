@@ -367,8 +367,6 @@ public final class CultureRegistry {
             for (TravellerAppearance app : built) {
                 culture.addTravellerAppearance(app);
             }
-        } else {
-            System.out.println("[Travellers] Skipping travellers appearance for file=" + txt.getName());
         }
 
         // === Add to RAIDER pool if allowed ===
@@ -376,8 +374,6 @@ public final class CultureRegistry {
             for (TravellerAppearance app : built) {
                 culture.addRaiderAppearance(app);
             }
-        } else {
-            System.out.println("[Travellers] Skipping raiders appearance (not whitelisted) file=" + txt.getName());
         }
 
         // === Add to WORKER pool if allowed ===
@@ -385,8 +381,6 @@ public final class CultureRegistry {
             for (TravellerAppearance app : built) {
                 culture.addWorkerAppearance(app);
             }
-        } else {
-            System.out.println("[Travellers] Skipping worker appearance (not whitelisted) file=" + txt.getName());
         }
     }
 
