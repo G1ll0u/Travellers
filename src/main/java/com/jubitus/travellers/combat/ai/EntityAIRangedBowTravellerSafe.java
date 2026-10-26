@@ -311,10 +311,7 @@ public class EntityAIRangedBowTravellerSafe extends EntityAIBase {
         // Fire
         arrow.shoot(shot.dx, shot.dy, shot.dz, ARROW_VEL, inaccuracy);
 
-        // Player-damage scaling (including the owner-specific friendly-fire rate) is applied
-        // uniformly in TravellerFriendlyFireHandler based on whoever the arrow actually hits —
-        // "target" here is only the intended target, which can differ from the real victim
-        // (e.g. the owner standing in the shot line), so scaling it here would silently miss that case.
+        // Damage scaling keys off whoever the arrow really hits (UnitDamageScaling, TravellerFriendlyFireHandler), never this target.
         int powerLevel = net.minecraft.enchantment.EnchantmentHelper.getEnchantmentLevel(
                 net.minecraft.init.Enchantments.POWER, resolveActualBow());
         double desiredFinal = (TravellersConfig.COMBAT.rangedBaseDamage

@@ -3,7 +3,8 @@ package com.jubitus.travellers.mount;
 import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
-import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.combat.TravellerFriendlyFireHandler;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.world.WorldServer;
@@ -50,21 +51,7 @@ public final class MountFriendlyFireGuard {
     }
 
     static boolean isClearlyFriendly(EntityTraveller owner, Entity src) {
-        if (src == owner) return true;
-
-        // Hired worker mount: only fellow workers of the SAME owner get the pass.
-        if (owner instanceof EntityTravellerWorker) {
-            if (!(src instanceof EntityTravellerWorker)) return false;
-            UUID a = ((EntityTravellerWorker) owner).getFollowOwnerId();
-            UUID b = ((EntityTravellerWorker) src).getFollowOwnerId();
-            return a != null && a.equals(b);
-        }
-
-        // Traveller / raider mount: only groupmates (same militia/convoy leader) get the pass.
-        if (src instanceof EntityTraveller) {
-            return owner.isGroupmate((EntityTraveller) src);
-        }
-
-        return false; // players, IMobs, unrelated travellers, anything else: normal damage
+        // The owning player is an ally of its workers, but still deals normal damage to their horses.
+        return src == owner || (!(src instanceof EntityPlayer) && TravellerFriendlyFireHandler.areAllies(owner, src));
     }
 }

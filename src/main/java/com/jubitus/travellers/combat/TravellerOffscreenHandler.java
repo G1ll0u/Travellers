@@ -58,30 +58,4 @@ public class TravellerOffscreenHandler {
         // Full immunity from being damaged while off-screen (for this option)
         event.setCanceled(true);
     }
-
-    @SubscribeEvent
-    public static void onLivingHurt(LivingHurtEvent event) {
-        if (!(event.getEntityLiving() instanceof EntityTraveller)) return;
-
-        EntityTraveller traveller = (EntityTraveller) event.getEntityLiving();
-        if (traveller.world.isRemote) return;
-
-        DamageSource src = event.getSource();
-        Entity trueSrc = src.getTrueSource();
-        boolean isPlayerAttack = trueSrc instanceof EntityPlayer;
-        boolean isTravellerAttack = trueSrc instanceof EntityTraveller;
-        float amount = event.getAmount();
-
-        // 3) Global travellerDamageScale (non-player only)
-        if (!isPlayerAttack && !isTravellerAttack) {
-            float globalScale = TravellersConfig.ATTRIBUTES.travellerDamageScale;
-            if (globalScale != 1.0F) {
-                amount *= globalScale;
-            }
-        }
-
-        event.setAmount(amount);
-    }
-
-
 }

@@ -464,17 +464,22 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 100.0)
         public float attackDamage = 1.0f;
 
-        @Config.Comment("Global damage multiplier for travellers hit by mobs (not players). 0 = immune.")
+        @Config.Comment("How much damage travellers take from monsters and other creatures (1 = normal, 0 = immune). Falls, fire and drowning are not affected.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float travellerDamageScale = 0.35f;
+        public float travellerMobDamageScale = 0.35f;
+
+        @Config.Comment("How much damage raiders take from monsters and other creatures (1 = normal, 0 = immune). Falls, fire and drowning are not affected.")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public float raiderMobDamageScale = 0.35f;
+
+        @Config.Comment("How much damage henchmen take from monsters and other creatures (1 = normal, 0 = immune). Falls, fire and drowning are not affected.")
+        @Config.RangeDouble(min = 0.0, max = 10.0)
+        public float workerMobDamageScale = 0.35f;
 
         @Config.Comment("Multiplier on all damage travellers deal to players.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public float travellerPlayerDamageMultiplier = 1.0f;
 
-        @Config.Comment("Multiplier on damage a hired worker deals to its own owner (melee and arrows), for example when it hits you by accident while fighting the same enemy. Set to 0 so your own workers can never hurt you.")
-        @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float workerOwnerDamageMultiplier = 0.0f;
 
         @Config.Comment("Max health of raider travellers.")
         @Config.RangeDouble(min = 1.0, max = 1000.0)
@@ -654,6 +659,17 @@ public class TravellersConfig {
         @Config.Comment("Multiplier applied to ranged damage.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public float rangedDamageMultiplier = 1.0f;
+
+        @Config.Comment("Arrows and blows between allies (you and your henchmen, henchmen of the same player, members of the same group) pass through them without effect. Turn off to use the two settings below instead.")
+        public boolean friendlyFirePassesThrough = true;
+
+        @Config.Comment("When allied hits do not pass through: how much of its damage an allied arrow or blow deals, in percent.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int friendlyFireDamagePercent = 25;
+
+        @Config.Comment("When allied hits do not pass through: how hard an allied arrow or blow pushes back, in percent.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int friendlyFireKnockbackPercent = 25;
 
         @Config.Comment("If true, traveller weapons lose durability on each hit.")
         public boolean weaponDurabilityEnabled = true;

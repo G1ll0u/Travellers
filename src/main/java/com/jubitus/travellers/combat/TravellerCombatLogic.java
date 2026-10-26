@@ -484,9 +484,7 @@ public class TravellerCombatLogic {
                 target instanceof EntityLivingBase
                         ? ((EntityLivingBase) target).getCreatureAttribute() : null);
 
-        // Player-damage scaling (including the owner-specific friendly-fire rate) is applied
-        // uniformly for melee and arrows in TravellerFriendlyFireHandler, keyed off the entity
-        // actually hit rather than the intended target — see that class for why.
+        // Damage scaling keys off the entity really hit (UnitDamageScaling, TravellerFriendlyFireHandler).
         boolean hit = target.attackEntityFrom(DamageSource.causeMobDamage(entity), damage);
         if (hit) {
             lastStrikeTarget = target;
