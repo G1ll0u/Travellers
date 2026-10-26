@@ -3,10 +3,14 @@ package com.jubitus.travellers.combat;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
+import com.jubitus.travellers.horse.HorseMarkers;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.IEntityOwnable;
+import net.minecraft.entity.passive.AbstractHorse;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -27,22 +31,43 @@ public final class TravellerFriendlyFireHandler {
     private TravellerFriendlyFireHandler() {
     }
 
-    /** A player and their hired workers, hired workers of the same owner, or groupmates of a spawn group. */
+    /**
+     * Same side: a player, their hired workers and pets; hired workers of the same owner; groupmates of a
+     * spawn group; a unit's bonded mount sides with its rider. A player's own hits on an animal stay vanilla.
+     */
     public static boolean areAllies(@Nullable Entity a, @Nullable Entity b) {
         if (a == null || b == null || a == b) return false;
-        UUID sideA = ownerSide(a);
-        if (sideA != null && sideA.equals(ownerSide(b))) return true;
-        if (!(a instanceof EntityTraveller) || !(b instanceof EntityTraveller)) return false;
-        return ((EntityTraveller) a).isGroupmate((EntityTraveller) b);
+        if (a instanceof EntityPlayer && isAnimal(b) || b instanceof EntityPlayer && isAnimal(a)) return false;
+        Entity sideA = rider(a), sideB = rider(b);
+        if (sideA == sideB) return true;
+        UUID ownerA = ownerSide(sideA);
+        if (ownerA != null && ownerA.equals(ownerSide(sideB))) return true;
+        if (!(sideA instanceof EntityTraveller) || !(sideB instanceof EntityTraveller)) return false;
+        return ((EntityTraveller) sideA).isGroupmate((EntityTraveller) sideB);
     }
 
-    // The player's own id, or a hired worker's owner id.
+    private static boolean isAnimal(Entity e) {
+        return !(e instanceof EntityPlayer) && !(e instanceof EntityTraveller);
+    }
+
+    // A bonded mount stands for its rider when the rider is loaded.
+    private static Entity rider(Entity e) {
+        if (!HorseMarkers.isBondedMount(e) || !(e.world instanceof WorldServer)) return e;
+        UUID riderId = HorseMarkers.getBondedOwner(e);
+        Entity rider = riderId != null ? ((WorldServer) e.world).getEntityFromUuid(riderId) : null;
+        return rider != null ? rider : e;
+    }
+
+    // The player's own id, or the owner id of a hired worker, a pet or a tamed horse.
     @Nullable
     private static UUID ownerSide(Entity e) {
         if (e instanceof EntityPlayer) return e.getUniqueID();
-        if (e instanceof EntityTravellerWorker && ((EntityTravellerWorker) e).isHiredFollower()) {
-            return ((EntityTravellerWorker) e).getFollowOwnerId();
+        if (e instanceof EntityTravellerWorker) {
+            EntityTravellerWorker w = (EntityTravellerWorker) e;
+            return w.isHiredFollower() ? w.getFollowOwnerId() : null;
         }
+        if (e instanceof IEntityOwnable) return ((IEntityOwnable) e).getOwnerId();
+        if (e instanceof AbstractHorse) return ((AbstractHorse) e).getOwnerUniqueId();
         return null;
     }
 

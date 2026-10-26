@@ -672,7 +672,7 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 10.0)
         public float rangedDamageMultiplier = 1.0f;
 
-        @Config.Comment("Arrows and blows between allies (you and your henchmen, henchmen of the same player, members of the same group) pass through them without effect. Turn off to use the two settings below instead.")
+        @Config.Comment("Arrows and blows between allies (you and your henchmen, henchmen of the same player, members of the same group, and their pets and horses) pass through them without effect. Your own hits on your pets and horses stay normal. Turn off to use the two settings below instead.")
         public boolean friendlyFirePassesThrough = true;
 
         @Config.Comment("When allied hits do not pass through: how much of its damage an allied arrow or blow deals, in percent.")
@@ -1813,9 +1813,6 @@ public class TravellersConfig {
         @Config.Comment("Biggest total height gain, in blocks, a mounted rider will cut straight across in one go rather than following the route's own steps. Each individual step of the climb is always checked against the horse's own step and jump ability, so this only limits how long a climb one straight line commits to - keep it high and riders charge straight up steep but climbable slopes like a player would, instead of zig-zagging up them in little planner steps.")
         @Config.RangeInt(min = 0, max = 16)
         public int mountedMaxStraightRise = 10;
-
-        @Config.Comment("A bonded horse ignores damage from its rider's own side only: the rider itself, a groupmate traveller/raider, or a hired worker of the same owner. This stops allied arrows from shredding your own horses. Enemies, unrelated travellers and the owning player still deal normal damage.")
-        public boolean mountImmuneToFriendlyDamage = true;
 
         @Config.Comment("A bonded horse takes no damage from cactus, matching its rider's own immunity - without this a horse can die to a hazard its rider was never at risk from.")
         public boolean mountImmuneToCactus = true;

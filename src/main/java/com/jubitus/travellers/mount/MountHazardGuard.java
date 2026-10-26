@@ -15,9 +15,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
  * {@code EntityTraveller.attackEntityFrom}'s own cactus special-case. The rider's own pathing
  * (DANGER_CACTUS/DAMAGE_CACTUS node priority) already steers it away from cactus most of the time,
  * but that path is computed for the rider's own hitbox, not the wider horse under it - a horse can
- * still brush a cactus the rider's path considered clear. Same event-driven pattern as
- * {@link MountFriendlyFireGuard}, deliberately a separate class since the two guards check
- * unrelated conditions (friendliness of the source vs. the damage type itself).
+ * still brush a cactus the rider's path considered clear.
  */
 @Mod.EventBusSubscriber(modid = "travellers")
 public final class MountHazardGuard {

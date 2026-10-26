@@ -1,5 +1,6 @@
 package com.jubitus.travellers.mount;
 
+import com.jubitus.travellers.combat.TravellerFriendlyFireHandler;
 import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -35,7 +36,7 @@ public final class MountDefenseHandler {
         Entity ownerEntity = ownerUUID != null ? ((WorldServer) horse.world).getEntityFromUuid(ownerUUID) : null;
         if (!(ownerEntity instanceof EntityTraveller) || !ownerEntity.isEntityAlive()) return;
         EntityTraveller rider = (EntityTraveller) ownerEntity;
-        if (MountFriendlyFireGuard.isClearlyFriendly(rider, src)) return;
+        if (TravellerFriendlyFireHandler.areAllies(horse, src)) return;
 
         double range = TravellersConfig.MOUNTS.defendMountRange;
         if (rider.getDistanceSq(horse) > range * range) return;
