@@ -141,7 +141,7 @@ public class RaiderAttackTargetAI<T extends EntityLivingBase>
     // Detection uses the combat range, not FOLLOW_RANGE (a pathing setting): a target beyond it would be refused anyway.
     @Override
     protected double getTargetDistance() {
-        return com.jubitus.travellers.config.TravellersConfig.COMBAT.attackTriggerRange;
+        return com.jubitus.travellers.config.TravellersConfig.COMBAT.unitAttackTriggerRange;
     }
 
     // Vanilla scans 4 blocks up/down; candidates must be seen, which already rules out caves.

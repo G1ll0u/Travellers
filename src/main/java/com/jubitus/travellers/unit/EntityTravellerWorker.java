@@ -243,7 +243,8 @@ public class EntityTravellerWorker extends EntityTraveller {
                 10,
                 true,
                 false,
-                e -> com.jubitus.travellers.combat.Hostility.isWorkerEnemy(this, e)
+                e -> com.jubitus.travellers.combat.EngageRange.mayPick(this, e)
+                        && com.jubitus.travellers.combat.Hostility.isWorkerEnemy(this, e)
                         && com.jubitus.travellers.combat.SharedThreatScan.heightAllows(this, e)
         ));
 

@@ -84,8 +84,8 @@ public class TravellersDerivedConfig {
         MinecraftServer srv = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (srv == null) return;
 
-        if (TravellersConfig.COMBAT.rangedMaxDist < TravellersConfig.COMBAT.attackTriggerRange) {
-            TravellersConfig.COMBAT.rangedMaxDist = TravellersConfig.COMBAT.attackTriggerRange;
+        if (TravellersConfig.COMBAT.rangedMaxDist < TravellersConfig.COMBAT.unitAttackTriggerRange) {
+            TravellersConfig.COMBAT.rangedMaxDist = TravellersConfig.COMBAT.unitAttackTriggerRange;
         }
 
         for (World world : srv.worlds) {

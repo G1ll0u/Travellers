@@ -52,7 +52,7 @@ minimal server cost.
    the lock, switch verdict), help calls with allies pulled in, threat scan cost per kind. Trace `combat` events on
    each decision. Steps 3, 5 and 6 add their own reasons (close threat, escort leash, help cooldown) to the same tally.
 1b. **Drop counter** — `done`. "Live targets dropped" by reason in the report and trace.
-2. **Split the ranges and stop silent drops** — `done`. `attackTriggerRange` is the only detection range (target tasks
+2. **Split the ranges and stop silent drops** — `done`. Detection ranges are `EngageRange` (`unitAttackTriggerRange` for units/players/attackers, `mobAttackTriggerRange` for the rest) (target tasks
    no longer use FOLLOW_RANGE, bow +80 % removed, fixed 8-block close pick). Height: a seen enemy up to 32 blocks
    above/below is a target for archers (cliffs, walls), melee keeps 5 blocks, unseen beyond 5 blocks is a cave
    (`SharedThreatScan.heightAllows`); an aiming archer is never "stuck". A refused new

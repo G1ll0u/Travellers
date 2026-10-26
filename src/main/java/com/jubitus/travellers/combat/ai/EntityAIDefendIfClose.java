@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat.ai;
 
+import com.jubitus.travellers.combat.EngageRange;
 import com.jubitus.travellers.combat.Hostility;
 import com.jubitus.travellers.combat.SharedThreatScan;
 import com.jubitus.travellers.config.TravellersConfig;
@@ -194,7 +195,7 @@ public class EntityAIDefendIfClose extends EntityAIBase {
                         "[Travellers/AW2] %s AABB predicate for %s#%s = %b (in scan box)",
                         mob.getName(), e.getName(), e.getUniqueID(), included);
             }
-            if (included) list.add(e);
+            if (included && EngageRange.mayPick(mob, e)) list.add(e);
         }
         if (list.isEmpty()) return false;
 

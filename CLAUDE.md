@@ -109,6 +109,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Can a unit be put down here | `unit/LandingSpots` |
 | Budget an expensive search (A*, route job, scan) | `pathing/PathBudget` |
 | Are two units on opposite sides | `combat/Hostility` |
+| How far a unit may pick / keep a target (units & players vs mobs & villagers) | `combat/EngageRange` |
 | Find a worker by id, loaded or virtual | `unit/WorkerLookup` |
 | Is this gear allowed for a hired worker (its equipment role) | `unit/equipment/TravellerEquipmentManager.fitsRole` |
 | Can this player recruit from this culture / is this unit a recruit candidate | `worker/RecruitCultures` |

@@ -181,14 +181,7 @@ public class TravellerCombatLogic {
             entity.getNavigator().clearPath();
             return;
         }
-        double maxEngage = TravellersConfig.COMBAT.attackTriggerRange;
-        boolean hasBow = entity.hasBowInBackpackPublic()
-                || (!entity.getHeldItemMainhand().isEmpty() && entity.getHeldItemMainhand().getItem() instanceof ItemBow);
-        if (hasBow) {
-            maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.rangedMaxDist * 1.25);
-        }
-        // helpRange is used for assistance chaining
-        maxEngage = Math.max(maxEngage, TravellersConfig.COMBAT.helpRange);
+        double maxEngage = EngageRange.dropLimit(entity, tgt);
         if (entity.getDistanceSq(tgt) > maxEngage * maxEngage) {
             noteDrop("too far");
             entity.setAttackTarget(null);
@@ -243,7 +236,7 @@ public class TravellerCombatLogic {
         if (entity.getAttackTarget() != null) return;
         EntityLivingBase rev = entity.getRevengeTarget();
         if (rev != null && rev.isEntityAlive() && !entity.isIgnoring(rev)) {
-            double r = TravellersConfig.COMBAT.attackTriggerRange;
+            double r = EngageRange.limit(entity, rev);
             if (entity.getDistanceSq(rev) <= r * r) {
                 entity.trySetAttackTargetLimited(rev);
             }
@@ -698,7 +691,7 @@ public class TravellerCombatLogic {
             }
         }
         if (!entity.world.isRemote && target != null) {
-            double r = TravellersConfig.COMBAT.attackTriggerRange;
+            double r = EngageRange.limit(entity, target);
             double d2 = entity.getDistanceSq(target);
 
             if (d2 > r * r) {

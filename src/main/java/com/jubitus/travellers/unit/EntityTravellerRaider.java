@@ -83,7 +83,7 @@ public class EntityTravellerRaider extends EntityTraveller {
         // 2) Defend allies / villagers if something is close enough
         this.targetTasks.addTask(
                 2,
-                new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.attackTriggerRange, true)
+                new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.unitAttackTriggerRange, true)
                         .setAssistRadius(TravellersConfig.COMBAT.helpRange)
         );
 
@@ -102,6 +102,7 @@ public class EntityTravellerRaider extends EntityTraveller {
                                 && e.isEntityAlive()
                                 && !e.isInvisible()
                                 && !this.isIgnoring(e)
+                                && com.jubitus.travellers.combat.EngageRange.mayPick(this, e)
                                 && com.jubitus.travellers.combat.SharedThreatScan.heightAllows(this, e)
                                 && (
                                         (e instanceof EntityPlayer

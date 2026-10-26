@@ -892,7 +892,7 @@ public class EntityTraveller extends EntityCreature {
                 this, 1.0F, 1.0F);
         this.tasks.addTask(5, aiFollowGroupLeader);
 
-        aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.attackTriggerRange, true);
+        aiDefendIfClose = new EntityAIDefendIfClose(this, TravellersConfig.COMBAT.unitAttackTriggerRange, true);
 
         this.targetTasks.addTask(1, aiDefendIfClose);
 

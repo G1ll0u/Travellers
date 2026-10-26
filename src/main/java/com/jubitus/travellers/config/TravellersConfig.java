@@ -559,9 +559,13 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.1, max = 1.0)
         public float eatHealthThreshold = 0.7f;
 
-        @Config.Comment("Max range (blocks) travellers will attack a hostile mob.")
+        @Config.Comment("How far away units notice and attack enemy units and players.")
         @Config.RangeInt(min = 1, max = 200)
-        public int attackTriggerRange = 24;
+        public int unitAttackTriggerRange = 128;
+
+        @Config.Comment("How far away units attack monsters, villagers and other creatures; a monster is only attacked once it is close enough to notice them, unless it attacks first.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int mobAttackTriggerRange = 32;
 
         @Config.Comment("Health fraction below which entities enter defensive mode.")
         @Config.RangeDouble(min = 0.05, max = 0.50)
@@ -579,7 +583,7 @@ public class TravellersConfig {
         @Config.RangeInt(min = 2, max = 16)
         public int lowHealthEngageRadius = 5;
 
-        @Config.Comment("Ticks a traveller keeps chasing an attack target after losing sight/proximity of it, before giving up (unless it dies or leaves attackTriggerRange first).")
+        @Config.Comment("Ticks a traveller keeps chasing an attack target after losing sight/proximity of it, before giving up (unless it dies or gets out of range first).")
         @Config.RangeInt(min = 0, max = 400)
         public int losMemoryTicks = 60;
 
