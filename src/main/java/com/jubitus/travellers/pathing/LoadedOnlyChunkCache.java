@@ -12,6 +12,9 @@ import net.minecraft.world.chunk.Chunk;
  */
 final class LoadedOnlyChunkCache extends ChunkCache {
 
+    // INVARIANT: missing chunks share one blank chunk; building a Chunk is costly (entity lists) and a search may need dozens.
+    private static Chunk blank;
+
     /** {@code home} is the searcher's own position: the only chunk vanilla's constructor touches, loaded since it ticks. */
     LoadedOnlyChunkCache(WorldServer world, BlockPos home, BlockPos from, BlockPos to) {
         super(world, home, home, 0);
@@ -24,10 +27,15 @@ final class LoadedOnlyChunkCache extends ChunkCache {
         for (int x = chunkX; x <= maxX; x++) {
             for (int z = chunkZ; z <= maxZ; z++) {
                 Chunk c = LoadedChunks.peek(world, x, z);
-                if (c == null) c = new Chunk(world, x, z);
+                if (c == null) c = blank(world);
                 else if (!c.isEmptyBetween(from.getY(), to.getY())) this.empty = false;
                 this.chunkArray[x - chunkX][z - chunkZ] = c;
             }
         }
+    }
+
+    private static Chunk blank(WorldServer world) {
+        if (blank == null || blank.getWorld() != world) blank = new Chunk(world, 0, 0);
+        return blank;
     }
 }

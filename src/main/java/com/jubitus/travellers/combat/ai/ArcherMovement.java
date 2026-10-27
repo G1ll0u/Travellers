@@ -1,5 +1,6 @@
 package com.jubitus.travellers.combat.ai;
 
+import com.jubitus.travellers.pathing.PathBudget;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -208,6 +209,7 @@ final class ArcherMovement {
             repathCooldown--;
             return;
         }
+        if (!PathBudget.tryAcquire(mob.world, PathBudget.Client.COMBAT, mob.getEntityId(), 1)) return;
         repathCooldown = REPATH_INTERVAL_TICKS;
 
         double speed = APPROACH_SPEED * TravellersConfig.COMBAT.rangedNoLosSpeedMultiplier;

@@ -31,7 +31,7 @@ import zipfile
 from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parents[2]
-SOURCE = "user@192.168.1.88:/home/user/server_grandevadrouille_2026/"
+SOURCE = "user@192.168.1.149:/home/user/server_grandevadrouille_2026/"
 SERVER = Path("/home/user/Desktop/LGV2026_autotest")
 STATE = SERVER / ".autotest"
 SNAPSHOT = STATE / "snapshot.zip"

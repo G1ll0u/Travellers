@@ -669,17 +669,14 @@ public class EntityAIFollowLeader extends EntityAIBase {
         // (no-op unless leading the horse on foot - see MountedLeadController).
         moveSpeed *= MountedLeadController.ledRiderPaceMultiplier(follower);
 
-        // Prefer cheap direct steering over a full A* search - most of the time a follower's slot
-        // is reachable in a straight line (open ground, or a gap it can now jump), and steering
-        // already handles both at a fraction of pathfinding's cost. Only escalate to a real path
-        // once steering has reported being stuck for several ticks in a row (steeringBlockedTicks,
-        // raised by applyNonPathSteering itself when its own obstacle-deflection and
-        // shared-corridor fallback both fail) - a single bad tick doesn't trigger it, so the two
-        // modes don't flip-flop. A follower already on a real path (noPath() false) skips this and
-        // falls through to the existing cooldown/reuse logic below instead, so a path already in
-        // progress is followed through to completion - crossing whatever obstacle needed it in
-        // the first place never stops or stutters mid-way.
-        if (noPath && steering.direct.steeringBlockedTicks < TravellersConfig.WORKER_FORMATION.steeringStuckTicksBeforePathfind) {
+        // Steering first: A* only once steering has been blocked steeringStuckTicksBeforePathfind ticks in a row.
+        // A path whose goal has drifted is dropped for steering when it would be redone, rather than re-searched.
+        boolean steeringFresh = steering.direct.steeringBlockedTicks < TravellersConfig.WORKER_FORMATION.steeringStuckTicksBeforePathfind;
+        if (steeringFresh && !noPath && !canReusePath && paths.repathCooldown <= 0) {
+            follower.getNavigator().clearPath();
+            noPath = true;
+        }
+        if (noPath && steeringFresh) {
             steering.applyNonPathSteering(goal, target, moveSpeed, airborneLeader, mode);
             follower.setSprinting(false);
             return;

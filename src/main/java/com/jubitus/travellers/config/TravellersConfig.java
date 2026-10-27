@@ -1030,9 +1030,9 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 20)
         public int steeringDeflectionRecheckIntervalTicks = 4;
 
-        @Config.Comment("A worker prefers cheap direct steering toward its formation spot over full pathfinding. It only requests a real path after being stuck (blocked, no way around) for this many ticks in a row - avoids paying for pathfinding on open ground where steering already works fine. Once a real path is found, it is followed until finished before going back to steering.")
+        @Config.Comment("How long a follower keeps walking straight at an obstacle before searching for a way around it. Higher is lighter on the server but looks more hesitant.")
         @Config.RangeInt(min = 1, max = 40)
-        public int steeringStuckTicksBeforePathfind = 4;
+        public int steeringStuckTicksBeforePathfind = 20;
 
         @Config.Comment("Let a worker blocked by an obstacle follow a path a nearby groupmate just found, instead of finding its own.")
         public boolean sharedRouteCorridorEnabled = true;
@@ -1069,7 +1069,7 @@ public class TravellersConfig {
 
         @Config.Comment("Max number of real pathfinding requests allowed across all owners in a single tick.")
         @Config.RangeInt(min = 10, max = 2000)
-        public int pathSchedulerGlobalMaxPathsPerTick = 160;
+        public int pathSchedulerGlobalMaxPathsPerTick = 16;
 
         @Config.Comment("Extra, much smaller limit on top of the one above, just for horseback followers finding a real route. A mounted route search costs far more than a walking one, so a server with many riders needs a tighter ceiling on how many of those run in a single tick, even while plenty of budget remains for walking followers.")
         @Config.RangeInt(min = 5, max = 500)
