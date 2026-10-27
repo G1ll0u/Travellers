@@ -41,7 +41,7 @@ public class EntityAIAttackMeleeCustom extends EntityAIAttackMelee {
     private static final int REPATH_MAX_AGE_TICKS = 20;
 
     // Steered fighters walk straight at the target; a real path is a rare fallback after being blocked this long.
-    private static final int STEER_BLOCKED_TICKS_BEFORE_PATH = 10;
+    private static final int STEER_BLOCKED_TICKS_BEFORE_PATH = 20;
     private static final int STEER_PATH_RETRY_BACKOFF_TICKS = 40;
     private static final int CHASE_PATH_MAX_AGE_TICKS = 60;
     private static final double CHASE_PATH_TARGET_MOVED_SQ = 4.0D * 4.0D;

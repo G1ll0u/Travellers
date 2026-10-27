@@ -314,6 +314,14 @@ final class ProfileReport {
             sb.append("    ").append(pad(e.getKey(), 40)).append(pad(String.valueOf(e.getValue()), 9))
                     .append(pct(e.getValue(), Math.max(1L, drops))).append('\n');
         }
+        if (!s.tooFarDrops.isEmpty()) {
+            sb.append("  too far, by who gave the target\n");
+            List<Map.Entry<String, Long>> far = new ArrayList<>(s.tooFarDrops.entrySet());
+            far.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+            for (Map.Entry<String, Long> e : far) {
+                sb.append("    ").append(pad(e.getKey(), 90)).append(e.getValue()).append('\n');
+            }
+        }
         if (!s.foreignTargetTasks.isEmpty()) {
             sb.append("  target tasks injected by other mods, removed\n");
             for (Map.Entry<String, Long> e : s.foreignTargetTasks.entrySet()) {
@@ -385,18 +393,26 @@ final class ProfileReport {
         sb.append("  average ").append(f2(s.pathTotalNanos / 1e6 / ticks)).append(" ms per tick")
                 .append(" | worst single tick ").append(f1(s.pathMaxTickNanos / 1e6)).append(" ms")
                 .append(" | ticks with a search ").append(pct(s.pathTicksWithSearch, ticks)).append('\n');
-        sb.append("  ").append(pad("movement AI / mount", 44)).append(pad("count", 9)).append(pad("avg ms", 8))
+        sb.append("  ").append(pad("caller < its caller / mount", 96)).append(pad("count", 9)).append(pad("avg ms", 8))
                 .append(pad("max ms", 8)).append(pad(">5ms", 7)).append(pad(">20ms", 7))
                 .append(pad("no path", 9)).append("partial\n");
         List<Map.Entry<String, ProfileSession.PathStat>> rows = new ArrayList<>(s.paths.entrySet());
         rows.sort((a, b) -> Long.compare(b.getValue().nanos, a.getValue().nanos));
         for (Map.Entry<String, ProfileSession.PathStat> e : rows) {
             ProfileSession.PathStat p = e.getValue();
-            sb.append("  ").append(pad(e.getKey(), 44)).append(pad(String.valueOf(p.count), 9))
+            sb.append("  ").append(pad(e.getKey(), 96)).append(pad(String.valueOf(p.count), 9))
                     .append(pad(f2(p.nanos / 1e6 / Math.max(1, p.count)), 8))
                     .append(pad(f1(p.maxNanos / 1e6), 8))
                     .append(pad(String.valueOf(p.over5ms), 7)).append(pad(String.valueOf(p.over20ms), 7))
                     .append(pad(pct(p.nulls, p.count), 9)).append(pct(p.partials, p.count)).append('\n');
+        }
+        if (!s.searchesAvoided.isEmpty()) {
+            sb.append("  searches avoided by going direct\n");
+            List<Map.Entry<String, Long>> avoided = new ArrayList<>(s.searchesAvoided.entrySet());
+            avoided.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+            for (Map.Entry<String, Long> e : avoided) {
+                sb.append("  ").append(pad(e.getKey(), 96)).append(e.getValue()).append('\n');
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 package com.jubitus.travellers.combat.ai;
 
-import com.jubitus.travellers.pathing.PathBudget;
+import com.jubitus.travellers.debug.profile.MovementProfiler;
+import com.jubitus.travellers.pathing.TravellerNavigateGround;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.follow.formations.WorkerAttitude;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -16,7 +17,8 @@ import javax.annotation.Nullable;
 final class ArcherMovement {
 
     private static final double APPROACH_SPEED = 0.34D; // base speed when relocating for LOS
-    private static final int REPATH_INTERVAL_TICKS = 10; // throttle blind-repositioning pathfinding calls
+    private static final int REPATH_INTERVAL_TICKS = 10; // how often a blind archer re-picks where to go
+    private static final double DIRECT_LEG_BLOCKS = 8.0D;
     // --- HOLD attitude: near-frozen archer, only a small last-resort sidestep to clear a shot ---
     private static final float HOLD_SIDESTEP_DAMPEN = 0.4f;
     // Strafing knobs
@@ -34,6 +36,8 @@ final class ArcherMovement {
     private int strafeTicks = 0;   // time left for current strafe direction
     private int backstepTicker = 0;
     private int repathCooldown = 0;
+    private double aimX;
+    private double aimZ;
 
     ArcherMovement(EntityTraveller mob, BowShotLine shotLine, double minDist, double maxDist) {
         this.mob = mob;
@@ -199,39 +203,36 @@ final class ArcherMovement {
 
     /**
      * Reposition toward the target while blind, faster than the normal aiming pace, without ever
-     * lowering the bow. Repathing is throttled (rather than reissued every tick) since a blind
-     * archer's target point barely changes tick to tick and pathfinding isn't free at 100+ scale.
+     * lowering the bow. Straight steering, never A*: the aim point (the target, or a peek spot beside
+     * it) is re-picked every {@link #REPATH_INTERVAL_TICKS}; a refused corridor leaves the archer in
+     * place until the next pick, and a target it never gets a shot at is dropped by the no-shot timer.
      */
     void repositionForLOS(EntityLivingBase tgt, double d) {
         mob.setSprinting(false);
-
-        if (repathCooldown > 0) {
-            repathCooldown--;
-            return;
+        if (repathCooldown-- <= 0) {
+            repathCooldown = REPATH_INTERVAL_TICKS;
+            MovementProfiler.searchAvoided(mob);
+            if (d > maxDist * 0.9) {
+                aimX = tgt.posX;
+                aimZ = tgt.posZ;
+            } else {
+                // Peek to a side of the target rather than walking straight into it.
+                double side = (mob.getRNG().nextBoolean() ? +1 : -1);
+                double ox = tgt.posX - mob.posX;
+                double oz = tgt.posZ - mob.posZ;
+                double len = Math.sqrt(ox * ox + oz * oz);
+                if (len > 1e-4) {
+                    ox /= len;
+                    oz /= len;
+                }
+                aimX = tgt.posX + (-oz * 1.5 * side);
+                aimZ = tgt.posZ + (ox * 1.5 * side);
+            }
         }
-        if (!PathBudget.tryAcquire(mob.world, PathBudget.Client.COMBAT, mob.getEntityId(), 1)) return;
-        repathCooldown = REPATH_INTERVAL_TICKS;
-
-        double speed = APPROACH_SPEED * TravellersConfig.COMBAT.rangedNoLosSpeedMultiplier;
-
-        if (d > maxDist * 0.9) {
-            mob.getNavigator().tryMoveToEntityLiving(tgt, speed);
-            return;
+        if (mob.getNavigator() instanceof TravellerNavigateGround) {
+            ((TravellerNavigateGround) mob.getNavigator()).steerDirectLegCapped(aimX, aimZ, DIRECT_LEG_BLOCKS,
+                    APPROACH_SPEED * TravellersConfig.COMBAT.rangedNoLosSpeedMultiplier);
         }
-
-        // Peek to a side of the target rather than walking straight into it.
-        double side = (mob.getRNG().nextBoolean() ? +1 : -1);
-        double ox = tgt.posX - mob.posX;
-        double oz = tgt.posZ - mob.posZ;
-        double len = Math.sqrt(ox * ox + oz * oz);
-        if (len > 1e-4) {
-            ox /= len;
-            oz /= len;
-        }
-        double px = tgt.posX + (-oz * 1.5 * side);
-        double pz = tgt.posZ + (ox * 1.5 * side);
-        BlockPos peek = new BlockPos(px, tgt.posY, pz);
-        mob.getNavigator().tryMoveToXYZ(peek.getX() + 0.5D, peek.getY(), peek.getZ() + 0.5D, speed);
     }
 
     private float rotlerp(float current, float target, float maxStep) {

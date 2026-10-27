@@ -213,6 +213,7 @@ final class ProfileSession {
     }
 
     final Map<String, Long> targetDrops = new TreeMap<>();
+    final Map<String, Long> tooFarDrops = new TreeMap<>();
     final Map<String, Long> foreignTargetTasks = new TreeMap<>();
 
     void foreignTargetTask(String className) {
@@ -285,6 +286,7 @@ final class ProfileSession {
     private long lastFollowCapTick = -1;
 
     final Map<String, PathStat> paths = new TreeMap<>();
+    final Map<String, Long> searchesAvoided = new TreeMap<>();
     private long pathTick = -1;
     private long pathTickNanos;
     long pathMaxTickNanos;
@@ -614,10 +616,8 @@ final class ProfileSession {
 
     void pathSearch(EntityLivingBase e, long nanos, @Nullable Path path, double tx, double ty, double tz,
                     boolean probe, long now) {
-        EntityState st = states.get(e.getUniqueID());
-        String ai = st == null ? "unknown" : st.ai;
         boolean mounted = e instanceof EntityTraveller && ((EntityTraveller) e).isMountedOnBondedMount();
-        String key = ai + " / " + (mounted ? "mounted" : "on foot") + (probe ? " / reachability probe" : "");
+        String key = searchCaller() + " / " + (mounted ? "mounted" : "on foot") + (probe ? " / probe" : "");
         PathStat ps = paths.computeIfAbsent(key, k -> new PathStat());
         ps.count++;
         ps.nanos += nanos;
@@ -642,6 +642,28 @@ final class ProfileSession {
         }
         pathTickNanos += nanos;
         if (pathTickNanos > pathMaxTickNanos) pathMaxTickNanos = pathTickNanos;
+    }
+
+    void searchAvoided(EntityLivingBase e) {
+        boolean mounted = e instanceof EntityTraveller && ((EntityTraveller) e).isMountedOnBondedMount();
+        searchesAvoided.merge(searchCaller() + " / " + (mounted ? "mounted" : "on foot"), 1L, Long::sum);
+    }
+
+    /** The two innermost frames outside the navigator and this profiler: who really asked for the search. */
+    private static String searchCaller() {
+        StringBuilder sb = new StringBuilder();
+        int found = 0;
+        for (StackTraceElement f : new Throwable().getStackTrace()) {
+            String c = f.getClassName();
+            if (c.startsWith("com.jubitus.travellers.pathing.") || c.startsWith("com.jubitus.travellers.debug.")
+                    || c.startsWith("net.minecraft.pathfinding.") || c.startsWith("java.")) {
+                continue;
+            }
+            if (found++ > 0) sb.append(" < ");
+            sb.append(c.substring(c.lastIndexOf('.') + 1)).append('.').append(f.getMethodName());
+            if (found == 2) break;
+        }
+        return found == 0 ? "unknown" : sb.toString();
     }
 
     void materialized(UUID id, boolean ok, long now) {

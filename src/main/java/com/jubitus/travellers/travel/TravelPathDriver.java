@@ -44,6 +44,11 @@ final class TravelPathDriver {
             return;
         }
         if (ai.currentWaypoint == null) return;
+        if (!force && tryDirect()) {
+            com.jubitus.travellers.debug.profile.MovementProfiler.searchAvoided(mob);
+            clearNav();
+            return;
+        }
         // --- NEW: throttle travel path computations (avoid stop-go by NOT clearing path if denied) ---
         if (!canComputeTravelPath(force)) return;
 
@@ -261,6 +266,51 @@ final class TravelPathDriver {
                     mob.posX, mob.posY, mob.posZ, ok ? "OK" : "FAILED (noPath)");
         }
         return ok;
+    }
+
+    /** Ticks direct travel stays off after a refused corridor, so the planner's route actually gets
+     * walked instead of being recomputed and discarded at every clear/blocked boundary. */
+    private static final int DIRECT_RETRY_TICKS = 20;
+
+    private int directRetryAt;
+    private BlockPos lastDirectWaypoint;
+
+    /**
+     * How every unit normally travels, on foot or mounted: straight at the waypoint, one proven stretch
+     * at a time. The aim point rolls ahead by {@code MOUNTS.mountedDirectLegBlocks} along the bearing to
+     * the waypoint and {@link TravellerNavigateGround#steerDirect} proves that stretch with the planner's
+     * footprint corridor; anything it can't take (a ledge, a closed door, a tree line, deep water)
+     * refuses it and hands travel to A*. A refusal backs off for {@link #DIRECT_RETRY_TICKS} so the
+     * planner's route is walked, not thrashed. The aim point is quantized to block centres so the
+     * cached corridor verdict holds between ticks.
+     */
+    boolean tryDirect() {
+        if (mob.world.isRemote || ai.currentWaypoint == null || ai.isInBoat()) return false;
+        // A refusal only speaks for the leg it refused: a new waypoint is a new bearing.
+        if (!ai.currentWaypoint.equals(lastDirectWaypoint)) {
+            lastDirectWaypoint = ai.currentWaypoint;
+            directRetryAt = 0;
+        }
+        if (mob.ticksExisted < directRetryAt) return false;
+        if (!(mob.getNavigator() instanceof TravellerNavigateGround)) return false;
+
+        double dx = ai.currentWaypoint.getX() + 0.5D - mob.posX;
+        double dz = ai.currentWaypoint.getZ() + 0.5D - mob.posZ;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 2.0D) return false;
+
+        double leg = Math.min(dist, TravellersConfig.MOUNTS.mountedDirectLegBlocks);
+        double ax = Math.floor(mob.posX + dx / dist * leg) + 0.5D;
+        double az = Math.floor(mob.posZ + dz / dist * leg) + 0.5D;
+
+        TravellerNavigateGround nav = (TravellerNavigateGround) mob.getNavigator();
+        if (!nav.steerDirect(ax, az, ai.getActiveSpeed())) {
+            directRetryAt = mob.ticksExisted + DIRECT_RETRY_TICKS;
+            return false;
+        }
+        // Going straight IS the route working: the planner's failure streak must not survive it.
+        ai.mounts.unusableRouteStreak = 0;
+        return true;
     }
 
     void pushPathToWaypoint() {

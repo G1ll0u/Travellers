@@ -93,66 +93,6 @@ final class TravelMountPolicy {
     /** This task put the rider in a terrain LED that is still armed; undone when the task stops. */
     private boolean terrainLedByThisTask;
 
-    /** Ticks direct riding stays off after a refused corridor, so the planner's route actually gets
-     * walked instead of being recomputed and discarded at every clear/blocked boundary. */
-    private static final int DIRECT_RIDE_RETRY_TICKS = 20;
-
-    private int directRideRetryAt;
-    private BlockPos lastDirectRideWaypoint;
-
-    /**
-     * How a mounted traveller normally travels: straight at the waypoint, the way a player rides -
-     * committing to one proven stretch of ground at a time rather than a planned route. The aim
-     * point rolls ahead of the horse by {@code MOUNTS.mountedDirectLegBlocks} along the bearing to
-     * the waypoint, and {@link TravellerNavigateGround#steerDirect} proves that stretch with the
-     * same footprint corridor the planner uses (terrain-following, ford-depth water, full-body
-     * sweep) before committing, re-proving as the horse advances. Slopes ride as slopes - up to the
-     * corridor's total-rise budget per stretch, any rideable descent - and anything the stretch
-     * can't take (a 2-block ledge, a tree line, deep water) refuses the corridor and hands travel
-     * to the A* planner, whose own hop candidates and the reactive jump take over. A refusal backs
-     * off for {@link #DIRECT_RIDE_RETRY_TICKS} so the planner's route is walked, not thrashed.
-     *
-     * <p>This is deliberately first, not a no-path fallback: over open or mountainous ground the
-     * planner's partial best-effort routes each end somewhere slightly different, and walking one
-     * after another reads as looping and zigzagging. The straight line needs no route at all.
-     *
-     * <p>The aim point is quantized to block centres so {@code steerDirect}'s cached corridor
-     * verdict holds between ticks instead of re-proving on every fraction of drift.
-     */
-    boolean tryMountedDirectRide() {
-        if (!mob.isMountedOnBondedMount()) return false;
-        if (ai.currentWaypoint == null || ai.isInBoat()) return false;
-        // A refusal only speaks for the leg it refused - a new waypoint is a new bearing, so the
-        // backoff doesn't carry over. Without this, the rider goes planner-mode for up to a second
-        // after every waypoint switch near whatever refused the previous leg, which read as a
-        // hesitation or a little loop at each waypoint.
-        if (!ai.currentWaypoint.equals(lastDirectRideWaypoint)) {
-            lastDirectRideWaypoint = ai.currentWaypoint;
-            directRideRetryAt = 0;
-        }
-        if (mob.ticksExisted < directRideRetryAt) return false;
-        if (!(mob.getNavigator() instanceof TravellerNavigateGround)) return false;
-
-        double dx = ai.currentWaypoint.getX() + 0.5D - mob.posX;
-        double dz = ai.currentWaypoint.getZ() + 0.5D - mob.posZ;
-        double dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < 2.0D) return false;
-
-        double leg = Math.min(dist, TravellersConfig.MOUNTS.mountedDirectLegBlocks);
-        double ax = Math.floor(mob.posX + dx / dist * leg) + 0.5D;
-        double az = Math.floor(mob.posZ + dz / dist * leg) + 0.5D;
-
-        TravellerNavigateGround nav = (TravellerNavigateGround) mob.getNavigator();
-        if (!nav.steerDirect(ax, az, ai.getActiveSpeed())) {
-            directRideRetryAt = mob.ticksExisted + DIRECT_RIDE_RETRY_TICKS;
-            return false;
-        }
-        // Riding straight IS the route working - the planner's failure streak must not survive it,
-        // or a rough patch minutes ago still counts toward a dismount here.
-        unusableRouteStreak = 0;
-        return true;
-    }
-
     /** Never leave a rider on foot because of terrain this task is no longer routing through. */
     void onTaskStop() {
         // Only the terrain LED this task chose itself; a sidestep give-up, water or melee LED is not ours to undo.

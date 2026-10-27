@@ -135,6 +135,12 @@ public final class MovementProfiler {
         session.pathSearch(e, nanos, path, tx, ty, tz, probe, now());
     }
 
+    /** A path request answered by direct steering instead of an A* search. */
+    public static void searchAvoided(EntityLivingBase e) {
+        if (session == null || e.world.isRemote) return;
+        session.searchAvoided(e);
+    }
+
     public static void raidScan(int inBox, int preferred, int rays, boolean found, long nanos) {
         if (session == null) return;
         session.raidScan(inBox, preferred, rays, found, nanos);
@@ -150,6 +156,12 @@ public final class MovementProfiler {
     public static void targetDrop(String reason) {
         if (session == null) return;
         session.targetDrop(reason);
+    }
+
+    /** A target dropped as too far, keyed by who gave it and whether it was already beyond the limit then. */
+    public static void tooFarDrop(String adoptedBy) {
+        if (session == null) return;
+        session.tooFarDrops.merge(adoptedBy, 1L, Long::sum);
     }
 
     /** A target task another mod injected into one of our units, removed by ForeignTargetTaskScrubber. */

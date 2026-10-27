@@ -85,10 +85,9 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return travellerFinder;
     }
 
-    // Our own search target and repath clock: vanilla's are private and only its own search sets them.
+    // Our own search target: vanilla's is private and only its own search sets it.
     @Nullable
     private BlockPos searchTarget;
-    private long lastRepathTick;
 
     @Nullable
     @Override
@@ -102,18 +101,9 @@ public class TravellerNavigateGround extends PathNavigateGround {
         return timedPathToPos(new BlockPos(target), false); // as PathNavigateGround does
     }
 
+    // INVARIANT: a block change never triggers a search; steering and the stuck rescue deal with it on arrival.
     @Override
     public void updatePath() {
-        if (this.world.getTotalWorldTime() - lastRepathTick > 20L) {
-            if (searchTarget != null) {
-                this.currentPath = null;
-                this.currentPath = getPathToPos(searchTarget);
-                lastRepathTick = this.world.getTotalWorldTime();
-                this.tryUpdatePath = false;
-            }
-        } else {
-            this.tryUpdatePath = true;
-        }
     }
 
     @Nullable

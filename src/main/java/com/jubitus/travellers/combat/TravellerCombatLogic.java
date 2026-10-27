@@ -184,6 +184,7 @@ public class TravellerCombatLogic {
         double maxEngage = EngageRange.dropLimit(entity, tgt);
         if (entity.getDistanceSq(tgt) > maxEngage * maxEngage) {
             noteDrop("too far");
+            com.jubitus.travellers.debug.profile.MovementProfiler.tooFarDrop(adoptedBy);
             entity.setAttackTarget(null);
             entity.setInCombat(false);
             if (entity.isAimingBow()) {
@@ -844,6 +845,11 @@ public class TravellerCombatLogic {
                 if (target != null) {
                     reactionUntilTick = entity.ticksExisted + REACTION_MIN_TICKS + entity.getRNG().nextInt(REACTION_SPREAD_TICKS);
                     recordTargetChange(verdict == null ? "adopted" : verdict.name().toLowerCase(java.util.Locale.ROOT), prev, target);
+                    if (com.jubitus.travellers.debug.profile.MovementProfiler.isActive()) {
+                        double lim = EngageRange.dropLimit(entity, target);
+                        adoptedBy = dropCaller() + (entity.getDistanceSq(target) > lim * lim
+                                ? " / already beyond at adoption" : " / moved out later");
+                    }
                 }
             }
             if (target != null) entity.setInCombat(true);
@@ -897,6 +903,9 @@ public class TravellerCombatLogic {
         s.archer = entity.hasBowAnywherePublic();
         return TargetLockPolicy.decide(s);
     }
+
+    // Profiling only: who gave the current target, and whether it was already past the drop limit then.
+    private String adoptedBy = "?";
 
     /** Names why the live target is about to be dropped; the first reason wins until the next observation. */
     public void noteDrop(String reason) {

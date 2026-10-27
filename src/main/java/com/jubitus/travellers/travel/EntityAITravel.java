@@ -400,28 +400,25 @@ public class EntityAITravel extends EntityAIBase {
             paths.pushPathToWaypoint();
         }
 
-        // A mounted traveller rides straight at the waypoint whenever the ground ahead takes it
-        // (see tryMountedDirectRide) - the planner below is the fallback for ground that doesn't,
-        // not the normal mode. While riding direct there is no path to advance, so the path-stall
-        // counter must not accumulate into the stuck ladder; real stalls are still caught by
-        // noMoveTicks, which watches actual displacement.
-        boolean ridingDirect = !mob.world.isRemote && mounts.tryMountedDirectRide();
+        // Every unit goes straight at the waypoint whenever the ground ahead takes it (see
+        // TravelPathDriver.tryDirect); A* is the fallback. Going direct there is no path to advance, so
+        // the path-stall counter must not accumulate; real stalls are still caught by noMoveTicks.
+        boolean ridingDirect = paths.tryDirect();
         if (ridingDirect) {
             if (!mob.getNavigator().noPath()) paths.clearNav();
             paths.pathNoAdvanceTicks = 0;
         }
 
-        // Periodic refresh of pathing toward waypoint. A mounted rider that is neither riding
-        // direct nor holding a path is standing completely unattended - the observed shape was a
-        // dead stop of up to half a second at the end of every partial route while this gate waited
-        // for the recalc phase - so it may ask immediately; pushPathToWaypoint's own scheduler slot
-        // and per-mob cooldowns still bound the actual work.
+        // Periodic refresh of pathing toward waypoint. A unit that is neither going direct nor
+        // holding a path is standing completely unattended - the observed shape was a dead stop of up
+        // to half a second at the end of every partial route while this gate waited for the recalc
+        // phase - so it may ask immediately; pushPathToWaypoint's own scheduler slot and per-mob
+        // cooldowns still bound the actual work.
         boolean recalcDue = (mob.ticksExisted + mob.getTravelCommon().getRecalcPhase()) % this.recalcTicks == 0;
         // Bounded by the per-mob path cooldown: "immediately" means "without waiting out the recalc
         // phase on top of the cooldown", never "a search every tick".
-        boolean mountedUnattended = mob.isMountedOnBondedMount() && mob.getNavigator().noPath()
-                && mob.ticksExisted >= paths.nextComputePathTick;
-        if (!ridingDirect && (recalcDue || mountedUnattended)) {
+        boolean unattended = mob.getNavigator().noPath() && mob.ticksExisted >= paths.nextComputePathTick;
+        if (!ridingDirect && (recalcDue || unattended)) {
 
             boolean stuckish =
                     (paths.pathNoAdvanceTicks >= 40)  // ~2s without path index moving
