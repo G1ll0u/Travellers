@@ -22,8 +22,8 @@ import java.util.UUID;
 final class HubZones {
 
     final List<FormationZoneInfo> zones = new ArrayList<>();
-    /** Barrack residents with no group and no order: shown under their Barrack, not under the player. */
-    final Set<UUID> idleResidents = new HashSet<>();
+    /** Workers not walking with the player: idle Barrack residents (shown under their Barrack) and Stable hands on duty. */
+    final Set<UUID> stationed = new HashSet<>();
 
     HubZones(MinecraftServer server, EntityPlayerMP player, List<HubWorker> workers, Set<UUID> leaderIds) {
         UUID owner = player.getUniqueID();
@@ -48,9 +48,11 @@ final class HubZones {
             info.bound++;
             w.addTo.accept(info.gear);
             if (w.dim == w.zone.dim && zone.contains(w.pos)) info.here++;
-            if (!stable && w.escortLeader == null && !w.followActive && !leaderIds.contains(w.uuid)) {
+            if (stable) {
+                stationed.add(w.uuid);
+            } else if (w.escortLeader == null && !w.followActive && !leaderIds.contains(w.uuid)) {
                 info.members.add(w.uuid);
-                idleResidents.add(w.uuid);
+                stationed.add(w.uuid);
             }
         }
         if (stable && zone.data instanceof StableZoneData) {

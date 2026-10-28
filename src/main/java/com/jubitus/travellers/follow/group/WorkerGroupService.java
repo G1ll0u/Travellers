@@ -827,10 +827,10 @@ public final class WorkerGroupService {
         }
 
         HubZones hubZones = new HubZones(server, player, hubWorkers, leaderIds);
-        // The player row counts only workers walking with the player: not leaders, not Barrack residents at rest.
+        // The player row counts only workers walking with the player: not leaders, not Barrack residents at rest or Stable hands.
         int directFollowers = 0;
         for (HubWorker hw : hubWorkers) {
-            if (hw.escortLeader != null || leaderIds.contains(hw.uuid) || hubZones.idleResidents.contains(hw.uuid)) continue;
+            if (hw.escortLeader != null || leaderIds.contains(hw.uuid) || hubZones.stationed.contains(hw.uuid)) continue;
             directFollowers++;
             hw.addTo.accept(playerGear);
         }
