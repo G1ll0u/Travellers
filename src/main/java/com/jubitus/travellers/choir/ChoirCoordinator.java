@@ -160,6 +160,7 @@ public final class ChoirCoordinator {
         List<EntityTraveller> candidates = world.getEntities(EntityTraveller.class, t ->
                 t != null && t.isEntityAlive() && !t.isChoirSinging() && !t.isInCombat()
                         && !(t instanceof EntityTravellerWorker && ((EntityTravellerWorker) t).isHiredFollower())
+                        && isAudibleToAnyPlayer(world, t)
         );
 
         if (candidates.size() < 2) return;
@@ -183,6 +184,12 @@ public final class ChoirCoordinator {
             startSession(world, song, group.subList(0, singerCount), now, null);
             return;
         }
+    }
+
+    // An unheard choir would hold the dimension's single auto slot for its whole duration.
+    private static boolean isAudibleToAnyPlayer(World world, EntityTraveller t) {
+        double r = TravellersConfig.SOUND.songMaxDistance;
+        return world.getClosestPlayerToEntity(t, r) != null;
     }
 
     private List<EntityTraveller> collectNearby(EntityTraveller seed, List<EntityTraveller> pool, double radius) {
