@@ -21,7 +21,11 @@ final class TravelPathDriver {
     int lastSchedulerDenyTick = -999999;
     private static final int TRAVEL_PATH_COOLDOWN_TICKS = 15;
     private static final int PATH_COOLDOWN_TICKS = 20;
+    private static final int NO_PATH_RETRY_BASE_TICKS = 5;
+    private static final int NO_PATH_RETRY_MAX_TICKS = 60;
     private int nextTravelSlotTick = 0;   // scheduler pacing (global)
+    private int failedSearches = 0;       // consecutive searches that found no path
+    private int nextRetryTick = 0;        // earliest next search after a failure
     int nextComputePathTick = 0;  // actual expensive path compute pacing (per mob)
     int lastPathIndex = -1;
     int pathNoAdvanceTicks = 0;
@@ -167,6 +171,13 @@ final class TravelPathDriver {
             }
         }
 
+        if (mob.getNavigator().noPath()) {
+            failedSearches++;
+            int wait = Math.min(NO_PATH_RETRY_MAX_TICKS, NO_PATH_RETRY_BASE_TICKS << Math.min(failedSearches - 1, 4));
+            nextRetryTick = mob.ticksExisted + wait;
+        } else {
+            failedSearches = 0;
+        }
     }
 
     /** A partial route ending this close to where the entity already stands has gained it nothing. */
@@ -330,8 +341,8 @@ final class TravelPathDriver {
     private boolean canComputeTravelPath(boolean force) {
         if (force) return true;
 
-        // If we have NO path, we must compute one or we will stop.
-        if (mob.getNavigator().noPath()) return true;
+        // No path: search again, but back off after each failure (the stuck ladder handles a unit that stays pathless).
+        if (mob.getNavigator().noPath()) return mob.ticksExisted >= nextRetryTick;
 
         // Per-mob cooldown (prevents the same mob asking every tick)
         return mob.ticksExisted >= nextTravelSlotTick;
