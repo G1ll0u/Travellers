@@ -4,9 +4,7 @@ import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.util.math.Vec3d;
 
 import javax.annotation.Nullable;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 public final class ChoirSession {
@@ -20,11 +18,6 @@ public final class ChoirSession {
     // non-null if triggered by a player pressing the worker button
     @Nullable public final UUID ownerPlayerId;
 
-    // entityId -> stem index in song
-    final Map<Integer, Integer> stemByEntityId = new HashMap<>();
-    // entityId -> earliest world tick after which to rejoin (set when voice becomes free)
-    final Map<Integer, Long> rejoinAt = new HashMap<>();
-
     private int spreadFailCount = 0;
 
     ChoirSession(ChoirSongDef song, List<EntityTraveller> singers, long endTick,
@@ -37,9 +30,6 @@ public final class ChoirSession {
         this.ownerPlayerId = ownerPlayerId;
         this.vol = vol;
         this.pitch = pitch;
-        for (int i = 0; i < singers.size(); i++) {
-            stemByEntityId.put(singers.get(i).getEntityId(), i);
-        }
     }
 
     private static Vec3d centroid(List<EntityTraveller> singers) {

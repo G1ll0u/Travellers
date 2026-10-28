@@ -27,11 +27,6 @@ public final class ChoirCoordinator {
 
     private long nextAutoAttemptTick = 0;
 
-    // Ticks after voice becomes free before a singer tries to rejoin (3 seconds)
-    private static final int REJOIN_WAIT_TICKS = 60;
-    // Minimum remaining session time required before re-singing (3 seconds)
-    private static final int REJOIN_MIN_REMAINING = 60;
-
     private ChoirCoordinator() {}
 
     public static ChoirCoordinator get(World world) {
@@ -74,47 +69,17 @@ public final class ChoirCoordinator {
             } else {
                 s.resetSpreadFail();
             }
-            checkAndRejoinInterruptedSingers(s, now);
+            silenceFightingSingers(s);
         }
     }
 
-    private void checkAndRejoinInterruptedSingers(ChoirSession s, long now) {
+    // A singer cut off mid-song stays silent until the song ends: a stem cannot be resumed mid-way, restarting it would be out of step.
+    private void silenceFightingSingers(ChoirSession s) {
         for (EntityTraveller singer : s.singers) {
-            if (!singer.isEntityAlive() || !singer.isChoirSinging()) continue;
-
-            // Stop and suppress singers who are fighting or in post-combat silence
-            if (singer.isInCombat() || singer.isInPostCombatSilence()) {
+            if (singer.isEntityAlive() && singer.isChoirSinging()
+                    && (singer.isInCombat() || singer.isInPostCombatSilence())) {
                 singer.stopChoir();
-                // Push the rejoin window past the silence so they don't re-enter early
-                s.rejoinAt.put(singer.getEntityId(), now + REJOIN_WAIT_TICKS);
-                continue;
             }
-
-            if (singer.voice.isLocked()) {
-                // Still singing — clear any pending rejoin schedule
-                s.rejoinAt.remove(singer.getEntityId());
-                continue;
-            }
-
-            // Voice is free while session is still active → interrupted
-            Long rejoin = s.rejoinAt.get(singer.getEntityId());
-            if (rejoin == null) {
-                // First time we notice the voice is free: schedule rejoin
-                s.rejoinAt.put(singer.getEntityId(), now + REJOIN_WAIT_TICKS);
-                continue;
-            }
-            if (now < rejoin) continue;
-
-            long remaining = s.endTick - now;
-            if (remaining < REJOIN_MIN_REMAINING) {
-                s.rejoinAt.remove(singer.getEntityId());
-                continue;
-            }
-
-            int stemIdx = s.stemByEntityId.getOrDefault(singer.getEntityId(), 0);
-            singer.voice.play(s.song.stem(stemIdx), s.vol, s.pitch, (int) remaining,
-                    true, TravellerVoice.Kind.CHOIR);
-            s.rejoinAt.remove(singer.getEntityId()); // clear — now active again
         }
     }
 
