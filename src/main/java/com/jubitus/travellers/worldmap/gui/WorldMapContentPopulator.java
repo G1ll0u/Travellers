@@ -30,7 +30,6 @@ public final class WorldMapContentPopulator {
      * @param workers           worker position entries from the server
      * @param player            local player (may be null — player marker skipped if null)
      * @param playerOwnerColor  owner mark color (0xRRGGBB) used for player, leaders, controlled villages
-     * @param highlightedVillages  if non-null, village positions in this set use the highlighted style
      */
     public static void populate(
             GuiWorldMapPanel panel,
@@ -38,7 +37,6 @@ public final class WorldMapContentPopulator {
             List<MsgMapWorkersUpdate.Entry> workers,
             EntityPlayer player,
             int playerOwnerColor,
-            Set<BlockPos> highlightedVillages,
             @javax.annotation.Nullable WorkerMarkerSmoother smoother,
             DutyRing dutyRing) {
 
@@ -49,11 +47,7 @@ public final class WorldMapContentPopulator {
         // 1 — Regular villages
         for (MsgWorkerGoList.Entry e : pois) {
             if (e.pos == null || e.kind != MsgWorkerGoList.Kind.VILLAGE) continue;
-            if (highlightedVillages != null && highlightedVillages.contains(e.pos)) {
-                panel.addMarker(WorldMapMarkerFactory.villageHighlighted(e.pos, e.label));
-            } else {
-                panel.addMarker(WorldMapMarkerFactory.village(e.pos, e.label));
-            }
+            panel.addMarker(WorldMapMarkerFactory.village(e.pos, e.label));
         }
 
         // 2 — Controlled villages

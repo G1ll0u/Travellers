@@ -153,8 +153,6 @@ public class GuiWorldMapPanel {
     // a planned route), so markers stay on top.
     public Runnable underMarkersOverlay;
 
-    private BlockPos selectedPos = null;
-
     // RGB (no alpha) used to colorize player-dependent legend entries
     private int legendOwnerColor = 0xFFFFFF;
 
@@ -232,8 +230,6 @@ public class GuiWorldMapPanel {
         }
     }
 
-    public void setSelectedPos(BlockPos pos) { this.selectedPos = pos; }
-
     public void setHighlighted(java.util.Set<BlockPos> positions) {
         this.highlighted = positions != null ? positions : java.util.Collections.emptySet();
     }
@@ -310,12 +306,6 @@ public class GuiWorldMapPanel {
         if (underMarkersOverlay != null) underMarkersOverlay.run();
 
         drawMarkers(mapX, mapY);
-
-        if (selectedPos != null) {
-            int sx = Math.round(worldToScreenX(selectedPos.getX(), mapX));
-            int sy = Math.round(worldToScreenY(selectedPos.getZ(), mapY));
-            drawOutlineSquare(sx, sy, 4, 0xFFFFE39A);
-        }
 
         drawLegend(mapX, mapY);
 
@@ -616,12 +606,4 @@ public class GuiWorldMapPanel {
         }
     }
 
-    // ── Draw primitives ──────────────────────────────────────────────────────
-
-    private static void drawOutlineSquare(int cx, int cy, int half, int argb) {
-        Gui.drawRect(cx - half, cy - half, cx + half + 1, cy - half + 1, argb);
-        Gui.drawRect(cx - half, cy + half, cx + half + 1, cy + half + 1, argb);
-        Gui.drawRect(cx - half, cy - half, cx - half + 1, cy + half + 1, argb);
-        Gui.drawRect(cx + half, cy - half, cx + half + 1, cy + half + 1, argb);
-    }
 }

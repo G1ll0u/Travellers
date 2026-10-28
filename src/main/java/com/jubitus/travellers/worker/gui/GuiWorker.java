@@ -9,9 +9,9 @@ import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
-import com.jubitus.travellers.worldmap.gui.WorldMapController;
+import com.jubitus.travellers.gui.MapListLayout;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapScreen;
+import com.jubitus.travellers.worldmap.gui.WorkerMapView;
 import com.jubitus.travellers.unit.DeliveryJob;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
@@ -32,6 +32,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Mouse;
@@ -43,11 +44,11 @@ import java.util.*;
 import java.util.List;
 import com.jubitus.travellers.worker.inventory.ContainerWorker;
 @SideOnly(Side.CLIENT)
-public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
+public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IWorkerMapScreen, ITravellersGui {
 
-    private static final int MAP_W = 150;
-
-    private static final float ROW_TEXT_SCALE = 0.85F;
+    private static final int GAP = 8;
+    private static final int LIST_W = 140;
+    private static final int HEADER_H = 12;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
@@ -64,13 +65,11 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     private boolean costValid = false;
     private int validatedVillageIdx = -1;
 
-    private int listX, listY, listW, listH;
-    private final ScrollList list = new ScrollList(12);
+    private int mapBoxX, mapBoxW, listBoxX, listBoxH;
+    private final ScrollList list = new ScrollList();
     private int selectedIndex = -1;
 
-    // ── Map data ──────────────────────────────────────────────────────────────
-    private WorldMapController mapController;
-    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
+    private WorkerMapView map;
 
     public GuiWorker(EntityPlayer player, EntityTravellerWorker worker) {
         super(new ContainerWorker(player.inventory, worker));
@@ -86,40 +85,34 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
         this.xSize = 176;
         this.ySize = 150;
-        listW = 120;
-        listH = 120;
 
-        int totalW = MAP_W + 8 + xSize + 8 + listW;
+        int mapW = Math.max(150, Math.min(240, width - 16 - xSize - LIST_W - GAP * 2));
+        int totalW = mapW + GAP + xSize + GAP + LIST_W;
         int startX = Math.max(4, (this.width - totalW) / 2);
-
-        int mapX = startX;
-        this.guiLeft = startX + MAP_W + 8;
+        this.guiLeft = startX + mapW + GAP;
         this.guiTop = (this.height - this.ySize) / 2;
 
-        this.listX = this.guiLeft + this.xSize + 8;
-        this.listY = this.guiTop + 4;
-        list.setBounds(listX, listY, listW, listH);
+        // Map | inventory | list share their top and bottom edges; the map's nav row is level with the last button row.
+        int rowH = MapListLayout.BTN_H, gap = MapListLayout.BTN_GAP;
+        mapBoxX = startX;
+        mapBoxW = mapW;
+        listBoxX = guiLeft + xSize + GAP;
+        listBoxH = ySize - 2 * (rowH + gap);
+        list.setBounds(listBoxX + 1, guiTop + 1 + HEADER_H, LIST_W - 2, listBoxH - 2 - HEADER_H);
 
         this.buttonList.clear();
-
-        int buttonWidth = 60, buttonHeight = 20, buttonGapX = 4, buttonGapY = 4;
-        int buttonsTop = listY + listH + buttonGapY;
+        int buttonW = (LIST_W - gap) / 2;
+        int row0 = guiTop + listBoxH + gap, row1 = guiTop + ySize - rowH;
+        int col1 = listBoxX + buttonW + gap;
 
         this.validateButton = this.addButton(new GuiTravellersButton(
-                0, listX, buttonsTop, buttonWidth, buttonHeight,
-                I18n.format("travellers.worker.validate", "Validate")));
-
+                0, listBoxX, row0, buttonW, rowH, I18n.format("travellers.worker.validate", "Validate")));
         this.sendButton = this.addButton(new GuiTravellersButton(
-                1, listX + buttonWidth + buttonGapX, buttonsTop, buttonWidth, buttonHeight,
-                I18n.format("travellers.worker.send", "Send")));
-
+                1, col1, row0, buttonW, rowH, I18n.format("travellers.worker.send", "Send")));
         this.backButton = this.addButton(new GuiTravellersButton(
-                3, listX, buttonsTop + buttonHeight + buttonGapY,
-                buttonWidth, buttonHeight, I18n.format("travellers.gui.back", "Back")));
-
+                3, listBoxX, row1, buttonW, rowH, I18n.format("travellers.gui.back", "Back")));
         this.donateButton = this.addButton(new GuiTravellersButton(
-                2, listX + buttonWidth + buttonGapX, buttonsTop + buttonHeight + buttonGapY,
-                buttonWidth, buttonHeight, I18n.format("travellers.worker.donate", "Donate")));
+                2, col1, row1, buttonW, rowH, I18n.format("travellers.worker.donate", "Donate")));
 
         tooltips.set(sendButton, "travellers.worker.send.tooltip");
         tooltips.set(donateButton, "travellers.worker.donate.tooltip");
@@ -143,11 +136,12 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             this.validateButton.enabled = false;
         }
 
-        mapController = new WorldMapController(
-                Minecraft.getMinecraft(), mapX, guiTop, MAP_W, ySize,
+        map = new WorkerMapView(mapBoxX + 1, guiTop + 1, mapW - 2, ySize - 2 - (rowH + gap),
                 "travellers_worker_transport_map", worker.getPosition());
+        map.addNav(buttonList, 10, worker::getPosition, row1);
+        map.setSelected((BlockPos) null);
 
-        mapData.subscribe();
+        map.subscribe();
         TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
         if (hiredByMe)
             TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillages(worker.getEntityId()));
@@ -156,31 +150,21 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        mapData.unsubscribe();
+        map.unsubscribe();
+    }
+
+    @Override
+    public WorkerMapView mapView() {
+        return map;
     }
 
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        mapData.setPlaces(entries);
-        rebuildMapMarkers();
+        map.data.setPlaces(entries);
     }
 
-    @Override
-    public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        mapData.setWorkers(list);
-        rebuildMapMarkers();
-    }
-
-    private void rebuildMapMarkers() {
-        if (mapController == null) return;
-
-        // Highlighted village (the currently selected row)
-        java.util.Set<net.minecraft.util.math.BlockPos> highlighted = null;
-        if (selectedIndex >= 0 && selectedIndex < villages.size()) {
-            highlighted = java.util.Collections.singleton(villages.get(selectedIndex).center);
-        }
-
-        mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor(), highlighted);
+    private void refreshSelection() {
+        map.setSelected(selectedIndex >= 0 && selectedIndex < villages.size() ? villages.get(selectedIndex).center : null);
     }
 
     @Override
@@ -189,11 +173,9 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
 
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
-        if (mapController != null) {
-            TravellersGuiTheme.drawMapFrame(mapController.mapX, mapController.mapY, MAP_W, ySize);
-            rebuildMapMarkers();
-            mapController.draw();
-        }
+        TravellersGuiTheme.drawInnerPanel(mapBoxX, guiTop, map.controller.mapW + 2, ySize - (MapListLayout.BTN_H + MapListLayout.BTN_GAP));
+        TravellersGuiTheme.drawInnerPanel(listBoxX, guiTop, LIST_W, listBoxH);
+        map.draw(player, ClientOwnerVisualsCache.getColor(), mouseX, mouseY);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -204,13 +186,13 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         drawVillageList(mouseX, mouseY);
         this.renderHoveredToolTip(mouseX, mouseY);
 
-        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
+        map.drawTooltip(this, mouseX, mouseY);
         tooltips.render(mouseX, mouseY, this.width, this.height);
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        this.fontRenderer.drawString(I18n.format("travellers.worker.title", "Worker"), 8, 6, TravellersGuiTheme.COL_TEXT);
+        this.fontRenderer.drawString(TextFormatting.BOLD + I18n.format("travellers.worker.title", "Worker"), 8, 6, TravellersGuiTheme.COL_TEXT);
     }
 
     @Override
@@ -232,27 +214,26 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     }
 
     private void drawVillageList(int mouseX, int mouseY) {
+        int hy = guiTop + 1 + (HEADER_H - fontRenderer.FONT_HEIGHT) / 2;
         if (villages.isEmpty()) {
-            this.fontRenderer.drawString(I18n.format("travellers.worker.no_village_in_range"),
-                    listX, listY, TravellersGuiTheme.COL_TEXT_DIM);
-            this.fontRenderer.drawString(I18n.format("travellers.worker.cost_unknown"),
-                    listX, listY - 10, TravellersGuiTheme.COL_TEXT_DIM);
+            fontRenderer.drawString(I18n.format("travellers.worker.cost_unknown"), listBoxX + 4, hy, TravellersGuiTheme.COL_TEXT_DIM);
+            fontRenderer.drawString(fontRenderer.trimStringToWidth(I18n.format("travellers.worker.no_village_in_range"), LIST_W - 8),
+                    listBoxX + 4, list.y + 2, TravellersGuiTheme.COL_TEXT_DIM);
             return;
         }
 
-        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, listW + 4, listH + 4);
-
         list.clamp(villages.size());
-        int maxLabelW = (int) ((listW - 6) / ROW_TEXT_SCALE);
+        int rowW = list.rowW(villages.size());
         for (int i = 0; i < list.rowsToDraw(villages.size()); i++) {
             int idx = list.scroll() + i;
             int rowTop = list.rowTop(idx);
-            boolean hovered = list.isRowHovered(idx, mouseX, mouseY);
-            TravellersGuiTheme.drawListRow(listX, rowTop, listW, list.rowH, hovered, idx == selectedIndex);
-            TravellersGuiTheme.drawScaledText(fontRenderer, villages.get(idx).label(fontRenderer, maxLabelW),
-                    listX + 3, rowTop + 2, ROW_TEXT_SCALE,
+            boolean hovered = list.isRowHovered(idx, mouseX, mouseY) && mouseX < list.x + rowW;
+            TravellersGuiTheme.drawListRow(list.x, rowTop, rowW, list.rowH, hovered, idx == selectedIndex);
+            fontRenderer.drawString(villages.get(idx).label(fontRenderer, rowW - ScrollList.TEXT_PAD * 2),
+                    list.x + ScrollList.TEXT_PAD, list.textY(fontRenderer, rowTop),
                     hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
         }
+        list.drawScrollbar(villages.size());
 
         String costStr = MillMoney.format(0);
         if (selectedIndex >= 0 && selectedIndex < villages.size()) {
@@ -260,8 +241,9 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             int cost = DeliveryJob.computeTravelCost(villages.get(selectedIndex).distance, usedSlots);
             costStr = MillMoney.format(cost);
         }
-        MoneyText.draw(this.fontRenderer, I18n.format("travellers.worker.cost", costStr), listX, listY - 10,
+        MoneyText.draw(this.fontRenderer, I18n.format("travellers.worker.cost", costStr), listBoxX + 4, hy,
                 TravellersGuiTheme.COL_TEXT);
+        TravellersGuiTheme.drawSeparator(list.x, list.y - 1, list.w);
     }
 
     @Override
@@ -272,8 +254,8 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         int wheel  = Mouse.getEventDWheel();
         if (wheel == 0) return;
 
-        if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
-            mapController.handleWheel(mouseX, mouseY, wheel);
+        if (map.isMouseOver(mouseX, mouseY)) {
+            map.wheel(mouseX, mouseY, wheel);
         } else if (list.isOver(mouseX, mouseY)) {
             list.scrollBy(wheel, villages.size());
         }
@@ -282,37 +264,39 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         super.mouseClicked(mouseX, mouseY, mouseButton);
-        if (mapController != null) mapController.onMouseClick(mouseX, mouseY, mouseButton);
+        map.mouseDown(mouseX, mouseY, mouseButton);
+        if (mouseButton != 0 || list.mouseDown(mouseX, mouseY, villages.size())) return;
 
-        if (mouseButton == 0) {
-            int idx = list.rowAt(mouseX, mouseY, villages.size());
-            if (idx >= 0) {
-                selectedIndex = idx;
-                costValid = false;
-                validatedVillageIdx = -1;
-                lastCost = 0;
-                if (sendButton  != null) sendButton.enabled  = false;
-                if (donateButton != null) donateButton.enabled = false;
-                if (mapController != null) mapController.setCenter(villages.get(idx).center);
-                rebuildMapMarkers();
-            }
+        int idx = list.rowAt(mouseX, mouseY, villages.size());
+        if (idx >= 0) {
+            selectedIndex = idx;
+            costValid = false;
+            validatedVillageIdx = -1;
+            lastCost = 0;
+            if (sendButton  != null) sendButton.enabled  = false;
+            if (donateButton != null) donateButton.enabled = false;
+            map.controller.setCenter(villages.get(idx).center);
+            refreshSelection();
         }
     }
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-        if (mapController != null) mapController.onMouseDrag(mouseX, mouseY);
+        map.mouseDrag(mouseX, mouseY);
+        list.mouseDrag(mouseY, villages.size());
     }
 
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         super.mouseReleased(mouseX, mouseY, state);
-        if (mapController != null) mapController.onMouseRelease(state);
+        map.mouseUp(state);
+        list.mouseUp();
     }
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
+        if (map.handleButton(button)) return;
         if (button == backButton) {
             TravellersNetwork.CHANNEL.sendToServer(
                     new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
@@ -372,7 +356,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
             this.selectedIndex = -1;
         } else {
             this.selectedIndex = 0;
-            if (mapController != null) mapController.setCenter(villages.get(0).center);
+            map.controller.setCenter(villages.get(0).center);
         }
         if (sendButton  != null) sendButton.enabled  = false;
         if (donateButton != null) donateButton.enabled = false;
@@ -381,7 +365,7 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         validatedVillageIdx = -1;
         lastCost = 0;
         list.resetScroll();
-        rebuildMapMarkers();
+        refreshSelection();
     }
 
     private int getUsedCargoSlotsClient() {
@@ -393,7 +377,4 @@ public class GuiWorker extends GuiContainer implements IWorkerGoListReceiver, IW
         return used;
     }
 
-    public Rectangle getJeiListArea() {
-        return new Rectangle(listX - 2, listY - 12, listW + 4, listH + 38);
-    }
 }

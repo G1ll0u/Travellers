@@ -90,7 +90,6 @@ public class GuiTravellerPopulationMap extends GuiScreen
         mapController = new WorldMapController(
                 Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
                 "travellers_population_map", player.getPosition());
-        mapController.panel.setSelectedPos(null);
 
         navButtons = new WorldMapNavButtons(mapController, buttonList, 2, player::getPosition);
         int zTop = mapY + mapH + 6;
@@ -265,7 +264,7 @@ public class GuiTravellerPopulationMap extends GuiScreen
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
 
-        TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
+        TravellersGuiTheme.drawInnerPanel(mapX - 1, mapY - 1, mapW + 2, mapH + 2);
 
         rebuildMarkers();
         mapController.draw();

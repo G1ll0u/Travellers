@@ -2,22 +2,15 @@ package com.jubitus.travellers.worldmap.gui;
 
 import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.MapListLayout;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
-import com.jubitus.travellers.worldmap.gui.receiver.IBattleMapReceiver;
-import com.jubitus.travellers.worldmap.gui.receiver.IForeignUnitMapReceiver;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate;
-import com.jubitus.travellers.worldmap.net.MsgMapForeignUnitsUpdate;
-import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
-import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worker.net.MsgWorkerRequestGoList;
-import net.minecraft.client.Minecraft;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapScreen;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
@@ -28,25 +21,19 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import org.lwjgl.input.Mouse;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+/** The player's own full-screen map: places, own workers, battles and discovered foreign units. */
 @SideOnly(Side.CLIENT)
-public class GuiPlayerWorldMap extends GuiScreen
-        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui,
-        com.jubitus.travellers.worldmap.gui.receiver.IStrikeMapReceiver {
+public class GuiPlayerWorldMap extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapScreen, ITravellersGui {
+
+    private static final int MARGIN = 8;
 
     private GuiButton backButton;
-    private WorldMapNavButtons navButtons;
-
     private final EntityPlayer player;
     private final int contextWorkerId;
-
-    private WorldMapController mapController;
-    private int mapX, mapY, mapW, mapH;
-
-    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
+    private WorkerMapView map;
+    private int frameX, frameW;
 
     public GuiPlayerWorldMap(EntityPlayer player, int contextWorkerId) {
         this.player = player;
@@ -54,57 +41,63 @@ public class GuiPlayerWorldMap extends GuiScreen
     }
 
     @Override
+    public WorkerMapView mapView() {
+        return map;
+    }
+
+    @Override
     public void initGui() {
         super.initGui();
+        buttonList.clear();
 
-        int sideMargin = 16;
-        int topMargin = 16;
-        int bottomBarHeight = 34; // gap + zoom/back button row
-        mapW = this.width - sideMargin * 2;
-        mapH = this.height - topMargin - bottomBarHeight;
-        mapX = sideMargin;
-        mapY = topMargin;
+        // Same chrome as the other screens (frame, title, map box), but the frame takes the whole screen.
+        frameX = MARGIN;
+        frameW = width - MARGIN * 2;
+        int frameY = MARGIN, frameH = height - MARGIN * 2;
+        int bodyX = frameX + MapListLayout.PAD, bodyY = frameY + MapListLayout.TITLE_H + MapListLayout.PAD;
+        int bodyW = frameW - MapListLayout.PAD * 2;
+        int bodyH = frameH - MapListLayout.TITLE_H - MapListLayout.PAD * 2;
+        int boxH = bodyH - MapListLayout.BTN_H - MapListLayout.BTN_GAP;
 
-        this.buttonList.clear();
-
-        mapController = new WorldMapController(
-                Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
-                "travellers_player_map", player.getPosition());
-        mapController.panel.setSelectedPos(null);
-
-        navButtons = new WorldMapNavButtons(mapController, buttonList, 2, player::getPosition);
-        int zTop = mapY + mapH + 6;
-        backButton     = this.addButton(new GuiTravellersButton(9, mapX + mapW - 122, zTop, 58, 20,
+        map = new WorkerMapView(bodyX + 1, bodyY + 1, bodyW - 2, boxH - 2, "travellers_player_map", player.getPosition());
+        int rowY = bodyY + bodyH - MapListLayout.BTN_H;
+        map.addNav(buttonList, 0, player::getPosition, rowY);
+        backButton = addButton(new GuiTravellersButton(9, bodyX + bodyW - 58, rowY, 58, MapListLayout.BTN_H,
                 I18n.format(contextWorkerId < 0 ? "travellers.gui.close" : "travellers.gui.back")));
 
-        mapData.subscribe();
+        map.subscribe();
         TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(contextWorkerId));
     }
 
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        mapData.unsubscribe();
+        map.unsubscribe();
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
-        rebuildMarkers(); // markers glide between updates, so they are re-placed every frame
-
-        int wheel = Mouse.getDWheel();
-        if (wheel != 0) mapController.handleWheel(mouseX, mouseY, wheel);
-
+        drawDefaultBackground();
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
-
-        TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
-
-        rebuildMarkers();
-        mapController.draw();
-
+        int frameY = MARGIN;
+        TravellersGuiTheme.drawPanel(frameX, frameY, frameW, height - MARGIN * 2);
+        MapListLayout.drawTitle(fontRenderer, frameX, frameW, frameY, I18n.format("travellers.map.title"));
+        TravellersGuiTheme.drawInnerPanel(map.controller.mapX - 1, map.controller.mapY - 1,
+                map.controller.mapW + 2, map.controller.mapH + 2);
+        map.draw(player, ClientOwnerVisualsCache.getColor(), mouseX, mouseY);
         super.drawScreen(mouseX, mouseY, partialTicks);
-        mapController.drawTooltip(this, mouseX, mouseY);
+        map.drawTooltip(this, mouseX, mouseY);
+    }
+
+    @Override
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0) return;
+        int mouseX = Mouse.getEventX() * width / mc.displayWidth;
+        int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+        map.wheel(mouseX, mouseY, wheel);
     }
 
     @Override
@@ -118,20 +111,20 @@ public class GuiPlayerWorldMap extends GuiScreen
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        mapController.onMouseClick(mouseX, mouseY, mouseButton);
+        map.mouseDown(mouseX, mouseY, mouseButton);
         super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-        mapController.onMouseDrag(mouseX, mouseY);
+        map.mouseDrag(mouseX, mouseY);
     }
 
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         super.mouseReleased(mouseX, mouseY, state);
-        mapController.onMouseRelease(state);
+        map.mouseUp(state);
     }
 
     @Override
@@ -145,45 +138,15 @@ public class GuiPlayerWorldMap extends GuiScreen
             }
             return;
         }
-        if (navButtons.handle(button)) return;
-
+        if (map.handleButton(button)) return;
         super.actionPerformed(button);
     }
 
     @Override
     public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        mapData.setPlaces(entries);
-        rebuildMarkers();
-    }
-
-    @Override
-    public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        mapData.setWorkers(list);
-        rebuildMarkers();
-    }
-
-    @Override
-    public void receiveBattles(List<MsgMapBattleUpdate.Entry> entries) {
-        mapData.setBattles(entries);
-        rebuildMarkers();
-    }
-
-    @Override
-    public void receiveForeignUnits(List<MsgMapForeignUnitsUpdate.Entry> entries) {
-        mapData.setForeignUnits(entries);
-        rebuildMarkers();
-    }
-
-    private void rebuildMarkers() {
-        if (mapController == null) return;
-        mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor(), null);
+        map.data.setPlaces(entries);
     }
 
     @Override
     public boolean doesGuiPauseGame() { return false; }
-
-    @Override
-    public void receiveStrikes(int dim, java.util.List<com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry> strikes) {
-        if (mapController != null) mapController.panel.receiveStrikes(dim, strikes);
-    }
 }

@@ -27,7 +27,9 @@ import com.jubitus.travellers.worldmap.gui.WorldMapController;
 import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import com.jubitus.travellers.worldmap.gui.receiver.IBattleMapReceiver;
 import com.jubitus.travellers.worldmap.gui.receiver.IForeignUnitMapReceiver;
+import com.jubitus.travellers.worldmap.gui.WorkerMapView;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapScreen;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
 import com.jubitus.travellers.worldmap.net.MsgMapBattleUpdate;
 import com.jubitus.travellers.worldmap.net.MsgMapForeignUnitsUpdate;
@@ -55,8 +57,7 @@ import java.util.*;
  */
 @SideOnly(Side.CLIENT)
 public class GuiWorkerFormationHub extends GuiScreen
-        implements IWorkerGoListReceiver, IWorkerMapReceiver, IBattleMapReceiver, IForeignUnitMapReceiver, ITravellersGui,
-        FormationOrdersMenu.Host, com.jubitus.travellers.worldmap.gui.receiver.IStrikeMapReceiver {
+        implements IWorkerGoListReceiver, IWorkerMapScreen, ITravellersGui, FormationOrdersMenu.Host {
 
     // ── Layout ────────────────────────────────────────────────────────────────
     // Three boxes (leaders | map | card) share one top and one bottom edge; inside each box the
@@ -98,6 +99,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     private final FormationActionBar actionBar;
     private final FormationHubJournal journal = new FormationHubJournal();
     private WorldMapController mapController;
+    private WorkerMapView mapView;
     private final ButtonTooltipHelper tooltips = new ButtonTooltipHelper();
 
     // ── Geometry ──────────────────────────────────────────────────────────────
@@ -177,8 +179,8 @@ public class GuiWorkerFormationHub extends GuiScreen
         BlockPos center = mapController != null ? mapController.panel.getCenter() : getSelectedLeaderPos();
         float bpp = mapController != null ? mapController.panel.getZoomBlocksPerPixel()
                 : (float) TravellersConfig.WORLDMAP.formationHubMapInitialBpp;
-        mapController = new WorldMapController(Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
-                "travellers_formation_hub_map", center);
+        mapView = new WorkerMapView(mapData, mapX, mapY, mapW, mapH, "travellers_formation_hub_map", center);
+        mapController = mapView.controller;
         mapController.panel.setZoomBlocksPerPixel(bpp);
         mapController.panel.underMarkersOverlay = () -> FormationRouteOverlay.draw(mapController);
         orders.setMap(mapController);
@@ -473,7 +475,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     // ── Map markers ───────────────────────────────────────────────────────────
 
     private void rebuildMapMarkers() {
-        mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor(), null);
+        mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor());
 
         // Selected markers again on top (same type = drawn later within the pass)
         FormationLeaderInfo group = selection.group();
@@ -503,18 +505,8 @@ public class GuiWorkerFormationHub extends GuiScreen
     }
 
     @Override
-    public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        mapData.setWorkers(list);
-    }
-
-    @Override
-    public void receiveBattles(List<MsgMapBattleUpdate.Entry> entries) {
-        mapData.setBattles(entries);
-    }
-
-    @Override
-    public void receiveForeignUnits(List<MsgMapForeignUnitsUpdate.Entry> entries) {
-        mapData.setForeignUnits(entries);
+    public WorkerMapView mapView() {
+        return mapView;
     }
 
     /** Called by MsgEquipDestsResponse: where a group can be sent for equipment. */
@@ -824,10 +816,5 @@ public class GuiWorkerFormationHub extends GuiScreen
     @Override
     public boolean doesGuiPauseGame() {
         return false;
-    }
-
-    @Override
-    public void receiveStrikes(int dim, java.util.List<com.jubitus.travellers.worldmap.net.MsgMapBattleStrikes.Entry> strikes) {
-        if (mapController != null) mapController.panel.receiveStrikes(dim, strikes);
     }
 }

@@ -9,7 +9,6 @@ import com.jubitus.travellers.worldmap.net.MsgRequestMapDiscovery;
 import com.jubitus.travellers.worldmap.net.MsgSubscribeWorkerMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
@@ -106,12 +105,11 @@ public final class WorkerMapScreenSupport {
     }
 
     /** Clears the map, then adds places, workers, the player, foreign units and battles. */
-    public void populate(WorldMapController map, EntityPlayer player, int ownerColor,
-                         @Nullable Set<BlockPos> highlightedVillages) {
+    public void populate(WorldMapController map, EntityPlayer player, int ownerColor) {
         GuiWorldMapPanel panel = map.panel;
         panel.clearMarkers();
         dutyRing.setScale(panel.hitRadiusPx(GuiWorldMapPanel.Marker.Size.WORKER), panel.getZoomBlocksPerPixel());
-        WorldMapContentPopulator.populate(panel, places, workers, player, ownerColor, highlightedVillages, smoother, dutyRing);
+        WorldMapContentPopulator.populate(panel, places, workers, player, ownerColor, smoother, dutyRing);
         int myDim = currentDimension();
         WorldMapContentPopulator.populateForeignUnits(panel, foreignUnits, myDim, foreignSmoother);
         for (MsgMapBattleUpdate.Entry e : battles) {

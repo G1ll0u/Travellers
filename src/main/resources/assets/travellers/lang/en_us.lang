@@ -620,3 +620,10 @@ commands.travellers.summonworkers.badCulture=Unknown culture: %s
 commands.travellers.summonworkers.mountsDisabled=Horse mounts are disabled in the config: no horses will be given.
 
 tile.travellers.village_of_nature.name=The Village of Nature
+
+# GUI unification: screen titles and hints
+travellers.map.title=World map
+travellers.worker.go.title=Send to a place
+travellers.worker.recruit.title=Recruit henchmen
+travellers.worker.barracks.title=Barracks & Stables
+travellers.worker.enemies.click_hint=Click a name on the right to fill the field.

@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Hovering a Barrack or Stable (list row or map marker): its occupancy and, for workers, their health. */
-final class ZoneTooltip {
+public final class ZoneTooltip {
 
     private static final int W = 156;
     private static final int PAD = 5;
@@ -23,7 +23,7 @@ final class ZoneTooltip {
 
     private ZoneTooltip() {}
 
-    static void draw(FontRenderer fr, FormationZoneInfo z, int mouseX, int mouseY, int screenW, int screenH) {
+    public static void draw(FontRenderer fr, FormationZoneInfo z, int mouseX, int mouseY, int screenW, int screenH) {
         String key = "travellers.worker.formation.zone.";
         String size = z.stable
                 ? I18n.format(key + "horses", z.horses, z.capacity)

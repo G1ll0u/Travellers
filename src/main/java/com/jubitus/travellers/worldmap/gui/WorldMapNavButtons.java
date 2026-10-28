@@ -22,6 +22,12 @@ public final class WorldMapNavButtons {
     /** Adds seven buttons to the screen's list, with ids firstId..firstId+6. */
     public WorldMapNavButtons(WorldMapController map, List<GuiButton> buttonList, int firstId,
                               Supplier<BlockPos> recenterTarget) {
+        this(map, buttonList, firstId, recenterTarget, map.mapY + map.mapH + 6);
+    }
+
+    /** Same, with the zoom / Center row at an explicit Y. */
+    public WorldMapNavButtons(WorldMapController map, List<GuiButton> buttonList, int firstId,
+                              Supplier<BlockPos> recenterTarget, int rowTop) {
         this.map = map;
         this.recenterTarget = recenterTarget;
         int x = map.mapX, y = map.mapY, w = map.mapW, h = map.mapH;
@@ -32,7 +38,7 @@ public final class WorldMapNavButtons {
         panE = new GuiTravellersButton(firstId + 1, x + w - aw - 2, midY, aw, ah, ">");
         panN = new GuiTravellersButton(firstId + 2, midX, y + 2, aw, ah, "^");
         panS = new GuiTravellersButton(firstId + 3, midX, y + h - ah - 2, aw, ah, "v");
-        int zTop = y + h + 6;
+        int zTop = rowTop;
         zoomOut = new GuiTravellersButton(firstId + 4, x, zTop, 20, 20, "-");
         zoomIn = new GuiTravellersButton(firstId + 5, x + 24, zTop, 20, 20, "+");
         recenter = new GuiTravellersButton(firstId + 6, x + w - 58, zTop, 58, 20,

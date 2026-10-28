@@ -1,11 +1,11 @@
 package com.jubitus.travellers.worker.gui;
 
-import com.jubitus.travellers.gui.MoneyText;
+import com.jubitus.travellers.gui.GuiMapListScreen;
 import com.jubitus.travellers.gui.GuiTravellersButton;
-import com.jubitus.travellers.gui.ITravellersGui;
+import com.jubitus.travellers.gui.MapListLayout;
+import com.jubitus.travellers.gui.MoneyText;
 import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
-import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
 import com.jubitus.travellers.village.MillCultures;
@@ -16,27 +16,15 @@ import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worker.net.MsgRecruitPreview;
 import com.jubitus.travellers.worker.net.MsgRecruitPreviewRequest;
 import com.jubitus.travellers.worker.net.MsgRecruitStart;
-import com.jubitus.travellers.worker.net.MsgWorkerGoList;
-import com.jubitus.travellers.worker.net.MsgWorkerRequestGoList;
-import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
-import com.jubitus.travellers.worldmap.gui.WorldMapController;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
-import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.resources.I18n;
-import net.minecraft.util.text.TextFormatting;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fml.client.config.GuiUtils;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.lwjgl.input.Mouse;
 
-import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -47,25 +35,15 @@ import java.util.Set;
 
 /** Recruiting order: how many recruits of each culture in range; the server plans the tour and its price. */
 @SideOnly(Side.CLIENT)
-public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoListReceiver, IWorkerMapReceiver, ITravellersGui {
+public class GuiWorkerRecruitCultures extends GuiMapListScreen {
 
-    private static final int MAP_W = 190;
-    private static final int MAP_H = 150;
-    private static final int GAP = 14;
-    private static final int LIST_W = 200;
-    private static final int ROW_H = 14;
     private static final int HEADER_H = 12;
-    private static final int BUTTON_H = 20;
-    private static final int BUTTON_GAP = 4;
     private static final int BOX = 10;
-    private static final float TEXT_SCALE = 0.85F;
-    private static final int NAME_W = 76;
+    private static final int NAME_W = 80;
+    private static final int COUNT_W = 16;
 
     private final EntityTravellerWorker worker;
     private final EntityPlayer player;
-    private final ScrollList list = new ScrollList(ROW_H);
-    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
-    private WorldMapController mapController;
 
     private List<RecruitCultures.Option> options = new ArrayList<>();
     private final Map<String, Integer> wanted = new LinkedHashMap<>();
@@ -77,44 +55,40 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
 
     private GuiButton backButton;
     private GuiButton startButton;
-    private int mapX, mapY, listX, listY, listH;
 
     public GuiWorkerRecruitCultures(EntityPlayer player, EntityTravellerWorker worker) {
         this.player = player;
         this.worker = worker;
     }
 
+    @Override protected String title() { return I18n.format("travellers.worker.recruit.title"); }
+    @Override protected String mapKey() { return "travellers_recruit_map"; }
+    @Override protected BlockPos home() { return worker.getPosition(); }
+    @Override protected int sideWidth() { return 250; }
+    @Override protected int listHeaderH() { return HEADER_H; }
+    @Override protected int goListWorkerId() { return worker.getEntityId(); }
+    @Override protected int rowCount() { return options.size(); }
+    @Override protected boolean isRowSelected(int idx) { return wanted.getOrDefault(options.get(idx).cultureKey, 0) > 0; }
+
     @Override
-    public void initGui() {
-        super.initGui();
-        mapX = Math.max(4, (this.width - (MAP_W + GAP + LIST_W)) / 2);
-        mapY = (this.height - MAP_H) / 2;
-        listX = mapX + MAP_W + GAP;
-        // Header line, list panel and button row together span exactly the map's height.
-        listY = mapY + HEADER_H + 2;
-        int buttonsTop = mapY + MAP_H - BUTTON_H;
-        listH = (buttonsTop - BUTTON_GAP - 2 - listY) / ROW_H * ROW_H;
-        list.setBounds(listX, listY, LIST_W, listH);
-
-        this.buttonList.clear();
-        int bw = (LIST_W - BUTTON_GAP) / 2;
-        backButton = addButton(new GuiTravellersButton(2, listX, buttonsTop, bw, BUTTON_H,
-                I18n.format("travellers.gui.back")));
-        startButton = addButton(new GuiTravellersButton(0, listX + LIST_W - bw, buttonsTop, bw, BUTTON_H,
-                I18n.format("travellers.worker.recruit.start")));
-        startButton.enabled = false;
-
-        mapController = new WorldMapController(Minecraft.getMinecraft(), mapX, mapY, MAP_W, MAP_H,
-                "travellers_recruit_map", worker.getPosition());
-        mapData.subscribe();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(worker.getEntityId()));
-        requestPreview();
+    protected String emptyListText() {
+        return received ? I18n.format("travellers.worker.recruit.none") : null;
     }
 
     @Override
-    public void onGuiClosed() {
-        super.onGuiClosed();
-        mapData.unsubscribe();
+    protected void addControls() {
+        int bw = layout.sideButtonW(2);
+        backButton = addButton(new GuiTravellersButton(FIRST_FREE_ID, layout.sideButtonX(0, 2), layout.sideRowY(0), bw,
+                MapListLayout.BTN_H, I18n.format("travellers.gui.back")));
+        startButton = addButton(new GuiTravellersButton(FIRST_FREE_ID + 1, layout.sideButtonX(1, 2), layout.sideRowY(0), bw,
+                MapListLayout.BTN_H, I18n.format("travellers.worker.recruit.start")));
+        startButton.enabled = false;
+    }
+
+    @Override
+    protected void onOpen() {
+        map.setSelected(plannedVillages);
+        requestPreview();
     }
 
     private void requestPreview() {
@@ -133,23 +107,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
         maxTotal = msg.maxTotal;
         received = true;
         list.clamp(options.size());
-        rebuildMapMarkers();
-    }
-
-    @Override
-    public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
-        mapData.setPlaces(entries);
-        rebuildMapMarkers();
-    }
-
-    @Override
-    public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> entries) {
-        mapData.setWorkers(entries);
-        rebuildMapMarkers();
-    }
-
-    private void rebuildMapMarkers() {
-        if (mapController != null) mapData.populate(mapController, player, ClientOwnerVisualsCache.getColor(), plannedVillages);
+        map.setSelected(plannedVillages);
     }
 
     @Override
@@ -161,29 +119,7 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
-    public void handleMouseInput() throws IOException {
-        super.handleMouseInput();
-        int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
-        int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
-        int wheel = Mouse.getEventDWheel();
-        if (wheel == 0) return;
-        if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
-            mapController.handleWheel(mouseX, mouseY, wheel);
-        } else if (list.isOver(mouseX, mouseY)) {
-            list.scrollBy(wheel, options.size());
-        }
-    }
-
-    @Override
-    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (mapController != null && mapController.onMouseClick(mouseX, mouseY, mouseButton)) {
-            super.mouseClicked(mouseX, mouseY, mouseButton);
-            return;
-        }
-        super.mouseClicked(mouseX, mouseY, mouseButton);
-        if (mouseButton != 0) return;
-        int idx = list.rowAt(mouseX, mouseY, options.size());
-        if (idx < 0) return;
+    protected void onRowClicked(int idx, int mouseX, int mouseY) {
         RecruitCultures.Option o = options.get(idx);
         if (o.verdict != RecruitCultures.Verdict.OK) return;
         int rowTop = list.rowTop(idx);
@@ -199,29 +135,16 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     }
 
     @Override
-    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
-        super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-        if (mapController != null) mapController.onMouseDrag(mouseX, mouseY);
-    }
-
-    @Override
-    protected void mouseReleased(int mouseX, int mouseY, int state) {
-        super.mouseReleased(mouseX, mouseY, state);
-        if (mapController != null) mapController.onMouseRelease(state);
-    }
-
-    @Override
-    protected void actionPerformed(GuiButton button) throws IOException {
+    protected boolean onAction(GuiButton button) throws IOException {
         if (button == backButton) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgOpenWorkerSubGui(worker.getEntityId(), MsgOpenWorkerSubGui.Type.HUB));
-            return;
-        }
-        if (button == startButton) {
+        } else if (button == startButton) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgRecruitStart(worker.getEntityId(), new LinkedHashMap<>(wanted)));
             mc.player.closeScreen();
-            return;
+        } else {
+            return false;
         }
-        super.actionPerformed(button);
+        return true;
     }
 
     // Recruits that can still be added, all cultures together (the server caps the same total).
@@ -234,57 +157,99 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
     // ── Layout of a row ───────────────────────────────────────────────────────
 
     private int plusX() {
-        return listX + LIST_W - 3 - TravellersGuiTheme.SCROLLBAR_W - 2 - BOX;
+        return list.x + list.rowW(options.size()) - ScrollList.TEXT_PAD - BOX;
     }
 
     private int minusX() {
-        return plusX() - 18 - BOX;
+        return plusX() - COUNT_W - BOX;
     }
 
-    private static boolean inBox(int mouseX, int mouseY, int x, int rowTop) {
-        int y = rowTop + (ROW_H - BOX) / 2;
+    private boolean inBox(int mouseX, int mouseY, int x, int rowTop) {
+        int y = rowTop + (list.rowH - BOX) / 2;
         return mouseX >= x && mouseX < x + BOX && mouseY >= y && mouseY < y + BOX;
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────────
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        this.drawDefaultBackground();
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-        if (mapController != null) {
-            TravellersGuiTheme.drawMapFrame(mapX, mapY, MAP_W, MAP_H);
-            rebuildMapMarkers();
-            mapController.draw();
-        }
-        super.drawScreen(mouseX, mouseY, partialTicks);
-        drawHeader();
-        int hovered = drawList(mouseX, mouseY);
-        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
-        if (hovered >= 0) drawRowTooltip(options.get(hovered), mouseX, mouseY);
-        else if (isOverCost(mouseX, mouseY)) drawCostTooltip(mouseX, mouseY);
-    }
-
-    private void drawHeader() {
+    protected void drawSideOverlay(int mouseX, int mouseY) {
+        int y = layout.listY() + (HEADER_H - fontRenderer.FONT_HEIGHT) / 2;
         if (received) {
             String count = I18n.format("travellers.worker.recruit.count", maxTotal - room(), maxTotal);
-            fontRenderer.drawString(count, listX + LIST_W - fontRenderer.getStringWidth(count), mapY + 1,
+            fontRenderer.drawString(count, layout.listX() + layout.listW() - 3 - fontRenderer.getStringWidth(count), y,
                     room() > 0 ? TravellersGuiTheme.COL_TEXT_DIM : TravellersGuiTheme.COL_TEXT);
         }
-        if (plannedVillages.isEmpty()) return;
-        boolean afford = MillMoney.countPlayerMoney(player) >= travelFee + purse;
-        MoneyText.draw(fontRenderer, costLine(), listX, mapY + 1,
-                afford ? TravellersGuiTheme.COL_TEXT : TravellersGuiTheme.COL_CANNOT);
+        if (!plannedVillages.isEmpty()) {
+            boolean afford = MillMoney.countPlayerMoney(player) >= travelFee + purse;
+            MoneyText.draw(fontRenderer, costLine(), layout.listX() + 3, y,
+                    afford ? TravellersGuiTheme.COL_TEXT : TravellersGuiTheme.COL_CANNOT);
+        }
+        TravellersGuiTheme.drawSeparator(layout.listX(), layout.listY() + HEADER_H - 1, layout.listW());
+    }
+
+    @Override
+    protected void drawRow(int idx, int x, int top, int rowW, boolean hovered, int mouseX, int mouseY) {
+        RecruitCultures.Option o = options.get(idx);
+        boolean ok = o.verdict == RecruitCultures.Verdict.OK;
+        int count = wanted.getOrDefault(o.cultureKey, 0);
+        int textY = list.textY(fontRenderer, top);
+        int textCol = !ok ? TravellersGuiTheme.COL_TEXT_DIM : hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
+
+        fontRenderer.drawString(TravellersGuiTheme.shortenMiddle(fontRenderer, MillCultures.adjective(o.cultureKey), "", NAME_W),
+                x + ScrollList.TEXT_PAD, textY, textCol);
+
+        int repX = x + ScrollList.TEXT_PAD + NAME_W + 4;
+        int repW = minusX() - 6 - repX;
+        if (!ok) {
+            String reason = I18n.format(o.verdict == RecruitCultures.Verdict.ENEMY_VILLAGE
+                    ? "travellers.worker.recruit.blocked.enemy" : "travellers.worker.recruit.blocked.reputation");
+            fontRenderer.drawString(fontRenderer.trimStringToWidth(reason, repW), repX, textY, TravellersGuiTheme.COL_CANNOT);
+            return;
+        }
+        String chance = o.chancePercent + "%";
+        int chanceW = fontRenderer.getStringWidth(chance);
+        fontRenderer.drawString(fontRenderer.trimStringToWidth(MillCultures.localReputationLabel(o.cultureKey), repW - chanceW - 4),
+                repX, textY, TravellersGuiTheme.COL_TEXT_DIM);
+        fontRenderer.drawString(chance, repX + repW - chanceW, textY, textCol);
+
+        drawBox(minusX(), top, "-", count > 0, hovered && inBox(mouseX, mouseY, minusX(), top));
+        drawBox(plusX(), top, "+", room() > 0, hovered && inBox(mouseX, mouseY, plusX(), top));
+        String n = String.valueOf(count);
+        int numCenter = minusX() + BOX + COUNT_W / 2;
+        fontRenderer.drawString(n, numCenter - fontRenderer.getStringWidth(n) / 2, textY,
+                count > 0 ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT_DIM);
     }
 
     private String costLine() {
         return I18n.format("travellers.worker.recruit.cost", MillMoney.format(travelFee + purse));
     }
 
+    private void drawBox(int x, int rowTop, String label, boolean enabled, boolean hover) {
+        int y = rowTop + (list.rowH - BOX) / 2;
+        TravellersGuiTheme.drawButtonBox(x, y, BOX, BOX,
+                !enabled ? TravellersGuiTheme.COL_BTN_BG_OFF : hover ? TravellersGuiTheme.COL_BTN_BG_HOVER : TravellersGuiTheme.COL_BTN_BG,
+                enabled ? TravellersGuiTheme.COL_BORDER : TravellersGuiTheme.COL_BTN_BORDER_OFF);
+        TravellersGuiTheme.drawCenteredText(fontRenderer, label, x + BOX / 2 + 1, y + 1,
+                !enabled ? TravellersGuiTheme.COL_BTN_TEXT_OFF : hover ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
+    }
+
+    @Override
+    protected void drawTop(int mouseX, int mouseY) {
+        int idx = list.rowAt(mouseX, mouseY, options.size());
+        if (idx >= 0) {
+            RecruitCultures.Option o = options.get(idx);
+            boolean onBox = o.verdict == RecruitCultures.Verdict.OK
+                    && (inBox(mouseX, mouseY, minusX(), list.rowTop(idx)) || inBox(mouseX, mouseY, plusX(), list.rowTop(idx)));
+            if (!onBox) drawRowTooltip(o, mouseX, mouseY);
+        } else if (isOverCost(mouseX, mouseY)) {
+            drawCostTooltip(mouseX, mouseY);
+        }
+    }
+
     private boolean isOverCost(int mouseX, int mouseY) {
-        return !plannedVillages.isEmpty() && mouseY >= mapY && mouseY < mapY + 10
-                && mouseX >= listX && mouseX < listX + MoneyText.width(fontRenderer, costLine());
+        int y = layout.listY();
+        return !plannedVillages.isEmpty() && mouseY >= y && mouseY < y + HEADER_H
+                && mouseX >= layout.listX() && mouseX < layout.listX() + 3 + MoneyText.width(fontRenderer, costLine());
     }
 
     private void drawCostTooltip(int mouseX, int mouseY) {
@@ -293,70 +258,6 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
         lines.add(I18n.format("travellers.worker.recruit.cost.purse", MillMoney.format(purse)));
         lines.add(TextFormatting.GRAY + I18n.format("travellers.worker.recruit.cost.refund"));
         MoneyText.drawTooltip(fontRenderer, lines, mouseX, mouseY, width, height);
-    }
-
-    /** Draws the rows; returns the hovered option (outside its counter boxes), or -1. */
-    private int drawList(int mouseX, int mouseY) {
-        TravellersGuiTheme.drawInnerPanel(listX - 2, listY - 2, LIST_W + 4, listH + 4);
-        if (received && options.isEmpty()) {
-            TravellersGuiTheme.drawCenteredText(fontRenderer, I18n.format("travellers.worker.recruit.none"),
-                    listX + LIST_W / 2, listY + listH / 2 - 4, TravellersGuiTheme.COL_TEXT_DIM);
-            return -1;
-        }
-        list.clamp(options.size());
-        int hovered = -1;
-        int textY = (ROW_H - 7) / 2;
-        for (int i = 0; i < list.rowsToDraw(options.size()); i++) {
-            int idx = list.scroll() + i;
-            RecruitCultures.Option o = options.get(idx);
-            int rowTop = list.rowTop(idx);
-            boolean ok = o.verdict == RecruitCultures.Verdict.OK;
-            int count = wanted.getOrDefault(o.cultureKey, 0);
-            boolean rowHover = list.isRowHovered(idx, mouseX, mouseY);
-            boolean onBox = ok && (inBox(mouseX, mouseY, minusX(), rowTop) || inBox(mouseX, mouseY, plusX(), rowTop));
-            if (rowHover && !onBox) hovered = idx;
-            TravellersGuiTheme.drawListRow(listX, rowTop, LIST_W, ROW_H, rowHover, count > 0);
-
-            int textCol = !ok ? TravellersGuiTheme.COL_TEXT_DIM
-                    : rowHover ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
-            String name = TravellersGuiTheme.shortenMiddle(fontRenderer, MillCultures.adjective(o.cultureKey), "",
-                    (int) (NAME_W / TEXT_SCALE));
-            TravellersGuiTheme.drawScaledText(fontRenderer, name, listX + 3, rowTop + textY, TEXT_SCALE, textCol);
-
-            int repX = listX + 3 + NAME_W + 4;
-            int repW = minusX() - 6 - repX;
-            if (!ok) {
-                String reason = I18n.format(o.verdict == RecruitCultures.Verdict.ENEMY_VILLAGE
-                        ? "travellers.worker.recruit.blocked.enemy" : "travellers.worker.recruit.blocked.reputation");
-                TravellersGuiTheme.drawScaledText(fontRenderer, reason, repX, rowTop + textY, TEXT_SCALE, TravellersGuiTheme.COL_CANNOT);
-                continue;
-            }
-            String chance = o.chancePercent + "%";
-            int chanceW = (int) Math.ceil(fontRenderer.getStringWidth(chance) * TEXT_SCALE);
-            String rep = fontRenderer.trimStringToWidth(MillCultures.localReputationLabel(o.cultureKey),
-                    (int) ((repW - chanceW - 4) / TEXT_SCALE));
-            TravellersGuiTheme.drawScaledText(fontRenderer, rep, repX, rowTop + textY, TEXT_SCALE, TravellersGuiTheme.COL_TEXT_DIM);
-            TravellersGuiTheme.drawScaledText(fontRenderer, chance, repX + repW - chanceW, rowTop + textY, TEXT_SCALE, textCol);
-
-            drawBox(minusX(), rowTop, "-", count > 0, inBox(mouseX, mouseY, minusX(), rowTop));
-            drawBox(plusX(), rowTop, "+", room() > 0, inBox(mouseX, mouseY, plusX(), rowTop));
-            String n = String.valueOf(count);
-            int numCenter = minusX() + BOX + (plusX() - minusX() - BOX) / 2;
-            int nW = (int) Math.ceil(fontRenderer.getStringWidth(n) * TEXT_SCALE);
-            TravellersGuiTheme.drawScaledText(fontRenderer, n, numCenter - nW / 2, rowTop + textY, TEXT_SCALE,
-                    count > 0 ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT_DIM);
-        }
-        list.drawScrollbar(options.size());
-        return hovered;
-    }
-
-    private void drawBox(int x, int rowTop, String label, boolean enabled, boolean hover) {
-        int y = rowTop + (ROW_H - BOX) / 2;
-        TravellersGuiTheme.drawButtonBox(x, y, BOX, BOX,
-                !enabled ? TravellersGuiTheme.COL_BTN_BG_OFF : hover ? TravellersGuiTheme.COL_BTN_BG_HOVER : TravellersGuiTheme.COL_BTN_BG,
-                enabled ? TravellersGuiTheme.COL_BORDER : TravellersGuiTheme.COL_BTN_BORDER_OFF);
-        TravellersGuiTheme.drawCenteredText(fontRenderer, label, x + BOX / 2 + 1, y + 1,
-                !enabled ? TravellersGuiTheme.COL_BTN_TEXT_OFF : hover ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
     }
 
     private void drawRowTooltip(RecruitCultures.Option o, int mouseX, int mouseY) {
@@ -371,18 +272,5 @@ public class GuiWorkerRecruitCultures extends GuiScreen implements IWorkerGoList
                     ? "travellers.worker.recruit.tip.enemy" : "travellers.worker.recruit.tip.reputation"));
         }
         GuiUtils.drawHoveringText(lines, mouseX, mouseY, width, height, -1, fontRenderer);
-    }
-
-    @Override
-    public boolean doesGuiPauseGame() {
-        return false;
-    }
-
-    public Rectangle getJeiListArea() {
-        return new Rectangle(listX - 2, mapY, LIST_W + 4, MAP_H);
-    }
-
-    public Rectangle getJeiMapArea() {
-        return new Rectangle(mapX - 2, mapY - 2, MAP_W + 4, MAP_H + 4);
     }
 }

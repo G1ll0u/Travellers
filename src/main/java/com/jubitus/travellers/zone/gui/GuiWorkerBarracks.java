@@ -4,11 +4,13 @@ import com.jubitus.travellers.gui.GuiTravellersButton;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.ScrollList;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
-import com.jubitus.travellers.worldmap.gui.WorkerMapScreenSupport;
-import com.jubitus.travellers.worldmap.gui.WorldMapController;
-import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
+import com.jubitus.travellers.gui.MapListLayout;
+import com.jubitus.travellers.worldmap.gui.WorkerMapView;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerBarracksReceiver;
-import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
+import com.jubitus.travellers.worldmap.gui.receiver.IWorkerMapScreen;
+import com.jubitus.travellers.worker.net.MsgWorkerGoList;
+import com.jubitus.travellers.worker.net.MsgWorkerRequestGoList;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerZoneDutyReceiver;
 import com.jubitus.travellers.marker.client.ClientOwnerVisualsCache;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -60,7 +62,7 @@ import com.jubitus.travellers.gui.WorkerHeadRenderer;
  */
 @SideOnly(Side.CLIENT)
 public class GuiWorkerBarracks extends GuiScreen
-        implements IWorkerBarracksReceiver, IWorkerZoneDutyReceiver, IWorkerMapReceiver, ITravellersGui {
+        implements IWorkerBarracksReceiver, IWorkerZoneDutyReceiver, IWorkerGoListReceiver, IWorkerMapScreen, ITravellersGui {
 
     private static final ResourceLocation TEX_HOME =
             new ResourceLocation("travellers", "textures/map/marker_home.png");
@@ -133,20 +135,21 @@ public class GuiWorkerBarracks extends GuiScreen
     private boolean dragFromAssigned = false;
     private boolean dragging = false;
 
-    private WorldMapController mapController;
-    private final WorkerMapScreenSupport mapData = new WorkerMapScreenSupport();
+    private WorkerMapView map;
+    private MapListLayout layout;
 
     private GuiButton backBtn;
-    private GuiButton zoomInBtn, zoomOutBtn, recenterBtn;
     private static final int DELETE_ICON_W = 12;
+    private static final int HEADER_H = 14;
+    private static final int PANEL_GAP = 6;
 
-    private int mapX, mapY, mapW, mapH;
     private int listX, listW;
     private final int rowH = 14;
-    private final int titleH = 10;
     private final ScrollList zoneList = new ScrollList(rowH);
     private final ScrollList unassignedList = new ScrollList(rowH);
     private final ScrollList selectedList = new ScrollList(rowH);
+    // Outer boxes of the three stacked panels (x is shared): {y, h}.
+    private final int[] zoneBox = new int[2], unassignedBox = new int[2], selectedBox = new int[2];
 
     @Nullable private String notificationKey = null;
     private long notificationExpireMs = 0L;
@@ -164,61 +167,66 @@ public class GuiWorkerBarracks extends GuiScreen
     }
 
     @Override
+    public WorkerMapView mapView() {
+        return map;
+    }
+
+    @Override
+    public void receiveGoList(List<MsgWorkerGoList.Entry> entries) {
+        map.data.setPlaces(entries);
+    }
+
+    @Override
     public void initGui() {
         super.initGui();
         this.buttonList.clear();
 
         this.sortAnchor = (worker != null) ? worker.getPosition() : player.getPosition();
 
-        mapW = 180;
-        mapH = Math.min(210, this.height - 60);
-        listW = 150;
+        layout = new MapListLayout(width, height, 190, 1);
+        listX = layout.listX();
+        listW = layout.listW();
 
-        int totalW = mapW + 12 + listW;
-        int startX = Math.max(4, (this.width - totalW) / 2);
-        mapX = startX;
-        listX = startX + mapW + 12;
-        int top = Math.max(14, (this.height - mapH) / 2);
-        mapY = top;
+        // Right column: three stacked boxes. The zone list is small (few zones); the two worker
+        // boxes take the rest so many rows are visible at once.
+        int avail = layout.listBoxH - PANEL_GAP * 2;
+        int zoneH = Math.max(HEADER_H + rowH * 3 + 2, avail * 2 / 7);
+        int unassignedH = Math.max(HEADER_H + rowH * 3 + 2, (avail - zoneH) / 2);
+        int selectedH = Math.max(HEADER_H + rowH * 2 + 2, avail - zoneH - unassignedH);
+        zoneBox[0] = layout.listBoxY;
+        zoneBox[1] = zoneH;
+        unassignedBox[0] = zoneBox[0] + zoneH + PANEL_GAP;
+        unassignedBox[1] = unassignedH;
+        selectedBox[0] = unassignedBox[0] + unassignedH + PANEL_GAP;
+        selectedBox[1] = selectedH;
+        bindList(zoneList, zoneBox);
+        bindList(unassignedList, unassignedBox);
+        bindList(selectedList, selectedBox);
 
-        // Right column: three stacked panels. The zone list is small (few zones); the two worker
-        // panels take the rest so many rows are visible at once.
-        int colTop = top;
-        int panelGap = 6;
-        int avail = (mapY + mapH) - colTop - titleH * 3 - panelGap * 2;
-        int zoneListH = Math.max(rowH * 3, avail * 2 / 7);
-        int unassignedH = Math.max(rowH * 3, (avail - zoneListH) / 2);
-        int selectedH = Math.max(rowH * 2, avail - zoneListH - unassignedH);
-
-        zoneList.setBounds(listX, colTop + titleH, listW, zoneListH);
-        unassignedList.setBounds(listX, zoneList.y + zoneListH + panelGap + titleH, listW, unassignedH);
-        selectedList.setBounds(listX, unassignedList.y + unassignedH + panelGap + titleH, listW, selectedH);
-
-        int bh = 20;
-        int buttonsY = mapY + mapH + 6;
-        this.backBtn = this.addButton(new GuiTravellersButton(0, mapX, buttonsY, 50, bh,
-                I18n.format("travellers.gui.back", "Back")));
-
-        this.zoomOutBtn = this.addButton(new GuiTravellersButton(2, mapX + 54, buttonsY, 20, bh, "-"));
-        this.zoomInBtn = this.addButton(new GuiTravellersButton(3, mapX + 76, buttonsY, 20, bh, "+"));
-        this.recenterBtn = this.addButton(new GuiTravellersButton(4, mapX + 98, buttonsY, 44, bh,
-                I18n.format("travellers.map.center", "Center")));
+        this.backBtn = this.addButton(new GuiTravellersButton(0, layout.sideButtonX(0, 1), layout.sideRowY(0), layout.sideButtonW(1),
+                MapListLayout.BTN_H, I18n.format("travellers.gui.back", "Back")));
 
         BlockPos center = (worker != null) ? worker.getPosition() : player.getPosition();
-        mapController = new WorldMapController(Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
-                "travellers_barracks_map", center);
+        map = new WorkerMapView(layout.mapX(), layout.mapY(), layout.mapW(), layout.mapH(), "travellers_barracks_map", center);
+        map.addNav(buttonList, 2, () -> worker != null ? worker.getPosition() : player.getPosition(), layout.navRowY());
 
-        mapData.subscribe();
+        map.subscribe();
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(-1));
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerBarracksData());
         TravellersNetwork.CHANNEL.sendToServer(new MsgRequestWorkerZoneData());
 
         rebuildWorkerPanels();
     }
 
+    /** Rows live under the box header, inside the 1px border. */
+    private void bindList(ScrollList l, int[] box) {
+        l.setBounds(listX, box[0] + 1 + HEADER_H, listW, box[1] - 2 - HEADER_H);
+    }
+
     @Override
     public void onGuiClosed() {
         super.onGuiClosed();
-        mapData.unsubscribe();
+        map.unsubscribe();
     }
 
     @Override
@@ -230,7 +238,7 @@ public class GuiWorkerBarracks extends GuiScreen
         if (selectedZoneIndex >= zoneRows.size()) selectedZoneIndex = -1;
         rebuildWorkerPanels();
         clampScrolls();
-        if (mapController != null) rebuildMarkers();
+        refreshSelection();
         if (data.notification != null && !data.notification.isEmpty()) {
             notificationKey = data.notification;
             notificationExpireMs = System.currentTimeMillis() + 4000L;
@@ -246,17 +254,11 @@ public class GuiWorkerBarracks extends GuiScreen
         if (selectedZoneIndex >= zoneRows.size()) selectedZoneIndex = -1;
         rebuildWorkerPanels();
         clampScrolls();
-        if (mapController != null) rebuildMarkers();
+        refreshSelection();
         if (data.notification != null && !data.notification.isEmpty()) {
             notificationKey = data.notification;
             notificationExpireMs = System.currentTimeMillis() + 4000L;
         }
-    }
-
-    @Override
-    public void receiveWorkers(List<MsgMapWorkersUpdate.Entry> list) {
-        mapData.setWorkers(list);
-        if (mapController != null) rebuildMarkers();
     }
 
     private void rebuildWorkerPanels() {
@@ -321,53 +323,38 @@ public class GuiWorkerBarracks extends GuiScreen
         return dx * dx + dz * dz;
     }
 
-    private void rebuildMarkers() {
-        if (mapController == null) return;
-        int ownerColor = ClientOwnerVisualsCache.getColor();
-        mapData.populate(mapController, player, ownerColor, null);
-        for (int i = 0; i < zoneRows.size(); i++) {
-            ZoneRow z = zoneRows.get(i);
-            if (i == selectedZoneIndex) {
-                mapController.panel.addMarker(WorldMapMarkerFactory.villageHighlighted(z.center, z.name));
-            } else if (z.type == ZoneType.STABLE) {
-                mapController.panel.addMarker(WorldMapMarkerFactory.stable(z.center, z.name, ownerColor));
-            } else {
-                mapController.panel.addMarker(WorldMapMarkerFactory.home(z.center, z.name, ownerColor));
-            }
-        }
+    private void refreshSelection() {
+        map.setSelected(selectedZoneIndex >= 0 && selectedZoneIndex < zoneRows.size()
+                ? zoneRows.get(selectedZoneIndex).center : null);
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
 
-        int wheel = Mouse.getDWheel();
-        if (wheel != 0) handleWheel(mouseX, mouseY, wheel);
-
         GlStateManager.disableLighting();
         GlStateManager.disableDepth();
 
-        if (mapController != null) {
-            TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
-            rebuildMarkers();
-            mapController.draw();
-        }
+        TravellersGuiTheme.drawPanel(layout.frameX, layout.frameY, layout.frameW, layout.frameH);
+        MapListLayout.drawTitle(fontRenderer, layout.frameX, layout.frameW, layout.frameY,
+                I18n.format("travellers.worker.barracks.title"));
+        String hint = I18n.format("travellers.worker.barracks.dragdrop", "Drag & drop to assign/unassign");
+        fontRenderer.drawString(hint, layout.frameX + layout.frameW - MapListLayout.PAD - fontRenderer.getStringWidth(hint),
+                layout.frameY + (MapListLayout.TITLE_H - fontRenderer.FONT_HEIGHT) / 2 + 1, TravellersGuiTheme.COL_TEXT_DIM);
+        TravellersGuiTheme.drawInnerPanel(layout.mapBoxX, layout.mapBoxY, layout.mapBoxW, layout.mapBoxH);
+        map.draw(player, ClientOwnerVisualsCache.getColor(), dragging ? -1 : mouseX, dragging ? -1 : mouseY);
 
         drawZoneList(mouseX, mouseY);
         drawWorkerPanel(I18n.format("travellers.worker.zones.unassigned_any", "Unassigned Henchmen"),
-                unassigned, unassignedList, mouseX, mouseY);
+                unassigned, unassignedList, unassignedBox, mouseX, mouseY);
         drawWorkerPanel(I18n.format("travellers.worker.zones.assigned_here", "Assigned Here"),
-                selectedHench, selectedList, mouseX, mouseY);
-
-        this.fontRenderer.drawString(
-                I18n.format("travellers.worker.barracks.dragdrop", "Drag & drop to assign/unassign"),
-                listX, selectedList.y + selectedList.h + 3, TravellersGuiTheme.COL_TEXT_DIM);
+                selectedHench, selectedList, selectedBox, mouseX, mouseY);
 
         drawNotification();
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
-        if (mapController != null) mapController.drawTooltip(this, mouseX, mouseY);
+        if (!dragging) map.drawTooltip(this, mouseX, mouseY);
 
         if (dragging && dragWorker != null) {
             WorkerHeadRenderer.draw(dragWorker.cultureId, dragWorker.textureIndex, dragWorker.ownerColor,
@@ -390,42 +377,37 @@ public class GuiWorkerBarracks extends GuiScreen
             }
             return;
         }
-        if (button == zoomInBtn) {
-            mapController.zoomStep(1);
-            return;
-        }
-        if (button == zoomOutBtn) {
-            mapController.zoomStep(-1);
-            return;
-        }
-        if (button == recenterBtn) {
-            BlockPos c = (worker != null) ? worker.getPosition() : player.getPosition();
-            mapController.setCenter(c);
-            return;
-        }
+        if (map.handleButton(button)) return;
         super.actionPerformed(button);
     }
 
-    private void drawZoneList(int mouseX, int mouseY) {
-        String title = I18n.format("travellers.worker.zones.list_zones", "Barracks & Stables");
-        TravellersGuiTheme.drawTitle(this.fontRenderer, title, listX, zoneList.y - titleH);
-        TravellersGuiTheme.drawInnerPanel(listX - 2, zoneList.y - 2, listW + 4, zoneList.h + 4);
+    private void drawBoxHeader(String title, int[] box) {
+        fontRenderer.drawString(TravellersGuiTheme.trimLabel(fontRenderer, title, listW - 6), listX + 3,
+                box[0] + 1 + (HEADER_H - fontRenderer.FONT_HEIGHT) / 2 + 1, TravellersGuiTheme.COL_TEXT);
+        TravellersGuiTheme.drawSeparator(listX, box[0] + HEADER_H, listW);
+    }
 
+    private void drawZoneList(int mouseX, int mouseY) {
+        TravellersGuiTheme.drawInnerPanel(layout.listBoxX, zoneBox[0], layout.listBoxW, zoneBox[1]);
+        drawBoxHeader(I18n.format("travellers.worker.zones.list_zones", "Barracks & Stables"), zoneBox);
+
+        zoneList.clamp(zoneRows.size());
+        int rowW = zoneList.rowW(zoneRows.size());
         int visible = zoneList.rowsToDraw(zoneRows.size());
         for (int i = 0; i < visible; i++) {
             int idx = zoneList.scroll() + i;
             int rowTop = zoneList.rowTop(idx);
-            boolean hovered = zoneList.isRowHovered(idx, mouseX, mouseY);
+            boolean hovered = zoneList.isRowHovered(idx, mouseX, mouseY) && mouseX < zoneList.x + rowW;
             boolean sel = idx == selectedZoneIndex;
-            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, sel);
+            TravellersGuiTheme.drawListRow(listX, rowTop, rowW, rowH, hovered, sel);
             ZoneRow z = zoneRows.get(idx);
             drawZoneIcon(z.type, listX + 1, rowTop - 1, 14);
             String label = z.name + " (" + z.capacityLabel + ")";
-            this.fontRenderer.drawString(trim(label, listW - DELETE_ICON_W - 20), listX + 16, rowTop + 3,
+            fontRenderer.drawString(trim(label, rowW - DELETE_ICON_W - 20), listX + 16, zoneList.textY(fontRenderer, rowTop),
                     hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
-            boolean overIcon = inRect(mouseX, mouseY, listX + listW - DELETE_ICON_W, rowTop, DELETE_ICON_W, rowH);
-            this.fontRenderer.drawString("X", listX + listW - DELETE_ICON_W + 3, rowTop + 3,
-                    overIcon ? 0xFFFF5555 : 0xFFAA4444);
+            int delX = listX + rowW - DELETE_ICON_W;
+            boolean overIcon = inRect(mouseX, mouseY, delX, rowTop, DELETE_ICON_W, rowH);
+            fontRenderer.drawString("X", delX + 3, zoneList.textY(fontRenderer, rowTop), overIcon ? 0xFFFF5555 : 0xFFAA4444);
         }
         zoneList.drawScrollbar(zoneRows.size());
     }
@@ -440,40 +422,39 @@ public class GuiWorkerBarracks extends GuiScreen
         GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
-    private void drawWorkerPanel(String title, List<WorkerRow> list, ScrollList panel, int mouseX, int mouseY) {
-        TravellersGuiTheme.drawTitle(this.fontRenderer, title, listX, panel.y - titleH);
-        TravellersGuiTheme.drawInnerPanel(listX - 2, panel.y - 2, listW + 4, panel.h + 4);
+    private void drawWorkerPanel(String title, List<WorkerRow> rows, ScrollList panel, int[] box, int mouseX, int mouseY) {
+        TravellersGuiTheme.drawInnerPanel(layout.listBoxX, box[0], layout.listBoxW, box[1]);
+        drawBoxHeader(title, box);
 
-        int visible = panel.rowsToDraw(list.size());
+        panel.clamp(rows.size());
+        int rowW = panel.rowW(rows.size());
+        int visible = panel.rowsToDraw(rows.size());
         for (int i = 0; i < visible; i++) {
             int idx = panel.scroll() + i;
-            WorkerRow w = list.get(idx);
+            WorkerRow w = rows.get(idx);
             int rowTop = panel.rowTop(idx);
-            boolean hovered = panel.isRowHovered(idx, mouseX, mouseY);
+            boolean hovered = panel.isRowHovered(idx, mouseX, mouseY) && mouseX < panel.x + rowW;
             boolean drag = dragging && dragWorker == w;
-            TravellersGuiTheme.drawListRow(listX, rowTop, listW, rowH, hovered, drag);
+            TravellersGuiTheme.drawListRow(listX, rowTop, rowW, rowH, hovered, drag);
             WorkerHeadRenderer.draw(w.cultureId, w.textureIndex, w.ownerColor, listX + 1, rowTop - 1, 16);
             int color = hovered ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT;
             String label = w.name;
             if (w.assignedType == ZoneType.STABLE) label = "[S] " + label;
             else if (w.assignedType == ZoneType.BARRACK) label = "[H] " + label;
-            this.fontRenderer.drawString(trim(label, listW - 22), listX + 20, rowTop + 3, color);
+            fontRenderer.drawString(trim(label, rowW - 22), listX + 20, panel.textY(fontRenderer, rowTop), color);
         }
-        panel.drawScrollbar(list.size());
+        panel.drawScrollbar(rows.size());
     }
 
     private void drawNotification() {
         if (notificationKey == null) return;
         if (System.currentTimeMillis() > notificationExpireMs) { notificationKey = null; return; }
-        String text = I18n.format(notificationKey);
-        int textW = this.fontRenderer.getStringWidth(text);
-        int totalW = mapW + 12 + listW;
-        int startX = Math.max(4, (this.width - totalW) / 2);
-        int notifW = Math.max(textW + 12, totalW);
-        int notifX = startX + totalW / 2 - notifW / 2;
-        int notifY = mapY - 14;
-        drawRect(notifX, notifY, notifX + notifW, notifY + 12, 0xCC660000);
-        this.fontRenderer.drawString(text, notifX + (notifW - textW) / 2, notifY + 2, 0xFFFF6666);
+        String text = fontRenderer.trimStringToWidth(I18n.format(notificationKey), layout.mapW() - 12);
+        int textW = fontRenderer.getStringWidth(text);
+        int notifX = layout.mapX() + (layout.mapW() - textW - 12) / 2;
+        int notifY = layout.mapY() + 3;
+        drawRect(notifX, notifY, notifX + textW + 12, notifY + 12, 0xCC660000);
+        fontRenderer.drawString(text, notifX + 6, notifY + 2, 0xFFFF6666);
     }
 
     private String trim(String s, int maxWidth) {
@@ -488,15 +469,18 @@ public class GuiWorkerBarracks extends GuiScreen
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
-        if (mapController != null && mapController.onMouseClick(mouseX, mouseY, mouseButton)) {
+        if (map.mouseDown(mouseX, mouseY, mouseButton)) {
             super.mouseClicked(mouseX, mouseY, mouseButton);
             return;
         }
         super.mouseClicked(mouseX, mouseY, mouseButton);
         if (mouseButton != 0) return;
+        if (zoneList.mouseDown(mouseX, mouseY, zoneRows.size())
+                || unassignedList.mouseDown(mouseX, mouseY, unassigned.size())
+                || selectedList.mouseDown(mouseX, mouseY, selectedHench.size())) return;
 
         int bIdx = zoneList.rowAt(mouseX, mouseY, zoneRows.size());
-        if (bIdx >= 0 && mouseX >= listX + listW - DELETE_ICON_W) {
+        if (bIdx >= 0 && mouseX >= listX + zoneList.rowW(zoneRows.size()) - DELETE_ICON_W) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgDeletePlayerZone(zoneRows.get(bIdx).center));
             if (selectedZoneIndex == bIdx) selectedZoneIndex = -1;
             refreshAll();
@@ -506,10 +490,8 @@ public class GuiWorkerBarracks extends GuiScreen
             selectedZoneIndex = bIdx;
             rebuildWorkerPanels();
             clampScrolls();
-            if (mapController != null) {
-                mapController.setCenter(zoneRows.get(bIdx).center);
-                rebuildMarkers();
-            }
+            map.controller.setCenter(zoneRows.get(bIdx).center);
+            refreshSelection();
             return;
         }
 
@@ -531,13 +513,19 @@ public class GuiWorkerBarracks extends GuiScreen
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         super.mouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-        if (!dragging && mapController != null) mapController.onMouseDrag(mouseX, mouseY);
+        if (!dragging) map.mouseDrag(mouseX, mouseY);
+        zoneList.mouseDrag(mouseY, zoneRows.size());
+        unassignedList.mouseDrag(mouseY, unassigned.size());
+        selectedList.mouseDrag(mouseY, selectedHench.size());
     }
 
     @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         super.mouseReleased(mouseX, mouseY, state);
-        if (mapController != null) mapController.onMouseRelease(state);
+        map.mouseUp(state);
+        zoneList.mouseUp();
+        unassignedList.mouseUp();
+        selectedList.mouseUp();
 
         if (dragging && dragWorker != null) {
             boolean overUnassigned = unassignedList.isOver(mouseX, mouseY);
@@ -566,9 +554,17 @@ public class GuiWorkerBarracks extends GuiScreen
         dragWorker = null;
     }
 
+    @Override
+    public void handleMouseInput() throws IOException {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0) return;
+        handleWheel(Mouse.getEventX() * width / mc.displayWidth, height - Mouse.getEventY() * height / mc.displayHeight - 1, wheel);
+    }
+
     private void handleWheel(int mouseX, int mouseY, int wheel) {
-        if (mapController != null && mapController.isMouseOver(mouseX, mouseY)) {
-            mapController.handleWheel(mouseX, mouseY, wheel);
+        if (map.isMouseOver(mouseX, mouseY)) {
+            map.wheel(mouseX, mouseY, wheel);
         } else if (zoneList.isOver(mouseX, mouseY)) {
             zoneList.scrollBy(wheel, zoneRows.size());
         } else if (unassignedList.isOver(mouseX, mouseY)) {

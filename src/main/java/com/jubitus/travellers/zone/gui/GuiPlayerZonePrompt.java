@@ -161,6 +161,8 @@ public class GuiPlayerZonePrompt extends GuiScreen implements ITravellersGui {
         cancelBtn = addButton(new GuiTravellersButton(2, bx, 0, bw, bh, I18n.format("travellers.gui.cancel")));
 
         setType(selectedType);
+        // The map box shares the control panel's top and bottom edges.
+        mapH = panelH;
 
         mapController = new WorldMapController(
             Minecraft.getMinecraft(), mapX, mapY, mapW, mapH,
@@ -330,7 +332,7 @@ public class GuiPlayerZonePrompt extends GuiScreen implements ITravellersGui {
 
         // Draw map
         if (mapController != null) {
-            TravellersGuiTheme.drawMapFrame(mapX, mapY, mapW, mapH);
+            TravellersGuiTheme.drawInnerPanel(mapX - 2, mapY - 2, mapW + 4, mapH + 4);
             mapController.panel.clearMarkers();
             mapController.panel.addMarker(WorldMapMarkerFactory.player(center, player.getName(), 0xFFFFFF, player.rotationYaw));
             mapController.draw();

@@ -25,6 +25,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemArmor;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagList;
+import com.jubitus.travellers.follow.net.FormationZoneInfo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
@@ -762,6 +763,40 @@ public final class WorkerGroupService {
         sendHub(player, false, false, representativeEntityId, initialScope);
     }
 
+    private static HubWorker hubWorkerOf(EntityTravellerWorker w, @Nullable UUID escortLeader) {
+        return new HubWorker(w.getUniqueID(), escortLeader, w.isFollowOrderActive(), w.getZoneRef(),
+                w.dimension, w.getPosition(), g -> g.addLoaded(w));
+    }
+
+    private static HubWorker hubWorkerOf(VirtualTravellerRecord r) {
+        return new HubWorker(r.uuid, r.escortLeaderUUID, r.followOrderActive,
+                r.entityNbt != null ? com.jubitus.travellers.zone.ZoneRef.read(r.entityNbt) : null,
+                r.dimension, new BlockPos(r.posX, r.posY, r.posZ), g -> g.addVirtual(r));
+    }
+
+    /** The player's Barracks and Stables with who is bound to each, by zone centre (for map tooltips). */
+    public static Map<BlockPos, FormationZoneInfo> zoneInfos(MinecraftServer server, EntityPlayerMP player) {
+        UUID owner = player.getUniqueID();
+        Set<UUID> leaderIds = new HashSet<>();
+        List<HubWorker> hubWorkers = new ArrayList<>();
+        for (WorldServer ws : server.worlds) {
+            for (EntityTravellerWorker w : ws.getEntities(EntityTravellerWorker.class, e ->
+                    e != null && !e.isDead && e.isHiredFollower() && owner.equals(e.getFollowOwnerId()))) {
+                UUID lead = w.getEscortLeaderUUID();
+                if (lead != null) leaderIds.add(lead);
+                hubWorkers.add(hubWorkerOf(w, lead));
+            }
+        }
+        for (VirtualTravellerRecord r : vwm(server).getRecordsView()) {
+            if (!r.isHiredFollower || !owner.equals(r.followOwnerUUID)) continue;
+            if (r.escortLeaderUUID != null) leaderIds.add(r.escortLeaderUUID);
+            hubWorkers.add(hubWorkerOf(r));
+        }
+        Map<BlockPos, FormationZoneInfo> byCenter = new HashMap<>();
+        for (FormationZoneInfo z : new HubZones(server, player, hubWorkers, leaderIds).zones) byCenter.put(z.center, z);
+        return byCenter;
+    }
+
     private static void sendHub(EntityPlayerMP player, boolean standalone, boolean updateOnly,
                                 @Nullable Integer representativeOverride,
                                 @Nullable WorkerFormationScopeKey initialScopeOverride) {
@@ -795,8 +830,7 @@ public final class WorkerGroupService {
                     followerCount.merge(lead, 1, Integer::sum);
                     gear.computeIfAbsent(lead, k -> new GroupGearSummary()).addLoaded(w);
                 }
-                hubWorkers.add(new HubWorker(w.getUniqueID(), lead, w.isFollowOrderActive(), w.getZoneRef(),
-                        w.dimension, w.getPosition(), g -> g.addLoaded(w)));
+                hubWorkers.add(hubWorkerOf(w, lead));
                 gear.computeIfAbsent(w.getUniqueID(), k -> new GroupGearSummary()).addLoaded(w);
                 FormationLeaderInfo info = new FormationLeaderInfo(w.getUniqueID(), w.getName(), 0,
                         w.posX, w.posZ, false, false);
@@ -819,9 +853,7 @@ public final class WorkerGroupService {
                 followerCount.merge(r.escortLeaderUUID, 1, Integer::sum);
                 gear.computeIfAbsent(r.escortLeaderUUID, k -> new GroupGearSummary()).addVirtual(r);
             }
-            hubWorkers.add(new HubWorker(r.uuid, r.escortLeaderUUID, r.followOrderActive,
-                    r.entityNbt != null ? com.jubitus.travellers.zone.ZoneRef.read(r.entityNbt) : null,
-                    r.dimension, new BlockPos(r.posX, r.posY, r.posZ), g -> g.addVirtual(r)));
+            hubWorkers.add(hubWorkerOf(r));
             gear.computeIfAbsent(r.uuid, k -> new GroupGearSummary()).addVirtual(r);
             if (!meta.containsKey(r.uuid)) meta.put(r.uuid, virtualMeta(r));
         }

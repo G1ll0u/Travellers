@@ -74,6 +74,11 @@ public class MsgWorkerRequestGoList implements IMessage {
                     out.add(MsgWorkerGoList.Entry.stable(r.center, label, dist));
                 }
 
+                java.util.Map<BlockPos, com.jubitus.travellers.follow.net.FormationZoneInfo> zones =
+                        com.jubitus.travellers.follow.group.WorkerGroupService.zoneInfos(player.getServer(), player);
+                for (MsgWorkerGoList.Entry e : out) {
+                    if (e.kind == MsgWorkerGoList.Kind.HOME || e.kind == MsgWorkerGoList.Kind.STABLE) e.zone = zones.get(e.pos);
+                }
                 out.sort(Comparator.comparingInt(a -> a.distance));
                 TravellersNetwork.CHANNEL.sendTo(new MsgWorkerGoList(responseId, out), player);
             });

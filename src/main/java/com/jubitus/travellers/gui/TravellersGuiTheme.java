@@ -3,6 +3,7 @@ package com.jubitus.travellers.gui;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.util.text.TextFormatting;
 
 /**
  * Central style constants and rendering helpers shared across all mod GUIs.
@@ -84,16 +85,6 @@ public final class TravellersGuiTheme {
     }
 
     /**
-     * Draws a themed frame around a map widget.
-     * Pass the map's own x/y/w/h; the frame renders 3px outside the map bounds.
-     */
-    public static void drawMapFrame(int mapX, int mapY, int mapW, int mapH) {
-        int x = mapX - 3, y = mapY - 3, w = mapW + 6, h = mapH + 6;
-        Gui.drawRect(x, y, x + w, y + h, COL_PANEL);
-        drawBorder(x, y, w, h);
-    }
-
-    /**
      * Draws a list row background (selected / hovered / neutral).
      * Draws nothing if the row is neither hovered nor selected.
      */
@@ -107,9 +98,9 @@ public final class TravellersGuiTheme {
         Gui.drawRect(x, y, x + w, y + 1, COL_BORDER);
     }
 
-    /** Draws a title string in the main text color. */
+    /** Draws a title string in the main text color, bold: the one title style of every screen. */
     public static void drawTitle(FontRenderer fr, String text, int x, int y) {
-        fr.drawString(text, x, y, COL_TEXT);
+        fr.drawString(TextFormatting.BOLD + text, x, y, COL_TEXT);
     }
 
     /** Draws a string centered on x, in the main text color. */
@@ -140,7 +131,7 @@ public final class TravellersGuiTheme {
     }
 
     // ── Scrollbar ─────────────────────────────────────────────────────────────
-    public static final int SCROLLBAR_W = 3;
+    public static final int SCROLLBAR_W = 4;
 
     /**
      * Thumb of a scrollbar of height h at y, for a view showing {@code visible} of {@code total} units

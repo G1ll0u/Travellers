@@ -22,6 +22,8 @@ public class MsgWorkerGoList implements IMessage {
         public BlockPos pos;
         public String label;
         public int distance;
+        /** Barrack / Stable only: occupancy for the map tooltip. */
+        @javax.annotation.Nullable public com.jubitus.travellers.follow.net.FormationZoneInfo zone;
 
         public static Entry village(BlockPos pos, String label, int distance) {
             Entry e = new Entry();
@@ -89,6 +91,7 @@ public class MsgWorkerGoList implements IMessage {
             e.pos = new BlockPos(x, y, z);
             e.label = label;
             e.distance = dist;
+            if (buf.readBoolean()) e.zone = com.jubitus.travellers.follow.net.FormationZoneInfo.fromNbt(ByteBufUtils.readTag(buf));
             entries.add(e);
         }
     }
@@ -108,6 +111,8 @@ public class MsgWorkerGoList implements IMessage {
             buf.writeInt(e.pos.getZ());
             ByteBufUtils.writeUTF8String(buf, e.label);
             buf.writeInt(e.distance);
+            buf.writeBoolean(e.zone != null);
+            if (e.zone != null) ByteBufUtils.writeTag(buf, e.zone.toNbt());
         }
     }
 

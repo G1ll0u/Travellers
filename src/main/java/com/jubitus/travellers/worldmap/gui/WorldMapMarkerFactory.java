@@ -60,10 +60,6 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.CONTROLLED_VILLAGE, name);
     }
 
-    public static GuiWorldMapPanel.Marker villageHighlighted(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFFD060,
-                GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
-    }
 
     public static GuiWorldMapPanel.Marker destinationCross(BlockPos pos) {
         return new GuiWorldMapPanel.Marker(pos, 0xFFFF4444,
@@ -141,10 +137,6 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
     }
 
-    public static GuiWorldMapPanel.Marker villageEnemyHighlighted(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFFF6644,
-                GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
-    }
 
     /** Blends an RGB value toward white by `factor` (0=unchanged, 1=white). */
     public static int lighten(int rgb, float factor) {

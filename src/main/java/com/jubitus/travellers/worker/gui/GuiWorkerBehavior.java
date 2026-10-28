@@ -1,6 +1,8 @@
 package com.jubitus.travellers.worker.gui;
 
+import com.jubitus.travellers.gui.FramedPanel;
 import com.jubitus.travellers.gui.GuiTravellersButton;
+import com.jubitus.travellers.gui.MapListLayout;
 import com.jubitus.travellers.gui.ITravellersGui;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import com.jubitus.travellers.village.gui.GuiWorkerVillageRelations;
@@ -33,10 +35,7 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
     private GuiButton enemiesButton;
     private GuiButton backButton;
 
-    private final int xSize = 176;
-    private final int ySize = 120;
-    private int guiLeft;
-    private int guiTop;
+    private FramedPanel panel;
 
     public GuiWorkerBehavior(EntityPlayer player, @Nullable GuiScreen returnTo) {
         this(player, null, returnTo);
@@ -52,38 +51,20 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
     public void initGui() {
         super.initGui();
 
-        this.guiLeft = (this.width - this.xSize) / 2;
-        this.guiTop = (this.height - this.ySize) / 2;
-
+        this.panel = new FramedPanel(width, height, 200, 40 + 3 * (MapListLayout.BTN_H + MapListLayout.BTN_GAP) + MapListLayout.PAD);
         this.buttonList.clear();
 
-        int centerX = this.guiLeft + this.xSize / 2;
-        int yBase = this.guiTop + 40;
+        int bw = Math.min(160, panel.bodyW);
+        int bx = panel.bodyX + (panel.bodyW - bw) / 2;
+        int y = panel.bodyY;
+        int step = MapListLayout.BTN_H + MapListLayout.BTN_GAP;
 
-        this.enemiesButton = this.addButton(new GuiTravellersButton(
-                0,
-                centerX - 60,
-                yBase,
-                120,
-                20,
-                I18n.format("travellers.worker.behavior.player_enemies", "Player enemies")
-        ));
-        this.backButton = this.addButton(new GuiTravellersButton(
-                1,
-                centerX - 60,
-                yBase + 26,
-                120,
-                20,
-                I18n.format("travellers.gui.back", "Back")
-        ));
-        this.villageRelationsButton = this.addButton(new GuiTravellersButton(
-                2,
-                centerX - 60,
-                yBase + 52,
-                120,
-                20,
-                I18n.format("travellers.worker.behavior.village_relations", "Village relations")
-        ));
+        this.enemiesButton = this.addButton(new GuiTravellersButton(0, bx, y, bw, MapListLayout.BTN_H,
+                I18n.format("travellers.worker.behavior.player_enemies", "Player enemies")));
+        this.villageRelationsButton = this.addButton(new GuiTravellersButton(2, bx, y + step, bw, MapListLayout.BTN_H,
+                I18n.format("travellers.worker.behavior.village_relations", "Village relations")));
+        this.backButton = this.addButton(new GuiTravellersButton(1, bx, panel.bodyY + panel.bodyH - MapListLayout.BTN_H, bw, MapListLayout.BTN_H,
+                I18n.format("travellers.gui.back", "Back")));
     }
 
     @Override
@@ -118,14 +99,7 @@ public class GuiWorkerBehavior extends GuiScreen implements ITravellersGui {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.drawDefaultBackground();
 
-        TravellersGuiTheme.drawPanel(this.guiLeft, this.guiTop, this.xSize, this.ySize);
-
-        this.fontRenderer.drawString(
-                I18n.format("travellers.worker.behavior.title", "Behavior"),
-                this.guiLeft + 8,
-                this.guiTop + 6,
-                TravellersGuiTheme.COL_TEXT
-        );
+        panel.draw(fontRenderer, I18n.format("travellers.worker.behavior.title", "Behavior"));
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
