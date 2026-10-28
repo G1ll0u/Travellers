@@ -136,6 +136,7 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
         if (donePlaying) return;
 
         if (Minecraft.getMinecraft().isGamePaused()) return;
+        if (HAS_SOUND_PHYSICS) SPMovingSoundHelper.runPendingSongEvaluations();
 
         // entity.isDead (true only once the entity is actually removed, e.g. after the death
         // animation finishes) rather than !isEntityAlive() (true the instant health hits 0,
