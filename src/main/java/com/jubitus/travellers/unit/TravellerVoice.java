@@ -48,7 +48,7 @@ public final class TravellerVoice {
 
     public boolean play(SoundEvent evt, float vol, float pitch, int durationTicks, boolean preempt, Kind kind) {
         if (!preempt && unit.ticksExisted < lockUntilTick) return false;
-        send(evt, vol, pitch, 48.0D);
+        send(evt, vol, pitch, kind == Kind.AMBIENT || kind == Kind.CHOIR ? TravellersConfig.SOUND.songMaxDistance : 48.0D);
         lockUntilTick = Math.max(lockUntilTick, unit.ticksExisted + Math.max(1, durationTicks));
         kindNow = kind;
         return true;
@@ -60,6 +60,11 @@ public final class TravellerVoice {
 
     public boolean isAmbientPlaying() {
         return isLocked() && kindNow == Kind.AMBIENT;
+    }
+
+    /** A song (solo or choir) is playing: greetings and chatter must not cut it. */
+    public boolean isSinging() {
+        return isLocked() && (kindNow == Kind.AMBIENT || kindNow == Kind.CHOIR);
     }
 
     public int getLockUntilTick() {
@@ -166,6 +171,7 @@ public final class TravellerVoice {
     }
 
     public void playTalk() {
+        if (isSinging()) return;
         VoiceSet v = activeVoiceSet();
         SoundEvent talk = (v != null) ? v.pickTalk(unit.getRNG(), ModSounds.TRAVELLER_TALK) : ModSounds.TRAVELLER_TALK;
         play(talk, TravellersConfig.SOUND.travellerTalkVolume, jitteredPitch(0.02F), 40 + unit.getRNG().nextInt(20), true, Kind.TALK);
@@ -173,6 +179,7 @@ public final class TravellerVoice {
     }
 
     public void playHello() {
+        if (isSinging()) return;
         VoiceSet v = activeVoiceSet();
         SoundEvent hello = (v != null) ? v.pickHello(unit.getRNG(), ModSounds.TRAVELLER_HELLO) : ModSounds.TRAVELLER_HELLO;
         play(hello, TravellersConfig.SOUND.travellerTalkVolume, jitteredPitch(0.02F), 30 + unit.getRNG().nextInt(20), true, Kind.TALK);

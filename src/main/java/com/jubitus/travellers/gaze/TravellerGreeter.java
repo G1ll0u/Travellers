@@ -144,6 +144,7 @@ public final class TravellerGreeter {
     private static boolean canAnswer(EntityTraveller t) {
         if (!t.isEntityAlive() || t.isInCombat() || t.getAttackTarget() != null) return false;
         if (t.sleep.isSleeping() || t.isAutoEating()) return false;
+        if (t.voice.isSinging() || t.isChoirSinging()) return false;
         return !(t instanceof EntityTravellerWorker) || !((EntityTravellerWorker) t).isChoirFreezeActive();
     }
 

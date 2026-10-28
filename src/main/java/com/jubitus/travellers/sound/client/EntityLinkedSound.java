@@ -46,6 +46,7 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
     private final EntityTraveller entity;
     private final int entityId;
     private final float baseVolume;
+    private final double maxDistance;
 
     boolean isChoir = false;
     boolean isAmbient = false;
@@ -59,11 +60,12 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
     private long fadeStartMs = -1;
     private float fadeBaseVolume = 0f;
 
-    public EntityLinkedSound(EntityTraveller e, SoundEvent evt, float vol, float pitch) {
+    public EntityLinkedSound(EntityTraveller e, SoundEvent evt, float vol, float pitch, double maxDistance) {
         super(evt, e.getSoundCategory());
         this.entity = e;
         this.entityId = e.getEntityId();
         this.baseVolume = vol;
+        this.maxDistance = maxDistance;
         this.pitch = pitch;
         this.repeat = false;
         this.attenuationType = HAS_SOUND_PHYSICS ? AttenuationType.LINEAR : AttenuationType.NONE;
@@ -82,13 +84,13 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
         // configured volume — since those only take effect later, in update(), after the range
         // was already locked in. This was the actual cause of "boosting volume changes nothing,
         // still too quiet at range" with SoundPhysics installed.
-        this.volume = currentBaseVolume() * (HAS_SOUND_PHYSICS ? 1.0f : computeDistanceGain(e));
+        this.volume = currentBaseVolume() * (HAS_SOUND_PHYSICS ? 1.0f : computeDistanceGain(e, maxDistance));
     }
 
-    private static float computeDistanceGain(EntityTraveller e) {
+    private static float computeDistanceGain(EntityTraveller e, double maxDistance) {
         EntityPlayer player = Minecraft.getMinecraft().player;
         if (player == null) return 1.0f;
-        return computeDistanceGain((float) e.getDistance(player));
+        return computeDistanceGain((float) e.getDistance(player), maxDistance);
     }
 
     // Shared with MsgPlayTravellerVoice's "entity already gone" fallback (e.g. a death sound
@@ -96,8 +98,12 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
     // that path plays a plain vanilla one-shot with no per-tick correction, so it needs the
     // same manual falloff applied once, up front, instead of no distance handling at all.
     public static float computeDistanceGain(float dist) {
+        return computeDistanceGain(dist, TravellersConfig.SOUND.voiceMaxDistance);
+    }
+
+    private static float computeDistanceGain(float dist, double maxDistance) {
         float refDist = (float) TravellersConfig.SOUND.voiceReferenceDistance;
-        float maxDist = (float) TravellersConfig.SOUND.voiceMaxDistance;
+        float maxDist = (float) maxDistance;
         float rolloff = (float) TravellersConfig.SOUND.voiceRolloffPower;
         if (dist <= refDist) return 1.0f;
         if (dist >= maxDist) return 0.0f;
@@ -168,7 +174,7 @@ public final class EntityLinkedSound extends PositionedSound implements ITickabl
             return;
         }
 
-        float target = HAS_SOUND_PHYSICS ? currentBaseVolume() : currentBaseVolume() * computeDistanceGain(entity);
+        float target = HAS_SOUND_PHYSICS ? currentBaseVolume() : currentBaseVolume() * computeDistanceGain(entity, maxDistance);
 
         // Choir mute (getting hit mid-song silences the sound for a while without stopping the
         // underlying stream, see EntityTraveller.attackEntityFrom) used to snap straight from 0

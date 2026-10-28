@@ -187,13 +187,12 @@ public final class ChoirCoordinator {
 
     private List<EntityTraveller> collectNearby(EntityTraveller seed, List<EntityTraveller> pool, double radius) {
         List<EntityTraveller> result = new ArrayList<>();
-        result.add(seed);
         double rSq = radius * radius;
         for (EntityTraveller c : pool) {
-            if (c == seed) continue;
-            double dx = c.posX - seed.posX, dz = c.posZ - seed.posZ;
-            if (dx * dx + dz * dz <= rSq) result.add(c);
+            if (c != seed && seed.getDistanceSq(c) <= rSq) result.add(c);
         }
+        result.sort(Comparator.comparingDouble(seed::getDistanceSq));
+        result.add(0, seed); // the leader takes stem 0, the nearest neighbours follow
         return result;
     }
 
@@ -225,6 +224,7 @@ public final class ChoirCoordinator {
                 w -> w != null && w.isEntityAlive() && !w.isChoirSinging() && !w.isOnDuty()
                      && w.isHiredFollower() && playerId.equals(w.getFollowOwnerId())
         );
+        nearby.sort(Comparator.comparingDouble(targetWorker::getDistanceSq));
 
         List<EntityTraveller> singers = new ArrayList<>();
         Set<Integer> seen = new HashSet<>();

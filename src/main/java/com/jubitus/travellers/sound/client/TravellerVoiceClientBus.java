@@ -30,9 +30,10 @@ public final class TravellerVoiceClientBus {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc == null || mc.getSoundHandler() == null) return;
 
+        boolean isAmbient = evt.getRegistryName() != null && evt.getRegistryName().getPath().contains("ambient");
+        double maxDist = isChoir || isAmbient ? TravellersConfig.SOUND.songMaxDistance : TravellersConfig.SOUND.voiceMaxDistance;
         EntityPlayer player = mc.player;
         if (player != null) {
-            double maxDist = TravellersConfig.SOUND.voiceMaxDistance;
             if (t.getDistanceSq(player) > maxDist * maxDist) return;
         }
 
@@ -87,8 +88,7 @@ public final class TravellerVoiceClientBus {
             startsThisBucket++;
         }
 
-        boolean isAmbient = evt.getRegistryName() != null && evt.getRegistryName().getPath().contains("ambient");
-        EntityLinkedSound snd = new EntityLinkedSound(t, evt, vol, pitch);
+        EntityLinkedSound snd = new EntityLinkedSound(t, evt, vol, pitch, maxDist);
         snd.isChoir = isChoir;
         snd.isAmbient = isAmbient;
         LIVE.put(t.getEntityId(), snd);

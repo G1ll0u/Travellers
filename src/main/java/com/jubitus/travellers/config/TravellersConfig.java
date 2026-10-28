@@ -2343,6 +2343,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 8.0, max = 128.0)
         public double voiceMaxDistance = 48.0;
 
+        @Config.Comment("How far away (in blocks) songs and choirs can be heard. Other voices use the distance above.")
+        @Config.RangeDouble(min = 8.0, max = 128.0)
+        public double songMaxDistance = 72.0;
+
         @Config.Comment("Distance rolloff exponent when SoundPhysics is absent. 1.0 = natural 1/r (recommended), 2.0 = inverse-square (fast fade), 0.5 = gentle.")
         @Config.RangeDouble(min = 0.25, max = 4.0)
         public double voiceRolloffPower = 1.0;
