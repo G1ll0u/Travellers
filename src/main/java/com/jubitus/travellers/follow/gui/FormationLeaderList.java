@@ -17,7 +17,7 @@ import java.util.List;
 /** The Formation Hub's leader rows: head, name, follower count, distance and direction from the player. */
 final class FormationLeaderList {
 
-    private static final int ROW_H = 20;
+    static final int ROW_H = 24;
     private static final int INNER = 4;
 
     private final ScrollList rows = new ScrollList(ROW_H);
@@ -53,9 +53,9 @@ final class FormationLeaderList {
         rows.ensureVisible(index);
     }
 
-    /** selectedIndex: highlighted row, -1 for none; arrowTop/arrowBottom: where the more-rows arrows go. */
+    /** selectedIndex: highlighted row, -1 for none. */
     void draw(FontRenderer fr, EntityPlayer player, int mouseX, int mouseY, boolean interactive,
-              int selectedIndex, int arrowTop, int arrowBottom) {
+              int selectedIndex) {
         rows.clamp(leaders.size());
         int x = rows.x, w = rows.w;
         for (int i = 0; i < rows.rowsToDraw(leaders.size()); i++) {
@@ -69,13 +69,13 @@ final class FormationLeaderList {
             int textX = x + INNER;
             if (!info.isPlayer) {
                 GlStateManager.color(1f, 1f, 1f, 1f);
-                WorkerHeadRenderer.draw(info.cultureId, info.textureIndex, info.ownerColor, x + INNER, rowTop + 2, 16);
+                WorkerHeadRenderer.draw(info.cultureId, info.textureIndex, info.ownerColor, x + INNER, rowTop + 4, 16);
                 textX = x + INNER + 19;
             }
             String name = info.isPlayer ? I18n.format("travellers.worker.formation.you") : info.name;
             if (info.isVirtual) name = TextFormatting.GRAY + name;
             int maxW = x + w - INNER - textX;
-            fr.drawString(fr.trimStringToWidth(name, maxW), textX, rowTop + 2,
+            fr.drawString(fr.trimStringToWidth(name, maxW), textX, rowTop + 3,
                     selected ? TravellersGuiTheme.COL_TEXT_HOV : TravellersGuiTheme.COL_TEXT);
 
             String sub = info.followerCount + " ♥";
@@ -83,11 +83,8 @@ final class FormationLeaderList {
                 double dx = info.posX - player.posX, dz = info.posZ - player.posZ;
                 sub += "  " + (int) Math.sqrt(dx * dx + dz * dz) + "m " + LocationFormat.cardinal(dx, dz);
             }
-            TravellersGuiTheme.drawScaledText(fr, sub, textX, rowTop + 12, 0.75f, TravellersGuiTheme.COL_TEXT_DIM);
+            fr.drawString(fr.trimStringToWidth(sub, maxW), textX, rowTop + 13, TravellersGuiTheme.COL_TEXT_DIM);
         }
-        int arrowX = x + w - INNER - 6;
-        if (rows.scroll() > 0) fr.drawString("▲", arrowX, arrowTop, TravellersGuiTheme.COL_TEXT_DIM);
-        if (rows.scroll() + rows.visibleRows() < leaders.size())
-            fr.drawString("▼", arrowX, arrowBottom, TravellersGuiTheme.COL_TEXT_DIM);
+        rows.drawScrollbar(leaders.size());
     }
 }

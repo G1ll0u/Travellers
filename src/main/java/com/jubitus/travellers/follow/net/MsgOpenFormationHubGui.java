@@ -28,30 +28,17 @@ public class MsgOpenFormationHubGui implements IMessage {
     private boolean updateOnly;
     private NBTTagCompound initialScopeTag;
     private NBTTagCompound leadersWrapper;   // contains NBTTagList "L"
+    private NBTTagCompound zonesWrapper;     // contains NBTTagList "Z"
     private NBTTagCompound settingsWrapper;  // contains NBTTagList "S"
 
     public MsgOpenFormationHubGui() {}
-
-    public MsgOpenFormationHubGui(int representativeEntityId,
-                                   WorkerFormationScopeKey initialScope,
-                                   List<FormationLeaderInfo> leaders,
-                                   Map<String, WorkerFormationSettings> settingsByScope) {
-        this(representativeEntityId, false, false, initialScope, leaders, settingsByScope);
-    }
-
-    public MsgOpenFormationHubGui(int representativeEntityId,
-                                   boolean standalone,
-                                   WorkerFormationScopeKey initialScope,
-                                   List<FormationLeaderInfo> leaders,
-                                   Map<String, WorkerFormationSettings> settingsByScope) {
-        this(representativeEntityId, standalone, false, initialScope, leaders, settingsByScope);
-    }
 
     public MsgOpenFormationHubGui(int representativeEntityId,
                                    boolean standalone,
                                    boolean updateOnly,
                                    WorkerFormationScopeKey initialScope,
                                    List<FormationLeaderInfo> leaders,
+                                   List<FormationZoneInfo> zones,
                                    Map<String, WorkerFormationSettings> settingsByScope) {
         this.representativeEntityId = representativeEntityId;
         this.standalone = standalone;
@@ -62,6 +49,11 @@ public class MsgOpenFormationHubGui implements IMessage {
         for (FormationLeaderInfo info : leaders) lList.appendTag(info.toNbt());
         this.leadersWrapper = new NBTTagCompound();
         this.leadersWrapper.setTag("L", lList);
+
+        NBTTagList zList = new NBTTagList();
+        for (FormationZoneInfo zone : zones) zList.appendTag(zone.toNbt());
+        this.zonesWrapper = new NBTTagCompound();
+        this.zonesWrapper.setTag("Z", zList);
 
         NBTTagList sList = new NBTTagList();
         for (Map.Entry<String, WorkerFormationSettings> e : settingsByScope.entrySet()) {
@@ -81,6 +73,7 @@ public class MsgOpenFormationHubGui implements IMessage {
         updateOnly       = buf.readBoolean();
         initialScopeTag  = ByteBufUtils.readTag(buf);
         leadersWrapper   = ByteBufUtils.readTag(buf);
+        zonesWrapper     = ByteBufUtils.readTag(buf);
         settingsWrapper  = ByteBufUtils.readTag(buf);
     }
 
@@ -91,6 +84,7 @@ public class MsgOpenFormationHubGui implements IMessage {
         buf.writeBoolean(updateOnly);
         ByteBufUtils.writeTag(buf, initialScopeTag);
         ByteBufUtils.writeTag(buf, leadersWrapper  != null ? leadersWrapper  : new NBTTagCompound());
+        ByteBufUtils.writeTag(buf, zonesWrapper    != null ? zonesWrapper    : new NBTTagCompound());
         ByteBufUtils.writeTag(buf, settingsWrapper != null ? settingsWrapper : new NBTTagCompound());
     }
 
@@ -109,6 +103,12 @@ public class MsgOpenFormationHubGui implements IMessage {
                     }
                 }
 
+                List<FormationZoneInfo> zones = new ArrayList<>();
+                if (msg.zonesWrapper != null) {
+                    NBTTagList zList = msg.zonesWrapper.getTagList("Z", 10);
+                    for (int i = 0; i < zList.tagCount(); i++) zones.add(FormationZoneInfo.fromNbt(zList.getCompoundTagAt(i)));
+                }
+
                 Map<String, WorkerFormationSettings> settingsByScope = new HashMap<>();
                 if (msg.settingsWrapper != null) {
                     NBTTagList sList = msg.settingsWrapper.getTagList("S", 10);
@@ -123,7 +123,7 @@ public class MsgOpenFormationHubGui implements IMessage {
                 if (current instanceof com.jubitus.travellers.follow.gui.GuiWorkerFormationHub) {
                     // Update leaders in place — avoids flicker and re-init when refreshing after group changes
                     ((com.jubitus.travellers.follow.gui.GuiWorkerFormationHub) current)
-                            .updateLeaders(leaders, settingsByScope);
+                            .updateLeaders(leaders, zones, settingsByScope);
                 } else if (!msg.updateOnly) {
                     Minecraft.getMinecraft().displayGuiScreen(
                             new com.jubitus.travellers.follow.gui.GuiWorkerFormationHub(
@@ -131,6 +131,7 @@ public class MsgOpenFormationHubGui implements IMessage {
                                     msg.representativeEntityId,
                                     msg.standalone,
                                     leaders,
+                                    zones,
                                     settingsByScope,
                                     initialScope
                             )

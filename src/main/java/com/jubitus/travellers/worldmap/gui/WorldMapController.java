@@ -178,9 +178,15 @@ public class WorldMapController {
         sendView();
     }
 
+    /** The marker with a tooltip under the mouse, or null. */
+    @javax.annotation.Nullable
+    public GuiWorldMapPanel.Marker hoveredMarker(int mouseX, int mouseY) {
+        return isMouseOver(mouseX, mouseY) ? panel.tooltipMarkerAt(mouseX, mouseY, mapX, mapY) : null;
+    }
+
     /** Draws the hovered marker's tooltip: a battle's own drawing, else its label (one line per '\n'). */
     public void drawTooltip(GuiScreen screen, int mouseX, int mouseY) {
-        GuiWorldMapPanel.Marker m = isMouseOver(mouseX, mouseY) ? panel.tooltipMarkerAt(mouseX, mouseY, mapX, mapY) : null;
+        GuiWorldMapPanel.Marker m = hoveredMarker(mouseX, mouseY);
         if (m == null) return;
         if (m.battle != null) {
             BattleMarkerHold.hovered(m.battle.id, m.pos);

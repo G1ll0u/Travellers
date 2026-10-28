@@ -783,19 +783,20 @@ public final class WorkerGroupService {
         // Keyed by group: the leader's own UUID gets itself, its followers add to it too.
         Map<UUID, GroupGearSummary> gear = new HashMap<>();
         GroupGearSummary playerGear = new GroupGearSummary();
-        int directFollowers = 0;
+        List<HubWorker> hubWorkers = new ArrayList<>();
         int representativeId = -1;
 
         for (WorldServer ws : server.worlds) {
             for (EntityTravellerWorker w : ws.getEntities(EntityTravellerWorker.class, e ->
                     e != null && !e.isDead && e.isHiredFollower() && owner.equals(e.getFollowOwnerId()))) {
                 UUID lead = w.getEscortLeaderUUID();
-                if (lead == null) directFollowers++;
-                else {
+                if (lead != null) {
                     leaderIds.add(lead);
                     followerCount.merge(lead, 1, Integer::sum);
+                    gear.computeIfAbsent(lead, k -> new GroupGearSummary()).addLoaded(w);
                 }
-                (lead == null ? playerGear : gear.computeIfAbsent(lead, k -> new GroupGearSummary())).addLoaded(w);
+                hubWorkers.add(new HubWorker(w.getUniqueID(), lead, w.isFollowOrderActive(), w.getZoneRef(),
+                        w.dimension, w.getPosition(), g -> g.addLoaded(w)));
                 gear.computeIfAbsent(w.getUniqueID(), k -> new GroupGearSummary()).addLoaded(w);
                 FormationLeaderInfo info = new FormationLeaderInfo(w.getUniqueID(), w.getName(), 0,
                         w.posX, w.posZ, false, false);
@@ -813,14 +814,25 @@ public final class WorkerGroupService {
         }
         for (VirtualTravellerRecord r : vwm.getRecordsView()) {
             if (!r.isHiredFollower || !owner.equals(r.followOwnerUUID)) continue;
-            if (r.escortLeaderUUID == null) directFollowers++;
-            else {
+            if (r.escortLeaderUUID != null) {
                 leaderIds.add(r.escortLeaderUUID);
                 followerCount.merge(r.escortLeaderUUID, 1, Integer::sum);
+                gear.computeIfAbsent(r.escortLeaderUUID, k -> new GroupGearSummary()).addVirtual(r);
             }
-            (r.escortLeaderUUID == null ? playerGear : gear.computeIfAbsent(r.escortLeaderUUID, k -> new GroupGearSummary())).addVirtual(r);
+            hubWorkers.add(new HubWorker(r.uuid, r.escortLeaderUUID, r.followOrderActive,
+                    r.entityNbt != null ? com.jubitus.travellers.zone.ZoneRef.read(r.entityNbt) : null,
+                    r.dimension, new BlockPos(r.posX, r.posY, r.posZ), g -> g.addVirtual(r)));
             gear.computeIfAbsent(r.uuid, k -> new GroupGearSummary()).addVirtual(r);
             if (!meta.containsKey(r.uuid)) meta.put(r.uuid, virtualMeta(r));
+        }
+
+        HubZones hubZones = new HubZones(server, player, hubWorkers, leaderIds);
+        // The player row counts only workers walking with the player: not leaders, not Barrack residents at rest.
+        int directFollowers = 0;
+        for (HubWorker hw : hubWorkers) {
+            if (hw.escortLeader != null || leaderIds.contains(hw.uuid) || hubZones.idleResidents.contains(hw.uuid)) continue;
+            directFollowers++;
+            hw.addTo.accept(playerGear);
         }
 
         List<FormationLeaderInfo> leaders = new ArrayList<>();
@@ -859,7 +871,7 @@ public final class WorkerGroupService {
         WorkerFormationScopeKey initialScope = initialScopeOverride != null ? initialScopeOverride : playerScope;
 
         TravellersNetwork.CHANNEL.sendTo(
-                new MsgOpenFormationHubGui(representativeId, standalone, updateOnly, initialScope, leaders, settingsByScope),
+                new MsgOpenFormationHubGui(representativeId, standalone, updateOnly, initialScope, leaders, hubZones.zones, settingsByScope),
                 player);
     }
 

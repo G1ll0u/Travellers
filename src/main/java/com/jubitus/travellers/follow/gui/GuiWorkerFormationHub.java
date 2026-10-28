@@ -4,6 +4,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.follow.formations.WorkerFormationScopeKey;
 import com.jubitus.travellers.follow.formations.WorkerFormationSettings;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
+import com.jubitus.travellers.follow.net.FormationZoneInfo;
 import com.jubitus.travellers.follow.net.MsgRequestFormationHub;
 import com.jubitus.travellers.gui.ButtonTooltipHelper;
 import com.jubitus.travellers.gui.GuiTravellersButton;
@@ -68,8 +69,9 @@ public class GuiWorkerFormationHub extends GuiScreen
     private static final int INNER = 4;        // box edge to its text
     private static final int TITLE_H = 20;     // frame top to box top
     private static final int HEADER_H = 14;    // box header line, separator included
-    private static final int HINT_LINE_H = 8;  // one line of the small hint text
-    private static final float HINT_SCALE = 0.75f;
+    private static final int HINT_LINE_H = 10; // one line of the hint text
+    private static final int MAX_BARRACK_ROWS = 3;
+    private static final int MIN_LEADER_ROWS = 3;
     private static final int LIST_W = 112;
     private static final int CARD_W = 124;
 
@@ -81,6 +83,8 @@ public class GuiWorkerFormationHub extends GuiScreen
     private final int representativeEntityId;
     private final boolean standalone;
     private final List<FormationLeaderInfo> leaders;
+    private final List<FormationZoneInfo> zones;
+    private final List<FormationZoneInfo> barracks = new ArrayList<>();
     private final Map<String, WorkerFormationSettings> settingsByScope;
 
     private final FormationSelection selection;
@@ -88,6 +92,7 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     // ── Parts ─────────────────────────────────────────────────────────────────
     private final FormationLeaderList leaderList;
+    private final FormationBarrackList barrackList;
     private final FormationSettingsCard card;
     private final FormationOrdersMenu orders;
     private final FormationActionBar actionBar;
@@ -103,6 +108,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     private int mapX, mapY, mapW, mapH;  // the map widget itself, 1px inside its box border
     private int cardX;
     private int hintY, hintLines;
+    private int barracksHeaderY;
 
     // ── Widgets / state ───────────────────────────────────────────────────────
     private GuiButton barracksButton, behaviorButton, closeButton;
@@ -114,15 +120,19 @@ public class GuiWorkerFormationHub extends GuiScreen
     private static final int LEADER_LIST_REFRESH_INTERVAL_TICKS = 20;
 
     public GuiWorkerFormationHub(EntityPlayer player, int representativeEntityId, boolean standalone,
-                                 List<FormationLeaderInfo> leaders, Map<String, WorkerFormationSettings> settingsByScope,
+                                 List<FormationLeaderInfo> leaders, List<FormationZoneInfo> zones,
+                                 Map<String, WorkerFormationSettings> settingsByScope,
                                  WorkerFormationScopeKey initialScope) {
         this.player = player;
         this.representativeEntityId = representativeEntityId;
         this.standalone = standalone;
         this.leaders = leaders;
+        this.zones = zones;
         this.settingsByScope = settingsByScope;
         this.selection = new FormationSelection(leaders);
         this.leaderList = new FormationLeaderList(leaders);
+        this.barrackList = new FormationBarrackList(barracks);
+        rebuildBarracks();
         this.card = new FormationSettingsCard(settingsByScope);
         this.orders = new FormationOrdersMenu(player, selection, mapData, this);
         this.actionBar = new FormationActionBar(selection, orders, this::centerOnSelectedGroup);
@@ -213,8 +223,21 @@ public class GuiWorkerFormationHub extends GuiScreen
         actionBar.setBounds(mapX, mapY + mapH + 1, mapW);
         hintY = boxTop + boxH + 3;
 
-        leaderList.setBounds(listX, boxTop + HEADER_H + 2, LIST_W, boxTop + boxH - 2);
+        layoutLists();
         journal.setBounds(frameX + PAD, boxTop + boxH + hintH, frameW - PAD * 2, histH);
+    }
+
+    /** Barracks share the list box under the leaders; leaders keep at least MIN_LEADER_ROWS. */
+    private void layoutLists() {
+        int listTop = boxTop + HEADER_H + 2;
+        int listBottom = boxTop + boxH - 2;
+        int rowH = FormationLeaderList.ROW_H;
+        int barrackRows = barracks.isEmpty() ? 0
+                : Math.min(Math.min(barracks.size(), MAX_BARRACK_ROWS), Math.max(1, (listBottom - listTop - HEADER_H) / rowH - MIN_LEADER_ROWS));
+        int barracksTop = listBottom - barrackRows * rowH;
+        barracksHeaderY = barracksTop - HEADER_H;
+        leaderList.setBounds(listX, listTop, LIST_W, barrackRows == 0 ? listBottom : barracksHeaderY);
+        barrackList.setBounds(listX, barracksTop, LIST_W, barrackRows);
     }
 
     private int frameX(int w) {
@@ -223,7 +246,7 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     private List<String> hintText() {
         return fontRenderer.listFormattedStringToWidth(I18n.format("travellers.worker.formation.hint"),
-                (int) ((cardX - PAD - mapBoxX) / HINT_SCALE));
+                cardX - PAD - mapBoxX);
     }
 
     @Override
@@ -236,7 +259,8 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     // ── Live refresh (MsgOpenFormationHubGui while open) ─────────────────────
 
-    public void updateLeaders(List<FormationLeaderInfo> newLeaders, Map<String, WorkerFormationSettings> newSettings) {
+    public void updateLeaders(List<FormationLeaderInfo> newLeaders, List<FormationZoneInfo> newZones,
+                              Map<String, WorkerFormationSettings> newSettings) {
         // Keep the selection by identity: the list is re-sorted by distance on every rebuild.
         UUID prevUuid = null;
         boolean prevPlayer = false;
@@ -247,6 +271,11 @@ public class GuiWorkerFormationHub extends GuiScreen
 
         leaders.clear();
         leaders.addAll(newLeaders);
+        zones.clear();
+        zones.addAll(newZones);
+        rebuildBarracks();
+        layoutLists();
+        refreshBarrackSelection();
         settingsByScope.clear();
         settingsByScope.putAll(newSettings);
 
@@ -305,8 +334,15 @@ public class GuiWorkerFormationHub extends GuiScreen
         TravellersGuiTheme.drawInnerPanel(listX, boxTop, LIST_W, boxH);
         drawBoxHeader(listX, LIST_W, TextFormatting.BOLD + I18n.format("travellers.worker.formation.leaders"));
         leaderList.draw(fontRenderer, player, mouseX, mouseY, !orders.isOpen(),
-                selection.mode == FormationSelection.Mode.LEADER ? selection.index : -1,
-                boxTop + 3, boxTop + boxH - 10);
+                selection.mode == FormationSelection.Mode.LEADER ? selection.index : -1);
+        if (!barracks.isEmpty()) {
+            TravellersGuiTheme.drawSeparator(listX + 1, barracksHeaderY, LIST_W - 2);
+            fontRenderer.drawString(fontRenderer.trimStringToWidth(
+                    TextFormatting.BOLD + I18n.format("travellers.worker.formation.barracks"), LIST_W - INNER * 2),
+                    listX + INNER, barracksHeaderY + 4, COL_TEXT);
+            TravellersGuiTheme.drawSeparator(listX + 1, barracksHeaderY + HEADER_H - 1, LIST_W - 2);
+            barrackList.draw(fontRenderer, player, mouseX, mouseY, !orders.isOpen(), selection.barrackId);
+        }
         drawCard();
 
         GlStateManager.disableLighting();
@@ -331,7 +367,11 @@ public class GuiWorkerFormationHub extends GuiScreen
         }
         List<String> barTip = actionBar.tooltipAt(mouseX, mouseY);
         if (barTip != null) drawHoveringText(barTip, mouseX, mouseY);
-        else if (!mapDragSelecting) mapController.drawTooltip(this, mouseX, mouseY);
+        else if (!mapDragSelecting) {
+            FormationZoneInfo hoveredZone = zoneOfMarker(mapController.hoveredMarker(mouseX, mouseY));
+            if (hoveredZone != null) ZoneTooltip.draw(fontRenderer, hoveredZone, mouseX, mouseY, width, height);
+            else mapController.drawTooltip(this, mouseX, mouseY);
+        }
         if (TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled) {
             JournalEntry hovered = journal.entryAt(mouseX, mouseY);
             if (hovered != null && hovered.battleSummary != null) {
@@ -342,6 +382,19 @@ public class GuiWorkerFormationHub extends GuiScreen
         tooltips.render(mouseX, mouseY, width, height);
         FormationLeaderInfo hoveredLeader = leaderList.infoAt(mouseX, mouseY);
         if (hoveredLeader != null) GroupSummaryTooltip.draw(fontRenderer, hoveredLeader, mouseX, mouseY, width, height);
+        FormationZoneInfo hoveredBarrack = barrackList.infoAt(mouseX, mouseY);
+        if (hoveredBarrack != null) ZoneTooltip.draw(fontRenderer, hoveredBarrack, mouseX, mouseY, width, height);
+    }
+
+    /** The Barrack or Stable a Home/Stable map marker stands for, or null. */
+    @Nullable
+    private FormationZoneInfo zoneOfMarker(@Nullable GuiWorldMapPanel.Marker marker) {
+        if (marker == null || marker.type != GuiWorldMapPanel.Marker.MarkerType.HOME
+                && marker.type != GuiWorldMapPanel.Marker.MarkerType.STABLE) return null;
+        for (FormationZoneInfo z : zones) {
+            if (z.center.equals(marker.pos)) return z;
+        }
+        return null;
     }
 
     private void drawBoxHeader(int x, int w, String text) {
@@ -380,13 +433,9 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     private void drawHint() {
         List<String> lines = hintText();
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(mapBoxX + 1, hintY, 0f);
-        GlStateManager.scale(HINT_SCALE, HINT_SCALE, 1f);
         for (int i = 0; i < Math.min(hintLines, lines.size()); i++) {
-            fontRenderer.drawString(lines.get(i), 0, Math.round(i * HINT_LINE_H / HINT_SCALE), COL_TEXT_DIM);
+            fontRenderer.drawString(lines.get(i), mapBoxX + 1, hintY + i * HINT_LINE_H, COL_TEXT_DIM);
         }
-        GlStateManager.popMatrix();
     }
 
     // The selected group's leader, or a lone selected worker: whose planned route the map shows.
@@ -541,6 +590,14 @@ public class GuiWorkerFormationHub extends GuiScreen
             }
         }
 
+        if (mouseButton == 0) {
+            int row = barrackList.rowAt(mouseX, mouseY);
+            if (row >= 0) {
+                selectBarrack(barracks.get(row));
+                return;
+            }
+        }
+
         if (!selection.isFollowers() && card.mousePressed(mouseX, mouseY, mouseButton)) return;
 
         super.mouseClicked(mouseX, mouseY, mouseButton);
@@ -591,7 +648,9 @@ public class GuiWorkerFormationHub extends GuiScreen
         int mouseX = org.lwjgl.input.Mouse.getEventX() * width / mc.displayWidth;
         int mouseY = height - org.lwjgl.input.Mouse.getEventY() * height / mc.displayHeight - 1;
 
-        if (mouseX >= listX && mouseX < listX + LIST_W && mouseY >= boxTop && mouseY < boxTop + boxH) {
+        if (barrackList.isOver(mouseX, mouseY)) {
+            barrackList.scrollBy(wheel);
+        } else if (mouseX >= listX && mouseX < listX + LIST_W && mouseY >= boxTop && mouseY < boxTop + boxH) {
             leaderList.scrollBy(wheel);
         } else if (mapController.isMouseOver(mouseX, mouseY)) {
             mapController.handleWheel(mouseX, mouseY, wheel);
@@ -669,6 +728,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         selection.index = idx;
         selection.mode = FormationSelection.Mode.LEADER;
         selection.followers = Collections.emptyList();
+        selection.barrackId = null;
         leaderList.ensureVisible(idx);
         applySelection(recenter);
         refreshButtons();
@@ -682,9 +742,36 @@ public class GuiWorkerFormationHub extends GuiScreen
 
     @Override
     public void selectFollowers(List<UUID> uuids) {
+        selection.barrackId = null;
         selection.followers = uuids;
         selection.mode = FormationSelection.Mode.FOLLOWERS;
         refreshButtons();
+    }
+
+    /** Selects the resting henchmen of a Barrack, ready to be grouped or sent like any picked followers. */
+    private void selectBarrack(FormationZoneInfo barrack) {
+        if (barrack.members.isEmpty()) return;
+        selectFollowers(barrack.members);
+        selection.barrackId = barrack.id;
+        mapController.setCenter(barrack.center);
+    }
+
+    private void rebuildBarracks() {
+        barracks.clear();
+        for (FormationZoneInfo z : zones) if (!z.stable) barracks.add(z);
+    }
+
+    /** After a refresh, a selected Barrack follows its residents: grouped ones leave it, new ones join. */
+    private void refreshBarrackSelection() {
+        if (selection.barrackId == null) return;
+        for (FormationZoneInfo b : barracks) {
+            if (b.id.equals(selection.barrackId) && !b.members.isEmpty()) {
+                selection.followers = b.members;
+                return;
+            }
+        }
+        selection.barrackId = null;
+        selectPlayerRow();
     }
 
     @Override

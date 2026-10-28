@@ -122,12 +122,12 @@ final class GroupSummaryTooltip {
         GlStateManager.color(1F, 1F, 1F, 1F);
     }
 
-    private static void drawBarFrame(int x, int y, int right) {
+    static void drawBarFrame(int x, int y, int right) {
         Gui.drawRect(x, y, right, y + BAR_H, 0xFF000000);
         TravellersGuiTheme.drawBorder(x, y, right - x, BAR_H, TravellersGuiTheme.COL_BORDER);
     }
 
-    private static int healthColour(float h) {
+    static int healthColour(float h) {
         return h > 0.66F ? TravellersGuiTheme.COL_ACTIVE : h > 0.33F ? 0xFFE0C040 : 0xFFE05040;
     }
 

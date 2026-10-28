@@ -20,6 +20,8 @@ final class FormationSelection {
     /** Selected leader row, meaningful in LEADER mode. */
     int index = 0;
     List<UUID> followers = Collections.emptyList();
+    /** The Barrack whose residents are the selected followers, or null for followers picked on the map. */
+    @Nullable UUID barrackId;
     /** After a group is formed from these followers, its new leader is selected when the refreshed list arrives. */
     Set<UUID> pendingFromFollowers = Collections.emptySet();
 
