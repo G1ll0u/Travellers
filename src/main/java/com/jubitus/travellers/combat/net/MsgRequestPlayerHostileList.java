@@ -1,7 +1,6 @@
 package com.jubitus.travellers.combat.net;
 
 import com.jubitus.travellers.net.TravellersNetwork;
-import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -27,7 +26,7 @@ public class MsgRequestPlayerHostileList implements IMessage {
         public IMessage onMessage(MsgRequestPlayerHostileList msg, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().player;
             player.getServerWorld().addScheduledTask(() ->
-                    TravellersNetwork.CHANNEL.sendTo(MsgOpenWorkerSubGui.buildHostileListPacket(player), player)
+                    TravellersNetwork.CHANNEL.sendTo(MsgSyncWorkerHostileList.build(player), player)
             );
             return null;
         }

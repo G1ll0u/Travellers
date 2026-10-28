@@ -15,7 +15,6 @@ import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.follow.net.FormationLeaderInfo;
 import com.jubitus.travellers.follow.net.MsgOpenFormationHubGui;
 import com.jubitus.travellers.zone.net.MsgSyncWorkerHome;
-import com.jubitus.travellers.combat.net.MsgSyncWorkerHostileList;
 import com.jubitus.travellers.virtual.VirtualTravellerManager;
 import com.jubitus.travellers.virtual.VirtualTravellerRecord;
 import com.mojang.authlib.GameProfile;
@@ -46,20 +45,6 @@ public class MsgOpenWorkerSubGui implements IMessage {
     public MsgOpenWorkerSubGui(int entityId, Type type) {
         this.entityId = entityId;
         this.type = type;
-    }
-
-    public static MsgSyncWorkerHostileList buildHostileListPacket(EntityPlayerMP player) {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        MinecraftServer srv = player.getServer();
-        if (srv != null) {
-            for (UUID id : com.jubitus.travellers.combat.PlayerEnemyRelations.get(player.world)
-                    .getHostiles(player.getUniqueID())) {
-                GameProfile gp = srv.getPlayerProfileCache().getProfileByUUID(id);
-                out.add(gp != null && gp.getName() != null ? gp.getName() : id.toString());
-            }
-        }
-        java.util.Collections.sort(out, String.CASE_INSENSITIVE_ORDER);
-        return new MsgSyncWorkerHostileList(out);
     }
 
     @Override

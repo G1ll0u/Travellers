@@ -126,6 +126,8 @@ public class GuiWorkerBarracks extends GuiScreen
     private final List<WorkerRow> selectedHench = new ArrayList<>();
 
     private int selectedZoneIndex = -1;
+    // The first zone is selected once, when both snapshots have arrived (barracks come first in the list).
+    private boolean barracksReceived, stablesReceived, firstZoneSelected;
 
     // Fixed reference for the nearest-first unassigned sort (captured at open, never re-taken).
     private BlockPos sortAnchor;
@@ -231,12 +233,14 @@ public class GuiWorkerBarracks extends GuiScreen
 
     @Override
     public void receiveBarracksData(MsgWorkerBarracksData data) {
+        barracksReceived = true;
         barracks.clear();
         barracks.addAll(data.barracks);
         barrackWorkers.clear();
         barrackWorkers.addAll(data.workers);
         if (selectedZoneIndex >= zoneRows.size()) selectedZoneIndex = -1;
         rebuildWorkerPanels();
+        selectFirstZoneOnce();
         clampScrolls();
         refreshSelection();
         if (data.notification != null && !data.notification.isEmpty()) {
@@ -247,18 +251,29 @@ public class GuiWorkerBarracks extends GuiScreen
 
     @Override
     public void receiveZoneDutyData(MsgWorkerZoneData data) {
+        stablesReceived = true;
         stables.clear();
         stables.addAll(data.stables);
         zoneWorkers.clear();
         zoneWorkers.addAll(data.workers);
         if (selectedZoneIndex >= zoneRows.size()) selectedZoneIndex = -1;
         rebuildWorkerPanels();
+        selectFirstZoneOnce();
         clampScrolls();
         refreshSelection();
         if (data.notification != null && !data.notification.isEmpty()) {
             notificationKey = data.notification;
             notificationExpireMs = System.currentTimeMillis() + 4000L;
         }
+    }
+
+    private void selectFirstZoneOnce() {
+        if (firstZoneSelected || !barracksReceived || !stablesReceived) return;
+        firstZoneSelected = true;
+        if (zoneRows.isEmpty()) return;
+        selectedZoneIndex = 0;
+        rebuildWorkerPanels();
+        map.controller.setCenter(zoneRows.get(0).center);
     }
 
     private void rebuildWorkerPanels() {

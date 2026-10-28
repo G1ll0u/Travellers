@@ -411,10 +411,19 @@ public class GuiWorkerFormationHub extends GuiScreen
         int textW = CARD_W - INNER * 2;
         int stateY = boxTop + HEADER_H + 3;
         if (selection.isFollowers()) {
-            drawBoxHeader(cardX, CARD_W, TextFormatting.BOLD + I18n.format(
-                    "travellers.worker.formation.card.followers_selected", selection.followers.size()));
-            List<String> lines = fontRenderer.listFormattedStringToWidth(
-                    I18n.format("travellers.worker.formation.card.followers_hint"), textW);
+            FormationZoneInfo barrack = selectedBarrack();
+            int n = selection.followers.size();
+            drawBoxHeader(cardX, CARD_W, TextFormatting.BOLD + (barrack != null ? barrack.name
+                    : I18n.format("travellers.worker.formation.card.followers_selected", n)));
+            List<String> lines = new ArrayList<>();
+            if (barrack != null) {
+                lines.addAll(fontRenderer.listFormattedStringToWidth(I18n.format(n == 0
+                        ? "travellers.worker.formation.zone.nobody" : "travellers.worker.formation.zone.at_rest", n), textW));
+            }
+            if (n > 0) {
+                lines.addAll(fontRenderer.listFormattedStringToWidth(
+                        I18n.format("travellers.worker.formation.card.followers_hint"), textW));
+            }
             for (int i = 0; i < lines.size(); i++) fontRenderer.drawString(lines.get(i), textX, stateY + i * 10, COL_TEXT_DIM);
             return;
         }
@@ -740,12 +749,18 @@ public class GuiWorkerFormationHub extends GuiScreen
         refreshButtons();
     }
 
-    /** Selects the resting henchmen of a Barrack, ready to be grouped or sent like any picked followers. */
+    /** Selects the resting henchmen of a Barrack (none, if empty), ready to be grouped or sent like any picked followers. */
     private void selectBarrack(FormationZoneInfo barrack) {
-        if (barrack.members.isEmpty()) return;
         selectFollowers(barrack.members);
         selection.barrackId = barrack.id;
         mapController.setCenter(barrack.center);
+    }
+
+    @Nullable
+    private FormationZoneInfo selectedBarrack() {
+        if (selection.barrackId == null) return null;
+        for (FormationZoneInfo b : barracks) if (b.id.equals(selection.barrackId)) return b;
+        return null;
     }
 
     private void rebuildBarracks() {
@@ -757,7 +772,7 @@ public class GuiWorkerFormationHub extends GuiScreen
     private void refreshBarrackSelection() {
         if (selection.barrackId == null) return;
         for (FormationZoneInfo b : barracks) {
-            if (b.id.equals(selection.barrackId) && !b.members.isEmpty()) {
+            if (b.id.equals(selection.barrackId)) {
                 selection.followers = b.members;
                 return;
             }

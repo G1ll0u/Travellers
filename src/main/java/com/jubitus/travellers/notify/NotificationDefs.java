@@ -119,7 +119,6 @@ public final class NotificationDefs {
 
     // --- Hostility toggle (MsgSetWorkerHostile) ---
     public static final NotificationDef HOSTILE_NOT_OWNER = reply(REFUSAL, "travellers.notify.hostile.not_owner", 0);
-    public static final NotificationDef HOSTILE_PLAYER_NOT_FOUND = reply(REFUSAL, "travellers.notify.hostile.player_not_found", 1);
     public static final NotificationDef HOSTILE_ADDED = reply(INFO, "travellers.notify.hostile.added", 1);
     public static final NotificationDef HOSTILE_REMOVED = reply(INFO, "travellers.notify.hostile.removed", 1);
     public static final NotificationDef WAR_DECLARED_ON_YOU = event(DANGER, "travellers.notify.hostile.war_declared_on_you", 1);
