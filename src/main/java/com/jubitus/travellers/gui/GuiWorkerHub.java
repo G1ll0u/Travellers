@@ -71,6 +71,8 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
     private GuiColorSwatchButton markButton;
     private GuiTravellersButton mapButton;
     private GuiTravellersButton hireButton;
+    // Wrapped lines under the hire button: what blocks hiring, or what a new henchman will need.
+    private List<String> hireHints = java.util.Collections.emptyList();
 
     // ── Shortcuts (see HubShortcutDrag) ─────────────────────────────────────
     private final List<NodeButton> shortcutButtons = new ArrayList<>();
@@ -148,7 +150,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
                 + '|' + metrics.buttonWidth + ',' + metrics.buttonHeight + ',' + metrics.rowGap
                 + ',' + metrics.columnGap + ',' + metrics.portraitSize + ',' + metrics.portraitGap
                 + '|' + TravellersConfig.WORKER_HUB.multiBranchExpand
-                + '|' + ctx.isOwnedByViewer() + ctx.isFree();
+                + '|' + ctx.isOwnedByViewer() + ctx.isFree() + '|' + infoLines.size();
         if (signature.equals(layoutSignature)) return;
         this.layoutSignature = signature;
 
@@ -450,7 +452,9 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
                 hireButton.displayString = count > 1
                         ? net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire_group", count, price)
                         : net.minecraft.client.resources.I18n.format("travellers.worker.orders.hire", price);
-                hireButton.enabled = true;
+                boolean notEnoughMoney = worker.clientHirePrice > 0 && !MillMoney.canAfford(player, worker.clientHirePrice);
+                hireButton.enabled = !worker.clientHireNeedsChief && !notEnoughMoney;
+                hireHints = buildHireHints(count, notEnoughMoney);
                 // Coin icons are wider than the raw amount: grow around the centre so the price is never cut.
                 int w = Math.max(metrics.buttonWidth, MoneyText.width(fontRenderer, hireButton.displayString) + 10);
                 hireButton.x += (hireButton.width - w) / 2;
@@ -458,8 +462,30 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
             } else {
                 hireButton.displayString = net.minecraft.client.resources.I18n.format("travellers.worker.orders.hired_other");
                 hireButton.enabled = false;
+                hireHints = java.util.Collections.emptyList();
             }
         }
+    }
+
+    private List<String> buildHireHints(int count, boolean notEnoughMoney) {
+        List<String> texts = new ArrayList<>(3);
+        if (worker.clientHireNeedsChief) {
+            texts.add(net.minecraft.client.resources.I18n.format("travellers.worker.hire.hint.chief"));
+        } else if (notEnoughMoney) {
+            texts.add(net.minecraft.client.resources.I18n.format("travellers.worker.hire.hint.money",
+                    MillMoney.format(MillMoney.countPlayerMoney(player))));
+        } else if (worker.clientFreeBarrackBeds < count) {
+            texts.add(net.minecraft.client.resources.I18n.format("travellers.worker.hire.hint.beds_missing",
+                    worker.clientFreeBarrackBeds, count));
+            texts.add(net.minecraft.client.resources.I18n.format("travellers.worker.hire.hint.why_bed"));
+            texts.add(net.minecraft.client.resources.I18n.format("travellers.worker.hire.hint.wand"));
+        } else {
+            texts.add(net.minecraft.client.resources.I18n.format("travellers.worker.hire.hint.assign"));
+        }
+        int wrap = Math.min(this.width - 32, Math.max(metrics.buttonWidth * 2, 200));
+        List<String> lines = new ArrayList<>();
+        for (String text : texts) lines.addAll(MoneyText.wrap(fontRenderer, text, wrap));
+        return lines;
     }
 
     /** Shared per-tick refresh for a tree button or a shortcut duplicate of the same node. */
@@ -694,6 +720,7 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
                 metrics.portraitSize, mouseX, mouseY);
 
         drawIdentity();
+        drawHireHints();
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -722,6 +749,15 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
         }
     }
 
+    private void drawHireHints() {
+        if (hireButton == null) return;
+        int y = hireButton.y + hireButton.height + 6;
+        for (String line : hireHints) {
+            TravellersGuiTheme.drawCenteredText(fontRenderer, line, centerX, y, TravellersGuiTheme.COL_TEXT_DIM);
+            y += LINE_HEIGHT;
+        }
+    }
+
     private List<String> infoLines() {
         return infoLines;
     }
@@ -731,24 +767,27 @@ public class GuiWorkerHub extends GuiScreen implements ITravellersGui {
      * village list, which has no business running at frame rate.
      */
     private void refreshInfoLines() {
-        if (!TravellersConfig.WORKER_HUB.showInfoLines) {
-            infoLines = java.util.Collections.emptyList();
-            return;
+        List<String> lines = new ArrayList<>(4);
+
+        if (TravellersConfig.WORKER_HUB.showInfoLines) {
+            CultureDef culture = worker.getCulture();
+            if (culture != null && culture.displayName != null) {
+                lines.add(culture.displayName);
+            }
+
+            lines.add(net.minecraft.client.resources.I18n.format("travellers.worker.hub.info.health",
+                    (int) Math.ceil(worker.getHealth()), (int) worker.getMaxHealth()));
+
+            if (homeVillageName == null) homeVillageName = resolveHomeVillageName();
+            if (!homeVillageName.isEmpty()) {
+                lines.add(net.minecraft.client.resources.I18n.format("travellers.worker.hub.info.village", homeVillageName));
+            }
         }
 
-        List<String> lines = new ArrayList<>(3);
-
-        CultureDef culture = worker.getCulture();
-        if (culture != null && culture.displayName != null) {
-            lines.add(culture.displayName);
-        }
-
-        lines.add(net.minecraft.client.resources.I18n.format("travellers.worker.hub.info.health",
-                (int) Math.ceil(worker.getHealth()), (int) worker.getMaxHealth()));
-
-        if (homeVillageName == null) homeVillageName = resolveHomeVillageName();
-        if (!homeVillageName.isEmpty()) {
-            lines.add(net.minecraft.client.resources.I18n.format("travellers.worker.hub.info.village", homeVillageName));
+        // A warning, not decoration: shown even when the info lines are turned off.
+        if (worker.isHiredFollower() && player.getUniqueID().equals(worker.getFollowOwnerId()) && !worker.clientHasBed) {
+            lines.add(net.minecraft.util.text.TextFormatting.GOLD
+                    + net.minecraft.client.resources.I18n.format("travellers.worker.hub.info.no_bed"));
         }
         infoLines = lines;
     }

@@ -78,7 +78,7 @@ public class MsgHireWorker implements IMessage {
 
                     // sync to client
                     TravellersNetwork.CHANNEL.sendTo(
-                            new MsgSyncWorkerHireState(worker),
+                            new MsgSyncWorkerHireState(worker, player),
                             player
                     );
                     return;
@@ -103,7 +103,7 @@ public class MsgHireWorker implements IMessage {
                 SpawnGroup group = SpawnGroup.of(player.getServerWorld(), worker);
                 int costInDeniers = group.hirePrice();
                 if (group.size() != msg.groupSize || costInDeniers != msg.price) {
-                    TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker), player);
+                    TravellersNetwork.CHANNEL.sendTo(new MsgSyncWorkerHireState(worker, player), player);
                     return;
                 }
                 int playerMoneyBefore = MillMoney.countPlayerMoney(player);
@@ -124,7 +124,7 @@ public class MsgHireWorker implements IMessage {
 
 
                 TravellersNetwork.CHANNEL.sendTo(
-                        new MsgSyncWorkerHireState(worker),
+                        new MsgSyncWorkerHireState(worker, player),
                         player
                 );
             });

@@ -425,6 +425,15 @@ public class GuiWorkerBarracks extends GuiScreen
             fontRenderer.drawString("X", delX + 3, zoneList.textY(fontRenderer, rowTop), overIcon ? 0xFFFF5555 : 0xFFAA4444);
         }
         zoneList.drawScrollbar(zoneRows.size());
+
+        // How to make a zone, in the room the rows leave free.
+        int y = zoneList.rowTop(zoneList.scroll() + visible) + 4;
+        int bottom = zoneBox[0] + zoneBox[1] - 2;
+        for (String line : fontRenderer.listFormattedStringToWidth(I18n.format("travellers.worker.zones.create_hint"), listW - 8)) {
+            if (y + fontRenderer.FONT_HEIGHT > bottom) break;
+            fontRenderer.drawString(line, listX + 4, y, TravellersGuiTheme.COL_TEXT_DIM);
+            y += fontRenderer.FONT_HEIGHT + 1;
+        }
     }
 
     private void drawZoneIcon(ZoneType type, int x, int y, int size) {

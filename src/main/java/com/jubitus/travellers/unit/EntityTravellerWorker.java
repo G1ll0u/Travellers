@@ -172,6 +172,11 @@ public class EntityTravellerWorker extends EntityTraveller {
     // Client copy of how many workers a hire takes (the merchant's whole group), sent with the hire state.
     public int clientHireGroupSize = 1;
     public int clientHirePrice = -1;
+    // Client copies for the hire screen's hints, about the viewing player.
+    public boolean clientHireNeedsChief = false;
+    public int clientFreeBarrackBeds = 0;
+    // Client copy: whether this hired worker has a bed (any zone assignment), for the hub's warning.
+    public boolean clientHasBed = true;
     // --- the one zone assignment: a Barrack (lodging) or a Stable (lodging + duty) ---
     @Nullable
     ZoneRef zone = null;
@@ -984,7 +989,7 @@ public class EntityTravellerWorker extends EntityTraveller {
                 // Same two syncs as the HUB case of MsgOpenWorkerSubGui: the hub displays the hire
                 // state and the authoritative follower count as soon as it opens.
                 TravellersNetwork.CHANNEL.sendTo(
-                        new com.jubitus.travellers.worker.net.MsgSyncWorkerHireState(this),
+                        new com.jubitus.travellers.worker.net.MsgSyncWorkerHireState(this, player),
                         (EntityPlayerMP) player
                 );
                 TravellersNetwork.CHANNEL.sendTo(

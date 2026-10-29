@@ -46,7 +46,7 @@ public class MsgToggleWorkerFollow implements IMessage {
 
                 // 🔁 Sync new state back to this client so GUI updates
                 TravellersNetwork.CHANNEL.sendTo(
-                        new MsgSyncWorkerHireState(w),
+                        new MsgSyncWorkerHireState(w, player),
                         player
                 );
             });

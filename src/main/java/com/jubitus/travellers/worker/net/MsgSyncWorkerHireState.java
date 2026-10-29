@@ -5,6 +5,12 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import com.jubitus.travellers.village.MillSettlements;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.world.WorldServer;
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.zone.PlayerZoneManager;
+import com.jubitus.travellers.zone.PlayerZoneRecord;
+import com.jubitus.travellers.zone.ZoneType;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraft.world.World;
@@ -25,11 +31,15 @@ public class MsgSyncWorkerHireState implements IMessage {
     private int equipRole = -1;
     private int hireGroupSize = 1;
     private int hirePrice = -1;
+    private boolean hireNeedsChief;
+    private int freeBarrackBeds;
+    private boolean hasBed;
 
     public MsgSyncWorkerHireState() {
     }
 
-    public MsgSyncWorkerHireState(EntityTravellerWorker worker) {
+    /** {@code viewer} is the player this is sent to: the hire hints are about their chiefdom and their Barracks. */
+    public MsgSyncWorkerHireState(EntityTravellerWorker worker, EntityPlayer viewer) {
         this.entityId = worker.getEntityId();
         this.hired = worker.isHiredFollower();
         this.ownerId = worker.getFollowOwnerId();
@@ -38,11 +48,21 @@ public class MsgSyncWorkerHireState implements IMessage {
         String name = home != null ? MillSettlements.nameOrNull(worker.world, home) : null;
         this.homeVillageName = name != null ? name : "";
         if (worker.getEquipRole() != null) this.equipRole = worker.getEquipRole().bits;
+        // Every zone assignment comes with a bed (ZoneAssignments).
+        this.hasBed = worker.getZoneRef() != null;
         if (!hired && worker.world instanceof net.minecraft.world.WorldServer) {
             com.jubitus.travellers.worker.SpawnGroup group = com.jubitus.travellers.worker.SpawnGroup
                     .of((net.minecraft.world.WorldServer) worker.world, worker);
             this.hireGroupSize = group.size();
             this.hirePrice = group.hirePrice();
+            this.hireNeedsChief = TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
+                    && TravellersConfig.CONTROLLED_VILLAGE.requireControlledVillageToHire
+                    && MillSettlements.controlledBy(worker.world, viewer).isEmpty();
+            WorldServer overworld = worker.world.getMinecraftServer().getWorld(0);
+            for (PlayerZoneRecord zone : PlayerZoneManager.get(overworld)
+                    .getByOwnerAndType(viewer.getUniqueID(), ZoneType.BARRACK)) {
+                this.freeBarrackBeds += zone.countFreeBeds();
+            }
         }
     }
 
@@ -65,6 +85,9 @@ public class MsgSyncWorkerHireState implements IMessage {
         this.equipRole = buf.readByte();
         this.hireGroupSize = buf.readInt();
         this.hirePrice = buf.readInt();
+        this.hireNeedsChief = buf.readBoolean();
+        this.freeBarrackBeds = buf.readInt();
+        this.hasBed = buf.readBoolean();
     }
 
     @Override
@@ -85,6 +108,9 @@ public class MsgSyncWorkerHireState implements IMessage {
         buf.writeByte(equipRole);
         buf.writeInt(hireGroupSize);
         buf.writeInt(hirePrice);
+        buf.writeBoolean(hireNeedsChief);
+        buf.writeInt(freeBarrackBeds);
+        buf.writeBoolean(hasBed);
     }
 
     public static class Handler implements IMessageHandler<MsgSyncWorkerHireState, IMessage> {
@@ -112,6 +138,9 @@ public class MsgSyncWorkerHireState implements IMessage {
                 w.clientHomeVillageName = msg.homeVillageName;
                 w.clientHireGroupSize = msg.hireGroupSize;
                 w.clientHirePrice = msg.hirePrice;
+                w.clientHireNeedsChief = msg.hireNeedsChief;
+                w.clientFreeBarrackBeds = msg.freeBarrackBeds;
+                w.clientHasBed = msg.hasBed;
                 w.setEquipRole(msg.equipRole < 0 ? null
                         : com.jubitus.travellers.unit.equipment.EquipLoadout.of(msg.equipRole));
             });

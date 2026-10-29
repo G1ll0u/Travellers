@@ -86,12 +86,22 @@ public class PlayerZoneRecord {
     /** A bed not currently assigned to any worker, or null if all beds are taken. Works for any zone
      * type whose {@link ZoneTypeData} is a {@link ZoneBedData} (Barrack residents, Stable palfreniers). */
     public BlockPos pickFreeBed() {
-        if (!(data instanceof ZoneBedData)) return null;
+        List<BlockPos> free = freeBeds();
+        return free.isEmpty() ? null : free.get(0);
+    }
+
+    public int countFreeBeds() {
+        return freeBeds().size();
+    }
+
+    private List<BlockPos> freeBeds() {
+        List<BlockPos> free = new ArrayList<>();
+        if (!(data instanceof ZoneBedData)) return free;
         Set<BlockPos> taken = new HashSet<>(((ZoneBedData) data).bedByWorker().values());
         for (BlockPos b : getRolePositions(ZoneRoles.BED)) {
-            if (!taken.contains(b)) return b;
+            if (!taken.contains(b)) free.add(b);
         }
-        return null;
+        return free;
     }
 
     public void writeToNBT(NBTTagCompound tag) {
