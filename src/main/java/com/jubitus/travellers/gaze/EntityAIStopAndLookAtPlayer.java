@@ -1,6 +1,7 @@
 package com.jubitus.travellers.gaze;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.follow.PlayerFollowSessions;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerWorker;
@@ -42,7 +43,8 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
             return false;
         }
         EntityPlayer p = traveller.world.getClosestPlayerToEntity(traveller, TravellersConfig.GAZE.stopForPlayerDistance);
-        if (p == null || p.isSpectator() || !traveller.getEntitySenses().canSee(p)) {
+        // A player following this unit hands-off must not bring it to a halt.
+        if (p == null || p.isSpectator() || PlayerFollowSessions.isFollowedBy(p, traveller) || !traveller.getEntitySenses().canSee(p)) {
             candidate = null;
             return false;
         }
@@ -60,6 +62,7 @@ public class EntityAIStopAndLookAtPlayer extends EntityAIBase {
     @Override
     public boolean shouldContinueExecuting() {
         if (target == null || !target.isEntityAlive() || target.isSpectator() || !canPauseNow()) return false;
+        if (PlayerFollowSessions.isFollowedBy(target, traveller)) return false;
         double r = TravellersConfig.GAZE.stopForPlayerDistance + LEAVE_MARGIN;
         if (traveller.getDistanceSq(target) > r * r) return false;
         unseenTicks = traveller.getEntitySenses().canSee(target) ? 0 : unseenTicks + 1;

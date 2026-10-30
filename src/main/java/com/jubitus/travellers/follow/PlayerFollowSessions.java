@@ -9,6 +9,7 @@ import com.jubitus.travellers.notify.NotificationService;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.unit.EntityTravellerRaider;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
@@ -80,6 +81,11 @@ public final class PlayerFollowSessions {
     public static UUID targetOf(UUID playerId) {
         Session s = SESSION_BY_PLAYER.get(playerId);
         return s == null ? null : s.target;
+    }
+
+    /** True while this player walks hands-off behind this unit. */
+    public static boolean isFollowedBy(EntityPlayer player, Entity unit) {
+        return unit.getUniqueID().equals(targetOf(player.getUniqueID()));
     }
 
     // Raiders are hostile: never an escort target.

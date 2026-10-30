@@ -7,6 +7,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.debug.trace.TravellerTracer;
 import com.jubitus.travellers.gaze.TravellerGaze;
 import com.jubitus.travellers.follow.FollowRecoveryHelper;
+import com.jubitus.travellers.follow.PlayerFollowSessions;
 import com.jubitus.travellers.mount.MountMode;
 import com.jubitus.travellers.mount.TravellerMountSupport;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -984,14 +985,15 @@ public class EntityAIVillageVisit extends EntityAIBase {
         }
         if (facingPlayer != null) {
             double r = TravellersConfig.GAZE.stopForPlayerDistance + 1.5D;
-            if (!facingPlayer.isEntityAlive() || facingPlayer.isSpectator() || mob.getDistanceSq(facingPlayer) > r * r) {
+            if (!facingPlayer.isEntityAlive() || facingPlayer.isSpectator() || mob.getDistanceSq(facingPlayer) > r * r
+                    || PlayerFollowSessions.isFollowedBy(facingPlayer, mob)) {
                 stopFacingPlayer();
             }
             return;
         }
         if (mob.ticksExisted % PLAYER_CHECK_TICKS != 0) return;
         EntityPlayer p = mob.world.getClosestPlayerToEntity(mob, TravellersConfig.GAZE.stopForPlayerDistance);
-        if (p == null || p.isSpectator() || !mob.getEntitySenses().canSee(p)) {
+        if (p == null || p.isSpectator() || PlayerFollowSessions.isFollowedBy(p, mob) || !mob.getEntitySenses().canSee(p)) {
             playerCloseTicks = 0;
             return;
         }
