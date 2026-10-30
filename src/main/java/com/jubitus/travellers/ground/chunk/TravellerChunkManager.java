@@ -91,6 +91,9 @@ public class TravellerChunkManager implements ForgeChunkManager.LoadingCallback 
         // Campsite discovery probes + camp lifecycle (budgeted, no chunk force-loading)
         com.jubitus.travellers.camp.CampsiteManager.get(ws).tick(ws, now);
 
+        // Rest spot judging, budgeted
+        com.jubitus.travellers.restspot.RestSpotManager.get(ws).tick(ws);
+
         // Paced physical reset job started by "/travellersdebug camp reset", if one is running
         com.jubitus.travellers.camp.CampResetCoordinator.INSTANCE.tick(ws, now);
 

@@ -34,6 +34,7 @@ public class TravellersConfig {
     public static final Sound SOUND = new Sound();
     public static final Choir CHOIR = new Choir();
     public static final CampEvents CAMP_EVENTS = new CampEvents();
+    public static final RestSpots REST_SPOTS = new RestSpots();
     public static final BattleEvents BATTLE_EVENTS = new BattleEvents();
     public static final Fishing FISHING = new Fishing();
     public static final ControlledVillage CONTROLLED_VILLAGE = new ControlledVillage();
@@ -1135,7 +1136,7 @@ public class TravellersConfig {
 
         @Config.Comment("How fast a standing traveller's body turns to follow its head. Lower is calmer.")
         @Config.RangeDouble(min = 1.0, max = 30.0)
-        public double bodyTurnSpeed = 2.0;
+        public double bodyTurnSpeed = 5.2;
 
         @Config.Comment("How fast a halted rider turns its horse toward what it is looking at. Lower is calmer.")
         @Config.RangeDouble(min = 1.0, max = 20.0)
@@ -1156,6 +1157,38 @@ public class TravellersConfig {
         @Config.Comment("Chance, each time a traveller looks around, that it glances at someone or something nearby (0 = never, 1 = always).")
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public double glanceChance = 0.4;
+
+        @Config.Comment("Shortest time a traveller looks at someone passing by (seconds).")
+        @Config.RangeDouble(min = 0.5, max = 15.0)
+        public double glanceMinSeconds = 1.25;
+
+        @Config.Comment("Longest time a traveller looks at someone passing by (seconds).")
+        @Config.RangeDouble(min = 0.5, max = 15.0)
+        public double glanceMaxSeconds = 3.5;
+
+        @Config.Comment("How far away travellers keep following someone with their eyes.")
+        @Config.RangeDouble(min = 4.0, max = 48.0)
+        public double glanceRange = 16.0;
+
+        @Config.Comment("How far a walking or riding traveller can turn its head; past it, it stops looking.")
+        @Config.RangeDouble(min = 30.0, max = 75.0)
+        public double walkingNeckAngle = 70.0;
+
+        @Config.Comment("Shortest time a traveller stopped in front of you keeps its eyes on you before briefly looking away (seconds).")
+        @Config.RangeDouble(min = 1.0, max = 60.0)
+        public double lookAwayMinSeconds = 4.0;
+
+        @Config.Comment("Longest time a traveller stopped in front of you keeps its eyes on you before briefly looking away (seconds).")
+        @Config.RangeDouble(min = 1.0, max = 60.0)
+        public double lookAwayMaxSeconds = 10.0;
+
+        @Config.Comment("How long a traveller's nod takes when it says hello (seconds).")
+        @Config.RangeDouble(min = 0.1, max = 2.0)
+        public double nodSeconds = 0.4;
+
+        @Config.Comment("How deep a traveller nods when it says hello (degrees).")
+        @Config.RangeDouble(min = 5.0, max = 60.0)
+        public double nodDepth = 25.0;
 
         @Config.Comment("Travellers only look around when a player is at least this close; farther away nobody sees it, so they save the effort.")
         @Config.RangeDouble(min = 8.0, max = 128.0)
@@ -2525,6 +2558,58 @@ public class TravellersConfig {
         @Config.Comment("Maximum ground height difference (blocks) allowed in front of a shelter's entrance compared to its floor. A bigger drop/rise is treated as a cliff and that entrance direction is rejected.")
         @Config.RangeInt(min = 1, max = 8)
         public int entranceMaxStepDiff = 2;
+    }
+
+    public static class RestSpots {
+        @Config.Comment("Travellers find pretty places in the wild where they stop for a break.")
+        public boolean enabled = true;
+
+        @Config.Comment("How often a patch of land is checked for a rest spot. Each patch always gets the same answer.")
+        @Config.RangeDouble(min = 0.0, max = 1.0)
+        public double discoveryChancePerChunk = 0.10;
+
+        @Config.Comment("Minimum distance between two rest spots, in blocks.")
+        @Config.RangeInt(min = 32, max = 2048)
+        public int minSpacing = 160;
+
+        @Config.Comment("No rest spot this close to a Millenaire village, in blocks.")
+        @Config.RangeInt(min = 0, max = 2048)
+        public int minVillageDistance = 150;
+
+        @Config.Comment("How much walkable ground a rest spot needs, in blocks. Higher keeps only places roomy enough for big groups.")
+        @Config.RangeInt(min = 9, max = 400)
+        public int minWalkableCells = 40;
+
+        @Config.Comment("How pretty a place must be to become a rest spot (the four weights below add up to the full score).")
+        @Config.RangeInt(min = 0, max = 200)
+        public int minScore = 40;
+
+        @Config.Comment("How much a river or lake close by makes a place pretty.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int weightWater = 30;
+
+        @Config.Comment("How much standing above the land around (hilltop, ridge, cliff over a valley) makes a place pretty.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int weightHeight = 30;
+
+        @Config.Comment("How much open sky with a few trees around (a forest edge rather than deep woods) makes a place pretty.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int weightOpenSky = 20;
+
+        @Config.Comment("How much flowers on the ground make a place pretty.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int weightFlowers = 20;
+
+        @Config.Comment("Biomes that make a place prettier or uglier, as biome=points (negative for less pretty).")
+        public String[] biomeScores = new String[]{
+                "minecraft:swampland=-15", "minecraft:mutated_swampland=-15",
+                "minecraft:desert=-10", "minecraft:mutated_desert=-10",
+                "minecraft:mutated_forest=10"
+        };
+
+        @Config.Comment("How many possible rest spots are examined per tick. Lower is lighter on the server; spots just appear a little later.")
+        @Config.RangeInt(min = 1, max = 32)
+        public int scoringsPerTick = 2;
     }
 
     public static class BattleEvents {

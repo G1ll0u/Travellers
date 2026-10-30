@@ -14,7 +14,7 @@ public class TravellerCommandChunks extends net.minecraft.command.CommandBase {
 
     @Override
     public String getUsage(net.minecraft.command.ICommandSender sender) {
-        return "/travellerschunks";
+        return "/travellerChunks";
     }
 
     @Override

@@ -940,31 +940,10 @@ public class CampsiteManager extends WorldSavedData {
         return true;
     }
 
-    /**
-     * Returns the air block sitting directly on top of valid ground, or null.
-     * Modded dirt/grass/stone/sand are accepted. Liquid surfaces (water), ice, leaves/wood/plants
-     * and other non-ground materials are rejected.
-     * NOTE: getTopSolidOrLiquidBlock skips foliage/leaves but NOT liquids — for a water column it
-     * returns the water block itself (water.blocksMovement()==false so the scan passes through it and
-     * returns the block above the seabed = the water surface). Explicit liquid check is required.
-     */
     @Nullable
     private BlockPos groundColumn(WorldServer world, int x, int z) {
-        int feetY = ColumnGround.topLayer(world, x, z, false);
-        if (feetY == ColumnGround.NONE) return null;
-        BlockPos top = new BlockPos(x, feetY, z);
-        BlockPos ground = top.down();
-        net.minecraft.block.state.IBlockState groundState = world.getBlockState(ground);
-        if (!isValidGround(groundState)) return null;
-        // Modded fluids (quicksand-like custom liquids) and configured hazard blocks: never valid
-        // ground, even when they read as a solid non-liquid Material.
-        if (BlockRules.isHazard(groundState)) return null;
-        return top;
-    }
-
-    // Natural ground, but never ice: a shelter should not sit on a frozen pond.
-    private static boolean isValidGround(net.minecraft.block.state.IBlockState s) {
-        return BlockRules.isNaturalGround(s) && !BlockRules.isIce(s);
+        int feetY = ColumnGround.naturalTop(world, x, z);
+        return feetY == ColumnGround.NONE ? null : new BlockPos(x, feetY, z);
     }
 
     private static EnumFacing facingToward(int fromX, int fromZ, BlockPos to) {

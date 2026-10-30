@@ -69,6 +69,7 @@ Packages under `src/main/java/com/jubitus/travellers/`, **one folder per feature
 | Hired-worker orders, recruiting, worker screens | `worker/` | `worker/CLAUDE.md` |
 | Millénaire integration, village visits, village relations | `village/` | `village/CLAUDE.md` |
 | Camps, block-by-block building | `camp/` | `camp/CLAUDE.md` |
+| Rest spots (discovery, scoring) | `restspot/` | `docs/rest-spots-plan.md` |
 | Virtual battles | `battle/` | `battle/CLAUDE.md` |
 | NPC dialogue (Ollama) | `dialogue/` | `dialogue/CLAUDE.md` |
 | Worldmap | `worldmap/` | `worldmap/CLAUDE.md` |

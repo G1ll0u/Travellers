@@ -32,6 +32,17 @@ public final class ColumnGround {
         return scan(world, x, z, PICK_TOP, 0, allowWater);
     }
 
+    /**
+     * {@link #topLayer} without water, kept only when it stands on natural ground that is neither ice
+     * nor a hazard: where a camp or a rest spot may sit.
+     */
+    public static int naturalTop(World world, int x, int z) {
+        int feet = topLayer(world, x, z, false);
+        if (feet == NONE) return NONE;
+        IBlockState floor = world.getBlockState(new BlockPos(x, feet - 1, z));
+        return BlockRules.isNaturalGround(floor) && !BlockRules.isIce(floor) && !BlockRules.isHazard(floor) ? feet : NONE;
+    }
+
     /** The real terrain: the layer on natural ground (or the water surface), under trees and roofs. */
     public static int terrain(World world, int x, int z, boolean allowWater) {
         return scan(world, x, z, PICK_TERRAIN, 0, allowWater);

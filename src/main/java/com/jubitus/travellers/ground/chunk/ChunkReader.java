@@ -31,7 +31,7 @@ import java.util.Map;
 
 /**
  * The one reader of chunks. Each newly loaded chunk is read once, while it is in memory, and handed
- * to every consumer (travel terrain grid, worldmap level 0, campsite discovery). A chunk changed
+ * to every consumer (travel terrain grid, worldmap level 0, campsite and rest spot discovery). A chunk changed
  * afterwards is re-read for the consumers that care: decoration re-reads terrain and map, a surface
  * block change repaints the map. Both queues drain under a per-tick budget and a chunk still queued
  * when it unloads is read right then, so nothing is lost. Never loads a chunk. Server thread only.
@@ -183,6 +183,9 @@ public final class ChunkReader {
         if (TravellersConfig.CAMP_EVENTS.enabled) {
             com.jubitus.travellers.camp.CampsiteManager.get(world).onChunkRead(world, chunk.x, chunk.z);
         }
+        if (TravellersConfig.REST_SPOTS.enabled) {
+            com.jubitus.travellers.restspot.RestSpotManager.get(world).onChunkRead(world, chunk.x, chunk.z);
+        }
         readNanos += System.nanoTime() - t0;
         read++;
     }
@@ -202,7 +205,7 @@ public final class ChunkReader {
 
     private static boolean anyConsumer() {
         return TravellersConfig.ROUTING.enablePlannedRoutes || TravellersConfig.WORLDMAP.mapPregenOnChunkLoadEnabled
-                || TravellersConfig.CAMP_EVENTS.enabled;
+                || TravellersConfig.CAMP_EVENTS.enabled || TravellersConfig.REST_SPOTS.enabled;
     }
 
     private static boolean mapsChanges(World world) {
