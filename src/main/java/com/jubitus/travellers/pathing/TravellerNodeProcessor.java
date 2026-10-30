@@ -795,7 +795,6 @@ public class TravellerNodeProcessor extends WalkNodeProcessor {
                 double extra = layers / 8.0;               // 0.125..1.0
                 double dyEff = (y + extra) - mobFeetY;     // <-- effective vertical step
 
-                // Use actual stepHeight (yours is 1.0)
                 if (dyEff > this.body.stepHeight + 1e-3) {
                     return PathNodeType.BLOCKED;
                 }

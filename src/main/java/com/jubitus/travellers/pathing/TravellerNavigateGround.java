@@ -664,6 +664,7 @@ public class TravellerNavigateGround extends PathNavigateGround {
                 TravellersConfig.MOUNTS.mountedMaxStraightDrop,
                 MathHelper.ceil(PathBody.height(this.entity)));
         if (Double.isNaN(ground)) {
+            lastDirectRefusal = "no ground at aim";
             haltStaleDirectSteer();
             return false;
         }
@@ -672,11 +673,11 @@ public class TravellerNavigateGround extends PathNavigateGround {
         // acting on one), but the corridor behind it does not have to be re-proven every tick - it is
         // a few hundred block reads over a long probe. Re-check on a short cooldown, or immediately
         // if the destination changed, and coast on the last verdict in between.
-        // Two slots: a follower alternates its slot leg with the leader-trail leg, and one slot made
-        // each evict the other every tick.
+        // Several slots: a follower alternates its slot leg with the leader-trail leg, and steerAround
+        // tries up to five legs a tick; fewer slots made them evict each other every tick.
         long now = this.world.getTotalWorldTime();
         int slot = -1;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < DIRECT_STEER_SLOTS; i++) {
             if (now - directSteerTick[i] < DIRECT_STEER_RECHECK_TICKS
                     && Math.abs(x - directSteerX[i]) < 1.0D && Math.abs(z - directSteerZ[i]) < 1.0D) {
                 slot = i;
@@ -684,13 +685,18 @@ public class TravellerNavigateGround extends PathNavigateGround {
             }
         }
         if (slot < 0) {
-            slot = directSteerTick[0] <= directSteerTick[1] ? 0 : 1;
+            slot = 0;
+            for (int i = 1; i < DIRECT_STEER_SLOTS; i++) {
+                if (directSteerTick[i] < directSteerTick[slot]) slot = i;
+            }
             directSteerApproved[slot] = isBodyCorridorClear(from, new Vec3d(x, ground, z));
+            directSteerRefusal[slot] = directSteerApproved[slot] ? "" : MountTerrainProfile.lastRefusal;
             directSteerTick[slot] = now;
             directSteerX[slot] = x;
             directSteerZ[slot] = z;
         }
         if (!directSteerApproved[slot]) {
+            lastDirectRefusal = directSteerRefusal[slot];
             haltStaleDirectSteer();
             return false;
         }
@@ -709,10 +715,75 @@ public class TravellerNavigateGround extends PathNavigateGround {
      * a mob wandering into the way is noticed within a fifth of a second. */
     private static final int DIRECT_STEER_RECHECK_TICKS = 4;
 
-    private final long[] directSteerTick = {Long.MIN_VALUE / 2, Long.MIN_VALUE / 2};
-    private final boolean[] directSteerApproved = new boolean[2];
-    private final double[] directSteerX = {Double.NaN, Double.NaN};
-    private final double[] directSteerZ = {Double.NaN, Double.NaN};
+    private static final int DIRECT_STEER_SLOTS = 6;
+    private final long[] directSteerTick = new long[DIRECT_STEER_SLOTS];
+    private final boolean[] directSteerApproved = new boolean[DIRECT_STEER_SLOTS];
+    private final String[] directSteerRefusal = new String[DIRECT_STEER_SLOTS];
+    private final double[] directSteerX = new double[DIRECT_STEER_SLOTS];
+    private final double[] directSteerZ = new double[DIRECT_STEER_SLOTS];
+
+    {
+        java.util.Arrays.fill(directSteerTick, Long.MIN_VALUE / 2);
+        java.util.Arrays.fill(directSteerX, Double.NaN);
+        java.util.Arrays.fill(directSteerZ, Double.NaN);
+    }
+
+    /** Would a straight leg of at most {@code legBlocks} toward the point be walkable now (no move, no cache). */
+    public boolean isLegClear(double x, double z, double legBlocks) {
+        Vec3d from = getEntityPosition();
+        double dx = x - from.x;
+        double dz = z - from.z;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 1.0E-4D) return true;
+        double leg = Math.min(dist, legBlocks);
+        double ax = from.x + dx / dist * leg;
+        double az = from.z + dz / dist * leg;
+        double ground = MountTerrainProfile.groundYNear(this.world, ax, az, from.y,
+                TravellersConfig.MOUNTS.mountedMaxStraightRise,
+                TravellersConfig.MOUNTS.mountedMaxStraightDrop,
+                MathHelper.ceil(PathBody.height(this.entity)));
+        return !Double.isNaN(ground) && isBodyCorridorClear(from, new Vec3d(ax, ground, az));
+    }
+
+    /** Why the last refused {@link #steerDirect} refused (profiling). */
+    private String lastDirectRefusal = "";
+
+    /** Leg turns tried by {@link #steerAround}, in order, after the straight leg. */
+    private static final double[] AROUND_DEGREES = {30.0D, -30.0D, 60.0D, -60.0D};
+
+    /**
+     * Straight at the point one leg at a time, else the same leg turned 30 then 60 degrees either side:
+     * gets round a tree or a rock without A*. Aim points are quantized to block centres so cached
+     * corridor verdicts hold between ticks. False when every leg is refused.
+     */
+    public boolean steerAround(double x, double z, double legBlocks, double speed) {
+        Vec3d from = getEntityPosition();
+        double dx = x - from.x;
+        double dz = z - from.z;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 1.0E-4D) return false;
+        dx /= dist;
+        dz /= dist;
+        double leg = Math.min(dist, legBlocks);
+        if (steerDirect(Math.floor(from.x + dx * leg) + 0.5D, Math.floor(from.z + dz * leg) + 0.5D, speed)) {
+            com.jubitus.travellers.debug.profile.MovementProfiler.directOutcome(this.entity, "straight");
+            return true;
+        }
+        String straightRefusal = lastDirectRefusal;
+        for (double deg : AROUND_DEGREES) {
+            double r = Math.toRadians(deg);
+            double c = Math.cos(r);
+            double s = Math.sin(r);
+            double rx = dx * c - dz * s;
+            double rz = dx * s + dz * c;
+            if (steerDirect(Math.floor(from.x + rx * leg) + 0.5D, Math.floor(from.z + rz * leg) + 0.5D, speed)) {
+                com.jubitus.travellers.debug.profile.MovementProfiler.directOutcome(this.entity, "around, straight refused: " + straightRefusal);
+                return true;
+            }
+        }
+        com.jubitus.travellers.debug.profile.MovementProfiler.directOutcome(this.entity, "refused: " + straightRefusal);
+        return false;
+    }
 
     /**
      * Shared probe behind {@link #canReachOnFootSized} and {@link #isReachable}: does a real A*

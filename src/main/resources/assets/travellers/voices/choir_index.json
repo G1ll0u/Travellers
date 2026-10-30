@@ -26,13 +26,6 @@
                     "durationTicks": 3663
                 },
                 {
-                    "name": "plaine2",
-                    "stems": [
-                        "entity.travellers.fr.gilles.choir.plaine2.__0"
-                    ],
-                    "durationTicks": 3846
-                },
-                {
                     "name": "salade",
                     "stems": [
                         "entity.travellers.fr.gilles.choir.salade.__0",
@@ -42,25 +35,15 @@
                         "entity.travellers.fr.gilles.choir.salade.__4"
                     ],
                     "durationTicks": 3458
-                },
+                }
+            ],
+            "vener": [
                 {
                     "name": "test",
                     "stems": [
-                        "entity.travellers.fr.gilles.choir.test.__0"
+                        "entity.travellers.fr.vener.choir.test.__0"
                     ],
-                    "durationTicks": 22
-                }
-            ],
-            "dep": [
-                {
-                    "name": "sui",
-                    "stems": [
-                        "entity.travellers.fr.dep.choir.sui.__0",
-                        "entity.travellers.fr.dep.choir.sui.__1",
-                        "entity.travellers.fr.dep.choir.sui.__2",
-                        "entity.travellers.fr.dep.choir.sui.__3"
-                    ],
-                    "durationTicks": 156
+                    "durationTicks": 2985
                 }
             ]
         }

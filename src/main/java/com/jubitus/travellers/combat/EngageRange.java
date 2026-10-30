@@ -51,6 +51,11 @@ public final class EngageRange {
         return Math.max(max, TravellersConfig.COMBAT.helpRange);
     }
 
+    /** A mob, villager or listed entity that is not attacking the unit's side: engaged only up close. */
+    public static boolean isShortRange(EntityTraveller unit, Entity target) {
+        return !isLongRange(unit, target);
+    }
+
     private static boolean isLongRange(EntityTraveller unit, Entity target) {
         return target instanceof EntityTraveller || target instanceof EntityPlayer || isAttacking(unit, target);
     }

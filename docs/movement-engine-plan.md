@@ -1,6 +1,6 @@
 # Movement engine plan — steer first, path last
 
-**Status: step 1 in progress — travel, archers, melee and block-change repaths done; waiting for a profile; next: combat churn fix (probe in place), follower ground-goal cost, then the single engine class.**
+**Status: step 1 in progress — regressions found by traces fixed (followers against fences/branches, path-block step); waiting for a profile; open: too-far drop loop (needs distance probe), horse recall loop, follower ground-goal cost, then decide on the single engine class.**
 
 ## Goal
 
@@ -19,6 +19,10 @@ Several players with their henchmen on one server at an acceptable TPS, on any t
 - Off-thread pathfinding: not now. Decide on numbers after v1 (needs a block snapshot and our own node evaluator).
 - v1 = steps 0-2, with travel (and so catch-up) first: it was half of all A* time. Other AIs (village visit, camp, stable, fishing, led horses) come after v1.
 - A block change never triggers a re-search (vanilla's `PathWorldListener` repath is a no-op in our navigator).
+- Tier 1 turns a refused straight leg 30° then 60° either side before A* (`TravellerNavigateGround.steerAround`).
+- A mob dropped as too far is ignored 5 s by that unit (breaks the pick/drop loop); a hit always lifts any ignore. Not enough: "too far" drops did not fall; the dropped targets are probably long-range ones — needs distance in the probe.
+- On-foot follow steering goes through the corridor test + turn-aside like travel (it used to report every tick as a success, so a follower against a fence never escalated); a drifted path is dropped only when the straight leg is clear.
+- The corridor test measures a step from the real surface (a path block to a full block is 1.06, not 1.0).
 
 ## Already done (before the engine)
 

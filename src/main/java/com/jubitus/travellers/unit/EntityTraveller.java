@@ -430,7 +430,7 @@ public class EntityTraveller extends EntityCreature {
         this.setCanPickUpLoot(true);
         this.setItemStackToSlot(EntityEquipmentSlot.OFFHAND, ItemStack.EMPTY);
         this.setLeftHanded(false);
-        this.stepHeight = 1.0F;
+        this.stepHeight = 1.1F;
         // Vanilla's move helper turns up to 90 degrees per tick, which AbstractHorse.travel() copies
         // straight onto a horse's body. See TravellerMoveHelper - identical to vanilla on foot.
         this.moveHelper = new com.jubitus.travellers.pathing.TravellerMoveHelper(this);
@@ -528,6 +528,10 @@ public class EntityTraveller extends EntityCreature {
     public void ignoreTarget(EntityLivingBase e, int ticks) {
         if (e == null) return;
         ignoreTargetsUntil.put(e.getUniqueID(), this.ticksExisted + Math.max(1, ticks));
+    }
+
+    public void unignoreTarget(EntityLivingBase e) {
+        ignoreTargetsUntil.remove(e.getUniqueID());
     }
 
     public boolean isIgnoring(EntityLivingBase e) {
@@ -980,11 +984,11 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.register(SLEEPING, Boolean.FALSE);
         this.dataManager.register(SLEEPING_BED_POS, BlockPos.ORIGIN);
         this.dataManager.register(MOUNT_UUID, com.google.common.base.Optional.absent());
+        this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
     }
     public static void dbg(String s) {
         System.out.println("[TravellersDBG] " + s);
     }
-        this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
 
     @Override
     protected int getExperiencePoints(EntityPlayer player) {
@@ -2532,8 +2536,7 @@ public void fall(float distance, float damageMultiplier) {
         voice.stopNow();
     }
 
-    // Called by server when client signals a choir sound finished (natural end or pause desync).
-    // Resets the voice lock so the coordinator can detect the interruption and schedule a rejoin.
+    // Called by server when client signals a choir sound finished: frees the voice lock.
     public void interruptChoirVoiceLock() {
         if (!choirSinging) return;
         voice.release();

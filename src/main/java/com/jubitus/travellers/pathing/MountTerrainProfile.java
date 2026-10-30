@@ -206,6 +206,14 @@ public final class MountTerrainProfile {
      * "rode into a 2-block passage and suffocated" report. Leaves and other non-suffocating cover
      * stay rideable-under - a rider ducks through a canopy, never through rock.
      */
+    /** Why the last {@link #corridorClear} on this (server) thread refused: read right after the call, for profiling. */
+    public static String lastRefusal = "";
+
+    private static boolean refuse(String why) {
+        lastRefusal = why;
+        return false;
+    }
+
     public static boolean corridorClear(World world, Vec3d from, Vec3d to, double halfWidth,
                                         double bodyHeight, double maxStepRise, double maxDrop,
                                         double maxRise, double stackClearance) {
@@ -238,18 +246,21 @@ public final class MountTerrainProfile {
             // whole rise/drop window half a block low.
             FootprintFit fit = fitFootprint(world, cornerX, cornerZ, sizeX, sizeZ,
                     MathHelper.floor(surf + 0.5D), maxStepRise, maxDrop, headroom);
-            if (fit == null) return false;
-            if (fit.surface - startY > maxRise) return false;
+            if (fit == null) return refuse("no footing");
+            // INVARIANT: the rise is measured from the real surface; fitFootprint's rounded reference reads a
+            // path block (15/16) to full block step of 1.06 as 1.0.
+            if (fit.surface - surf > maxStepRise + 1.0E-3D) return refuse("step too high");
+            if (fit.surface - startY > maxRise) return refuse("climb too long");
 
             AxisAlignedBB sweep = new AxisAlignedBB(
                     cx - halfWidth, fit.surface + 1.0E-3D, cz - halfWidth,
                     cx + halfWidth, fit.surface + bodyHeight - 1.0E-3D, cz + halfWidth);
-            if (collidesWithBlocks(world, sweep)) return false;
+            if (collidesWithBlocks(world, sweep)) return refuse("body hits blocks");
             // A step up: the body first rises in place at the previous sample (vanilla step-up).
             if (fit.surface > surf + 1.0E-3D && collidesWithBlocks(world, new AxisAlignedBB(
                     prevX - halfWidth, surf + bodyHeight + 1.0E-3D, prevZ - halfWidth,
                     prevX + halfWidth, fit.surface + bodyHeight - 1.0E-3D, prevZ + halfWidth))) {
-                return false;
+                return refuse("no headroom to step up");
             }
 
             // The rider band: from the top of the body to the top of the stack, suffocating blocks
@@ -261,7 +272,7 @@ public final class MountTerrainProfile {
                 for (int ox = 0; ox < sizeX; ox++) {
                     for (int oz = 0; oz < sizeZ; oz++) {
                         pos.setPos(cornerX + ox, y, cornerZ + oz);
-                        if (world.getBlockState(pos).causesSuffocation()) return false;
+                        if (world.getBlockState(pos).causesSuffocation()) return refuse("rider hits rock");
                     }
                 }
             }

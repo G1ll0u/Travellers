@@ -55,15 +55,7 @@ Travellers are built to handle real travel rather than scripted wandering:
 
 Travellers, raiders and henchmen can show up with a **bonded horse** — a permanent companion, not a disposable ride. Once bonded, that pairing lasts for good: it follows them through virtualization (captured and restored exactly, gear and all, never re-rolled), through combat (they fight from the saddle, no need to dismount), and through your formations (mounted followers keep pace and catch up like anyone else, no special handling needed on your side). Nobody can steal it — not even you: right-clicking a bonded horse simply does nothing, for anyone, including its own henchman's owner, while that henchman is alive. The bond only ever ends when the henchman does.
 
-They don't stay in the saddle regardless of what they're doing. When water too deep to wade is in the way they get down at the bank without dithering, lead the horse in, and it swims alongside on a lead — including behind a boat, towed across the open sea — and they climb back on once both are dry on the far side, never in the water and never while the horse is still on the bank they left. Arriving in a village, they get down and leave the horse at the edge rather than riding it through the alleys, and pick it up again on their way out. Camping does the same. And where a horse simply doesn't fit — a narrow doorway, a thin wall, a tight gully — they step down and lead it through on foot rather than standing there, then climb back on once past it. A led horse tucks into single file right behind its owner, treading the same ground they just walked, and is brought back up if it ever snags on something and drops too far behind.
-
-They ride like riders, not like people who happen to be sitting on a horse: they cut diagonally across a slope instead of climbing it in steps, slow down for a bend and stop to swing the horse around for a hard turn instead of drifting wide, and hop an obstacle their own horse is strong enough to clear — a weak jumper won't try what a good one can.
-
-Short of one of them dying, the pair is never separated: a horse that falls behind is brought back, and one that somehow disappears without dying comes back exactly as it was. Riders defend their horse: attack it and its rider reacts exactly as if you had struck them. If the rider is the one who dies, their horse is simply left behind, right where it happened, as an ordinary loose horse (or, if you turn on the `Mounts` option for it, dies with its rider). It doesn't wait forever unclaimed, though — any other unmounted henchman with nothing else to do can notice it nearby and walk over to claim it as its own new mount, the same way you can walk up and tame it yourself.
-
-How often travellers, raiders and henchmen show up mounted, how much faster a horse makes them — with separate paces for open-road travel and for riding in formation behind you, where they match your speed instead of racing ahead — and whether they bother dismounting in villages at all, is entirely up to you in the config GUI (`Mounts` category).
-
-### Elytra flight
+### Elytra flight (fun slop feature)
 
 Give a traveller, raider or henchman an **Elytra** and they will actually use it. Standing at the top of a cliff with a long walk ahead, they stop, turn to face where they're going, and throw themselves off — gliding over the canyon, the river or the ravine they would otherwise have spent minutes walking around, then landing and carrying on on foot.
 
@@ -78,13 +70,7 @@ The whole thing can be turned off, and everything is tunable, in the config GUI 
 All travellers, raiders and henchmen are virtualized when unloaded. Meaning their movement is simulated when their chunk isn't loaded.
 Meaning every traveller is unique and moves in the world.
 
-They appear (materialize) and disappear (turn virtual) based on whether the game is actually simulating the ground they stand on — kept loaded by your own view distance, or by anything else (another player, a Millénaire village, a chunk loader). A henchman sent far away on a "go" order will pop into existence the moment it reaches a loaded village, even while you're nowhere near it. The mod itself never forces chunks to stay loaded to move anyone around: everything outside loaded terrain is simulated instead, so a thousand travellers cost no chunk loading at all. Tunable in config (`Materialization` category: `materializeChunkStableTicks` / `virtualizeChunkUnneededTicks` / `rematerializeGraceTicks` — how long things must stay settled before they appear or disappear, to avoid flicker).
-
-Minecraft itself stops updating creatures entirely in a world where nobody is connected, which used to strand travellers in the permanently-loaded chunks around world spawn: they walked in, turned real, and then stood frozen there because the game was no longer running them — the whole world's population slowly piling up on the spawn until somebody logged back in. They now correctly go back off-screen instead and carry on with their journeys.
-
-You can also decide what happens when nobody is connected (`Offscreen` category): by default the whole off-screen simulation is **put on hold** and picks up exactly where it left off when someone logs in (`pauseWhenServerEmpty`). If you prefer a world that keeps living without you, turn that off — and optionally have it run slowly instead (`slowWhenServerEmpty` + `emptyServerSpeedMultiplier`, e.g. 0.25 for four times slower).
-
-The hand-off in both directions is all-or-nothing: if the game refuses to place someone where they were about to appear, they stay offscreen and try again a moment later rather than going missing, and nobody can ever end up existing twice (once as a real body, once as an offscreen record).
+They appear (materialize) and disappear (virtualize) based on whether the game is actually simulating the ground they stand on — kept loaded by your own view distance, or by anything else (another player, a Millénaire village, a chunk loader). A henchman sent far away on a "go" order will pop into existence the moment it reaches a loaded village, even while you're nowhere near it. The mod itself never forces chunks to stay loaded to move anyone around: everything outside loaded terrain is simulated instead, so a thousand travellers cost no chunk loading at all. Tunable in config (`Materialization` category: `materializeChunkStableTicks` / `virtualizeChunkUnneededTicks` / `rematerializeGraceTicks` — how long things must stay settled before they appear or disappear, to avoid flicker).
 
 ### Raiders
 
@@ -125,7 +111,7 @@ You're kept informed of what happens to your Henchmen, even when they're far awa
 * One of your Stables tames a horse, saddles one or has a foal
 * Your Henchmen are attacked (with coordinates)
 
-### Camps (WIP)
+### Camps (WIP, disabled by default)
 
 Travellers and raiders don't just walk between villages — they'll occasionally **stop and set up camp** out in the wild.
 
@@ -247,7 +233,7 @@ The Henchman will travel to the village, complete the transaction, and return to
 ### Special compatibilities
 - Compatibility with **Ultreïa**, my mod that generates real paths between villages
 Travellers will navigate using the Ultreïa path network.
-- Compatibility with **SoundPhysics**
+- Slopped compatibility with **SoundPhysics** (far from perfect)
 
 ---
 

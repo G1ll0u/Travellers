@@ -135,6 +135,12 @@ public final class MovementProfiler {
         session.pathSearch(e, nanos, path, tx, ty, tz, probe, now());
     }
 
+    /** One tick of {@code steerAround}: straight, around an obstacle, or refused (with the straight leg's reason). */
+    public static void directOutcome(EntityLivingBase e, String outcome) {
+        if (session == null || e.world.isRemote) return;
+        session.directOutcome(e, outcome);
+    }
+
     /** A path request answered by direct steering instead of an A* search. */
     public static void searchAvoided(EntityLivingBase e) {
         if (session == null || e.world.isRemote) return;

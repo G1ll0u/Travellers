@@ -288,12 +288,10 @@ final class TravelPathDriver {
 
     /**
      * How every unit normally travels, on foot or mounted: straight at the waypoint, one proven stretch
-     * at a time. The aim point rolls ahead by {@code MOUNTS.mountedDirectLegBlocks} along the bearing to
-     * the waypoint and {@link TravellerNavigateGround#steerDirect} proves that stretch with the planner's
-     * footprint corridor; anything it can't take (a ledge, a closed door, a tree line, deep water)
-     * refuses it and hands travel to A*. A refusal backs off for {@link #DIRECT_RETRY_TICKS} so the
-     * planner's route is walked, not thrashed. The aim point is quantized to block centres so the
-     * cached corridor verdict holds between ticks.
+     * of {@code MOUNTS.mountedDirectLegBlocks} at a time, turning the stretch aside to get round a
+     * single obstacle ({@link TravellerNavigateGround#steerAround}); what it can't take (a ledge, a
+     * closed door, a tree line, deep water) hands travel to A*. A refusal backs off for
+     * {@link #DIRECT_RETRY_TICKS} so the planner's route is walked, not thrashed.
      */
     boolean tryDirect() {
         if (mob.world.isRemote || ai.currentWaypoint == null || ai.isInBoat()) return false;
@@ -310,12 +308,9 @@ final class TravelPathDriver {
         double dist = Math.sqrt(dx * dx + dz * dz);
         if (dist < 2.0D) return false;
 
-        double leg = Math.min(dist, TravellersConfig.MOUNTS.mountedDirectLegBlocks);
-        double ax = Math.floor(mob.posX + dx / dist * leg) + 0.5D;
-        double az = Math.floor(mob.posZ + dz / dist * leg) + 0.5D;
-
         TravellerNavigateGround nav = (TravellerNavigateGround) mob.getNavigator();
-        if (!nav.steerDirect(ax, az, ai.getActiveSpeed())) {
+        if (!nav.steerAround(ai.currentWaypoint.getX() + 0.5D, ai.currentWaypoint.getZ() + 0.5D,
+                TravellersConfig.MOUNTS.mountedDirectLegBlocks, ai.getActiveSpeed())) {
             directRetryAt = mob.ticksExisted + DIRECT_RETRY_TICKS;
             return false;
         }

@@ -287,6 +287,7 @@ final class ProfileSession {
 
     final Map<String, PathStat> paths = new TreeMap<>();
     final Map<String, Long> searchesAvoided = new TreeMap<>();
+    final Map<String, Long> directOutcomes = new TreeMap<>();
     private long pathTick = -1;
     private long pathTickNanos;
     long pathMaxTickNanos;
@@ -642,6 +643,11 @@ final class ProfileSession {
         }
         pathTickNanos += nanos;
         if (pathTickNanos > pathMaxTickNanos) pathMaxTickNanos = pathTickNanos;
+    }
+
+    void directOutcome(EntityLivingBase e, String outcome) {
+        boolean mounted = e instanceof EntityTraveller && ((EntityTraveller) e).isMountedOnBondedMount();
+        directOutcomes.merge(searchCaller() + " / " + (mounted ? "mounted" : "on foot") + " / " + outcome, 1L, Long::sum);
     }
 
     void searchAvoided(EntityLivingBase e) {

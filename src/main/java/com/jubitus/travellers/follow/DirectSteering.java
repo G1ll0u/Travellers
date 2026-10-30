@@ -96,9 +96,23 @@ public final class DirectSteering {
             steeringBlockedTicks = steered ? 0 : steeringBlockedTicks + 1;
             return;
         }
+        // On foot the last couple of blocks need no corridor (fine slot placement); beyond, a wall
+        // must count as blocked or the follower walks into it forever without ever asking for a path.
+        double dx = x - follower.posX;
+        double dz = z - follower.posZ;
+        if (dx * dx + dz * dz > ON_FOOT_FREE_STEER_SQ && follower.getNavigator() instanceof TravellerNavigateGround) {
+            TravellerNavigateGround nav = (TravellerNavigateGround) follower.getNavigator();
+            double legBlocks = TravellersConfig.MOUNTS.mountedDirectLegBlocks;
+            boolean steered = nav.steerAround(x, z, legBlocks, speed)
+                    || (fallback != null && fallback.steer(nav, legBlocks, speed));
+            steeringBlockedTicks = steered ? 0 : steeringBlockedTicks + 1;
+            return;
+        }
         steeringBlockedTicks = 0;
         follower.getMoveHelper().setMoveTo(x, y, z, speed);
     }
+
+    private static final double ON_FOOT_FREE_STEER_SQ = 2.0D * 2.0D;
 
     boolean tryGapJump(double goalX, double goalZ, double speed) {
         PathNavigate nav = follower.getNavigator();

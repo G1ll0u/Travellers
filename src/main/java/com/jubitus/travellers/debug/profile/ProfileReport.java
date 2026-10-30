@@ -406,6 +406,12 @@ final class ProfileReport {
                     .append(pad(String.valueOf(p.over5ms), 7)).append(pad(String.valueOf(p.over20ms), 7))
                     .append(pad(pct(p.nulls, p.count), 9)).append(pct(p.partials, p.count)).append('\n');
         }
+        if (!s.directOutcomes.isEmpty()) {
+            sb.append("  direct steering, ticks by outcome\n");
+            for (Map.Entry<String, Long> e : s.directOutcomes.entrySet()) {
+                sb.append("  ").append(pad(e.getKey(), 130)).append(e.getValue()).append('\n');
+            }
+        }
         if (!s.searchesAvoided.isEmpty()) {
             sb.append("  searches avoided by going direct\n");
             List<Map.Entry<String, Long>> avoided = new ArrayList<>(s.searchesAvoided.entrySet());

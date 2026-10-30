@@ -17558,15 +17558,6 @@
             }
         ]
     },
-    "entity.travellers.fr.gilles.choir.plaine2.__0": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/gilles/choir/plaine2/plaine2_01",
-                "stream": true
-            }
-        ]
-    },
     "entity.travellers.fr.gilles.choir.salade.__0": {
         "category": "voice",
         "sounds": [
@@ -17612,47 +17603,11 @@
             }
         ]
     },
-    "entity.travellers.fr.gilles.choir.test.__0": {
+    "entity.travellers.fr.vener.choir.test.__0": {
         "category": "voice",
         "sounds": [
             {
-                "name": "travellers:travellers/fr/gilles/choir/test/test_01",
-                "stream": true
-            }
-        ]
-    },
-    "entity.travellers.fr.dep.choir.sui.__0": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/dep/choir/sui/sui_01",
-                "stream": true
-            }
-        ]
-    },
-    "entity.travellers.fr.dep.choir.sui.__1": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/dep/choir/sui/sui_02",
-                "stream": true
-            }
-        ]
-    },
-    "entity.travellers.fr.dep.choir.sui.__2": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/dep/choir/sui/sui_03",
-                "stream": true
-            }
-        ]
-    },
-    "entity.travellers.fr.dep.choir.sui.__3": {
-        "category": "voice",
-        "sounds": [
-            {
-                "name": "travellers:travellers/fr/dep/choir/sui/sui_04",
+                "name": "travellers:travellers/fr/vener/choir/test/test_01",
                 "stream": true
             }
         ]

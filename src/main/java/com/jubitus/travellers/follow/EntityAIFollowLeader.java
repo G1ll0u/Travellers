@@ -670,9 +670,14 @@ public class EntityAIFollowLeader extends EntityAIBase {
         moveSpeed *= MountedLeadController.ledRiderPaceMultiplier(follower);
 
         // Steering first: A* only once steering has been blocked steeringStuckTicksBeforePathfind ticks in a row.
-        // A path whose goal has drifted is dropped for steering when it would be redone, rather than re-searched.
+        // A path whose goal has drifted is dropped for steering when it would be redone, rather than
+        // re-searched - only if the straight leg is clear, or a follower behind a wall flips path/steer forever.
         boolean steeringFresh = steering.direct.steeringBlockedTicks < TravellersConfig.WORKER_FORMATION.steeringStuckTicksBeforePathfind;
-        if (steeringFresh && !noPath && !canReusePath && paths.repathCooldown <= 0) {
+        if (steeringFresh && !noPath && !canReusePath && paths.repathCooldown <= 0
+                && follower.getNavigator() instanceof TravellerNavigateGround
+                && ((TravellerNavigateGround) follower.getNavigator()).isLegClear(goal.x, goal.z,
+                TravellersConfig.MOUNTS.mountedDirectLegBlocks)) {
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(follower, "follow", "drifted path dropped for steering");
             follower.getNavigator().clearPath();
             noPath = true;
         }

@@ -55,10 +55,10 @@ public class TravellersConfig {
 
     public static class Trace {
         @Config.Comment("Record what an individual traveller is doing, tick by tick, into its own file under logs/travellers-trace. Use /travellersdebug trace to pick one.")
-        public boolean enabled = true;
+        public boolean enabled = false;
 
         @Config.Comment("Start recording on its own when a traveller gets stuck, so a problem that only happens to a few of them is captured even when you are not watching.")
-        public boolean autoCapture = true;
+        public boolean autoCapture = false;
 
         @Config.Comment("How long to keep recording after an automatic capture starts, in seconds.")
         @Config.RangeInt(min = 5, max = 600)
@@ -150,7 +150,7 @@ public class TravellersConfig {
 
         @Config.Comment("Safety net: how many loaded chunks the worldmap re-checks per tick in the background, for the rare change that goes unnoticed. Changes are normally picked up right away without it. 0 turns it off.")
         @Config.RangeInt(min = 0, max = 64)
-        public int mapSweepChunksPerTick = 1;
+        public int mapSweepChunksPerTick = 4;
 
         @Config.Comment("How often (in ticks) the worldmap rebuilds its list of currently-loaded chunks to re-check. Default: 100 (5s).")
         @Config.RangeInt(min = 20, max = 2000)
@@ -188,11 +188,11 @@ public class TravellersConfig {
 
         @Config.Comment("How soft the edge of the unexplored fog is on the map. 0 = sharp edge.")
         @Config.RangeDouble(min = 0.0, max = 0.5)
-        public float mapFogEdgeSoftness = 0.3f;
+        public float mapFogEdgeSoftness = 0.5f;
 
         @Config.Comment("How wavy and natural the edge of the unexplored fog looks. 0 = smooth, regular edge.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float mapFogEdgeNoise = 0.6f;
+        public float mapFogEdgeNoise = 0.8f;
 
         @Config.Comment("How many map pieces your graphics card keeps ready to draw. Higher = fewer redraws when moving around a big map, more video memory used (about 0.25 MB each).")
         @Config.RangeInt(min = 32, max = 1024)
@@ -217,7 +217,7 @@ public class TravellersConfig {
 
         @Config.Comment("Radius (blocks) around each of a player's own alive hired units within which foreign travellers/raiders/workers and battles become visible on the map.")
         @Config.RangeInt(min = 8, max = 512)
-        public int hiredWorkerVisionRadius = 96;
+        public int hiredWorkerVisionRadius = 512;
 
         @Config.Comment("Show HP of discovered foreign entities on the map (own workers always show HP regardless of this setting).")
         public boolean revealForeignEntityHealth = false;
@@ -230,11 +230,11 @@ public class TravellersConfig {
 
         @Config.Comment("Global multiplier applied on top of every marker's size below. 1.0 = unchanged.")
         @Config.RangeDouble(min = 0.25, max = 4.0)
-        public double markerScaleGlobal = 0.75;
+        public double markerScaleGlobal = 1.2;
 
         @Config.Comment("Size (pixels) of the player marker.")
         @Config.RangeInt(min = 1, max = 32)
-        public int playerMarkerSize = 6;
+        public int playerMarkerSize = 7;
 
         @Config.Comment("Also show lone buildings (isolated Millénaire buildings) on your maps, once you have explored where they stand.")
         public boolean showLoneBuildings = false;
@@ -253,7 +253,7 @@ public class TravellersConfig {
 
         @Config.Comment("Size (pixels) of foreign traveller/raider/worker population markers.")
         @Config.RangeInt(min = 1, max = 32)
-        public int populationMarkerSize = 4;
+        public int populationMarkerSize = 6;
 
         @Config.Comment("Size (pixels) of camp firepit and camp shelter-slot markers.")
         @Config.RangeInt(min = 1, max = 32)
@@ -267,18 +267,18 @@ public class TravellersConfig {
     public static class EntityRenderLod {
         @Config.Comment("How far away (in blocks, at normal render distance) travellers, raiders and workers stay visible. Grows with your render distance like other creatures. A horse stays visible around 94.")
         @Config.RangeInt(min = 32, max = 256)
-        public int entityRenderDistance = 96;
+        public int entityRenderDistance = 128;
 
         @Config.Comment("Master switch for distance-based LOD on traveller/raider/worker entity rendering (cosmetic overlay layers + held item). Reduces GPU/CPU cost when many are visible at once. Purely cosmetic beyond the configured distances.")
-        public boolean enabled = false;
+        public boolean enabled = true;
 
         @Config.Comment("Beyond this distance (blocks), travellers, raiders and workers are drawn in a single pass, with clothes, armour and owner mark painted onto their skin. Much faster for big groups; armour looks flatter and loses its enchantment shine.")
         @Config.RangeInt(min = 4, max = 128)
-        public int bakedSkinMinDistance = 16;
+        public int bakedSkinMinDistance = 24;
 
         @Config.Comment("Beyond this distance (blocks) from the camera, skip the clothes overlay layer. This layer re-renders the full biped model a second time, so it's the most expensive of the three and invisible at range anyway.")
         @Config.RangeInt(min = 4, max = 128)
-        public int clothesLayerMaxDistance = 96;
+        public int clothesLayerMaxDistance = 128;
 
         @Config.Comment("Beyond this distance (blocks) from the camera, skip the owner-mark armband layer (workers only).")
         @Config.RangeInt(min = 4, max = 128)
@@ -290,7 +290,7 @@ public class TravellersConfig {
 
         @Config.Comment("Beyond this distance (blocks) from the camera, skip rendering the held item (weapon/tool in hand) for travellers/raiders/workers. Highest-impact option since vanilla's 3D item rendering is the single most expensive part of entity rendering.")
         @Config.RangeInt(min = 4, max = 128)
-        public int heldItemMaxDistance = 32;
+        public int heldItemMaxDistance = 128;
 
         @Config.Comment("Beyond this distance (blocks), weapons and tools held by travellers, raiders and workers are drawn as a flat picture instead of a full 3D item. Much faster for big groups; loses the enchantment shine. Shields and 3D items are unchanged.")
         @Config.RangeInt(min = 4, max = 128)
@@ -314,21 +314,21 @@ public class TravellersConfig {
 
         @Config.Comment("Minimum distance (blocks) a fresh traveller/raider/worker spawn point must keep from ANY known settlement (village or lone building), not just the one it belongs to. Keeps population from ever appearing to spring up right next to a settlement the player just discovered.")
         @Config.RangeInt(min = 0, max = 2000)
-        public int spawnSettlementAvoidanceRadius = 150;
+        public int spawnSettlementAvoidanceRadius = 160;
     }
 
     public static class SpawnTravellers {
         @Config.Comment("How many travellers a village should have per villager it has. Example: 0.33 means 1 traveller for every 3 villagers.")
         @Config.RangeDouble(min = 0.01, max = 50.0)
-        public float travellerCapPerVillager = 0.24f;
+        public float travellerCapPerVillager = 0.25f;
 
         @Config.Comment("Every village always gets at least this many travellers, even a brand new one with no population yet.")
         @Config.RangeInt(min = 0, max = 256)
-        public int travellerCapMinPerVillage = 2;
+        public int travellerCapMinPerVillage = 3;
 
         @Config.Comment("No single village will ever get more travellers than this, no matter how big it grows.")
         @Config.RangeInt(min = 0, max = 256)
-        public int travellerCapMaxPerVillage = 12;
+        public int travellerCapMaxPerVillage = 32;
 
         @Config.Comment("How many travellers appear around a standalone building that isn't part of a full village.")
         @Config.RangeInt(min = 0, max = 256)
@@ -344,7 +344,7 @@ public class TravellersConfig {
 
         @Config.Comment("Chance (0-100) that a newly spawned traveller brings a small travelling group with them instead of being alone.")
         @Config.RangeInt(min = 0, max = 100)
-        public int groupSpawnChance = 50;
+        public int groupSpawnChance = 60;
 
         @Config.Comment("Smallest possible size for a traveller group (including the leader).")
         @Config.RangeInt(min = 2, max = 64)
@@ -352,7 +352,7 @@ public class TravellersConfig {
 
         @Config.Comment("Largest possible size for a traveller group (including the leader).")
         @Config.RangeInt(min = 2, max = 64)
-        public int groupMaxSize = 8;
+        public int groupMaxSize = 6;
     }
 
     public static class SpawnRaiders {
@@ -374,18 +374,18 @@ public class TravellersConfig {
 
         @Config.Comment("No single village will ever attract more raiders than this, no matter how big it grows.")
         @Config.RangeInt(min = 0, max = 256)
-        public int raiderCapMaxPerVillage = 12;
+        public int raiderCapMaxPerVillage = 6;
 
         @Config.Comment("How many raiders appear around a standalone building that isn't part of a full village.")
         @Config.RangeInt(min = 0, max = 32)
-        public int raiderCapPerLoneBuilding = 1;
+        public int raiderCapPerLoneBuilding = 2;
 
         @Config.Comment("If true, raiders travel along the Ultreia/MPB road network like travellers do. If false, raiders roam freely off-road.")
         public boolean raidersUseUltreiaPaths = true;
 
         @Config.Comment("Chance (0-100) that a newly spawned raider brings a small warband with them instead of being alone.")
         @Config.RangeInt(min = 0, max = 100)
-        public int groupSpawnChance = 50;
+        public int groupSpawnChance = 60;
 
         @Config.Comment("Smallest possible size for a raider warband (including the leader).")
         @Config.RangeInt(min = 2, max = 64)
@@ -393,13 +393,13 @@ public class TravellersConfig {
 
         @Config.Comment("Largest possible size for a raider warband (including the leader).")
         @Config.RangeInt(min = 2, max = 64)
-        public int groupMaxSize = 8;
+        public int groupMaxSize = 6;
     }
 
     public static class SpawnWorkers {
         @Config.Comment("How many workers a village should have per villager it has. Same formula as travellers/raiders. Example: 0.1 means 1 worker for every 10 villagers.")
         @Config.RangeDouble(min = 0.01, max = 20.0)
-        public float workerCapPerVillager = 0.25f;
+        public float workerCapPerVillager = 0.17f;
 
         @Config.Comment("Every village always gets at least this many workers, even a brand new one with no population yet.")
         @Config.RangeInt(min = 0, max = 256)
@@ -407,11 +407,11 @@ public class TravellersConfig {
 
         @Config.Comment("No single village will ever get more workers than this, no matter how big it grows.")
         @Config.RangeInt(min = 0, max = 256)
-        public int workerCapMaxPerVillage = 8;
+        public int workerCapMaxPerVillage = 16;
 
         @Config.Comment("Workers the global population controller spawns per lone building.")
         @Config.RangeInt(min = 0, max = 4)
-        public int workerCapPerLoneBuilding = 0;
+        public int workerCapPerLoneBuilding = 1;
 
         @Config.Comment("Most free workers the world keeps at once; workers you hire no longer count.")
         @Config.RangeInt(min = 0, max = 2048)
@@ -435,7 +435,7 @@ public class TravellersConfig {
 
         @Config.Comment("Largest possible size for an escorted merchant group (including the merchant).")
         @Config.RangeInt(min = 2, max = 16)
-        public int groupMaxSize = 4;
+        public int groupMaxSize = 6;
     }
 
     public static class GroupFollow {
@@ -449,19 +449,19 @@ public class TravellersConfig {
     public static class Attributes {
         @Config.Comment("Height of a traveller's hitbox, for a normal-sized one. Short and tall travellers get a hitbox scaled from this. Raise it if hits seem to pass through their head.")
         @Config.RangeDouble(min = 0.5, max = 4.0)
-        public float hitboxHeight = 2.05f;
+        public float hitboxHeight = 2.0f;
 
         @Config.Comment("Width of a traveller's hitbox, for a normal-sized one. Keep it below 1 block, or travellers will refuse to walk through doors and narrow streets.")
         @Config.RangeDouble(min = 0.2, max = 0.95)
-        public float hitboxWidth = 0.7f;
+        public float hitboxWidth = 0.6f;
 
         @Config.Comment("Max health of generic travellers.")
         @Config.RangeDouble(min = 1.0, max = 1000.0)
-        public float travellerMaxHealth = 25.0f;
+        public float travellerMaxHealth = 20.0f;
 
         @Config.Comment("FOLLOW_RANGE (detection radius) for generic travellers.")
         @Config.RangeDouble(min = 4.0, max = 256.0)
-        public float travellerFollowRange = 64.0f;
+        public float travellerFollowRange = 96.0f;
 
         @Config.Comment("Base melee damage per hit.")
         @Config.RangeDouble(min = 0.0, max = 100.0)
@@ -469,15 +469,15 @@ public class TravellersConfig {
 
         @Config.Comment("How much damage travellers take from monsters and other creatures (1 = normal, 0 = immune). Falls, fire and drowning are not affected.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float travellerMobDamageScale = 0.35f;
+        public float travellerMobDamageScale = 0.25f;
 
         @Config.Comment("How much damage raiders take from monsters and other creatures (1 = normal, 0 = immune). Falls, fire and drowning are not affected.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float raiderMobDamageScale = 0.35f;
+        public float raiderMobDamageScale = 0.25f;
 
         @Config.Comment("How much damage henchmen take from monsters and other creatures (1 = normal, 0 = immune). Falls, fire and drowning are not affected.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float workerMobDamageScale = 0.35f;
+        public float workerMobDamageScale = 0.25f;
 
         @Config.Comment("How much damage travellers deal to monsters, animals and villagers (1 = normal). Raise it if creatures in your modpack are too tough.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
@@ -489,7 +489,7 @@ public class TravellersConfig {
 
         @Config.Comment("How much damage henchmen deal to monsters, animals and villagers (1 = normal). Raise it if creatures in your modpack are too tough.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
-        public float workerDamageToMobsScale = 1.0f;
+        public float workerDamageToMobsScale = 1.25f;
 
         @Config.Comment("Multiplier on all damage travellers deal to players.")
         @Config.RangeDouble(min = 0.0, max = 10.0)
@@ -509,12 +509,12 @@ public class TravellersConfig {
 
         @Config.Comment("FOLLOW_RANGE for workers.")
         @Config.RangeDouble(min = 4.0, max = 256.0)
-        public double workerFollowRange = 64.0;
+        public double workerFollowRange = 96.0;
 
 
         @Config.Comment("Blocks per path step for worker travel.")
         @Config.RangeInt(min = 1, max = 64)
-        public int workerStepBlocks = 64;
+        public int workerStepBlocks = 24;
 
         @Config.Comment("Blocks per path step for normal traveller travel.")
         @Config.RangeInt(min = 1, max = 128)
@@ -558,7 +558,7 @@ public class TravellersConfig {
 
         @Config.Comment("How long (in ticks, 20 = 1 second) a traveller, raider or worker ignores further hits after being hit. 0 = every arrow and blow lands in full, 10 = Minecraft's normal protection. Fire, lava and other environmental damage always keep the normal protection.")
         @Config.RangeInt(min = 0, max = 10)
-        public int hitProtectionTicks = 0;
+        public int hitProtectionTicks = 5;
 
         @Config.Comment("If true, travellers call nearby allies for help when attacked.")
         public boolean callForHelp = true;
@@ -585,7 +585,7 @@ public class TravellersConfig {
 
         @Config.Comment("How far away units attack monsters, villagers and other creatures; a monster is only attacked once it is close enough to notice them, unless it attacks first.")
         @Config.RangeInt(min = 1, max = 200)
-        public int mobAttackTriggerRange = 32;
+        public int mobAttackTriggerRange = 12;
 
         @Config.Comment("Health fraction below which entities enter defensive mode.")
         @Config.RangeDouble(min = 0.05, max = 0.50)
@@ -597,7 +597,7 @@ public class TravellersConfig {
 
         @Config.Comment("Radius (blocks) around the owner/leader that hired workers proactively scan for threats already attacking them (EntityAIDefendOwnerProactively) - needs to reach ranged attackers standing well back, not just melee range.")
         @Config.RangeInt(min = 4, max = 64)
-        public int defendOwnerProactiveRadius = 24;
+        public int defendOwnerProactiveRadius = 48;
 
         @Config.Comment("Max engagement radius for entities in low-health defensive mode.")
         @Config.RangeInt(min = 2, max = 16)
@@ -617,7 +617,7 @@ public class TravellersConfig {
 
         @Config.Comment("Extra melee reach (blocks) added on top of hitbox contact distance, for all traveller types.")
         @Config.RangeDouble(min = 0.0, max = 3.0)
-        public double meleeReachBonus = 0.3;
+        public double meleeReachBonus = 0.13;
 
         @Config.Comment("Additional melee reach (blocks) for raiders, on top of meleeReachBonus.")
         @Config.RangeDouble(min = 0.0, max = 3.0)
@@ -645,7 +645,7 @@ public class TravellersConfig {
 
         @Config.Comment("Maximum distance travellers will attempt to shoot.")
         @Config.RangeDouble(min = 1.0, max = 128.0)
-        public float rangedMaxDist = 24.0f;
+        public float rangedMaxDist = 96.0f;
 
         @Config.Comment("Ticks between ranged attacks (20 = 1 second).")
         @Config.RangeInt(min = 1, max = 200)
@@ -733,7 +733,7 @@ public class TravellersConfig {
 
         @Config.Comment("For hired worker groups set to the 'Defend' attitude: max distance (blocks) from the group's leader/owner a worker will chase an attack target. Beyond this it holds back and waits for the fight to come closer.")
         @Config.RangeDouble(min = 2.0, max = 64.0)
-        public double defendTetherRadius = 14.0;
+        public double defendTetherRadius = 24.0;
 
         @Config.Comment("For hired worker groups set to the 'Hold Position' attitude: max distance (blocks) from a worker's own spot in formation it will step out to strike a target that got too close, before returning to formation.")
         @Config.RangeDouble(min = 1.0, max = 16.0)
@@ -744,11 +744,11 @@ public class TravellersConfig {
         public double escortOwnerPriorityRadius = 12.0;
 
         @Config.Comment("Once a mounted melee fighter closes to striking distance of its target, it gets off and fights on foot instead of swinging from the saddle. Turn off to keep them mounted for the whole fight.")
-        public boolean mountedMeleeDismountEnabled = true;
+        public boolean mountedMeleeDismountEnabled = false;
 
         @Config.Comment("While a mounted melee fighter is still closing the distance (not yet close enough to strike), it curves in off to one side instead of riding straight at the target like a pedestrian. Higher looks more like a real mounted skirmish; 0 disables it and rides straight in.")
         @Config.RangeDouble(min = 0.0, max = 6.0)
-        public double mountedMeleeApproachCurve = 2.5;
+        public double mountedMeleeApproachCurve = 3.5;
     }
 
     public static class Equipment {
@@ -765,19 +765,19 @@ public class TravellersConfig {
 
         @Config.Comment("Chance (out of common+good+rare) of a top-tier weapon or armor piece at spawn.")
         @Config.RangeInt(min = 0, max = 100)
-        public int rareWeight = 8;
+        public int rareWeight = 2;
 
         @Config.Comment("Same as commonWeight/goodWeight/rareWeight above, but only for raiders. Lets raiders spawn better equipped on average.")
         @Config.RangeInt(min = 0, max = 100)
-        public int raiderCommonWeight = 30;
+        public int raiderCommonWeight = 60;
 
         @Config.Comment("Raider equivalent of goodWeight.")
         @Config.RangeInt(min = 0, max = 100)
-        public int raiderGoodWeight = 45;
+        public int raiderGoodWeight = 35;
 
         @Config.Comment("Raider equivalent of rareWeight.")
         @Config.RangeInt(min = 0, max = 100)
-        public int raiderRareWeight = 12;
+        public int raiderRareWeight = 6;
 
         @Config.Comment("Same as commonWeight/goodWeight/rareWeight above, but only for hired workers.")
         @Config.RangeInt(min = 0, max = 100)
@@ -809,15 +809,15 @@ public class TravellersConfig {
 
         @Config.Comment("Multiplier applied to the 4 armor chances above for raiders (1.0 = no change).")
         @Config.RangeDouble(min = 0.1, max = 5.0)
-        public float raiderArmorChanceMultiplier = 1.9f;
+        public float raiderArmorChanceMultiplier = 0.67f;
 
         @Config.Comment("Multiplier applied to the 4 armor chances above for hired workers (1.0 = no change).")
         @Config.RangeDouble(min = 0.1, max = 5.0)
-        public float workerArmorChanceMultiplier = 1.0f;
+        public float workerArmorChanceMultiplier = 1.2f;
 
         @Config.Comment("Chance to equip a bow instead of a melee weapon at spawn, when no better data (defaultweapon/startingInv) says otherwise.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float bowChance = 0.4f;
+        public float bowChance = 0.35f;
 
         @Config.Comment("Chance to prefer a culture's own signature gear (e.g. Norman broadsword/plate for Normans) over generic items when both are available at spawn.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
@@ -841,11 +841,11 @@ public class TravellersConfig {
 
         @Config.Comment("Chance that a worker spawns with a shield (never together with a bow).")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float shieldChanceWorker = 0.15f;
+        public float shieldChanceWorker = 0.35f;
 
         @Config.Comment("Chance that a traveller spawns with a shield (never together with a bow).")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float shieldChanceTraveller = 0.10f;
+        public float shieldChanceTraveller = 0.25f;
 
         @Config.Comment("Units wearing an iron or better helmet/chestplate are this many times more likely to spawn with a shield.")
         @Config.RangeDouble(min = 1.0, max = 10.0)
@@ -1127,7 +1127,7 @@ public class TravellersConfig {
     public static class Gaze {
         @Config.Comment("How fast travellers turn their head. Lower is calmer.")
         @Config.RangeDouble(min = 2.0, max = 40.0)
-        public double headTurnSpeed = 8.0;
+        public double headTurnSpeed = 12.0;
 
         @Config.Comment("How far a standing traveller turns its head before its body turns to follow.")
         @Config.RangeDouble(min = 10.0, max = 75.0)
@@ -1135,11 +1135,11 @@ public class TravellersConfig {
 
         @Config.Comment("How fast a standing traveller's body turns to follow its head. Lower is calmer.")
         @Config.RangeDouble(min = 1.0, max = 30.0)
-        public double bodyTurnSpeed = 6.0;
+        public double bodyTurnSpeed = 2.0;
 
         @Config.Comment("How fast a halted rider turns its horse toward what it is looking at. Lower is calmer.")
         @Config.RangeDouble(min = 1.0, max = 20.0)
-        public double mountedTurnSpeed = 4.0;
+        public double mountedTurnSpeed = 2.0;
 
         @Config.Comment("How far to one side a halted rider keeps its horse from what it is looking at, so the horse's head doesn't block its view.")
         @Config.RangeDouble(min = 0.0, max = 60.0)
@@ -1147,7 +1147,7 @@ public class TravellersConfig {
 
         @Config.Comment("Shortest time a traveller keeps looking at the same thing before looking elsewhere (seconds).")
         @Config.RangeDouble(min = 0.5, max = 30.0)
-        public double holdMinSeconds = 2.0;
+        public double holdMinSeconds = 1.0;
 
         @Config.Comment("Longest time a traveller keeps looking at the same thing before looking elsewhere (seconds).")
         @Config.RangeDouble(min = 0.5, max = 30.0)
@@ -1178,7 +1178,7 @@ public class TravellersConfig {
 
         @Config.Comment("How close travellers must get to each other, or to you, to say hello.")
         @Config.RangeDouble(min = 2.0, max = 16.0)
-        public double greetRange = 8.0;
+        public double greetRange = 6.0;
 
         @Config.Comment("How long before the same travellers say hello to each other, or to you, again (seconds).")
         @Config.RangeDouble(min = 10.0, max = 3600.0)
@@ -1197,11 +1197,11 @@ public class TravellersConfig {
 
         @Config.Comment("Shortest stay in a village (seconds).")
         @Config.RangeInt(min = 0, max = 3600)
-        public int stayMinSeconds = 60;
+        public int stayMinSeconds = 10;
 
         @Config.Comment("Longest stay in a village (seconds).")
         @Config.RangeInt(min = 0, max = 3600)
-        public int stayMaxSeconds = 180;
+        public int stayMaxSeconds = 45;
 
         @Config.Comment("Shortest halt at a lone building (seconds).")
         @Config.RangeInt(min = 0, max = 3600)
@@ -1213,11 +1213,11 @@ public class TravellersConfig {
 
         @Config.Comment("How close to a village's centre a traveller must get to count as arrived and start its visit. Walking into the town hall itself also counts.")
         @Config.RangeInt(min = 4, max = 128)
-        public int arrivalRadius = 24;
+        public int arrivalRadius = 36;
 
         @Config.Comment("Same, for a lone building.")
         @Config.RangeInt(min = 4, max = 128)
-        public int loneBuildingArrivalRadius = 12;
+        public int loneBuildingArrivalRadius = 24;
 
         @Config.Comment("Buildings travellers visit: any building with one of these Millénaire tags.")
         public String[] buildingIncludeTags = new String[]{"leasure", "market", "inn", "religious", "seller"};
@@ -1363,7 +1363,7 @@ public class TravellersConfig {
     public static class Destinations {
         @Config.Comment("How close a traveller must get to a destination that isn't a village or lone building to count as arrived.")
         @Config.RangeInt(min = 1, max = 256)
-        public int villageNear = 16;
+        public int villageNear = 48;
 
         @Config.Comment("Max radius (blocks) within which travellers pick next village destination.")
         @Config.RangeInt(min = 100, max = 10000)
@@ -1463,7 +1463,7 @@ public class TravellersConfig {
 
     public static class Offscreen {
         @Config.Comment("Put the whole off-screen traveller simulation on hold while nobody is connected. Travellers stop travelling and pick up exactly where they left off when someone logs in.")
-        public boolean pauseWhenServerEmpty = true;
+        public boolean pauseWhenServerEmpty = false;
 
         @Config.Comment("Instead of putting it on hold, let the off-screen simulation keep running slowly while nobody is connected. Ignored when the option above is on.")
         public boolean slowWhenServerEmpty = false;
@@ -1484,7 +1484,7 @@ public class TravellersConfig {
 
         @Config.Comment("How often (in ticks) the global population controller runs. Lower = faster repopulation after reset, higher CPU cost.")
         @Config.RangeInt(min = 40, max = 12000)
-        public int globalPopulationRefreshTicks = 200;
+        public int globalPopulationRefreshTicks = 600;
 
         @Config.Comment("Hard cap on the total number of travellers + raiders in the world (loaded and offscreen combined). Henchmen have their own separate cap and are not counted here.")
         @Config.RangeInt(min = 0, max = 10000)
@@ -1492,7 +1492,7 @@ public class TravellersConfig {
 
         @Config.Comment("Max number of new travellers/raiders/workers created per refresh cycle. Higher = faster repopulation after /travellersdebug reset, but more spawns happening at once.")
         @Config.RangeInt(min = 1, max = 500)
-        public int globalPopulationMaxSpawnsPerCycle = 60;
+        public int globalPopulationMaxSpawnsPerCycle = 128;
 
         @Config.Comment("Log detailed per-village spawn attempt results to the server console (why a traveller/raider/worker was or wasn't spawned this cycle). Very spammy, for diagnosing spawn issues only.")
         public boolean populationDebugLog = false;
@@ -1508,7 +1508,7 @@ public class TravellersConfig {
 
         @Config.Comment("When someone reappears standing on foliage (a leaf block, a modded tree branch), how far straight down (in blocks) to look for the real ground beneath before giving up and leaving them where they are. Needs to clear the tallest trees in the pack - big Dynamic Trees dark oak / jungle can be 25+ blocks. Keeps travellers off tree canopy without ever leaving them stuck offscreen.")
         @Config.RangeInt(min = 0, max = 48)
-        public int canopySinkMaxDrop = 32;
+        public int canopySinkMaxDrop = 10;
 
         @Config.Comment("How far (in blocks) to search for a spot wide enough for a horse and its rider when a mounted traveller reappears near a player. Larger values find room on rougher ground but cost a little more to compute.")
         @Config.RangeInt(min = 2, max = 24)
@@ -1519,7 +1519,7 @@ public class TravellersConfig {
 
         @Config.Comment("When a traveller/raider/worker would reappear on a roof, a man-made surface, or in a tree's own trunk column, how far around it (in blocks) to look for natural ground to put it on instead. 0 turns the search off.")
         @Config.RangeInt(min = 0, max = 24)
-        public int naturalGroundSearchRadius = 20;
+        public int naturalGroundSearchRadius = 8;
 
         @Config.Comment("When someone you left inside a building would reappear well above the floor it was standing on (typically pushed up onto the roof by a wall in the way), how far around it (in blocks) to look for free space back on its own floor. 0 turns the search off.")
         @Config.RangeInt(min = 0, max = 16)
@@ -1550,7 +1550,7 @@ public class TravellersConfig {
 
         @Config.Comment("Width (blocks) of the corridor used to collect intermediate village stops along a travel route.")
         @Config.RangeDouble(min = 8.0, max = 256.0)
-        public double corridorWidth = 64.0;
+        public double corridorWidth = 128.0;
 
         @Config.Comment("Travellers leave and enter walled villages through a gate, and walk around other walled villages on their way. Turn off to ignore village walls when planning routes.")
         public boolean routeThroughVillageGates = true;
@@ -1569,19 +1569,19 @@ public class TravellersConfig {
 
         @Config.Comment("How long a traveller makes no headway along its route before it looks for a fresh path, in seconds.")
         @Config.RangeInt(min = 1, max = 60)
-        public int stuckRepathSeconds = 3;
+        public int stuckRepathSeconds = 1;
 
         @Config.Comment("How long before it tries a short detour around what is blocking it, in seconds.")
         @Config.RangeInt(min = 1, max = 60)
-        public int stuckDetourSeconds = 6;
+        public int stuckDetourSeconds = 2;
 
         @Config.Comment("How long before it plans a whole new route from where it stands (another village gate, another way around), in seconds.")
         @Config.RangeInt(min = 1, max = 120)
-        public int stuckReplanSeconds = 10;
+        public int stuckReplanSeconds = 3;
 
         @Config.Comment("How long before it hops a few blocks to get unstuck, in seconds. Kept short and rare so nobody sees a traveller jump around.")
         @Config.RangeInt(min = 2, max = 300)
-        public int stuckHopSeconds = 15;
+        public int stuckHopSeconds = 6;
 
         @Config.Comment("Same, but for a traveller pressed against something and not moving at all, in seconds.")
         @Config.RangeInt(min = 2, max = 300)
@@ -1589,11 +1589,11 @@ public class TravellersConfig {
 
         @Config.Comment("How long a traveller may wander underground before it is brought back to the surface, in seconds.")
         @Config.RangeInt(min = 2, max = 300)
-        public int stuckUndergroundHopSeconds = 10;
+        public int stuckUndergroundHopSeconds = 5;
 
         @Config.Comment("Minimum time between two unstuck hops of the same traveller, in seconds.")
         @Config.RangeInt(min = 1, max = 300)
-        public int stuckHopCooldownSeconds = 10;
+        public int stuckHopCooldownSeconds = 5;
 
         @Config.Comment("How far an unstuck hop may move a traveller, in blocks. Small = discreet.")
         @Config.RangeInt(min = 2, max = 16)
@@ -1613,7 +1613,7 @@ public class TravellersConfig {
 
         @Config.Comment("How far a traveller can be pushed away from its route (by a fight or a rescue) before it plans a new route from where it stands instead of walking back to the old one.")
         @Config.RangeInt(min = 16, max = 512)
-        public int plannedRouteMaxOffRouteBlocks = 96;
+        public int plannedRouteMaxOffRouteBlocks = 32;
 
         @Config.Comment("How far sideways a travel waypoint may shift to find real ground to stand on, instead of pointing at a tree trunk or the top of a canopy.")
         @Config.RangeInt(min = 0, max = 4)
@@ -1623,7 +1623,7 @@ public class TravellersConfig {
     public static class GapJump {
         @Config.Comment("Widest gap (in blocks) a traveller/raider/worker can jump across, roughly a player's sprint-jump.")
         @Config.RangeInt(min = 1, max = 6)
-        public int maxGapWidth = 3;
+        public int maxGapWidth = 4;
 
         @Config.Comment("How close (in blocks) to their own standing height a landing spot must be to count as 'the other side' of the gap. Keeps them from jumping partway in and landing at the bottom of a ditch instead of clearing it.")
         @Config.RangeInt(min = 0, max = 3)
@@ -1693,7 +1693,7 @@ public class TravellersConfig {
 
         @Config.Comment("A traveller, raider or hired worker that dies leaves its horse behind as an ordinary loose horse, exactly where it died. Without any cleanup these pile up forever near well-travelled routes. How long (in ticks, 20 per second) it is left completely alone before it becomes eligible for cleanup - long enough for a nearby player (or another recruited worker) to notice and claim it for themselves.")
         @Config.RangeInt(min = 200, max = 72000)
-        public int looseMountCleanupGraceTicks = 6000;
+        public int looseMountCleanupGraceTicks = 600;
 
         @Config.Comment("A loose ex-mount past its grace period is only ever removed while no player is within this many blocks of it - it never simply vanishes in front of anyone, even one who isn't looking straight at it. If a player stays nearby indefinitely it just waits.")
         @Config.RangeDouble(min = 8.0, max = 256.0)
@@ -1709,7 +1709,7 @@ public class TravellersConfig {
 
         @Config.Comment("How far down (in blocks) a mounted rider sits into the saddle, scaled by their own height roll. Matches the value vanilla uses for a mounted player - raise it (toward 0) if they look sunk into the horse's back, lower it if they look like they're floating above it.")
         @Config.RangeDouble(min = -1.0, max = 0.0)
-        public double mountedSeatYOffset = -0.45;
+        public double mountedSeatYOffset = -0.37;
 
         @Config.Comment("Log every mounted jump decision to the server log. Very spammy - only for diagnosing mounted pathfinding problems.")
         public boolean debugMounts = false;
@@ -1729,7 +1729,7 @@ public class TravellersConfig {
 
         @Config.Comment("How far a traveller must have walked from where it stepped down before it will climb back on. Together with the delay above, this is what makes sure it is actually past the obstacle and not still standing beside it.")
         @Config.RangeDouble(min = 2.0, max = 32.0)
-        public double terrainRemountDistance = 10.0;
+        public double terrainRemountDistance = 4.0;
 
         @Config.Comment("How deep water can be, in blocks, for a mounted traveller to ride straight through it instead of getting off. At the default a horse fords ankle-deep streams with its rider staying in the saddle; anything deeper means swimming, so the rider dismounts and crosses on foot.")
         @Config.RangeInt(min = 0, max = 3)
@@ -1777,7 +1777,7 @@ public class TravellersConfig {
 
         @Config.Comment("How hard a mounted horse nudges sideways when trying to sidestep an obstacle a jump cannot clear. Higher moves it clear of a tight spot faster but looks like a harder shove.")
         @Config.RangeDouble(min = 0.05, max = 1.0)
-        public double mountedSidestepImpulse = 0.35;
+        public double mountedSidestepImpulse = 0.5;
 
         @Config.Comment("How many sidesteps in a row (close together in time, see mountedSidestepGiveUpWindowTicks) a mounted rider will try at the same spot before giving up on riding through it and leading the horse on foot instead. Some spots (dense canopy, a tight natural maze) genuinely have no side a shove can fix - without a limit the horse just repeats the same short loop forever.")
         @Config.RangeInt(min = 1, max = 10)
@@ -1825,15 +1825,15 @@ public class TravellersConfig {
 
         @Config.Comment("How far (in blocks) a horse being led on a leash can trail behind its rider before it is brought back to them. Keep it generous - the horse is pulled along by the leash well before this.")
         @Config.RangeInt(min = 8, max = 128)
-        public int leadMaxDistance = 32;
+        public int leadMaxDistance = 12;
 
         @Config.Comment("How close (in blocks) a rider must be to its horse to climb back into the saddle.")
         @Config.RangeDouble(min = 1.0, max = 16.0)
-        public double remountDistance = 3.5;
+        public double remountDistance = 5.0;
 
         @Config.Comment("How close (in blocks) a led horse must be to its rider before it stops walking - close enough to be 'at heel'.")
         @Config.RangeDouble(min = 0.5, max = 8.0)
-        public double ledFollowStopDistance = 2.5;
+        public double ledFollowStopDistance = 3.0;
 
         @Config.Comment("How far behind its rider (in blocks) a led horse aims: it walks in the rider's own footsteps a short way back, rather than cutting straight at the rider and weaving. Larger = the horse hangs further back in single file.")
         @Config.RangeDouble(min = 1.5, max = 6.0)
@@ -1841,7 +1841,7 @@ public class TravellersConfig {
 
         @Config.Comment("Past this distance (in blocks), if the led horse also has no route of its own to walk (deep water, a wall it cannot path around), the leash tows it in a straight line toward its rider - the boat-crossing / swimming case.")
         @Config.RangeDouble(min = 4.0, max = 32.0)
-        public double ledFollowTowDistance = 10.0;
+        public double ledFollowTowDistance = 8.0;
 
         @Config.Comment("The fastest a led horse is allowed to trot to close a gap to its rider, as a multiple of the rider's own current pace. It normally paces exactly with the rider; this only caps how hard it sprints after falling behind.")
         @Config.RangeDouble(min = 1.0, max = 4.0)
@@ -1861,7 +1861,7 @@ public class TravellersConfig {
 
         @Config.Comment("While a rider is leading its horse on foot: if the horse gets stuck this far (in blocks) or more behind and stops making progress, bring it straight to the rider rather than waiting for the full leash-recall distance. This is the quick reunite that stops a rider looking frozen while its horse is snagged on terrain.")
         @Config.RangeDouble(min = 4.0, max = 32.0)
-        public double ledStuckRecallDistance = 8.0;
+        public double ledStuckRecallDistance = 12.0;
 
         @Config.Comment("How many ticks a led horse must make no headway toward its rider (while past ledStuckRecallDistance) before it is brought to them.")
         @Config.RangeInt(min = 20, max = 400)
@@ -1871,7 +1871,7 @@ public class TravellersConfig {
         public boolean hitchMountInVillages = true;
 
         @Config.Comment("Tell a hired worker's owner when its horse gives up trying to ride through somewhere and starts leading it on foot instead. Only for the cases where the horse genuinely could not make it - routine dismounts (villages, boats, camps) never notify.")
-        public boolean notifyOnMountLedFallback = true;
+        public boolean notifyOnMountLedFallback = false;
 
         @Config.Comment("How many route options the pathfinder is allowed to consider before giving up on a leg of the journey. Raising this helps a mounted rider find a way around tricky terrain it currently gives up on too early, at the cost of more work for the game to do in those same tricky spots. Only affects Travellers/raiders/hired workers - other creatures are untouched. Leave at the default unless riders are visibly failing to route around obstacles a horse should manage.")
         @Config.RangeInt(min = 200, max = 1000)
@@ -1895,7 +1895,7 @@ public class TravellersConfig {
 
 
         @Config.Comment("A mounted traveller, raider or non-hired worker steps off and leads its horse as soon as it enters a village or lone building's grounds, walking through on foot and climbing back on once clear. Does not apply to a hired worker actively escorting its owner. Turn off to let horses ride straight through villages.")
-        public boolean mountedDismountNearVillage = true;
+        public boolean mountedDismountNearVillage = false;
 
         @Config.Comment("How many ticks in a row a dismounted rider and its horse must both be on dry, solid ground and close together before the rider climbs back on. Stops the on-and-off flicker at a shelving bank where the horse touches the bottom for a moment. 20 ticks = 1 second.")
         @Config.RangeInt(min = 1, max = 60)
@@ -1951,7 +1951,7 @@ public class TravellersConfig {
 
         @Config.Comment("How many tamed horses a Stable pool may hold per hired worker the player has.")
         @Config.RangeInt(min = 1, max = 10)
-        public int horseCapPerWorker = 2;
+        public int horseCapPerWorker = 10;
 
         @Config.Comment("A Stable always keeps at least this many horses in its pool. Get Equipment won't hand out a horse if doing so would drop the pool below this number.")
         @Config.RangeInt(min = 0, max = 10)
@@ -2020,7 +2020,7 @@ public class TravellersConfig {
 
         @Config.Comment("How hard the running jump throws them upwards. Higher means an easier takeoff from flat ground, but it looks less natural.")
         @Config.RangeDouble(min = 0.3, max = 1.2)
-        public double launchVerticalBoost = 0.62;
+        public double launchVerticalBoost = 0.37;
 
         @Config.Comment("How hard the running jump throws them forwards, so they get moving fast enough for the wings to bite.")
         @Config.RangeDouble(min = 0.0, max = 1.5)
@@ -2036,7 +2036,7 @@ public class TravellersConfig {
 
         @Config.Comment("Steepest nose-up angle used to stretch a glide when they are running out of height, in degrees. Too much and they stall and drop.")
         @Config.RangeDouble(min = 0.0, max = 25.0)
-        public double maxClimbPitch = 8.0;
+        public double maxClimbPitch = 25.0;
 
         @Config.Comment("How fast they can change their nose angle while flying, in degrees per tick. Low values give smooth, gradual dives and pull-ups; high values let them snap between angles, which looks twitchy.")
         @Config.RangeDouble(min = 1.0, max = 30.0)
@@ -2044,11 +2044,11 @@ public class TravellersConfig {
 
         @Config.Comment("How fast they can turn while flying, in degrees per tick. Low values give wide, natural banking turns; high values let them turn on a coin.")
         @Config.RangeDouble(min = 1.0, max = 20.0)
-        public double maxTurnPerTick = 5.0;
+        public double maxTurnPerTick = 15.0;
 
         @Config.Comment("How close to their destination (blocks) they start pulling up to bleed off speed before landing.")
         @Config.RangeDouble(min = 2.0, max = 40.0)
-        public double flareDistance = 14.0;
+        public double flareDistance = 8.0;
 
         @Config.Comment("How close to the ground (blocks) they start pulling up to land, wherever they are.")
         @Config.RangeDouble(min = 1.0, max = 20.0)
@@ -2064,7 +2064,7 @@ public class TravellersConfig {
 
         @Config.Comment("Longest a single flight can last, in ticks. A safety net so a flight that goes wrong always ends in a landing instead of carrying on forever.")
         @Config.RangeInt(min = 100, max = 6000)
-        public int maxFlightTicks = 1200;
+        public int maxFlightTicks = 6000;
 
         @Config.Comment("How long (in ticks) after landing before they may take off again.")
         @Config.RangeInt(min = 0, max = 2000)
@@ -2085,7 +2085,7 @@ public class TravellersConfig {
 
         @Config.Comment("Most rockets a worker will spend on a single flight, however far behind they fall.")
         @Config.RangeInt(min = 1, max = 32)
-        public int maxFireworksPerFlight = 4;
+        public int maxFireworksPerFlight = 32;
 
         @Config.Comment("How steeply followers are allowed to point while catching up to someone well above them, in degrees - far beyond the normal unpowered glide climb angle above. A rocket's push follows the direction they're looking, so this is what lets a boosted rocket pull them upward toward you instead of mostly sideways.")
         @Config.RangeDouble(min = 20.0, max = 89.0)
@@ -2105,11 +2105,11 @@ public class TravellersConfig {
 
         @Config.Comment("If a follower ever falls this far behind (in blocks, sideways) while flying, it gives up on the flight and lands instead of continuing to trail behind in the air - keeps it from drifting out of loaded chunks mid-flight, where it would be yanked back to the ground anyway. Lower this if your server's view distance is short.")
         @Config.RangeDouble(min = 24.0, max = 128.0)
-        public double followFlightAbortDistance = 48.0;
+        public double followFlightAbortDistance = 96.0;
 
         @Config.Comment("How many ticks in a row a gap has to keep looking rocket-worthy before a follower actually spends one on it. Filters out a brief height/speed wobble from you so it doesn't fire a rocket on its own - only a gap that's still there a moment later is real.")
         @Config.RangeInt(min = 0, max = 40)
-        public int followRocketConfirmTicks = 8;
+        public int followRocketConfirmTicks = 16;
 
         @Config.Comment("Skip lighting a rocket if the follower is already closing the gap on its own at least this fast (blocks per tick), climbing/diving/gliding under a previous boost or just good positioning. Firing on top of an already-effective approach is what sends them overshooting past you and needing a second rocket right back the other way.")
         @Config.RangeDouble(min = 0.05, max = 2.0)
@@ -2129,7 +2129,7 @@ public class TravellersConfig {
 
         @Config.Comment("For this many ticks after whoever they follow takes off, followers launch right away instead of waiting until they've fallen far behind - keeps the whole group leaving the ground together instead of trickling into the air one by one.")
         @Config.RangeInt(min = 0, max = 200)
-        public int followTakeoffJoinWindowTicks = 60;
+        public int followTakeoffJoinWindowTicks = 20;
 
         @Config.Comment("Longest random delay (in ticks) before a follower reacts to a takeoff, so a whole escort doesn't launch on the exact same tick. Lower means a tighter, quicker group launch.")
         @Config.RangeInt(min = 0, max = 60)
@@ -2231,11 +2231,11 @@ public class TravellersConfig {
 
         @Config.Comment("Minimum ticks between solo ambient voice lines.")
         @Config.RangeInt(min = 40, max = 20000)
-        public int travellerAmbientMinDelay = 2400;
+        public int travellerAmbientMinDelay = 1200;
 
         @Config.Comment("Maximum ticks between solo ambient voice lines.")
         @Config.RangeInt(min = 80, max = 60000)
-        public int travellerAmbientMaxDelay = 7200;
+        public int travellerAmbientMaxDelay = 4200;
 
         @Config.Comment("Volume for solo ambient travel voice lines, for a player with no volume-boosting mods.")
         @Config.RangeDouble(min = 0.0, max = 8.0)
@@ -2367,7 +2367,7 @@ public class TravellersConfig {
 
         @Config.Comment("Ticks after spawning before a traveller can play its first ambient voice line.")
         @Config.RangeInt(min = 0, max = 12000)
-        public int spawnAmbientDelayTicks = 1200;
+        public int spawnAmbientDelayTicks = 300;
     }
 
     public static class Choir {
@@ -2388,11 +2388,11 @@ public class TravellersConfig {
 
         @Config.Comment("Minimum ticks between auto-choir session attempts per dimension.")
         @Config.RangeInt(min = 20, max = 144000)
-        public int choirAutoCooldownTicks = 3200;
+        public int choirAutoCooldownTicks = 1200;
 
         @Config.Comment("How long a choir session lasts in ticks.")
         @Config.RangeInt(min = 100, max = 36000)
-        public int choirSessionDurationTicks = 6700;
+        public int choirSessionDurationTicks = 4200;
 
         @Config.Comment("Consecutive spread-check failures before stopping the choir.")
         @Config.RangeInt(min = 1, max = 20)
@@ -2402,7 +2402,7 @@ public class TravellersConfig {
 
     // Offscreen-capable camp event system (travellers + raiders).
     public static class CampEvents {
-        @Config.Comment("Master switch for the new offscreen-capable camp event system.")
+        @Config.Comment("Master switch for the new offscreen-capable camp event system. IT WON'T WORK, STRUCTURES ARE NOT INCLUDED FOR NOW")
         public boolean enabled = false;
 
         @Config.Comment("Radius (blocks) of a campsite: shelters and firepit are placed within this distance of the center.")
@@ -2533,7 +2533,7 @@ public class TravellersConfig {
 
         @Config.Comment("Ticks between encounter-detection passes over virtual records.")
         @Config.RangeInt(min = 5, max = 200)
-        public int detectionIntervalTicks = 20;
+        public int detectionIntervalTicks = 10;
 
         @Config.Comment("Ticks between battle simulation steps (pawn movement + attacks).")
         @Config.RangeInt(min = 1, max = 100)
@@ -2541,15 +2541,15 @@ public class TravellersConfig {
 
         @Config.Comment("Distance (blocks) at which two hostile virtual parties engage each other.")
         @Config.RangeInt(min = 8, max = 128)
-        public int engagementRadius = 48;
+        public int engagementRadius = 64;
 
         @Config.Comment("Virtual entities within this distance of an ongoing battle join it (group pull-in and reinforcements).")
         @Config.RangeInt(min = 8, max = 256)
-        public int battleJoinRadius = 64;
+        public int battleJoinRadius = 32;
 
         @Config.Comment("Melee reach (blocks) for virtual pawns.")
         @Config.RangeDouble(min = 1.0, max = 5.0)
-        public double meleeReach = 1.0;
+        public double meleeReach = 2.0;
 
         @Config.Comment("Safety cap: a battle older than this many ticks is force-resolved (24000 = 1 day).")
         @Config.RangeInt(min = 1200, max = 480000)
@@ -2649,7 +2649,7 @@ public class TravellersConfig {
 
         @Config.Comment("Per-tick chance (0–1) a traveller decides to start fishing.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public float fishStartChancePerTick = 0.002f;
+        public float fishStartChancePerTick = 0.005f;
 
     }
 
@@ -2833,7 +2833,7 @@ public class TravellersConfig {
 
         @Config.Comment("The same chance once your reputation with their culture is Stellar.")
         @Config.RangeInt(min = 0, max = 100)
-        public int recruitAcceptChanceMaxPercent = 50;
+        public int recruitAcceptChanceMaxPercent = 75;
 
         @Config.Comment("Chance that someone met on the road agrees, in percent of the chance in a village (where the recruiter takes the time to talk).")
         @Config.RangeInt(min = 0, max = 100)
@@ -2896,13 +2896,13 @@ public class TravellersConfig {
 
         // --- Raider ---
         @Config.Comment("Villager txt tags excluded from raider appearance pool.")
-        public String[] excludedRaiderVillagerTagsRaw = new String[]{};
+        public String[] excludedRaiderVillagerTagsRaw = new String[]{"child", "chief"};
 
         @Config.Comment("Villager txt filenames (without .txt) excluded from raider pool.")
         public String[] excludedRaiderVillagerFilesRaw = new String[]{};
 
         @Config.Comment("Villager tags included in raider appearance pool (empty = no restriction).")
-        public String[] includedRaiderVillagerTagsRaw = new String[]{"hostile"};
+        public String[] includedRaiderVillagerTagsRaw = new String[]{"hostile", "raider", "archer"};
 
         @Config.Comment("Villager filenames included in raider appearance pool (empty = no restriction).")
         public String[] includedRaiderVillagerFilesRaw = new String[]{};
@@ -2912,7 +2912,7 @@ public class TravellersConfig {
 
         // --- Worker ---
         @Config.Comment("Villager txt tags excluded from worker appearance pool.")
-        public String[] excludedWorkerVillagerTagsRaw = new String[]{};
+        public String[] excludedWorkerVillagerTagsRaw = new String[]{"child", "chief", "hostile"};
 
         @Config.Comment("Villager txt filenames (without .txt) excluded from worker pool.")
         public String[] excludedWorkerVillagerFilesRaw = new String[]{};
@@ -2988,7 +2988,7 @@ public class TravellersConfig {
 
         @Config.Comment("Text size for notifications (1.0 = normal size).")
         @Config.RangeDouble(min = 0.5, max = 2.0)
-        public float fontScale = 0.85f;
+        public float fontScale = 1.0f;
 
         @Config.Comment("How long (ticks) a notification stays fully visible before it starts fading out. 20 ticks = 1 second.")
         @Config.RangeInt(min = 20, max = 2400)
@@ -3004,7 +3004,7 @@ public class TravellersConfig {
 
         @Config.Comment("Maximum number of notifications visible on screen at once. Older ones scroll off as new ones arrive.")
         @Config.RangeInt(min = 1, max = 30)
-        public int maxVisible = 8;
+        public int maxVisible = 4;
 
         @Config.Comment("Show red Danger notifications on screen (deaths, raids, battles, war). They are always kept in your history.")
         public boolean showDanger = true;
@@ -3035,15 +3035,15 @@ public class TravellersConfig {
 
         @Config.Comment("Height (pixels) of the history panel.")
         @Config.RangeInt(min = 40, max = 220)
-        public int historyPanelHeight = 96;
+        public int historyPanelHeight = 52;
 
         @Config.Comment("Height (pixels) of each row in the history panel.")
         @Config.RangeInt(min = 8, max = 20)
-        public int historyPanelRowHeight = 11;
+        public int historyPanelRowHeight = 14;
 
         @Config.Comment("Text size in the history panel (1.0 = normal size).")
         @Config.RangeDouble(min = 0.5, max = 1.5)
-        public float historyPanelFontScale = 0.8f;
+        public float historyPanelFontScale = 1.0f;
 
         @Config.Comment("Maximum number of past events kept loaded in the history panel.")
         @Config.RangeInt(min = 10, max = 2000)
@@ -3141,18 +3141,18 @@ public class TravellersConfig {
 
         @Config.Comment("How much longer a road trip may be than walking straight there and still be taken. 1.5 = a road up to half again as long is still preferred.")
         @Config.RangeDouble(min = 1.0, max = 4.0)
-        public double roadMaxDetourRatio = 1.5;
+        public double roadMaxDetourRatio = 1.45;
 
         @Config.Comment("Same as above, for travellers on horseback. Riders like roads more than walkers do.")
         @Config.RangeDouble(min = 1.0, max = 4.0)
-        public double roadMaxDetourRatioMounted = 1.8;
+        public double roadMaxDetourRatioMounted = 1.67;
 
         @Config.Comment("Let travellers plan boat crossings over lakes, bays and wide rivers when walking around would take much longer.")
         public boolean enableBoatRoutes = true;
 
         @Config.Comment("How much more tiring a block by boat counts compared to a block on foot, when a traveller chooses between rowing across and walking around. Higher = walks around more often.")
         @Config.RangeDouble(min = 1.0, max = 10.0)
-        public double boatCostFactor = 2.0;
+        public double boatCostFactor = 3.0;
 
         @Config.Comment("The hassle of getting into a boat, counted as this many blocks of walking. Higher = short crossings are swum or walked around instead.")
         @Config.RangeDouble(min = 0.0, max = 1000.0)
@@ -3164,11 +3164,11 @@ public class TravellersConfig {
 
         @Config.Comment("Advanced: how much of an area must be water (0..1) before a boat may cross it.")
         @Config.RangeDouble(min = 0.1, max = 1.0)
-        public double boatWaterFrac = 0.75;
+        public double boatWaterFrac = 0.86;
 
         @Config.Comment("How much faster than walking a traveller crosses water by boat while no player is near.")
         @Config.RangeDouble(min = 0.5, max = 5.0)
-        public double boatVirtualSpeedMultiplier = 2.0;
+        public double boatVirtualSpeedMultiplier = 1.5;
 
         @Config.Comment("How far before and after a village wall gate travellers line up to walk straight through it, in blocks.")
         @Config.RangeInt(min = 3, max = 24)
@@ -3176,7 +3176,7 @@ public class TravellersConfig {
 
         @Config.Comment("How far ahead a traveller plans a route at once, in blocks.")
         @Config.RangeInt(min = 200, max = 20000)
-        public int legCapBlocks = 2000;
+        public int legCapBlocks = 4000;
 
         @Config.Comment("Advanced: spacing between search nodes for the coarse route search, in blocks. Smaller = detours around smaller features, but more work per route.")
         @Config.RangeInt(min = 16, max = 512)
@@ -3188,7 +3188,7 @@ public class TravellersConfig {
 
         @Config.Comment("Advanced: how far a planned route may cut corners when it is tidied up, in blocks. Lower = follows the terrain more closely.")
         @Config.RangeDouble(min = 0.0, max = 64.0)
-        public double coarseSimplifyBlocks = 4.0;
+        public double coarseSimplifyBlocks = 2.0;
 
         @Config.Comment("Advanced: how much the coarse search box is inflated past the straight line, as a fraction.")
         @Config.RangeDouble(min = 0.0, max = 2.0)
@@ -3196,7 +3196,7 @@ public class TravellersConfig {
 
         @Config.Comment("Background threads used for route planning.")
         @Config.RangeInt(min = 1, max = 8)
-        public int routePlannerThreads = 1;
+        public int routePlannerThreads = 2;
 
         @Config.Comment("How many new routes may be planned each tick, for the whole world.")
         @Config.RangeInt(min = 1, max = 64)
@@ -3217,7 +3217,7 @@ public class TravellersConfig {
 
         @Config.Comment("Advanced weight: extra cost per block of height difference between two route points. Higher = routes weave around hills instead of climbing them.")
         @Config.RangeDouble(min = 0.0, max = 100.0)
-        public double slopeWeight = 3.0;
+        public double slopeWeight = 2.2;
 
         @Config.Comment("Advanced weight: extra cost for stepping down into a pit ringed by higher ground.")
         @Config.RangeDouble(min = 0.0, max = 10000.0)
@@ -3225,11 +3225,11 @@ public class TravellersConfig {
 
         @Config.Comment("Advanced weight: extra cost for rough, broken ground.")
         @Config.RangeDouble(min = 0.0, max = 100.0)
-        public double roughnessWeight = 1.0;
+        public double roughnessWeight = 1.2;
 
         @Config.Comment("Advanced weight: extra cost for crossing water.")
         @Config.RangeDouble(min = 0.0, max = 1000.0)
-        public double waterWeight = 6.0;
+        public double waterWeight = 16.0;
 
         @Config.Comment("Advanced weight: additional cost for deep ocean on top of the water cost.")
         @Config.RangeDouble(min = 0.0, max = 10000.0)
@@ -3237,11 +3237,11 @@ public class TravellersConfig {
 
         @Config.Comment("Advanced: water fraction (0..1) at or above which a cell counts as deep water.")
         @Config.RangeDouble(min = 0.0, max = 1.0)
-        public double deepWaterFrac = 0.6;
+        public double deepWaterFrac = 0.25;
 
         @Config.Comment("Advanced weight: extra cost for mountain biomes.")
         @Config.RangeDouble(min = 0.0, max = 10000.0)
-        public double mountainBiomeWeight = 25.0;
+        public double mountainBiomeWeight = 20.0;
 
         @Config.Comment("Advanced weight: small extra cost for ground only estimated from the biome, so proven-real corridors are mildly preferred.")
         @Config.RangeDouble(min = 0.0, max = 100.0)
@@ -3258,7 +3258,7 @@ public class TravellersConfig {
         // ----- terrain profile grid (advanced) -----
         @Config.Comment("Memory used for the terrain map, in regions (higher = smoother far routes). Each region is about 2 MB.")
         @Config.RangeInt(min = 4, max = 256)
-        public int terrainMemoryRegionCap = 16;
+        public int terrainMemoryRegionCap = 64;
 
         @Config.Comment("Advanced: how often the terrain map is written to disk, in ticks.")
         @Config.RangeInt(min = 200, max = 200000)
@@ -3270,7 +3270,7 @@ public class TravellersConfig {
 
     public static class Raids {
         @Config.Comment("Lets raider hordes come for each player from time to time. Off by default.")
-        public boolean enabled = false;
+        public boolean enabled = true;
 
         @Config.Comment("Average number of in-game days between two raids on the same player. Each raid is a bit earlier or later than this.")
         @Config.RangeDouble(min = 0.5, max = 60.0)
@@ -3414,11 +3414,11 @@ public class TravellersConfig {
 
         @Config.Comment("How far around a traveller (in blocks) it looks for other settlements worth mentioning in conversation.")
         @Config.RangeInt(min = 100, max = 8000)
-        public int nearbySettlementRadius = 1500;
+        public int nearbySettlementRadius = 2400;
 
         @Config.Comment("Maximum number of nearby settlements mentioned in one conversation's context, so the AI isn't overloaded with facts.")
         @Config.RangeInt(min = 0, max = 32)
-        public int nearbySettlementMaxCount = 3;
+        public int nearbySettlementMaxCount = 8;
 
         @Config.Comment("How far around a traveller (in blocks) it looks at the ground to describe the terrain (flat, hilly, near water...) in conversation. Needs the planned-routes terrain scanner to be on.")
         @Config.RangeInt(min = 16, max = 256)
@@ -3426,11 +3426,11 @@ public class TravellersConfig {
 
         @Config.Comment("How far away (in blocks) it checks for a different landscape right next door, so a traveller near the edge of two areas can mention it.")
         @Config.RangeInt(min = 8, max = 128)
-        public int biomeBorderCheckRadius = 32;
+        public int biomeBorderCheckRadius = 64;
 
         @Config.Comment("How far around a traveller (in blocks) it surveys the land for distant landmarks (mountains, forest, seas, rivers...) worth mentioning in conversation.")
         @Config.RangeInt(min = 200, max = 8000)
-        public int distantLandmarkRadius = 1500;
+        public int distantLandmarkRadius = 2400;
 
         @Config.Comment("How finely it surveys that land (in blocks between each look). Smaller catches smaller/thinner features and points in a truer direction, but costs more each time a conversation starts.")
         @Config.RangeInt(min = 32, max = 400)
@@ -3438,7 +3438,7 @@ public class TravellersConfig {
 
         @Config.Comment("Maximum number of distant landmarks mentioned in one conversation's context, so the AI isn't overloaded with facts.")
         @Config.RangeInt(min = 0, max = 32)
-        public int distantLandmarkMaxCount = 3;
+        public int distantLandmarkMaxCount = 6;
 
         @Config.Comment("How far around a traveller (in blocks) it notices animals, other people and other travellers worth mentioning in conversation.")
         @Config.RangeInt(min = 8, max = 64)
@@ -3446,7 +3446,7 @@ public class TravellersConfig {
 
         @Config.Comment("Maximum number of different animal types mentioned in one conversation's context, so the AI isn't overloaded with facts.")
         @Config.RangeInt(min = 0, max = 12)
-        public int nearbyAnimalMaxTypes = 3;
+        public int nearbyAnimalMaxTypes = 5;
 
         @Config.Comment("If a player turns on tool use (Advanced settings), how many times in a row the NPC can look something up before it just answers with what it has. Stops a misbehaving model from looking things up forever.")
         @Config.RangeInt(min = 1, max = 10)
@@ -3459,7 +3459,7 @@ public class TravellersConfig {
         public boolean travelMotiveEnabled = true;
 
         @Config.Comment("Lets travellers remember things about their whole life - not just what one specific player told them - across separate conversations. Off by default.")
-        public boolean memoryEnabled = false;
+        public boolean memoryEnabled = true;
 
         @Config.Comment("How many recent things about one player a traveller keeps readily in mind, without needing to think back.")
         @Config.RangeInt(min = 1, max = 20)
@@ -3471,10 +3471,10 @@ public class TravellersConfig {
 
         @Config.Comment("How many things a traveller tries to remember from one conversation, once it ends.")
         @Config.RangeInt(min = 1, max = 5)
-        public int memoryFactsPerSession = 2;
+        public int memoryFactsPerSession = 5;
 
         @Config.Comment("Lets a traveller also keep a short, evolving summary of its whole life, rewritten after every conversation. Independent of the fact list above.")
-        public boolean memorySummaryEnabled = false;
+        public boolean memorySummaryEnabled = true;
 
         @Config.Comment("Maximum length (in characters) of a traveller's life summary. Longer results are simply cut short.")
         @Config.RangeInt(min = 100, max = 4000)

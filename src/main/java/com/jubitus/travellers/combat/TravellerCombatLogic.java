@@ -185,6 +185,8 @@ public class TravellerCombatLogic {
         if (entity.getDistanceSq(tgt) > maxEngage * maxEngage) {
             noteDrop("too far");
             com.jubitus.travellers.debug.profile.MovementProfiler.tooFarDrop(adoptedBy);
+            // Breaks the pick/drop loop on a mob hovering around the short engage range; a hit lifts it (onAttacked).
+            if (EngageRange.isShortRange(entity, tgt)) entity.ignoreTarget(tgt, TOO_FAR_IGNORE_TICKS);
             entity.setAttackTarget(null);
             entity.setInCombat(false);
             if (entity.isAimingBow()) {
@@ -904,6 +906,8 @@ public class TravellerCombatLogic {
         return TargetLockPolicy.decide(s);
     }
 
+    private static final int TOO_FAR_IGNORE_TICKS = 100;
+
     // Profiling only: who gave the current target, and whether it was already past the drop limit then.
     private String adoptedBy = "?";
 
@@ -950,6 +954,12 @@ public class TravellerCombatLogic {
                 + " -> " + target.getName() + String.format(java.util.Locale.ROOT, " d=%.1f", entity.getDistance(target)));
     }
 
+    private void traceHit(String detail) {
+        if (com.jubitus.travellers.debug.trace.TravellerTracer.isTraced(entity.getUniqueID())) {
+            com.jubitus.travellers.debug.trace.TravellerTracer.event(entity, "combat", detail);
+        }
+    }
+
     private int countRecentThreats() {
         int n = 0;
         for (Threat t : threatMap.values()) {
@@ -971,6 +981,8 @@ public class TravellerCombatLogic {
         }
         boolean tookDamage = entity.vanillaAttackEntityFrom(source, amount);
         if (!tookDamage || entity.world.isRemote) return tookDamage;
+        // INVARIANT: whatever hits the unit is never ignored; it is fought back.
+        if (source.getTrueSource() instanceof EntityLivingBase) entity.unignoreTarget((EntityLivingBase) source.getTrueSource());
 
         // A lethal hit already ran onDeath() synchronously inside super.attackEntityFrom above,
         // which may have dropped this entity's armor as world EntityItems — vanilla's dropEquipment
@@ -1017,6 +1029,7 @@ public class TravellerCombatLogic {
                 && !(entity instanceof EntityTravellerWorker
                         && ((EntityTravellerWorker) entity).playerHostility.isEnemyPlayer((EntityPlayer) src))
                 && notePlayerHitAndIsStillGrace((EntityPlayer) src)) {
+            traceHit("free hit " + playerGrace.get(src.getUniqueID()).count + " from " + src.getName());
             entity.setRevengeTarget(null);
             return true;
         }
@@ -1025,6 +1038,7 @@ public class TravellerCombatLogic {
             EntityTraveller other = (EntityTraveller) src;
             if (!com.jubitus.travellers.combat.Hostility.isAtWar(entity, other)) {
                 // same faction -> no revenge target, no aggro
+                traceHit("hit ignored, not at war: " + other.getName());
                 entity.setRevengeTarget(null);
                 return true;
             }
@@ -1050,7 +1064,10 @@ public class TravellerCombatLogic {
 
             // Already fighting it, or locked on another target: nothing to decide, so no path or LOS work
             // per hit (the aggressor stays the revenge target; adoptRevengeTargetAfterLock may take it later).
-            if (entity.getAttackTarget() == le || !mayReplaceTarget(le)) return true;
+            if (entity.getAttackTarget() == le || !mayReplaceTarget(le)) {
+                traceHit("hit by " + le.getName() + ", keeps " + entity.getAttackTarget().getName());
+                return true;
+            }
 
             boolean canSee = entity.getEntitySenses().canSee(le);
             boolean near = entity.getDistanceSq(le) <= 9.0D;
@@ -1060,6 +1077,7 @@ public class TravellerCombatLogic {
 
             // Players are only taken on when seen or nearby
             boolean aggro = hasPath && (!(le instanceof EntityPlayer) || canSee || near);
+            traceHit("hit by " + le.getName() + ": aggro=" + aggro + " path=" + hasPath + " see=" + canSee + " near=" + near);
             if (aggro) {
                 entity.setInCombat(true);
                 entity.setAttackTarget(le);

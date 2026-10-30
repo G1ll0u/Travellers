@@ -230,7 +230,7 @@ final class ArcherMovement {
             }
         }
         if (mob.getNavigator() instanceof TravellerNavigateGround) {
-            ((TravellerNavigateGround) mob.getNavigator()).steerDirectLegCapped(aimX, aimZ, DIRECT_LEG_BLOCKS,
+            ((TravellerNavigateGround) mob.getNavigator()).steerAround(aimX, aimZ, DIRECT_LEG_BLOCKS,
                     APPROACH_SPEED * TravellersConfig.COMBAT.rangedNoLosSpeedMultiplier);
         }
     }
