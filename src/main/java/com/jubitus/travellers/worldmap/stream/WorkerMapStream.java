@@ -70,7 +70,6 @@ public class WorkerMapStream {
         final boolean followsOwner;
         final boolean recallable;
         final String role;
-        final BlockPos dutyZone;
 
         WorkerInfo(EntityTravellerWorker w, int dim) {
             this.entityId = w.getEntityId();
@@ -92,7 +91,6 @@ public class WorkerMapStream {
             this.followsOwner = this.followTarget == null && w.isFollowOrderActive();
             this.recallable = com.jubitus.travellers.worker.MissionRecall.isRecallable(w);
             this.role = w.getDutyKind() != null ? w.getDutyKind() : "";
-            this.dutyZone = w.getDutyZoneCenter();
         }
 
         WorkerInfo(VirtualTravellerRecord vr, boolean isLeader) {
@@ -115,7 +113,6 @@ public class WorkerMapStream {
             this.followsOwner = this.followTarget == null && vr.followOrderActive;
             this.recallable = com.jubitus.travellers.worker.MissionRecall.isRecallable(vr);
             this.role = vr.dutyKind != null ? vr.dutyKind : "";
-            this.dutyZone = vr.dutyKind != null ? vr.dutyZoneCenter : null;
         }
     }
 
@@ -347,7 +344,6 @@ public class WorkerMapStream {
                 en.followsOwner = w.followsOwner;
                 en.recallable = w.recallable;
                 en.role = w.role;
-                en.dutyZone = w.dutyZone;
                 en.followLeaderUuid = w.followTarget;
                 en.followName = w.followTarget != null ? nameByUuid.getOrDefault(w.followTarget, "") : "";
                 out.add(en);

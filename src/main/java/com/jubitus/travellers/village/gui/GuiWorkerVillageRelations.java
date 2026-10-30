@@ -10,8 +10,6 @@ import com.jubitus.travellers.village.net.MsgSetVillageEnemy;
 import com.jubitus.travellers.village.net.MsgWorkerRequestVillageRelations;
 import com.jubitus.travellers.worker.gui.GuiWorkerBehavior;
 import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
-import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
-import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
@@ -77,7 +75,6 @@ public class GuiWorkerVillageRelations extends GuiMapListScreen {
 
     @Override
     protected void onOpen() {
-        map.setExtraMarkers(this::addEnemyMarkers);
         TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestVillageRelations());
     }
 
@@ -100,13 +97,6 @@ public class GuiWorkerVillageRelations extends GuiMapListScreen {
     private void refreshSelection() {
         if (toggleEnemy != null) toggleEnemy.enabled = selected >= 0 && selected < centers.size();
         map.setSelected(selected >= 0 && selected < centers.size() ? centers.get(selected) : null);
-    }
-
-    /** Enemy villages are redrawn red over the standard village markers. */
-    private void addEnemyMarkers(GuiWorldMapPanel panel) {
-        for (int i = 0; i < centers.size(); i++) {
-            if (isEnemy(i)) panel.addMarker(WorldMapMarkerFactory.villageEnemy(centers.get(i), i < labels.size() ? labels.get(i) : ""));
-        }
     }
 
     @Override
@@ -141,6 +131,8 @@ public class GuiWorkerVillageRelations extends GuiMapListScreen {
         boolean newEnemy = !enemies.get(index);
         enemies.set(index, newEnemy);
         TravellersNetwork.CHANNEL.sendToServer(new MsgSetVillageEnemy(centers.get(index), newEnemy));
+        // Handled after the change on the server, so the map's enemy disc follows.
+        requestPlaces();
     }
 
     private void goBack() {

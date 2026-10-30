@@ -34,10 +34,8 @@ public class MsgMapWorkersUpdate implements IMessage {
         public boolean followsOwner;
         // On a mission's outbound leg: it can be called back.
         public boolean recallable;
-        // Duty kind of an on-duty worker (e.g. STABLE_HAND), "" for none: picks its map marker.
+        // Duty kind of an on-duty worker (e.g. STABLE_HAND), "" for none: such a worker has no map marker.
         public String role = "";
-        /** Centre of the zone an on-duty worker serves, else null. */
-        public BlockPos dutyZone;
         /** Server tick the position was measured at (client side, copied from the message). */
         public long sampleTick;
     }
@@ -89,7 +87,6 @@ public class MsgMapWorkersUpdate implements IMessage {
             e.recallable = buf.readBoolean();
             e.role = ByteBufUtils.readUTF8String(buf);
             if (buf.readBoolean()) e.followLeaderUuid = new UUID(buf.readLong(), buf.readLong());
-            if (buf.readBoolean()) e.dutyZone = BlockPos.fromLong(buf.readLong());
             entries.add(e);
         }
     }
@@ -123,8 +120,6 @@ public class MsgMapWorkersUpdate implements IMessage {
                 buf.writeLong(e.followLeaderUuid.getMostSignificantBits());
                 buf.writeLong(e.followLeaderUuid.getLeastSignificantBits());
             }
-            buf.writeBoolean(e.dutyZone != null);
-            if (e.dutyZone != null) buf.writeLong(e.dutyZone.toLong());
         }
     }
 

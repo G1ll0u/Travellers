@@ -15,6 +15,7 @@ import com.jubitus.travellers.worker.net.MsgOpenWorkerSubGui;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import com.jubitus.travellers.worker.net.MsgWorkerGoTo;
 import com.jubitus.travellers.worker.net.MsgWorkerGoToPos;
+import com.jubitus.travellers.worldmap.gui.WorldMapContentPopulator;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;
@@ -25,6 +26,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -58,7 +60,8 @@ public class GuiWorkerGo extends GuiMapListScreen {
     @Nullable private GuiScreen returnTo = null;
     private int repEntityId = -1;
 
-    // The list rows are the received places, nearest first.
+    // The places shown on the map, nearest first.
+    private final List<MsgWorkerGoList.Entry> rows = new ArrayList<>();
     private int selectedIndex = -1;
     private BlockPos selectedMapPos = null;
 
@@ -81,7 +84,7 @@ public class GuiWorkerGo extends GuiMapListScreen {
     }
 
     private List<MsgWorkerGoList.Entry> rows() {
-        return map.data.places;
+        return rows;
     }
 
     @Override protected String title() { return I18n.format("travellers.worker.go.title"); }
@@ -148,7 +151,11 @@ public class GuiWorkerGo extends GuiMapListScreen {
 
     @Override
     protected void onPlacesReceived() {
-        rows().sort(Comparator.comparingInt(r -> r.distance));
+        rows.clear();
+        for (MsgWorkerGoList.Entry e : map.data.places) {
+            if (WorldMapContentPopulator.isShown(e)) rows.add(e);
+        }
+        rows.sort(Comparator.comparingInt(r -> r.distance));
         selectedIndex = -1;
         goButton.enabled = false;
         if (getEquipButton != null) getEquipButton.enabled = false;
@@ -167,6 +174,7 @@ public class GuiWorkerGo extends GuiMapListScreen {
         String prefix = r.kind == MsgWorkerGoList.Kind.VILLAGE ? "[V] "
                 : r.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE ? "[CV] "
                 : r.kind == MsgWorkerGoList.Kind.STABLE ? "[S] "
+                : r.kind == MsgWorkerGoList.Kind.LONE_BUILDING ? "[L] "
                 : "";
         String label = TravellersGuiTheme.shortenMiddle(fontRenderer, prefix + r.label,
                 " (" + r.distance + "m)", rowW - 6);
@@ -252,7 +260,7 @@ public class GuiWorkerGo extends GuiMapListScreen {
         } else if (selectedMapPos != null) {
             TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerGoToPos(worker.getEntityId(), selectedMapPos));
         } else if (selectedIndex >= 0) {
-            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerGoTo(worker.getEntityId(), selectedIndex));
+            TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerGoTo(worker.getEntityId(), rows.get(selectedIndex).pos));
         } else {
             return;
         }

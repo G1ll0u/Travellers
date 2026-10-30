@@ -1,19 +1,12 @@
 package com.jubitus.travellers.gui;
 
 import com.jubitus.travellers.village.MillMoney;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureMap;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.item.Item;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -145,19 +138,7 @@ public final class MoneyText {
     }
 
     private static void drawIcon(Item coin, int x, int y, int color) {
-        Minecraft mc = Minecraft.getMinecraft();
-        TextureAtlasSprite sprite = mc.getRenderItem().getItemModelMesher().getParticleIcon(coin);
-        mc.getTextureManager().bindTexture(TextureMap.LOCATION_BLOCKS_TEXTURE);
         // Same rule as FontRenderer: an alpha byte of (almost) zero means opaque.
-        float alpha = (color & 0xFC000000) == 0 ? 1f : (color >>> 24) / 255f;
-        GlStateManager.color(1f, 1f, 1f, alpha);
-        Tessellator tess = Tessellator.getInstance();
-        BufferBuilder buf = tess.getBuffer();
-        buf.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-        buf.pos(x, y + ICON, 0).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
-        buf.pos(x + ICON, y + ICON, 0).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
-        buf.pos(x + ICON, y, 0).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
-        buf.pos(x, y, 0).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-        tess.draw();
+        ItemIcon.drawFlat(coin, x, y, ICON, (color & 0xFC000000) == 0 ? 1f : (color >>> 24) / 255f);
     }
 }

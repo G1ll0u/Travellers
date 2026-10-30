@@ -27,6 +27,11 @@ import java.util.List;
 
 public class GuiWorldMapPanel {
 
+    // A Millénaire settlement with no icon anywhere in its culture.
+    private static final String SETTLEMENT_TEXTURE = "marker_settlement";
+    // The tinted dot under a settlement's icon (controlled, enemy, a recruiting trip's stop).
+    private static final ResourceLocation DOT_TEXTURE = new ResourceLocation("travellers", "textures/map/marker_settlement_dot.png");
+
     // Coarser levels drawn underneath while the current level is still streaming in.
     private static final int COARSE_FALLBACK_LEVELS = 3;
     // Below this many screen pixels per texel, magnified tiles are smoothed instead of drawn as hard squares.
@@ -35,6 +40,12 @@ public class GuiWorldMapPanel {
     public static class Marker {
         /** How a legend swatch is coloured: the viewer's own mark colour, a darker shade of it, or a fixed colour. */
         public enum LegendTint { OWNER, OWNER_DARK, FIXED }
+
+        /**
+         * How a kind is drawn: its texture tinted with the marker's colour; a settlement (its item icon, else the
+         * untinted texture), optionally with a dot of the marker's colour under it; or only that dot.
+         */
+        enum Look { TINTED, SETTLEMENT, SETTLEMENT_DOT, DOT }
 
         /**
          * Everything about a marker kind in one place. Declaration order is draw order (first = bottom);
@@ -46,20 +57,24 @@ public class GuiWorldMapPanel {
             POP_WORKER("marker_follower", Size.POPULATION, null, LegendTint.FIXED, 0),
             FOLLOWER("marker_follower", Size.WORKER, "follower", LegendTint.OWNER_DARK, 0),
             FOLLOWER_HIGHLIGHTED("marker_follower", Size.WORKER_HIGHLIGHTED, null, LegendTint.OWNER, 0),
-            PALFRENIER("marker_palfrenier", Size.WORKER, "palfrenier", LegendTint.OWNER, 0),
             LEADER("marker_leader", Size.WORKER, "leader", LegendTint.OWNER, 0),
             CAMP_SLOT("marker_camp_slot", Size.CAMP, "camp_slot", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT),
             CAMP_FIREPIT("marker_camp_firepit", Size.CAMP, "camp_firepit", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT),
             HOME("marker_home", Size.WORKER, "home", LegendTint.OWNER, 0),
             STABLE("marker_stable", Size.WORKER, "stable", LegendTint.OWNER, 0),
-            VILLAGE("marker_village", Size.VILLAGE, "village", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_VILLAGE),
-            CONTROLLED_VILLAGE("marker_controlled_village", Size.VILLAGE, "controlled_village", LegendTint.OWNER, 0),
+            LONE_BUILDING(SETTLEMENT_TEXTURE, Look.SETTLEMENT, Size.VILLAGE, null, LegendTint.FIXED, 0),
+            VILLAGE(SETTLEMENT_TEXTURE, Look.SETTLEMENT, Size.VILLAGE, null, LegendTint.FIXED, 0),
+            ENEMY_VILLAGE(SETTLEMENT_TEXTURE, Look.SETTLEMENT_DOT, Size.VILLAGE, "enemy_village", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_ENEMY_VILLAGE),
+            CONTROLLED_VILLAGE(SETTLEMENT_TEXTURE, Look.SETTLEMENT_DOT, Size.VILLAGE, "controlled_village", LegendTint.OWNER, 0),
+            /** A screen's dot under a settlement's icon (a recruiting trip's stop). */
+            SETTLEMENT_DOT(SETTLEMENT_TEXTURE, Look.DOT, Size.VILLAGE, null, LegendTint.FIXED, 0),
             BATTLE_SKIRMISH("marker_destination_cross", Size.SKIRMISH, null, LegendTint.FIXED, 0),
             BATTLE("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0),
             DESTINATION_CROSS("marker_destination_cross", Size.ALERT, null, LegendTint.FIXED, 0),
             PLAYER("marker_player", Size.PLAYER, "player", LegendTint.OWNER, 0);
 
             public final ResourceLocation texture;
+            final Look look;
             final Size size;
             /** Lang key under travellers.map.legend., or null when the kind is never listed. */
             final String legendKey;
@@ -67,7 +82,12 @@ public class GuiWorldMapPanel {
             final int legendArgb;
 
             MarkerType(String texture, Size size, String legendKey, LegendTint legendTint, int legendArgb) {
+                this(texture, Look.TINTED, size, legendKey, legendTint, legendArgb);
+            }
+
+            MarkerType(String texture, Look look, Size size, String legendKey, LegendTint legendTint, int legendArgb) {
                 this.texture = new ResourceLocation("travellers", "textures/map/" + texture + ".png");
+                this.look = look;
                 this.size = size;
                 this.legendKey = legendKey == null ? null : "travellers.map.legend." + legendKey;
                 this.legendTint = legendTint;
@@ -98,18 +118,21 @@ public class GuiWorldMapPanel {
         public final int balanceLeftRgb, balanceRightRgb;
         /** A battle marker's drawn tooltip, in place of {@link #label}. */
         @javax.annotation.Nullable public final com.jubitus.travellers.battle.client.BattleTooltip battle;
+        /** Item drawn in place of the texture (a settlement's Millénaire icon). */
+        @javax.annotation.Nullable public final net.minecraft.item.ItemStack icon;
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label) {
             this(pos, argb, type, label, 0f);
         }
 
         public Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg) {
-            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null, -1f, 0, 0, null);
+            this(pos, argb, type, label, angleDeg, pos.getX(), pos.getZ(), null, -1f, 0, 0, null, null);
         }
 
         private Marker(BlockPos pos, int argb, MarkerType type, String label, float angleDeg, float drawX, float drawZ,
                        java.util.UUID unitId, float balance, int balanceLeftRgb, int balanceRightRgb,
-                       @javax.annotation.Nullable com.jubitus.travellers.battle.client.BattleTooltip battle) {
+                       @javax.annotation.Nullable com.jubitus.travellers.battle.client.BattleTooltip battle,
+                       @javax.annotation.Nullable net.minecraft.item.ItemStack icon) {
             this.pos = pos;
             this.argb = argb;
             this.type = type;
@@ -122,23 +145,28 @@ public class GuiWorldMapPanel {
             this.balanceLeftRgb = balanceLeftRgb;
             this.balanceRightRgb = balanceRightRgb;
             this.battle = battle;
+            this.icon = icon;
         }
 
         /** The same marker drawn at another spot; {@link #pos} stays its identity. */
         public Marker at(float x, float z) {
-            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId, balance, balanceLeftRgb, balanceRightRgb, battle);
+            return new Marker(pos, argb, type, label, angleDeg, x, z, unitId, balance, balanceLeftRgb, balanceRightRgb, battle, icon);
         }
 
         public Marker forUnit(java.util.UUID id) {
-            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id, balance, balanceLeftRgb, balanceRightRgb, battle);
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, id, balance, balanceLeftRgb, balanceRightRgb, battle, icon);
         }
 
         public Marker withBalance(float share, int leftRgb, int rightRgb) {
-            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, share, leftRgb, rightRgb, battle);
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, share, leftRgb, rightRgb, battle, icon);
         }
 
         public Marker withBattle(com.jubitus.travellers.battle.client.BattleTooltip tooltip) {
-            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, balance, balanceLeftRgb, balanceRightRgb, tooltip);
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, balance, balanceLeftRgb, balanceRightRgb, tooltip, icon);
+        }
+
+        public Marker withIcon(@javax.annotation.Nullable net.minecraft.item.ItemStack stack) {
+            return new Marker(pos, argb, type, label, angleDeg, drawX, drawZ, unitId, balance, balanceLeftRgb, balanceRightRgb, battle, stack);
         }
     }
 
@@ -418,7 +446,7 @@ public class GuiWorldMapPanel {
                     // Base texture points north (up); yaw 0 = facing south (down on screen).
                     GlStateManager.rotate(m.angleDeg + 180f, 0f, 0f, 1f);
                 }
-                drawMarkerPng(m.type.texture, 0, 0, argb, size);
+                drawLook(m, argb, size);
                 if (m.balance >= 0f) drawBalanceBar(m, size);
                 GlStateManager.popMatrix();
             }
@@ -461,6 +489,9 @@ public class GuiWorldMapPanel {
     }
 
     private static final float HIGHLIGHT_SCALE = 1.4f;
+    // A settlement's dot: this share of the icon's size, overlapping the icon's bottom edge by a third of itself.
+    private static final float DOT_SHARE = 0.5f;
+    private static final int DOT_MIN_PX = 4;
     // A skirmish's marker is this share of a battle's.
     private static final float SKIRMISH_SIZE_SHARE = 0.65f;
     private static final float HIT_MARGIN_PX = 2f;
@@ -509,6 +540,28 @@ public class GuiWorldMapPanel {
         Gui.drawModalRectWithCustomSizedTexture(cx - half, cy - half, 0, 0, size, size, size, size);
     }
 
+    /** Draws a marker centred on the current origin. */
+    private void drawLook(Marker m, int argb, int size) {
+        Marker.Look look = m.type.look;
+        if (look == Marker.Look.TINTED) {
+            drawMarkerPng(m.type.texture, 0, 0, argb, size);
+            return;
+        }
+        if (look != Marker.Look.DOT) {
+            if (m.icon != null) {
+                com.jubitus.travellers.gui.ItemIcon.draw(m.icon, -size / 2, -size / 2, size);
+                GlStateManager.enableBlend();
+                GlStateManager.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+            } else {
+                drawMarkerPng(m.type.texture, 0, 0, 0xFFFFFFFF, size);
+            }
+        }
+        if (look != Marker.Look.SETTLEMENT) {
+            int dot = Math.max(DOT_MIN_PX, Math.round(size * DOT_SHARE));
+            drawMarkerPng(DOT_TEXTURE, 0, size / 2 + dot / 6, argb, dot);
+        }
+    }
+
     // ── Legend ────────────────────────────────────────────────────────────────
 
     private void drawLegend(int mapX, int mapY) {
@@ -555,7 +608,7 @@ public class GuiWorldMapPanel {
         for (int i = 0; i < rows.size(); i++) {
             Marker.MarkerType t = rows.get(i);
             int ey = ly + padY + i * entryH;
-            drawMarkerPng(t.texture, lx + padX + shapeArea / 2, ey + entryH / 2, legendColor(t), 8);
+            drawMarkerPng(t.look == Marker.Look.SETTLEMENT_DOT ? DOT_TEXTURE : t.texture, lx + padX + shapeArea / 2, ey + entryH / 2, legendColor(t), 8);
             GlStateManager.color(1f, 1f, 1f, 1f);
             fr.drawString(labels[i], lx + padX + shapeArea + shapeGap, ey + (entryH - 8) / 2, 0xEEDDBB);
         }

@@ -8,6 +8,9 @@ import com.jubitus.travellers.net.TravellersNetwork;
 import com.jubitus.travellers.zone.PlayerZoneManager;
 import com.jubitus.travellers.zone.PlayerZoneRecord;
 import com.jubitus.travellers.village.MillSettlements;
+import com.jubitus.travellers.village.net.SettlementMapInfo;
+import com.jubitus.travellers.zone.ZoneType;
+import net.minecraft.world.WorldServer;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -44,46 +47,56 @@ public class MsgWorkerRequestGoList implements IMessage {
                     responseId = w.getEntityId();
                 }
 
-                List<MsgWorkerGoList.Entry> out = new ArrayList<>();
-                BlockPos origin = player.getPosition();
-
-                java.util.Set<BlockPos> controlledVillages = TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
-                        ? MillSettlements.controlledBy(player.world, player)
-                        : java.util.Collections.emptySet();
-
-                for (MillSettlements.Settlement s : MillSettlements.villages(player.world)) {
-                    BlockPos v = s.center;
-                    int dist = EntityTravellerWorker.dist2D(origin, v);
-                    String label = s.displayName();
-                    out.add(controlledVillages.contains(v)
-                            ? MsgWorkerGoList.Entry.controlledVillage(v, label, dist)
-                            : MsgWorkerGoList.Entry.village(v, label, dist));
-                }
-
-                PlayerZoneManager lbMgr = PlayerZoneManager.get(player.world);
-                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
-                        com.jubitus.travellers.zone.ZoneType.BARRACK)) {
-                    int dist = EntityTravellerWorker.dist2D(origin, r.center);
-                    String label =(r.name != null && !r.name.isEmpty() ? r.name : "Barrack");
-                    out.add(MsgWorkerGoList.Entry.home(r.center, label, dist));
-                }
-                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
-                        com.jubitus.travellers.zone.ZoneType.STABLE)) {
-                    int dist = EntityTravellerWorker.dist2D(origin, r.center);
-                    String label = (r.name != null && !r.name.isEmpty() ? r.name : "Stable");
-                    out.add(MsgWorkerGoList.Entry.stable(r.center, label, dist));
-                }
-
-                java.util.Map<BlockPos, com.jubitus.travellers.follow.net.FormationZoneInfo> zones =
-                        com.jubitus.travellers.follow.group.WorkerGroupService.zoneInfos(player.getServer(), player);
-                for (MsgWorkerGoList.Entry e : out) {
-                    if (e.kind == MsgWorkerGoList.Kind.HOME || e.kind == MsgWorkerGoList.Kind.STABLE) e.zone = zones.get(e.pos);
-                }
-                out.sort(Comparator.comparingInt(a -> a.distance));
+                List<MsgWorkerGoList.Entry> out = placesFor(player);
                 TravellersNetwork.CHANNEL.sendTo(new MsgWorkerGoList(responseId, out), player);
             });
 
             return null;
+        }
+    }
+
+    /**
+     * Every place the player can send henchmen to, nearest first: villages, lone buildings, own Barracks and Stables.
+     * The one list both the screens and the Go order read, so an order can only target a real place.
+     */
+    public static List<MsgWorkerGoList.Entry> placesFor(EntityPlayerMP player) {
+        List<MsgWorkerGoList.Entry> out = new ArrayList<>();
+        BlockPos origin = player.getPosition();
+        WorldServer ws = player.getServerWorld();
+
+        java.util.Set<BlockPos> controlledVillages = TravellersConfig.CONTROLLED_VILLAGE.controlledVillageFeatureEnabled
+                ? MillSettlements.controlledBy(ws, player)
+                : java.util.Collections.emptySet();
+
+        for (MillSettlements.Settlement s : MillSettlements.all(ws)) {
+            MsgWorkerGoList.Kind kind = !s.isVillage ? MsgWorkerGoList.Kind.LONE_BUILDING
+                    : controlledVillages.contains(s.center) ? MsgWorkerGoList.Kind.CONTROLLED_VILLAGE
+                    : MsgWorkerGoList.Kind.VILLAGE;
+            MsgWorkerGoList.Entry e = MsgWorkerGoList.Entry.of(kind, s.center, s.displayName(),
+                    EntityTravellerWorker.dist2D(origin, s.center));
+            e.settlement = SettlementMapInfo.of(ws, player, s);
+            out.add(e);
+        }
+
+        java.util.Map<BlockPos, com.jubitus.travellers.follow.net.FormationZoneInfo> zones =
+                com.jubitus.travellers.follow.group.WorkerGroupService.zoneInfos(player.getServer(), player);
+        PlayerZoneManager zoneMgr = PlayerZoneManager.get(ws);
+        addZones(out, zoneMgr, player, ZoneType.BARRACK, MsgWorkerGoList.Kind.HOME, "Barrack", zones);
+        addZones(out, zoneMgr, player, ZoneType.STABLE, MsgWorkerGoList.Kind.STABLE, "Stable", zones);
+
+        out.sort(Comparator.comparingInt(a -> a.distance));
+        return out;
+    }
+
+    private static void addZones(List<MsgWorkerGoList.Entry> out, PlayerZoneManager mgr, EntityPlayerMP player, ZoneType type,
+                                 MsgWorkerGoList.Kind kind, String fallbackName,
+                                 java.util.Map<BlockPos, com.jubitus.travellers.follow.net.FormationZoneInfo> zones) {
+        for (PlayerZoneRecord r : mgr.getByOwnerAndType(player.getUniqueID(), type)) {
+            String label = r.name != null && !r.name.isEmpty() ? r.name : fallbackName;
+            MsgWorkerGoList.Entry e = MsgWorkerGoList.Entry.of(kind, r.center, label,
+                    EntityTravellerWorker.dist2D(player.getPosition(), r.center));
+            e.zone = zones.get(r.center);
+            out.add(e);
         }
     }
 }

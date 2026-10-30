@@ -1,5 +1,6 @@
 package com.jubitus.travellers.worker.net;
 
+import com.jubitus.travellers.village.net.SettlementMapInfo;
 import com.jubitus.travellers.worldmap.gui.receiver.IWorkerGoListReceiver;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
@@ -15,7 +16,8 @@ import java.util.List;
 
 public class MsgWorkerGoList implements IMessage {
 
-    public enum Kind { VILLAGE, HOME, CONTROLLED_VILLAGE, STABLE }
+    /** Sent by ordinal: append new kinds at the end. */
+    public enum Kind { VILLAGE, HOME, CONTROLLED_VILLAGE, STABLE, LONE_BUILDING }
 
     public static class Entry {
         public Kind kind;
@@ -24,37 +26,16 @@ public class MsgWorkerGoList implements IMessage {
         public int distance;
         /** Barrack / Stable only: occupancy for the map tooltip. */
         @javax.annotation.Nullable public com.jubitus.travellers.follow.net.FormationZoneInfo zone;
+        /** Village / lone building only: what the map tooltip shows. */
+        @javax.annotation.Nullable public SettlementMapInfo settlement;
 
-        public static Entry village(BlockPos pos, String label, int distance) {
-            Entry e = new Entry();
-            e.kind = Kind.VILLAGE;
-            e.pos = pos;
-            e.label = label;
-            e.distance = distance;
-            return e;
+        public boolean isSettlement() {
+            return kind == Kind.VILLAGE || kind == Kind.CONTROLLED_VILLAGE || kind == Kind.LONE_BUILDING;
         }
 
-        public static Entry home(BlockPos pos, String label, int distance) {
+        public static Entry of(Kind kind, BlockPos pos, String label, int distance) {
             Entry e = new Entry();
-            e.kind = Kind.HOME;
-            e.pos = pos;
-            e.label = label;
-            e.distance = distance;
-            return e;
-        }
-
-        public static Entry controlledVillage(BlockPos pos, String label, int distance) {
-            Entry e = new Entry();
-            e.kind = Kind.CONTROLLED_VILLAGE;
-            e.pos = pos;
-            e.label = label;
-            e.distance = distance;
-            return e;
-        }
-
-        public static Entry stable(BlockPos pos, String label, int distance) {
-            Entry e = new Entry();
-            e.kind = Kind.STABLE;
+            e.kind = kind;
             e.pos = pos;
             e.label = label;
             e.distance = distance;
@@ -78,19 +59,15 @@ public class MsgWorkerGoList implements IMessage {
         entries = new ArrayList<>(n);
 
         for (int i = 0; i < n; i++) {
-            int kind = buf.readUnsignedByte();
+            Kind kind = Kind.values()[buf.readUnsignedByte()];
             int x = buf.readInt();
             int y = buf.readInt();
             int z = buf.readInt();
             String label = ByteBufUtils.readUTF8String(buf);
             int dist = buf.readInt();
 
-            Entry e = new Entry();
-            e.kind = (kind == 0) ? Kind.VILLAGE : (kind == 2) ? Kind.CONTROLLED_VILLAGE
-                    : (kind == 3) ? Kind.STABLE : Kind.HOME;
-            e.pos = new BlockPos(x, y, z);
-            e.label = label;
-            e.distance = dist;
+            Entry e = Entry.of(kind, new BlockPos(x, y, z), label, dist);
+            e.settlement = SettlementMapInfo.readNullable(buf);
             if (buf.readBoolean()) e.zone = com.jubitus.travellers.follow.net.FormationZoneInfo.fromNbt(ByteBufUtils.readTag(buf));
             entries.add(e);
         }
@@ -104,13 +81,13 @@ public class MsgWorkerGoList implements IMessage {
 
         for (int i = 0; i < n; i++) {
             Entry e = entries.get(i);
-            buf.writeByte((byte) (e.kind == Kind.VILLAGE ? 0 : e.kind == Kind.CONTROLLED_VILLAGE ? 2
-                    : e.kind == Kind.STABLE ? 3 : 1));
+            buf.writeByte(e.kind.ordinal());
             buf.writeInt(e.pos.getX());
             buf.writeInt(e.pos.getY());
             buf.writeInt(e.pos.getZ());
             ByteBufUtils.writeUTF8String(buf, e.label);
             buf.writeInt(e.distance);
+            SettlementMapInfo.writeNullable(buf, e.settlement);
             buf.writeBoolean(e.zone != null);
             if (e.zone != null) ByteBufUtils.writeTag(buf, e.zone.toNbt());
         }

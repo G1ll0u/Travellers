@@ -1,11 +1,13 @@
 package com.jubitus.travellers.worldmap.gui;
 
+import com.jubitus.travellers.village.MillCultures;
+import com.jubitus.travellers.village.net.SettlementMapInfo;
+import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import net.minecraft.util.math.BlockPos;
 
 public final class WorldMapMarkerFactory {
 
-    /** Near-white beige for uncontrolled villages. */
-    public static final int COLOR_VILLAGE = 0xFFF0E8D0;
+    public static final int COLOR_ENEMY_VILLAGE = 0xFFCC3333;
     public static final int COLOR_BATTLE_MINE = 0xFFFF3030;
     public static final int COLOR_BATTLE_OTHERS = 0xFFFF9A30;
     public static final int COLOR_BATTLE_ENDED = 0xFFA0A0A0;
@@ -28,16 +30,34 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.FOLLOWER, name);
     }
 
-    /** Marker for a worker on duty, by its duty kind (DutyDefs). Unknown kinds fall back to the follower marker. */
-    public static GuiWorldMapPanel.Marker dutyWorker(BlockPos pos, String name, int ownerRgb, String dutyKind) {
-        GuiWorldMapPanel.Marker.MarkerType type = com.jubitus.travellers.zone.duty.DutyDefs.STABLE_HAND.equals(dutyKind)
-                ? GuiWorldMapPanel.Marker.MarkerType.PALFRENIER : GuiWorldMapPanel.Marker.MarkerType.FOLLOWER;
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb), type, name);
+    /**
+     * A village or lone building: its Millénaire icon (or its culture's usual one), with a dot of your colour under it
+     * when you control it, a red one when your henchmen count it an enemy.
+     */
+    public static GuiWorldMapPanel.Marker settlement(MsgWorkerGoList.Entry e, int ownerRgb) {
+        SettlementMapInfo info = e.settlement;
+        GuiWorldMapPanel.Marker.MarkerType type;
+        int argb;
+        if (e.kind == MsgWorkerGoList.Kind.LONE_BUILDING) {
+            type = GuiWorldMapPanel.Marker.MarkerType.LONE_BUILDING;
+            argb = 0xFFFFFFFF;
+        } else if (e.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) {
+            type = GuiWorldMapPanel.Marker.MarkerType.CONTROLLED_VILLAGE;
+            argb = argb(ownerRgb);
+        } else if (info != null && info.enemy) {
+            type = GuiWorldMapPanel.Marker.MarkerType.ENEMY_VILLAGE;
+            argb = COLOR_ENEMY_VILLAGE;
+        } else {
+            type = GuiWorldMapPanel.Marker.MarkerType.VILLAGE;
+            argb = 0xFFFFFFFF;
+        }
+        GuiWorldMapPanel.Marker m = new GuiWorldMapPanel.Marker(e.pos, argb, type, e.label);
+        return info == null ? m : m.withIcon(MillCultures.settlementIcon(info.cultureKey, info.typeKey, info.lone));
     }
 
-    public static GuiWorldMapPanel.Marker village(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, COLOR_VILLAGE,
-                GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
+    /** A coloured dot under a settlement's icon, with its own tooltip (a recruiting trip's stop). */
+    public static GuiWorldMapPanel.Marker settlementDot(BlockPos pos, int argb, String label) {
+        return new GuiWorldMapPanel.Marker(pos, argb, GuiWorldMapPanel.Marker.MarkerType.SETTLEMENT_DOT, label);
     }
 
     public static GuiWorldMapPanel.Marker home(BlockPos pos, String name) {
@@ -54,12 +74,6 @@ public final class WorldMapMarkerFactory {
         return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
                 GuiWorldMapPanel.Marker.MarkerType.STABLE, name);
     }
-
-    public static GuiWorldMapPanel.Marker controlledVillage(BlockPos pos, String name, int ownerRgb) {
-        return new GuiWorldMapPanel.Marker(pos, argb(ownerRgb),
-                GuiWorldMapPanel.Marker.MarkerType.CONTROLLED_VILLAGE, name);
-    }
-
 
     public static GuiWorldMapPanel.Marker destinationCross(BlockPos pos) {
         return new GuiWorldMapPanel.Marker(pos, 0xFFFF4444,
@@ -131,12 +145,6 @@ public final class WorldMapMarkerFactory {
         return new GuiWorldMapPanel.Marker(pos, 0xFFFFEE44,
                 GuiWorldMapPanel.Marker.MarkerType.LEADER, name);
     }
-
-    public static GuiWorldMapPanel.Marker villageEnemy(BlockPos pos, String name) {
-        return new GuiWorldMapPanel.Marker(pos, 0xFFCC3333,
-                GuiWorldMapPanel.Marker.MarkerType.VILLAGE, name);
-    }
-
 
     /** Blends an RGB value toward white by `factor` (0=unchanged, 1=white). */
     public static int lighten(int rgb, float factor) {

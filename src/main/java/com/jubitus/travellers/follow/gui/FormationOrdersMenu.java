@@ -53,12 +53,12 @@ final class FormationOrdersMenu {
     }
 
     // Stacking among units on the map, higher is drawn on top.
-    private static final int RANK_PLAYER = 4, RANK_LEADER = 3, RANK_ON_DUTY = 2, RANK_SELECTED_FOLLOWER = 1, RANK_FOLLOWER = 0;
+    private static final int RANK_PLAYER = 3, RANK_LEADER = 2, RANK_SELECTED_FOLLOWER = 1, RANK_FOLLOWER = 0;
     private static final long DESTINATION_CROSS_DURATION_MS = 1500L;
     private static final ResourceLocation DESTINATION_CROSS_TEX =
             new ResourceLocation("travellers", "textures/map/destination_cross.png");
 
-    private enum TargetKind { PLAYER, LEADER, FOLLOWER, ON_DUTY, PLACE }
+    private enum TargetKind { PLAYER, LEADER, FOLLOWER, PLACE }
 
     /** Something under the cursor on the map. */
     private static final class Target {
@@ -190,11 +190,6 @@ final class FormationOrdersMenu {
         }
 
         int before = menu.rowCount();
-        if (unit.kind == TargetKind.ON_DUTY) {
-            menu.header(unit.name).disabled(tr("no_orders"), tr("reason.on_duty"));
-            menuTargets.add(unit.pos);
-            return;
-        }
         if (group != null && unit.kind != TargetKind.FOLLOWER) {
             buildGroupMenu(group, unit, null, null);
         } else if (followers && (unit.kind != TargetKind.FOLLOWER || unitSelected)) {
@@ -216,10 +211,7 @@ final class FormationOrdersMenu {
         FormationLeaderInfo group = selection.group();
         boolean followers = selection.isFollowers() && !selection.followers.isEmpty();
 
-        if (unit != null && unit.kind == TargetKind.ON_DUTY) {
-            menu.header(unit.name).disabled(tr("no_orders"), tr("reason.on_duty"));
-            menuTargets.add(unit.pos);
-        } else if (unit != null && unit.kind == TargetKind.LEADER && group == null && !followers) {
+        if (unit != null && unit.kind == TargetKind.LEADER && group == null && !followers) {
             host.selectLeaderByUuid(unit.uuid);
             buildGroupMenu(selection.group(), unit, null, null);
         } else if (unit != null && unit.kind == TargetKind.FOLLOWER
@@ -308,24 +300,20 @@ final class FormationOrdersMenu {
         Set<UUID> selectedFollowers = selection.isFollowers() ? new HashSet<>(selection.followers) : Collections.emptySet();
         FormationLeaderInfo group = selection.group();
         for (MsgMapWorkersUpdate.Entry e : mapData.workers) {
-            if (e.pos == null || e.uuid == null) continue;
+            if (e.pos == null || e.uuid == null || WorldMapContentPopulator.isOnDuty(e)) continue;
             boolean selected = selectedFollowers.contains(e.uuid) || (group != null && e.uuid.equals(group.uuid));
             float r = selected ? selectedR : workerR;
             d = map.screenDistSq(mapData.drawX(e), mapData.drawZ(e), mouseX, mouseY);
             if (d > r * r) continue;
-            TargetKind kind = WorldMapContentPopulator.isOnDuty(e) ? TargetKind.ON_DUTY
-                    : e.isLeader ? TargetKind.LEADER : TargetKind.FOLLOWER;
-            int rank = kind == TargetKind.LEADER ? RANK_LEADER
-                    : kind == TargetKind.ON_DUTY ? RANK_ON_DUTY
-                    : selected ? RANK_SELECTED_FOLLOWER : RANK_FOLLOWER;
+            TargetKind kind = e.isLeader ? TargetKind.LEADER : TargetKind.FOLLOWER;
+            int rank = kind == TargetKind.LEADER ? RANK_LEADER : selected ? RANK_SELECTED_FOLLOWER : RANK_FOLLOWER;
             units.add(new Target(kind, e.pos, e.name, e.uuid, null, d, rank));
         }
         float villageR = map.hitRadiusPx(GuiWorldMapPanel.Marker.Size.VILLAGE);
         Set<BlockPos> placed = new HashSet<>();
         for (MsgWorkerGoList.Entry e : mapData.places) {
-            if (e.pos == null) continue;
-            boolean village = e.kind == MsgWorkerGoList.Kind.VILLAGE || e.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE;
-            float r = village ? villageR : workerR;
+            if (e.pos == null || !WorldMapContentPopulator.isShown(e)) continue;
+            float r = e.isSettlement() ? villageR : workerR;
             d = map.screenDistSq(e.pos, mouseX, mouseY);
             if (d > r * r) continue;
             places.add(new Target(TargetKind.PLACE, e.pos, e.label, null, equipDestAt(e.pos), d, 0));

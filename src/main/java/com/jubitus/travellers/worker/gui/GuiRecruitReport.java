@@ -14,6 +14,7 @@ import com.jubitus.travellers.worker.RecruitLog;
 import com.jubitus.travellers.worker.RecruitReport;
 import com.jubitus.travellers.worker.net.MsgRecruitTakePurse;
 import com.jubitus.travellers.worldmap.gui.GuiWorldMapPanel;
+import com.jubitus.travellers.worldmap.gui.WorldMapMarkerFactory;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
@@ -107,10 +108,10 @@ public class GuiRecruitReport extends GuiMapListScreen {
                         I18n.format("travellers.worker.recruit.report.map.skipped", name)));
             } else if (s.state == RecruitLog.VISITED) {
                 order++;
-                panel.addMarker(new GuiWorldMapPanel.Marker(s.pos, 0xFFFFD060, GuiWorldMapPanel.Marker.MarkerType.VILLAGE,
+                panel.addMarker(WorldMapMarkerFactory.settlementDot(s.pos, 0xFFFFD060,
                         I18n.format("travellers.worker.recruit.report.map.visited", order, name, s.recruits)));
             } else {
-                panel.addMarker(new GuiWorldMapPanel.Marker(s.pos, 0xFF9A8A70, GuiWorldMapPanel.Marker.MarkerType.VILLAGE,
+                panel.addMarker(WorldMapMarkerFactory.settlementDot(s.pos, 0xFF9A8A70,
                         I18n.format("travellers.worker.recruit.report.map.not_reached", name)));
             }
         }

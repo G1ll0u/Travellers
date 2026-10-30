@@ -130,8 +130,13 @@ public abstract class GuiMapListScreen extends GuiScreen implements ITravellersG
         list.resetScroll();
         addControls();
         map.subscribe();
-        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(goListWorkerId()));
+        requestPlaces();
         onOpen();
+    }
+
+    /** Asks the server for the places again (their state changed); they arrive in {@link #receiveGoList}. */
+    protected void requestPlaces() {
+        TravellersNetwork.CHANNEL.sendToServer(new MsgWorkerRequestGoList(goListWorkerId()));
     }
 
     @Override

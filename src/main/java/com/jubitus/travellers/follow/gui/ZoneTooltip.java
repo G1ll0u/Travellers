@@ -1,11 +1,10 @@
 package com.jubitus.travellers.follow.gui;
 
 import com.jubitus.travellers.follow.net.FormationZoneInfo;
+import com.jubitus.travellers.gui.TooltipFrame;
 import com.jubitus.travellers.gui.TravellersGuiTheme;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 
 import java.util.ArrayList;
@@ -15,11 +14,9 @@ import java.util.List;
 public final class ZoneTooltip {
 
     private static final int W = 156;
-    private static final int PAD = 5;
-    private static final int LINE = 11;
+    private static final int PAD = TooltipFrame.PAD;
+    private static final int LINE = TooltipFrame.LINE;
     private static final int BAR_H = 6;
-    // Above tooltips (z 300), like the group summary.
-    private static final float Z = 350F;
 
     private ZoneTooltip() {}
 
@@ -42,21 +39,9 @@ public final class ZoneTooltip {
         }
 
         int h = PAD + LINE + lines.size() * LINE + (health ? LINE + (z.gear.wounded > 0 ? LINE : 0) : 0) + PAD;
-        int x = mouseX + 12;
-        int y = mouseY - 12;
-        if (x + W > screenW - 2) x = mouseX - W - 12;
-        if (y + h > screenH - 2) y = screenH - h - 2;
-        if (y < 2) y = 2;
-
-        RenderHelper.disableStandardItemLighting();
-        GlStateManager.disableLighting();
-        GlStateManager.disableDepth();
-        GlStateManager.color(1F, 1F, 1F, 1F);
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(0F, 0F, Z);
-
-        Gui.drawRect(x, y, x + W, y + h, 0xF0100C08);
-        TravellersGuiTheme.drawBorder(x, y, W, h, TravellersGuiTheme.COL_BORDER);
+        int[] at = TooltipFrame.open(W, h, mouseX, mouseY, screenW, screenH);
+        int x = at[0];
+        int y = at[1];
 
         int left = x + PAD;
         int right = x + W - PAD;
@@ -88,7 +73,6 @@ public final class ZoneTooltip {
             }
         }
 
-        GlStateManager.popMatrix();
-        GlStateManager.color(1F, 1F, 1F, 1F);
+        TooltipFrame.close();
     }
 }

@@ -372,7 +372,7 @@ public class GuiWorkerFormationHub extends GuiScreen
         else if (!mapDragSelecting) {
             FormationZoneInfo hoveredZone = zoneOfMarker(mapController.hoveredMarker(mouseX, mouseY));
             if (hoveredZone != null) ZoneTooltip.draw(fontRenderer, hoveredZone, mouseX, mouseY, width, height);
-            else mapController.drawTooltip(this, mouseX, mouseY);
+            else mapView.drawTooltip(this, mouseX, mouseY);
         }
         if (TravellersConfig.NOTIFICATIONS.historyPanelBattleTooltipEnabled) {
             JournalEntry hovered = journal.entryAt(mouseX, mouseY);

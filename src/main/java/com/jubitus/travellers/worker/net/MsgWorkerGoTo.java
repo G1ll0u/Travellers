@@ -21,21 +21,21 @@ import java.util.List;
 
 public class MsgWorkerGoTo implements IMessage {
     private int workerId;
-    private int index;
+    private BlockPos place;
 
     public MsgWorkerGoTo() {}
-    public MsgWorkerGoTo(int workerId, int index) {
+    public MsgWorkerGoTo(int workerId, BlockPos place) {
         this.workerId = workerId;
-        this.index = index;
+        this.place = place;
     }
 
     @Override public void fromBytes(ByteBuf buf) {
         workerId = buf.readInt();
-        index = buf.readInt();
+        place = BlockPos.fromLong(buf.readLong());
     }
     @Override public void toBytes(ByteBuf buf) {
         buf.writeInt(workerId);
-        buf.writeInt(index);
+        buf.writeLong(place.toLong());
     }
 
     public static class Handler implements IMessageHandler<MsgWorkerGoTo, IMessage> {
@@ -53,43 +53,19 @@ public class MsgWorkerGoTo implements IMessage {
                     return;
                 }
 
-                // Rebuild the same mixed list server-side and pick index
-                // (Beginner-friendly and safe; avoids trusting client data.)
-                List<MsgWorkerGoList.Entry> list = new ArrayList<>();
-
-                BlockPos origin = player.getPosition();
-
-                for (MillSettlements.Settlement v : MillSettlements.villages(player.world)) {
-                    int dist = EntityTravellerWorker.dist2D(origin, v.center);
-                    list.add(MsgWorkerGoList.Entry.village(v.center, v.displayName(), dist));
+                MsgWorkerGoList.Entry chosen = null;
+                for (MsgWorkerGoList.Entry e : MsgWorkerRequestGoList.placesFor(player)) {
+                    if (e.pos.equals(msg.place)) chosen = e;
                 }
-
-                PlayerZoneManager lbMgr = PlayerZoneManager.get(player.world);
-                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
-                        com.jubitus.travellers.zone.ZoneType.BARRACK)) {
-                    int dist = EntityTravellerWorker.dist2D(origin, r.center);
-                    String label =(r.name != null && !r.name.isEmpty() ? r.name : "Barrack");
-                    list.add(MsgWorkerGoList.Entry.home(r.center, label, dist));
-                }
-                for (PlayerZoneRecord r : lbMgr.getByOwnerAndType(player.getUniqueID(),
-                        com.jubitus.travellers.zone.ZoneType.STABLE)) {
-                    int dist = EntityTravellerWorker.dist2D(origin, r.center);
-                    String label = (r.name != null && !r.name.isEmpty() ? r.name : "Stable");
-                    list.add(MsgWorkerGoList.Entry.stable(r.center, label, dist));
-                }
-
-                list.sort(Comparator.comparingInt(a -> a.distance));
-
-                if (msg.index < 0 || msg.index >= list.size()) return;
-
-                BlockPos target = list.get(msg.index).pos;
+                if (chosen == null) return;
+                BlockPos target = chosen.pos;
 
                 // Start travel order
                 com.jubitus.travellers.follow.group.WorkerGroupService.detachForMission(player, w.getUniqueID());
                 BlockPos from = w.getPosition();
                 w.trips.startGoTo(target, w.dimension);
                 com.jubitus.travellers.notify.MissionNotifications.goOrdered(player, w.getUniqueID(), from, target,
-                        NotificationDefs.GOTO_GOING_TO, list.get(msg.index).label);
+                        NotificationDefs.GOTO_GOING_TO, chosen.label);
 
             });
 

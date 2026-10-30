@@ -1,7 +1,7 @@
 package com.jubitus.travellers.worldmap.gui;
 
 import com.jubitus.travellers.follow.gui.ZoneTooltip;
-import com.jubitus.travellers.follow.net.FormationZoneInfo;
+import com.jubitus.travellers.village.gui.SettlementTooltip;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -108,22 +108,24 @@ public final class WorkerMapView {
     }
 
     public void drawTooltip(GuiScreen screen, int mouseX, int mouseY) {
-        FormationZoneInfo zone = zoneUnder(mouseX, mouseY);
-        if (zone != null) {
-            ZoneTooltip.draw(net.minecraft.client.Minecraft.getMinecraft().fontRenderer, zone, mouseX, mouseY, screen.width, screen.height);
-            return;
+        net.minecraft.client.gui.FontRenderer fr = net.minecraft.client.Minecraft.getMinecraft().fontRenderer;
+        MsgWorkerGoList.Entry place = placeUnder(mouseX, mouseY);
+        if (place != null && place.zone != null) {
+            ZoneTooltip.draw(fr, place.zone, mouseX, mouseY, screen.width, screen.height);
+        } else if (place != null && place.settlement != null) {
+            SettlementTooltip.draw(fr, place.label, place.settlement, mouseX, mouseY, screen.width, screen.height);
+        } else {
+            controller.drawTooltip(screen, mouseX, mouseY);
         }
-        controller.drawTooltip(screen, mouseX, mouseY);
     }
 
-    /** The Barrack or Stable a hovered map marker stands for, when the server sent its occupancy. */
+    /** The place (settlement, Barrack, Stable) whose own marker is hovered; a screen's extra marker on it keeps its label. */
     @Nullable
-    private FormationZoneInfo zoneUnder(int mouseX, int mouseY) {
+    public MsgWorkerGoList.Entry placeUnder(int mouseX, int mouseY) {
         GuiWorldMapPanel.Marker m = controller.hoveredMarker(mouseX, mouseY);
-        if (m == null || m.type != GuiWorldMapPanel.Marker.MarkerType.HOME
-                && m.type != GuiWorldMapPanel.Marker.MarkerType.STABLE) return null;
+        if (m == null || m.unitId != null) return null;
         for (MsgWorkerGoList.Entry e : data.places) {
-            if (e.zone != null && m.pos.equals(e.pos)) return e.zone;
+            if (m.pos.equals(e.pos) && e.label.equals(m.label) && WorldMapContentPopulator.isShown(e)) return e;
         }
         return null;
     }

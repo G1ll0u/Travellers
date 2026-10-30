@@ -1,5 +1,7 @@
 package com.jubitus.travellers.worldmap.gui;
 
+import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.worldmap.client.ClientMapDiscovery;
 import com.jubitus.travellers.worldmap.net.MsgMapWorkersUpdate;
 import com.jubitus.travellers.worker.net.MsgWorkerGoList;
 import net.minecraft.client.Minecraft;
@@ -26,7 +28,7 @@ public final class WorldMapContentPopulator {
      * Adds standard markers (POIs + workers + player) to the panel.
      *
      * @param panel             target panel
-     * @param pois              village / controlled-village / home entries from the server
+     * @param pois              settlement / Barrack / Stable entries from the server
      * @param workers           worker position entries from the server
      * @param player            local player (may be null — player marker skipped if null)
      * @param playerOwnerColor  owner mark color (0xRRGGBB) used for player, leaders, controlled villages
@@ -37,57 +39,37 @@ public final class WorldMapContentPopulator {
             List<MsgMapWorkersUpdate.Entry> workers,
             EntityPlayer player,
             int playerOwnerColor,
-            @javax.annotation.Nullable WorkerMarkerSmoother smoother,
-            DutyRing dutyRing) {
+            @javax.annotation.Nullable WorkerMarkerSmoother smoother) {
 
         panel.setLegendOwnerColor(playerOwnerColor);
 
         int myDim = Minecraft.getMinecraft().world.provider.getDimension();
 
-        // 1 — Regular villages
+        // 1 — Settlements, then Barracks and Stables (same owner tint, distinct icon)
         for (MsgWorkerGoList.Entry e : pois) {
-            if (e.pos == null || e.kind != MsgWorkerGoList.Kind.VILLAGE) continue;
-            panel.addMarker(WorldMapMarkerFactory.village(e.pos, e.label));
-        }
-
-        // 2 — Controlled villages
-        for (MsgWorkerGoList.Entry e : pois) {
-            if (e.pos == null || e.kind != MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) continue;
-            panel.addMarker(WorldMapMarkerFactory.controlledVillage(e.pos, e.label, playerOwnerColor));
-        }
-
-        // 3 — Homes (Barracks) and Stables — same owner tint, distinct icon
-        for (MsgWorkerGoList.Entry e : pois) {
-            if (e.pos == null) continue;
-            if (e.kind == MsgWorkerGoList.Kind.VILLAGE || e.kind == MsgWorkerGoList.Kind.CONTROLLED_VILLAGE) continue;
-            if (e.kind == MsgWorkerGoList.Kind.STABLE) {
+            if (e.pos == null || !isShown(e)) continue;
+            if (e.isSettlement()) {
+                panel.addMarker(WorldMapMarkerFactory.settlement(e, playerOwnerColor));
+            } else if (e.kind == MsgWorkerGoList.Kind.STABLE) {
                 panel.addMarker(WorldMapMarkerFactory.stable(e.pos, e.label, playerOwnerColor));
             } else {
                 panel.addMarker(WorldMapMarkerFactory.home(e.pos, e.label, playerOwnerColor));
             }
         }
 
-        // 4 — Follower workers, or the role marker of an on-duty worker
+        // 2 — Followers; an on-duty worker has no marker (its zone's tooltip counts it)
         for (MsgMapWorkersUpdate.Entry e : workers) {
-            if (e.pos == null || e.dim != myDim || e.isLeader) continue;
-            if (isOnDuty(e) && dutyRing.covers(e.uuid)) {
-                float[] at = dutyRing.position(e.uuid);
-                panel.addMarker(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role)
-                        .at(at[0], at[1]).forUnit(e.uuid));
-            } else if (isOnDuty(e)) {
-                panel.addMarker(smoothed(WorldMapMarkerFactory.dutyWorker(e.pos, workerLabel(e), e.ownerColor, e.role), e, smoother));
-            } else {
-                panel.addMarker(smoothed(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor), e, smoother));
-            }
+            if (e.pos == null || e.dim != myDim || e.isLeader || isOnDuty(e)) continue;
+            panel.addMarker(smoothed(WorldMapMarkerFactory.follower(e.pos, workerLabel(e), e.ownerColor), e, smoother));
         }
 
-        // 5 — Leader workers
+        // 3 — Leader workers
         for (MsgMapWorkersUpdate.Entry e : workers) {
-            if (e.pos == null || e.dim != myDim || !e.isLeader) continue;
+            if (e.pos == null || e.dim != myDim || !e.isLeader || isOnDuty(e)) continue;
             panel.addMarker(smoothed(WorldMapMarkerFactory.leader(e.pos, workerLabel(e), e.ownerColor), e, smoother));
         }
 
-        // 6 — Player (topmost)
+        // 4 — Player (topmost)
         if (player != null) {
             panel.addMarker(playerMarker(player, playerOwnerColor));
         }
@@ -121,7 +103,17 @@ public final class WorldMapContentPopulator {
         return m.at(smoother.x(id, pos.getX()), smoother.z(id, pos.getZ())).forUnit(id);
     }
 
-    /** An on-duty worker (e.g. a palfrenier) takes no player order: drawn with its role marker, never selectable. */
+    /**
+     * Whether a place is on the map: a settlement once its spot is discovered (lone buildings only when the player
+     * asked for them), the player's own zones always.
+     */
+    public static boolean isShown(MsgWorkerGoList.Entry e) {
+        if (!e.isSettlement()) return true;
+        if (e.kind == MsgWorkerGoList.Kind.LONE_BUILDING && !TravellersConfig.WORLDMAP.showLoneBuildings) return false;
+        return ClientMapDiscovery.isFullMap() || ClientMapDiscovery.isChunkDiscovered(e.pos.getX() >> 4, e.pos.getZ() >> 4);
+    }
+
+    /** An on-duty worker (e.g. a stable hand) takes no player order: it has no marker and is never selectable. */
     public static boolean isOnDuty(MsgMapWorkersUpdate.Entry e) {
         return e.role != null && !e.role.isEmpty();
     }

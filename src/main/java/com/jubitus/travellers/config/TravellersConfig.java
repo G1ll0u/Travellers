@@ -236,7 +236,10 @@ public class TravellersConfig {
         @Config.RangeInt(min = 1, max = 32)
         public int playerMarkerSize = 6;
 
-        @Config.Comment("Size (pixels) of village and controlled-village markers.")
+        @Config.Comment("Also show lone buildings (isolated Millénaire buildings) on your maps, once you have explored where they stand.")
+        public boolean showLoneBuildings = false;
+
+        @Config.Comment("Size (pixels) of village and lone building icons.")
         @Config.RangeInt(min = 1, max = 32)
         public int villageMarkerSize = 8;
 

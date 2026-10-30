@@ -221,7 +221,6 @@ travellers.worker.formation.menu.no_orders=Aucun ordre
 travellers.worker.formation.menu.reason.busy=Ce groupe est en mission.
 travellers.worker.formation.menu.reason.target_busy=Ce groupe est en mission.
 travellers.worker.formation.menu.reason.need_two=Sélectionnez au moins 2 hommes de main.
-travellers.worker.formation.menu.reason.on_duty=En service : ne prend aucun ordre tant qu'il est assigné.
 travellers.worker.formation.menu.reason.select_first=Sélectionnez d'abord un groupe ou des hommes de main.
 travellers.worker.formation.orders_tab=Ordres du Chef
 travellers.worker.formation.you=Vous
@@ -264,12 +263,10 @@ travellers.zone.stable.title=Écurie
 travellers.zone.stable.description=Un haras pour vos travailleurs engagés. Nécessite au moins un coffre et une clôture pour y attacher des chevaux. Les palefreniers assignés y apprivoisent, sellent et font se reproduire des chevaux pour vos autres travailleurs.
 
 # Map legend
-travellers.map.legend.village=Village
 travellers.map.legend.controlled_village=Vil. contrôlé
 travellers.map.legend.home=Caserne
 travellers.map.legend.stable=Écurie
 travellers.map.legend.follower=Suiveur
-travellers.map.legend.palfrenier=Palefrenier
 travellers.map.legend.leader=Chef
 travellers.map.legend.player=Vous
 travellers.map.legend.camp_firepit=Feu de camp
