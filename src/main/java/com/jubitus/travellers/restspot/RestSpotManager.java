@@ -14,6 +14,7 @@ import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 import net.minecraftforge.common.util.Constants;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -64,7 +65,7 @@ public final class RestSpotManager extends WorldSavedData {
         if (!rolls(world.getSeed(), cx, cz)) return;
         long key = ChunkPos.asLong(cx, cz);
         if (judged.contains(key)) return;
-        if (tooCloseToSpot((cx << 4) + 8, (cz << 4) + 8)) return;
+        if (spotWithinSpacing((cx << 4) + 8, (cz << 4) + 8) != null) return;
         if (pending.add(key)) lucky++;
     }
 
@@ -97,7 +98,7 @@ public final class RestSpotManager extends WorldSavedData {
         scored++;
         judged.add(key);
         RestSpotScorer.Verdict v = RestSpotScorer.evaluate(world, cx, cz);
-        if (v.refusal == null && !tooCloseToSpot(v.spot.center.getX(), v.spot.center.getZ())) {
+        if (v.refusal == null && spotWithinSpacing(v.spot.center.getX(), v.spot.center.getZ()) == null) {
             spots.add(v.spot);
             kept++;
         }
@@ -109,7 +110,13 @@ public final class RestSpotManager extends WorldSavedData {
         if (!RestSpotScorer.isReady(world, cx, cz)) return "Neighbour chunks or terrain grid not ready, try again in a moment.";
         RestSpotScorer.Verdict v = RestSpotScorer.evaluate(world, cx, cz);
         String verdict = v.refusal == null ? "would be KEPT" : "refused: " + v.refusal;
-        if (v.refusal == null && tooCloseToSpot(v.spot.center.getX(), v.spot.center.getZ())) verdict = "refused: too close to another rest spot";
+        RestSpotRecord other = v.spot == null ? null : spotWithinSpacing(v.spot.center.getX(), v.spot.center.getZ());
+        if (v.refusal == null && other != null) {
+            verdict = other.center.equals(v.spot.center)
+                    ? "already a rest spot (" + other.id.toString().substring(0, 8) + ")"
+                    : "refused: " + (int) Math.sqrt(other.center.distanceSq(v.spot.center)) + " blocks from rest spot "
+                    + other.id.toString().substring(0, 8) + " at " + other.center;
+        }
         return v.spot == null ? verdict : verdict + "\n" + v.spot.describe() + "\nat " + v.spot.center;
     }
 
@@ -126,13 +133,14 @@ public final class RestSpotManager extends WorldSavedData {
         return pending.size();
     }
 
-    private boolean tooCloseToSpot(int x, int z) {
+    @Nullable
+    private RestSpotRecord spotWithinSpacing(int x, int z) {
         long min = TravellersConfig.REST_SPOTS.minSpacing;
         for (RestSpotRecord s : spots) {
             long dx = s.center.getX() - x, dz = s.center.getZ() - z;
-            if (dx * dx + dz * dz < min * min) return true;
+            if (dx * dx + dz * dz < min * min) return s;
         }
-        return false;
+        return null;
     }
 
     public String stats() {
