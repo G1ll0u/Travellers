@@ -173,7 +173,7 @@ public class VillageDebugCommand implements DebugSubcommand {
                 net.minecraft.entity.Entity h = world.getEntityFromUuid(t.getMountUUID());
                 horse = h == null ? "not loaded" : "live at " + fmtPos(h.getPosition()) + " (" + t.mountState.getMountMode() + ")";
             }
-            sendVisit(sender, "LOADED " + t.getName(), t.getVillageVisitState(), horse);
+            sendVisit(sender, "LOADED " + t.getName(), t.getStayState(), horse);
             return;
         }
         for (com.jubitus.travellers.virtual.VirtualTravellerRecord r
@@ -188,7 +188,7 @@ public class VillageDebugCommand implements DebugSubcommand {
     }
 
     private static void sendVisit(ICommandSender sender, String who,
-                                  @javax.annotation.Nullable com.jubitus.travellers.village.visit.VillageVisitState st, String horse) {
+                                  @javax.annotation.Nullable com.jubitus.travellers.stay.StayState st, String horse) {
         String visit = st == null ? "not visiting"
                 : "stop " + fmtPos(st.stop) + (st.asFollower ? " (with group)" : "")
                 + (st.isLeaving() ? " leaving" : " left=" + st.remainingTicks / 20 + "s")

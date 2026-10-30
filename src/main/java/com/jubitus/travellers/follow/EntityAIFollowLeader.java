@@ -751,8 +751,8 @@ public class EntityAIFollowLeader extends EntityAIBase {
         EntityLivingBase rev = follower.getRevengeTarget();
         if (rev != null && !rev.isDead) return "revengeTarget=" + describe(rev);
         if (follower.isCatchupTravel()) return "catchup";
-        // Dispersed in the village its leader is visiting (EntityAIVillageVisit), until it leaves.
-        if (follower.isDispersedInVillage()) return "dispersedInVillage";
+        // Dispersed in the village its leader is visiting (EntityAIStay), until it leaves.
+        if (follower.isDispersedInStay()) return "dispersedInVillage";
         // An unhired worker follows only as a merchant's escort (its spawn group, like a traveller group
         // follower); its own follow order is a hired-worker notion and stale on it.
         if (follower instanceof EntityTravellerWorker && !follower.isHiredFollower()) {

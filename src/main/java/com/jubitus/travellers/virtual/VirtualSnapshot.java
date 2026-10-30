@@ -265,9 +265,9 @@ final class VirtualSnapshot {
 
     /** Moves the entity's village stay onto the record as-is (never duplicated in entityNbt). */
     private static void handOverVisit(EntityTraveller entity, VirtualTravellerRecord r) {
-        r.visit = entity.getVillageVisitState();
-        entity.setVillageVisitState(null);
-        r.entityNbt.removeTag(com.jubitus.travellers.village.visit.VillageVisitState.NBT_KEY);
+        r.visit = entity.getStayState();
+        entity.setStayState(null);
+        r.entityNbt.removeTag(com.jubitus.travellers.stay.StayState.NBT_KEY);
         if (r.visit != null) r.visit.nextStepTick = 0L;
     }
 

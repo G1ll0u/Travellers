@@ -1,4 +1,4 @@
-package com.jubitus.travellers.village.visit;
+package com.jubitus.travellers.stay;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -20,9 +20,9 @@ import java.util.WeakHashMap;
  * the other half of a pair (it is never moved; the visitor stands in front of it). Loaded-only, never
  * saved: a member that leaves (fight, end of stay, going offscreen) just drops out.
  */
-final class VillageConversation {
+final class StayConversation {
 
-    private static final Map<World, List<VillageConversation>> ACTIVE = new WeakHashMap<>();
+    private static final Map<World, List<StayConversation>> ACTIVE = new WeakHashMap<>();
 
     private final World world;
     private final List<EntityLivingBase> members = new ArrayList<>(4);
@@ -39,7 +39,7 @@ final class VillageConversation {
     private int speakerChanges;
     private boolean over;
 
-    private VillageConversation(World world, EntityLivingBase a, EntityLivingBase b, boolean bIsAnchor, int ticks) {
+    private StayConversation(World world, EntityLivingBase a, EntityLivingBase b, boolean bIsAnchor, int ticks) {
         this.world = world;
         this.endTick = world.getTotalWorldTime() + ticks;
         this.anchor = bIsAnchor ? b : null;
@@ -57,24 +57,24 @@ final class VillageConversation {
         nextSpeakerTick = world.getTotalWorldTime() + speakerTurnTicks(world.rand);
     }
 
-    static VillageConversation start(EntityTraveller a, EntityLivingBase b, boolean withVillager, int ticks) {
-        VillageConversation c = new VillageConversation(a.world, a, b, withVillager, ticks);
+    static StayConversation start(EntityTraveller a, EntityLivingBase b, boolean withVillager, int ticks) {
+        StayConversation c = new StayConversation(a.world, a, b, withVillager, ticks);
         ACTIVE.computeIfAbsent(a.world, w -> new ArrayList<>()).add(c);
         return c;
     }
 
     /** A conversation near {@code t} with room for one more visitor, or null. */
     @Nullable
-    static VillageConversation findJoinable(EntityTraveller t, double radius) {
-        List<VillageConversation> list = ACTIVE.get(t.world);
+    static StayConversation findJoinable(EntityTraveller t, double radius) {
+        List<StayConversation> list = ACTIVE.get(t.world);
         if (list == null) return null;
         int max = TravellersConfig.VILLAGE_VISIT.talkMaxMembers;
         long now = t.world.getTotalWorldTime();
-        VillageConversation best = null;
+        StayConversation best = null;
         double bestD = radius * radius;
-        Iterator<VillageConversation> it = list.iterator();
+        Iterator<StayConversation> it = list.iterator();
         while (it.hasNext()) {
-            VillageConversation c = it.next();
+            StayConversation c = it.next();
             if (c.isOver(now)) {
                 it.remove();
                 continue;

@@ -39,7 +39,7 @@ public class TravelCommon {
     // --- AI State Fields (saved to disk)---
     public BlockPos targetVillage;
     public BlockPos currentWaypoint;
-    public boolean villageIdling;
+    public boolean idlingAtStop;
     public BlockPos nearestVillage;   // updated every tick
     // --- Path personality (persistent), so they don't always follow exact same path ---
     public double pathLaneOffset;       // lateral offset from the beeline
@@ -267,7 +267,7 @@ public class TravelCommon {
     public void syncBodyYawWhileTravelling() {
         if (owner.isInCombat() || owner.getAttackTarget() != null) return;
         // A village visit caps its own body turns (TravellerMoveHelper).
-        if (owner.isVisitingVillage()) return;
+        if (owner.isOnStay()) return;
         if (owner.getNavigator().noPath() && owner.getTravelCommon().getCurrentWaypoint() == null) return;
 
         double dx = owner.motionX, dz = owner.motionZ;
@@ -443,12 +443,12 @@ public class TravelCommon {
         this.currentWaypoint = currentWaypoint;
     }
 
-    public boolean isVillageIdling() {
-        return this.villageIdling;
+    public boolean isIdlingAtStop() {
+        return this.idlingAtStop;
     }
 
-    public void setVillageIdling(boolean villageIdling) {
-        this.villageIdling = villageIdling;
+    public void setIdlingAtStop(boolean idlingAtStop) {
+        this.idlingAtStop = idlingAtStop;
     }
 
     public void noteChosenDestination(BlockPos dest) {
@@ -472,7 +472,7 @@ public class TravelCommon {
         if (getTargetVillage() != null) compound.setTag("TargetVillage", net.minecraft.nbt.NBTUtil.createPosTag(getTargetVillage()));
         if (getCurrentWaypoint() != null)
             compound.setIntArray("CurrentWaypoint", new int[]{getCurrentWaypoint().getX(), getCurrentWaypoint().getY(), getCurrentWaypoint().getZ()});
-        compound.setBoolean("VillageIdling", isVillageIdling());
+        compound.setBoolean("VillageIdling", isIdlingAtStop());
         compound.setInteger("RouteIndex", routeIndex);
         compound.setFloat("Wanderlust", wanderlust);
         compound.setFloat("ExploreChance", exploreChance);
@@ -511,7 +511,7 @@ public class TravelCommon {
         if (compound.hasKey("PathLaneOffset")) pathLaneOffset = compound.getDouble("PathLaneOffset");
         if (compound.hasKey("PathStepJitter")) pathStepJitter = compound.getInteger("PathStepJitter");
         if (compound.hasKey("RecalcPhase")) recalcPhase = compound.getInteger("RecalcPhase");
-        setVillageIdling(compound.getBoolean("VillageIdling"));
+        setIdlingAtStop(compound.getBoolean("VillageIdling"));
         route.clear();
         if (compound.hasKey("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_LIST)) {
             net.minecraft.nbt.NBTTagList lst = compound.getTagList("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_INT_ARRAY);

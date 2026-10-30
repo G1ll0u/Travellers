@@ -4,7 +4,7 @@ import com.jubitus.travellers.horse.HorseMarkers;
 import com.jubitus.travellers.ground.ColumnGround;
 import com.jubitus.travellers.ground.chunk.LoadedChunks;
 import com.jubitus.travellers.ground.BlockRules;
-import com.jubitus.travellers.village.visit.VillageVisitState;
+import com.jubitus.travellers.stay.StayState;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
@@ -21,7 +21,7 @@ import com.jubitus.travellers.unit.culture.TravellerAppearance;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
-import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
+import com.jubitus.travellers.stay.EntityAIStay;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.combat.AttackTargetLimiter;
 import com.jubitus.travellers.combat.TravellerCombatLogic;
@@ -253,16 +253,16 @@ public class EntityTraveller extends EntityCreature {
         this.dataManager.set(MOUNT_UUID, com.google.common.base.Optional.fromNullable(mountUUID));
     }
 
-    // The current village stay (see VillageVisitState); moved to/from the virtual record at hand-off.
+    // The current village stay (see StayState); moved to/from the virtual record at hand-off.
     @Nullable
-    private VillageVisitState villageVisitState;
+    private StayState villageVisitState;
 
     @Nullable
-    public VillageVisitState getVillageVisitState() {
+    public StayState getStayState() {
         return villageVisitState;
     }
 
-    public void setVillageVisitState(@Nullable VillageVisitState state) {
+    public void setStayState(@Nullable StayState state) {
         this.villageVisitState = state;
     }
 
@@ -685,21 +685,21 @@ public class EntityTraveller extends EntityCreature {
     }
 
 
-    /** Whether this unit stops to visit each village of its trip ({@link EntityAIVillageVisit}). */
-    public boolean usesVillageVisit() {
+    /** Whether this unit stops to visit each village of its trip ({@link EntityAIStay}). */
+    public boolean usesStays() {
         return TravellersConfig.VILLAGE_VISIT.enabledTravellers;
     }
 
     @Nullable
-    private EntityAIVillageVisit villageVisitAI;
+    private EntityAIStay stayAI;
 
     @Nullable
-    public EntityAIVillageVisit getVillageVisitAI() {
-        return villageVisitAI;
+    public EntityAIStay getStayAI() {
+        return stayAI;
     }
 
-    protected void setVillageVisitAI(@Nullable EntityAIVillageVisit ai) {
-        this.villageVisitAI = ai;
+    protected void setStayAI(@Nullable EntityAIStay ai) {
+        this.stayAI = ai;
     }
 
     // Who turned the head during the last tick, for the trace ("gaze", "syncBody"...). Debug only.
@@ -732,8 +732,8 @@ public class EntityTraveller extends EntityCreature {
     }
 
     /** True while the village visit task is actually running (not merely the persisted idling flag). */
-    public boolean isVisitingVillage() {
-        return villageVisitAI != null && villageVisitAI.isRunning();
+    public boolean isOnStay() {
+        return stayAI != null && stayAI.isRunning();
     }
 
     @Nullable
@@ -747,49 +747,44 @@ public class EntityTraveller extends EntityCreature {
     /** A group follower standing in the village its loaded leader is currently staying in: it visits
      * on its own instead of following, until the leader starts to leave. */
     public boolean canDisperseWithLeader() {
-        if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !usesVillageVisit()) return false;
-        BlockPos stop = getLeaderVisitStop();
+        if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !usesStays()) return false;
+        BlockPos stop = getLeaderStayStop();
         if (stop == null) return false;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, stop);
-        if (s == null) return false;
-        double dx = posX - (s.center.getX() + 0.5D);
-        double dz = posZ - (s.center.getZ() + 0.5D);
-        double r = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
-        return dx * dx + dz * dz <= r * r;
+        com.jubitus.travellers.stay.StayPlace place = com.jubitus.travellers.stay.StayPlace.at(world, stop);
+        return place != null && place.contains(posX, posZ);
     }
 
     /** The village the group leader is staying in right now, loaded or offscreen; null otherwise. */
     @Nullable
-    public BlockPos getLeaderVisitStop() {
+    public BlockPos getLeaderStayStop() {
         UUID id = getGroupLeaderUUID();
         if (id == null) return null;
         EntityTraveller leader = getLoadedGroupLeader();
         if (leader != null) {
-            EntityAIVillageVisit visit = leader.getVillageVisitAI();
-            return visit != null && visit.isStaying() ? visit.getVisitStop() : null;
+            EntityAIStay visit = leader.getStayAI();
+            return visit != null && visit.isStaying() ? visit.getStayStop() : null;
         }
         if (!(world instanceof WorldServer)) return null;
         com.jubitus.travellers.virtual.VirtualTravellerRecord r =
                 com.jubitus.travellers.virtual.VirtualTravellerManager.get((WorldServer) world).getRecord(id);
-        VillageVisitState st = r == null ? null : r.visit;
+        StayState st = r == null ? null : r.visit;
         return st != null && !st.isLeaving() && !st.asFollower ? st.stop : null;
     }
 
     /** Group followers leave their follow AI alone while dispersed in a village (or finishing that visit). */
-    public boolean isDispersedInVillage() {
+    public boolean isDispersedInStay() {
         if (getGroupLeaderUUID() == null) return false;
-        return isVisitingVillage() || canDisperseWithLeader();
+        return isOnStay() || canDisperseWithLeader();
     }
 
     /** The settlement this unit is about to visit (its own next stop, or its leader's), or null. */
     @Nullable
-    public BlockPos getUpcomingVisitStop() {
-        if (!usesVillageVisit()) return null;
+    public BlockPos getUpcomingStayStop() {
+        if (!usesStays()) return null;
         EntityTraveller ref = this;
         if (getGroupLeaderUUID() != null) {
             ref = getLoadedGroupLeader();
-            if (ref == null || !ref.usesVillageVisit()) return null;
+            if (ref == null || !ref.usesStays()) return null;
         }
         BlockPos stop = ref.getTravelCommon().getTargetVillage();
         if (stop == null || stop.equals(ref.getTravelCommon().getVisitedStop())) return null;
@@ -799,15 +794,15 @@ public class EntityTraveller extends EntityCreature {
     // The settlement whose edge this rider hitched its horse at, to visit it on foot. A HITCHED horse
     // carrying this marker is never recalled; see MountModes.reconcileOnFoot.
     @Nullable
-    private BlockPos villageHitchStop;
+    private BlockPos hitchStop;
 
     @Nullable
-    public BlockPos getVillageHitchStop() {
-        return villageHitchStop;
+    public BlockPos getHitchStop() {
+        return hitchStop;
     }
 
-    public void setVillageHitchStop(@Nullable BlockPos stop) {
-        this.villageHitchStop = stop;
+    public void setHitchStop(@Nullable BlockPos stop) {
+        this.hitchStop = stop;
     }
 
 
@@ -918,8 +913,8 @@ public class EntityTraveller extends EntityCreature {
         // Utility / travel
         this.tasks.addTask(23, new EntityAIPassDoor(this));
 
-        villageVisitAI = new EntityAIVillageVisit(this);
-        this.tasks.addTask(25, villageVisitAI);
+        stayAI = new EntityAIStay(this);
+        this.tasks.addTask(25, stayAI);
 
         aiTravel = new EntityAITravel(this, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(27, aiTravel);
@@ -1079,7 +1074,7 @@ public class EntityTraveller extends EntityCreature {
             itineraryState.writeNbt(compound, ITINERARY_NBT_KEY);
             compound.setInteger("TextureIdx", getTextureIndex());
             compound.setFloat("RenderScale", getRenderScale());
-            if (villageHitchStop != null) compound.setLong("VillageHitchStop", villageHitchStop.toLong());
+            if (hitchStop != null) compound.setLong("VillageHitchStop", hitchStop.toLong());
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, voice.getPersonalityId());
             UUID groupLeader = getGroupLeaderUUID();
@@ -1087,7 +1082,7 @@ public class EntityTraveller extends EntityCreature {
             compound.setString("GroupFormationStyle", groupFormationStyle.name());
             if (travelMotive != null) compound.setString("TravelMotive", travelMotive.name());
             if (getMountUUID() != null) compound.setUniqueId("MountUUID", getMountUUID());
-            if (villageVisitState != null) compound.setTag(VillageVisitState.NBT_KEY, villageVisitState.write());
+            if (villageVisitState != null) compound.setTag(StayState.NBT_KEY, villageVisitState.write());
             mountState.writeNbt(compound);
             if (homeVillage != null) {
                 compound.setInteger("HomeVillageX", homeVillage.getX());
@@ -1147,7 +1142,7 @@ public class EntityTraveller extends EntityCreature {
 
 
         itineraryState.readNbt(compound, ITINERARY_NBT_KEY);
-        villageHitchStop = compound.hasKey("VillageHitchStop") ? BlockPos.fromLong(compound.getLong("VillageHitchStop")) : null;
+        hitchStop = compound.hasKey("VillageHitchStop") ? BlockPos.fromLong(compound.getLong("VillageHitchStop")) : null;
         setGroupLeaderUUID(compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null);
         if (compound.hasKey("GroupFormationStyle")) {
             try {
@@ -1172,8 +1167,8 @@ public class EntityTraveller extends EntityCreature {
         }
         setMountUUID(compound.hasUniqueId("MountUUID") ? compound.getUniqueId("MountUUID") : null);
         // Always replaced, never merged: a stay that ended must not survive in a stale snapshot.
-        villageVisitState = VillageVisitState.read(compound.hasKey(VillageVisitState.NBT_KEY)
-                ? compound.getCompoundTag(VillageVisitState.NBT_KEY) : null);
+        villageVisitState = StayState.read(compound.hasKey(StayState.NBT_KEY)
+                ? compound.getCompoundTag(StayState.NBT_KEY) : null);
         mountState.readNbt(compound);
         if (compound.hasKey("HomeVillageX")) {
             homeVillage = new BlockPos(
@@ -1287,9 +1282,9 @@ public class EntityTraveller extends EntityCreature {
 
                 // A unit that visits villages leaves a stop only once its visit is over; the others
                 // move on as soon as they reach it and are marked ready.
-                boolean leave = usesVillageVisit()
+                boolean leave = usesStays()
                         ? curStop.equals(travelCommon.getVisitedStop())
-                        : travelCommon.isAtTargetStop() && !travelCommon.isVillageIdling() && travelCommon.isReadyToDepart();
+                        : travelCommon.isAtTargetStop() && !travelCommon.isIdlingAtStop() && travelCommon.isReadyToDepart();
 
                 if (leave) {
                     travelCommon.setVisitedStop(null);
@@ -1476,7 +1471,7 @@ public class EntityTraveller extends EntityCreature {
         }
 
         // Keep your existing “village idle / announce heading” messages:
-        if (travelCommon.isVillageIdling()) {
+        if (travelCommon.isIdlingAtStop()) {
             String stayName = travelCommon.lookupNearestVillageNameOrCoords();
             ITextComponent stayNameComp = new TextComponentString(stayName)
                     .setStyle(new Style().setColor(TextFormatting.GOLD));
@@ -2486,7 +2481,7 @@ public void fall(float distance, float damageMultiplier) {
             travelCommon.setTargetVillage(route.get(routeIndex));
         }
         travelCommon.setReadyToDepart(true);
-        travelCommon.setVillageIdling(false);
+        travelCommon.setIdlingAtStop(false);
         // Clear stale AI state from virtualization time
         travelCommon.setCurrentWaypoint(null);
         travelCommon.setDepartCooldownTicks(0);
@@ -2593,8 +2588,8 @@ public void fall(float distance, float damageMultiplier) {
         return max > 0 && getHealth() / max < TravellersConfig.COMBAT.lowHealthCombatFrac;
     }
 
-    public boolean isVillageIdling() {  // you already store this
-        return travelCommon.isVillageIdling();
+    public boolean isIdlingAtStop() {  // you already store this
+        return travelCommon.isIdlingAtStop();
     }
 
 

@@ -31,13 +31,13 @@ final class MountModes {
         switch (rider.mountState.getMountMode()) {
             case HITCHED:
                 TravellerMountSupport.setLeashed(horse, null);
-                BlockPos hitchStop = rider.getVillageHitchStop();
+                BlockPos hitchStop = rider.getHitchStop();
                 if (hitchStop != null) {
                     // Tied at a village edge while its rider visits: never recalled, the rider comes
                     // back for it. A visit that ended some other way (the trip moved on, a reload
                     // elsewhere) hands the horse back to the normal walk-over-and-remount.
-                    if (!rider.isVisitingVillage() && !hitchStop.equals(rider.getUpcomingVisitStop())) {
-                        rider.setVillageHitchStop(null);
+                    if (!rider.isOnStay() && !hitchStop.equals(rider.getUpcomingStayStop())) {
+                        rider.setHitchStop(null);
                         setMountMode(rider, MountMode.MOUNTED);
                     }
                     return;
@@ -139,20 +139,15 @@ final class MountModes {
      * about to visit - never inside or on a building, never in water or mid-jump (it just retries). */
     static void tryHitchAtVillageEdge(EntityTraveller rider, EntityHorse horse) {
         if (!TravellersConfig.MOUNTS.hitchMountInVillages || rider.isInCombat()) return;
-        BlockPos stop = rider.getUpcomingVisitStop();
+        BlockPos stop = rider.getUpcomingStayStop();
         if (stop == null) return;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(rider.world, stop);
-        if (s == null) return;
-        double dx = rider.posX - (s.center.getX() + 0.5D);
-        double dz = rider.posZ - (s.center.getZ() + 0.5D);
-        double r = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
-        if (dx * dx + dz * dz > r * r) return;
+        com.jubitus.travellers.stay.StayPlace place = com.jubitus.travellers.stay.StayPlace.at(rider.world, stop);
+        if (place == null || !place.contains(rider.posX, rider.posZ)) return;
         if (!horse.onGround || horse.isInWater() || isSwimming(horse)) return;
         if (com.jubitus.travellers.village.MillFootprints.isForbiddenLanding(rider.world,
                 horse.posX, horse.posY, horse.posZ)) return;
         setMountMode(rider, MountMode.HITCHED);
-        rider.setVillageHitchStop(stop);
+        rider.setHitchStop(stop);
         com.jubitus.travellers.debug.trace.TravellerTracer.event(rider, "mount",
                 String.format(java.util.Locale.ROOT, "hitched at village edge %.1f,%.1f,%.1f", horse.posX, horse.posY, horse.posZ));
     }

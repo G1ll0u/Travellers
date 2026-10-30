@@ -110,7 +110,7 @@ public class EntityAIFishWhileTravel extends EntityAIBase {
         if (mob.hasPlayerPassenger()) return false;
 
         // Only while travelling to somewhere (not idling in village)
-        if (mob.isVillageIdling()) return false;
+        if (mob.isIdlingAtStop()) return false;
         if (mob.getTravelCommon().getTargetVillage() == null) return false;
 
         // Random gate so it’s occasional

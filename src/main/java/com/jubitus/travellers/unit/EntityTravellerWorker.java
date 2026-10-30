@@ -12,7 +12,7 @@ import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.unit.culture.CultureDef;
 import com.jubitus.travellers.unit.culture.CultureRegistry;
 import com.jubitus.travellers.unit.culture.TravellerAppearance;
-import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
+import com.jubitus.travellers.stay.EntityAIStay;
 import com.jubitus.travellers.gaze.EntityAIStopAndLookAtPlayer;
 import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
 import com.jubitus.travellers.combat.ai.EntityAIDefendOwnerProactively;
@@ -203,7 +203,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.forceSpawn = true;
 
         // Re-added below at a priority above the worker's own travel task.
-        removeTaskOfType(EntityAIVillageVisit.class);
+        removeTaskOfType(EntityAIStay.class);
         removeTaskOfType(EntityAITravel.class);
         removeTaskOfType(EntityAIFollowLeader.class);
         removeTaskOfType(EntityAIStopAndLookAtPlayer.class);
@@ -261,7 +261,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         this.tasks.addTask(11, aiTravel);
 
         // Wandering (not hired) workers visit villages like travellers; the donation happens on departure.
-        if (getVillageVisitAI() != null) this.tasks.addTask(10, getVillageVisitAI());
+        if (getStayAI() != null) this.tasks.addTask(10, getStayAI());
 
         // Follow-leader AI (companion mode) - shared with plain traveller/raider groups, see
         // EntityAIFollowLeader's own class doc.
@@ -1180,7 +1180,7 @@ public class EntityTravellerWorker extends EntityTraveller {
         return travelInventory;
     }
 
-    public boolean usesVillageVisit() {
+    public boolean usesStays() {
         return TravellersConfig.VILLAGE_VISIT.enabledWorkers && !isHiredFollower() && isIdleForRoaming();
     }
 

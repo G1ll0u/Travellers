@@ -1,4 +1,4 @@
-package com.jubitus.travellers.village.visit;
+package com.jubitus.travellers.stay;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
@@ -6,15 +6,15 @@ import net.minecraft.util.math.BlockPos;
 import javax.annotation.Nullable;
 
 /**
- * A unit's stay in a village, owned by the loaded entity or by its virtual record and moved (never
+ * A unit's stay at a place of its trip ({@link StayPlace}), owned by the loaded entity or by its virtual record and moved (never
  * copied) between the two at virtualize/materialize, like the itinerary. The loaded visit task keeps
  * only its walking/gaze/talk state; everything that must survive going offscreen or a restart is here.
  */
-public final class VillageVisitState {
+public final class StayState {
 
     public static final String NBT_KEY = "VillageVisit";
 
-    /** The settlement's stop (town hall position, as the trip holds it). */
+    /** The trip stop (a town hall position, as the trip holds it). */
     public BlockPos stop;
     /** Stay left; 0 or less = leaving (out of buildings, back to the horse, then gone). */
     public int remainingTicks;
@@ -36,7 +36,7 @@ public final class VillageVisitState {
     /** Offscreen: world tick the record started waiting at the post for a horse still standing there. */
     public long waitingForHorseSince = -1;
 
-    public VillageVisitState(BlockPos stop, int remainingTicks, boolean asFollower) {
+    public StayState(BlockPos stop, int remainingTicks, boolean asFollower) {
         this.stop = stop;
         this.remainingTicks = remainingTicks;
         this.asFollower = asFollower;
@@ -61,9 +61,9 @@ public final class VillageVisitState {
     }
 
     @Nullable
-    public static VillageVisitState read(@Nullable NBTTagCompound t) {
+    public static StayState read(@Nullable NBTTagCompound t) {
         if (t == null || !t.hasKey("Stop")) return null;
-        VillageVisitState s = new VillageVisitState(BlockPos.fromLong(t.getLong("Stop")),
+        StayState s = new StayState(BlockPos.fromLong(t.getLong("Stop")),
                 t.getInteger("Remaining"), t.getBoolean("Follower"));
         s.spot = t.hasKey("Spot") ? BlockPos.fromLong(t.getLong("Spot")) : null;
         s.facing = t.hasKey("Facing") ? BlockPos.fromLong(t.getLong("Facing")) : null;

@@ -143,7 +143,7 @@ public class EntityAITravel extends EntityAIBase {
 
         if (mob.isInCombat() || mob.isAutoEating() || mob.isHandActive()) return false;
         // A visitor strolls beyond the arrival radius; travel must not drag it back to the centre.
-        if (!catchup && mob.isVisitingVillage()) return false;
+        if (!catchup && mob.isOnStay()) return false;
 
         // only block "already inside" when NOT in catchup
         if (!catchup && (mob.isAtTargetStop() || mob.getTravelCommon().isAtTargetStopHys(false))) return false;

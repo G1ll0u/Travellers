@@ -343,7 +343,7 @@ public final class RaidScheduler {
                     .append(" ready=").append(t.getTravelCommon().isReadyToDepart())
                     .append(" cooldown=").append(t.getTravelCommon().getDepartCooldownTicks())
                     .append(" atStop=").append(t.isAtTargetStop())
-                    .append(" visiting=").append(t.isVisitingVillage())
+                    .append(" visiting=").append(t.isOnStay())
                     .append(" mounted=").append(t.getRidingEntity() != null)
                     .append(" frozenByVanilla=").append(VirtualTravellerManager.isFrozenByVanillaAt(ws, t.posX, t.posZ))
                     .append(" tracked=").append(t.isTrackedByAnyPlayer())

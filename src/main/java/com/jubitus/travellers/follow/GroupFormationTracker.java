@@ -299,7 +299,7 @@ public final class GroupFormationTracker {
                 if (!(e instanceof EntityTraveller) || !e.isEntityAlive()) continue;
                 EntityTraveller f = (EntityTraveller) e;
                 if (!isFollowerOf(f, leader) || f.getAttackTarget() != null
-                        || f.isDispersedInVillage() || f.isCatchupTravel()) continue;
+                        || f.isDispersedInStay() || f.isCatchupTravel()) continue;
                 Double expected = ctx.expected.get(id);
                 if (expected == null) continue;
                 double lag = Math.max(0.0D, f.getDistance(leader.posX, f.posY, leader.posZ) - expected);

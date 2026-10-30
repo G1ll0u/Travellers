@@ -160,7 +160,7 @@ public final class FreezeWatchdog {
             double d = e.getDistance(target);
             return d > COMBAT_MIN_DISTANCE && d < COMBAT_MAX_DISTANCE ? "combat" : null;
         }
-        if (e.isInCombat() || e.isDispersedInVillage()) return null;
+        if (e.isInCombat() || e.isDispersedInStay()) return null;
 
         if (e.isFollowOrderActive()) {
             if (e instanceof EntityTravellerWorker && !e.isHiredFollower()) return null;

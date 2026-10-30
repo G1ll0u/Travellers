@@ -150,7 +150,7 @@ public class CommandTravellerRouteDump extends CommandBase {
         }
         out.println("Target village: " + fmtNullable(mob.getTravelCommon().getTargetVillage()));
         out.println("Current wp    : " + fmtNullable(mob.getTravelCommon().getCurrentWaypoint()));
-        out.println("Idling        : " + mob.isVillageIdling());
+        out.println("Idling        : " + mob.isIdlingAtStop());
         out.println();
 
         // ── Itinerary (current leg) ──────────────────────────────────────────

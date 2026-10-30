@@ -67,7 +67,8 @@ Packages under `src/main/java/com/jubitus/travellers/`, **one folder per feature
 | Horse core shared by mounts and the Stable (markers, snapshots, join/death, theft guard) | `horse/` | `mount/CLAUDE.md` |
 | Player zones, Stable, duty | `zone/` | `zone/CLAUDE.md` |
 | Hired-worker orders, recruiting, worker screens | `worker/` | `worker/CLAUDE.md` |
-| Millénaire integration, village visits, village relations | `village/` | `village/CLAUDE.md` |
+| Millénaire integration, village relations | `village/` | `village/CLAUDE.md` |
+| Stays at trip stops (village visits, rest spots) | `stay/` | `stay/CLAUDE.md` |
 | Camps, block-by-block building | `camp/` | `camp/CLAUDE.md` |
 | Rest spots (discovery, scoring) | `restspot/` | `docs/rest-spots-plan.md` |
 | Virtual battles | `battle/` | `battle/CLAUDE.md` |

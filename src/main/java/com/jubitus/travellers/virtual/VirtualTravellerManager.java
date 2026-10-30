@@ -79,7 +79,7 @@ public class VirtualTravellerManager extends WorldSavedData {
 
     private final Map<UUID, VirtualTravellerRecord> records = new HashMap<>();
     private final VirtualWorkerMissions missions = new VirtualWorkerMissions(this, records);
-    private final VirtualVillageVisits visits = new VirtualVillageVisits(this, records);
+    private final VirtualStays visits = new VirtualStays(this, records);
     private final Map<UUID, Long> graceUntil = new HashMap<>();
     /**
      * Mirror of {@link #graceUntil}: blocks re-materializing for a moment after a unit went virtual.
@@ -1686,7 +1686,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         // Unconditional: entityNbt never carries the itinerary, the record is authoritative.
         entity.setItineraryState(r.itinerary);
         // Same for the village stay: the loaded visit task resumes it with the time left.
-        entity.setVillageVisitState(r.visit);
+        entity.setStayState(r.visit);
 
         // A mounted record resolves its position rider-sized above, but the horse that is about to
         // appear under it is far wider/taller: a rider dropped in a tree-lined gap leaves the horse
@@ -1733,7 +1733,7 @@ public class VirtualTravellerManager extends WorldSavedData {
         if (campStand != null) {
             // Camping: stay put at the slot. Real camp behaviour (build/sleep/wander) is AI (P4).
             entity.getTravelCommon().setReadyToDepart(false);
-            entity.getTravelCommon().setVillageIdling(true);
+            entity.getTravelCommon().setIdlingAtStop(true);
             // Sleep is a purely-loaded cosmetic pose, never simulated virtually or persisted to
             // NBT — but force it off anyway so a fresh materialize can never render "lying down"
             // while EntityAICampStay (re-evaluating from scratch) thinks the entity is standing.
@@ -1745,7 +1745,7 @@ public class VirtualTravellerManager extends WorldSavedData {
                 entity.restoreVirtualRoute(r.tripStops, r.tripIndex);
             } else {
                 entity.getTravelCommon().setReadyToDepart(true);
-                entity.getTravelCommon().setVillageIdling(false);
+                entity.getTravelCommon().setIdlingAtStop(false);
             }
         } else if (r.currentTripStop() != null
                 && !r.isHiredFollower && "IDLE".equals(r.workerMode)

@@ -1,7 +1,7 @@
 package com.jubitus.travellers.gaze;
 
 import com.jubitus.travellers.config.TravellersConfig;
-import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
+import com.jubitus.travellers.stay.EntityAIStay;
 import com.jubitus.travellers.follow.EntityAIFollowLeader;
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.unit.EntityTraveller;
@@ -40,7 +40,7 @@ public final class TravellerGreeter {
         if (!TravellersConfig.GAZE.greetingsEnabled || !canStartGreeting()) return;
         UUID me = Greetings.partyOf(mob);
         if (me == null) return;
-        boolean visiting = mob.isVisitingVillage();
+        boolean visiting = mob.isOnStay();
         double range = TravellersConfig.GAZE.greetRange;
         EntityLivingBase best = null;
         double bestScore = Double.MAX_VALUE;
@@ -138,7 +138,7 @@ public final class TravellerGreeter {
         if (!canAnswer(mob)) return false;
         EntityAIBase moving = mob.getRunningMovementTask();
         return moving == null || moving instanceof EntityAITravel || moving instanceof EntityAIFollowLeader
-                || moving instanceof EntityAIStopAndLookAtPlayer || moving instanceof EntityAIVillageVisit;
+                || moving instanceof EntityAIStopAndLookAtPlayer || moving instanceof EntityAIStay;
     }
 
     private static boolean canAnswer(EntityTraveller t) {
@@ -149,6 +149,6 @@ public final class TravellerGreeter {
     }
 
     private static boolean isVisiting(EntityLivingBase e) {
-        return e instanceof EntityTraveller && ((EntityTraveller) e).isVisitingVillage();
+        return e instanceof EntityTraveller && ((EntityTraveller) e).isOnStay();
     }
 }

@@ -31,7 +31,7 @@ public final class RecentTravelHistoryDialogueContextProvider implements Dialogu
         // "recently passed through X" in the same prompt, a real contradiction a real transcript produced
         // (2026-09-22 maintainer report: "Cela fait déjà un long moment que j'y ai passé" about its own
         // not-yet-reached destination).
-        BlockPos current = travelCommon.isVillageIdling() ? travelCommon.getNearestVillage() : travelCommon.getTargetVillage();
+        BlockPos current = travelCommon.isIdlingAtStop() ? travelCommon.getNearestVillage() : travelCommon.getTargetVillage();
         Long excludeKey = current != null ? RecentDestinationRing.pack(current) : null;
 
         World world = traveller.world;

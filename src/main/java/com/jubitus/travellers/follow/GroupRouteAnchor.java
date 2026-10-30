@@ -149,8 +149,8 @@ final class GroupRouteAnchor {
 
     /** The leader's itinerary while it is actually walking it toward its target; null otherwise. */
     static Itinerary walkedItinerary(EntityTraveller leader) {
-        if (!leader.isItineraryDriven() || leader.isVisitingVillage() || leader.getAttackTarget() != null) return null;
-        if (leader.getTravelCommon().isVillageIdling()) return null;
+        if (!leader.isItineraryDriven() || leader.isOnStay() || leader.getAttackTarget() != null) return null;
+        if (leader.getTravelCommon().isIdlingAtStop()) return null;
         if (leader.getLowestRidingEntity() instanceof EntityBoat) return null;
         BlockPos target = leader.getTravelCommon().getTargetVillage();
         ItineraryState st = leader.getItineraryState();

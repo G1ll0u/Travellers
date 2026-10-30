@@ -2,6 +2,11 @@ package com.jubitus.travellers.virtual;
 
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.mount.MountMode;
+import com.jubitus.travellers.stay.EntityAIStay;
+import com.jubitus.travellers.stay.StayOccupancy;
+import com.jubitus.travellers.stay.StayPlace;
+import com.jubitus.travellers.stay.StayState;
+import com.jubitus.travellers.village.VillageVisitIndex;
 import com.jubitus.travellers.unit.EntityTraveller;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NBTTagCompound;
@@ -12,13 +17,13 @@ import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.UUID;
 
-/** Village stays of offscreen records (see VillageVisitState; the loaded side is EntityAIVillageVisit). */
-final class VirtualVillageVisits {
+/** Stays of offscreen records (see StayState; the loaded side is EntityAIStay). */
+final class VirtualStays {
 
     private final VirtualTravellerManager manager;
     private final Map<UUID, VirtualTravellerRecord> records;
 
-    VirtualVillageVisits(VirtualTravellerManager manager, Map<UUID, VirtualTravellerRecord> records) {
+    VirtualStays(VirtualTravellerManager manager, Map<UUID, VirtualTravellerRecord> records) {
         this.manager = manager;
         this.records = records;
     }
@@ -41,48 +46,43 @@ final class VirtualVillageVisits {
         if (d2 > (double) reach * reach) return false;
         if (r.entityNbt != null && r.entityNbt.hasKey("VisitedStop")
                 && BlockPos.fromLong(r.entityNbt.getLong("VisitedStop")).equals(stop)) return false;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, stop);
-        if (s == null) return false;
-        int arrive = s.lone ? cfg.loneBuildingArrivalRadius : cfg.arrivalRadius;
+        StayPlace place = StayPlace.at(world, stop);
+        if (place == null) return false;
+        int arrive = place.arrivalRadius();
         if (d2 > (double) arrive * arrive) return false;
 
-        int min = s.lone ? cfg.loneBuildingHaltMinSeconds : cfg.stayMinSeconds;
-        int max = Math.max(min, s.lone ? cfg.loneBuildingHaltMaxSeconds : cfg.stayMaxSeconds);
-        com.jubitus.travellers.village.visit.VillageVisitState st =
-                new com.jubitus.travellers.village.visit.VillageVisitState(stop, 20 * (min + world.rand.nextInt(max - min + 1)), false);
-        startStay(world, r, st, s, now);
+        startStay(world, r, new StayState(stop, place.rollStayTicks(world.rand), false), place, now);
         return true;
     }
 
-    private void startStay(WorldServer world, VirtualTravellerRecord r, com.jubitus.travellers.village.visit.VillageVisitState st,
-                           com.jubitus.travellers.village.VillageVisitIndex.Settlement s, long now) {
-        com.jubitus.travellers.debug.profile.MovementProfiler.villageVisit(world, r.uuid, st.stop, s.lone, r.entityClass,
-                r.cultureId, st.asFollower, r.mounted, true);
+    private void startStay(WorldServer world, VirtualTravellerRecord r, StayState st, StayPlace place, long now) {
+        if (place.settlement() != null) {
+            com.jubitus.travellers.debug.profile.MovementProfiler.villageVisit(world, r.uuid, st.stop, place.isLone(), r.entityClass,
+                    r.cultureId, st.asFollower, r.mounted, true);
+        }
         if (r.mounted && r.mountNbt != null && TravellersConfig.MOUNTS.hitchMountInVillages
                 && (r.mountMode == null || "MOUNTED".equals(r.mountMode))) {
             // Tied where the grounds begin, on the side it came from, like the loaded hitch.
-            st.hitchPos = edgePostFor(world, s, r.posX, r.posY, r.posZ);
+            st.hitchPos = edgePostFor(world, place, r.posX, r.posY, r.posZ);
             r.mountMode = MountMode.HITCHED.name();
             if (r.entityNbt != null) r.entityNbt.setLong("VillageHitchStop", st.stop.toLong());
         }
         r.visit = st;
         r.visitClockTick = now;
-        pickVirtualSpot(world, r, s, now);
+        pickVirtualSpot(world, r, place, now);
         manager.markDirty();
     }
 
-    /** The point on the settlement's edge between its centre and (x, z), clear of any building. */
-    private static BlockPos edgePostFor(WorldServer world, com.jubitus.travellers.village.VillageVisitIndex.Settlement s,
-                                        double x, double y, double z) {
-        double cx = s.center.getX() + 0.5, cz = s.center.getZ() + 0.5;
+    /** The point on the place's edge between its centre and (x, z), clear of any building. */
+    private static BlockPos edgePostFor(WorldServer world, StayPlace place, double x, double y, double z) {
+        double cx = place.center.getX() + 0.5, cz = place.center.getZ() + 0.5;
         double dx = x - cx, dz = z - cz;
         double len = Math.sqrt(dx * dx + dz * dz);
         if (len < 1.0E-3) {
             dx = 1.0;
             len = 1.0;
         }
-        double edge = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
+        double edge = place.radius;
         for (int extra = 0; extra <= 8; extra += 2) {
             double px = cx + dx / len * (edge + extra), pz = cz + dz / len * (edge + extra);
             if (!com.jubitus.travellers.village.MillFootprints.isForbiddenLanding(world, px, y, pz)) {
@@ -99,10 +99,9 @@ final class VirtualVillageVisits {
      * post, a worker leaves its gift, and the trip moves on. A follower's stay lasts its leader's.
      */
     void tick(WorldServer world, VirtualTravellerRecord r, long now) {
-        com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, st.stop);
-        if (s == null) {
+        StayState st = r.visit;
+        StayPlace place = StayPlace.at(world, st.stop);
+        if (place == null) {
             endVirtualVisit(world, r, now);
             return;
         }
@@ -110,13 +109,13 @@ final class VirtualVillageVisits {
         long elapsed = r.visitClockTick < 0 ? 0 : Math.min(200L, Math.max(0, now - r.visitClockTick));
         r.visitClockTick = now;
         if (st.asFollower) {
-            if (!st.isLeaving() && leaderVisitStop(world, r.groupLeaderUUID) == null) st.remainingTicks = 0;
+            if (!st.isLeaving() && leaderStayStop(world, r.groupLeaderUUID) == null) st.remainingTicks = 0;
         } else if (!st.isLeaving()) {
             st.remainingTicks -= (int) Math.min(Integer.MAX_VALUE, elapsed);
         }
 
         if (!st.isLeaving()) {
-            if (now >= st.nextStepTick) pickVirtualSpot(world, r, s, now);
+            if (now >= st.nextStepTick) pickVirtualSpot(world, r, place, now);
             return;
         }
 
@@ -140,7 +139,7 @@ final class VirtualVillageVisits {
      * without it - the bond stays, and the horse joins it back as data when its chunk is next loaded.
      */
     private boolean reclaimHorseAtPost(WorldServer world, VirtualTravellerRecord r,
-                                       com.jubitus.travellers.village.visit.VillageVisitState st, long now) {
+                                       StayState st, long now) {
         if (r.mountNbt != null) {
             st.horseAtPost = false;
             return true;
@@ -168,7 +167,7 @@ final class VirtualVillageVisits {
     }
 
     private void endVirtualVisit(WorldServer world, VirtualTravellerRecord r, long now) {
-        com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
+        StayState st = r.visit;
         drop(world, r);
         // A follower's own trip isn't what brought it here; it simply goes back to following.
         if (st == null || st.asFollower) return;
@@ -180,16 +179,16 @@ final class VirtualVillageVisits {
     void drop(WorldServer world, VirtualTravellerRecord r) {
         r.visit = null;
         r.visitClockTick = -1L;
-        com.jubitus.travellers.village.visit.VisitOccupancy.release(world, r.uuid);
+        StayOccupancy.release(world, r.uuid);
         if ("HITCHED".equals(r.mountMode)) r.mountMode = MountMode.MOUNTED.name();
         if (r.entityNbt != null) r.entityNbt.removeTag("VillageHitchStop");
         manager.markDirty();
     }
 
     /** Draws the record's next spot in the village, the same way the loaded visit draws its targets. */
-    private void pickVirtualSpot(WorldServer world, VirtualTravellerRecord r,
-                                 com.jubitus.travellers.village.VillageVisitIndex.Settlement s, long now) {
-        com.jubitus.travellers.village.visit.VillageVisitState st = r.visit;
+    private void pickVirtualSpot(WorldServer world, VirtualTravellerRecord r, StayPlace place, long now) {
+        VillageVisitIndex.Settlement s = place.settlement();
+        StayState st = r.visit;
         TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
         java.util.Random rng = world.rand;
         int step = cfg.virtualStepSeconds * 20;
@@ -202,23 +201,24 @@ final class VirtualVillageVisits {
         double wStroll = Math.max(0, cfg.weightStroll);
         double wBuilding = streetsOnly ? 0 : Math.max(0, cfg.weightBuilding);
         double wPanel = streetsOnly || !cfg.visitPanels ? 0 : Math.max(0, cfg.weightPanel);
-        if (!s.buildings.isEmpty() && wBuilding > 0) {
-            for (com.jubitus.travellers.village.VillageVisitIndex.Target t : s.buildings) {
-                addSpot(world, r, s, t.entrance, t.point, wBuilding / s.buildings.size(), spots, faces, weights);
+        if (s != null && !s.buildings.isEmpty() && wBuilding > 0) {
+            for (VillageVisitIndex.Target t : s.buildings) {
+                addSpot(world, r, t.entrance, t.point, wBuilding / s.buildings.size(), spots, faces, weights);
             }
         }
-        if (!s.panelGroups.isEmpty() && wPanel > 0) {
-            for (java.util.List<com.jubitus.travellers.village.VillageVisitIndex.Target> g : s.panelGroups) {
-                com.jubitus.travellers.village.VillageVisitIndex.Target t = g.get(rng.nextInt(g.size()));
-                addSpot(world, r, s, t.entrance, t.point, wPanel / s.panelGroups.size(), spots, faces, weights);
+        if (s != null && !s.panelGroups.isEmpty() && wPanel > 0) {
+            for (java.util.List<VillageVisitIndex.Target> g : s.panelGroups) {
+                VillageVisitIndex.Target t = g.get(rng.nextInt(g.size()));
+                addSpot(world, r, t.entrance, t.point, wPanel / s.panelGroups.size(), spots, faces, weights);
             }
         }
-        if (!s.entrances.isEmpty() && (wStroll > 0 || spots.isEmpty())) {
-            double w = Math.max(wStroll, 1.0) / s.entrances.size();
-            for (BlockPos e : s.entrances) addSpot(world, r, s, e, null, w, spots, faces, weights);
+        java.util.List<BlockPos> anchors = place.anchors();
+        if (!anchors.isEmpty() && (wStroll > 0 || spots.isEmpty())) {
+            double w = Math.max(wStroll, 1.0) / anchors.size();
+            for (BlockPos e : anchors) addSpot(world, r, e, null, w, spots, faces, weights);
         }
         if (spots.isEmpty()) {
-            st.spot = s.center;
+            st.spot = place.center;
             st.facing = null;
             r.goal = st.spot;
             return;
@@ -241,11 +241,10 @@ final class VirtualVillageVisits {
         st.spot = new BlockPos(base.getX() + Math.cos(angle) * radius, base.getY(), base.getZ() + Math.sin(angle) * radius);
         st.facing = faces.get(pick);
         r.goal = st.spot;
-        com.jubitus.travellers.village.visit.VisitOccupancy.claim(world, r.uuid, st.spot, step * 2);
+        StayOccupancy.claim(world, r.uuid, st.spot, step * 2);
     }
 
     private static void addSpot(WorldServer world, VirtualTravellerRecord r,
-                                com.jubitus.travellers.village.VillageVisitIndex.Settlement s,
                                 @Nullable BlockPos entrance, @Nullable BlockPos point, double weight,
                                 java.util.List<BlockPos> spots, java.util.List<BlockPos> faces, java.util.List<Double> weights) {
         // Offscreen visitors stand outside: at the entrance, never at an indoor point.
@@ -253,7 +252,7 @@ final class VirtualVillageVisits {
         if (at == null && point != null && com.jubitus.travellers.village.MillFootprints.at(world,
                 point.getX() + 0.5, point.getY(), point.getZ() + 0.5, 0) == null) at = point;
         if (at == null || weight <= 0) return;
-        double crowd = com.jubitus.travellers.village.visit.VisitOccupancy.crowdFactor(world, at, 4.0, r.uuid,
+        double crowd = StayOccupancy.crowdFactor(world, at, 4.0, r.uuid,
                 TravellersConfig.VILLAGE_VISIT.crowdPenalty);
         spots.add(at);
         faces.add(point != null ? point : null);
@@ -262,33 +261,28 @@ final class VirtualVillageVisits {
 
     /** The village a group leader (loaded or offscreen) is staying in right now, or null. */
     @Nullable
-    private BlockPos leaderVisitStop(WorldServer world, @Nullable UUID leaderId) {
+    private BlockPos leaderStayStop(WorldServer world, @Nullable UUID leaderId) {
         if (leaderId == null) return null;
         VirtualTravellerRecord leaderRec = records.get(leaderId);
         if (leaderRec != null) {
-            com.jubitus.travellers.village.visit.VillageVisitState lv = leaderRec.visit;
+            StayState lv = leaderRec.visit;
             return lv != null && !lv.isLeaving() && !lv.asFollower ? lv.stop : null;
         }
         Entity live = world.getEntityFromUuid(leaderId);
         if (!(live instanceof EntityTraveller) || live.isDead) return null;
-        com.jubitus.travellers.village.visit.EntityAIVillageVisit v = ((EntityTraveller) live).getVillageVisitAI();
-        return v != null && v.isStaying() ? v.getVisitStop() : null;
+        EntityAIStay v = ((EntityTraveller) live).getStayAI();
+        return v != null && v.isStaying() ? v.getStayStop() : null;
     }
 
     /** A group follower record inside the village its leader stays in visits on its own until the leader leaves. */
     boolean tryStartFollower(WorldServer world, VirtualTravellerRecord r, long now) {
         if (!TravellersConfig.VILLAGE_VISIT.followersDisperse || !visitsEnabledFor(r)
                 || com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return false;
-        BlockPos stop = leaderVisitStop(world, r.groupLeaderUUID);
+        BlockPos stop = leaderStayStop(world, r.groupLeaderUUID);
         if (stop == null) return false;
-        com.jubitus.travellers.village.VillageVisitIndex.Settlement s =
-                com.jubitus.travellers.village.VillageVisitIndex.get(world, stop);
-        if (s == null) return false;
-        double dx = s.center.getX() + 0.5 - r.posX;
-        double dz = s.center.getZ() + 0.5 - r.posZ;
-        double rad = Math.max(s.radius, TravellersConfig.VILLAGE_VISIT.arrivalRadius);
-        if (dx * dx + dz * dz > rad * rad) return false;
-        startStay(world, r, new com.jubitus.travellers.village.visit.VillageVisitState(stop, Integer.MAX_VALUE / 2, true), s, now);
+        StayPlace place = StayPlace.at(world, stop);
+        if (place == null || !place.contains(r.posX, r.posZ)) return false;
+        startStay(world, r, new StayState(stop, Integer.MAX_VALUE / 2, true), place, now);
         return true;
     }
 }

@@ -41,7 +41,7 @@ public class TravellerMoveHelper extends EntityMoveHelper {
         }
         if (!this.rider.isMountedOnBondedMount()) {
             // Strolling in a village: round, calm turns instead of vanilla's quarter turn per tick.
-            if (this.rider.isVisitingVillage()) {
+            if (this.rider.isOnStay()) {
                 this.entity.rotationYaw = limitAngle(before, this.entity.rotationYaw,
                         (float) TravellersConfig.VILLAGE_VISIT.visitBodyTurnSpeed);
             }

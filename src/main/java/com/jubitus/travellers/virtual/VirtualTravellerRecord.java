@@ -174,8 +174,8 @@ public class VirtualTravellerRecord {
     // virtual (MountMode.name()), so materialize puts the pair back exactly as the player last saw
     // them instead of always dropping the rider into the saddle.
     @Nullable public String mountMode;
-    /** The current village stay, moved here from the entity at virtualize (see VillageVisitState). */
-    @Nullable public com.jubitus.travellers.village.visit.VillageVisitState visit;
+    /** The current village stay, moved here from the entity at virtualize (see StayState). */
+    @Nullable public com.jubitus.travellers.stay.StayState visit;
     /** A hired worker's recruiting tour, moved here at virtualize (authoritative over entityNbt). */
     @Nullable public com.jubitus.travellers.worker.RecruitTour recruitTour;
     /** The worker's purse, copied at virtualize (authoritative over entityNbt). */
@@ -410,7 +410,7 @@ public class VirtualTravellerRecord {
         r.mounted = tag.getBoolean("Mounted");
         if (tag.hasKey("MountData")) r.mountNbt = tag.getCompoundTag("MountData");
         if (tag.hasKey("MountMode")) r.mountMode = tag.getString("MountMode");
-        r.visit = com.jubitus.travellers.village.visit.VillageVisitState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
+        r.visit = com.jubitus.travellers.stay.StayState.read(tag.hasKey("Visit") ? tag.getCompoundTag("Visit") : null);
         r.recruitTour = com.jubitus.travellers.worker.RecruitTour.read(tag.hasKey("RecruitTour") ? tag.getCompoundTag("RecruitTour") : null);
         r.purse.read(tag);
         if (tag.hasKey("CampSite")) {

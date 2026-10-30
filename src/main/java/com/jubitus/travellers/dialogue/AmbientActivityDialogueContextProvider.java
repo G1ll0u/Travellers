@@ -24,7 +24,7 @@ import java.util.Set;
  * context-expansion plan following 2026-09-11 in-world feedback: a traveller couldn't say what
  * culture its own destination was), and nearby settlements. Deliberately reuses the exact same
  * signals {@code EntityTraveller.processInteract()} already reads today
- * ({@link EntityTraveller#isFollowingSomeone()}, {@link TravelCommon#isVillageIdling()},
+ * ({@link EntityTraveller#isFollowingSomeone()}, {@link TravelCommon#isIdlingAtStop()},
  * {@link TravelCommon#getTargetVillage()}) rather than inventing a second way to ask "what is this
  * traveller doing right now" — see {@code announceHeadingTo} in that class for the same resolution
  * idiom applied to the destination village's name.
@@ -43,7 +43,7 @@ public final class AmbientActivityDialogueContextProvider implements DialogueCon
 
         BlockPos activityVillagePos = null;
         boolean travellingToVillage = false;
-        if (travelCommon != null && travelCommon.isVillageIdling()) {
+        if (travelCommon != null && travelCommon.isIdlingAtStop()) {
             builder.activity(DialogueContext.ActivityKind.IDLING_IN_VILLAGE);
             activityVillagePos = travelCommon.getNearestVillage();
         } else {

@@ -197,7 +197,7 @@ final class MountLifecycle {
         Entity rider = world.getEntityFromUuid(riderUUID);
         if (rider instanceof EntityTraveller && !rider.isDead
                 && ((EntityTraveller) rider).mountState.getMountMode() == MountMode.HITCHED
-                && ((EntityTraveller) rider).getVillageHitchStop() != null) {
+                && ((EntityTraveller) rider).getHitchStop() != null) {
             // Tied at a village post while its rider visits: it stays at its post, as data on the
             // rider, and reappears there when that ground is loaded again (tickParkedMount).
             EntityTraveller r = (EntityTraveller) rider;

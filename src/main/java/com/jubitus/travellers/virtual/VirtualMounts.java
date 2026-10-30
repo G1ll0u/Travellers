@@ -25,7 +25,7 @@ final class VirtualMounts {
         // it must be carried into the record instead of silently lost, however long entity itself
         // now stays virtual before that crossing would have finished.
         MountMode mode = entity.mountState.getMountMode();
-        boolean tiedAtVillage = mode == MountMode.HITCHED && entity.getVillageHitchStop() != null && r.visit != null;
+        boolean tiedAtVillage = mode == MountMode.HITCHED && entity.getHitchStop() != null && r.visit != null;
         NBTTagCompound pending = entity.mountState.getPendingMountNbt();
         if (pending != null) {
             // Held as data already (tied at an unloaded post): it stays tied there, as the record's data.
@@ -47,7 +47,7 @@ final class VirtualMounts {
                 r.mountMode = MountMode.HITCHED.name();
                 if (horse.getDistanceSq(entity) > HORSE_LEFT_AT_POST_BLOCKS * HORSE_LEFT_AT_POST_BLOCKS) {
                     // Standing at its post, maybe in view: it stays there. The record comes back past
-                    // the post before leaving (VirtualVillageVisits.tick), and gets it as data if the post's
+                    // the post before leaving (VirtualStays.tick), and gets it as data if the post's
                     // chunk unloads first (handleBondedHorseChunkUnload -> VirtualTravellerManager.captureOrphanedMount).
                     r.visit.horseAtPost = true;
                     return;
@@ -86,13 +86,13 @@ final class VirtualMounts {
         if (r.mountMode != null) {
             entity.mountState.setMountModeRaw(com.jubitus.travellers.mount.MountMode.byName(r.mountMode));
         }
-        com.jubitus.travellers.village.visit.VillageVisitState visit = r.visit;
+        com.jubitus.travellers.stay.StayState visit = r.visit;
         if (visit != null && visit.hitchPos != null && (r.mountNbt != null || visit.horseAtPost)) {
             // Tied at the village edge: the horse belongs at its post, not beside the rider. Held as
             // data until that ground is loaded (MountPersistence.tickParkedMount), or already
             // standing there.
             entity.mountState.setMountModeRaw(MountMode.HITCHED);
-            entity.setVillageHitchStop(visit.stop);
+            entity.setHitchStop(visit.stop);
             if (r.mountNbt != null) entity.mountState.setParkedMount(r.mountNbt, visit.hitchPos);
             return;
         }

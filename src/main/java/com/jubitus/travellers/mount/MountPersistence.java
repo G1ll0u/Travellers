@@ -87,7 +87,7 @@ final class MountPersistence {
         if (rider.getMountUUID() != null && world.getEntityFromUuid(rider.getMountUUID()) != null) return;
         NBTTagCompound nbt = rider.mountState.getPendingMountNbt();
         BlockPos post = rider.mountState.getPendingMountPos();
-        boolean tied = post != null && rider.mountState.getMountMode() == MountMode.HITCHED && rider.getVillageHitchStop() != null;
+        boolean tied = post != null && rider.mountState.getMountMode() == MountMode.HITCHED && rider.getHitchStop() != null;
         if (tied && (!world.isBlockLoaded(post) || com.jubitus.travellers.virtual.VirtualTravellerManager
                 .isFrozenByVanillaAt(world, post.getX() + 0.5D, post.getZ() + 0.5D))) {
             return;

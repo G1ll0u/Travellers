@@ -1,4 +1,4 @@
-package com.jubitus.travellers.village.visit;
+package com.jubitus.travellers.stay;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -15,7 +15,7 @@ import java.util.WeakHashMap;
  * target can prefer a quieter one and keep a little room from the others. One claim per visitor;
  * claims expire on their own, so a visitor that vanished without releasing never blocks a spot for long.
  */
-public final class VisitOccupancy {
+public final class StayOccupancy {
 
     private static final Map<World, Map<UUID, Claim>> CLAIMS = new WeakHashMap<>();
 
@@ -29,7 +29,7 @@ public final class VisitOccupancy {
         }
     }
 
-    private VisitOccupancy() {
+    private StayOccupancy() {
     }
 
     public static void claim(World world, UUID who, BlockPos pos, int ttlTicks) {

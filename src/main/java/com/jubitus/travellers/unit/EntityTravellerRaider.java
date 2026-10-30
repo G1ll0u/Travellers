@@ -10,7 +10,7 @@ import com.jubitus.travellers.unit.culture.VillagerFilterRules;
 import com.jubitus.travellers.unit.culture.VoiceSet;
 import com.jubitus.travellers.ambient.EntityAIAutoEat;
 import com.jubitus.travellers.ambient.EntityAIFishWhileTravel;
-import com.jubitus.travellers.village.visit.EntityAIVillageVisit;
+import com.jubitus.travellers.stay.EntityAIStay;
 import com.jubitus.travellers.combat.ai.EntityAIAttackMeleeCustom;
 import com.jubitus.travellers.combat.TravellerCombatLogic;
 import com.jubitus.travellers.combat.ai.EntityAIDefendIfClose;
@@ -161,9 +161,9 @@ public class EntityTravellerRaider extends EntityTraveller {
         aiTravel = new EntityAITravel(this, TravellersConfig.ATTRIBUTES.stepBlocks);
         this.tasks.addTask(12, aiTravel);
 
-        // Village visit (streets only for raiders, see EntityAIVillageVisit)
-        EntityAIVillageVisit visit = new EntityAIVillageVisit(this);
-        setVillageVisitAI(visit);
+        // Village visit (streets only for raiders, see EntityAIStay)
+        EntityAIStay visit = new EntityAIStay(this);
+        setStayAI(visit);
         this.tasks.addTask(11, visit);
 
         // Fish while travelling (adds flavor during travel phases)
@@ -420,7 +420,7 @@ public class EntityTravellerRaider extends EntityTraveller {
     }
 
     @Override
-    public boolean usesVillageVisit() {
+    public boolean usesStays() {
         return TravellersConfig.VILLAGE_VISIT.enabledRaiders
                 && !com.jubitus.travellers.raid.RaidWorldData.isRaider(world, getUniqueID());
     }

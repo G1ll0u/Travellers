@@ -1,4 +1,4 @@
-package com.jubitus.travellers.village.visit;
+package com.jubitus.travellers.stay;
 
 import com.jubitus.travellers.unit.UnitSpeed;
 import com.jubitus.travellers.unit.LandingSpots;
@@ -17,6 +17,7 @@ import com.jubitus.travellers.mixins.MixinResManagerPointsAccessor;
 import com.jubitus.travellers.village.MillFootprints;
 import com.jubitus.travellers.village.MillGoods;
 import com.jubitus.travellers.village.VillageVisitIndex;
+import com.jubitus.travellers.village.visit.VillageGround;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.properties.PropertyDirection;
 import net.minecraft.block.state.IBlockState;
@@ -43,7 +44,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A traveller's, raider's or wandering worker's stay in a village of its trip: strolls the streets,
+ * A traveller's, raider's or wandering worker's stay at a place of its trip ({@link StayPlace}). In a
+ * village it strolls the streets,
  * visits buildings (the exact spot a Millénaire villager would go to, entered and left through the
  * building's entrance), reads the information panels and glances at / talks with the people around.
  * When the stay is over it steps back outside if needed, a worker leaves its gift to the village, and
@@ -55,9 +57,9 @@ import java.util.Objects;
  * out through the entrance; a hop to the nearest outdoor spot is the last resort.
  *
  * <p>The head is the traveller's {@link TravellerGaze}, given foci here; conversations are
- * {@link VillageConversation}s; {@link VisitOccupancy} keeps visitors spread over the village.
+ * {@link StayConversation}s; {@link StayOccupancy} keeps visitors spread over the village.
  */
-public class EntityAIVillageVisit extends EntityAIBase {
+public class EntityAIStay extends EntityAIBase {
 
     private static final int RESUME_WINDOW_TICKS = 20 * 60 * 2;
     private static final int PROGRESS_CHECK_TICKS = 20;
@@ -115,7 +117,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
 
     private long lastActiveTick = Long.MIN_VALUE / 2;
     @Nullable
-    private VillageVisitIndex.Settlement settlement;
+    private StayPlace place;
     @Nullable
     private VillageVisitIndex.Target lastTarget;
     private int waitTicks;
@@ -145,7 +147,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     private int socialTicker;
 
     @Nullable
-    private VillageConversation conversation;
+    private StayConversation conversation;
     private int seenSpeakerChanges;
     private int talkWalkTicks;
 
@@ -158,7 +160,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     @Nullable
     private Vec3d sidestep;
 
-    public EntityAIVillageVisit(EntityTraveller mob) {
+    public EntityAIStay(EntityTraveller mob) {
         this.mob = mob;
         this.setMutexBits(3);
     }
@@ -170,25 +172,25 @@ public class EntityAIVillageVisit extends EntityAIBase {
     /** Still enjoying the village (not leaving yet) - what keeps a group's followers dispersed. A
      * short interruption (a fight, a meal) doesn't end it: the stay resumes afterwards. */
     public boolean isStaying() {
-        VillageVisitState st = mob.getVillageVisitState();
+        StayState st = mob.getStayState();
         if (finished || st == null || st.isLeaving() || activity.departing()) return false;
         if (!st.asFollower && !st.stop.equals(mob.getTravelCommon().getTargetVillage())) return false;
         return running || mob.world.getTotalWorldTime() - lastActiveTick <= RESUME_WINDOW_TICKS;
     }
 
     @Nullable
-    public BlockPos getVisitStop() {
-        VillageVisitState st = mob.getVillageVisitState();
+    public BlockPos getStayStop() {
+        StayState st = mob.getStayState();
         return st == null ? null : st.stop;
     }
 
     private int remaining() {
-        VillageVisitState st = mob.getVillageVisitState();
+        StayState st = mob.getStayState();
         return st == null ? 0 : st.remainingTicks;
     }
 
     private boolean asFollower() {
-        VillageVisitState st = mob.getVillageVisitState();
+        StayState st = mob.getStayState();
         return st != null && st.asFollower;
     }
 
@@ -196,7 +198,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
 
     @Override
     public boolean shouldExecute() {
-        if (mob.world.isRemote || !mob.usesVillageVisit() || !canVisitNow()) return false;
+        if (mob.world.isRemote || !mob.usesStays() || !canVisitNow()) return false;
         if (mob.getGroupLeaderUUID() != null) return mob.canDisperseWithLeader();
         if (mob.getTravelCommon().getDepartCooldownTicks() > 0) return false;
         BlockPos stop = mob.getTravelCommon().getTargetVillage();
@@ -209,14 +211,14 @@ public class EntityAIVillageVisit extends EntityAIBase {
     /** A stay already under way for this stop (interrupted by a fight, a meal, going offscreen or a
      * restart) picks up where it was instead of starting over. */
     private boolean isResumable(BlockPos stop, boolean follower) {
-        VillageVisitState st = mob.getVillageVisitState();
+        StayState st = mob.getStayState();
         return st != null && stop.equals(st.stop) && follower == st.asFollower;
     }
 
     @Override
     public boolean shouldContinueExecuting() {
-        if (finished || !mob.usesVillageVisit() || !canVisitNow()) return false;
-        VillageVisitState st = mob.getVillageVisitState();
+        if (finished || !mob.usesStays() || !canVisitNow()) return false;
+        StayState st = mob.getStayState();
         if (st == null) return false;
         if (st.asFollower) return mob.getGroupLeaderUUID() != null;
         return Objects.equals(mob.getTravelCommon().getTargetVillage(), st.stop);
@@ -231,21 +233,21 @@ public class EntityAIVillageVisit extends EntityAIBase {
     @Override
     public void startExecuting() {
         boolean follower = mob.getGroupLeaderUUID() != null;
-        BlockPos stop = follower ? mob.getLeaderVisitStop() : mob.getTravelCommon().getTargetVillage();
+        BlockPos stop = follower ? mob.getLeaderStayStop() : mob.getTravelCommon().getTargetVillage();
         // An interrupted stay picks up where it was - including one already on its way out
         // (remainingTicks 0), which goes straight back to leaving.
         boolean resume = stop != null && isResumable(stop, follower);
-        settlement = stop == null ? null : VillageVisitIndex.get(mob.world, stop);
+        place = stop == null ? null : StayPlace.at(mob.world, stop);
         if (!resume) {
             // A follower's stay has no timer of its own: it lasts as long as its leader's.
-            mob.setVillageVisitState(stop == null ? null
-                    : new VillageVisitState(stop, follower ? Integer.MAX_VALUE / 2 : rollStayTicks(), follower));
+            mob.setStayState(stop == null ? null
+                    : new StayState(stop, follower ? Integer.MAX_VALUE / 2 : rollStayTicks(), follower));
             lastTarget = null;
             loneHaltDone = false;
             failuresInARow = 0;
             trace("start", (follower ? "with group " : "stay=" + remaining() / 20 + "s ") + describeSettlement());
-            if (settlement != null) {
-                com.jubitus.travellers.debug.profile.MovementProfiler.villageVisit(mob.world, mob.getUniqueID(), stop, settlement.lone,
+            if (place != null && place.settlement() != null) {
+                com.jubitus.travellers.debug.profile.MovementProfiler.villageVisit(mob.world, mob.getUniqueID(), stop, place.isLone(),
                         mob instanceof EntityTravellerRaider ? "RAIDER" : mob instanceof EntityTravellerWorker ? "WORKER" : "TRAVELLER",
                         mob.getCultureId(), follower, mob.isRiding(), false);
             }
@@ -255,14 +257,14 @@ public class EntityAIVillageVisit extends EntityAIBase {
         running = true;
         finished = false;
         socialTicker = Math.floorMod(mob.getEntityId(), socialPeriod());
-        mob.getTravelCommon().setVillageIdling(true);
+        mob.getTravelCommon().setIdlingAtStop(true);
         if (!follower) mob.getTravelCommon().setReadyToDepart(false);
         clearActivity();
         mob.getGaze().reset();
-        mob.getGaze().setPlaces(placesOfInterest(settlement));
+        mob.getGaze().setPlaces(place == null ? Collections.emptyList() : place.placesOfInterest());
 
         // Back from offscreen: first stand where it reappeared, facing the building it was visiting.
-        VillageVisitState st = mob.getVillageVisitState();
+        StayState st = mob.getStayState();
         if (st != null && st.facing != null && !st.isLeaving()) {
             activity = Activity.STROLL;
             legs.add(new Leg(mob.getPosition(), 60 + mob.getRNG().nextInt(80), false, false, false, st.facing));
@@ -283,20 +285,20 @@ public class EntityAIVillageVisit extends EntityAIBase {
         facingPlayer = null;
         playerCloseTicks = 0;
         nearby = Collections.emptyList();
-        VisitOccupancy.release(mob.world, mob.getUniqueID());
+        StayOccupancy.release(mob.world, mob.getUniqueID());
         // Interrupted (a fight, a meal): the stay resumes on the next start, the trip stays put, and
         // a horse tied at the village edge stays tied.
-        if (!finished) mob.getTravelCommon().setVillageIdling(false);
+        if (!finished) mob.getTravelCommon().setIdlingAtStop(false);
     }
 
     @Override
     public void updateTask() {
         lastActiveTick = mob.world.getTotalWorldTime();
-        if (settlement == null) {
+        if (place == null) {
             finishVisit();
             return;
         }
-        VillageVisitState st = mob.getVillageVisitState();
+        StayState st = mob.getStayState();
         if (st == null) {
             finishVisit();
             return;
@@ -335,19 +337,20 @@ public class EntityAIVillageVisit extends EntityAIBase {
     // ---------------------------------------------------------------- activities
 
     private void startNextActivity() {
-        VillageVisitIndex.Settlement s = settlement;
-        if (s == null) return;
+        StayPlace p = place;
+        if (p == null) return;
+        VillageVisitIndex.Settlement s = p.settlement();
         TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
 
-        if (s.lone) {
+        if (p.isLone()) {
             planLoneHalt(s);
             return;
         }
 
         boolean streetsOnly = mob instanceof EntityTravellerRaider && !cfg.raidersVisitBuildings;
         int wStroll = cfg.weightStroll;
-        int wBuilding = streetsOnly || s.buildings.isEmpty() ? 0 : cfg.weightBuilding;
-        int wPanel = streetsOnly || !cfg.visitPanels || s.panelGroups.isEmpty() ? 0 : cfg.weightPanel;
+        int wBuilding = streetsOnly || s == null || s.buildings.isEmpty() ? 0 : cfg.weightBuilding;
+        int wPanel = streetsOnly || !cfg.visitPanels || s == null || s.panelGroups.isEmpty() ? 0 : cfg.weightPanel;
         int total = wStroll + wBuilding + wPanel;
         if (total <= 0) {
             wStroll = 1;
@@ -358,7 +361,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (roll < wBuilding) planned = planTarget(drawBuilding(s), Activity.BUILDING);
         else if (roll < wBuilding + wPanel) planned = planTarget(drawPanel(s), Activity.PANEL);
         else planned = false;
-        if (!planned && !planStroll(s)) planPause();
+        if (!planned && !planStroll(p)) planPause();
     }
 
     /** A building to visit, any of them, quieter ones preferred; never the one just visited. */
@@ -392,9 +395,9 @@ public class EntityAIVillageVisit extends EntityAIBase {
     /** Lower the more visitors are already at this building, at its entrance or inside at its point. */
     private double crowdWeight(VillageVisitIndex.Target t) {
         java.util.UUID me = mob.getUniqueID();
-        int n = VisitOccupancy.countNear(mob.world, t.point, TARGET_CROWD_RADIUS, me);
+        int n = StayOccupancy.countNear(mob.world, t.point, TARGET_CROWD_RADIUS, me);
         if (t.entrance != null && t.entrance.distanceSq(t.point) > TARGET_CROWD_RADIUS * TARGET_CROWD_RADIUS) {
-            n += VisitOccupancy.countNear(mob.world, t.entrance, TARGET_CROWD_RADIUS, me);
+            n += StayOccupancy.countNear(mob.world, t.entrance, TARGET_CROWD_RADIUS, me);
         }
         return 1.0D / (1.0D + TravellersConfig.VILLAGE_VISIT.crowdPenalty * n);
     }
@@ -412,16 +415,17 @@ public class EntityAIVillageVisit extends EntityAIBase {
         return options.get(options.size() - 1);
     }
 
-    private boolean planStroll(VillageVisitIndex.Settlement s) {
-        int spread = TravellersConfig.VILLAGE_VISIT.strollSpreadBlocks;
-        List<Double> weights = new ArrayList<>(s.entrances.size());
-        for (BlockPos e : s.entrances) {
-            weights.add(VisitOccupancy.crowdFactor(mob.world, e, TARGET_CROWD_RADIUS + 1.0D, mob.getUniqueID(),
+    private boolean planStroll(StayPlace p) {
+        int spread = p.strollSpread();
+        List<BlockPos> anchors = p.anchors();
+        List<Double> weights = new ArrayList<>(anchors.size());
+        for (BlockPos e : anchors) {
+            weights.add(StayOccupancy.crowdFactor(mob.world, e, TARGET_CROWD_RADIUS + 1.0D, mob.getUniqueID(),
                     TravellersConfig.VILLAGE_VISIT.crowdPenalty));
         }
         for (int attempt = 0; attempt < 6; attempt++) {
-            BlockPos anchor = s.entrances.isEmpty() ? s.center : pickWeighted(s.entrances, weights);
-            if (anchor == null) anchor = s.center;
+            BlockPos anchor = anchors.isEmpty() ? p.center : pickWeighted(anchors, weights);
+            if (anchor == null) anchor = p.center;
             BlockPos seed = anchor.add(mob.getRNG().nextInt(spread * 2 + 1) - spread, 0,
                     mob.getRNG().nextInt(spread * 2 + 1) - spread);
             if (!mob.world.isBlockLoaded(seed)) continue;
@@ -431,7 +435,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             activity = Activity.STROLL;
             legs.add(new Leg(spot, rollLingerTicks(), false, false, false));
             exitEntrance = null;
-            VisitOccupancy.claim(mob.world, mob.getUniqueID(), spot, 20 * 60);
+            StayOccupancy.claim(mob.world, mob.getUniqueID(), spot, 20 * 60);
             return true;
         }
         return false;
@@ -452,17 +456,21 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (viaApproach) legs.add(new Leg(approach, 0, false, false, false));
         legs.add(new Leg(t.point, rollLingerTicks(), inside, false, t.panel));
         if (viaApproach) legs.add(new Leg(approach, 0, false, true, false));
-        VisitOccupancy.claim(mob.world, mob.getUniqueID(), approach != null ? approach : t.point, 20 * 60);
+        StayOccupancy.claim(mob.world, mob.getUniqueID(), approach != null ? approach : t.point, 20 * 60);
         trace("activity", kind + " " + t.label + " at " + fmt(t.point) + (inside ? " inside" : ""));
         return true;
     }
 
-    private void planLoneHalt(VillageVisitIndex.Settlement s) {
+    private void planLoneHalt(@Nullable VillageVisitIndex.Settlement s) {
         if (loneHaltDone) {
             planPause();
             return;
         }
         loneHaltDone = true;
+        if (s == null) {
+            planPause();
+            return;
+        }
         VillageVisitIndex.Target t = null;
         if (TravellersConfig.VILLAGE_VISIT.visitPanels && !s.panels.isEmpty()) t = s.panels.get(0);
         else if (!s.buildings.isEmpty()) t = s.buildings.get(0);
@@ -506,7 +514,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
      * ride again (from afar, the mount reconciler would teleport the horse to it instead). */
     private void beginFetchHorse() {
         clearActivity();
-        if (mob.getVillageHitchStop() == null || mob.mountState.getMountMode() != MountMode.HITCHED) {
+        if (mob.getHitchStop() == null || mob.mountState.getMountMode() != MountMode.HITCHED) {
             beginWaitGroup();
             return;
         }
@@ -549,11 +557,11 @@ public class EntityAIVillageVisit extends EntityAIBase {
 
     @Nullable
     private BlockPos nearestTickingEntrance(BlockPos near) {
-        VillageVisitIndex.Settlement s = settlement;
-        if (s == null) return null;
+        StayPlace p = place;
+        if (p == null) return null;
         BlockPos best = null;
         double bestD = Double.MAX_VALUE;
-        for (BlockPos e : s.entrances) {
+        for (BlockPos e : p.anchors()) {
             double d = e.distanceSq(near);
             if (d < bestD && isTicking(e)) {
                 bestD = d;
@@ -564,7 +572,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private void untieHorse() {
-        mob.setVillageHitchStop(null);
+        mob.setHitchStop(null);
         if (mob.mountState.getMountMode() == MountMode.HITCHED) TravellerMountSupport.setMountMode(mob, MountMode.MOUNTED);
     }
 
@@ -591,7 +599,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (waitTicks % 20 != 0) return;
         double r = TravellersConfig.VILLAGE_VISIT.regroupRadius;
         for (EntityTraveller f : loadedFollowers()) {
-            if (f.isVisitingVillage() || mob.getDistanceSq(f) > r * r) return;
+            if (f.isOnStay() || mob.getDistanceSq(f) > r * r) return;
         }
         finishVisit();
     }
@@ -642,10 +650,10 @@ public class EntityAIVillageVisit extends EntityAIBase {
     private void finishVisit() {
         if (finished) return;
         finished = true;
-        VillageVisitState st = mob.getVillageVisitState();
-        mob.setVillageVisitState(null);
-        mob.getTravelCommon().setVillageIdling(false);
-        VisitOccupancy.release(mob.world, mob.getUniqueID());
+        StayState st = mob.getStayState();
+        mob.setStayState(null);
+        mob.getTravelCommon().setIdlingAtStop(false);
+        StayOccupancy.release(mob.world, mob.getUniqueID());
         trace("finish", "");
         // A follower's own trip isn't what brought it here; it simply goes back to following.
         if (st == null || st.asFollower) return;
@@ -729,7 +737,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
         if (target == null) target = l.pos;
         if (l.lingerTicks > 0 && !l.exit) {
             target = spreadSpot(target, l.indoor);
-            VisitOccupancy.claim(mob.world, mob.getUniqueID(), target, l.lingerTicks + 20 * 60);
+            StayOccupancy.claim(mob.world, mob.getUniqueID(), target, l.lingerTicks + 20 * 60);
         }
         legTarget = target;
 
@@ -782,7 +790,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     /** Keeps a little room from other visitors: a spot someone else holds moves to a free neighbour. */
     private BlockPos spreadSpot(BlockPos target, boolean indoor) {
         java.util.UUID me = mob.getUniqueID();
-        if (VisitOccupancy.countNear(mob.world, target, SPOT_SPACING, me) == 0) return target;
+        if (StayOccupancy.countNear(mob.world, target, SPOT_SPACING, me) == 0) return target;
         for (int r = 1; r <= 2; r++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
@@ -792,7 +800,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
                         // Indoor spots are the visit's own planned places inside a building.
                         if (!LandingSpots.isSafe(mob.world, feet, mob, false, indoor)) continue;
                         if (!indoor && MillFootprints.at(mob.world, feet.getX() + 0.5D, feet.getY(), feet.getZ() + 0.5D, 0) != null) continue;
-                        if (VisitOccupancy.countNear(mob.world, feet, SPOT_SPACING, me) == 0) return feet;
+                        if (StayOccupancy.countNear(mob.world, feet, SPOT_SPACING, me) == 0) return feet;
                     }
                 }
             }
@@ -1030,19 +1038,11 @@ public class EntityAIVillageVisit extends EntityAIBase {
                 e -> e != null && e != mob && e.isEntityAlive()
                         && !(e instanceof EntityPlayer && ((EntityPlayer) e).isSpectator()));
         if (legTarget != null && leg != null && leg.lingerTicks > 0) {
-            VisitOccupancy.claim(mob.world, mob.getUniqueID(), legTarget, 20 * 60);
+            StayOccupancy.claim(mob.world, mob.getUniqueID(), legTarget, 20 * 60);
         }
         if (activity == Activity.TALK || activity.departing() || nearby.isEmpty()) return;
 
         if (isAvailableForTalk() && mob.getRNG().nextDouble() < cfg.talkChance) tryStartTalk();
-    }
-
-    /** The settlement's buildings, worth a look while standing around. */
-    private static List<BlockPos> placesOfInterest(@Nullable VillageVisitIndex.Settlement s) {
-        if (s == null || s.buildings.isEmpty()) return Collections.emptyList();
-        List<BlockPos> out = new ArrayList<>(s.buildings.size());
-        for (VillageVisitIndex.Target t : s.buildings) out.add(t.entrance != null ? t.entrance : t.point);
-        return out;
     }
 
     /** Free to start or join a conversation: strolling or pausing, with time left, not a raider. */
@@ -1055,7 +1055,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
 
     private boolean tryStartTalk() {
         TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
-        VillageConversation join = VillageConversation.findJoinable(mob, cfg.socialRadius);
+        StayConversation join = StayConversation.findJoinable(mob, cfg.socialRadius);
         if (join != null && join.join(mob)) {
             enterTalk(join);
             trace("talk", "joins a circle of " + join.size());
@@ -1069,7 +1069,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
             if (e instanceof MillVillager) {
                 partners.add(e);
             } else if (e instanceof EntityTraveller) {
-                EntityAIVillageVisit other = ((EntityTraveller) e).getVillageVisitAI();
+                EntityAIStay other = ((EntityTraveller) e).getStayAI();
                 if (other != null && other.isAvailableForTalk()) partners.add(e);
             }
         }
@@ -1077,14 +1077,14 @@ public class EntityAIVillageVisit extends EntityAIBase {
         EntityLivingBase partner = partners.get(mob.getRNG().nextInt(partners.size()));
         int ticks = 20 * (cfg.talkMinSeconds + mob.getRNG().nextInt(Math.max(1, cfg.talkMaxSeconds - cfg.talkMinSeconds + 1)));
         boolean villager = partner instanceof MillVillager;
-        VillageConversation c = VillageConversation.start(mob, partner, villager, ticks);
+        StayConversation c = StayConversation.start(mob, partner, villager, ticks);
         enterTalk(c);
-        if (!villager) ((EntityTraveller) partner).getVillageVisitAI().enterTalk(c);
+        if (!villager) ((EntityTraveller) partner).getStayAI().enterTalk(c);
         trace("talk", "with " + partner.getName());
         return true;
     }
 
-    private void enterTalk(VillageConversation c) {
+    private void enterTalk(StayConversation c) {
         clearActivity();
         activity = Activity.TALK;
         conversation = c;
@@ -1094,7 +1094,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private void tickTalk() {
-        VillageConversation c = conversation;
+        StayConversation c = conversation;
         long now = mob.world.getTotalWorldTime();
         if (c == null || c.isOver(now)) {
             clearActivity();
@@ -1164,12 +1164,9 @@ public class EntityAIVillageVisit extends EntityAIBase {
         return p == null ? null : new BlockPos(p.getiX(), p.getiY(), p.getiZ());
     }
 
+    // No place: the stay ends on its first tick anyway.
     private int rollStayTicks() {
-        TravellersConfig.VillageVisit cfg = TravellersConfig.VILLAGE_VISIT;
-        boolean lone = settlement != null && settlement.lone;
-        int min = lone ? cfg.loneBuildingHaltMinSeconds : cfg.stayMinSeconds;
-        int max = Math.max(min, lone ? cfg.loneBuildingHaltMaxSeconds : cfg.stayMaxSeconds);
-        return 20 * (min + mob.getRNG().nextInt(max - min + 1));
+        return place == null ? 0 : place.rollStayTicks(mob.getRNG());
     }
 
     private int rollLingerTicks() {
@@ -1179,10 +1176,7 @@ public class EntityAIVillageVisit extends EntityAIBase {
     }
 
     private String describeSettlement() {
-        VillageVisitIndex.Settlement s = settlement;
-        if (s == null) return "no Millénaire data";
-        return (s.lone ? "lone" : "village") + " entrances=" + s.entrances.size()
-                + " buildings=" + s.buildings.size() + " panels=" + s.panels.size();
+        return place == null ? "no Millénaire data" : place.describe();
     }
 
     private void trace(String what, String detail) {

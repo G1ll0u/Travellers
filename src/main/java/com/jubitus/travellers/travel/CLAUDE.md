@@ -7,7 +7,7 @@
 - Precedence: catchup height-aware → boat mode → itinerary carrot → naive straight tiers (fallback).
 - Every blind terrain-probed candidate (detours, local escape) is validated by a real A* (`TravellerNavigateGround.isReachable`) before use — a standable column proves nothing. Detour candidates may point sideways or backwards.
 - Vanilla `PathFinder` never fails; it returns a best-effort partial path. Treat a path that doesn't reach its goal as a failure (`isPathStillborn`, partial-path checks).
-- `EntityAITravel` refuses to run while `groupLeaderUUID != null`, unless `isCatchupTravel()`, and while `isVisitingVillage()`.
+- `EntityAITravel` refuses to run while `groupLeaderUUID != null`, unless `isCatchupTravel()`, and while `isOnStay()`.
 
 ## Stuck ladder
 - **One ladder, one progress measure, one record** owned by the entity (`getStuckRecord()`), never by a task. Progress = entering a cell not among the last visited ones, so pacing inside a pocket never counts.
