@@ -8,10 +8,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.IEntityOwnable;
 import net.minecraft.entity.passive.AbstractHorse;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.entity.projectile.EntityArrow;
-import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.event.entity.ProjectileImpactEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingKnockBackEvent;
@@ -23,7 +20,8 @@ import java.util.UUID;
 
 /**
  * Hits between allies: they pass through ({@code COMBAT.friendlyFirePassesThrough}), or deal a share of their
- * damage and knockback. Keyed off the entity actually hit, never the shooter's intended target.
+ * damage and knockback. Keyed off the entity actually hit, never the shooter's intended target. Arrows skip
+ * allies in {@code MixinEntityArrow}; {@link #areAllies} also runs on the client there.
  */
 @Mod.EventBusSubscriber(modid = "travellers")
 public final class TravellerFriendlyFireHandler {
@@ -50,9 +48,13 @@ public final class TravellerFriendlyFireHandler {
         return !(e instanceof EntityPlayer) && !(e instanceof EntityTraveller);
     }
 
-    // A bonded mount stands for its rider when the rider is loaded.
+    // A bonded mount stands for its rider when the rider is loaded; the client only knows the unit seated on it.
     private static Entity rider(Entity e) {
-        if (!HorseMarkers.isBondedMount(e) || !(e.world instanceof WorldServer)) return e;
+        if (!(e.world instanceof WorldServer)) {
+            Entity seated = e instanceof AbstractHorse ? e.getControllingPassenger() : null;
+            return seated instanceof EntityTraveller ? seated : e;
+        }
+        if (!HorseMarkers.isBondedMount(e)) return e;
         UUID riderId = HorseMarkers.getBondedOwner(e);
         Entity rider = riderId != null ? ((WorldServer) e.world).getEntityFromUuid(riderId) : null;
         return rider != null ? rider : e;
@@ -69,16 +71,6 @@ public final class TravellerFriendlyFireHandler {
         if (e instanceof IEntityOwnable) return ((IEntityOwnable) e).getOwnerId();
         if (e instanceof AbstractHorse) return ((AbstractHorse) e).getOwnerUniqueId();
         return null;
-    }
-
-    // Cancelling the impact lets the arrow fly on through the ally.
-    @SubscribeEvent
-    public static void onArrowImpact(ProjectileImpactEvent.Arrow event) {
-        if (!TravellersConfig.COMBAT.friendlyFirePassesThrough) return;
-        EntityArrow arrow = event.getArrow();
-        RayTraceResult hit = event.getRayTraceResult();
-        if (arrow.world.isRemote || hit.typeOfHit != RayTraceResult.Type.ENTITY) return;
-        if (areAllies(arrow.shootingEntity, hit.entityHit)) event.setCanceled(true);
     }
 
     @SubscribeEvent

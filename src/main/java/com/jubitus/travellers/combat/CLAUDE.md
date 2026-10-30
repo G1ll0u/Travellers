@@ -35,6 +35,7 @@ AI tasks here; event handlers, hostility rules and cross-mod compat in `combat/`
 - Shared by all three types. The bow stays drawn the whole time the task runs, LOS or not (deliberate). Drawn state only through `EntityTraveller.setAimingBow()`.
 - Cooldown ticks regardless of LOS; only firing is LOS-gated. Distance-keeping aims at a preferred band. Repositioning checks are throttled. HOLD attitude disables blind-pursuit repositioning.
 - **No shot for 3 s** (no LOS, or a shot line that cannot be cleared): the archer ignores the target and lets the normal scan pick a visible one.
+- Arrows skip allies in `MixinEntityArrow` on both sides: `areAllies` must stay answerable on the client (only synced data: owner, group leader, seated rider).
 
 ## Hostility rules (`combat/`)
 - Hired-worker hostility toward players: see `PlayerEnemyRelations` (account-wide) vs `PlayerHostility.localHostilePlayers` (per-worker transient).

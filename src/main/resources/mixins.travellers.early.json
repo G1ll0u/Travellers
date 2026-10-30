@@ -13,6 +13,7 @@
     "MixinEntityTrackerAccessor",
     "MixinEntityTrackerEntry",
     "MixinPathFinder",
+    "MixinEntityArrow",
     "MixinChunk"
   ],
   "client": [

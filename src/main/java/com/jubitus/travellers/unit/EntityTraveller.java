@@ -171,6 +171,10 @@ public class EntityTraveller extends EntityCreature {
     private static final DataParameter<com.google.common.base.Optional<UUID>> MOUNT_UUID =
             EntityDataManager.createKey(EntityTraveller.class, DataSerializers.OPTIONAL_UNIQUE_ID);
 
+    // Group leader this entity follows (absent = leader or solo); synced so the client knows groupmates (arrows).
+    private static final DataParameter<com.google.common.base.Optional<UUID>> GROUP_LEADER_UUID =
+            EntityDataManager.createKey(EntityTraveller.class, DataSerializers.OPTIONAL_UNIQUE_ID);
+
     // NBT key (must match exactly in write/read)
     private static final String NBT_VOICE_PERSONALITY_ID = "VoicePersonalityId";
 
@@ -201,9 +205,6 @@ public class EntityTraveller extends EntityCreature {
     EntityAIDefendIfClose aiDefendIfClose;
     EntityAITravel aiTravel;
     com.jubitus.travellers.follow.EntityAIFollowLeader aiFollowGroupLeader;
-
-    // UUID of the group leader this entity follows (null = leader or solo)
-    @Nullable private UUID groupLeaderUUID;
 
     /**
      * Chosen once, at group creation, for whichever entity is the group's leader - followers read
@@ -506,7 +507,7 @@ public class EntityTraveller extends EntityCreature {
 
     // A group follower has no trip of its own: it follows its leader, or catches up to it.
     public boolean isRouteLocked() {
-        return groupLeaderUUID != null || isCatchupTravel();
+        return getGroupLeaderUUID() != null || isCatchupTravel();
     }
 
     // Whether the auto-planner may give this unit a new roaming route right now.
@@ -983,6 +984,7 @@ public class EntityTraveller extends EntityCreature {
     public static void dbg(String s) {
         System.out.println("[TravellersDBG] " + s);
     }
+        this.dataManager.register(GROUP_LEADER_UUID, com.google.common.base.Optional.absent());
 
     @Override
     protected int getExperiencePoints(EntityPlayer player) {
@@ -1076,7 +1078,8 @@ public class EntityTraveller extends EntityCreature {
             if (villageHitchStop != null) compound.setLong("VillageHitchStop", villageHitchStop.toLong());
             compound.setString("CultureId", getCultureId());
             compound.setString(NBT_VOICE_PERSONALITY_ID, voice.getPersonalityId());
-            if (groupLeaderUUID != null) compound.setUniqueId("GroupLeaderUUID", groupLeaderUUID);
+            UUID groupLeader = getGroupLeaderUUID();
+            if (groupLeader != null) compound.setUniqueId("GroupLeaderUUID", groupLeader);
             compound.setString("GroupFormationStyle", groupFormationStyle.name());
             if (travelMotive != null) compound.setString("TravelMotive", travelMotive.name());
             if (getMountUUID() != null) compound.setUniqueId("MountUUID", getMountUUID());
@@ -1141,7 +1144,7 @@ public class EntityTraveller extends EntityCreature {
 
         itineraryState.readNbt(compound, ITINERARY_NBT_KEY);
         villageHitchStop = compound.hasKey("VillageHitchStop") ? BlockPos.fromLong(compound.getLong("VillageHitchStop")) : null;
-        groupLeaderUUID = compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null;
+        setGroupLeaderUUID(compound.hasUniqueId("GroupLeaderUUID") ? compound.getUniqueId("GroupLeaderUUID") : null);
         if (compound.hasKey("GroupFormationStyle")) {
             try {
                 groupFormationStyle = com.jubitus.travellers.follow.formations.WorkerFormationStyle
@@ -2253,11 +2256,11 @@ public void fall(float distance, float damageMultiplier) {
     /** Returns a snapshot of the current travel route waypoints (read-only copy). */
     @Nullable
     public UUID getGroupLeaderUUID() {
-        return groupLeaderUUID;
+        return this.dataManager.get(GROUP_LEADER_UUID).orNull();
     }
 
     public void setGroupLeaderUUID(@Nullable UUID uuid) {
-        this.groupLeaderUUID = uuid;
+        this.dataManager.set(GROUP_LEADER_UUID, com.google.common.base.Optional.fromNullable(uuid));
     }
 
     // --- Follow-context hooks for EntityAIFollowLeader. Neutral defaults for a plain traveller/
@@ -2272,14 +2275,14 @@ public void fall(float distance, float damageMultiplier) {
      */
     @Nullable
     public EntityLivingBase getEffectiveFollowTarget() {
-        UUID leaderId = groupLeaderUUID;
+        UUID leaderId = getGroupLeaderUUID();
         if (leaderId == null || !(world instanceof WorldServer)) return null;
         Entity e = ((WorldServer) world).getEntityFromUuid(leaderId);
         return (e instanceof EntityTraveller && !e.isDead) ? (EntityLivingBase) e : null;
     }
 
     public boolean isFollowOrderActive() {
-        return groupLeaderUUID != null;
+        return getGroupLeaderUUID() != null;
     }
 
     public boolean isHiredFollower() {
@@ -2373,7 +2376,7 @@ public void fall(float distance, float damageMultiplier) {
      * loaded group to rank against until the leader materializes.
      */
     private void tickVirtualGroupLeaderFollow() {
-        UUID leaderId = groupLeaderUUID;
+        UUID leaderId = getGroupLeaderUUID();
         if (leaderId == null || getEffectiveFollowTarget() != null || !(world instanceof WorldServer)) {
             virtualLeaderSlot = null;
             return;
@@ -2386,8 +2389,8 @@ public void fall(float distance, float damageMultiplier) {
             // Leader neither loaded nor virtual: gone without a death hook. Elect a successor (possibly
             // this unit) or this follower idles forever (EntityAITravel refuses to run while
             // groupLeaderUUID is set).
-            groupLeaderUUID = com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(serverWorld, leaderId,
-                    getUniqueID());
+            setGroupLeaderUUID(com.jubitus.travellers.follow.GroupSuccession.onLeaderMissing(serverWorld, leaderId,
+                    getUniqueID()));
             virtualLeaderSlot = null;
             return;
         }
@@ -2751,7 +2754,7 @@ public void fall(float distance, float damageMultiplier) {
 
     /** True when this unit's travel follows an itinerary (mirrors VirtualTravellerManager.routeDrivenMovement). */
     public boolean isItineraryDriven() {
-        return groupLeaderUUID == null && !isCatchupTravel();
+        return getGroupLeaderUUID() == null && !isCatchupTravel();
     }
 
     public boolean offscreenHopTowardPos(@Nullable BlockPos goal, int stepBlocks) {
