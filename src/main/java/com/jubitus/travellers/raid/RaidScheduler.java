@@ -342,7 +342,6 @@ public final class RaidScheduler {
                     .append(" waypoint=").append(t.getTravelCommon().getCurrentWaypoint())
                     .append(" ready=").append(t.getTravelCommon().isReadyToDepart())
                     .append(" cooldown=").append(t.getTravelCommon().getDepartCooldownTicks())
-                    .append(" pause=").append(t.getTravelCommon().getPauseTicks())
                     .append(" atStop=").append(t.isAtTargetStop())
                     .append(" visiting=").append(t.isVisitingVillage())
                     .append(" mounted=").append(t.getRidingEntity() != null)

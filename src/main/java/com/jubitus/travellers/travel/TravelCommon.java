@@ -32,7 +32,6 @@ import com.jubitus.travellers.travel.destination.RecentDestinationRing;
 
 public class TravelCommon {
     public final List<BlockPos> route = new ArrayList<BlockPos>();
-    private final int lastTravelTick = 0;
     private final EntityTraveller owner;
     private final Set<BlockPos> badVillages = new HashSet<>();
     public List<BlockPos> cachedVillages = Collections.emptyList();
@@ -40,13 +39,9 @@ public class TravelCommon {
     // --- AI State Fields (saved to disk)---
     public BlockPos targetVillage;
     public BlockPos currentWaypoint;
-    public BlockPos roamTarget;
-    public int pauseTicks;
-    public int villageIdleTicks;
     public boolean villageIdling;
     public BlockPos nearestVillage;   // updated every tick
     // --- Path personality (persistent), so they don't always follow exact same path ---
-    public float pathAngleBiasDeg;      // small left/right heading bias
     public double pathLaneOffset;       // lateral offset from the beeline
     public int pathStepJitter;          // jitter step size a little
     public int recalcPhase;             // desync repath ticks
@@ -95,7 +90,7 @@ public class TravelCommon {
         targetVillage = target;
         setCurrentWaypoint(null);
         setReadyToDepart(true);
-    }// --- Arrival policy (ONE source of truth) ---
+    }
 
     public int getTravelRecoverTicks() {
         return owner.getTravelRecoverTicks();
@@ -119,7 +114,7 @@ public class TravelCommon {
 
     public void setDepartCooldownTicks(int t) {
         departCooldownTicks = t;
-    }// was: lookupNearestVillageNameOrCoords()
+    }
 
     public String lookupNearestVillageNameOrCoords() {
         BlockPos near = getNearestVillage();
@@ -130,34 +125,6 @@ public class TravelCommon {
     @Nullable
     public BlockPos getNearestVillage() {
         return this.nearestVillage; // may be null if none found yet
-    }// was: updateTargetVillage()
-
-    public BlockPos getRoamTarget() {
-        return roamTarget;
-    }
-
-    public void setRoamTarget(BlockPos roamTarget) {
-        this.roamTarget = roamTarget;
-    }
-
-    public int getPauseTicks() {
-        return pauseTicks;
-    }
-
-    public void setPauseTicks(int pauseTicks) {
-        this.pauseTicks = pauseTicks;
-    }
-
-    public int getVillageIdleTicks() {
-        return villageIdleTicks;
-    }
-
-    public void setVillageIdleTicks(int villageIdleTicks) {
-        this.villageIdleTicks = villageIdleTicks;
-    }
-
-    public float getPathAngleBiasDeg() {
-        return pathAngleBiasDeg;
     }
 
     public double getPathLaneOffset() {
@@ -173,27 +140,22 @@ public class TravelCommon {
     }
 
     public void ensureRoutePlanned() {
-        if (routeIndex >= 0 && routeIndex < route.size()) {
-            return; // already have an active route
-        }
+        if (routeIndex >= 0 && routeIndex < route.size()) return;
         // A raid raider's route is only ever set by the raid scheduler.
         if (com.jubitus.travellers.raid.RaidWorldData.isRaider(owner.world, owner.getUniqueID())) return;
 
-        // --- 1) Choose origin anchor ---
+        // Where the trip leaves from: a worker always from its village centre; the others from the
+        // settlement they last went to (or stand in), never re-picking it.
         BlockPos origin = owner.getPosition();
         BlockPos nearest = getNearestVillage();
-
-        if (isWorker()) {
-            // Workers: make sure nearestVillage is populated at least once
+        boolean worker = owner instanceof EntityTravellerWorker;
+        if (worker) {
             if (nearest == null) {
                 updateNearestVillage();
                 nearest = getNearestVillage();
             }
-            if (nearest != null) {
-                origin = nearest;  // always route FROM the village center
-            }
+            if (nearest != null) origin = nearest;
         } else {
-            // Still at the settlement it last went to (or any it stands in): leave from there, never re-pick it.
             BlockPos last = recentDestinations.length > 0
                     ? new BlockPos((int) (recentDestinations[0] >> 32), 0, (int) recentDestinations[0]) : null;
             if (last != null && isAtStop(last, ARRIVAL_HYSTERESIS_BLOCKS)) {
@@ -203,91 +165,19 @@ public class TravelCommon {
             }
         }
 
-        // --- 2) Pick a destination village ---
-// --- 2) Pick a destination ---
-// Default: another village
-        BlockPos dest = pickDiverseDestination(
-                origin,
-                TravellersConfig.DESTINATIONS.villagePickRadius * 4
-        );
+        BlockPos dest = pickDiverseDestination(origin);
+        if (dest == null) return;
 
-        if (dest == null) {
-            return;
-        }
+        route.clear();
+        route.addAll(TripPlanner.stops(owner.world, origin, dest, worker, owner instanceof EntityTravellerRaider,
+                owner.getHomeVillage(), hopPreference, owner.getRNG(), this::isVillageBad));
+        if (route.isEmpty()) return;
 
-
-        // --- 3) Collect intermediate village stops along the corridor ---
-
-        List<BlockPos> mids = collectMidsOnCorridor(
-                origin,
-                dest,
-                TravellersConfig.TRAVEL.corridorWidth
-        );
-        // Don't route a non-raider through a village its home village is at open war with (§4.6).
-        mids = TravelDestinationChooser.filterOpenConflictMids(
-                owner.getEntityWorld(), owner.getHomeVillage(),
-                owner instanceof EntityTravellerRaider, mids);
-
-        this.route.clear();
-
-        if (isWorker()) {
-            // Strict village-to-village routing for workers:
-            // a worker is considered to already be *at* its current village;
-            // first travel target should be some *other* village.
-
-            // (a) Add all corridor mill in order (between origin and dest)
-            for (BlockPos mid : mids) {
-                if (mid.equals(origin)) continue; // just in case
-                if (route.isEmpty() || !route.get(route.size() - 1).equals(mid)) {
-                    route.add(mid);
-                }
-            }
-
-            // (silva) Add final destination (if it’s not already last)
-            if (!dest.equals(origin)
-                    && (route.isEmpty() || !route.get(route.size() - 1).equals(dest))) {
-                route.add(dest);
-            }
-
-        } else {
-            // ====== EXISTING BEHAVIOUR FOR NORMAL TRAVELLERS ======
-            boolean takeMidFirst = !mids.isEmpty() && (owner.getRNG().nextFloat() < this.hopPreference);
-            if (takeMidFirst) {
-                int idx = 0;
-                if (mids.size() >= 3 && owner.getRNG().nextFloat() < 0.25f) {
-                    idx = 1 + owner.getRNG().nextInt(Math.min(2, mids.size() - 1));
-                }
-                this.route.add(mids.get(idx));
-            } else if (!mids.isEmpty() && owner.getRNG().nextFloat() < 0.20f) {
-                this.route.addAll(mids);
-            }
-
-            this.route.add(dest);
-        }
-
-
-        if (route.isEmpty()) {
-            return;
-        }
-
-        // --- 4) Start route at first stop ---
-
-        this.routeIndex = 0;
-
-        BlockPos firstStop = this.route.get(0);
-
-// IMPORTANT: keep TravelCommon and the entity in sync:
-        this.targetVillage = firstStop;           // <--- ADD THIS
-        owner.getTravelCommon().setTargetVillage(firstStop);
-        owner.getTravelCommon().setCurrentWaypoint(null);
-        this.readyToDepart = true;
-        this.departCooldownTicks = 0;
-
-    }
-
-    private boolean isWorker() {
-        // Workers use strict village-to-village routes
-        return owner instanceof EntityTravellerWorker;
+        routeIndex = 0;
+        targetVillage = route.get(0);
+        setCurrentWaypoint(null);
+        readyToDepart = true;
+        departCooldownTicks = 0;
     }
 
     public void updateNearestVillage() {
@@ -326,7 +216,7 @@ public class TravelCommon {
      * MPB road-connected candidate restriction (applied inside the chooser).
      */
     @Nullable
-    public BlockPos pickDiverseDestination(BlockPos origin, int maxRadius) {
+    private BlockPos pickDiverseDestination(BlockPos origin) {
         World world = owner.getEntityWorld();
         if (!(world instanceof WorldServer)) return null;
 
@@ -353,52 +243,6 @@ public class TravelCommon {
         return chosen.dest;
     }
 
-
-    /**
-     * Returns [v1, v2, ..., dest], where each v is a village near the straight line
-     */
-    public List<BlockPos> collectMidsOnCorridor(BlockPos start, BlockPos dest, double corridorWidth) {
-        List<BlockPos> all = getVillagesCached();
-        List<BlockPos> mids = new ArrayList<BlockPos>();
-        if (all.isEmpty()) return mids;
-
-        Vec3d A = new Vec3d(start.getX() + 0.5, 0, start.getZ() + 0.5);
-        Vec3d B = new Vec3d(dest.getX() + 0.5, 0, dest.getZ() + 0.5);
-        Vec3d AB = B.subtract(A);
-        double ab2 = AB.lengthSquared();
-        if (ab2 < 1e-6) return mids;
-
-        final class Mid implements Comparable<Mid> {
-            final double t;
-            final BlockPos p;
-
-            Mid(double t, BlockPos p) {
-                this.t = t;
-                this.p = p;
-            }
-
-            @Override
-            public int compareTo(Mid o) {
-                return Double.compare(this.t, o.t);
-            }
-        }
-
-        List<Mid> tmp = new ArrayList<Mid>();
-
-        for (BlockPos v : all) {
-            if (v.equals(start) || v.equals(dest)) continue;
-            Vec3d P = new Vec3d(v.getX() + 0.5, 0, v.getZ() + 0.5);
-            double t = AB.dotProduct(P.subtract(A)) / ab2;     // along-track fraction
-            if (t <= 0.02 || t >= 0.98) continue;              // strictly between A and C
-            double cw2 = corridorWidth * corridorWidth;
-            if (EntityTraveller.pointToSegment2DSq(P, A, B) <= cw2) {
-                tmp.add(new Mid(t, v));
-            }
-        }
-        Collections.sort(tmp);
-        for (Mid m : tmp) mids.add(m.p);
-        return mids;
-    }
 
     public List<BlockPos> getVillagesCached() {
         if ((villageCacheTicker++ & 15) == 0) { // refresh every 16 ticks
@@ -537,7 +381,6 @@ public class TravelCommon {
     }
 
     public void maybePlayTravelAmbient() {
-        // these three are simple getters on EntityTraveller (see section 2)
         if (owner.getSpawnAmbientCooldownTicks() > 0) return;
         if (owner.getTravelRecoverTicks() > 0) return;
         if (!TravellersConfig.SOUND.travellerAmbient) return;
@@ -600,7 +443,7 @@ public class TravelCommon {
         this.currentWaypoint = currentWaypoint;
     }
 
-    public boolean isVillageIdling() {  // you already store this
+    public boolean isVillageIdling() {
         return this.villageIdling;
     }
 
@@ -629,10 +472,6 @@ public class TravelCommon {
         if (getTargetVillage() != null) compound.setTag("TargetVillage", net.minecraft.nbt.NBTUtil.createPosTag(getTargetVillage()));
         if (getCurrentWaypoint() != null)
             compound.setIntArray("CurrentWaypoint", new int[]{getCurrentWaypoint().getX(), getCurrentWaypoint().getY(), getCurrentWaypoint().getZ()});
-        if (getRoamTarget() != null)
-            compound.setIntArray("RoamTarget", new int[]{getRoamTarget().getX(), getRoamTarget().getY(), getRoamTarget().getZ()});
-        compound.setInteger("PauseTicks", getPauseTicks());
-        compound.setInteger("VillageIdleTicks", getVillageIdleTicks());
         compound.setBoolean("VillageIdling", isVillageIdling());
         compound.setInteger("RouteIndex", routeIndex);
         compound.setFloat("Wanderlust", wanderlust);
@@ -641,7 +480,6 @@ public class TravelCommon {
             compound.setIntArray("RecentDests", RecentDestinationRing.toIntPairs(recentDestinations));
         }
         compound.setFloat("HopPreference", hopPreference);
-        compound.setFloat("PathAngleBiasDeg", getPathAngleBiasDeg());
         compound.setDouble("PathLaneOffset", getPathLaneOffset());
         compound.setInteger("PathStepJitter", getPathStepJitter());
         compound.setInteger("RecalcPhase", getRecalcPhase());
@@ -664,24 +502,15 @@ public class TravelCommon {
         } else {
             setCurrentWaypoint(null);
         }
-        if (compound.hasKey("RoamTarget")) {
-            int[] arr = compound.getIntArray("RoamTarget");
-            setRoamTarget(new BlockPos(arr[0], arr[1], arr[2]));
-        } else {
-            setRoamTarget(null);
-        }
         if (compound.hasKey("Wanderlust")) wanderlust = compound.getFloat("Wanderlust");
         if (compound.hasKey("ExploreChance")) exploreChance = compound.getFloat("ExploreChance");
         if (compound.hasKey("RecentDests", 11)) {
             recentDestinations = RecentDestinationRing.fromIntPairs(compound.getIntArray("RecentDests"));
         }
         if (compound.hasKey("HopPreference")) hopPreference = compound.getFloat("HopPreference");
-        if (compound.hasKey("PathAngleBiasDeg")) pathAngleBiasDeg = compound.getFloat("PathAngleBiasDeg");
         if (compound.hasKey("PathLaneOffset")) pathLaneOffset = compound.getDouble("PathLaneOffset");
         if (compound.hasKey("PathStepJitter")) pathStepJitter = compound.getInteger("PathStepJitter");
         if (compound.hasKey("RecalcPhase")) recalcPhase = compound.getInteger("RecalcPhase");
-        setPauseTicks(compound.getInteger("PauseTicks"));
-        setVillageIdleTicks(compound.getInteger("VillageIdleTicks"));
         setVillageIdling(compound.getBoolean("VillageIdling"));
         route.clear();
         if (compound.hasKey("RouteVillages", net.minecraftforge.common.util.Constants.NBT.TAG_LIST)) {

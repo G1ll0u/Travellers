@@ -69,6 +69,8 @@ public class VirtualTravellerRecord {
     public long[] recentDestinations = new long[0]; // ring of last N chosen dests, packed XZ, newest first
     public float wanderlust;                        // mirror of TravelCommon.wanderlust
     public float exploreChance;                     // mirror of TravelCommon.exploreChance
+    public float hopPreference = DEFAULT_HOP_PREFERENCE; // mirror of TravelCommon.hopPreference
+    private static final float DEFAULT_HOP_PREFERENCE = 0.55f;
 
     /** Populates the Plan B identity mirrors from the frozen entity NBT. */
     public void captureIdentityFromNbt() {
@@ -76,6 +78,7 @@ public class VirtualTravellerRecord {
         if (entityNbt.hasKey("CultureId")) cultureId = entityNbt.getString("CultureId");
         if (entityNbt.hasKey("Wanderlust")) wanderlust = entityNbt.getFloat("Wanderlust");
         if (entityNbt.hasKey("ExploreChance")) exploreChance = entityNbt.getFloat("ExploreChance");
+        if (entityNbt.hasKey("HopPreference")) hopPreference = entityNbt.getFloat("HopPreference");
         if (entityNbt.hasKey("RecentDests", 11)) {
             recentDestinations = com.jubitus.travellers.travel.destination
                     .RecentDestinationRing.fromIntPairs(entityNbt.getIntArray("RecentDests"));
@@ -324,6 +327,7 @@ public class VirtualTravellerRecord {
         }
         if (wanderlust != 0f) tag.setFloat("Wl", wanderlust);
         if (exploreChance != 0f) tag.setFloat("ExC", exploreChance);
+        tag.setFloat("Hop", hopPreference);
         if (!tripStops.isEmpty()) {
             int[] trip = new int[tripStops.size() * 3];
             for (int i = 0; i < tripStops.size(); i++) {
@@ -395,6 +399,7 @@ public class VirtualTravellerRecord {
         }
         r.wanderlust = tag.getFloat("Wl");
         r.exploreChance = tag.getFloat("ExC");
+        if (tag.hasKey("Hop")) r.hopPreference = tag.getFloat("Hop");
         // Back-compat / self-heal: an older record has none of the above but its frozen entity NBT does.
         if (r.cultureId == null) r.captureIdentityFromNbt();
         r.health = tag.hasKey("HP") ? tag.getFloat("HP") : -1f;

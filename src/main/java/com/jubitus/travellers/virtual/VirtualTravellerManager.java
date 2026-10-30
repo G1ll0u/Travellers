@@ -1010,16 +1010,26 @@ public class VirtualTravellerManager extends WorldSavedData {
         return new BlockPos(MathHelper.floor(r.posX), MathHelper.floor(r.posY), MathHelper.floor(r.posZ));
     }
 
-    /** Picks a fresh roam destination and starts a one-stop trip toward it (end-of-trip replan). */
+    /** Picks a fresh roam destination and starts a trip toward it (end-of-trip replan). */
     private void startNewTrip(WorldServer world, VirtualTravellerRecord r, long now) {
         if (com.jubitus.travellers.raid.RaidWorldData.isRaider(world, r.uuid)) return;
+        BlockPos origin = roamOriginOf(r);
         BlockPos dest = pickRoamDestination(world, r);
         if (dest == null) return;
-        r.setTrip(java.util.Collections.singletonList(dest), 0);
+        if (!startTrip(world, r, origin, dest)) return;
         r.itinerary.clear();
-        r.goal = dest;
-        if (ItineraryPlanner.tryAcquire(now)) buildItinerary(world, r, dest, now);
+        if (ItineraryPlanner.tryAcquire(now)) buildItinerary(world, r, r.goal, now);
         markDirty();
+    }
+
+    /** Sets the record's trip from {@code origin} to {@code dest} by the shared trip rule and heads for its first stop; false when it has no stop. */
+    public boolean startTrip(WorldServer world, VirtualTravellerRecord r, BlockPos origin, BlockPos dest) {
+        java.util.List<BlockPos> stops = com.jubitus.travellers.travel.TripPlanner.stops(world, origin, dest,
+                "WORKER".equals(r.entityClass), "RAIDER".equals(r.entityClass), r.homeVillage, r.hopPreference, world.rand, null);
+        if (stops.isEmpty()) return false;
+        r.setTrip(stops, 0);
+        r.goal = r.currentTripStop();
+        return true;
     }
 
     /** Leg finished: move on to the next stop of the trip, or pick a new trip after the last one. */
@@ -1724,7 +1734,6 @@ public class VirtualTravellerManager extends WorldSavedData {
             // Camping: stay put at the slot. Real camp behaviour (build/sleep/wander) is AI (P4).
             entity.getTravelCommon().setReadyToDepart(false);
             entity.getTravelCommon().setVillageIdling(true);
-            entity.getTravelCommon().setVillageIdleTicks(0);
             // Sleep is a purely-loaded cosmetic pose, never simulated virtually or persisted to
             // NBT — but force it off anyway so a fresh materialize can never render "lying down"
             // while EntityAICampStay (re-evaluating from scratch) thinks the entity is standing.
@@ -1736,7 +1745,6 @@ public class VirtualTravellerManager extends WorldSavedData {
                 entity.restoreVirtualRoute(r.tripStops, r.tripIndex);
             } else {
                 entity.getTravelCommon().setReadyToDepart(true);
-                entity.getTravelCommon().setVillageIdleTicks(0);
                 entity.getTravelCommon().setVillageIdling(false);
             }
         } else if (r.currentTripStop() != null

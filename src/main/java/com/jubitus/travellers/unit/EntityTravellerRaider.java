@@ -287,7 +287,6 @@ public class EntityTravellerRaider extends EntityTraveller {
         this.travelCommon.wanderlust = 0.25f + r.nextFloat() * 0.60f;
         this.travelCommon.exploreChance = 0.08f + r.nextFloat() * 0.06f;
         this.travelCommon.hopPreference = 0.45f + r.nextFloat() * 0.25f;
-        this.travelCommon.pathAngleBiasDeg = 0;
         this.travelCommon.pathLaneOffset = 0;
         this.travelCommon.pathStepJitter = 0;
         this.travelCommon.recalcPhase = r.nextInt(12);

@@ -97,6 +97,7 @@ One question, one answer. Never add a second helper for a question listed here.
 | Is this spot inside a Millénaire building | `village/MillFootprints` (`isForbiddenLanding`) |
 | Where a unit's route goes | `pathing/itinerary/ItineraryPlanner` |
 | Which settlement to travel to next | `travel/destination/TravelDestinationChooser` |
+| Which stops a trip makes (loaded and virtual) | `travel/TripPlanner` |
 | Who mounts/dismounts/moves a bonded horse | `mount/TravellerMountSupport.tickMount` |
 | Where the head looks | `gaze/TravellerLookHelper` + `TravellerGaze` |
 | Hired-worker group/leader changes | `follow/group/WorkerGroupService` |

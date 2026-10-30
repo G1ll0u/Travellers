@@ -1424,7 +1424,6 @@ public class EntityTraveller extends EntityCreature {
         this.travelCommon.wanderlust = 0.25f + r.nextFloat() * 0.60f;
         this.travelCommon.exploreChance = 0.08f + r.nextFloat() * 0.06f;
         this.travelCommon.hopPreference = 0.45f + r.nextFloat() * 0.25f;
-        this.travelCommon.pathAngleBiasDeg = 0;
         this.travelCommon.pathLaneOffset = 0;
         this.travelCommon.pathStepJitter = 0;
         this.travelCommon.recalcPhase = r.nextInt(12);
@@ -2487,7 +2486,6 @@ public void fall(float distance, float damageMultiplier) {
             travelCommon.setTargetVillage(route.get(routeIndex));
         }
         travelCommon.setReadyToDepart(true);
-        travelCommon.setVillageIdleTicks(0);
         travelCommon.setVillageIdling(false);
         // Clear stale AI state from virtualization time
         travelCommon.setCurrentWaypoint(null);

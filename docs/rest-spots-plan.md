@@ -1,4 +1,4 @@
-**Status: steps 1–2 built; waiting for the user to look at the spots on the map and tune the score.**
+**Status: steps 1–2 done; step 3a built, not checked in game.**
 
 # Rest spots
 
@@ -18,6 +18,10 @@ Pretty, roomy places in the wild (riverbank, summit, open view, forest edge) whe
 | Name | "Rest spots" (config category `restSpots`). |
 | Display | Population map (`/travellerChunks`) only, reusing an existing marker shape with its own colour; tooltip shows the score and its reasons. |
 | Config | Every tuning knob a player or admin might touch is a config field (see below). |
+| Trips | One shared trip rule for loaded and virtual units (`travel/TripPlanner`): offscreen units now also stop at villages on the way. |
+| Pause code | No generic engine and no copy: the reusable parts of the village visit (walking legs, stuck/avoidance, talk circles, horse hitch/fetch, group wait, saved stay state, offscreen stay) are extracted as shared pieces; the village visit and the rest pause are two thin tasks using them. One saved stay state for both. |
+| Horses | Dismount; the horse waits tied at the edge of the spot, like at a village. |
+| Groups | Members disperse in the spot, like in a village. |
 
 ## How a spot is found
 
@@ -60,7 +64,9 @@ Pretty, roomy places in the wild (riverbank, summit, open view, forest edge) whe
 ## Steps
 
 1. Record + saved data + `ChunkReader` consumer + lazy scoring (`restspot/`). — done (build OK)
-2. Population map markers + tooltip; debug command `/travellersdebug restspot here|stats|rescan`. Tune the score with the user on real maps. — built, tuning pending
-3. Clean up `TravelCommon` trip planning (user allowed a wider cleanup), then trip stop kind + insertion; audit every "stop = village" assumption. — todo
-4. Pause state (entity, record, snapshot) + loaded idle task (mirrored in the raider's `initEntityAI`) + virtual wait. — todo
+2. Population map markers + tooltip; debug command `/travellersdebug restspot here|stats|rescan`. Tune the score with the user on real maps. — done (spots look sensible in game)
+3a. Clean up `TravelCommon`; one trip rule (`TripPlanner`) for loaded and virtual units. — built, not checked in game
+3b. Extract the shared stay pieces from the village visit, behaviour unchanged; user checks village visits in game. — todo
+3c. Rest spot stop: insertion in `TripPlanner` (within `maxDetour`, `stopChance`), stop recognised by position (`RestSpotManager`), audit every "stop = village" assumption. — todo
+4. Rest pause task on the shared pieces (stroll in the patch, talk, horse tied, followers disperse), loaded and offscreen; mirrored in the raider's `initEntityAI`. — todo
 5. Faction occupancy, group behaviour, trace events. — todo

@@ -439,9 +439,8 @@ public final class TravellerSoftSpawner {
 
         BlockPos dest = mgr.pickInitialDestination(ws, r);
         if (dest == null) return 0;
-        // The itinerary toward dest is built by the offscreen simulation on its first goal refresh.
-        r.setTrip(java.util.Collections.singletonList(dest), 0);
-        r.goal = dest;
+        // The itinerary toward the first stop is built by the offscreen simulation on its first goal refresh.
+        if (!mgr.startTrip(ws, r, r.homeVillage, dest)) return 0;
 
         r.virtualizedTick = ws.getTotalWorldTime();
         // Group-atomic mount roll: decided once here and copied to every follower below, so the
