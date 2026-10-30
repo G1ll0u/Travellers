@@ -383,6 +383,7 @@ travellers.map.legend.leader=Leader
 travellers.map.legend.player=You
 travellers.map.legend.camp_firepit=Camp firepit
 travellers.map.legend.camp_slot=Camp shelter
+travellers.map.legend.rest_spot=Rest spot
 travellers.map.legend.road=Road
 travellers.map.legend.trail=Trail
 travellers.map.legend.bridge=Bridge

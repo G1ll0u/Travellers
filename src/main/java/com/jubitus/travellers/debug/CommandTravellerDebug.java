@@ -21,7 +21,7 @@ public class CommandTravellerDebug extends CommandBase {
     static {
         for (DebugSubcommand c : new DebugSubcommand[]{new TraceDebugCommand(), new ProfileDebugCommand(),
                 new AutotestDebugCommand(), new MountDebugCommand(), new PathDebugCommand(), new ElytraDebugCommand(),
-                new CampDebugCommand(), new BattleDebugCommand(), new MapDebugCommand(), new ResetDebugCommand(),
+                new CampDebugCommand(), new RestSpotDebugCommand(), new BattleDebugCommand(), new MapDebugCommand(), new ResetDebugCommand(),
                 new BowDebugCommand(), new SoundDebugCommand(), new StableDebugCommand(), new TerrainDebugCommand(),
                 new VillageDebugCommand(), new DialogueDebugCommand(), new DestinationDebugCommand(),
                 new RelationsDebugCommand(), new EquipDebugCommand(), new RaidDebugCommand(), CULTURE_DUMP}) {
@@ -36,14 +36,14 @@ public class CommandTravellerDebug extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/travellersdebug [autotest zone add <x> <z> <radiusChunks>|autotest zone clear|autotest invariants|profile start|stop|report|status|reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|map stats [reset]|elytra [distance]|elytra give [radius] [rockets]|elytra status|mount give|mount ride|mount lead|mount hitch|stable [list|dump <n>|log <n> [count]|verify <n>]|bow status|sound stress|sound rapidfire|path pos1|path pos2|path mark|path clearmarks|path save [name]|path load [name]|path test [--mount] [--waypoints]|path stop|path show --marks|path show --trace <file>|path export <name>|terrain [region] <x> <z>|terrain export [radius] [mode] [fill]|village show|hide|here|cultures|dialogue setup|raid [now|status|end]]";
+        return "/travellersdebug [autotest zone add <x> <z> <radiusChunks>|autotest zone clear|autotest invariants|profile start|stop|report|status|reset [workers]|camp [here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]|restspot [here|stats|rescan]|battle [list|info <n>|end <n>|spawnfight [x z]|loot]|map resweep [all]|map resweep cancel|map stats [reset]|elytra [distance]|elytra give [radius] [rockets]|elytra status|mount give|mount ride|mount lead|mount hitch|stable [list|dump <n>|log <n> [count]|verify <n>]|bow status|sound stress|sound rapidfire|path pos1|path pos2|path mark|path clearmarks|path save [name]|path load [name]|path test [--mount] [--waypoints]|path stop|path show --marks|path show --trace <file>|path export <name>|terrain [region] <x> <z>|terrain export [radius] [mode] [fill]|village show|hide|here|cultures|dialogue setup|raid [now|status|end]]";
     }
 
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args,
                                           @Nullable net.minecraft.util.math.BlockPos targetPos) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "trace", "profile", "mount", "elytra", "camp", "battle",
+            return getListOfStringsMatchingLastWord(args, "trace", "profile", "mount", "elytra", "camp", "restspot", "battle",
                     "map", "reset", "bow", "sound", "path", "cultures", "stable", "equip", "terrain",
                     "destination", "relations", "dialogue", "village", "autotest");
         }

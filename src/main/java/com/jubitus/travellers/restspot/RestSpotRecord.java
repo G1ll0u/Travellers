@@ -1,5 +1,6 @@
 package com.jubitus.travellers.restspot;
 
+import com.jubitus.travellers.config.TravellersConfig;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 
@@ -31,6 +32,16 @@ public final class RestSpotRecord {
 
     public int score() {
         return water + height + openSky + flowers + biome;
+    }
+
+    /** Debug text (map tooltip, debug command): score and what each criterion added. */
+    public String describe() {
+        return "Rest spot " + id.toString().substring(0, 8)
+                + "\nScore " + score() + " (keeps from " + TravellersConfig.REST_SPOTS.minScore + ")"
+                + "\nWater +" + water + "  Height +" + height
+                + "\nOpen sky +" + openSky + "  Flowers +" + flowers
+                + "\nBiome " + (biome >= 0 ? "+" : "") + biome
+                + "\nRoom " + walkableCells + " blocks";
     }
 
     NBTTagCompound writeToNBT() {

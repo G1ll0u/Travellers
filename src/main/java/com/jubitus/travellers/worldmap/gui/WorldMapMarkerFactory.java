@@ -242,6 +242,12 @@ public final class WorldMapMarkerFactory {
                 GuiWorldMapPanel.Marker.MarkerType.CAMP_SLOT, label);
     }
 
+    public static final int COLOR_REST_SPOT = 0xFF33BBBB; // teal
+
+    public static GuiWorldMapPanel.Marker restSpot(BlockPos pos, String label) {
+        return new GuiWorldMapPanel.Marker(pos, COLOR_REST_SPOT, GuiWorldMapPanel.Marker.MarkerType.REST_SPOT, label);
+    }
+
     /**
      * Battle: red when the viewer's units fight in it, orange otherwise, grey once ended (result in the tooltip).
      * The bar underneath shows who is still standing: the viewer's side green against red, else light against dark.

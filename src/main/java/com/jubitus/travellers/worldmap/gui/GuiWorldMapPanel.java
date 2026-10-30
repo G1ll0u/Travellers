@@ -58,6 +58,7 @@ public class GuiWorldMapPanel {
             FOLLOWER("marker_follower", Size.WORKER, "follower", LegendTint.OWNER_DARK, 0),
             FOLLOWER_HIGHLIGHTED("marker_follower", Size.WORKER_HIGHLIGHTED, null, LegendTint.OWNER, 0),
             LEADER("marker_leader", Size.WORKER, "leader", LegendTint.OWNER, 0),
+            REST_SPOT("marker_rest_spot", Size.CAMP, "rest_spot", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_REST_SPOT),
             CAMP_SLOT("marker_camp_slot", Size.CAMP, "camp_slot", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_SLOT_BUILT),
             CAMP_FIREPIT("marker_camp_firepit", Size.CAMP, "camp_firepit", LegendTint.FIXED, WorldMapMarkerFactory.COLOR_CAMP_FIREPIT_LIT),
             HOME("marker_home", Size.WORKER, "home", LegendTint.OWNER, 0),

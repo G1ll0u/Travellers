@@ -7,6 +7,8 @@ import com.jubitus.travellers.camp.CampOccupant;
 import com.jubitus.travellers.camp.CampsiteManager;
 import com.jubitus.travellers.camp.CampsiteRecord;
 import com.jubitus.travellers.camp.ShelterSlot;
+import com.jubitus.travellers.restspot.RestSpotManager;
+import com.jubitus.travellers.restspot.RestSpotRecord;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
@@ -27,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.jubitus.travellers.worldmap.net.MsgMapCampUpdate;
 
 /**
- * Feeds the population map GUI with debug info for every campsite (firepit + shelter slots), so a
+ * Feeds the population map GUI with debug info for every campsite (firepit + shelter slots) and rest spot, so a
  * player can inspect camp state world-wide, loaded or not. Mirrors {@link PopulationMapStream}
  * (same subscribe/tick/view-range pattern) but stays a separate stream/subscriber-set so camp data
  * can be toggled independently of population data.
@@ -108,6 +110,14 @@ public class CampMapStream {
                 for (int i = 0; i < rec.slots.size(); i++) {
                     out.add(slotEntry(ws, dim, rec, rec.slots.get(i), i));
                 }
+            }
+            for (RestSpotRecord spot : RestSpotManager.get(ws).getAll()) {
+                MsgMapCampUpdate.Entry e = new MsgMapCampUpdate.Entry();
+                e.dim = dim;
+                e.pos = spot.center;
+                e.kind = MsgMapCampUpdate.ObjKind.REST_SPOT;
+                e.label = spot.describe();
+                out.add(e);
             }
         }
 

@@ -1,4 +1,4 @@
-**Status: step 1 built, not checked in game.**
+**Status: steps 1–2 built; waiting for the user to look at the spots on the map and tune the score.**
 
 # Rest spots
 
@@ -60,7 +60,7 @@ Pretty, roomy places in the wild (riverbank, summit, open view, forest edge) whe
 ## Steps
 
 1. Record + saved data + `ChunkReader` consumer + lazy scoring (`restspot/`). — done (build OK)
-2. Population map markers + tooltip; debug command `/travellersdebug restspot here|stats`. Tune the score with the user on real maps. — todo
+2. Population map markers + tooltip; debug command `/travellersdebug restspot here|stats|rescan`. Tune the score with the user on real maps. — built, tuning pending
 3. Clean up `TravelCommon` trip planning (user allowed a wider cleanup), then trip stop kind + insertion; audit every "stop = village" assumption. — todo
 4. Pause state (entity, record, snapshot) + loaded idle task (mirrored in the raider's `initEntityAI`) + virtual wait. — todo
 5. Faction occupancy, group behaviour, trace events. — todo

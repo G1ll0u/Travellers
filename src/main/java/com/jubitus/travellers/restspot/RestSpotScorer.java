@@ -80,22 +80,32 @@ final class RestSpotScorer {
         return ready;
     }
 
-    /** The rest spot this chunk holds, or null when it has none. Call only once {@link #isReady}. */
-    @Nullable
-    static RestSpotRecord evaluate(WorldServer world, int cx, int cz) {
+    /** A judged chunk: the scored spot when a patch was found, and why it is refused (null when kept). */
+    static final class Verdict {
+        @Nullable final RestSpotRecord spot;
+        @Nullable final String refusal;
+
+        private Verdict(@Nullable RestSpotRecord spot, @Nullable String refusal) {
+            this.spot = spot;
+            this.refusal = refusal;
+        }
+    }
+
+    /** Judges the chunk. Call only once {@link #isReady}. */
+    static Verdict evaluate(WorldServer world, int cx, int cz) {
         TravellersConfig.RestSpots cfg = TravellersConfig.REST_SPOTS;
         BlockPos start = findStart(world, (cx << 4) + 8, (cz << 4) + 8);
-        if (start == null) return null;
-        if (MillSettlements.isNear(world, start, cfg.minVillageDistance)) return null;
+        if (start == null) return new Verdict(null, "no natural ground in the chunk middle");
+        if (MillSettlements.isNear(world, start, cfg.minVillageDistance)) return new Verdict(null, "too close to a village");
         if (MillFootprints.overlapsReserved(world, start.add(-ROOM_RADIUS, -8, -ROOM_RADIUS), start.add(ROOM_RADIUS, 8, ROOM_RADIUS))) {
-            return null;
+            return new Verdict(null, "overlaps a Millenaire building");
         }
 
         // feet[i] is the feet Y of a patch column, NOT_WALKABLE elsewhere; the grid is centred on start.
         int[] feet = new int[SIDE * SIDE];
         Arrays.fill(feet, NOT_WALKABLE);
         int cells = floodPatch(world, start, feet);
-        if (cells < cfg.minWalkableCells) return null;
+        if (cells < cfg.minWalkableCells) return new Verdict(null, "too little room (" + cells + " blocks)");
 
         BlockPos center = patchCenter(start, feet);
         boolean[] near = surroundings(feet);
@@ -105,7 +115,7 @@ final class RestSpotScorer {
         int flowers = (int) Math.round(cfg.weightFlowers * flowerShare(world, start, feet));
         int biomeScore = biomeScore(world.getBiome(center));
         RestSpotRecord spot = new RestSpotRecord(UUID.randomUUID(), center, cells, water, height, openSky, flowers, biomeScore);
-        return spot.score() >= cfg.minScore ? spot : null;
+        return new Verdict(spot, spot.score() >= cfg.minScore ? null : "not pretty enough");
     }
 
     @Nullable

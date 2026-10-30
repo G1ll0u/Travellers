@@ -96,12 +96,34 @@ public final class RestSpotManager extends WorldSavedData {
     private void judge(WorldServer world, int cx, int cz, long key) {
         scored++;
         judged.add(key);
-        RestSpotRecord spot = RestSpotScorer.evaluate(world, cx, cz);
-        if (spot != null && !tooCloseToSpot(spot.center.getX(), spot.center.getZ())) {
-            spots.add(spot);
+        RestSpotScorer.Verdict v = RestSpotScorer.evaluate(world, cx, cz);
+        if (v.refusal == null && !tooCloseToSpot(v.spot.center.getX(), v.spot.center.getZ())) {
+            spots.add(v.spot);
             kept++;
         }
         markDirty();
+    }
+
+    /** Debug: judges this chunk now, whatever its roll, and tells why it would be kept or refused. Keeps nothing. */
+    public String judgeForDebug(WorldServer world, int cx, int cz) {
+        if (!RestSpotScorer.isReady(world, cx, cz)) return "Neighbour chunks or terrain grid not ready, try again in a moment.";
+        RestSpotScorer.Verdict v = RestSpotScorer.evaluate(world, cx, cz);
+        String verdict = v.refusal == null ? "would be KEPT" : "refused: " + v.refusal;
+        if (v.refusal == null && tooCloseToSpot(v.spot.center.getX(), v.spot.center.getZ())) verdict = "refused: too close to another rest spot";
+        return v.spot == null ? verdict : verdict + "\n" + v.spot.describe() + "\nat " + v.spot.center;
+    }
+
+    /** Debug: forgets every spot and judgement, then queues the loaded chunks again (after a config change). */
+    public int rescan(WorldServer world) {
+        spots.clear();
+        judged.clear();
+        pending.clear();
+        lucky = scored = kept = 0;
+        markDirty();
+        for (net.minecraft.world.chunk.Chunk chunk : world.getChunkProvider().getLoadedChunks()) {
+            onChunkRead(world, chunk.x, chunk.z);
+        }
+        return pending.size();
     }
 
     private boolean tooCloseToSpot(int x, int z) {
@@ -113,8 +135,9 @@ public final class RestSpotManager extends WorldSavedData {
         return false;
     }
 
-    public static String stats() {
-        return String.format("lucky chunks %d  judged %d  rest spots kept %d", lucky, scored, kept);
+    public String stats() {
+        return String.format("Rest spots: %d in this world, %d chunks judged, %d waiting. Since start: lucky %d, judged %d, kept %d.",
+                spots.size(), judged.size(), pending.size(), lucky, scored, kept);
     }
 
     @Override

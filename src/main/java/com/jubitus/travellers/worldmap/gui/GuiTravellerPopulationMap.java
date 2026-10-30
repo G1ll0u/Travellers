@@ -494,7 +494,9 @@ public class GuiTravellerPopulationMap extends GuiScreen
 
         for (MsgMapCampUpdate.Entry e : campEntries) {
             if (e.dim != myDim) continue;
-            if (e.kind == MsgMapCampUpdate.ObjKind.FIREPIT) {
+            if (e.kind == MsgMapCampUpdate.ObjKind.REST_SPOT) {
+                mapController.panel.addMarker(WorldMapMarkerFactory.restSpot(e.pos, e.label));
+            } else if (e.kind == MsgMapCampUpdate.ObjKind.FIREPIT) {
                 mapController.panel.addMarker(WorldMapMarkerFactory.campFirepit(e.pos, e.firepitBuilt, e.firepitLit, e.label));
             } else {
                 mapController.panel.addMarker(WorldMapMarkerFactory.campSlot(e.pos, e.slotState, e.occupantVirtual, e.label));
