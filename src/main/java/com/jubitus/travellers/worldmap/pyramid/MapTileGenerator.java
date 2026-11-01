@@ -15,6 +15,12 @@ public final class MapTileGenerator {
     public static final byte TOP_SOLID = 0;
     public static final byte TOP_WATER = 1;
     public static final byte TOP_LAVA = 2;
+    /** Solid ground under tree canopy: its height is the ground's, its tone a little darker. */
+    public static final byte TOP_FOLIAGE = 3;
+
+    private static final int FOLIAGE_DARKEN = 12;
+    // Above the client's water threshold (ClientTileTextures.RenderSettings), so a forest never turns blue
+    private static final int FOLIAGE_MIN_TONE = 76;
 
     // ── Level-0 generation ──────────────────────────────────────────────────
 
@@ -45,6 +51,7 @@ public final class MapTileGenerator {
         int shade = clamp(128 + slopeX * 7 + slopeZ * 7, 50, 210);
         int tone = (base + shade) / 2;
 
+        if (topKind == TOP_FOLIAGE) tone = Math.max(FOLIAGE_MIN_TONE, tone - FOLIAGE_DARKEN);
         if (topKind == TOP_WATER) tone = clamp(48 + shade / 5, 36, 105);
         if (topKind == TOP_LAVA) tone = clamp(175 + shade / 8, 165, 235);
         return clamp(tone, 1, 255);

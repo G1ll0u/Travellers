@@ -1,6 +1,8 @@
 package com.jubitus.travellers.worldmap.pyramid;
 
+import com.jubitus.travellers.ground.BlockRules;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 
@@ -14,6 +16,8 @@ public final class MapChunkPainter {
     private MapChunkPainter() {
     }
 
+    private static final int MAX_CANOPY_DEPTH = 40;
+
     private static final int[] HEIGHTS = new int[256];
     private static final byte[] TOP_KIND = new byte[256];
     private static final byte[] TONES = new byte[256];
@@ -24,11 +28,19 @@ public final class MapChunkPainter {
         for (int z = 0; z < 16; z++) {
             for (int x = 0; x < 16; x++) {
                 int i = z * 16 + x;
-                int h = chunk.getHeightValue(x, z);
-                HEIGHTS[i] = h;
-                Material m = chunk.getBlockState(x, Math.max(1, h - 1), z).getMaterial();
+                int y = Math.max(1, chunk.getHeightValue(x, z) - 1);
+                IBlockState top = chunk.getBlockState(x, y, z);
+                boolean canopy = BlockRules.isCanopy(top);
+                if (canopy) {
+                    // Relief comes from the ground under the trees, so a forest edge is not drawn as a cliff
+                    int floor = Math.max(1, y - MAX_CANOPY_DEPTH);
+                    while (y > floor && isUnderCanopy(top)) top = chunk.getBlockState(x, --y, z);
+                }
+                HEIGHTS[i] = y + 1;
+                Material m = top.getMaterial();
                 TOP_KIND[i] = m == Material.WATER ? MapTileGenerator.TOP_WATER
                         : m == Material.LAVA ? MapTileGenerator.TOP_LAVA
+                        : canopy ? MapTileGenerator.TOP_FOLIAGE
                         : MapTileGenerator.TOP_SOLID;
             }
         }
@@ -54,6 +66,12 @@ public final class MapChunkPainter {
         }
         MapFillStats.paintNanos += System.nanoTime() - t0;
         return changed;
+    }
+
+    /** Tree parts, air and plants between a canopy and the ground below it. */
+    private static boolean isUnderCanopy(IBlockState s) {
+        Material m = s.getMaterial();
+        return BlockRules.isTreePart(s) || (!m.blocksMovement() && !m.isLiquid());
     }
 
     /** Copies a chunk's 256 tones into its place in a tile. Returns true if any pixel changed. */

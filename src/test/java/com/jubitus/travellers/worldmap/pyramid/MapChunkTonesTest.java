@@ -50,6 +50,14 @@ class MapChunkTonesTest {
     }
 
     @Test
+    void foliageIsSlightlyDarkerGroundAndNeverWater() {
+        int ground = MapTileGenerator.tone(70, 0, 0, MapTileGenerator.TOP_SOLID);
+        int forest = MapTileGenerator.tone(70, 0, 0, MapTileGenerator.TOP_FOLIAGE);
+        assertTrue(forest < ground && forest > ground - 20, "forest " + forest + " ground " + ground);
+        assertTrue(MapTileGenerator.tone(1, -20, -20, MapTileGenerator.TOP_FOLIAGE) > 75);
+    }
+
+    @Test
     void writeChunkReportsChangesOnlyWhenPixelsDiffer() {
         byte[] tile = new byte[MapTileGenerator.TILE_BYTES];
         byte[] t = new byte[256];
