@@ -26,6 +26,9 @@ public final class ItemIcon {
     /** As in an inventory slot (blocks in 3D), scaled to a size×size square at (x, y). */
     public static void draw(ItemStack stack, int x, int y, int size) {
         Minecraft mc = Minecraft.getMinecraft();
+        // 3D block models hide their back faces (bed legs) only with the depth test on; maps turn it off
+        boolean depthWasOn = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        GlStateManager.enableDepth();
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, 0f);
         GlStateManager.scale(size / ITEM_PX, size / ITEM_PX, 1f);
@@ -33,6 +36,7 @@ public final class ItemIcon {
         mc.getRenderItem().renderItemIntoGUI(stack, 0, 0);
         RenderHelper.disableStandardItemLighting();
         GlStateManager.popMatrix();
+        if (!depthWasOn) GlStateManager.disableDepth();
         GlStateManager.color(1f, 1f, 1f, 1f);
     }
 
