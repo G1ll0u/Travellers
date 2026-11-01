@@ -19,6 +19,8 @@ import java.util.Map;
 public final class ClientTileCache {
 
     private static final Map<Integer, LinkedHashMap<Long, byte[]>> LEVELS = new java.util.HashMap<>();
+    // Tiles the map currently wants, so a big screen never evicts tiles it is showing.
+    private static int minCapacity;
 
     private ClientTileCache() {}
 
@@ -28,13 +30,18 @@ public final class ClientTileCache {
             return new LinkedHashMap<Long, byte[]>(cap, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<Long, byte[]> eldest) {
-                    return size() > cap;
+                    return size() > Math.max(cap, minCapacity);
                 }
             };
         });
     }
 
     public static void clear() { LEVELS.clear(); }
+
+    /** Each level keeps at least twice the tiles of the current view, whatever the configured size. */
+    public static void requireCapacity(int viewTiles) {
+        minCapacity = viewTiles * 2;
+    }
 
     public static void put(int level, int tileX, int tileZ, byte[] data) {
         if (data == null) return;

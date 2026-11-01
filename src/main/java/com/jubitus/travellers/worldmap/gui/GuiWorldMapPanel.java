@@ -265,7 +265,9 @@ public class GuiWorldMapPanel {
 
     /** Pyramid level matching the current zoom: level L = 2^L blocks/pixel. */
     public int currentPyramidLevel() {
-        int lvl = Math.round((float) (Math.log(blocksPerPixel) / Math.log(2)));
+        // Real screen pixels, not GUI ones: at GUI scale 2+ a GUI-pixel level stretches each texel into a blur
+        float screenBpp = blocksPerPixel / new ScaledResolution(mc).getScaleFactor();
+        int lvl = Math.round((float) (Math.log(screenBpp) / Math.log(2)));
         if (lvl < 0) lvl = 0;
         if (lvl > PyramidDirtyPropagator.MAX_LEVEL) lvl = PyramidDirtyPropagator.MAX_LEVEL;
         return lvl;
@@ -389,7 +391,7 @@ public class GuiWorldMapPanel {
         for (int tz = tz0; tz <= tz1; tz++) {
             for (int tx = tx0; tx <= tx1; tx++) {
                 if (onlyUnderMissingParent
-                        && ClientTileTextures.hasData(level + 1, TileKey.pack(Math.floorDiv(tx, 2), Math.floorDiv(tz, 2)))) {
+                        && ClientTileTextures.hasTexture(level + 1, TileKey.pack(Math.floorDiv(tx, 2), Math.floorDiv(tz, 2)))) {
                     continue;
                 }
                 int id = ClientTileTextures.textureFor(level, TileKey.pack(tx, tz));

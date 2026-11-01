@@ -228,6 +228,7 @@ public class WorldMapController {
 
         int cTileX = floorDiv(c.getX(), tileBlocks);
         int cTileZ = floorDiv(c.getZ(), tileBlocks);
+        ClientTileCache.requireCapacity((maxTileX - minTileX + 1) * (maxTileZ - minTileZ + 1));
 
         List<long[]> missing = new ArrayList<>();
         for (int tz = minTileZ; tz <= maxTileZ; tz++) {
