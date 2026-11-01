@@ -21,6 +21,7 @@ public final class MapChunkPainter {
     private static final int[] HEIGHTS = new int[256];
     private static final byte[] TOP_KIND = new byte[256];
     private static final byte[] TONES = new byte[256];
+    private static final int[] FAMILY_COUNTS = new int[MapBiomeFamily.count()];
 
     /** Server thread only. Returns true if any pixel changed. */
     public static boolean paint(WorldServer world, Chunk chunk) {
@@ -45,6 +46,7 @@ public final class MapChunkPainter {
             }
         }
         MapTileGenerator.chunkTones(HEIGHTS, TOP_KIND, TONES);
+        byte family = chunkFamily(chunk.getBiomeArray());
 
         int tileX = Math.floorDiv(chunk.x, WorldMapDiscovery.CHUNKS_PER_TILE);
         int tileZ = Math.floorDiv(chunk.z, WorldMapDiscovery.CHUNKS_PER_TILE);
@@ -54,7 +56,7 @@ public final class MapChunkPainter {
         if (data == null || data.length != MapTileGenerator.TILE_BYTES) data = new byte[MapTileGenerator.TILE_BYTES];
 
         boolean changed = writeChunk(data, chunk.x - tileX * WorldMapDiscovery.CHUNKS_PER_TILE,
-                chunk.z - tileZ * WorldMapDiscovery.CHUNKS_PER_TILE, TONES);
+                chunk.z - tileZ * WorldMapDiscovery.CHUNKS_PER_TILE, TONES, family);
         if (changed) {
             level0.put(key, data);
             int dim = world.provider.getDimension();
@@ -74,9 +76,18 @@ public final class MapChunkPainter {
         return BlockRules.isTreePart(s) || (!m.blocksMovement() && !m.isLiquid());
     }
 
-    /** Copies a chunk's 256 tones into its place in a tile. Returns true if any pixel changed. */
-    static boolean writeChunk(byte[] tile, int localChunkX, int localChunkZ, byte[] tones) {
-        boolean changed = false;
+    /** The chunk's most common biome family, from its own biome array. */
+    static byte chunkFamily(byte[] biomeIds) {
+        java.util.Arrays.fill(FAMILY_COUNTS, 0);
+        for (byte id : biomeIds) FAMILY_COUNTS[MapBiomeFamily.ofBiomeId(id & 0xFF)]++;
+        return MapBiomeFamily.majority(FAMILY_COUNTS);
+    }
+
+    /** Copies a chunk's 256 tones and biome family into their place in a tile. Returns true if anything changed. */
+    static boolean writeChunk(byte[] tile, int localChunkX, int localChunkZ, byte[] tones, byte family) {
+        int cell = MapTileGenerator.cellIndex(localChunkX, localChunkZ);
+        boolean changed = tile[cell] != family;
+        tile[cell] = family;
         for (int z = 0; z < 16; z++) {
             int row = (localChunkZ * 16 + z) * MapTileGenerator.TILE_PX + localChunkX * 16;
             for (int x = 0; x < 16; x++) {

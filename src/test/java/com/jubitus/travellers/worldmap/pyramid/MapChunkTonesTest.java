@@ -62,9 +62,49 @@ class MapChunkTonesTest {
         byte[] tile = new byte[MapTileGenerator.TILE_BYTES];
         byte[] t = new byte[256];
         java.util.Arrays.fill(t, (byte) 90);
-        assertTrue(MapChunkPainter.writeChunk(tile, 15, 15, t));
+        byte forest = (byte) MapBiomeFamily.FOREST.ordinal();
+        assertTrue(MapChunkPainter.writeChunk(tile, 15, 15, t, forest));
         assertEquals(90, tile[(15 * 16 + 15) * MapTileGenerator.TILE_PX + 15 * 16 + 15]);
-        assertFalse(MapChunkPainter.writeChunk(tile, 15, 15, t));
+        assertEquals(forest, tile[MapTileGenerator.cellIndex(15, 15)]);
+        assertFalse(MapChunkPainter.writeChunk(tile, 15, 15, t, forest));
+        assertTrue(MapChunkPainter.writeChunk(tile, 15, 15, t, (byte) MapBiomeFamily.DESERT.ordinal()));
         assertEquals(0, tile[0]);
+        assertEquals(0, tile[MapTileGenerator.cellIndex(0, 0)]);
+    }
+
+    @Test
+    void familyMajorityPrefersLandAndIgnoresUnknown() {
+        int[] c = new int[MapBiomeFamily.values().length];
+        assertEquals(MapBiomeFamily.UNKNOWN.ordinal(), MapBiomeFamily.majority(c));
+        c[MapBiomeFamily.UNKNOWN.ordinal()] = 200;
+        c[MapBiomeFamily.WATER.ordinal()] = 50;
+        assertEquals(MapBiomeFamily.WATER.ordinal(), MapBiomeFamily.majority(c));
+        c[MapBiomeFamily.DESERT.ordinal()] = 3;
+        c[MapBiomeFamily.PLAINS.ordinal()] = 5;
+        assertEquals(MapBiomeFamily.PLAINS.ordinal(), MapBiomeFamily.majority(c));
+    }
+
+    @Test
+    void downsampleTakesTheCellMajorityPerQuadrant() {
+        byte[] child = new byte[MapTileGenerator.TILE_BYTES];
+        byte snow = (byte) MapBiomeFamily.SNOW.ordinal();
+        byte mesa = (byte) MapBiomeFamily.MESA.ordinal();
+        child[MapTileGenerator.cellIndex(0, 0)] = snow;
+        child[MapTileGenerator.cellIndex(1, 0)] = snow;
+        child[MapTileGenerator.cellIndex(0, 1)] = mesa;
+        child[MapTileGenerator.cellIndex(15, 15)] = mesa;
+        byte[] out = MapTileGenerator.downsample(null, child, null, null);
+        assertEquals(snow, out[MapTileGenerator.cellIndex(8, 0)]);
+        assertEquals(mesa, out[MapTileGenerator.cellIndex(15, 7)]);
+        assertEquals(0, out[MapTileGenerator.cellIndex(0, 0)]);
+    }
+
+    @Test
+    void oldTilesInflateWithAnUnknownTrailer() {
+        byte[] old = new byte[MapTileGenerator.TONE_BYTES];
+        java.util.Arrays.fill(old, (byte) 120);
+        byte[] in = TileCompression.inflate(TileCompression.deflate(old), MapTileGenerator.TILE_BYTES);
+        assertEquals(120, in[MapTileGenerator.TONE_BYTES - 1]);
+        assertEquals(0, in[MapTileGenerator.cellIndex(0, 0)]);
     }
 }

@@ -36,8 +36,8 @@ public class MapPyramidMigration {
 
         for (Map.Entry<Long, byte[]> entry : legacy.view().entrySet()) {
             byte[] data = entry.getValue();
-            if (data == null || data.length != MapTileGenerator.TILE_BYTES) continue;
-            level0.put(entry.getKey(), data);
+            if (data == null || data.length != MapTileGenerator.TONE_BYTES) continue;
+            level0.put(entry.getKey(), java.util.Arrays.copyOf(data, MapTileGenerator.TILE_BYTES));
         }
 
         // Build every level above 0 right away, synchronously — a world with a large existing

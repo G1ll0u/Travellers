@@ -44,7 +44,7 @@ public class MapDetailTileImageSavedData extends WorldSavedData {
             NBTTagCompound c = list.getCompoundTagAt(i);
             long key = c.getLong("k");
             byte[] data = c.getByteArray("d");
-            if (data != null && data.length == MapTileGenerator.TILE_BYTES) {
+            if (data != null && data.length == MapTileGenerator.TONE_BYTES) {
                 tiles.put(key, data);
             }
         }

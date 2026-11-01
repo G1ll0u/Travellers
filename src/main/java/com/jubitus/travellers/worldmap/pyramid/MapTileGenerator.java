@@ -10,7 +10,16 @@ public final class MapTileGenerator {
     private MapTileGenerator() {}
 
     public static final int TILE_PX    = 256;
-    public static final int TILE_BYTES = TILE_PX * TILE_PX;
+    public static final int TONE_BYTES = TILE_PX * TILE_PX;
+    /** Pixels per side of a biome cell: one chunk at level 0. */
+    public static final int CELL_PX = 16;
+    public static final int CELLS = TILE_PX / CELL_PX;
+    /** Tones, then one biome family byte per cell (row-major); tiles saved before biomes simply read 0 there. */
+    public static final int TILE_BYTES = TONE_BYTES + CELLS * CELLS;
+
+    public static int cellIndex(int cellX, int cellZ) {
+        return TONE_BYTES + cellZ * CELLS + cellX;
+    }
 
     public static final byte TOP_SOLID = 0;
     public static final byte TOP_WATER = 1;
@@ -65,6 +74,7 @@ public final class MapTileGenerator {
      * generated) — its region is simply left unknown (0) in the result.
      * Each child's 256x256 is box-downsampled 2x into a 128x128 quadrant of the output;
      * unknown (0) source pixels are excluded from the average rather than pulling it toward 0.
+     * Each parent biome cell takes the majority of its 2x2 child cells.
      */
     public static byte[] downsample(byte[] q00, byte[] q10, byte[] q01, byte[] q11) {
         byte[] out = new byte[TILE_BYTES];
@@ -96,6 +106,21 @@ public final class MapTileGenerator {
 
                 int tone = (count > 0) ? (sum / count) : 0;
                 out[(outZ0 + oz) * TILE_PX + (outX0 + ox)] = (byte) (tone & 0xFF);
+            }
+        }
+
+        int[] counts = new int[MapBiomeFamily.count()];
+        int outCellX0 = outX0 / CELL_PX, outCellZ0 = outZ0 / CELL_PX;
+        for (int cz = 0; cz < CELLS / 2; cz++) {
+            for (int cx = 0; cx < CELLS / 2; cx++) {
+                java.util.Arrays.fill(counts, 0);
+                for (int dz = 0; dz < 2; dz++) {
+                    for (int dx = 0; dx < 2; dx++) {
+                        int f = child[cellIndex(cx * 2 + dx, cz * 2 + dz)] & 0xFF;
+                        if (f < counts.length) counts[f]++;
+                    }
+                }
+                out[cellIndex(outCellX0 + cx, outCellZ0 + cz)] = MapBiomeFamily.majority(counts);
             }
         }
     }
