@@ -1,4 +1,4 @@
-**Status: steps 1–2 done (data only, nothing visible yet); step 3 next.**
+**Status: steps 1–3 built; step 4 (in-game tuning) next.**
 
 # Worldmap biome colours
 
@@ -34,5 +34,5 @@ Plains/meadow, forest, conifer (taiga), jungle, swamp, desert/beach, savanna, me
 
 1. Server: family table + chunk majority in `MapChunkPainter`, trailer written with the tones, change detection includes it. Tests: majority, trailer survives `writeChunk`. — done
 2. Pyramid: trailer downsample (majority) in `MapTileGenerator.downsample`; tone-length checks fixed. Test: 2×2 majority, unknown ignored. — done
-3. Client: palette + bilinear tint in `ClientTileTextures.build`, strength option in `TravellersConfig.WORLDMAP`. — todo
+3. Client: palette + bilinear tint in `ClientTileTextures.build`, strength option in `TravellersConfig.WORLDMAP`. — built, not checked in game
 4. In-game tuning of palette and strength with the user. — todo

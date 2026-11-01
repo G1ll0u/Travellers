@@ -195,6 +195,10 @@ public class TravellersConfig {
         @Config.RangeDouble(min = 0.0, max = 1.0)
         public float mapFogEdgeNoise = 0.8f;
 
+        @Config.Comment("How strongly the map colours each kind of land (forest, desert, snow...). 0 = plain sepia map.")
+        @Config.RangeInt(min = 0, max = 100)
+        public int mapBiomeTint = 50;
+
         @Config.Comment("How many map pieces your graphics card keeps ready to draw. Higher = fewer redraws when moving around a big map, more video memory used (about 0.25 MB each).")
         @Config.RangeInt(min = 32, max = 1024)
         public int mapClientTextureCacheSize = 160;

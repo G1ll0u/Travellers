@@ -1,6 +1,7 @@
 package com.jubitus.travellers.worldmap.client;
 
 import com.jubitus.travellers.config.TravellersConfig;
+import com.jubitus.travellers.worldmap.pyramid.MapBiomeFamily;
 import com.jubitus.travellers.worldmap.pyramid.MapTileGenerator;
 import com.jubitus.travellers.worldmap.pyramid.PyramidDirtyPropagator;
 import com.jubitus.travellers.worldmap.pyramid.TileKey;
@@ -41,9 +42,15 @@ public final class ClientTileTextures {
     private static final int[] PIXELS = new int[PX * PX];
     private static final byte[] LATTICE = new byte[(PX + 2) * (PX + 2)];
     private static int[] toneLut;
+    // Biome tint per cell, with a one-cell border read from the neighbour tiles.
+    private static final int TINT_STRIDE = MapTileGenerator.CELLS + 2;
+    private static final float[] CELL_TINT = new float[TINT_STRIDE * TINT_STRIDE * 3];
+    private static final float[][] BIOME_TINTS = new float[MapBiomeFamily.values().length][];
+    private static int builtWithBiomeTint = -1;
 
     static {
         for (int i = 0; i < LEVELS.length; i++) LEVELS[i] = new Long2ObjectOpenHashMap<>();
+        for (MapBiomeFamily f : MapBiomeFamily.values()) BIOME_TINTS[f.ordinal()] = tintOf(f);
     }
 
     private ClientTileTextures() {}
@@ -52,11 +59,11 @@ public final class ClientTileTextures {
     public static void beginFrame() {
         frame++;
         buildsLeft = TravellersConfig.WORLDMAP.mapTextureBuildsPerFrame;
-    }
-
-    /** True if this tile can be drawn now or once built (texture or raw data present). */
-    public static boolean hasData(int level, long key) {
-        return LEVELS[level].containsKey(key) || ClientTileCache.has(level, key);
+        int tint = TravellersConfig.WORLDMAP.mapBiomeTint;
+        if (tint != builtWithBiomeTint) {
+            if (builtWithBiomeTint >= 0) invalidateAll();
+            builtWithBiomeTint = tint;
+        }
     }
 
     /** True if this tile already has a texture to draw (possibly stale). */
@@ -99,6 +106,13 @@ public final class ClientTileTextures {
         if (e != null) e.dirty = true;
     }
 
+    /** A tile's data arrived or changed: rebuild it, and its built neighbours whose biome blend reads its edge. */
+    public static void invalidateWithNeighbours(int level, int tileX, int tileZ) {
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) invalidate(level, tileX + dx, tileZ + dz);
+        }
+    }
+
     /** Marks dirty every texture, at every level, touching this block rectangle (max exclusive). */
     public static void invalidateBlockArea(int minX, int minZ, int maxX, int maxZ) {
         for (int level = 0; level < LEVELS.length; level++) {
@@ -130,10 +144,10 @@ public final class ClientTileTextures {
         entryCount = 0;
     }
 
-    // Frees the least recently drawn texture, never one drawn this frame.
+    // Frees the least recently drawn texture, never one drawn this frame or the last (still on screen): the cap may be exceeded meanwhile.
     private static void evictOne() {
         int bestLevel = -1;
-        long bestKey = 0, bestFrame = frame;
+        long bestKey = 0, bestFrame = frame - 1;
         for (int level = 0; level < LEVELS.length; level++) {
             for (Long2ObjectMap.Entry<Entry> me : LEVELS[level].long2ObjectEntrySet()) {
                 if (me.getValue().lastUsedFrame < bestFrame) {
@@ -153,6 +167,7 @@ public final class ClientTileTextures {
     private static void build(int level, int tileX, int tileZ, byte[] tones) {
         int[] lut = lut();
         for (int i = 0; i < PIXELS.length; i++) PIXELS[i] = lut[tones[i] & 0xFF];
+        tintBiomes(level, tileX, tileZ, tones);
         MapRoadPainter.paint(PIXELS, tones, level, tileX, tileZ);
         if (ClientMapDiscovery.isFullMap()) return;
         int pb = 1 << level;
@@ -204,6 +219,85 @@ public final class ClientTileTextures {
                 float alpha = soft <= 0f ? (e >= 0.5f ? 1f : 0f) : smoothstep(0.5f - soft, 0.5f + soft, e);
                 PIXELS[pz * PX + px] = blend(FOG_RGB, terrain, alpha);
             }
+        }
+    }
+
+    // Each land pixel takes the bilinear blend of its 4 nearest cells' tints, across tile edges too.
+    private static void tintBiomes(int level, int tileX, int tileZ, byte[] tile) {
+        float strength = builtWithBiomeTint / 100f;
+        if (strength <= 0f) return;
+        boolean any = false;
+        for (int j = 0; j < TINT_STRIDE; j++) {
+            for (int i = 0; i < TINT_STRIDE; i++) {
+                float[] f = BIOME_TINTS[cellFamily(level, tileX, tileZ, tile, i - 1, j - 1)];
+                int o = (j * TINT_STRIDE + i) * 3;
+                for (int k = 0; k < 3; k++) {
+                    CELL_TINT[o + k] = 1f + (f[k] - 1f) * strength;
+                    any |= f[k] != 1f;
+                }
+            }
+        }
+        if (!any) return;
+        float cellPx = MapTileGenerator.CELL_PX;
+        for (int pz = 0; pz < PX; pz++) {
+            float gz = (pz + 0.5f) / cellPx + 0.5f;
+            int iz = (int) gz;
+            float fz = gz - iz;
+            for (int px = 0; px < PX; px++) {
+                int i = pz * PX + px;
+                int tone = tile[i] & 0xFF;
+                if (tone == 0 || tone <= RenderSettings.waterThreshold) continue;
+                float gx = (px + 0.5f) / cellPx + 0.5f;
+                int ix = (int) gx;
+                float fx = gx - ix;
+                int a = (iz * TINT_STRIDE + ix) * 3, b = a + 3, c = a + TINT_STRIDE * 3, d = c + 3;
+                int rgb = PIXELS[i];
+                int out = 0xFF000000;
+                for (int k = 0, shift = 16; k < 3; k++, shift -= 8) {
+                    float t = (CELL_TINT[a + k] * (1 - fx) + CELL_TINT[b + k] * fx) * (1 - fz)
+                            + (CELL_TINT[c + k] * (1 - fx) + CELL_TINT[d + k] * fx) * fz;
+                    int v = (int) (((rgb >> shift) & 0xFF) * t);
+                    out |= (v > 255 ? 255 : v) << shift;
+                }
+                PIXELS[i] = out;
+            }
+        }
+    }
+
+    // Family of a cell, possibly one cell outside this tile (read from the neighbour, else this tile's edge).
+    private static int cellFamily(int level, int tileX, int tileZ, byte[] tile, int cx, int cz) {
+        int cells = MapTileGenerator.CELLS;
+        int dx = cx < 0 ? -1 : cx >= cells ? 1 : 0;
+        int dz = cz < 0 ? -1 : cz >= cells ? 1 : 0;
+        byte[] src = tile;
+        if (dx != 0 || dz != 0) {
+            byte[] n = ClientTileCache.get(level, TileKey.pack(tileX + dx, tileZ + dz));
+            if (n != null && n.length == MapTileGenerator.TILE_BYTES) {
+                src = n;
+                cx -= dx * cells;
+                cz -= dz * cells;
+            }
+        }
+        cx = Math.max(0, Math.min(cells - 1, cx));
+        cz = Math.max(0, Math.min(cells - 1, cz));
+        return MapBiomeFamily.byId(src[MapTileGenerator.cellIndex(cx, cz)] & 0xFF).ordinal();
+    }
+
+    // RGB multipliers at full strength; light ground stays readable, dark relief keeps its shading.
+    private static float[] tintOf(MapBiomeFamily f) {
+        switch (f) {
+            case PLAINS:   return new float[]{0.92f, 1.06f, 0.80f};
+            case FOREST:   return new float[]{0.78f, 1.02f, 0.70f};
+            case CONIFER:  return new float[]{0.72f, 0.95f, 0.80f};
+            case JUNGLE:   return new float[]{0.70f, 1.08f, 0.62f};
+            case SWAMP:    return new float[]{0.78f, 0.90f, 0.70f};
+            case DESERT:   return new float[]{1.08f, 1.02f, 0.82f};
+            case SAVANNA:  return new float[]{1.05f, 1.00f, 0.70f};
+            case MESA:     return new float[]{1.15f, 0.85f, 0.70f};
+            case SNOW:     return new float[]{0.98f, 1.04f, 1.22f};
+            case MOUNTAIN: return new float[]{0.92f, 0.95f, 1.02f};
+            case MUSHROOM: return new float[]{1.05f, 0.88f, 1.05f};
+            default:       return new float[]{1f, 1f, 1f};
         }
     }
 

@@ -3,6 +3,7 @@ package com.jubitus.travellers.worldmap.pyramid;
 import com.jubitus.travellers.ground.BlockRules;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 
@@ -46,7 +47,7 @@ public final class MapChunkPainter {
             }
         }
         MapTileGenerator.chunkTones(HEIGHTS, TOP_KIND, TONES);
-        byte family = chunkFamily(chunk.getBiomeArray());
+        byte family = chunkFamily(world, chunk);
 
         int tileX = Math.floorDiv(chunk.x, WorldMapDiscovery.CHUNKS_PER_TILE);
         int tileZ = Math.floorDiv(chunk.z, WorldMapDiscovery.CHUNKS_PER_TILE);
@@ -76,10 +77,17 @@ public final class MapChunkPainter {
         return BlockRules.isTreePart(s) || (!m.blocksMovement() && !m.isLiquid());
     }
 
-    /** The chunk's most common biome family, from its own biome array. */
-    static byte chunkFamily(byte[] biomeIds) {
+    /** The chunk's most common biome family. */
+    private static byte chunkFamily(WorldServer world, Chunk chunk) {
         java.util.Arrays.fill(FAMILY_COUNTS, 0);
-        for (byte id : biomeIds) FAMILY_COUNTS[MapBiomeFamily.ofBiomeId(id & 0xFF)]++;
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        // Through getBiome, never the raw biome array: biome-ID extenders (RoughlyEnoughIDs) leave that array unused
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                pos.setPos(chunk.x * 16 + x, 64, chunk.z * 16 + z);
+                FAMILY_COUNTS[MapBiomeFamily.ofBiome(chunk.getBiome(pos, world.getBiomeProvider())).ordinal()]++;
+            }
+        }
         return MapBiomeFamily.majority(FAMILY_COUNTS);
     }
 

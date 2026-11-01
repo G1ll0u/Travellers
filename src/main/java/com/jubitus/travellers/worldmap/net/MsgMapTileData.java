@@ -52,7 +52,7 @@ public class MsgMapTileData implements IMessage {
             Minecraft.getMinecraft().addScheduledTask(() -> {
                 byte[] data = TileCompression.inflate(msg.compressedData, MapTileGenerator.TILE_BYTES);
                 ClientTileCache.put(msg.level, msg.tileX, msg.tileZ, data);
-                ClientTileTextures.invalidate(msg.level, msg.tileX, msg.tileZ);
+                ClientTileTextures.invalidateWithNeighbours(msg.level, msg.tileX, msg.tileZ);
                 if (TravellersConfig.WORLDMAP.debugMap) {
                     FMLLog.log(Level.INFO, "[Travellers/MapNet] client: tile data received, cached level=%d tile=%d,%d",
                             msg.level, msg.tileX, msg.tileZ);
