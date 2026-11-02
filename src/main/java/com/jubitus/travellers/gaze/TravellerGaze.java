@@ -32,9 +32,9 @@ public final class TravellerGaze {
     }
 
     private static final int SCAN_PERIOD = 30;
-    private static final int NOD_TICKS = 10;
+    private static final int NOD_WAIT_TICKS = 20;
+    private static final float NOD_FACING_ANGLE = 20.0F;
     private static final double FOCUS_RANGE = 20.0D;
-    private static final double GLANCE_RANGE = 16.0D;
 
     private final EntityTraveller mob;
 
@@ -58,7 +58,9 @@ public final class TravellerGaze {
     private int holdTicks;
 
     private int awayTicks;
+    private int nodWait;
     private int nodTicks;
+    private int nodTotal;
 
     private List<BlockPos> places = Collections.emptyList();
     private List<EntityLivingBase> nearby = Collections.emptyList();
@@ -115,8 +117,21 @@ public final class TravellerGaze {
         return glanceTicks > 0 && (glanceEntity != null || hasGlancePos);
     }
 
+    /** Nods once the head faces whoever it is looking at, or after a short wait anyway. */
     public void nod() {
-        if (nodTicks <= 0) nodTicks = NOD_TICKS;
+        if (nodTicks <= 0) nodWait = NOD_WAIT_TICKS;
+    }
+
+    /** The nod's extra head dip this tick (degrees), given how far the head still is from its target. */
+    float nodPitch(float facingError) {
+        if (nodWait > 0) {
+            if (facingError > NOD_FACING_ANGLE && --nodWait > 0) return 0.0F;
+            nodWait = 0;
+            nodTotal = nodTicks = Math.max(2, (int) Math.round(20.0D * TravellersConfig.GAZE.nodSeconds));
+        }
+        if (nodTicks <= 0) return 0.0F;
+        double progress = (nodTotal - --nodTicks) / (double) nodTotal;
+        return (float) (Math.sin(progress * Math.PI) * TravellersConfig.GAZE.nodDepth);
     }
 
     /** Spots worth a look while standing around here (a village's buildings). */
@@ -132,6 +147,7 @@ public final class TravellerGaze {
         idleEntity = null;
         hasIdlePos = false;
         holdTicks = 0;
+        nodWait = 0;
         nodTicks = 0;
         places = Collections.emptyList();
     }
@@ -155,20 +171,14 @@ public final class TravellerGaze {
     boolean resolve() {
         if (glanceCooldown > 0) glanceCooldown--;
         hasTarget = pick();
-        if (hasTarget && nodTicks > 0) {
-            // A small dip of the head: the look point sinks and comes back.
-            double progress = (NOD_TICKS - nodTicks) / (double) NOD_TICKS;
-            double dist = Math.max(1.0D, Math.sqrt(sq(tx - mob.posX) + sq(tz - mob.posZ)));
-            ty -= Math.sin(progress * Math.PI) * 0.3D * dist;
-            nodTicks--;
-        }
         return hasTarget;
     }
 
     private boolean pick() {
         if (focusKind != null && focusEntity != null && !isValid(focusEntity, FOCUS_RANGE)) clearFocus();
 
-        if (glanceTicks > 0 && (hasGlancePos || isValid(glanceEntity, GLANCE_RANGE))) {
+        if (glanceTicks > 0 && (hasGlancePos || isValid(glanceEntity, glanceRange()))
+                && !beyondNeck(hasGlancePos ? glanceX : glanceEntity.posX, hasGlancePos ? glanceZ : glanceEntity.posZ)) {
             glanceTicks--;
             kind = Kind.GLANCE;
             return hasGlancePos ? set(glanceX, glanceY, glanceZ) : eyes(glanceEntity);
@@ -180,7 +190,7 @@ public final class TravellerGaze {
         if (focusKind != null) {
             // Someone it stopped for still gets the odd look away, the way people do.
             if (focusKind == Kind.INTEREST && watched && --awayTicks <= 0) {
-                awayTicks = 80 + mob.getRNG().nextInt(120);
+                awayTicks = ticksBetween(TravellersConfig.GAZE.lookAwayMinSeconds, TravellersConfig.GAZE.lookAwayMaxSeconds);
                 if (lookAway()) return pick();
             }
             kind = focusKind;
@@ -190,7 +200,7 @@ public final class TravellerGaze {
 
         boolean walking = isWalking();
         if (watched && glanceCooldown <= 0 && --holdTicks <= 0) {
-            holdTicks = holdDuration();
+            holdTicks = ticksBetween(TravellersConfig.GAZE.holdMinSeconds, TravellersConfig.GAZE.holdMaxSeconds);
             if (mob.getRNG().nextDouble() < TravellersConfig.GAZE.glanceChance && tryGlance(walking)) return pick();
             if (!walking) pickIdle();
         }
@@ -204,7 +214,7 @@ public final class TravellerGaze {
         kind = Kind.IDLE;
         if (!watched) return false;
         if (idleEntity != null) {
-            if (isValid(idleEntity, GLANCE_RANGE)) return eyes(idleEntity);
+            if (isValid(idleEntity, glanceRange())) return eyes(idleEntity);
             idleEntity = null;
         }
         return hasIdlePos && set(idleX, idleY, idleZ);
@@ -249,7 +259,7 @@ public final class TravellerGaze {
         double bestScore = 0.0D;
         Random rng = mob.getRNG();
         for (EntityLivingBase e : nearby) {
-            if (!isValid(e, GLANCE_RANGE)) continue;
+            if (!isValid(e, glanceRange())) continue;
             double score = salience(e, walking);
             if (score <= 0.0D) continue;
             score *= 0.5D + rng.nextDouble();
@@ -259,7 +269,7 @@ public final class TravellerGaze {
             }
         }
         if (best == null || !mob.getEntitySenses().canSee(best)) return false;
-        glance(best, 25 + rng.nextInt(45));
+        glance(best, ticksBetween(TravellersConfig.GAZE.glanceMinSeconds, TravellersConfig.GAZE.glanceMaxSeconds));
         glanceCooldown = 20;
         return true;
     }
@@ -268,11 +278,8 @@ public final class TravellerGaze {
         double dx = e.posX - mob.posX;
         double dz = e.posZ - mob.posZ;
         double d2 = dx * dx + dz * dz;
-        if (walking) {
-            // Walking, it only notices what is ahead or beside it.
-            float bearing = (float) (MathHelper.atan2(dz, dx) * (180.0D / Math.PI)) - 90.0F;
-            if (Math.abs(MathHelper.wrapDegrees(bearing - mob.rotationYaw)) > 110.0F) return 0.0D;
-        }
+        // Walking, it only notices what its head can turn to.
+        if (walking && beyondNeck(e.posX, e.posZ)) return 0.0D;
         double score;
         if (e instanceof EntityPlayer) score = 4.0D;
         else if (e instanceof IMob) score = 3.0D;
@@ -289,7 +296,7 @@ public final class TravellerGaze {
         Random rng = mob.getRNG();
         List<EntityLivingBase> others = new ArrayList<>();
         for (EntityLivingBase e : nearby) {
-            if (e != focusEntity && isValid(e, GLANCE_RANGE)) others.add(e);
+            if (e != focusEntity && isValid(e, glanceRange())) others.add(e);
         }
         if (!others.isEmpty() && rng.nextBoolean()) {
             glance(others.get(rng.nextInt(others.size())), 20 + rng.nextInt(25));
@@ -347,11 +354,15 @@ public final class TravellerGaze {
         idleZ = mob.posZ + Math.cos(yaw) * dist;
     }
 
-    private int holdDuration() {
-        TravellersConfig.Gaze cfg = TravellersConfig.GAZE;
-        double min = Math.min(cfg.holdMinSeconds, cfg.holdMaxSeconds);
-        double max = Math.max(cfg.holdMinSeconds, cfg.holdMaxSeconds);
+    /** A random duration between two configured lengths in seconds, in either order. */
+    private int ticksBetween(double a, double b) {
+        double min = Math.min(a, b);
+        double max = Math.max(a, b);
         return (int) Math.round(20.0D * (min + mob.getRNG().nextDouble() * (max - min)));
+    }
+
+    private static double glanceRange() {
+        return TravellersConfig.GAZE.glanceRange;
     }
 
     private boolean isWalking() {
@@ -372,6 +383,13 @@ public final class TravellerGaze {
         return set(p.x + 0.5D, mob.posY + mob.getEyeHeight() - 0.2D, p.z + 0.5D);
     }
 
+    /** Walking or riding, a point the neck can't turn to: it has passed out of sight. */
+    private boolean beyondNeck(double x, double z) {
+        if (!TravellerLookHelper.isNeckBound(mob)) return false;
+        float bearing = (float) (MathHelper.atan2(z - mob.posZ, x - mob.posX) * (180.0D / Math.PI)) - 90.0F;
+        return Math.abs(MathHelper.wrapDegrees(bearing - mob.rotationYaw)) > TravellersConfig.GAZE.walkingNeckAngle;
+    }
+
     private boolean isValid(@Nullable Entity e, double range) {
         return e != null && e.isEntityAlive() && e != mob && mob.getDistanceSq(e) <= range * range;
     }
@@ -387,7 +405,4 @@ public final class TravellerGaze {
         return true;
     }
 
-    private static double sq(double v) {
-        return v * v;
-    }
 }

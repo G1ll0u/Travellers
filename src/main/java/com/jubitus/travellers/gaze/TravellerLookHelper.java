@@ -16,7 +16,6 @@ public class TravellerLookHelper extends EntityLookHelper {
 
     private static final float EASE = 0.35F;
     private static final float ACCEL = 0.5F;
-    private static final float WALK_HEAD_LIMIT = 70.0F;
     private static final float PITCH_LIMIT = 50.0F;
 
     private final EntityTraveller mob;
@@ -28,6 +27,7 @@ public class TravellerLookHelper extends EntityLookHelper {
 
     private float yawVel;
     private float pitchVel;
+    private float nodPitch;
 
     public TravellerLookHelper(EntityTraveller mob, TravellerGaze gaze) {
         super(mob);
@@ -57,11 +57,13 @@ public class TravellerLookHelper extends EntityLookHelper {
     public void onUpdateLook() {
         boolean task = requested;
         requested = false;
-        if (mob.world.isRemote || mob.sleep.isSleeping()) return;
-
+        if (mob.world.isRemote) return;
         boolean combat = mob.getAttackTarget() != null || mob.isInCombat();
         // Something already turned the head directly this tick (bow, fishing...): leave it be.
-        if (!task && (combat || mob.hasHeadWriterThisTick())) return;
+        if (mob.sleep.isSleeping() || (!task && (combat || mob.hasHeadWriterThisTick()))) {
+            nodPitch = 0.0F;
+            return;
+        }
 
         TravellersConfig.Gaze cfg = TravellersConfig.GAZE;
         float speed = (float) cfg.headTurnSpeed;
@@ -105,16 +107,26 @@ public class TravellerLookHelper extends EntityLookHelper {
         yawVel += (yawStep - yawVel) * ACCEL;
         mob.rotationYawHead += yawVel;
 
+        // The nod rides on top of the eased pitch, so it shows at full depth and speed.
+        mob.rotationPitch -= nodPitch;
         float pitchStep = MathHelper.clamp((pitch - mob.rotationPitch) * EASE, -speed, speed);
         pitchVel += (pitchStep - pitchVel) * ACCEL;
         mob.rotationPitch += pitchVel;
+        nodPitch = gaze.nodPitch(Math.abs(MathHelper.wrapDegrees(yaw - mob.rotationYawHead)));
+        mob.rotationPitch += nodPitch;
 
         // Walking or riding, the head can't twist further than a person's neck allows.
-        if (mob.isRiding() || !mob.getNavigator().noPath()) {
+        if (isNeckBound(mob)) {
+            float limit = (float) cfg.walkingNeckAngle;
             float rel = MathHelper.wrapDegrees(mob.rotationYawHead - mob.rotationYaw);
-            if (rel > WALK_HEAD_LIMIT) mob.rotationYawHead = mob.rotationYaw + WALK_HEAD_LIMIT;
-            else if (rel < -WALK_HEAD_LIMIT) mob.rotationYawHead = mob.rotationYaw - WALK_HEAD_LIMIT;
+            if (rel > limit) mob.rotationYawHead = mob.rotationYaw + limit;
+            else if (rel < -limit) mob.rotationYawHead = mob.rotationYaw - limit;
         }
         mob.noteHeadWriter("gaze");
+    }
+
+    /** Walking or riding, the body keeps its heading and only the neck turns. */
+    static boolean isNeckBound(EntityTraveller mob) {
+        return mob.isRiding() || !mob.getNavigator().noPath();
     }
 }
