@@ -25,6 +25,16 @@ public class EquipDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Show the equipment a culture can get";
+    }
+
+    @Override
+    public String usage() {
+        return "<culture>";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeEquipDebug(sender, args);
         return true;

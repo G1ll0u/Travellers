@@ -36,7 +36,7 @@ import java.util.WeakHashMap;
 /**
  * Always-on detector of mass freezes: many loaded units that should be moving but are not, or many
  * loaded units that no longer tick at all. Writes one snapshot per episode to
- * {@code logs/travellers-profile/freeze_*.txt}. A unit that is legitimately idle (no order, resting,
+ * {@code logs/travellers/profile/freeze_*.txt}. A unit that is legitimately idle (no order, resting,
  * archer at range, hired worker in combat whose attitude decides) is never counted. Server thread only.
  */
 public final class FreezeWatchdog {
@@ -300,7 +300,7 @@ public final class FreezeWatchdog {
     }
 
     private static File newFile(MinecraftServer server) throws IOException {
-        File dir = new File(server.getDataDirectory(), "logs/travellers-profile");
+        File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.PROFILE);
         Files.createDirectories(dir.toPath());
         String stamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(new Date());
         return new File(dir, "freeze_" + stamp + ".txt");

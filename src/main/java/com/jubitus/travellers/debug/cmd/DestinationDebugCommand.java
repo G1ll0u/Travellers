@@ -26,6 +26,16 @@ public class DestinationDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Destination choice reports and log";
+    }
+
+    @Override
+    public String usage() {
+        return "report [trials] [origins]|log [on|off|status]|<traveller>";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeDestinationDebug(sender, args);
         return true;
@@ -53,7 +63,7 @@ public class DestinationDebugCommand implements DebugSubcommand {
      * <ul>
      *   <li>{@code report [trials] [maxOrigins]} - synthetic sweep of the chooser over every nearby
      *       settlement (traveller + raider of its own culture), pick rates vs pool base rates, written
-     *       to {@code logs/travellers-destination/report_*.txt}. Instant, no waiting for real legs.</li>
+     *       to {@code logs/travellers/destination/report_*.txt}. Instant, no waiting for real legs.</li>
      *   <li>{@code log on|off|status} - toggle {@code DESTINATIONS.logChoices}, the per-decision CSV.</li>
      *   <li>{@code [name]} - explain one nearby traveller's <em>last</em> real choice (only populated
      *       after that entity has actually completed a leg, so usually empty).</li>
@@ -92,7 +102,7 @@ public class DestinationDebugCommand implements DebugSubcommand {
         if (arg.equals("on")) {
             com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.logChoices = true;
             sender.sendMessage(new TextComponentString(TextFormatting.GREEN
-                    + "Destination choice logging ON -> logs/travellers-destination/choices_*.csv "
+                    + "Destination choice logging ON -> logs/travellers/destination/choices_*.csv "
                     + "(new file each session). Turn off with 'destination log off'."));
         } else if (arg.equals("off")) {
             com.jubitus.travellers.config.TravellersConfig.DESTINATIONS.logChoices = false;
@@ -157,7 +167,7 @@ public class DestinationDebugCommand implements DebugSubcommand {
         }
 
         // Full per-origin table to a file for hand-off.
-        File dir = new File("logs/travellers-destination");
+        File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.DESTINATION);
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
         String ts = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.ROOT)

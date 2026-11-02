@@ -27,6 +27,16 @@ public class VillageDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Village visit tools";
+    }
+
+    @Override
+    public String usage() {
+        return "show|hide|here|needs|visit <name>";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeVillageDebug(sender, args);
         return true;

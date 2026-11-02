@@ -194,7 +194,7 @@ public final class PathTestManager {
                 + (mount ? (mounted ? " (mounted)" : " (mount request FAILED, testing on foot)") : "")
                 + (forceWaypoints ? " (following " + st.marks.size() + " hand-marked waypoint(s))" : "")
                 + (session != null
-                        ? ", tracing to logs/travellers-trace/" + session.getFile().getName()
+                        ? ", tracing to logs/travellers/trace/" + session.getFile().getName()
                         : " - WARNING: trace could not start");
     }
 

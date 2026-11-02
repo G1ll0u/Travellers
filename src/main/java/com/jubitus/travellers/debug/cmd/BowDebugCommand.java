@@ -23,6 +23,16 @@ public class BowDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Archery debug";
+    }
+
+    @Override
+    public String usage() {
+        return "status";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeBowStatus(sender);
         return true;

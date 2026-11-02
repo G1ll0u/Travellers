@@ -17,7 +17,6 @@ import com.jubitus.jubiconfig.JubiConfig;
 import com.jubitus.jubiconfig.command.CommandModConfig;
 import com.jubitus.travellers.config.TravellersConfig;
 import com.jubitus.travellers.config.TravellersDerivedConfig;
-import com.jubitus.travellers.command.CommandDumpCultureItems;
 import com.jubitus.travellers.command.CommandGlowTravellers;
 import com.jubitus.travellers.command.CommandMountTraveller;
 import com.jubitus.travellers.command.CommandSummonRaiders;
@@ -25,7 +24,6 @@ import com.jubitus.travellers.command.CommandSummonWorkers;
 import com.jubitus.travellers.command.CommandTravellerCount;
 import com.jubitus.travellers.debug.CommandTravellerDebug;
 import com.jubitus.travellers.command.CommandTravellerReload;
-import com.jubitus.travellers.command.CommandTravellerRouteDump;
 import com.jubitus.travellers.command.CommandTravellersShelter;
 import com.jubitus.travellers.command.TravellerCommandChunks;
 import com.jubitus.travellers.net.TravellersNetwork;
@@ -88,11 +86,9 @@ public class Travellers {
         event.registerServerCommand(new CommandMountTraveller());
         event.registerServerCommand(new CommandTravellerDebug());
         event.registerServerCommand(new com.jubitus.travellers.command.CommandTravellersShelter());
-        event.registerServerCommand(new CommandDumpCultureItems());
         event.registerServerCommand(new TravellerCommandChunks());
         event.registerServerCommand(new CommandSummonWorkers());
         event.registerServerCommand(new CommandSummonRaiders());
-        event.registerServerCommand(new CommandTravellerRouteDump());
         event.registerServerCommand(new CommandModConfig());
     }
 

@@ -23,6 +23,16 @@ public class MountDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Horse mount tests";
+    }
+
+    @Override
+    public String usage() {
+        return "give|ride|lead|hitch";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeMountDebug(sender, args);
         return true;

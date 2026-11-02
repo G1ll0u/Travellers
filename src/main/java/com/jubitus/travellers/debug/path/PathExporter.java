@@ -43,16 +43,15 @@ public final class PathExporter {
     private static final double MIN_STEP_BLOCKS = 3.0D;
 
     public static File traceFolder(MinecraftServer server) {
-        return new File(server.getDataDirectory(), "logs/travellers-trace");
+        return com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.TRACE);
     }
 
     private static File pathsFolder(MinecraftServer server) {
-        File dir = new File(traceFolder(server), "paths");
-        dir.mkdirs();
+        File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.PATHS);
         return dir;
     }
 
-    /** Resolves a trace file argument: a bare filename is looked up under logs/travellers-trace,
+    /** Resolves a trace file argument: a bare filename is looked up under logs/travellers/trace,
      * anything else is tried as a path as-given. */
     public static File resolveTraceFile(MinecraftServer server, String fileArg) throws CommandException {
         File direct = new File(fileArg);

@@ -29,6 +29,16 @@ public class SoundDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Sound stress tests";
+    }
+
+    @Override
+    public String usage() {
+        return "stress|rapidfire";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         String sub = args.length >= 2 ? args[1].toLowerCase() : "stress";
         executeSoundDebug(server, sender, sub);

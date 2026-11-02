@@ -27,7 +27,7 @@ final class ProfileReport {
 
     @Nullable
     static File write(MinecraftServer server, ProfileSession s, long now, boolean fin) {
-        File dir = new File(server.getDataDirectory(), "logs/travellers-profile");
+        File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.PROFILE);
         if (!dir.exists() && !dir.mkdirs()) {
             FMLLog.log(Level.WARN, "[Travellers/Profile] could not create %s", dir.getAbsolutePath());
             return null;

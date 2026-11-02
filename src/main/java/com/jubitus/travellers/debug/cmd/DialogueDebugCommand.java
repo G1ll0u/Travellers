@@ -22,6 +22,16 @@ public class DialogueDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "NPC dialogue tools";
+    }
+
+    @Override
+    public String usage() {
+        return "setup|memory dump [traveller]|memory clear [traveller]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         if (args.length >= 3 && args[1].equalsIgnoreCase("memory") && args[2].equalsIgnoreCase("dump")) {
             executeDialogueMemoryDump(sender, args);

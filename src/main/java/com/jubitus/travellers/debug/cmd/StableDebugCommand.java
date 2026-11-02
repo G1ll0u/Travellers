@@ -24,6 +24,16 @@ public class StableDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Inspect Stables";
+    }
+
+    @Override
+    public String usage() {
+        return "list|dump <n>|log <n> [count]|verify <n>";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeStableDebug(server, sender, args);
         return true;

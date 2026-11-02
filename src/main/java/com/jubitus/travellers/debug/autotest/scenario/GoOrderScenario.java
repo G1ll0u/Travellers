@@ -30,7 +30,7 @@ public final class GoOrderScenario extends AutotestScenario {
     private static final int ARRIVAL_MARGIN = 2;
     /** The worker is virtualized (or saved) once it has covered this much of the way. */
     private static final double MIDWAY_BLOCKS = 12.0D;
-    private static final File RESTART_FILE = new File("logs/travellers-autotest/restart-go.properties");
+    private static final File RESTART_FILE = new File(com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.AUTOTEST), "restart-go.properties");
 
     private final Mode mode;
     private UUID workerId;

@@ -10,7 +10,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
-/** One report file per server session in logs/travellers-autotest/; every autotest check appends to it. */
+/** One report file per server session in logs/travellers/autotest/; every autotest check appends to it. */
 public final class AutotestReport {
 
     private static File file;
@@ -20,7 +20,7 @@ public final class AutotestReport {
 
     public static File file() {
         if (file == null) {
-            File dir = new File("logs/travellers-autotest");
+            File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.AUTOTEST);
             dir.mkdirs();
             file = new File(dir, new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".txt");
         }

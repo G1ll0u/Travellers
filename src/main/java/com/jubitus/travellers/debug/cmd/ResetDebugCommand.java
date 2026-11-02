@@ -27,6 +27,16 @@ public class ResetDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Remove every non-hired unit";
+    }
+
+    @Override
+    public String usage() {
+        return "[workers]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         if (args.length >= 2 && args[1].equalsIgnoreCase("workers")) {
             executeResetWorkers(server, sender);

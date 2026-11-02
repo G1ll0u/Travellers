@@ -25,6 +25,16 @@ public class TraceDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Record one unit's movement, tick by tick";
+    }
+
+    @Override
+    public String usage() {
+        return "start [name]|stop [name|all]|list|channels [list]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeTrace(sender, args);
         return true;
@@ -109,7 +119,7 @@ public class TraceDebugCommand implements DebugSubcommand {
             throw new CommandException("Already tracing " + target.getName() + " (or the file could not be created).");
         }
         sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Tracing " + target.getName()
-                + TextFormatting.GRAY + " -> logs/travellers-trace/" + session.getFile().getName()));
+                + TextFormatting.GRAY + " -> logs/travellers/trace/" + session.getFile().getName()));
     }
 
     /** Channel names plus "all", and the current selection with one more appended - so building a

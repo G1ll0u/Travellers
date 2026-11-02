@@ -1,9 +1,8 @@
-package com.jubitus.travellers.command;
+package com.jubitus.travellers.debug.cmd;
 
 import com.jubitus.travellers.travel.EntityAITravel;
 import com.jubitus.travellers.unit.EntityTraveller;
 import com.jubitus.travellers.pathing.MPBIntegration;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -13,7 +12,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.WorldServer;
-import net.minecraftforge.fml.common.Loader;
+import com.jubitus.travellers.debug.DebugFiles;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -25,31 +24,26 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
-/**
- * /travellerroutedump — exports the MPB road route of the nearest traveller
- * (within 64 blocks) to config/travellers/debug/.
- *
- * Usage: /travellerroutedump [radius]
- */
-public class CommandTravellerRouteDump extends CommandBase {
+/** `/travellersdebug routedump [radius]`: writes the MPB road route of the nearest traveller to logs/travellers/dumps/. */
+public class RouteDumpDebugCommand implements DebugSubcommand {
 
     @Override
-    public String getName() {
-        return "travellerroutedump";
+    public String name() {
+        return "routedump";
     }
 
     @Override
-    public String getUsage(ICommandSender sender) {
-        return "/travellerroutedump [searchRadius=64]";
+    public String description() {
+        return "Write the road route of the nearest traveller to a file";
     }
 
     @Override
-    public int getRequiredPermissionLevel() {
-        return 2;
+    public String usage() {
+        return "[searchRadius]";
     }
 
     @Override
-    public void execute(MinecraftServer server, ICommandSender sender, String[] args)
+    public boolean execute(MinecraftServer server, ICommandSender sender, String[] args)
             throws CommandException {
 
         if (!(sender instanceof EntityPlayerMP)) {
@@ -61,11 +55,11 @@ public class CommandTravellerRouteDump extends CommandBase {
         BlockPos playerPos = player.getPosition();
 
         int radius = 64;
-        if (args.length >= 1) {
+        if (args.length >= 2) {
             try {
-                radius = Math.max(4, Math.min(512, Integer.parseInt(args[0])));
+                radius = Math.max(4, Math.min(512, Integer.parseInt(args[1])));
             } catch (NumberFormatException e) {
-                throw new CommandException("Invalid radius: " + args[0]);
+                throw new CommandException("Invalid radius: " + args[1]);
             }
         }
 
@@ -93,14 +87,7 @@ public class CommandTravellerRouteDump extends CommandBase {
         }
 
         // Prepare output directory
-        File configDir = Loader.instance().getConfigDir();
-        if (configDir == null) {
-            throw new CommandException("Config dir is null; cannot write.");
-        }
-        File debugDir = new File(configDir, "travellers/debug");
-        if (!debugDir.exists() && !debugDir.mkdirs()) {
-            throw new CommandException("Could not create " + debugDir.getAbsolutePath());
-        }
+        File debugDir = DebugFiles.dir(DebugFiles.DUMPS);
 
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File outFile = new File(debugDir, "traveller_route_" + timestamp + ".txt");
@@ -115,6 +102,7 @@ public class CommandTravellerRouteDump extends CommandBase {
         sender.sendMessage(new TextComponentString(
                 TextFormatting.GREEN + "Route dump written: " +
                 TextFormatting.YELLOW + outFile.getAbsolutePath()));
+        return true;
     }
 
     private void dump(PrintWriter out, EntityTraveller mob, WorldServer world, BlockPos playerPos) {

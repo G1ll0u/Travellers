@@ -19,6 +19,16 @@ public class AutotestDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Server-side automated test scenarios";
+    }
+
+    @Override
+    public String usage() {
+        return "zone add <x> <z> <radiusChunks>|zone clear|invariants|layout|forest <x1> <z1> <x2> <z2> [solo] [followers] [seconds]|forest status|forest stop|run <scenario|all> <x> <z>|run status|run stop";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeAutotest(server, sender, args);
         return true;
@@ -26,7 +36,13 @@ public class AutotestDebugCommand implements DebugSubcommand {
 
     @Override
     public List<String> suggestions(ICommandSender sender, String[] args) {
-        if (args.length == 2) return getListOfStringsMatchingLastWord(args, "zone", "invariants", "forest", "run");
+        if (args.length == 2) return getListOfStringsMatchingLastWord(args, "zone", "invariants", "layout", "forest", "run");
+        if (args.length == 3) {
+            if (args[1].equalsIgnoreCase("zone")) return getListOfStringsMatchingLastWord(args, "add", "clear");
+            if (args[1].equalsIgnoreCase("forest") || args[1].equalsIgnoreCase("run")) {
+                return getListOfStringsMatchingLastWord(args, "status", "stop");
+            }
+        }
         return Collections.emptyList();
     }
 

@@ -22,6 +22,16 @@ public class RestSpotDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Rest spot discovery";
+    }
+
+    @Override
+    public String usage() {
+        return "here|stats|rescan";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) {
         if (!(sender instanceof EntityPlayerMP)) {
             sender.sendMessage(new TextComponentString(TextFormatting.RED + "Must be run by a player."));

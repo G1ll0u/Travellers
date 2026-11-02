@@ -18,7 +18,7 @@ import java.util.Map;
 import static net.minecraft.command.CommandBase.*;
 import static com.jubitus.travellers.debug.cmd.DebugCommandSupport.*;
 
-/** `/travellersdebug cultures`, also the default when no subcommand matches. */
+/** `/travellersdebug cultures`: writes the culture dump to logs/travellers/dumps/. */
 public class CultureDumpCommand implements DebugSubcommand {
 
     @Override
@@ -27,37 +27,38 @@ public class CultureDumpCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Write the culture dump file";
+    }
+
+    @Override
+    public String usage() {
+        return "";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+        File outFile = new File(com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.DUMPS),
+                "culture_dump.txt");
         try {
-            CultureRegistry.bootstrapAllMillenaireCultures();
-        } catch (Exception ex) {
-            sender.sendMessage(new TextComponentString(
-                    TextFormatting.RED + "Warning: error bootstrapping cultures: " + ex.getMessage()));
-        }
-
-        File configDir = Loader.instance().getConfigDir();
-        if (configDir == null) {
-            throw new CommandException("Config directory is null; cannot write debug file.");
-        }
-
-        File outFile = new File(configDir, "traveller_culture_dump.txt");
-
-        try (PrintWriter out = new PrintWriter(
-                new OutputStreamWriter(new FileOutputStream(outFile), StandardCharsets.UTF_8))) {
-
-            dumpEverything(out);
-
+            write(outFile);
         } catch (IOException e) {
-            throw new CommandException("Failed to write debug file: " + e.getMessage());
+            throw new CommandException("Failed to write " + outFile.getName() + ": " + e.getMessage());
         }
-
-        sender.sendMessage(new TextComponentString(
-                TextFormatting.GREEN + "Traveller debug exported to: " +
-                        TextFormatting.YELLOW + outFile.getAbsolutePath()));
+        sender.sendMessage(new TextComponentString(TextFormatting.GREEN + "Culture dump written: "
+                + TextFormatting.YELLOW + outFile.getAbsolutePath()));
         return true;
     }
 
-    private void dumpEverything(PrintWriter out) {
+    /** Also used by the export bundle. */
+    public static void write(File outFile) throws IOException {
+        CultureRegistry.bootstrapAllMillenaireCultures();
+        try (PrintWriter out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(outFile), StandardCharsets.UTF_8))) {
+            dumpEverything(out);
+        }
+    }
+
+    private static void dumpEverything(PrintWriter out) {
         out.println("Traveller / Raider Culture Debug Dump");
         out.println("====================================");
         out.println();
@@ -96,7 +97,7 @@ public class CultureDumpCommand implements DebugSubcommand {
         out.println("======= End of Dump =======");
     }
 
-    private void dumpCulture(PrintWriter out, CultureDef c) {
+    private static void dumpCulture(PrintWriter out, CultureDef c) {
         out.println("------------------------------------");
         out.println("Culture id     : " + c.id);
         out.println("Display name   : " + c.displayName);
@@ -146,7 +147,7 @@ public class CultureDumpCommand implements DebugSubcommand {
         out.println();
     }
 
-    private void dumpVoiceArray(PrintWriter out, String label, @Nullable SoundEvent[] arr) {
+    private static void dumpVoiceArray(PrintWriter out, String label, @Nullable SoundEvent[] arr) {
         if (arr == null || arr.length == 0) {
             out.println(label + ": (none)");
             return;

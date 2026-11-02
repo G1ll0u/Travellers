@@ -21,6 +21,16 @@ public class RelationsDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Millenaire relation between two villages";
+    }
+
+    @Override
+    public String usage() {
+        return "<homeX> <homeZ> <destX> <destZ>";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeRelationsDebug(sender, args);
         return true;

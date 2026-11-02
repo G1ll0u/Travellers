@@ -307,7 +307,7 @@ public final class TravellerTracer {
     private static File resolveFolder(@Nullable MinecraftServer server) {
         if (folder != null) return folder;
         if (server == null) return null;
-        File dir = new File(server.getDataDirectory(), "logs/travellers-trace");
+        File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.TRACE);
         if (!dir.exists() && !dir.mkdirs()) {
             FMLLog.log(Level.WARN, "[Travellers/Trace] could not create %s", dir.getAbsolutePath());
             return null;

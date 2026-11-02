@@ -28,6 +28,16 @@ public class MapDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "World map sweeps and statistics";
+    }
+
+    @Override
+    public String usage() {
+        return "resweep [all|cancel]|stats [reset]|streams [start|stop|report]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         if (args.length >= 2 && args[1].equalsIgnoreCase("stats")) {
             executeMapStats(sender, args.length >= 3 && args[2].equalsIgnoreCase("reset"));

@@ -184,7 +184,7 @@ public class CommandSummonWorkers extends CommandBase {
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args,
                                           @Nullable BlockPos targetPos) {
-        if (args.length < 2) return java.util.Collections.emptyList();
+        if (args.length < 2) return getListOfStringsMatchingLastWord(args, "1", "5", "10");
         List<String> options = new ArrayList<>();
         for (SummonLoadout.Gear g : SummonLoadout.Gear.values()) options.add("gear=" + lower(g));
         for (SummonLoadout.Weapon w : SummonLoadout.Weapon.values()) options.add("weapon=" + lower(w));

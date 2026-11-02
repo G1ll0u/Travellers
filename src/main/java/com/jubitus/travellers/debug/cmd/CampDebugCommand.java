@@ -24,6 +24,16 @@ public class CampDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Inspect and reset camps";
+    }
+
+    @Override
+    public String usage() {
+        return "[here|recompute|join <n> [culture] [TRAVELLER|RAIDER]|leave|reset [all]]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeCampList(server, sender, args);
         return true;
@@ -32,6 +42,11 @@ public class CampDebugCommand implements DebugSubcommand {
     @Override
     public List<String> suggestions(ICommandSender sender, String[] args) {
         if (args.length == 2) return getListOfStringsMatchingLastWord(args, "here", "recompute", "join", "leave", "reset");
+        if (args.length == 4 && args[1].equalsIgnoreCase("join")) {
+            return getListOfStringsMatchingLastWord(args, com.jubitus.travellers.unit.culture.CultureRegistry.all().stream()
+                    .map(c -> c.id).collect(java.util.stream.Collectors.toList()));
+        }
+        if (args.length == 5 && args[1].equalsIgnoreCase("join")) return getListOfStringsMatchingLastWord(args, "TRAVELLER", "RAIDER");
         if (args.length == 3 && args[1].equalsIgnoreCase("reset")) return getListOfStringsMatchingLastWord(args, "all");
         return Collections.emptyList();
     }

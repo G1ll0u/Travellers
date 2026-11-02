@@ -306,4 +306,29 @@ public class CommandTravellersShelter extends CommandBase {
     private static void msg(ICommandSender sender, TextFormatting color, String text) {
         sender.sendMessage(new TextComponentString(color + text));
     }
+
+    @Override
+    public java.util.List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args,
+                                                    @javax.annotation.Nullable BlockPos targetPos) {
+        if (args.length == 1) {
+            return getListOfStringsMatchingLastWord(args, "create", "list", "reload", "test", "clear", "import");
+        }
+        String sub = args[0].toLowerCase(Locale.ROOT);
+        if (args.length == 4 && sub.equals("create")) {
+            return getListOfStringsMatchingLastWord(args, "NORTH", "EAST", "SOUTH", "WEST");
+        }
+        if (args.length == 3 && sub.equals("create") || args.length == 3 && sub.equals("import")) {
+            return getListOfStringsMatchingLastWord(args, com.jubitus.travellers.unit.culture.CultureRegistry.all().stream()
+                    .map(c -> c.id).collect(java.util.stream.Collectors.toList()));
+        }
+        if (args.length == 2 && (sub.equals("test") || sub.equals("import"))) {
+            java.util.Set<String> names = new java.util.TreeSet<>();
+            for (java.util.List<ShelterTemplate> list : ShelterTemplateRegistry.view().values()) {
+                for (ShelterTemplate t : list) names.add(t.name);
+            }
+            return getListOfStringsMatchingLastWord(args, names);
+        }
+        if (args.length == 3 && sub.equals("test")) return getListOfStringsMatchingLastWord(args, "all");
+        return java.util.Collections.emptyList();
+    }
 }

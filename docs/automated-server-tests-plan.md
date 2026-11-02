@@ -79,7 +79,7 @@ One script (`tools/servertest/servertest.py`), one verb per call, each printing 
   Each failure names the mod code path that placed the unit. Watchers only run under `-Dtravellers.autotest=true`.
 - `soak <minutes>` — zones + profiler + periodic invariants; writes one report.
 - `run <scenario|all>` — scripted scenarios (below); each has setup, a tick budget and an outcome check.
-- Every command answers in one line and writes `logs/travellers-autotest/<run>.txt`: one line per check,
+- Every command answers in one line and writes `logs/travellers/autotest/<run>.txt`: one line per check,
   `PASS`/`FAIL reason`, and the trace file of the unit involved when it failed.
 
 ### Scenarios (first batch) — status: todo

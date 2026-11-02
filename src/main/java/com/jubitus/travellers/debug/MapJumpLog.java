@@ -34,7 +34,7 @@ import java.util.UUID;
 
 /**
  * While any worldmap is open, samples every unit (loaded or virtual) once per map update and writes
- * to logs/travellers-mapjumps.log each move faster than any unit may legitimately go, with the
+ * to logs/travellers/mapjumps.log each move faster than any unit may legitimately go, with the
  * loaded/virtual hand-off and the materialize placement that explain it.
  */
 @Mod.EventBusSubscriber(modid = Tags.MOD_ID)
@@ -236,7 +236,7 @@ public final class MapJumpLog {
         if (++linesThisMinute > MAX_LINES_PER_MINUTE) return;
         try {
             if (writer == null) {
-                File file = new File(server.getDataDirectory(), "logs/travellers-mapjumps.log");
+                File file = com.jubitus.travellers.debug.DebugFiles.file("mapjumps.log");
                 file.getParentFile().mkdirs();
                 writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
                 writer.write("# map opened " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date())

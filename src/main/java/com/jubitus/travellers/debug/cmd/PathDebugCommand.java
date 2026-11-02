@@ -29,6 +29,16 @@ public class PathDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Path A/B testing against a hand-marked route";
+    }
+
+    @Override
+    public String usage() {
+        return "pos1|pos2|mark|clearmarks|save [name]|load [name]|test [--mount] [--waypoints]|stop|show --marks|show --trace <file>|export <name> [traceFile]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executePathDebug(sender, args);
         return true;

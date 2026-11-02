@@ -53,7 +53,7 @@ public final class DialoguePromptDebugDumper {
     public static DialoguePromptDebugDumper openIfEnabled(String travellerName, UUID travellerUuid, DialogueContext context) {
         if (!DialogueClientSettings.isDebugDumpEnabled()) return null;
         try {
-            File dir = new File(Minecraft.getMinecraft().gameDir, "logs/travellers-dialogue-debug");
+            File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.DIALOGUE);
             if (!dir.exists() && !dir.mkdirs()) {
                 LOGGER.warn("Could not create {}", dir);
                 return null;

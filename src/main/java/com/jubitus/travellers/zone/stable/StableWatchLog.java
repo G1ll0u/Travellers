@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * long-run test can be checked for the two staying in step just by reading the log.
  *
  * <p>Always kept in a small in-memory ring per zone (readable with {@code /travellersdebug stable
- * log}); also appended to {@code logs/travellers-stable/<name>_<id8>.log} when
+ * log}); also appended to {@code logs/travellers/stable/<name>_<id8>.log} when
  * {@code STABLES.debugLog} is on. Costs nothing when nothing happens.
  */
 public final class StableWatchLog {
@@ -138,7 +138,7 @@ public final class StableWatchLog {
         try {
             Writer w = WRITERS.get(zone.id);
             if (w == null) {
-                File dir = new File(world.getMinecraftServer().getDataDirectory(), "logs/travellers-stable");
+                File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.STABLE);
                 if (!dir.exists() && !dir.mkdirs()) return;
                 String name = (zone.name == null || zone.name.isEmpty()) ? "Stable" : zone.name;
                 name = name.replaceAll("[^A-Za-z0-9_-]", "_");

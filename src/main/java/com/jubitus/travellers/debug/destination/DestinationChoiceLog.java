@@ -14,7 +14,7 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * Appends every regionalized destination choice to a CSV under {@code logs/travellers-destination/}
+ * Appends every regionalized destination choice to a CSV under {@code logs/travellers/destination/}
  * when {@code DESTINATIONS.logChoices} is on - the analysable artifact for checking, against real
  * play, that travellers/raiders actually weight culture / relation / population / roads / corridor.
  *
@@ -122,7 +122,7 @@ public final class DestinationChoiceLog {
     private static PrintWriter ensureOpen() {
         if (writer != null) return writer;
         try {
-            File dir = new File("logs/travellers-destination");
+            File dir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.DESTINATION);
             //noinspection ResultOfMethodCallIgnored
             dir.mkdirs();
             String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(new Date());

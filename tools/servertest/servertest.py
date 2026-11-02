@@ -78,7 +78,7 @@ WORKTREES = STATE / "worktrees"
 # Mod settings forced on the copy before every start. No player ever joins it, and the default pauses the
 # whole offscreen simulation on an empty server.
 TEST_OVERRIDES = {"OFFSCREEN.pauseWhenServerEmpty": "false",
-                  # Stalls are captured into logs/travellers-trace on their own, so a run leaves traces to read.
+                  # Stalls are captured into logs/travellers/trace on their own, so a run leaves traces to read.
                   "TRACE.autoCapture": "true"}
 
 
@@ -427,7 +427,7 @@ def soak(args):
     if not m:
         die("profile stop: " + reply)
     metrics = {}
-    for line in (SERVER / "logs/travellers-profile" / (m.group(1) + ".metrics")).read_text().splitlines():
+    for line in (SERVER / "logs/travellers/profile" / (m.group(1) + ".metrics")).read_text().splitlines():
         k, v = line.split("=", 1)
         metrics[k] = float(v)
     if tick_ms:
@@ -450,7 +450,7 @@ def soak(args):
         print(f"A player was online {player_minutes}/{minutes} min: numbers include their area")
     if fails:
         print("Invariant failures: " + str(SERVER / report))
-    print(f"Profile: logs/travellers-profile/{m.group(1)}.txt | metrics: {out}")
+    print(f"Profile: logs/travellers/profile/{m.group(1)}.txt | metrics: {out}")
 
 
 def cmd_forest(args):
@@ -487,7 +487,7 @@ def forest(args):
     out.write_text(f"# {deployed}\n" + "".join(r + "\n" for r in results))
     for r in results:
         print(r)
-    print(f"Per rider: logs/travellers-autotest (latest file) | summary: {out}")
+    print(f"Per rider: logs/travellers/autotest (latest file) | summary: {out}")
     return out
 
 
@@ -525,7 +525,7 @@ def scenarios(args):
     out.write_text(f"# {deployed}\n" + "\n".join(parts) + "\n")
     for line in parts:
         print(line)
-    print(f"Details: logs/travellers-autotest (latest file) | summary: {out}")
+    print(f"Details: logs/travellers/autotest (latest file) | summary: {out}")
     return out
 
 

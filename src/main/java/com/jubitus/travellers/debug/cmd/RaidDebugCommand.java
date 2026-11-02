@@ -20,6 +20,16 @@ public class RaidDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Trigger or end a raid";
+    }
+
+    @Override
+    public String usage() {
+        return "now|status|end";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         if (!(sender.getCommandSenderEntity() instanceof EntityPlayerMP)) {
             throw new CommandException("Run this as a player.");

@@ -99,4 +99,14 @@ public class CommandGlowTravellers extends net.minecraft.command.CommandBase {
     public int getRequiredPermissionLevel() {
         return 2;
     } // ops
+
+    @Override
+    public java.util.List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args,
+                                                    @javax.annotation.Nullable net.minecraft.util.math.BlockPos targetPos) {
+        if (args.length == 1) return getListOfStringsMatchingLastWord(args, "off", "10", "30", "60", "300");
+        if (args.length == 2 && !"off".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, net.minecraft.util.text.TextFormatting.getValidValues(true, false));
+        }
+        return java.util.Collections.emptyList();
+    }
 }

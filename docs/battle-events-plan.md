@@ -38,7 +38,7 @@ never produces fake battles; the player reads a battle at a glance (map marker a
 
 ## Steps
 
-0. **Instrument** — `logs/travellers-battles.log`: create / reopen / merge (or refused, why) / end (reason, counts),
+0. **Instrument** — `logs/travellers/battles.log`: create / reopen / merge (or refused, why) / end (reason, counts),
    pawns marked absent, owner notices (online/offline); only battles with henchmen or players. Status: done.
 1. **Absent is not dead** — a loaded participant missing from the world stays standing and untargeted, so its side
    is never emptied by it; the battle then ends by lull. Status: done, to verify in the log.

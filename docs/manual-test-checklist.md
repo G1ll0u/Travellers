@@ -173,7 +173,7 @@ Ces éléments sont identifiés comme pas encore corrigés ou pas encore testés
 
 - Lance une trace sur l'entité concernée : `/travellersdebug trace start <nom>` (ou attends —
   une capture automatique se déclenche déjà si elle reste bloquée trop longtemps)
-- Le fichier généré est dans `logs/travellers-trace/`
+- Le fichier généré est dans `logs/travellers/trace/`
 - Pour un problème de monture : `/travellersdebug mount`
 - Pour un problème de Stable : `/travellersdebug stable dump <n>` et `log <n>`
 - Note les coordonnées, l'heure en jeu, et ce que tu faisais juste avant

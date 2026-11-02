@@ -21,6 +21,16 @@ public class ProfileDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Movement health report for all units";
+    }
+
+    @Override
+    public String usage() {
+        return "start|stop|report|status";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeProfile(server, sender, args);
         return true;
@@ -47,7 +57,7 @@ public class ProfileDebugCommand implements DebugSubcommand {
                 if (f == null) throw new CommandException("Could not write the report, see the server log.");
                 sender.sendMessage(new TextComponentString(TextFormatting.GREEN
                         + (sub.equals("stop") ? "Movement profile stopped. " : "Report written. ")
-                        + TextFormatting.GRAY + "logs/travellers-profile/" + f.getName()));
+                        + TextFormatting.GRAY + "logs/travellers/profile/" + f.getName()));
                 return;
             }
             case "status": {

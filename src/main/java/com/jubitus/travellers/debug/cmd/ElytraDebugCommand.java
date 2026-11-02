@@ -29,6 +29,16 @@ public class ElytraDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Elytra flight tests";
+    }
+
+    @Override
+    public String usage() {
+        return "[distance]|give [radius] [rockets]|status";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeElytraDebug(sender, args);
         return true;

@@ -24,6 +24,16 @@ public class TerrainDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "Terrain grid inspection and export";
+    }
+
+    @Override
+    public String usage() {
+        return "[region] <x> <z>|export [radius] [mode] [fill]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeTerrainDebug(sender, args);
         return true;

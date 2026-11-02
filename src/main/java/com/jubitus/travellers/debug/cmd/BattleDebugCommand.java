@@ -25,6 +25,16 @@ public class BattleDebugCommand implements DebugSubcommand {
     }
 
     @Override
+    public String description() {
+        return "List and manage virtual battles";
+    }
+
+    @Override
+    public String usage() {
+        return "[list|info <n>|end <n>|spawnfight [x z]|loot]";
+    }
+
+    @Override
     public boolean execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
         executeBattle(sender, args);
         return true;

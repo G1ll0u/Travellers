@@ -69,5 +69,10 @@ public class CommandMountTraveller extends CommandBase {
     public int getRequiredPermissionLevel() {
         return 0; // let anyone use it; change to 2 if you want OP-only
     }
-}
 
+    @Override
+    public java.util.List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args,
+                                                    @javax.annotation.Nullable net.minecraft.util.math.BlockPos targetPos) {
+        return args.length == 1 ? getListOfStringsMatchingLastWord(args, "3.5", "8", "16") : java.util.Collections.emptyList();
+    }
+}

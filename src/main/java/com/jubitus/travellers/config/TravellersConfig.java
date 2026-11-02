@@ -55,7 +55,7 @@ public class TravellersConfig {
     public static final Raids RAIDS = new Raids();
 
     public static class Trace {
-        @Config.Comment("Record what an individual traveller is doing, tick by tick, into its own file under logs/travellers-trace. Use /travellersdebug trace to pick one.")
+        @Config.Comment("Record what an individual traveller is doing, tick by tick, into its own file under logs/travellers/trace. Use /travellersdebug trace to pick one.")
         public boolean enabled = false;
 
         @Config.Comment("Start recording on its own when a traveller gets stuck, so a problem that only happens to a few of them is captured even when you are not watching.")
@@ -1494,7 +1494,7 @@ public class TravellersConfig {
         @Config.Comment("Print destination-choice debug logs to the server console.")
         public boolean regionDebug = false;
 
-        @Config.Comment("Write every destination choice (shortlist + per-term values) to a CSV in logs/travellers-destination/ so the maths can be checked against real play.")
+        @Config.Comment("Write every destination choice (shortlist + per-term values) to a CSV in logs/travellers/destination/ so the maths can be checked against real play.")
         public boolean logChoices = false;
     }
 
@@ -1976,7 +1976,7 @@ public class TravellersConfig {
         @Config.Comment("Notify the owner when a foal is born at their Stable.")
         public boolean notifyOnBirth = true;
 
-        @Config.Comment("Keep a running log file per Stable (logs/travellers-stable/) recording every taming, saddling, birth and a periodic head-count, each tagged loaded or offscreen - for checking the two stay in step over a long test. Also readable in-game with /travellersdebug stable log.")
+        @Config.Comment("Keep a running log file per Stable (logs/travellers/stable/) recording every taming, saddling, birth and a periodic head-count, each tagged loaded or offscreen - for checking the two stay in step over a long test. Also readable in-game with /travellersdebug stable log.")
         public boolean debugLog = false;
 
         @Config.Comment("How often (in ticks) the Stable debug log writes a head-count snapshot line.")

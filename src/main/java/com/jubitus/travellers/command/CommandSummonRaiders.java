@@ -84,6 +84,7 @@ public class CommandSummonRaiders extends CommandBase {
                                           ICommandSender sender,
                                           String[] args,
                                           @Nullable BlockPos targetPos) {
+        if (args.length == 1) return getListOfStringsMatchingLastWord(args, "1", "5", "10");
         if (args.length == 2) {
             return getListOfStringsMatchingLastWord(args, server.getOnlinePlayerNames());
         }

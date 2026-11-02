@@ -131,7 +131,7 @@ public final class TerrainProfileImageExport {
         int playerCellX = TerrainProfile.cellCoord(centerX);
         int playerCellZ = TerrainProfile.cellCoord(centerZ);
 
-        File outDir = new File(server.getDataDirectory(), "logs/travellers-terrain");
+        File outDir = com.jubitus.travellers.debug.DebugFiles.dir(com.jubitus.travellers.debug.DebugFiles.TERRAIN);
         //noinspection ResultOfMethodCallIgnored
         outDir.mkdirs();
         String stamp = new SimpleDateFormat("HHmmss").format(new Date());

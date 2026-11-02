@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Always-on battle lifecycle log, {@code logs/travellers-battles.log} (previous server run in {@code .old.log}), for battles with henchmen or players: reopen,
+ * Always-on battle lifecycle log, {@code logs/travellers/battles.log} (previous server run in {@code .old.log}), for battles with henchmen or players: reopen,
  * merges, pawns gone missing, the end with its reason and headcounts, and owner notices. Capped per minute.
  */
 public final class BattleLog {
@@ -81,12 +81,12 @@ public final class BattleLog {
         if (++linesThisMinute > MAX_LINES_PER_MINUTE) return;
         try {
             if (writer == null) {
-                File file = new File(server.getDataDirectory(), "logs/travellers-battles.log");
+                File file = com.jubitus.travellers.debug.DebugFiles.file("battles.log");
                 file.getParentFile().mkdirs();
                 if (!rotated) {
                     // One session per file: the previous one is kept once as .old.log.
                     rotated = true;
-                    File old = new File(file.getParentFile(), "travellers-battles.old.log");
+                    File old = new File(file.getParentFile(), "battles.old.log");
                     if (file.exists() && (!old.exists() || old.delete())) file.renameTo(old);
                 }
                 writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8));
