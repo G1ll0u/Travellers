@@ -19,7 +19,8 @@
   "client": [
     "MixinLayerHeldItem",
     "MixinModelHorse",
-    "MixinModelBoxAccessor"
+    "MixinModelBoxAccessor",
+    "MixinEntityArrowFirstTickSync"
   ],
   "server": []
 }
