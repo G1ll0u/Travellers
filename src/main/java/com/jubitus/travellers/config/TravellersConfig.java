@@ -177,7 +177,7 @@ public class TravellersConfig {
         public int mapResweepProgressIntervalTicks = 200;
 
         @Config.Comment("Reveal the entire generated worldmap to every player, bypassing per-player fog of war. Only affects visibility of tiles already present in the shared tile cache; does not force generation of unexplored areas. Turning it back off restores each player's own fog of war exactly as it was. Applies the next time a player (re)opens the map.")
-        public boolean showFullMap = true;
+        public boolean showFullMap = false;
 
         @Config.Comment("Max worldmap tiles kept in memory per zoom level on the client. Higher = smoother panning/zooming with less re-fetching, more client RAM used. Default: 128.")
         @Config.RangeInt(min = 16, max = 2048)
@@ -222,7 +222,7 @@ public class TravellersConfig {
 
         @Config.Comment("Radius (blocks) around each of a player's own alive hired units within which foreign travellers/raiders/workers and battles become visible on the map.")
         @Config.RangeInt(min = 8, max = 512)
-        public int hiredWorkerVisionRadius = 512;
+        public int hiredWorkerVisionRadius = 148;
 
         @Config.Comment("Show HP of discovered foreign entities on the map (own workers always show HP regardless of this setting).")
         public boolean revealForeignEntityHealth = false;
@@ -235,18 +235,18 @@ public class TravellersConfig {
 
         @Config.Comment("Global multiplier applied on top of every marker's size below. 1.0 = unchanged.")
         @Config.RangeDouble(min = 0.25, max = 4.0)
-        public double markerScaleGlobal = 1.2;
+        public double markerScaleGlobal = 1.0;
 
         @Config.Comment("Size (pixels) of the player marker.")
         @Config.RangeInt(min = 1, max = 32)
         public int playerMarkerSize = 7;
 
         @Config.Comment("Also show lone buildings (isolated Millénaire buildings) on your maps, once you have explored where they stand.")
-        public boolean showLoneBuildings = false;
+        public boolean showLoneBuildings = true;
 
         @Config.Comment("Size (pixels) of village and lone building icons.")
         @Config.RangeInt(min = 1, max = 32)
-        public int villageMarkerSize = 8;
+        public int villageMarkerSize = 10;
 
         @Config.Comment("Size (pixels) of home, group-leader and follower worker markers.")
         @Config.RangeInt(min = 1, max = 32)
@@ -262,7 +262,7 @@ public class TravellersConfig {
 
         @Config.Comment("Size (pixels) of camp firepit and camp shelter-slot markers.")
         @Config.RangeInt(min = 1, max = 32)
-        public int campMarkerSize = 1;
+        public int campMarkerSize = 4;
 
         @Config.Comment("Size (pixels) of destination-cross and battle markers.")
         @Config.RangeInt(min = 1, max = 32)
@@ -622,7 +622,7 @@ public class TravellersConfig {
 
         @Config.Comment("Extra melee reach (blocks) added on top of hitbox contact distance, for all traveller types.")
         @Config.RangeDouble(min = 0.0, max = 3.0)
-        public double meleeReachBonus = 0.13;
+        public double meleeReachBonus = 0.0;
 
         @Config.Comment("Additional melee reach (blocks) for raiders, on top of meleeReachBonus.")
         @Config.RangeDouble(min = 0.0, max = 3.0)
@@ -1140,7 +1140,7 @@ public class TravellersConfig {
 
         @Config.Comment("How fast a standing traveller's body turns to follow its head. Lower is calmer.")
         @Config.RangeDouble(min = 1.0, max = 30.0)
-        public double bodyTurnSpeed = 5.2;
+        public double bodyTurnSpeed = 6.0;
 
         @Config.Comment("How fast a halted rider turns its horse toward what it is looking at. Lower is calmer.")
         @Config.RangeDouble(min = 1.0, max = 20.0)
